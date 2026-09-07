@@ -19,7 +19,11 @@ export function resolveWorkspaceLocalhostLink(input: {
     machineId?: string | null;
 }): WorkspaceLocalhostLink | null {
     if (!input.originSessionId?.trim() || !input.machineId?.trim()) return null;
-    const url = normalizeWorkspaceLocalhostUrl(normalizeMarkdownLinkDestination(input.url));
+    // react-markdown encodes IPv6 host brackets. Restore only this loopback
+    // authority; decoding the whole destination would change paths and queries.
+    const destination = normalizeMarkdownLinkDestination(input.url)
+        .replace(/^(https?:\/\/)%5B::1%5D(?=[:/?#]|$)/i, '$1[::1]');
+    const url = normalizeWorkspaceLocalhostUrl(destination);
     return url ? {
         kind: 'localhost',
         originSessionId: input.originSessionId,

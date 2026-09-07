@@ -24,12 +24,24 @@ describe('chat localhost links', () => {
         });
     });
 
+    it.each(['http', 'https'])('restores Markdown-encoded IPv6 brackets for %s without decoding the resource', (protocol) => {
+        const resource = '/map%2Fdetail?q=a%26b#section%20one';
+        expect(resolveWorkspaceLocalhostLink({
+            ...provenance, url: `${protocol}://%5B::1%5D:8766${resource}`,
+        })).toEqual({
+            kind: 'localhost', ...provenance, url: `${protocol}://[::1]:8766${resource}`,
+        });
+    });
+
     it.each([
         'https://example.com/', 'http://localhost.example.com/',
         'http://localhost@evil.example/', 'http://user:password@localhost/',
         'http://127.1/', 'http://2130706433/', 'http://0x7f000001/',
         'file:///tmp/map.html', 'javascript:alert(1)', '//localhost:8766/map',
         'http://192.168.1.10/', 'http://localhost:99999/',
+        'http://%5B::1%5D.evil.example/', 'http://%5B::1%5D@evil.example/',
+        'http://user@%5B::1%5D/', 'http://%5B%3A%3A1%5D/',
+        'http://%6cocalhost/', 'http://%5B::2%5D/',
     ])('does not admit unsupported live target %s', (url) => {
         expect(resolveWorkspaceLocalhostLink({ ...provenance, url })).toBeNull();
     });

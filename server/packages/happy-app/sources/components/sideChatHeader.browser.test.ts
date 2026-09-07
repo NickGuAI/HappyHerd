@@ -67,6 +67,7 @@ const virtualModules: Record<string, string> = {
         export default Svg;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
+    '@react-navigation/native': `export const useIsFocused = () => true;`,
     'expo-router': `
         export const useRouter = () => ({ push() {}, back() { window.__NEW_SESSION_BACK__ = true; }, dismissTo() {} });
         export const useNavigation = () => ({ setOptions() {} });
@@ -271,6 +272,10 @@ const virtualModules: Record<string, string> = {
             purchases: { entitlements: {} },
             currentViewingSessionId: null,
             pathProjectFiles,
+            updateSessionDraft(sessionId, draft) {
+                sessions[sessionId] = { ...sessions[sessionId], draft };
+                emit();
+            },
             applyLocalSettings(update) { Object.assign(localSettings, update); emit(); },
             applyGitStatusFiles() {},
             applyProjectFiles(pathKey, result) { pathProjectFiles[pathKey] = result; emit(); },
@@ -641,7 +646,6 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
     '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
-    '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
     '@/hooks/useNewSessionDraft': `
         import React from 'react';
         const modelPicker = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
@@ -2485,8 +2489,14 @@ describe('Side chats browser interaction', () => {
         ['parent', '127.0.0.1', 1440, 900],
         ['parent', '[::1]', 1440, 900],
         ['child-newest', 'localhost', 1440, 900],
+        ['child-newest', '127.0.0.1', 1440, 900],
+        ['child-newest', '[::1]', 1440, 900],
         ['parent', 'localhost', 390, 844],
+        ['parent', '127.0.0.1', 390, 844],
+        ['parent', '[::1]', 390, 844],
         ['child-newest', 'localhost', 390, 844],
+        ['child-newest', '127.0.0.1', 390, 844],
+        ['child-newest', '[::1]', 390, 844],
     ] as const)('opens a real agent chat link in the owning Workspace (%s, %s, %s)', async (owner, host, width, height) => {
         const context = await browser.newContext({ viewport: { width, height } });
         const page = await context.newPage();
@@ -2527,9 +2537,19 @@ describe('Side chats browser interaction', () => {
             expect(calls.every((call: any) => call.machineId === expectedMachine && call.method === 'workspace-live-fetch')).toBe(true);
             expect(browserLoopbackRequests).toEqual([]);
             expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://example.com/docs']);
-            expect(await foreground.locator('textarea[data-localhost-draft="keep"]').inputValue()).toBe('Retain the chat draft');
             expect(await foreground.locator('iframe').count()).toBe(1);
             expect(await foreground.getByTestId('desktop-file-workspace-divider').count()).toBe(width >= 900 ? 1 : 0);
+            if (owner !== 'parent' && width >= 900) {
+                // Desktop Workspace replaces the Side chat sidebar. Reopening
+                // the child must hydrate its draft through the real useDraft.
+                await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+                await foreground.getByRole('link', { name: `Hosted page ${owner}`, exact: true }).waitFor();
+                expect(await foreground.locator('textarea').filter({ visible: true }).last().inputValue())
+                    .toBe('Retain the chat draft');
+            } else {
+                expect(await foreground.locator('textarea[data-localhost-draft="keep"]').inputValue())
+                    .toBe('Retain the chat draft');
+            }
             expect(errors).toEqual([]);
         } finally {
             await context.close();
