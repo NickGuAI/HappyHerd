@@ -316,6 +316,7 @@ export function getClaudeModelModes(): ModelMode[] {
 
 export function getCodexModelModes(): ModelMode[] {
     return [
+        { key: 'gpt-6-astra', name: 'gpt-6 astra', description: null, ...releaseModelDetails('codex', 'gpt-6-astra') },
         { key: 'gpt-5.6-sol', name: 'gpt-5.6 sol', description: null, ...releaseModelDetails('codex', 'gpt-5.6-sol') },
         { key: 'gpt-5.6-terra', name: 'gpt-5.6 terra', description: null, ...releaseModelDetails('codex', 'gpt-5.6-terra') },
         { key: 'gpt-5.6-luna', name: 'gpt-5.6 luna', description: null, ...releaseModelDetails('codex', 'gpt-5.6-luna') },
@@ -631,6 +632,7 @@ const AGY_EFFORTS_BY_MODEL: Record<string, readonly string[]> = {
 // Older/offline sessions retain the previously shipped Codex effort catalog.
 // Connected sessions use the exact machine's live model catalog below.
 const CODEX_EFFORTS_BY_MODEL: Record<string, readonly string[]> = {
+    'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     'gpt-5.6-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],

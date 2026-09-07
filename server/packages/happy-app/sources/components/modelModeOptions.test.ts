@@ -51,7 +51,6 @@ describe('modelModeOptions', () => {
         expect(getClaudeModelModes().find((model) => model.key === 'claude-fable-5-1'))
             .toMatchObject({ contextWindow: 1_000_000, providerId: 'anthropic' });
         expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
-        expect(getCodexModelModes().some((model) => model.key === 'gpt-6-astra')).toBe(false);
     });
 
     it('does not give Rig or unknown providers Claude static options', () => {
@@ -571,11 +570,12 @@ describe('modelModeOptions', () => {
     it('only offers the curated codex harness models, most capable first', () => {
         const models = getCodexModelModes();
         expect(models.map((model) => model.key)).toEqual([
+            'gpt-6-astra',
             'gpt-5.6-sol',
             'gpt-5.6-terra',
             'gpt-5.6-luna',
         ]);
-        expect(models[0].name).toBe('gpt-5.6 sol');
+        expect(models[0].name).toBe('gpt-6 astra');
     });
 
     it('builds Claude fallbacks from exact model slugs', () => {
@@ -603,6 +603,7 @@ describe('modelModeOptions', () => {
         const withCustom = includeConfiguredModel('codex', models, 'my-workspace-model', translate);
 
         expect(withCustom.map((model) => model.key)).toEqual([
+            'gpt-6-astra',
             'gpt-5.6-sol',
             'gpt-5.6-terra',
             'gpt-5.6-luna',
@@ -613,16 +614,16 @@ describe('modelModeOptions', () => {
             unavailable: true,
             disabled: true,
         });
-        expect(models).toHaveLength(3);
+        expect(models).toHaveLength(4);
         expect(includeConfiguredModel('claude', models, 'my-workspace-model', translate)).toBe(models);
     });
 
     it('offers every codex model the levels its own registry publishes', () => {
-        // The retained offline catalog advertises sol and terra with
+        // The retained offline catalog advertises astra, sol, and terra with
         // ultra, luna does not. The difference is the whole point of asking
         // per model rather than per flavor.
         expect(getEffortLevelsForModel('codex', 'gpt-6-astra').map((level) => level.key))
-            .toEqual(['low', 'medium', 'high', 'xhigh']);
+            .toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
         expect(getEffortLevelsForModel('codex', 'gpt-5.6-sol').map((level) => level.key))
             .toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
         expect(getEffortLevelsForModel('codex', 'gpt-5.6-terra').map((level) => level.key))

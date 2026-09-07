@@ -296,3 +296,4 @@ WORKSPACE_COMMENT_RETENTION	accepted	test(workspace): allow browser fixture star
 WORKSPACE_MOBILE_LAYOUT	accepted	fix(workspace): align compact previews and use 16px source text	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record reviewed September sync	docs/upstream-sync-2026-09-06.md
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(changelog): clarify CLI version reporting	server/packages/happy-app/sources/changelog/changelog.json
+CODEX_MODEL_CATALOG	accepted	fix(app): restore GPT-6 Astra atop the Codex model picker	server/packages/happy-app/sources/components/modelModeOptions.test.ts
