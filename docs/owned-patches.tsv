@@ -298,3 +298,4 @@ UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record reviewed September sync	d
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(changelog): clarify CLI version reporting	server/packages/happy-app/sources/changelog/changelog.json
 CODEX_MODEL_CATALOG	accepted	fix(app): restore GPT-6 Astra atop the Codex model picker	server/packages/happy-app/sources/components/modelModeOptions.test.ts
 CODEX_MODEL_CATALOG	accepted	fix(daemon): include GPT-6 Astra in the Codex fallback catalog	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+SESSION_ARCHIVE	accepted	feat(context): session archive skill and bundle v4 retrieval section	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
