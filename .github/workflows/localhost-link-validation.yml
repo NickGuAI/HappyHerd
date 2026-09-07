@@ -1,0 +1,24 @@
+name: Isolated localhost link verification
+on:
+  push:
+    branches: [work/localhost-link-validation]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Snapshot exact public source without Git configuration
+        run: |
+          git archive --format=tar.gz --output="$RUNNER_TEMP/happyherd-source.tar.gz" 9fd4dceecfafe66996ef1fad38d4ec0dbf003c08
+          sha256sum "$RUNNER_TEMP/happyherd-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: happyherd-source
+          path: ${{ runner.temp }}/happyherd-source.tar.gz
+          retention-days: 1
