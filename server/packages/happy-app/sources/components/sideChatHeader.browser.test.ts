@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright-core';
@@ -67,6 +67,7 @@ const virtualModules: Record<string, string> = {
         export default Svg;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
+    '@react-navigation/native': `export const useIsFocused = () => true;`,
     'expo-router': `
         export const useRouter = () => ({ push() {}, back() { window.__NEW_SESSION_BACK__ = true; }, dismissTo() {} });
         export const useNavigation = () => ({ setOptions() {} });
@@ -271,6 +272,10 @@ const virtualModules: Record<string, string> = {
             purchases: { entitlements: {} },
             currentViewingSessionId: null,
             pathProjectFiles,
+            updateSessionDraft(sessionId, draft) {
+                sessions[sessionId] = { ...sessions[sessionId], draft };
+                emit();
+            },
             applyLocalSettings(update) { Object.assign(localSettings, update); emit(); },
             applyGitStatusFiles() {},
             applyProjectFiles(pathKey, result) { pathProjectFiles[pathKey] = result; emit(); },
@@ -312,16 +317,20 @@ const virtualModules: Record<string, string> = {
                 ? { displayText: 'Visible browser context' }
                 : {}),
         }));
+        const localhostMessages = Object.fromEntries(Object.keys(sessions).map((id) => [id, [{
+            kind: 'agent-text', id: 'localhost-link-' + id, localId: null, createdAt: 1001,
+            text: '[Hosted page ' + id + '](' + (fixtureOptions.localhostUrl || 'http://localhost:8766/validation-map.html') + ') [External reference](https://example.com/docs)',
+        }]]));
         let messagesLoaded = fixtureOptions.providerContinuationMessagesLoaded !== false;
         export const __loadProviderContinuationMessages = () => {
             messagesLoaded = true;
             return messages;
         };
-        export const useSessionMessages = () => ({
+        export const useSessionMessages = (sessionId) => ({
             hasMoreOlder: false,
             isLoaded: messagesLoaded,
             isLoadingOlder: false,
-            messages: messagesLoaded ? messages : [],
+            messages: fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
         });
         export const useSessionPendingCommunications = () => [];
         export const useSessionProjectFiles = (sessionId) => React.useSyncExternalStore(
@@ -637,7 +646,6 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
     '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
-    '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
     '@/hooks/useNewSessionDraft': `
         import React from 'react';
         const modelPicker = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
@@ -968,6 +976,28 @@ const virtualModules: Record<string, string> = {
             onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action(),
         });
     `,
+    '@/utils/openExternalUrl': `
+        export const openExternalUrl = async (url) => {
+            window.__EXTERNAL_LINKS__ = [...(window.__EXTERNAL_LINKS__ ?? []), url];
+        };
+    `,
+    '@/sync/apiSocket': `
+        export const apiSocket = {
+            machineRPC: async (machineId, method, request) => {
+                window.__LOCALHOST_LINK_RPCS__ = [...(window.__LOCALHOST_LINK_RPCS__ ?? []), { machineId, method, url: request.url }];
+                const pathname = new URL(request.url).pathname;
+                if (method !== 'workspace-live-fetch' || !['machine-1', 'machine-newest'].includes(machineId)) {
+                    return { success: false, code: 'request-failed', error: 'Unexpected fixture machine' };
+                }
+                const body = pathname === '/state'
+                    ? 'Live from ' + machineId
+                    : '<!doctype html><html><body><button id="live-target">Waiting</button><script>fetch("/state").then(r=>r.text()).then(t=>document.getElementById("live-target").textContent=t)</script></body></html>';
+                return { success: true, status: 200, statusText: 'OK',
+                    headers: { 'content-type': pathname === '/state' ? 'text/plain' : 'text/html; charset=utf-8' },
+                    body: btoa(body), finalUrl: request.url };
+            },
+        };
+    `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
 };
 
@@ -981,6 +1011,15 @@ const fixturePlugin: Plugin = {
                 if (existsSync(webPath)) return { path: webPath };
             }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.path === './apiSocket' && args.importer.endsWith('/sync/workspaceLive.ts')) {
+                return { path: '@/sync/apiSocket', namespace: 'fixture-stub' };
+            }
+            if (args.path === '@/components/LocalhostLiveView') {
+                return { path: resolve(appRoot, 'sources/components/LocalhostLiveView.web.tsx') };
+            }
+            if (args.path === './markdown/MarkdownView') {
+                return { path: resolve(appRoot, 'sources/components/markdown/MarkdownView.web.tsx') };
+            }
             if (args.path === './MobileGlass') return { path: '@/components/MobileGlass', namespace: 'fixture-stub' };
             if (args.path === './BubblePressable') return { path: '@/components/BubblePressable', namespace: 'fixture-stub' };
             if (args.path === './modelModeOptions') return { path: '@/components/modelModeOptions', namespace: 'fixture-stub' };
@@ -1047,8 +1086,14 @@ describe('Side chats browser interaction', () => {
         });
         const script = bundle.outputFiles[0].text;
         server = createServer((_request, response) => {
+            if (_request.url === '/workspace-live-sw.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.setHeader('service-worker-allowed', '/');
+                response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script}</script>`);
+            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -2439,4 +2484,76 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+    it.each([
+        ['parent', 'localhost', 1440, 900],
+        ['parent', '127.0.0.1', 1440, 900],
+        ['parent', '[::1]', 1440, 900],
+        ['child-newest', 'localhost', 1440, 900],
+        ['child-newest', '127.0.0.1', 1440, 900],
+        ['child-newest', '[::1]', 1440, 900],
+        ['parent', 'localhost', 390, 844],
+        ['parent', '127.0.0.1', 390, 844],
+        ['parent', '[::1]', 390, 844],
+        ['child-newest', 'localhost', 390, 844],
+        ['child-newest', '127.0.0.1', 390, 844],
+        ['child-newest', '[::1]', 390, 844],
+    ] as const)('opens a real agent chat link in the owning Workspace (%s, %s, %s)', async (owner, host, width, height) => {
+        const context = await browser.newContext({ viewport: { width, height } });
+        const page = await context.newPage();
+        const url = `http://${host}:8766/validation-map.html`;
+        const expectedMachine = owner === 'parent' ? 'machine-1' : 'machine-newest';
+        const errors: string[] = [];
+        const browserLoopbackRequests: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        page.on('request', (request) => {
+            if (new URL(request.url()).port === '8766') browserLoopbackRequests.push(request.url());
+        });
+        await page.addInitScript((url) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { localhostLinks: true, localhostUrl: url };
+        }, url);
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            if (owner !== 'parent') {
+                await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+                await foreground.getByText('Newest child', { exact: true }).waitFor();
+            }
+            const link = foreground.getByRole('link', { name: `Hosted page ${owner}`, exact: true });
+            await link.waitFor();
+            const draft = foreground.locator('textarea').filter({ visible: true }).last();
+            await draft.fill('Retain the chat draft');
+            await draft.evaluate((element) => { element.dataset.localhostDraft = 'keep'; });
+            // The ordinary external branch remains separate.
+            await foreground.getByRole('link', { name: 'External reference', exact: true })
+                .filter({ visible: true }).last().click();
+            expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://example.com/docs']);
+            await link.click();
+            const panel = foreground.getByTestId(`desktop-file-panel:${url}`);
+            await panel.frameLocator('iframe').getByRole('button', { name: `Live from ${expectedMachine}` })
+                .waitFor({ timeout: 15_000 });
+            const calls = await page.evaluate(() => (window as any).__LOCALHOST_LINK_RPCS__ ?? []);
+            expect(calls.some((call: any) => call.url === url)).toBe(true);
+            expect(calls.some((call: any) => new URL(call.url).pathname === '/state')).toBe(true);
+            expect(calls.every((call: any) => call.machineId === expectedMachine && call.method === 'workspace-live-fetch')).toBe(true);
+            expect(browserLoopbackRequests).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://example.com/docs']);
+            expect(await foreground.locator('iframe').count()).toBe(1);
+            expect(await foreground.getByTestId('desktop-file-workspace-divider').count()).toBe(width >= 900 ? 1 : 0);
+            if (owner !== 'parent' && width >= 900) {
+                // Desktop Workspace replaces the Side chat sidebar. Reopening
+                // the child must hydrate its draft through the real useDraft.
+                await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+                await foreground.getByRole('link', { name: `Hosted page ${owner}`, exact: true }).waitFor();
+                expect(await foreground.locator('textarea').filter({ visible: true }).last().inputValue())
+                    .toBe('Retain the chat draft');
+            } else {
+                expect(await foreground.locator('textarea[data-localhost-draft="keep"]').inputValue())
+                    .toBe('Retain the chat draft');
+            }
+            expect(errors).toEqual([]);
+        } finally {
+            await context.close();
+        }
+    }, 30_000);
+
 });

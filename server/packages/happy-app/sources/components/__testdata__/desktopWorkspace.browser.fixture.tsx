@@ -461,6 +461,10 @@ function ReviewNavigationWorkspaceDemo({ compact }: { compact: boolean }) {
     const [workspace, setWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
     return (
         <WorkspaceLinkPressContext.Provider value={(route) => {
+            if ('kind' in route) {
+                setWorkspace((current) => openDesktopLocalhost(current, route.machineId, route.url));
+                return;
+            }
             const params = route.params;
             setWorkspace((current) => openDesktopFile(current, params.absolutePath, {
                 machineId: params.machineId,

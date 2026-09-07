@@ -345,6 +345,15 @@ retains its footer composer. File and link requests respect newer navigation.
 Stable Markdown renderer identities carry current context while preserving
 editors, and the fallback footer passes linked line and column positions.
 
+Web chat loopback links are classified by `MarkdownView.web.tsx` before
+ordinary external HTTP links. `resolveWorkspaceLocalhostLink` combines the
+existing loopback normalizer with immutable rendering-host provenance. The
+existing `WorkspaceLinkPressContext` carries a tagged localhost target or the
+unchanged file route; `SessionView` sends both manual and chat URL entry through
+its existing localhost-open action. A chat URL supplies its owner explicitly,
+so queued state updates or prior picker selection cannot retarget it. Native
+Markdown and the selected-daemon live transport are unchanged.
+
 Agent-facing file-link syntax is owned as one paired instruction surface: the
 live HappyHerd global `AGENTS.md` pointer and the baked-in
 `deploy/happyherd-agent-runtime/happy-home/AGENTS.md` pointer must change
