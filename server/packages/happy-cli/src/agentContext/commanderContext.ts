@@ -28,7 +28,7 @@ import {
 } from '@slopus/happy-wire';
 import { configuration } from '@/configuration';
 
-const BUNDLE_VERSION = 3;
+const BUNDLE_VERSION = 4;
 const INSTRUCTION_RECEIPT_VERSION = 1;
 const COMMANDER_MEMORY_MAX_BYTES = 64 * 1024;
 const COMMANDER_AVATAR_FILE_NAME = 'avatar.png';
@@ -392,6 +392,10 @@ function buildBundleText(options: {
     'The global AGENTS.md and selected COMMANDER.md below are authoritative instructions.',
     'Selected Commander L2 and L3 memory are loaded below with bounded provenance; L1 evidence and other context stay on demand.',
     'Do not invent a second memory or task model. Preserve the existing AgentContext tree unchanged.',
+    '',
+    '## Session archive and retrieval',
+    '',
+    "When this machine keeps a local AI-session archive (skill: happyherd-session-archive), search it before answering from memory alone whenever the request concerns prior work, decisions, corrections, or the user's stated preferences: lexical search first, then semantic; cite source, date, and file path with a verbatim excerpt. The archive is private context: never copy transcripts into shared files or external outputs.",
     '',
     '## Global AGENTS.md',
     '',
