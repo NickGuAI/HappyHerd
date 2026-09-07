@@ -299,3 +299,4 @@ UPSTREAM_SYNC_EVIDENCE	accepted	docs(changelog): clarify CLI version reporting	s
 CODEX_MODEL_CATALOG	accepted	fix(app): restore GPT-6 Astra atop the Codex model picker	server/packages/happy-app/sources/components/modelModeOptions.test.ts
 CODEX_MODEL_CATALOG	accepted	fix(daemon): include GPT-6 Astra in the Codex fallback catalog	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
 SESSION_ARCHIVE	accepted	feat(context): session archive skill and bundle v4 retrieval section	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+SESSION_ARCHIVE	accepted	fix(skill): move session-archive machine parameters to a private overlay	.dev/skills/happyherd-session-archive/SKILL.md
