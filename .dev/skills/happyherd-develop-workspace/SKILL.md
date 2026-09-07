@@ -57,7 +57,10 @@ change. When behavior changes, update both this skill and
   on hover or focus, while touch keeps it visible.
 - **Selected-machine localhost.** The embedded Workspace accepts only
   HTTP/HTTPS URLs with the exact loopback authority `localhost`, `127.0.0.1`,
-  or `[::1]`. Tabs are keyed by machine plus canonical URL. The live iframe's
+  or `[::1]`. A loopback Markdown link in a Web Main Agent or active Side chat
+  opens this same live view with one click using the originating chat's machine,
+  not a previous manual picker selection. Ordinary web links stay external.
+  Tabs are keyed by machine plus canonical URL. The live iframe's
   page, scripts, styles, and fetch/XHR requests resolve through the selected
   daemon's encrypted machine RPC, never the Human browser's or central
   server's localhost. Element feedback contains bounded HTML, computed CSS,

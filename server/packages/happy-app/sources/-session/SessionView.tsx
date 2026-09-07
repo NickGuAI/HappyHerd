@@ -53,6 +53,7 @@ import {
     desktopFilePath,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     isDesktopLocalhostReference,
+    normalizeWorkspaceLocalhostUrl,
     openDesktopFile,
     openDesktopLocalhost,
     selectDesktopFile,
@@ -121,8 +122,8 @@ import { projectSessionQueue } from '@/sync/queueProjection';
 import { transitionGrokPermissionModeAndCommit } from '@/sync/grokPermissionModeTransition';
 import {
     WorkspaceLinkPressContext,
+    type WorkspaceLinkPressHandler,
 } from './workspaceLinkNavigation';
-import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
 import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 import { deliverSessionTurn } from '@/utils/sessionContinuation';
@@ -146,7 +147,7 @@ const EMPTY_CHAT_FILE_WORKSPACE: ChatFileWorkspace = {
 export type SessionWorkspaceController = {
     openChanges: (sessionId: string) => void;
     openWorkspace: (session: Session) => void;
-    openWorkspaceLink: (route: WorkspaceLinkRoute) => void;
+    openWorkspaceLink: WorkspaceLinkPressHandler;
 };
 
 export const SessionWorkspaceControllerContext = React.createContext<SessionWorkspaceController | null>(null);
@@ -655,10 +656,38 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         });
     }, [fileViewDirty, fileViewPath]);
 
-    const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
+    const handleMachineWorkspaceLocalhostUrlPress = React.useCallback(({
+        machineId, url, originSessionId,
+    }: { machineId: string; url: string; originSessionId?: string }) => {
+        const normalizedUrl = normalizeWorkspaceLocalhostUrl(url);
+        if (!normalizedUrl) return;
+        // Chat links carry their owner explicitly; the manual picker retains
+        // its selected chat and machine. Never read a newly queued state update
+        // to decide which chat owns a live tab.
+        const owner = originSessionId ?? desktopFileWorkspaceSessionId;
+        workspaceLinkRequestGeneration.current += 1;
+        setDesktopFileWorkspaceSessionId(owner);
+        updateDesktopWorkspace(owner, (current) => ({
+            ...current, files: openDesktopLocalhost(current.files, machineId, normalizedUrl), pickerOpen: false,
+        }));
+        collapseSidebarPanels();
+    }, [collapseSidebarPanels, desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
+
+    const handleWorkspaceLinkPress = React.useCallback<WorkspaceLinkPressHandler>((target) => {
         const requestGeneration = ++workspaceLinkRequestGeneration.current;
         withFileDiscardConfirmation(() => {
             if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
+            if ('kind' in target) {
+                if (
+                    Platform.OS === 'web'
+                    && canUseSessionFileWorkspace
+                    && (target.originSessionId === sessionId || sideChatIds.includes(target.originSessionId))
+                ) {
+                    handleMachineWorkspaceLocalhostUrlPress(target);
+                }
+                return;
+            }
+            const route = target;
             if (
                 (
                     route.params.originSessionId !== sessionId
@@ -718,6 +747,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [
         canUseSessionFileWorkspace,
         collapseSidebarPanels,
+        handleMachineWorkspaceLocalhostUrlPress,
         router,
         sessionId,
         sideChatIds,
@@ -785,13 +815,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             ...current,
             files: openDesktopFile(current.files, path, { machineId, source: 'machine' }),
             pickerOpen: false,
-        }));
-        collapseSidebarPanels();
-    }, [collapseSidebarPanels, desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
-    const handleMachineWorkspaceLocalhostUrlPress = React.useCallback(({ machineId, url }: { machineId: string; url: string }) => {
-        workspaceLinkRequestGeneration.current += 1;
-        updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({
-            ...current, files: openDesktopLocalhost(current.files, machineId, url), pickerOpen: false,
         }));
         collapseSidebarPanels();
     }, [collapseSidebarPanels, desktopFileWorkspaceSessionId, updateDesktopWorkspace]);

@@ -1943,6 +1943,30 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.onOpenChanges).toBeUndefined();
     });
 
+    it.each([1280, 390])('opens chat localhost links for their owner, not the last picker, at width %s', (width) => {
+        mocks.width = width;
+        const renderer = renderParent();
+        const openLink = renderer.root.findAllByType('EmptyMessages' as any)
+            .find((node: any) => typeof node.props.onWorkspaceLinkPress === 'function')!.props.onWorkspaceLinkPress;
+        const url = 'http://localhost:8766/validation-map.html';
+        act(() => openLink({ kind: 'localhost', originSessionId: 'newest', machineId: 'machine-newest', url }));
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.sessionId).toBe('newest');
+        expect(workspace.props.references[JSON.stringify(['machine-newest', 'localhost', url])])
+            .toEqual({ kind: 'localhost', machineId: 'machine-newest', url });
+        act(() => openLink({ kind: 'localhost', originSessionId: 'parent', machineId: 'machine-1', url }));
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.sessionId).toBe('parent');
+        expect(workspace.props.references[JSON.stringify(['machine-1', 'localhost', url])])
+            .toEqual({ kind: 'localhost', machineId: 'machine-1', url });
+        act(() => openLink({ kind: 'localhost', originSessionId: 'parent', machineId: 'machine-1', url }));
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths).toHaveLength(1);
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        expect(split.props.workspaceVisible).toBe(width >= 900);
+        expect(split.props.workspaceFullscreen).toBe(width < 900);
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+    });
+
     it('opens desktop Workspace at the owning Main Agent machine and cwd before sharing its selection', () => {
         const renderer = renderParent();
         act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenWorkspace());
