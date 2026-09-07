@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 7 — Open hosted pages directly from chat",
+      "summary": "",
+      "markdown": "- Click an agent's localhost page link to open it directly in the existing Workspace, beside your chat on desktop or full-screen on mobile Web. Copying and pasting into the URL field is no longer necessary.\n- Links use the originating Main Agent or Side chat's machine, not your browser's localhost or a previously selected machine. Ordinary website links and native behavior are unchanged."
+    },
+    {
       "title": "September 6 — Enhanced Diff Views & Model Grouping",
       "summary": "",
       "markdown": "- **Enhanced Diff Viewer**: Files now start collapsed, highlighting code syntax and loading huge differences in smooth, manageable segments.\n- **Whitespace and Image Options**: Toggle whitespace ignore (initially off), expand hidden context with a click, and compare raster image changes side-by-side.\n- **Comment & Activity Improvements**: Inline preview comments are fully preserved, and the flattened activity list expands upward with support for hiding, attachments, and subagents.\n- **Organized Model Selection**: Models are grouped by provider, unavailable saved selections are disabled dynamically, and legacy configuration choices remain supported.\n- Agy now defaults to Gemini 3.8 Flash with medium effort and offers four logical models. Optional Claude Fable 5.1 supports a 1M context and low-to-max effort; Opus 5 remains the Claude default.\n- **Robust Connection Updates**: See clearer model provider errors and the current reported CLI version after reconnecting to your machine."
@@ -601,5 +606,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 6 — Enhanced Diff Views & Model Grouping"
+  "latestTitle": "September 7 — Open hosted pages directly from chat"
 }

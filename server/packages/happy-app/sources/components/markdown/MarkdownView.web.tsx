@@ -13,7 +13,7 @@ import { useUnistyles } from 'react-native-unistyles';
 
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
 import { MermaidRenderer } from './MermaidRenderer';
-import { normalizeExternalMarkdownLink } from './linkUtils';
+import { normalizeExternalMarkdownLink, resolveWorkspaceLocalhostLink } from './linkUtils';
 import {
     decodeMarkdownOption,
     encodeMarkdownOptions,
@@ -38,6 +38,7 @@ export type { MarkdownViewProps, Option } from './MarkdownView.types';
 
 type LinkTarget =
     | Readonly<{ kind: 'external'; url: string }>
+    | Readonly<{ kind: 'localhost'; open: () => void }>
     | Readonly<{ kind: 'workspace'; route: WorkspaceLinkRoute }>;
 
 type HastNode = {
@@ -395,6 +396,7 @@ const markdownComponents: Components = (() => {
                     onClick={(event) => {
                         event.preventDefault();
                         if (target.kind === 'external') void openExternalUrl(target.url);
+                        else if (target.kind === 'localhost') target.open();
                         else openWorkspace(target.route);
                     }}
                 >{children}</a>
@@ -459,6 +461,19 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     }, [router, workspaceLinkPress]);
 
     const resolveTarget = React.useCallback((url: string, label: string): LinkTarget | null => {
+        // The integrated host supplies the owner. A loopback URL is not
+        // external when this chat can open the existing live Workspace.
+        if (props.enableWorkspaceLinks && contextWorkspaceLinkPress) {
+            const localhost = resolveWorkspaceLocalhostLink({
+                url,
+                originSessionId: props.sessionId,
+                machineId: metadata?.machineId,
+            });
+            if (localhost) return {
+                kind: 'localhost',
+                open: () => contextWorkspaceLinkPress(localhost),
+            };
+        }
         const external = normalizeExternalMarkdownLink(url);
         if (external) return { kind: 'external', url: external };
         if (!props.enableWorkspaceLinks) return null;
@@ -470,7 +485,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             ...(props.relativeTo ? { relativeTo: props.relativeTo } : {}),
         });
         return route ? { kind: 'workspace', route } : null;
-    }, [metadata, props.enableWorkspaceLinks, props.relativeTo, props.sessionId]);
+    }, [contextWorkspaceLinkPress, metadata, props.enableWorkspaceLinks, props.relativeTo, props.sessionId]);
 
 
 
