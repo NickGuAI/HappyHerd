@@ -70,14 +70,14 @@ $HAPPY_HOME_DIR/commanders/<id>/COMMANDER.md
 $HAPPY_HOME_DIR/commanders/<id>/agentcontext/memory/0-observations.jsonl
 ```
 
-Read only the shared methodologies, shared learnings, Commander-private rules,
-project guides, task artifacts, and authoritative live state needed to judge
-the evidence. The HappyHerd operations guide owns current command syntax:
-`happy` owns Commanders, sessions, the host daemon, and machine-local
-automations; `happyherd` owns governed diagnostics, connections, skill
-operations, provider launch, and upgrades. Use those supported interfaces for
-machine-owned state instead of reading runtime databases, scheduler state,
-logs, credentials, or raw transcripts as files.
+Read relevant shared learnings/skills, Commander-private rules, project guides,
+task artifacts, and live state as needed. The one public command is
+`happyherd`, for Commanders, sessions, daemon, automation, diagnostics,
+connections, provider launch, and upgrades; consult the owning operations guide
+and category `--help` for volatile syntax. The internal `bin/happy.mjs`
+filename remains valid and is not a second public command. Keep machine-owned
+state accessed through the supported interface instead of reading runtime
+databases, scheduler state, logs, credentials, or raw transcripts as files.
 
 The following boundaries are non-negotiable:
 
@@ -143,7 +143,7 @@ resembles a Commander is not a semantic routing decision.
 This skill always handles one Commander. A fleet-wide cleanup or migration
 must use a deterministic host-side launcher that:
 
-1. discovers the current Commander registry through the supported `happy`
+1. discovers the current Commander registry through the supported `happyherd`
    interface, rejects symlinks anywhere below each canonical Commander root,
    and freezes the exact identity/path roster;
 2. builds and freezes the source inventory when an import is requested;

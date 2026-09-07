@@ -215,7 +215,7 @@ def default_happy_command() -> list[str]:
     configured = os.environ.get("HAPPY_CLI_BIN")
     if configured:
         return [configured]
-    installed = shutil.which("happy")
+    installed = shutil.which("happyherd")
     if installed:
         return [installed]
     source_entrypoint = (
