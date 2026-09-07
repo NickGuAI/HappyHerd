@@ -5,8 +5,9 @@ import type { Router } from 'expo-router';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
+import type { WorkspaceLocalhostLink } from '@/components/markdown/linkUtils';
 
-export type WorkspaceLinkPressHandler = (route: WorkspaceLinkRoute) => void;
+export type WorkspaceLinkPressHandler = (target: WorkspaceLinkRoute | WorkspaceLocalhostLink) => void;
 
 export const WorkspaceLinkPressContext = React.createContext<WorkspaceLinkPressHandler | undefined>(undefined);
 

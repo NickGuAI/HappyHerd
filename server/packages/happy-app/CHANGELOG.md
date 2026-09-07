@@ -1,3 +1,8 @@
+# September 7 — Open hosted pages directly from chat
+
+- Click an agent's localhost page link to open it directly in the existing Workspace, beside your chat on desktop or full-screen on mobile Web. Copying and pasting into the URL field is no longer necessary.
+- Links use the originating Main Agent or Side chat's machine, not your browser's localhost or a previously selected machine. Ordinary website links and native behavior are unchanged.
+
 # September 6 — Enhanced Diff Views & Model Grouping
 
 - **Enhanced Diff Viewer**: Files now start collapsed, highlighting code syntax and loading huge differences in smooth, manageable segments.

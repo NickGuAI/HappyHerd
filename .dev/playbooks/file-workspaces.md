@@ -61,6 +61,16 @@ once through the existing `workspaceFeedback` batch to the exact Main Agent or
 Side chat. This live URL branch is distinct from local HTML files, whose one
 Preview remains scriptless.
 
+On Web, explicit loopback Markdown links in a Main Agent or active Side chat
+also enter this same live branch with one click: for example,
+`[validation map](http://localhost:8766/validation-map.html)`. The rendering
+host supplies the originating session and machine; a previously selected
+Workspace machine does not override them. `MarkdownView.web` classifies this
+case before generic external HTTP links and sends it through the existing
+`WorkspaceLinkPressContext` to `SessionView`'s localhost-open action. The manual
+URL field continues to use its selected machine. Non-loopback links, native,
+and contexts without an integrated host keep their existing external behavior.
+
 On Web Desktop and Web Mobile, HTML has one supported Preview: it is the
 automatic scriptless default and there is no separate Interactive toggle. A
 line-linked Markdown deep link always opens as the rendered, commentable
