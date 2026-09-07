@@ -164,6 +164,8 @@ describe('Commander context', () => {
     expect(content).toContain(`Source: ${path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory', '1-working-memory.md')}`);
     expect(content).toContain('Commander memory auto-load limit: 65536 bytes per file');
     expect(content).toContain('Commander L1 observations: on demand (not included)');
+    expect(content).toContain('## Session archive and retrieval');
+    expect(content).toContain('happyherd-session-archive');
     expect(content).not.toContain('L1 evidence stays on demand');
     expect(content).toContain('Use project tests.');
     expect(bundle.projectGuidancePath).toBe(path.join(projectDir, 'AGENTS.md'));
