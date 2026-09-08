@@ -1557,6 +1557,7 @@ export async function startDaemon(): Promise<void> {
     };
     type LocalSideChatCreation = {
       sessionId: string;
+      settings?: HappyHerdMachineSessionSettings;
       briefDelivery: SideChatOperationResult | null;
     };
     let createLocalSideChat = async (
@@ -1811,12 +1812,14 @@ export async function startDaemon(): Promise<void> {
             provider,
             ...(launch?.model ? { model: launch.model } : {}),
             ...(launch?.effort ? { effort: launch.effort } : {}),
+            ...(launch?.permission ? { permission: launch.permission } : {}),
           })
           : undefined;
         const effectiveLaunch = effectiveLaunchSettings
           ? {
             ...(effectiveLaunchSettings.model ? { model: effectiveLaunchSettings.model } : {}),
             ...(effectiveLaunchSettings.effort ? { effort: effectiveLaunchSettings.effort } : {}),
+            ...(effectiveLaunchSettings.permission ? { permission: effectiveLaunchSettings.permission } : {}),
           }
           : undefined;
         const inheritedProviderAccount = isCodexParent

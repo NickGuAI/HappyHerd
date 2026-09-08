@@ -1,3 +1,7 @@
+# September 8 — Side-chat permissions
+
+- Added `--permission` alongside `--model` and `--effort` in `happyherd session side-chat create` and its parent-id shorthand. The owning daemon validates the permission against the parent's machine catalog before forking or starting, and creation receipts report the confirmed provider, model, effort, and permission.
+
 # September 7 — Open hosted pages directly from chat
 
 - Click an agent's localhost page link to open it directly in the existing Workspace, beside your chat on desktop or full-screen on mobile Web. Copying and pasting into the URL field is no longer necessary.

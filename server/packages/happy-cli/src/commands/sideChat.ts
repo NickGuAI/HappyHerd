@@ -1,3 +1,5 @@
+import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
+
 type ParentSession = {
   id: string;
   metadata: unknown;
@@ -17,6 +19,7 @@ type SpawnSideChatInput = {
   agent: SideChatProvider;
   modelMode?: string;
   effortLevel?: string;
+  permissionMode?: string;
   resumeClaudeSessionId?: string;
   resumeCodexThreadId?: string;
   parentSessionId: string;
@@ -24,7 +27,7 @@ type SpawnSideChatInput = {
 };
 
 type SpawnSideChatResult =
-  | { type: 'success'; sessionId: string }
+  | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
   | { type: 'requestToApproveDirectoryCreation'; directory: string }
   | { type: 'error'; errorMessage: string };
 
@@ -57,10 +60,12 @@ export type SideChatDelegationBrief = Readonly<{
 export type SideChatLaunchOptions = Readonly<{
   model?: string;
   effort?: string;
+  permission?: string;
 }>;
 
 export type CreateChildSideChatResult = {
   sessionId: string;
+  settings?: HappyHerdMachineSessionSettings;
 };
 
 export type SideChatLifecycleStatus = 'running' | 'stopped' | 'archived';
@@ -147,6 +152,7 @@ export type SideChatSingleReceipt = {
   child: SideChatStatusReceipt | null;
   phases: SideChatPhaseReceipt[];
   resource?: SideChatResourceUsage;
+  settings?: HappyHerdMachineSessionSettings;
 };
 
 export type SideChatListReceipt = {
@@ -207,6 +213,7 @@ const briefOptionEntries = Object.entries(briefOptions) as Array<
 const launchOptions = Object.freeze({
   '--model': 'model',
   '--effort': 'effort',
+  '--permission': 'permission',
 } satisfies Record<string, keyof SideChatLaunchOptions>);
 
 const launchOptionEntries = Object.entries(launchOptions) as Array<
@@ -243,7 +250,7 @@ export function sameSideChatLaunchOptions(
   left: SideChatLaunchOptions | undefined,
   right: SideChatLaunchOptions | undefined,
 ): boolean {
-  return left?.model === right?.model && left?.effort === right?.effort;
+  return launchOptionEntries.every(([, field]) => left?.[field] === right?.[field]);
 }
 
 export function formatSideChatDelegationPrompt(
@@ -397,6 +404,7 @@ export async function createChildSideChat(
     agent: source.kind,
     ...(launch?.model ? { modelMode: launch.model } : {}),
     ...(launch?.effort ? { effortLevel: launch.effort } : {}),
+    ...(launch?.permission ? { permissionMode: launch.permission } : {}),
     ...(source.kind === 'codex'
       ? { resumeCodexThreadId: forkedBackendId }
       : source.kind === 'claude' ? { resumeClaudeSessionId: forkedBackendId } : {}),
@@ -416,7 +424,10 @@ export async function createChildSideChat(
     throw new Error('Side-chat spawn returned an invalid Happy session ID.');
   }
 
-  return { sessionId: spawnResult.sessionId };
+  return {
+    sessionId: spawnResult.sessionId,
+    ...(spawnResult.settings ? { settings: spawnResult.settings } : {}),
+  };
 }
 
 export function sideChatHelp(): string {
@@ -426,7 +437,7 @@ Usage:
   happyherd session side-chat create <parent-session-id> \\
     --outcome <text> --scope <text> --dependencies <text> \\
     --write-ownership <text> --verification <text> --handoff <text> \\
-    [--model <model>] [--effort <effort>] [--json]
+    [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
   happyherd session side-chat list <parent-session-id> [--json]
   happyherd session side-chat status <child-session-id> [--json]
   happyherd session side-chat inspect <child-session-id> [--json]
@@ -439,10 +450,12 @@ Usage:
 
 The parent-id shorthand remains supported when all six brief options are supplied:
   happyherd session side-chat <parent-session-id> <brief-options> \
-    [--model <model>] [--effort <effort>] [--json]
+    [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
 
-Optional --model and --effort values are validated against the parent machine's
+Optional --model, --effort, and --permission values are validated against the parent machine's
 current provider catalog before the child is forked or started.
+Permission accepts a native mode such as Claude bypassPermissions or Codex yolo
+when advertised. Create receipts include the daemon-confirmed launch settings.
 
 All lifecycle actions run through the parent machine's local daemon. Close
 stops the provider, deactivates the server session, archives encrypted
@@ -509,6 +522,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
     ? Object.freeze({
       ...(launchValues.model ? { model: launchValues.model } : {}),
       ...(launchValues.effort ? { effort: launchValues.effort } : {}),
+      ...(launchValues.permission ? { permission: launchValues.permission } : {}),
     })
     : undefined;
 
@@ -605,7 +619,10 @@ export function formatSideChatLifecycleReceipt(receipt: SideChatLifecycleReceipt
   const resource = receipt.action === 'create' && receipt.resource
     ? formatSideChatResourceUsage(receipt.resource)
     : [];
-  return [summary, ...resource, ...failures].join('\n');
+  const settings = receipt.action === 'create' && receipt.settings
+    ? [`Settings: ${JSON.stringify(receipt.settings)}`]
+    : [];
+  return [summary, ...settings, ...resource, ...failures].join('\n');
 }
 
 function formatSideChatResourceUsage(resource: SideChatResourceUsage): string[] {

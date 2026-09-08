@@ -22,6 +22,10 @@ const mocks = vi.hoisted(() => ({
     selection: { type: 'unconfigured' },
     env: {},
   })),
+  forkClaudeBackendSession: vi.fn(async () => ({
+    type: 'success',
+    newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
+  })),
   forkCodexBackendThread: vi.fn(async () => ({
     type: 'success',
     newCodexThreadId: 'thread-child',
@@ -54,10 +58,7 @@ vi.mock('@/api/api', () => ({
       })),
       machineSyncClient: vi.fn(() => ({
         connect: vi.fn(),
-        forkClaudeBackendSession: vi.fn(async () => ({
-          type: 'success',
-          newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
-        })),
+        forkClaudeBackendSession: mocks.forkClaudeBackendSession,
         forkCodexBackendThread: mocks.forkCodexBackendThread,
         setRPCHandlers: vi.fn((handlers: unknown) => {
           mocks.rpcHandlers = handlers;
@@ -186,7 +187,10 @@ vi.mock('@/capabilities/agentCapabilities', () => ({
       sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
       models: [{ code: 'deepseek-chat', value: 'DeepSeek Chat', isDefault: true }],
       effortLevels: [],
-      permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'danger-full-access', value: 'Full access' },
+      ],
       acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
     },
     agy: {
@@ -1795,6 +1799,66 @@ describe('daemon session continuity', () => {
     const spawnOptions = mocks.spawnHappyCLI.mock.calls[0]?.[1] as { env: NodeJS.ProcessEnv };
     expect(spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toBe('existing-handoff');
     expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['claude', 'bypassPermissions', 'default', 'max'],
+    ['codex', 'yolo', 'gpt-5.6-codex', 'xhigh'],
+    ['grok', 'bypassPermissions', 'grok-build', null],
+    ['dsh', 'danger-full-access', 'deepseek-chat', null],
+    ['agy', 'default', 'gemini-2.5-pro', null],
+  ] as const)('validates a permission-only %s side chat before fork and returns confirmed settings', async (provider, permission, model, effort) => {
+    mocks.authoritativeActive = true;
+    const parentMetadata: Metadata = {
+      path: process.cwd(), flavor: provider, host: 'test-host', hostPid: 9876,
+      machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy', happyToolsDir: '/srv/happy/tools',
+      ...(provider === 'claude' ? { claudeSessionId: '11111111-1111-4111-8111-111111111111' } : {}),
+      ...(provider === 'codex' ? { codexThreadId: 'thread-parent' } : {}),
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({ id: 'parent-session', metadata: parentMetadata });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 5432, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const invalidPermission = provider === 'codex' ? 'bypassPermissions' : 'yolo';
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission: invalidPermission },
+    })).resolves.toMatchObject({
+      success: false, sessionId: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: expect.stringContaining('does not advertise permission mode') }],
+    });
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+
+    const settings = { provider, permission, model, effort };
+    const creation = control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission },
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission: invalidPermission },
+    })).resolves.toMatchObject({
+      success: false,
+      phases: [{ phase: 'resolve', status: 'failed', message: expect.stringContaining('different delegation brief or launch selection') }],
+    });
+    control.onHappySessionWebhook('child-session', {
+      ...parentMetadata, hostPid: 5432, parentSessionId: 'parent-session', isSideChat: true,
+      spawnSettings: settings, permissionMode: permission,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'child-session', settings });
+    const [args, options] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
+    expect(JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(settings);
+    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
   });
 
   it('activates the parent Codex account before forking from a stale credential home', async () => {

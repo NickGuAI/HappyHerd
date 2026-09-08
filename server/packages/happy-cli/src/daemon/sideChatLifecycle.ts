@@ -1,4 +1,5 @@
 import type {
+  CreateChildSideChatResult,
   SideChatDelegationBrief,
   SideChatCloseAllReceipt,
   SideChatListReceipt,
@@ -24,7 +25,7 @@ export type DaemonSideChatLifecycleDependencies = {
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
     launch: SideChatLaunchOptions | undefined,
-  ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult | null }>;
+  ) => Promise<CreateChildSideChatResult & { briefDelivery: SideChatOperationResult | null }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
   stopProvider: (sessionId: string) => Promise<SideChatOperationResult>;
@@ -113,6 +114,7 @@ export class DaemonSideChatLifecycle {
         success: false,
         parentSessionId,
         sessionId: created.sessionId,
+        ...(created.settings ? { settings: created.settings } : {}),
         child: null,
         phases: [
           phase('resolve', 'succeeded'),
@@ -132,6 +134,7 @@ export class DaemonSideChatLifecycle {
       success: lineageMatches && childIsRunning && (created.briefDelivery?.success ?? true),
       parentSessionId,
       sessionId: child.sessionId,
+      ...(created.settings ? { settings: created.settings } : {}),
       child,
       phases: [
         phase('resolve', 'succeeded'),

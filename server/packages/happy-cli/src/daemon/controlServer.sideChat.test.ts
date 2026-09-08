@@ -48,7 +48,11 @@ describe('side-chat daemon control server aliases', () => {
     await expect(response.json()).resolves.toMatchObject({ action: canonicalAction });
   });
 
-  it('accepts explicit model and effort in a create request', async () => {
+  it.each([
+    { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    { permission: 'bypassPermissions' },
+    { model: 'gpt-5.6-sol', effort: 'xhigh', permission: 'yolo' },
+  ])('accepts explicit launch settings %j in a create request', async (launch) => {
     const sideChat = vi.fn(async (request: any) => ({
       schemaVersion: 2 as const,
       type: 'side-chat' as const,
@@ -86,7 +90,7 @@ describe('side-chat daemon control server aliases', () => {
         action: 'create',
         parentSessionId: 'parent',
         brief,
-        launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+        launch,
       }),
     });
 
@@ -95,7 +99,7 @@ describe('side-chat daemon control server aliases', () => {
       action: 'create',
       parentSessionId: 'parent',
       brief,
-      launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      launch,
     });
 
     const emptyLaunchResponse = await fetch(`http://127.0.0.1:${server.port}/side-chat-create-with-settings`, {
@@ -109,6 +113,12 @@ describe('side-chat daemon control server aliases', () => {
       }),
     });
     expect(emptyLaunchResponse.status).toBe(400);
+    const emptyPermissionResponse = await fetch(`http://127.0.0.1:${server.port}/side-chat-create-with-settings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'create', parentSessionId: 'parent', brief, launch: { permission: ' ' } }),
+    });
+    expect(emptyPermissionResponse.status).toBe(400);
     expect(sideChat).toHaveBeenCalledOnce();
   });
 });

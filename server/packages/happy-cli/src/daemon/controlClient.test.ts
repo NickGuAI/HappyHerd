@@ -179,14 +179,14 @@ describe('side-chat daemon control client', () => {
       action: 'create',
       parentSessionId: 'parent',
       brief,
-      launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      launch: { permission: 'bypassPermissions' },
     }))
       .resolves.toEqual(receipt);
     expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({
       action: 'create',
       parentSessionId: 'parent',
       brief,
-      launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      launch: { permission: 'bypassPermissions' },
     });
     expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat-create-with-settings');
   });
