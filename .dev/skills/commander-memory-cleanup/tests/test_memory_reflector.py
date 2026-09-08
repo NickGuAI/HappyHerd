@@ -693,10 +693,10 @@ class DiscoveryAndCommandTests(unittest.TestCase):
     def test_missing_installed_command_keeps_internal_source_entrypoint(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
             memory_reflector.shutil, "which", return_value=None
-        ), mock.patch.object(memory_reflector.Path, "home", return_value=Path("/test/home")):
+        ), mock.patch.object(memory_reflector.Path, "home", return_value=Path("/home/test")):
             self.assertEqual(
                 memory_reflector.default_happy_command(),
-                ["node", "/test/home/App/apps/happyherd/server/packages/happy-cli/bin/happy.mjs"],
+                ["node", "/home/test/App/apps/happyherd/server/packages/happy-cli/bin/happy.mjs"],
             )
 
     def test_roster_comes_from_supported_happy_cli_and_is_sorted(self) -> None:
