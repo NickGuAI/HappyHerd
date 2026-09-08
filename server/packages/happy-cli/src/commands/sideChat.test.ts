@@ -207,6 +207,21 @@ describe('createChildSideChat', () => {
     }));
   });
 
+  it('passes a permission-only selection and returns the confirmed spawn settings', async () => {
+    const deps = dependencies();
+    const settings = { provider: 'claude' as const, model: 'default', effort: 'high', permission: 'bypassPermissions' };
+    vi.mocked(deps.createMachineSession).mockResolvedValue({
+      type: 'success', sessionId: 'happy-child', settings,
+    });
+
+    await expect(createChildSideChat(parentId, deps, { permission: 'bypassPermissions' }))
+      .resolves.toEqual({ sessionId: 'happy-child', settings });
+    expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
+      agent: 'claude', permissionMode: 'bypassPermissions',
+    }));
+    expect(vi.mocked(deps.createMachineSession).mock.calls[0][0]).not.toHaveProperty('modelMode');
+  });
+
   it.each(['gemini', 'grok', 'dsh', 'agy'] as const) (
     'starts a fresh same-provider child for %s without invoking a native fork',
     async (flavor) => {
@@ -436,8 +451,29 @@ describe('parseSideChatLifecycleRequest', () => {
     expect(help).toContain('side-chat pause <child-session-id>');
     expect(help).toContain('side-chat resume <child-session-id>');
     expect(help).toContain('[--model <model>] [--effort <effort>]');
+    expect(help).toContain('[--permission <mode>]');
     expect(help).toContain("validated against the parent machine's");
     expect(help).toContain('receipts use the canonical action names');
+  });
+
+  it.each(['create', 'shorthand'])('parses permission-only %s launch selections', (shape) => {
+    const action = shape === 'create' ? ['create', parentId] : [parentId];
+    expect(parseSideChatLifecycleRequest([...action, ...briefArgs, '--permission', ' bypassPermissions ']))
+      .toMatchObject({ request: { action: 'create', launch: { permission: 'bypassPermissions' } } });
+  });
+
+  it.each([
+    ['--permission'],
+    ['--permission', ' '],
+    ['--permission', '--json'],
+    ['--permission', 'yolo', '--permission', 'default'],
+  ])('rejects malformed permission options %j', (...options) => {
+    expect(() => parseSideChatLifecycleRequest(['create', parentId, ...briefArgs, ...options])).toThrow();
+  });
+
+  it('rejects permission selections on lifecycle actions other than create', () => {
+    expect(() => parseSideChatLifecycleRequest(['reopen', 'child', '--permission', 'yolo']))
+      .toThrow('Launch options are supported only with the create action');
   });
 
   it('rejects ambiguous or unsupported action shapes', () => {
@@ -534,10 +570,18 @@ describe('formatSideChatDelegationPrompt', () => {
       { model: 'gpt-5.6-sol', effort: 'xhigh' },
       { model: 'gpt-5.6-sol', effort: 'max' },
     )).toBe(false);
+    expect(sameSideChatLaunchOptions({ permission: 'yolo' }, { permission: 'default' })).toBe(false);
+    expect(sameSideChatLaunchOptions(undefined, { permission: 'default' })).toBe(false);
+    expect(sameSideChatLaunchOptions({ permission: 'yolo' }, { permission: 'yolo' })).toBe(true);
   });
 });
 
 describe('formatSideChatLifecycleReceipt', () => {
+  it('shows the daemon-confirmed permission in the text receipt', () => {
+    const settings = { provider: 'claude' as const, model: 'default', effort: 'high', permission: 'bypassPermissions' };
+    expect(formatSideChatLifecycleReceipt({ ...lifecycleReceipt(), settings }))
+      .toContain(`Settings: ${JSON.stringify(settings)}`);
+  });
   it('renders partial failures with the exact failed phase', () => {
     const receipt = lifecycleReceipt();
     expect(formatSideChatLifecycleReceipt({

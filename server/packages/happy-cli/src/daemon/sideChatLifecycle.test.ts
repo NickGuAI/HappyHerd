@@ -40,7 +40,10 @@ const brief: SideChatDelegationBrief = {
 const launch: SideChatLaunchOptions = {
   model: 'gpt-5.6-sol',
   effort: 'xhigh',
+  permission: 'yolo',
 };
+
+const settings = { provider: 'codex' as const, model: 'gpt-5.6-sol', effort: 'xhigh', permission: 'yolo' };
 
 const resource: SideChatResourceUsage = {
   status: 'ok',
@@ -155,15 +158,19 @@ describe('DaemonSideChatLifecycle', () => {
       });
   });
 
-  it('forwards an explicit model and effort through the daemon-owned create boundary', async () => {
+  it('forwards explicit launch settings and returns the confirmed daemon receipt', async () => {
     const { lifecycle, dependencies } = harness([]);
+    const create = vi.mocked(dependencies.create).getMockImplementation()!;
+    vi.mocked(dependencies.create).mockImplementation(async (...args) => ({
+      ...await create(...args), settings,
+    }));
 
     await expect(lifecycle.execute({
       action: 'create',
       parentSessionId: 'parent',
       brief,
       launch,
-    })).resolves.toMatchObject({ success: true, sessionId: 'created-child' });
+    })).resolves.toMatchObject({ success: true, sessionId: 'created-child', settings });
     expect(dependencies.create).toHaveBeenCalledWith('parent', brief, launch);
   });
 
@@ -173,6 +180,7 @@ describe('DaemonSideChatLifecycle', () => {
       records.set('created-child', child('created-child', 'running', { parentSessionId }));
       return {
         sessionId: 'created-child',
+        settings,
         briefDelivery: { success: false, message: 'message persistence failed' },
       };
     });
@@ -183,6 +191,7 @@ describe('DaemonSideChatLifecycle', () => {
         success: false,
         parentSessionId: 'parent',
         sessionId: 'created-child',
+        settings,
         child: { sessionId: 'created-child', parentSessionId: 'parent' },
         phases: expect.arrayContaining([
           { phase: 'deliver-brief', status: 'failed', message: 'message persistence failed' },
@@ -193,6 +202,9 @@ describe('DaemonSideChatLifecycle', () => {
 
   it('retains the created child ID when authoritative read-back fails', async () => {
     const { lifecycle, dependencies } = harness([]);
+    vi.mocked(dependencies.create).mockResolvedValueOnce({
+      sessionId: 'created-child', settings, briefDelivery: { success: true },
+    });
     vi.mocked(dependencies.read).mockRejectedValueOnce(new Error('read-back unavailable'));
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
@@ -201,6 +213,7 @@ describe('DaemonSideChatLifecycle', () => {
         success: false,
         parentSessionId: 'parent',
         sessionId: 'created-child',
+        settings,
         child: null,
         phases: [
           { phase: 'resolve', status: 'succeeded' },

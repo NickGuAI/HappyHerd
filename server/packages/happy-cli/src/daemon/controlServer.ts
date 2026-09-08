@@ -279,7 +279,8 @@ export function startDaemonControlServer({
     const sideChatLaunchOptionsSchema = z.object({
       model: z.string().trim().min(1).optional(),
       effort: z.string().trim().min(1).optional(),
-    }).strict().refine((value) => value.model !== undefined || value.effort !== undefined, {
+      permission: z.string().trim().min(1).optional(),
+    }).strict().refine((value) => value.model !== undefined || value.effort !== undefined || value.permission !== undefined, {
       message: 'At least one side-chat launch option is required',
     });
     const sideChatRequestSchema = z.discriminatedUnion('action', [
@@ -308,7 +309,7 @@ export function startDaemonControlServer({
 
     // Keep launch-bearing requests off the legacy endpoint. Older daemons do
     // not own this route and therefore fail closed instead of silently
-    // discarding model/effort before spawning a child with defaults.
+    // discarding launch settings before spawning a child with defaults.
     typed.post('/side-chat-create-with-settings', {
       schema: {
         body: sideChatCreateWithSettingsRequestSchema,
