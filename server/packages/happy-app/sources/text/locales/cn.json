@@ -482,7 +482,9 @@
     "worktreeCleanupTitle": "删除 Worktree？",
     "worktreeCleanupMessage": "Worktree 没有未提交的更改。是否要删除 Worktree 文件？",
     "worktreeCleanupDelete": "删除 Worktree",
-    "worktreeCleanupKeep": "保留文件"
+    "worktreeCleanupKeep": "保留文件",
+    "botArchiveRequiresMachine": "要归档此机器人，请连接拥有该机器人的电脑。",
+    "botDeleteUnavailable": "机器人保留单个连续对话；请使用归档代替删除。"
   },
   "components": {
     "emptyMainScreen": {
@@ -1799,5 +1801,8 @@
   },
   "superSession": {
     "pinned": "Super Session（已置顶）"
+  },
+  "sessions": {
+    "bots": "机器人"
   }
 }

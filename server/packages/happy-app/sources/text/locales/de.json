@@ -562,7 +562,9 @@
     "worktreeCleanupTitle": "Arbeitsbaum löschen?",
     "worktreeCleanupMessage": "Der Arbeitsbaum enthält keine nicht festgeschriebenen Änderungen. Möchten Sie die Worktree-Dateien löschen?",
     "worktreeCleanupDelete": "Arbeitsbaum löschen",
-    "worktreeCleanupKeep": "Dateien aufbewahren"
+    "worktreeCleanupKeep": "Dateien aufbewahren",
+    "botArchiveRequiresMachine": "Verbinden Sie den Computer, dem dieser Bot gehört, um ihn zu archivieren.",
+    "botDeleteUnavailable": "Der Bot führt eine kontinuierliche Konversation; verwenden Sie Archivieren statt Löschen."
   },
   "components": {
     "emptyMainScreen": {
@@ -1799,5 +1801,8 @@
   },
   "superSession": {
     "pinned": "Super Session (Angeheftet)"
+  },
+  "sessions": {
+    "bots": "Bots"
   }
 }

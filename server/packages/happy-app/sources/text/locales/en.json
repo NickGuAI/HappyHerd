@@ -562,7 +562,9 @@
     "worktreeCleanupTitle": "Delete Worktree?",
     "worktreeCleanupMessage": "The worktree has no uncommitted changes. Would you like to delete the worktree files?",
     "worktreeCleanupDelete": "Delete Worktree",
-    "worktreeCleanupKeep": "Keep Files"
+    "worktreeCleanupKeep": "Keep Files",
+    "botArchiveRequiresMachine": "To archive this bot, connect the machine that owns it.",
+    "botDeleteUnavailable": "A bot keeps one continuous conversation; use Archive instead of Delete."
   },
   "components": {
     "emptyMainScreen": {
@@ -1799,5 +1801,8 @@
   },
   "superSession": {
     "pinned": "Super Session (Pinned)"
+  },
+  "sessions": {
+    "bots": "Bots"
   }
 }
