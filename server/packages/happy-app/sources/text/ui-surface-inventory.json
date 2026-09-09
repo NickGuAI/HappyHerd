@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "93b454682ac1602b430908df787e08b7d366ce4e523510d75ecfcfb3b58b6cbd",
-  "routeCount": 36,
-  "surfaceCount": 262,
+  "sourceFingerprint": "c18a2006232ce4a24c7c07b14ce723a22a9db0b2a4b65189d3c498097e014aa8",
+  "routeCount": 38,
+  "surfaceCount": 266,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -341,6 +341,18 @@
       ]
     },
     {
+      "path": "/projects",
+      "owner": "sources/app/(app)/projects/index.tsx",
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
       "path": "/restore",
       "owner": "sources/app/(app)/restore/index.tsx",
       "translationKeys": [
@@ -528,6 +540,17 @@
       "owner": "sources/app/(app)/session/[id]/message/[messageId].tsx",
       "translationKeys": [],
       "states": []
+    },
+    {
+      "path": "/session/[id]/project",
+      "owner": "sources/app/(app)/session/[id]/project.tsx",
+      "translationKeys": [
+        "common.error",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ]
     },
     {
       "path": "/session/recent",
@@ -1089,6 +1112,7 @@
         "settings.account",
         "settings.appearance",
         "settings.title",
+        "sidebar.projects",
         "tabs.inbox",
         "textSelection.title",
         "workspace.title"
@@ -1489,6 +1513,23 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/projects/index.tsx",
+      "kind": "route",
+      "route": "/projects",
+      "exports": [
+        "ProjectsScreen"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/restore/index.tsx",
       "kind": "route",
       "route": "/restore",
@@ -1707,6 +1748,22 @@
       "exports": [],
       "translationKeys": [],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/project.tsx",
+      "kind": "route",
+      "route": "/session/[id]/project",
+      "exports": [
+        "SessionProjectScreen"
+      ],
+      "translationKeys": [
+        "common.error",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -3688,6 +3745,7 @@
         "MachinePathBrowser"
       ],
       "translationKeys": [
+        "newSession.showHidden",
         "uiCopy.addWorkspaceFavorite",
         "uiCopy.browseFilesystemRoot",
         "uiCopy.browseParentFolder",
@@ -3752,6 +3810,7 @@
         "sessionsFilter.groupingTitle",
         "sessionsFilter.title",
         "settings.title",
+        "sidebar.projects",
         "status.connected",
         "status.connecting",
         "status.disconnected",
@@ -4105,6 +4164,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/NewSessionPathScrollView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NewSessionPathScrollView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/OAuthView.tsx",
       "kind": "component",
       "route": null,
@@ -4399,6 +4469,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SessionSidebarDivider.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "SessionSidebarDivider"
+      ],
+      "translationKeys": [
+        "sideChat.resizePanel"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SessionsList.tsx",
       "kind": "component",
       "route": null,
@@ -4655,6 +4738,7 @@
         "settings.title",
         "sidebar.hideArchived",
         "sidebar.newSession",
+        "sidebar.projects",
         "sidebar.showArchived",
         "workspace.title"
       ],

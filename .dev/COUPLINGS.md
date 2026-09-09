@@ -615,3 +615,7 @@ paths are under `.dev/`. Upstream integration is a non-squashed subtree merge
 limited to `server/` and must survive the real range-diff rehearsal. Do not use
 ordinary merge commits to refresh a feature branch; rebase that branch onto
 current `origin/main` instead.
+
+## Named projects and the pinned assistant
+
+Independent named Projects use existing encrypted records synchronized via `apiProjects.ts`, `projects.ts`, and `sync.ts` under server route `projectRoutes.ts`. UI routes `projects/index.tsx` and `session/[id]/project.tsx` handle display, while session assignment uses an authenticated PATCH on the session `projectId` while catalog projects remain available even when no sessions reference them. Projections in `storage.ts` and `projectGroups.ts` prioritize explicit personal assignments while preserving native Rig project/worktree grouping for native assignments. Super Session status is persisted in `metadata.isSuperSession`; `superSession.ts` selects the oldest session by `createdAt` then ID to pin first across desktop/mobile list components. Creating a CLI session via `run.ts` and `createSessionMetadata.ts` with `--super-session` requires `--commander`, routing through agent control and `machineRpc` to propagate a session-scoped environment marker that is stripped from ambient children, reusing ordinary session identities without introducing a new bot lifecycle.

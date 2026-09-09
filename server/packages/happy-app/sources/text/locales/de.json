@@ -405,7 +405,7 @@
   },
   "newSession": {
     "title": "Neue Sitzung starten",
-    "showHidden": "Ausgeblendete anzeigen",
+    "showHidden": "Versteckte Elemente anzeigen",
     "machineOffline": "Maschine ist offline",
     "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken",
     "workspace": "Arbeitsbereich",
@@ -935,7 +935,7 @@
   },
   "sideChat": {
     "panelTitle": "Side-Chats",
-    "resizePanel": "Seitenbereich anpassen",
+    "resizePanel": "Ziehen, um die Größe des Seitenpanels zu ändern",
     "newChat": "Neuer Side-Chat",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",

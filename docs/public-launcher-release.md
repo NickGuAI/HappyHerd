@@ -122,13 +122,13 @@ generated deployment lock and installs the frozen production dependency closure
 in a hoisted layout before adding the already-built CLI, self-host server, Web
 app, platform tools, and bundled Node runtime.
 
-A manual workflow run builds and tests the four assets without publishing
+Pull requests and manual workflow runs build and test the four assets without publishing
 them. Pushing a `happyherd-v*` tag attaches all four assets to the matching
 GitHub Release. Prerelease tags remain prereleases, so the default installer
 continues to select the latest stable release.
 
 A local Linux build proves only the Linux architecture on which it ran. The
-tagged matrix must pass to prove macOS and ARM delivery. The tagged publish job
+four-target build/smoke matrix must pass on the reviewed head to prove macOS and ARM builds and installation. The tagged publish job
 and a download from the resulting GitHub Release are the evidence that the
 public assets exist; source, local tests, and an untagged workflow run do not
 prove publication.

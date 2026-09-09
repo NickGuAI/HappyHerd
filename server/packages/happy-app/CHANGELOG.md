@@ -1,3 +1,11 @@
+# September 9 — Projects, Session UI, and Prepared Installer Bundles
+
+- Wider Web Desktop New Session panel uses 16px rows and inputs and has a Show hidden toggle, Web Mobile touch gestures reach final folder and recent paths, and HTML/PDF previews fill the Workspace pane while Markdown, editor, and diff views retain reading width.
+- The Web Desktop session side panel has a draggable divider starting at 360px (up to 75% width) which preserves its width within the mounted view when reopened or changing tabs.
+- Create and rename independent account-owned Projects to organize and assign sessions across devices, using existing encrypted metadata while maintaining machine or path grouping for unassigned sessions.
+- Pin a configured Super Session to the top of session lists to reopen the same assistant session, supported by CLI option `--super-session` which requires a commander and machine path.
+- Prepare installer bundles for macOS and Linux requiring curl/tar to download assets, which need no local Node or source build and preserve server choice and state through upgrades.
+
 # September 8 — Side-chat permissions
 
 - Added `--permission` alongside `--model` and `--effort` in `happyherd session side-chat create` and its parent-id shorthand. The owning daemon validates the permission against the parent's machine catalog before forking or starting, and creation receipts report the confirmed provider, model, effort, and permission.

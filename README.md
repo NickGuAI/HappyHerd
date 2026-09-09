@@ -89,3 +89,7 @@ See [docs/public-launcher-release.md](docs/public-launcher-release.md) for the
 installer and cleanup contract.
 
 See [docs/lineage.md](docs/lineage.md) for upstream provenance.
+
+## Projects and assistant
+
+[HappyHerd Projects and Assistant Guide](docs/projects-and-assistant.md)

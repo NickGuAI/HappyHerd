@@ -325,7 +325,7 @@
   },
   "newSession": {
     "title": "开始新会话",
-    "showHidden": "显示隐藏项目",
+    "showHidden": "显示隐藏项",
     "machineOffline": "设备离线",
     "switchMachinesHint": "• 点击上方的设备来切换设备",
     "workspace": "工作区",
@@ -855,7 +855,7 @@
   },
   "sideChat": {
     "panelTitle": "侧聊",
-    "resizePanel": "调整侧边面板大小",
+    "resizePanel": "拖动以调整侧边栏大小",
     "newChat": "新建侧聊",
     "emptyTitle": "暂无侧聊",
     "emptyDescription": "点击“新建侧聊”打开空白侧聊，然后像往常一样在输入框中输入消息。",
