@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { MessageMetaSchema } from './messageMeta';
-import { RigMetadataV1Schema } from './rigMetadata';
+import { RigBotSchema, RigMetadataV1Schema } from './rigMetadata';
+
+const bot = {
+  id: 'bot-1', name: 'Build assistant', username: 'build-assistant',
+  workspaceId: 'workspace-1', orderKey: 'a0',
+};
 
 describe('Rig wire contract', () => {
+  it('accepts bounded bot identity and retains future bot fields', () => {
+    expect(RigBotSchema.parse({ ...bot, futureField: true })).toEqual({ ...bot, futureField: true });
+    for (const [field, limit] of Object.entries({ id: 128, name: 512, username: 64, workspaceId: 128, orderKey: 64 })) {
+      expect(RigBotSchema.safeParse({ ...bot, [field]: '' }).success).toBe(false);
+      expect(RigBotSchema.safeParse({ ...bot, [field]: 'x'.repeat(limit + 1) }).success).toBe(false);
+    }
+  });
   it('accepts native Rig message selection codes and provider qualification', () => {
     expect(MessageMetaSchema.parse({
       permissionMode: 'workspace_write',
@@ -76,6 +88,8 @@ describe('Rig wire contract', () => {
       mcpServers: [], tools: [], skills: [], futureField: true,
     });
     expect((parsed as any).futureField).toBe(true);
+    expect(RigMetadataV1Schema.parse({ ...parsed, bot }).bot).toEqual(bot);
+    expect(RigMetadataV1Schema.safeParse({ ...parsed, bot: { ...bot, id: '' } }).success).toBe(false);
     expect(RigMetadataV1Schema.safeParse({
       ...parsed,
       operatingModes: [{ code: 'future', value: 'Future', description: 'Future mode', kind: 'future-kind' }],

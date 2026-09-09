@@ -1,5 +1,14 @@
 import * as z from 'zod';
 
+/** A bot's identity travels with its single encrypted session. */
+export const RigBotSchema = z.object({
+  id: z.string().min(1).max(128),
+  name: z.string().min(1).max(512),
+  username: z.string().min(1).max(64),
+  workspaceId: z.string().min(1).max(128),
+  orderKey: z.string().min(1).max(64),
+}).passthrough();
+
 export const RigProviderSchema = z.object({
   id: z.string(),
   kind: z.string(),
@@ -85,6 +94,7 @@ export const RigActivitySchema = z.object({
 }).passthrough();
 
 export const RigMetadataV1Schema = z.object({
+  bot: RigBotSchema.optional(),
   // Parse later additive revisions with the v1-compatible fields we know.
   rigMetadataVersion: z.number().int().min(1),
   client: z.object({

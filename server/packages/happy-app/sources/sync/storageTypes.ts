@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
     AgentMessageQueueStateSchema,
     HappyHerdMachineSessionSettingsSchema,
+    RigBotSchema,
 } from '@slopus/happy-wire';
 
 //
@@ -9,6 +10,7 @@ import {
 //
 
 export const MetadataSchema = z.object({
+    bot: RigBotSchema.optional(),
     models: z.array(z.object({
         code: z.string(),
         value: z.string(),
