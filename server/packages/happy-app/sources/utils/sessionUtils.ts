@@ -91,10 +91,12 @@ export function useSessionStatus(session: Session): SessionStatus {
 }
 
 /**
- * Extracts a display name from a session's metadata path.
- * Returns the last segment of the path, or 'unknown' if no path is available.
+ * Returns a bot's stable name first, then the session summary or fallback.
  */
 export function getSessionName(session: Session): string {
+    if (session.metadata?.bot) {
+        return session.metadata.bot.name;
+    }
     if (session.metadata?.summary) {
         return session.metadata.summary.text;
     }
@@ -102,10 +104,13 @@ export function getSessionName(session: Session): string {
 }
 
 /**
- * Generates a deterministic avatar ID from machine ID and path.
- * This ensures the same machine + path combination always gets the same avatar.
+ * Generates a deterministic avatar ID. Bots use machine plus bot identity;
+ * ordinary sessions retain the existing machine plus path identity.
  */
 export function getSessionAvatarId(session: Session): string {
+    if (session.metadata?.bot) {
+        return `${session.metadata.machineId ?? ''}:bot:${session.metadata.bot.id}`;
+    }
     if (session.metadata?.machineId && session.metadata?.path) {
         // Combine machine ID and path for a unique, deterministic avatar
         return `${session.metadata.machineId}:${session.metadata.path}`;

@@ -14,7 +14,8 @@ export interface FlatSessionRowData {
 }
 
 /**
- * The five fields the existing Home search owns. Project/worktree labels are
+ * The fields the existing Home search owns, plus bot username and owning
+ * machine identity. Project/worktree labels are
  * deliberately absent: D4 keeps search as a small free-text affordance rather
  * than turning the flat inbox into a second filtering product.
  */
@@ -28,6 +29,8 @@ export function sessionMatchesFlatListSearch(
         session.path,
         session.machineId,
         session.flavor,
+        session.botUsername,
+        session.machineName,
     ].some((value) => value?.toLocaleLowerCase().includes(normalizedQuery));
 }
 
@@ -62,7 +65,7 @@ export function buildFlatSessionRows(
     const rowsBySessionId = new Map<string, FlatSessionRowData>();
 
     for (const item of items) {
-        if (item.type === 'active-sessions') {
+        if (item.type === 'active-sessions' || item.type === 'bots') {
             for (const session of item.sessions) {
                 if (!rowsBySessionId.has(session.id)) {
                     rowsBySessionId.set(session.id, toFlatSessionRow(session));
@@ -96,6 +99,16 @@ export function buildFlatSessionRows(
  * as the workspace.
  */
 export function toFlatSessionRow(session: SessionRowData): FlatSessionRowData {
+    if (session.botId) {
+        return {
+            session,
+            projectName: [
+                session.botUsername ? `@${session.botUsername}` : null,
+                session.machineName,
+            ].filter(Boolean).join(' · '),
+            workspaceName: null,
+        };
+    }
     const path = session.path?.trim() || '';
     const worktree = isWorktreePath(path);
     const projectPath = worktree ? getRepoPath(path) : path;

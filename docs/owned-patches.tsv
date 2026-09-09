@@ -319,3 +319,4 @@ BOT_SESSION_IDENTITY	accepted	feat: preserve typed bot session identity	server/p
 BOT_SESSION_COPY	accepted	feat: localize bot session controls	server/packages/happy-app/sources/text/locales/en.json
 BOT_SESSION_LIFECYCLE	accepted	feat: keep bot conversations machine-owned	server/packages/happy-app/sources/hooks/useSessionQuickActions.test.ts
 SELECTED_UPSTREAM_BOTS	accepted	docs: record selected session and bot adaptations	docs/upstream-selected-session-bots.md
+BOT_SESSION_DISPLAY	accepted	feat(app): surface bot sessions in the session list	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts

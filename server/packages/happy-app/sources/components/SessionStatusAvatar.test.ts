@@ -261,4 +261,36 @@ describe('SessionStatusAvatar', () => {
 
         expect(renderer.root.findByType('Text' as any).props.children).toBe('DS');
     });
+
+    it('renders bot identity inside the existing status ring and keeps the harness badge', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(SessionStatusAvatar, {
+                active: true,
+                botId: 'build-bot',
+                botName: 'Build assistant',
+                clientId: null,
+                commanderId: 'athena',
+                commanderName: 'Athena',
+                flavor: 'codex',
+                hasDraft: false,
+                hasUnread: true,
+                machineId: 'machine-one',
+                providerKind: 'codex',
+                providerLabel: 'Codex',
+                state: 'waiting',
+            }));
+        });
+
+        expect(renderer.root.findAllByType('CommanderSessionAvatar' as any)).toHaveLength(0);
+        expect(renderer.root.findByType('Ionicons' as any).props.name).toBe('hardware-chip-outline');
+        expect(renderer.root.findByType('HarnessBadgeIcon' as any).props.harness).toBe('codex');
+        expect(flattenedStyle(renderer.root.findByType('StatusPulse' as any).props.style))
+            .toMatchObject({ borderColor: 'blue', borderWidth: 3 });
+        const outer = renderer.root.findAllByType('View' as any)
+            .find((node: any) => node.props.accessibilityRole === 'image');
+        expect(outer?.props.accessibilityLabel).toBe(
+            'Build assistant, machine.machineId: machine-one, happyHerd.sessionStatusAvatar.unread',
+        );
+    });
 });

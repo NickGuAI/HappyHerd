@@ -77,6 +77,14 @@ const stylesheet = StyleSheet.create((theme) => ({
         paddingTop: 20,
         paddingBottom: 8,
     },
+    botSection: {
+        paddingTop: 8,
+    },
+    botHeader: {
+        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
+        paddingTop: 8,
+        paddingBottom: 8,
+    },
     archiveToggle: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -207,7 +215,7 @@ export function SessionsList({
         ));
         const primaryRows = sourceData.flatMap<SessionListViewItem>((item) => {
             if (item.type === 'super-session' || item.type === 'header' || item.type === 'session') return [];
-            if (item.type === 'active-sessions') {
+            if (item.type === 'active-sessions' || item.type === 'bots') {
                 const sessions = item.sessions.filter(matchesSession);
                 return sessions.length > 0 ? [{ ...item, sessions }] : [];
             }
@@ -271,11 +279,14 @@ export function SessionsList({
             ];
         }
 
+        const bots = primaryRows.filter((item): item is Extract<SessionListViewItem, { type: 'bots' }> => (
+            item.type === 'bots'
+        ));
         const personalProjects = primaryRows.filter((item): item is Extract<SessionListViewItem, { type: 'project' }> => (
             item.type === 'project' && item.source === 'personal'
         ));
         const machineRows = primaryRows.filter((item) => (
-            item.type !== 'project' || item.source !== 'personal'
+            item.type !== 'bots' && (item.type !== 'project' || item.source !== 'personal')
         ));
         const machineGroups = buildSessionProjectDisplayGroups(
             machineRows,
@@ -291,19 +302,21 @@ export function SessionsList({
             ...group.projects,
         ]);
         const legacyItems = machineRows.filter((item) => (
-            item.type !== 'project' && item.type !== 'projects-header'
+            item.type !== 'bots' && item.type !== 'project' && item.type !== 'projects-header'
         ));
         return [
             ...(pinnedRow ? [{
                 type: 'flat-session' as const,
                 row: pinnedRow,
-                last: personalProjects.length === 0
+                last: bots.length === 0
+                    && personalProjects.length === 0
                     && hierarchy.length === 0
                     && legacyItems.length === 0
                     && archiveToggle.length === 0
                     && archiveItems.length === 0,
                 pinned: true,
             }] : []),
+            ...bots,
             ...personalProjects,
             ...hierarchy,
             ...legacyItems,
@@ -319,6 +332,7 @@ export function SessionsList({
     const keyExtractor = React.useCallback((item: SessionListDisplayItem, index: number) => {
         switch (item.type) {
             case 'super-session': return `super-session-${item.session.id}`;
+            case 'bots': return 'bots';
             case 'machine-header': return `machine-header-${item.machineId ?? 'unknown'}`;
             case 'archive-toggle': return 'archive-toggle';
             case 'archive-header': return `archive-header-${item.title}-${index}`;
@@ -334,6 +348,24 @@ export function SessionsList({
 
     const renderItem = React.useCallback(({ item }: { item: SessionListDisplayItem }) => {
         switch (item.type) {
+            case 'bots':
+                return (
+                    <View style={styles.botSection}>
+                        <View style={styles.botHeader}>
+                            <Text accessibilityRole="header" style={styles.headerText}>
+                                {t('sessions.bots')}
+                            </Text>
+                        </View>
+                        {item.sessions.map((session, index) => (
+                            <FlatSessionRow
+                                key={session.id}
+                                row={toFlatSessionRow(session)}
+                                selected={session.id === selectedSessionId}
+                                showBorder={index < item.sessions.length - 1}
+                            />
+                        ))}
+                    </View>
+                );
             case 'machine-header':
                 return <MachineHeader machineId={item.machineId} machineName={item.machineName} />;
             case 'flat-session':

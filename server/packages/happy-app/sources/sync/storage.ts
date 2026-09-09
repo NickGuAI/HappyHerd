@@ -124,6 +124,11 @@ interface SessionMessages {
 
 // Display-only row data — all primitives, cheap to deep-equal
 export interface SessionRowData {
+    /** Stable identity for a machine-owned bot conversation. */
+    botId?: string | null;
+    botUsername?: string | null;
+    /** Human machine label used to disambiguate bot identities. */
+    machineName?: string | null;
     id: string;
     name: string;
     subtitle: string;
@@ -218,6 +223,12 @@ function buildSessionRowData(
     const metadataProject = session.metadata?.project;
     const projectAvatar = isHappyAgentSession(session) ? linkedProject?.avatar : null;
     return {
+        botId: session.metadata?.bot?.id ?? null,
+        botUsername: session.metadata?.bot?.username ?? null,
+        machineName: machine?.metadata?.displayName
+            || machine?.metadata?.host
+            || session.metadata?.host
+            || null,
         id: session.id,
         name: getSessionName(session),
         subtitle: getSessionSubtitle(session),
@@ -268,6 +279,7 @@ function buildSessionRowData(
 // Unified list item type for SessionsList component
 export type SessionListViewItem =
     | { type: 'super-session'; session: SessionRowData }
+    | { type: 'bots'; sessions: SessionRowData[] }
     | { type: 'header'; title: string }
     | { type: 'active-sessions'; sessions: SessionRowData[] }
     | { type: 'project-group'; displayPath: string; machine: Machine }
@@ -386,6 +398,7 @@ function buildSessionListViewData(
     const rigProjectSessions: Session[] = [];
     const rigPathSessions: Session[] = [];
     const personalProjectSessions: Session[] = [];
+    const botSessions: Session[] = [];
     const happySessions: Session[] = [];
     const archivedSessions: Session[] = [];
 
@@ -396,6 +409,10 @@ function buildSessionListViewData(
         // The archive is a flat chronological tail, not part of any project.
         if (isSessionArchived(session)) {
             archivedSessions.push(session);
+            return;
+        }
+        if (session.metadata?.bot) {
+            botSessions.push(session);
             return;
         }
         const projectId = session.projectId?.trim();
@@ -442,6 +459,21 @@ function buildSessionListViewData(
 
     if (superSession) {
         listData.push({ type: 'super-session', session: toRow(superSession) });
+    }
+
+    if (botSessions.length > 0) {
+        botSessions.sort((a, b) => {
+            const machineOrder = (a.metadata?.machineId ?? '').localeCompare(b.metadata?.machineId ?? '');
+            if (machineOrder !== 0) return machineOrder;
+            const aOrderKey = a.metadata!.bot!.orderKey;
+            const bOrderKey = b.metadata!.bot!.orderKey;
+            return aOrderKey < bOrderKey
+                ? -1
+                : aOrderKey > bOrderKey
+                    ? 1
+                    : a.id.localeCompare(b.id);
+        });
+        listData.push({ type: 'bots', sessions: botSessions.map(toRow) });
     }
 
     const rigProjects = [

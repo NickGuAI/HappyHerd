@@ -56,7 +56,7 @@ export function useVisibleSessionListViewData(): SessionListViewItem[] | null {
                 if (project) result.push(project);
                 return;
             }
-            if (item.type === 'active-sessions') result.push(item);
+            if (item.type === 'active-sessions' || item.type === 'bots') result.push(item);
         });
 
         // Flat, date-grouped rows trail the project cards. A date header is

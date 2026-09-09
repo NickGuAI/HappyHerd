@@ -30,6 +30,9 @@ function row(overrides: Partial<SessionRowData> & { id: string }): SessionRowDat
         commanderId: null,
         commanderName: null,
         machineOffline: false,
+        botId: null,
+        botUsername: null,
+        machineName: null,
         path: null,
         homeDir: null,
         completedTodosCount: 0,
@@ -156,6 +159,33 @@ describe('buildFlatSessionRows', () => {
 
         expect(rows.map((r) => r.session.id)).toEqual(['live']);
     });
+
+    it('includes bots in the ordinary activity order and shows their stable identity line', () => {
+        const bot = row({
+            id: 'bot-session',
+            botId: 'build-bot',
+            botUsername: 'builder',
+            machineName: 'Mac mini',
+            lastActivityAt: 200,
+            projectId: 'personal-project',
+            projectName: 'Launch',
+        });
+        const rows = buildFlatSessionRows([
+            { type: 'bots', sessions: [bot] },
+            project('ordinary', [{
+                id: '',
+                name: null,
+                sessions: [row({ id: 'newer', lastActivityAt: 300 }), row({ id: 'older', lastActivityAt: 100 })],
+            }]),
+        ]);
+
+        expect(rows.map((item) => item.session.id)).toEqual(['newer', 'bot-session', 'older']);
+        expect(rows[1]).toMatchObject({
+            session: { projectId: 'personal-project' },
+            projectName: '@builder · Mac mini',
+            workspaceName: null,
+        });
+    });
 });
 
 describe('sessionMatchesFlatListSearch', () => {
@@ -168,6 +198,8 @@ describe('sessionMatchesFlatListSearch', () => {
         flavor: 'codex',
         projectName: 'Not searchable project',
         workspaceName: 'not-searchable-worktree',
+        botUsername: 'release-runner',
+        machineName: 'Build host',
     });
 
     it.each([
@@ -176,6 +208,8 @@ describe('sessionMatchesFlatListSearch', () => {
         '/srv/happyherd',
         'a1b2c3',
         'codex',
+        'release-runner',
+        'build host',
     ])('matches the retained search field %s', (query) => {
         expect(sessionMatchesFlatListSearch(searchable, query)).toBe(true);
     });

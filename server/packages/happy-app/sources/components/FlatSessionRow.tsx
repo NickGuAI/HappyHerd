@@ -130,6 +130,8 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
             <View style={styles.avatar}>
                 <SessionStatusAvatar
                     active={session.active}
+                    botId={session.botId}
+                    botName={session.name}
                     clientId={session.clientId}
                     commanderId={session.commanderId}
                     commanderName={session.commanderName}
@@ -170,7 +172,7 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
                     <Text style={styles.project} numberOfLines={1}>
                         {projectName}
                     </Text>
-                    {(session.daemonLabel || session.daemonShortId) && (
+                    {!session.botId && (session.daemonLabel || session.daemonShortId) && (
                         <View style={styles.daemonIdentity}>
                             <Ionicons
                                 name="desktop-outline"

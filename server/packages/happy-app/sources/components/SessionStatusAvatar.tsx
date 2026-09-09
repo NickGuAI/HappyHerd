@@ -34,6 +34,8 @@ function statusLabel(state: SessionStatusAvatarState): string {
 
 export function SessionStatusAvatar({
     active,
+    botId,
+    botName,
     clientId,
     commanderId,
     commanderName,
@@ -48,6 +50,8 @@ export function SessionStatusAvatar({
     state,
 }: {
     active: boolean;
+    botId?: string | null;
+    botName?: string | null;
     clientId?: string | null;
     commanderId?: string | null;
     commanderName?: string | null;
@@ -91,9 +95,12 @@ export function SessionStatusAvatar({
         || clientId?.trim()
         || flavor?.trim()
         || t('status.unknown');
-    const identityLabel = commanderId
-        ? commanderName?.trim() || commanderId
-        : fallbackProviderLabel;
+    const isBot = Boolean(botId?.trim());
+    const identityLabel = isBot
+        ? botName?.trim() || botId!.trim()
+        : commanderId
+            ? commanderName?.trim() || commanderId
+            : fallbackProviderLabel;
     const harness = resolveAvatarHarness(flavor, clientId);
     const daemonIdentityLabel = machineId?.trim()
         ? `${t('machine.machineId')}: ${machineId.trim()}`
@@ -104,7 +111,26 @@ export function SessionStatusAvatar({
         statusLabel(presentation.state),
     ].filter(Boolean).join(', ');
 
-    const identity = commanderId ? (
+    const identity = isBot ? (
+        <View
+            accessible={false}
+            style={[
+                styles.providerIdentity,
+                {
+                    backgroundColor: theme.colors.surfaceHighest,
+                    borderRadius: innerSize / 2,
+                    height: innerSize,
+                    width: innerSize,
+                },
+            ]}
+        >
+            <Ionicons
+                name="hardware-chip-outline"
+                size={Math.max(10, Math.round(innerSize * 0.52))}
+                color={theme.colors.text}
+            />
+        </View>
+    ) : commanderId ? (
         <CommanderSessionAvatar
             accessible={false}
             machineId={commanderProfilePictures ? machineId : null}

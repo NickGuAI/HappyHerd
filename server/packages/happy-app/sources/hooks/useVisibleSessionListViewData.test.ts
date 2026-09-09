@@ -161,4 +161,11 @@ describe('useVisibleSessionListViewData', () => {
 
         expect(useVisibleSessionListViewData()).toEqual(mocks.data);
     });
+
+    it('keeps the dedicated bots group while the archive is hidden', () => {
+        mocks.data = [{ type: 'bots', sessions: [row('bot-session', { active: true })] }];
+        mocks.hideArchivedSessions = true;
+
+        expect(useVisibleSessionListViewData()).toEqual(mocks.data);
+    });
 });
