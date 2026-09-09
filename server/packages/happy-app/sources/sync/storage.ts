@@ -398,16 +398,17 @@ function buildSessionListViewData(
             archivedSessions.push(session);
             return;
         }
-        if (isRigMetadata(session.metadata)) {
+        const projectId = session.projectId?.trim();
+        if (projectId && projects[projectId]?.kind === 'personal') {
+            personalProjectSessions.push(session);
+        } else if (isRigMetadata(session.metadata)) {
             if (isProjectSession(session)) {
                 rigProjectSessions.push(session);
             } else {
                 rigPathSessions.push(session);
             }
         } else {
-            const projectId = session.projectId?.trim();
-            if (projectId && projects[projectId]?.kind === 'personal') personalProjectSessions.push(session);
-            else happySessions.push(session);
+            happySessions.push(session);
         }
     });
 

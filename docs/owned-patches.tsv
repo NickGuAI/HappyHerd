@@ -311,3 +311,4 @@ SESSION_SIDE_PANEL	accepted	feat: make the session side panel resizable	server/p
 NATIVE_INSTALLER	accepted	feat: install prepared platform release artifacts	scripts/test-native-installer-asset.sh
 NATIVE_INSTALLER	accepted	fix: verify portable installer process cleanup	scripts/test-native-installer-asset.sh
 PERSONAL_PROJECTS	accepted	feat: add personal projects and a persistent assistant entry	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+PERSONAL_PROJECTS	accepted	fix(projects): preserve session state and explicit assignments	server/packages/happy-app/sources/sync/storage.projects.test.ts

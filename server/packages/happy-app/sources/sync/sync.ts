@@ -1419,7 +1419,8 @@ class Sync {
         if ((current.projectId ?? null) === projectId) return;
 
         const assigned = await assignSessionProjectRecord(this.credentials, sessionId, projectId);
-        this.applySessions([{ ...current, projectId: assigned.projectId }]);
+        const latest = storage.getState().sessions[sessionId];
+        if (latest) this.applySessions([{ ...latest, projectId: assigned.projectId }]);
     }
 
     private clearProjectAvatarCache(projectId: string): void {
