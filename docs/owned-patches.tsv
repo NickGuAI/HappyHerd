@@ -314,3 +314,4 @@ PERSONAL_PROJECTS	accepted	feat: add personal projects and a persistent assistan
 PERSONAL_PROJECTS	accepted	fix(projects): preserve session state and explicit assignments	server/packages/happy-app/sources/sync/storage.projects.test.ts
 INITIAL_LAUNCH	accepted	docs: synchronize launch guides and UI catalogs	server/packages/happy-app/sources/changelog/changelog.json
 INITIAL_LAUNCH	accepted	docs: align launch verification guidance	.dev/VERIFY.md
+SESSION_SIDE_PANEL	accepted	test: remove duplicate narrow side panel setup	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

@@ -1583,7 +1583,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('drags the production desktop side panel beyond 360px, applies clamps, and keeps the narrow host full-screen', async () => {
+    it('drags the production desktop side panel beyond 360px, applies clamps, and retains width across tabs', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -1645,17 +1645,6 @@ describe('Side chats browser interaction', () => {
         expect((await rightPanelWidth()).width).toBeCloseTo(clamped.width, 0);
         expect(pageErrors).toEqual([]);
         await page.close();
-
-        const narrowPage = await browser.newPage({ viewport: { width: 700, height: 900 } });
-        const narrowErrors: string[] = [];
-        narrowPage.on('pageerror', (error) => narrowErrors.push(error.stack ?? error.message));
-        await narrowPage.goto(origin);
-        const narrowForeground = narrowPage.getByTestId('foreground-session');
-        await narrowForeground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
-        await expect(narrowForeground.getByText('Newest child').isVisible()).resolves.toBe(true);
-        await expect(narrowForeground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(0);
-        expect(narrowErrors).toEqual([]);
-        await narrowPage.close();
     }, 15_000);
 
     it.each([
@@ -2738,6 +2727,7 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
+        await expect(foreground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(0);
         const newestDraft = foreground.locator('textarea').last();
         await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
         await newestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'newest'; });
