@@ -1114,8 +1114,6 @@ const styles = StyleSheet.create((theme) => ({
     documentPreview: {
         flex: 1,
         width: '100%',
-        maxWidth: layout.maxWidth,
-        alignSelf: 'center',
         backgroundColor: 'white',
     },
     canvasPreview: {

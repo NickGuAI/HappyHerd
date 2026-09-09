@@ -304,3 +304,4 @@ SESSION_ARCHIVE	accepted	fix(skill): move session-archive machine parameters to 
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): open chat localhost links in Workspace	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): restore IPv6 chat links and verify side chat drafts	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 PUBLIC_BOUNDARY	accepted	docs(archive): route machine parameters through private overlay	.dev/ROUTING.md
+WORKSPACE_DOCUMENT_PREVIEW	accepted	fix: let document previews fill the workspace pane	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
