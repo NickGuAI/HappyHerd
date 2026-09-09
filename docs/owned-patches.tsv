@@ -318,3 +318,4 @@ SESSION_SIDE_PANEL	accepted	test: remove duplicate narrow side panel setup	serve
 BOT_SESSION_IDENTITY	accepted	feat: preserve typed bot session identity	server/packages/happy-wire/src/rigMetadata.test.ts
 BOT_SESSION_COPY	accepted	feat: localize bot session controls	server/packages/happy-app/sources/text/locales/en.json
 BOT_SESSION_LIFECYCLE	accepted	feat: keep bot conversations machine-owned	server/packages/happy-app/sources/hooks/useSessionQuickActions.test.ts
+SELECTED_UPSTREAM_BOTS	accepted	docs: record selected session and bot adaptations	docs/upstream-selected-session-bots.md

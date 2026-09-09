@@ -1,3 +1,9 @@
+# September 9 — Bot Sync and Session Management
+
+- Streamlined the Session Info panel to put Quick Actions first, with Changes opening the existing Workspace, and removed the duplicate large avatar, name, and status block.
+- Grouped mode displays Bots before Projects and includes distinct bot names, avatars, and owning machine details, while default flat mode preserves activity order.
+- Bot sessions use Archive on the connected owning machine and keep their conversation history. Delete is unavailable in the app, and failed archive requests remain visible for retry.
+
 # September 9 — Projects, Session UI, and Prepared Installer Bundles
 
 - Wider Web Desktop New Session panel uses 16px rows and inputs and has a Show hidden toggle, Web Mobile touch gestures reach final folder and recent paths, and HTML/PDF previews fill the Workspace pane while Markdown, editor, and diff views retain reading width.
