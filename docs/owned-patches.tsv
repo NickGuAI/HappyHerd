@@ -317,3 +317,4 @@ INITIAL_LAUNCH	accepted	docs: align launch verification guidance	.dev/VERIFY.md
 SESSION_SIDE_PANEL	accepted	test: remove duplicate narrow side panel setup	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 BOT_SESSION_IDENTITY	accepted	feat: preserve typed bot session identity	server/packages/happy-wire/src/rigMetadata.test.ts
 BOT_SESSION_COPY	accepted	feat: localize bot session controls	server/packages/happy-app/sources/text/locales/en.json
+BOT_SESSION_LIFECYCLE	accepted	feat: keep bot conversations machine-owned	server/packages/happy-app/sources/hooks/useSessionQuickActions.test.ts

@@ -74,6 +74,7 @@ export function collectSessionPlaces(options: {
 
     for (const session of options.sessions) {
         const metadata = session.metadata;
+        if (metadata?.bot) continue;
         const path = metadata?.path?.trim();
         if (path === undefined || path.length === 0) continue;
         if (metadata?.machineId !== undefined && !machineIds.has(metadata.machineId)) continue;
@@ -115,6 +116,7 @@ export function collectSessionWorkspaces(options: {
 
     for (const session of options.sessions) {
         const metadata = session.metadata;
+        if (metadata?.bot) continue;
         const workspace = metadata?.workspace;
         const path = metadata?.path?.trim();
         if (workspace === undefined || path === undefined || path.length === 0) continue;

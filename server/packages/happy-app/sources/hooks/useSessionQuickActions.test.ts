@@ -14,11 +14,20 @@ const mocks = vi.hoisted(() => ({
     navigateToSession: vi.fn(),
     routerPush: vi.fn(),
     modalShow: vi.fn(),
+    sessionArchive: vi.fn(),
+    sessionKill: vi.fn(),
+    cleanup: vi.fn(),
+    actionError: vi.fn(),
+    pendingActions: [] as Promise<void>[],
+    sessions: {} as Record<string, Session>,
 }));
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.routerPush }) }));
 vi.mock('@/hooks/useHappyAction', () => ({
-    useHappyAction: (action: () => Promise<void>) => [false, action],
+    useHappyAction: (action: () => Promise<void>) => [false, () => {
+        const pending = action().catch(mocks.actionError);
+        mocks.pendingActions.push(pending);
+    }],
 }));
 vi.mock('@/hooks/useNavigateToSession', () => ({
     useNavigateToSession: () => mocks.navigateToSession,
@@ -27,16 +36,17 @@ vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: mocks.modalShow } }))
 vi.mock('@/sync/ops', () => ({
     machineResumeSession: mocks.machineResumeSession,
     sessionSetAgentModes: mocks.sessionSetAgentModes,
-    sessionArchive: vi.fn(),
-    sessionKill: vi.fn(),
+    sessionArchive: mocks.sessionArchive,
+    sessionKill: mocks.sessionKill,
     forkAndSpawn: vi.fn(),
 }));
-vi.mock('@/hooks/useWorktreeCleanup', () => ({ maybeCleanupWorktree: vi.fn() }));
+vi.mock('@/hooks/useWorktreeCleanup', () => ({ maybeCleanupWorktree: mocks.cleanup }));
 vi.mock('@/sync/storage', () => ({
     storage: {
         getState: () => ({
             machines: mocks.machine ? { [mocks.machine.id]: mocks.machine } : {},
             settings: mocks.settings,
+            sessions: mocks.sessions,
         }),
     },
     useLocalSetting: () => false,
@@ -176,7 +186,19 @@ describe('useSessionQuickActions resume permission continuity', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.settings = {};
+        mocks.sessions = {};
+        mocks.pendingActions = [];
+        mocks.sessionKill.mockResolvedValue({ success: true, message: 'Archive accepted' });
+        mocks.sessionArchive.mockResolvedValue({ success: true });
+        mocks.cleanup.mockResolvedValue(undefined);
     });
+
+    async function performArchive(): Promise<void> {
+        act(() => current.archiveSession());
+        await act(async () => {
+            await Promise.all(mocks.pendingActions.splice(0));
+        });
+    }
 
     it.each(['claude', 'codex'] as const)(
         'sends and mirrors the complete daemon-confirmed %s tuple',
@@ -374,6 +396,101 @@ describe('useSessionQuickActions resume permission continuity', () => {
 
         expect(current.canContinueWithProvider).toBe(true);
         expect(current.actionItems.some((item) => item.id === 'continue-provider')).toBe(true);
+        act(() => renderer.unmount());
+    });
+
+    it('uses the latest synced bot identity to archive only through its owning session RPC', async () => {
+        const session = sessionFor('codex');
+        mocks.sessions[session.id] = {
+            ...session,
+            metadata: {
+                ...session.metadata!,
+                bot: {
+                    id: 'bot-1',
+                    name: 'Build assistant',
+                    username: 'build-assistant',
+                    workspaceId: 'workspace-1',
+                    orderKey: 'a0',
+                },
+            } as Session['metadata'],
+        };
+        const onAfterArchive = vi.fn();
+        mocks.machine = machineFor('codex');
+
+        function Harness() {
+            current = useSessionQuickActions(session, { onAfterArchive });
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        await performArchive();
+
+        expect(mocks.sessionKill).toHaveBeenCalledWith(session.id);
+        expect(mocks.cleanup).not.toHaveBeenCalled();
+        expect(mocks.sessionArchive).not.toHaveBeenCalled();
+        expect(mocks.actionError).not.toHaveBeenCalled();
+        expect(onAfterArchive).toHaveBeenCalledOnce();
+        act(() => renderer.unmount());
+    });
+
+    it('keeps a bot retryable when its owning machine cannot accept archive', async () => {
+        const session = sessionFor('codex');
+        session.metadata!.bot = {
+            id: 'bot-1',
+            name: 'Build assistant',
+            username: 'build-assistant',
+            workspaceId: 'workspace-1',
+            orderKey: 'a0',
+        };
+        const onAfterArchive = vi.fn();
+        mocks.machine = machineFor('codex');
+        mocks.sessionKill.mockResolvedValue({ success: false, message: 'socket disconnected' });
+
+        function Harness() {
+            current = useSessionQuickActions(session, { onAfterArchive });
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        await performArchive();
+
+        expect(mocks.sessionKill).toHaveBeenCalledWith(session.id);
+        expect(mocks.cleanup).not.toHaveBeenCalled();
+        expect(mocks.sessionArchive).not.toHaveBeenCalled();
+        expect(onAfterArchive).not.toHaveBeenCalled();
+        expect(mocks.actionError).toHaveBeenCalledWith(expect.objectContaining({
+            message: 'sessionInfo.botArchiveRequiresMachine',
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('retains ordinary cleanup and server fallback for a non-bot Super Session', async () => {
+        const session = sessionFor('codex');
+        session.metadata!.isSuperSession = true;
+        session.metadata!.commanderId = 'commander-one';
+        const onAfterArchive = vi.fn();
+        mocks.machine = machineFor('codex');
+        mocks.sessionKill.mockResolvedValue({ success: false, message: 'process unavailable' });
+
+        function Harness() {
+            current = useSessionQuickActions(session, { onAfterArchive });
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        await performArchive();
+
+        expect(mocks.cleanup).toHaveBeenCalledWith(session.id, '/workspace', 'machine-1');
+        expect(mocks.sessionKill).toHaveBeenCalledWith(session.id);
+        expect(mocks.sessionArchive).toHaveBeenCalledWith(session.id);
+        expect(onAfterArchive).toHaveBeenCalledOnce();
+        expect(mocks.actionError).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
 });

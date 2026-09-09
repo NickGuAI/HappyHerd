@@ -16,6 +16,13 @@ function machine(id: string, metadata: Record<string, unknown> = {}): Machine {
 
 const RIG = 'rig-machine';
 const CLI = 'cli-machine';
+const BOT = {
+    id: 'bot-1',
+    name: 'Build assistant',
+    username: 'build-assistant',
+    workspaceId: 'workspace-1',
+    orderKey: 'a0',
+};
 
 describe('where a Happy Agent session may be started', () => {
     it('offers the directories legacy sessions established, on either machine of the pair', () => {
@@ -29,6 +36,39 @@ describe('where a Happy Agent session may be started', () => {
         expect(places.map((p) => p.path).sort()).toEqual([
             '/home/example-user/projects/happy',
             '/home/example-user/projects/rig',
+        ]);
+    });
+
+    it('does not derive an ordinary destination from a bot conversation', () => {
+        const places = collectSessionPlaces({
+            machineIds: [RIG],
+            sessions: [session({
+                machineId: RIG,
+                path: '/home/example-user/bots/build',
+                bot: BOT,
+            })],
+        });
+        expect(places).toEqual([]);
+    });
+
+    it('keeps an explicitly selected path and an ordinary session that shares a bot path', () => {
+        const path = '/home/example-user/shared';
+        const places = collectSessionPlaces({
+            machineIds: [RIG],
+            selectedPath: '/home/example-user/selected',
+            sessions: [
+                session({ machineId: RIG, path, bot: BOT }),
+                session({
+                    machineId: RIG,
+                    path,
+                    commanderId: 'commander-one',
+                    isSuperSession: true,
+                }),
+            ],
+        });
+        expect(places.map((place) => place.path)).toEqual([
+            '/home/example-user/selected',
+            path,
         ]);
     });
 
@@ -143,6 +183,36 @@ describe('which workspaces a project offers', () => {
 
     it('offers nothing when no project is chosen', () => {
         expect(collectSessionWorkspaces({ machineIds: [RIG], sessions })).toEqual([]);
+    });
+
+    it('skips a bot workspace while retaining an ordinary workspace with the same identity', () => {
+        const path = '/home/example-user/rig/.worktrees/shared';
+        const found = collectSessionWorkspaces({
+            machineIds: [RIG],
+            projectId: 'project-7',
+            sessions: [
+                session({
+                    machineId: RIG,
+                    path,
+                    bot: BOT,
+                    project: { id: 'project-7', kind: 'regular', name: 'rig' },
+                    workspace: { id: 'workspace-1', kind: 'worktree', name: 'Bot-owned' },
+                }),
+                session({
+                    machineId: RIG,
+                    path,
+                    commanderId: 'commander-one',
+                    isSuperSession: true,
+                    project: { id: 'project-7', kind: 'regular', name: 'rig' },
+                    workspace: { id: 'workspace-1', kind: 'worktree', name: 'Ordinary workspace' },
+                }),
+            ],
+        });
+        expect(found).toEqual([expect.objectContaining({
+            id: 'workspace-1',
+            name: 'Ordinary workspace',
+            path,
+        })]);
     });
 });
 

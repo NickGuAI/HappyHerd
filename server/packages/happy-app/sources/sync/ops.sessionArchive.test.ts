@@ -29,6 +29,8 @@ vi.mock('./storage', () => ({
     storage: { getState: mocks.getState },
 }));
 
+vi.mock('@/text', () => ({ t: (key: string) => key }));
+
 describe('sessionArchive', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -219,5 +221,44 @@ describe('sessionArchive', () => {
         });
 
         expect(mocks.emitWithAck).not.toHaveBeenCalled();
+    });
+
+    it('refuses server archive and permanent deletion for a bot before any request or metadata write', async () => {
+        mocks.getState.mockReturnValue({
+            sessions: {
+                bot: {
+                    id: 'bot',
+                    metadataVersion: 4,
+                    metadata: {
+                        path: '/srv/bot',
+                        host: 'machine-one',
+                        commanderId: 'commander-one',
+                        isSuperSession: true,
+                        bot: {
+                            id: 'bot-1',
+                            name: 'Build assistant',
+                            username: 'build-assistant',
+                            workspaceId: 'workspace-1',
+                            orderKey: 'a0',
+                        },
+                    },
+                },
+            },
+        });
+        const { sessionArchive, sessionDelete } = await import('./ops');
+
+        await expect(sessionArchive('bot')).resolves.toEqual({
+            success: false,
+            message: 'sessionInfo.botArchiveRequiresMachine',
+        });
+        await expect(sessionDelete('bot')).resolves.toEqual({
+            success: false,
+            message: 'sessionInfo.botDeleteUnavailable',
+        });
+
+        expect(mocks.request).not.toHaveBeenCalled();
+        expect(mocks.encryptRaw).not.toHaveBeenCalled();
+        expect(mocks.emitWithAck).not.toHaveBeenCalled();
+        expect(mocks.refreshSessions).not.toHaveBeenCalled();
     });
 });
