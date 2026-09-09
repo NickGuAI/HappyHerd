@@ -103,7 +103,12 @@ if grep -Fq -- '--legacy' "$asset_builder"; then
 fi
 grep -Fq 'nodeLinker: hoisted' "$deployment_helper"
 grep -Fq 'pnpm install --prod --frozen-lockfile --offline --ignore-scripts' "$asset_builder"
-[[ "$($asset_builder --print-target)" == linux-x64 ]]
+host_target="$("$asset_builder" --print-target)"
+case "$host_target" in
+  darwin-arm64|darwin-x64) legacy_command="/Library/Application Support/HappyHerd/$(id -u)/bin/happyherd" ;;
+  linux-arm64|linux-x64) legacy_command="/opt/happyherd/$(id -u)/bin/happyherd" ;;
+  *) fail "unsupported contract platform: $host_target" ;;
+esac
 
 grep -Fq 'Preserved normal Happy state' "$uninstaller"
 # shellcheck disable=SC2016
@@ -149,7 +154,7 @@ chmod 755 "$asset_root/runtime/bin/happy.mjs"
 cp "$uninstaller" "$asset_root/uninstall.sh"
 cp "$legacy_cleanup" "$asset_root/cleanup-legacy.sh"
 chmod 755 "$asset_root/uninstall.sh" "$asset_root/cleanup-legacy.sh"
-asset="$fixture/happyherd-linux-x64.tar.gz"
+asset="$fixture/happyherd-$host_target.tar.gz"
 tar -czf "$asset" -C "$fixture/asset-root" happyherd
 
 home="$fixture/home"
@@ -168,7 +173,7 @@ echo existing-user-happy
 EXISTING_HAPPY
 chmod 700 "$home/.local/bin/happy"
 existing_happy="$(cat "$home/.local/bin/happy")"
-ln -s "/opt/happyherd/$(id -u)/bin/happyherd" "$home/.local/bin/happyherd"
+ln -s "$legacy_command" "$home/.local/bin/happyherd"
 printf 'bash profile\n' > "$home/.bashrc"
 chmod 600 "$home/.bashrc"
 
@@ -213,7 +218,7 @@ HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
   HAPPYHERD_FIXTURE_ASSET="$asset" HAPPYHERD_CURL_LOG="$curl_log" \
   PATH="$fake_bin:/usr/bin:/bin" \
   "$installer" --server https://remote.example --no-start >/dev/null
-grep -Fxq 'https://github.com/NickGuAI/HappyHerd/releases/latest/download/happyherd-linux-x64.tar.gz' "$curl_log"
+grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/latest/download/happyherd-$host_target.tar.gz" "$curl_log"
 
 [[ -x "$home/.local/bin/happyherd" ]] || fail 'installer did not expose happyherd'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] || fail 'installer replaced an existing Happy command'
@@ -230,7 +235,7 @@ HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
   HAPPYHERD_FIXTURE_ASSET="$asset" HAPPYHERD_CURL_LOG="$curl_log" \
   PATH="$fake_bin:/usr/bin:/bin" \
   "$installer" --version 1.2.3 --no-start </dev/null >/dev/null
-grep -Fxq 'https://github.com/NickGuAI/HappyHerd/releases/download/happyherd-v1.2.3/happyherd-linux-x64.tar.gz' "$curl_log"
+grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/download/happyherd-v1.2.3/happyherd-$host_target.tar.gz" "$curl_log"
 
 HAPPYHERD_TEST_LOG="$test_log" \
   "$home/.local/share/happyherd/node/bin/node" \

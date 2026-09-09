@@ -1,6 +1,7 @@
 name: HappyHerd native installer release
 
 on:
+  pull_request:
   push:
     tags:
       - happyherd-v*

@@ -309,3 +309,4 @@ PUBLIC_BOUNDARY	accepted	docs(archive): route machine parameters through private
 WORKSPACE_DOCUMENT_PREVIEW	accepted	fix: let document previews fill the workspace pane	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 SESSION_SIDE_PANEL	accepted	feat: make the session side panel resizable	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 NATIVE_INSTALLER	accepted	feat: install prepared platform release artifacts	scripts/test-native-installer-asset.sh
+NATIVE_INSTALLER	accepted	fix: verify portable installer process cleanup	scripts/test-native-installer-asset.sh

@@ -16,13 +16,37 @@ target="${2:-}"
 fixture="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/happyherd-native-install.XXXXXX")"
 archive_listing="$fixture/archive.txt"
 test_home="$fixture/home"
+server_pid=''
+assert_server_stopped() {
+  [[ -n "$server_pid" ]] || return 0
+  if kill -0 "$server_pid" 2>/dev/null; then
+    echo "error: smoke server process $server_pid is still running" >&2
+    return 1
+  fi
+  if curl --max-time 2 -fsS http://127.0.0.1:3005/health >/dev/null 2>&1; then
+    echo 'error: smoke server health endpoint is still reachable after uninstall' >&2
+    return 1
+  fi
+}
 cleanup() {
+  exit_status=$?
+  if [[ -z "$server_pid" && -f "$test_home/.happyherd/server.pid" ]]; then
+    IFS= read -r server_pid < "$test_home/.happyherd/server.pid" || true
+  fi
   if [[ -x "$test_home/.local/share/happyherd/uninstall.sh" ]]; then
-    HOME="$test_home" "$test_home/.local/share/happyherd/uninstall.sh" >/dev/null 2>&1 || true
+    HOME="$test_home" "$test_home/.local/share/happyherd/uninstall.sh" >/dev/null 2>&1 || exit_status=1
+  fi
+  if ! assert_server_stopped; then
+    echo "Preserved smoke fixture for inspection: $fixture" >&2
+    exit 1
   fi
   rm -rf "$fixture"
+  exit "$exit_status"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 tar -tzf "$asset" > "$archive_listing"
 if grep -Eq '^happyherd/runtime/tools/archives/|/node_modules/\.pnpm/|/pnpm-(lock|workspace)\.yaml$' \
@@ -81,14 +105,24 @@ cmp "$fixture/sessions.before" "$test_home/.happyherd/sessions.json"
   if (settings.serverUrl !== "https://remote.example") process.exit(1);
 ' "$test_home/.happyherd/settings.json"
 
+if curl --max-time 2 -fsS http://127.0.0.1:3005/health >/dev/null 2>&1; then
+  echo 'error: native installer smoke requires an unused localhost port 3005' >&2
+  exit 1
+fi
 HOME="$test_home" SHELL=/bin/sh PATH="$customer_path" "$repo_root/install.sh" \
   --asset "$asset" --server http://127.0.0.1:3005 >/dev/null
+IFS= read -r server_pid < "$test_home/.happyherd/server.pid"
+[[ "$server_pid" =~ ^[0-9]+$ ]]
+kill -0 "$server_pid"
+process_command="$(ps -p "$server_pid" -o command=)"
+[[ "$process_command" == *"--no-warnings --no-deprecation $test_home/.local/share/happyherd/runtime/bin/happy.mjs server "* ]]
 curl -fsS http://127.0.0.1:3005/health >/dev/null
 curl -fsS http://127.0.0.1:3005/ >/dev/null
 [[ -f "$test_home/.happyherd/server.pid" ]]
 cmp "$fixture/sessions.before" "$test_home/.happyherd/sessions.json"
 
 HOME="$test_home" "$test_home/.local/share/happyherd/uninstall.sh" >/dev/null
+assert_server_stopped
 [[ ! -e "$test_home/.local/share/happyherd" ]]
 [[ ! -e "$test_home/.local/bin/happyherd" ]]
 cmp "$fixture/sessions.before" "$test_home/.happyherd/sessions.json"

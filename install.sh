@@ -325,7 +325,7 @@ auth_deferred=0
 if [ "$start_host" -eq 1 ]; then
   if [ "$server_url" = "$DEFAULT_SERVER" ]; then
     if ! curl -fsS "$DEFAULT_SERVER/health" >/dev/null 2>&1; then
-      nohup "$node_bin" "$happyherd_entry" server --host 127.0.0.1 --port 3005 --no-persist \
+      nohup "$node_bin" --no-warnings --no-deprecation "$happyherd_entry" server --host 127.0.0.1 --port 3005 --no-persist \
         > "$HOME/.happyherd/server.log" 2>&1 < /dev/null &
       echo "$!" > "$managed_server_pid"
     fi
