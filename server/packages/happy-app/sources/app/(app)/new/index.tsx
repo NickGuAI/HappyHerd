@@ -2973,7 +2973,7 @@ function NewSessionScreen() {
                             </View>
                         </View>
                     </View>
-                    <View style={[styles.rightSidebar, { width: sidebarLayout.sidebarWidth }]}>
+                    <View testID="new-session-right-sidebar" style={[styles.rightSidebar, { width: sidebarLayout.sidebarWidth }]}>
                         <ScrollView
                             style={styles.rightSidebarScroll}
                             contentContainerStyle={styles.rightSidebarContent}
@@ -2984,7 +2984,7 @@ function NewSessionScreen() {
                     </View>
                 </View>
             ) : (
-                <View style={styles.inner}>
+                <View testID="new-session-single-pane" style={styles.inner}>
                     {isNativeMobile && activePicker && (
                         <AnimatedClickAwayBackdrop
                             exitImmediately

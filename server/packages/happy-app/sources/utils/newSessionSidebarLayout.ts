@@ -18,14 +18,11 @@ export function getNewSessionSidebarLayout(input: NewSessionSidebarLayoutInput) 
         && (input.isMac || input.platform === 'web')
         && input.windowWidth >= NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH;
     const showSidebar = canShowSidebar && !input.zenMode;
-    // Keep the existing 30%-based response to window size, but make the
-    // approved panel twice as wide at each desktop width. Below the 1100px
-    // gate the sidebar remains hidden, so the wider minimum never consumes a
-    // narrow layout.
-    const sidebarWidth = Math.min(
-        Math.max(Math.floor(input.windowWidth * 0.3), 250) * 2,
-        NEW_SESSION_SIDEBAR_MAX_WIDTH,
-    );
+    const proportionalWidth = Math.max(Math.floor(input.windowWidth * 0.3), 250);
+    // Double the Web Desktop panel; native Mac keeps its existing width.
+    const sidebarWidth = input.platform === 'web'
+        ? Math.min(proportionalWidth * 2, NEW_SESSION_SIDEBAR_MAX_WIDTH)
+        : Math.min(proportionalWidth, 360);
 
     return { canShowSidebar, showSidebar, sidebarWidth };
 }

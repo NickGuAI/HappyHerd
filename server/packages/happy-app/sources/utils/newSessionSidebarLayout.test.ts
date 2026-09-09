@@ -41,6 +41,21 @@ describe('getNewSessionSidebarLayout', () => {
         expect(NEW_SESSION_SIDEBAR_MAX_WIDTH).toBe(720);
     });
 
+    it.each([
+        ['ios', 1100, 330],
+        ['macos', 1100, 330],
+        ['ios', 1440, 360],
+        ['macos', 1920, 360],
+    ] as const)('preserves the native Mac sidebar width on %s at %ipx', (platform, windowWidth, sidebarWidth) => {
+        expect(getNewSessionSidebarLayout({
+            platform,
+            isMac: true,
+            fileDiffsSidebarEnabled: true,
+            zenMode: false,
+            windowWidth,
+        })).toEqual({ canShowSidebar: true, showSidebar: true, sidebarWidth });
+    });
+
     it('disables the sidebar when the setting is off', () => {
         expect(getNewSessionSidebarLayout({
             platform: 'web',

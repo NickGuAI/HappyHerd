@@ -4,10 +4,12 @@ import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser } from 'playwright-core';
+import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
+const newSessionProjectPath = '/work/project/extensions/browser-tools';
+const newSessionRecentPath = (index: number) => `/workspace/products/example-project-${String(index).padStart(2, '0')}`;
 
 const virtualModules: Record<string, string> = {
     'react-native': `
@@ -43,6 +45,7 @@ const virtualModules: Record<string, string> = {
                 },
                 radio: { active: '#111', inactive: '#aaa', dot: '#fff' }, warning: '#b70',
                 status: { error: '#c22' },
+                switch: lightTheme.colors.switch,
             },
         };
         export const StyleSheet = {
@@ -190,6 +193,14 @@ const virtualModules: Record<string, string> = {
             sessions['child-newest'].metadata.machineId = 'machine-1';
             sessions['child-newest'].metadata.path = '/work/project';
         }
+        if (fixtureOptions.newSessionLayout) {
+            for (let index = 0; index < 24; index += 1) {
+                const path = '/workspace/products/example-project-' + String(index).padStart(2, '0');
+                sessions['recent-' + index] = makeSession('recent-' + index, 100 + index, {
+                    machineId: 'machine-1', path,
+                });
+            }
+        }
         const sessionList = Object.values(sessions);
         const sideChatSnapshots = {
             parent: selectSideChatSessions(sessions, 'parent'),
@@ -210,7 +221,7 @@ const virtualModules: Record<string, string> = {
             agentInputEnterToSend: false,
             diffStyle: 'unified',
             expImageUpload: fixtureOptions.imageAttachments === true,
-            fileDiffsSidebar: false,
+            fileDiffsSidebar: fixtureOptions.newSessionLayout === true,
             machineWorkspace: fixtureOptions.machineWorkspaceEnabled ?? true,
             recentMachinePaths: [],
             favoriteMachinePaths: [],
@@ -239,6 +250,7 @@ const virtualModules: Record<string, string> = {
                 detectedAt: 1,
                 sources: { models: 'release-catalog', effortLevels: 'model-name', permissionModes: 'launch-profile' },
                 models: [
+                    ...(fixtureOptions.newSessionLayout ? [{ code: 'claude-sonnet-4-5', value: 'claude-sonnet-4-5', effortLevels: [] }] : []),
                     { code: 'Gemini 3.8 Flash', value: 'Gemini 3.8 Flash', isDefault: true, effortLevels: [] },
                     { code: 'Claude Sonnet 4.6 (Thinking)', value: 'Claude Sonnet 4.6 (Thinking)', effortLevels: [] },
                     { code: 'Claude Opus 4.6 (Thinking)', value: 'Claude Opus 4.6 (Thinking)', effortLevels: [] },
@@ -374,6 +386,12 @@ const virtualModules: Record<string, string> = {
     '@/components/FileIcon': `import React from 'react'; export const FileIcon = () => React.createElement('span');`,
     '@/text': `
         export const t = (key, params) => ({
+            'newSession.showHidden': 'Show hidden',
+            'uiCopy.hostFolders': 'Host folders',
+            'uiCopy.useThisFolder': 'Use this folder',
+            'uiCopy.openFolderValue': 'Open folder ' + (params?.value1 ?? ''),
+            'uiCopy.enterProjectPath': 'Enter project path',
+            'workspace.recent': 'Recent',
             'sideChat.panelTitle': 'Side chats',
             'sideChat.resizePanel': 'Resize side panel',
             'sideChat.openCount': 'Open side chats (' + (params?.count ?? '') + ')',
@@ -650,11 +668,12 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useNewSessionDraft': `
         import React from 'react';
         const modelPicker = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        const newSessionLayout = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout === true;
         const listeners = new Set();
         const draft = {
-            input: 'Inspect attachments', attachments: [], selectedMachineId: 'machine-1', selectedPath: '/work/project',
+            input: 'Inspect attachments', attachments: [], selectedMachineId: 'machine-1', selectedPath: newSessionLayout ? '${newSessionProjectPath}' : '/work/project',
             selectedCommanderId: null, agentType: modelPicker ? 'agy' : 'dsh', permissionMode: null,
-            modelMode: modelPicker ? 'Gemini 3.6 Flash (High)' : null, effortLevel: null,
+            modelMode: newSessionLayout ? 'claude-sonnet-4-5' : modelPicker ? 'Gemini 3.6 Flash (High)' : null, effortLevel: null,
             sessionType: 'simple', worktreeKey: null,
         };
         for (const [setter, field] of Object.entries({
@@ -723,7 +742,12 @@ const virtualModules: Record<string, string> = {
     };`,
     '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree = async () => {};`,
     '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
-    '@/sync/agentSessionPlaces': `export const collectSessionPlaces = () => []; export const collectSessionWorkspaces = () => [];`,
+    '@/sync/agentSessionPlaces': `
+        import * as actual from '${resolve(appRoot, 'sources/sync/agentSessionPlaces.ts')}';
+        export const collectSessionPlaces = (options) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout
+            ? actual.collectSessionPlaces(options) : [];
+        export const collectSessionWorkspaces = () => [];
+    `,
     '@/utils/worktree': `export const createWorktree = async () => ({ success: false, error: 'not used' }); export const listWorktrees = async () => [];`,
     '@/utils/pathUtils': `
         export const resolveAbsolutePath = (path, homeDir) => path === '~' ? (homeDir ?? path) : path.startsWith('~/') && homeDir ? homeDir.replace(/\\/$/, '') + '/' + path.slice(2) : path;
@@ -768,6 +792,16 @@ const virtualModules: Record<string, string> = {
             return { success: false, phases: [] };
         };
         export const machineGetDirectoryTree = async (_machineId, path) => {
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout) return {
+                success: true,
+                tree: { type: 'directory', name: path.split('/').pop(), path, children: [
+                    { type: 'directory', name: '.hidden', path: path + '/.hidden' },
+                    ...Array.from({ length: 24 }, (_, index) => {
+                        const name = 'folder-' + String(index).padStart(2, '0');
+                        return { type: 'directory', name, path: path + '/' + name };
+                    }),
+                ] },
+            };
             if (
                 path === globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferDirectoryPath
                 && !window.__BROWSER_DIRECTORY_DEFERRED__
@@ -1063,6 +1097,69 @@ const fixturePlugin: Plugin = {
     },
 };
 
+async function swipeUp(page: Page, x: number, startY: number, endY: number) {
+    const session = await page.context().newCDPSession(page);
+    await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart', touchPoints: [{ x, y: startY }],
+    });
+    for (let step = 1; step <= 8; step += 1) {
+        await session.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x, y: startY + (endY - startY) * step / 8 }],
+        });
+        await page.waitForTimeout(16);
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await session.detach();
+}
+
+async function expectUntruncatedText(locator: Locator) {
+    const dimensions = await locator.evaluate((element) => ({
+        width: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        fontSize: getComputedStyle(element).fontSize,
+    }));
+    expect(dimensions.width).toBeGreaterThan(0);
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
+    expect(dimensions.fontSize).toBe('16px');
+}
+
+async function touchToEnd(page: Page, scrollRegion: Locator, finalRow: Locator) {
+    await finalRow.waitFor({ state: 'attached' });
+    const box = await scrollRegion.boundingBox();
+    const initialRowBox = await finalRow.boundingBox();
+    if (!box || !initialRowBox) throw new Error('New Session list has no visible geometry');
+    expect(initialRowBox.y).toBeGreaterThan(box.y + box.height);
+    const outerScrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
+    const startY = Math.min(box.y + box.height - 12, 800);
+    const endY = Math.max(box.y + 12, 40);
+    expect(startY - endY).toBeGreaterThan(60);
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        const atEnd = await scrollRegion.evaluate((element) => (
+            element.scrollTop + element.clientHeight >= element.scrollHeight - 2
+        ));
+        if (atEnd) {
+            const finalBox = await finalRow.boundingBox();
+            if (!finalBox) throw new Error('Final New Session row has no geometry');
+            expect(finalBox.y).toBeGreaterThanOrEqual(box.y - 1);
+            expect(finalBox.y + finalBox.height).toBeLessThanOrEqual(box.y + box.height + 1);
+            await expect(page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).resolves.toBe(outerScrollBefore);
+            return;
+        }
+        await swipeUp(page, box.x + box.width / 2, startY, endY);
+    }
+    throw new Error('Touch gestures did not reach the final New Session list row');
+}
+
+async function tapVisibleRow(page: Page, row: Locator) {
+    const box = await row.boundingBox();
+    if (!box) throw new Error('New Session row has no visible geometry');
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    // Coordinate taps cannot silently scroll an offscreen row into view.
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 describe('Side chats browser interaction', () => {
     let browser: Browser;
     let server: Server;
@@ -1094,7 +1191,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1120,6 +1217,104 @@ describe('Side chats browser interaction', () => {
     afterAll(async () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
+    }, 30_000);
+
+    it.each([1440, 1920])('renders the production New Session route with a readable 720px panel at %ipx', async (width) => {
+        const page = await browser.newPage({ viewport: { width, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                newSession: true, newSessionLayout: true, modelPicker: true,
+            };
+        });
+        try {
+            await page.goto(origin);
+            const route = page.getByTestId('full-new-session');
+            const sidebar = route.getByTestId('new-session-right-sidebar');
+            await sidebar.waitFor();
+            expect((await sidebar.boundingBox())?.width).toBeCloseTo(720, 0);
+            await expectUntruncatedText(sidebar.getByText('claude-sonnet-4-5', { exact: true }));
+            const pathTrigger = sidebar.getByText(newSessionProjectPath, { exact: true });
+            await expectUntruncatedText(pathTrigger);
+            await pathTrigger.click();
+            const recent = sidebar.getByTestId('new-session-recent-path-list');
+            await recent.waitFor();
+            await expectUntruncatedText(recent.getByText(newSessionRecentPath(0), { exact: true }));
+            const hidden = sidebar.getByTestId('machine-path-show-hidden').getByRole('switch');
+            await expect(hidden.isChecked()).resolves.toBe(true);
+            await sidebar.getByRole('button', { name: 'Open folder .hidden', exact: true }).waitFor();
+            await hidden.click();
+            await expect(sidebar.getByRole('button', { name: 'Open folder .hidden', exact: true }).count()).resolves.toBe(0);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 20_000);
+
+    it('keeps the production New Session route single-pane below 1100px', async () => {
+        const page = await browser.newPage({ viewport: { width: 1099, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                newSession: true, newSessionLayout: true, modelPicker: true,
+            };
+        });
+        try {
+            await page.goto(origin);
+            const route = page.getByTestId('full-new-session');
+            await route.getByTestId('new-session-single-pane').waitFor();
+            await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
+            await route.getByText(newSessionProjectPath, { exact: true }).click();
+            await route.getByTestId('machine-path-browser-tree').waitFor();
+        } finally {
+            await page.close();
+        }
+    }, 15_000);
+
+    it('touch-scrolls the production New Session route folder list, recent list, and outer page on mobile', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                newSession: true, newSessionLayout: true, modelPicker: true,
+            };
+        });
+        try {
+            await page.goto(origin);
+            const route = page.getByTestId('full-new-session');
+            await route.getByTestId('new-session-single-pane').waitFor();
+            await expect(page.evaluate(() => window.innerWidth)).resolves.toBe(390);
+            await route.getByText(newSessionProjectPath, { exact: true }).tap();
+            const tree = route.getByTestId('machine-path-browser-tree');
+            const recent = route.getByTestId('new-session-recent-path-list');
+            await tree.waitFor();
+            const lastFolder = tree.getByRole('button', { name: 'Open folder folder-23', exact: true });
+            await touchToEnd(page, tree, lastFolder);
+            await tapVisibleRow(page, lastFolder);
+            await route.getByText('/work/project/folder-23', { exact: true }).waitFor();
+            await expect(tree.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            const lastRecent = recent.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
+            await touchToEnd(page, recent, lastRecent);
+            const recentBox = await recent.boundingBox();
+            const lastRecentBox = await lastRecent.boundingBox();
+            if (!recentBox || !lastRecentBox) throw new Error('Recent path geometry is unavailable');
+            expect(lastRecentBox.y).toBeGreaterThanOrEqual(recentBox.y - 1);
+            expect(lastRecentBox.y + lastRecentBox.height).toBeLessThanOrEqual(recentBox.y + recentBox.height + 1);
+            const scrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
+            await swipeUp(page, 385, 780, 240);
+            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBeGreaterThan(scrollBefore);
+            await tapVisibleRow(page, lastRecent);
+            await expect.poll(() => page.evaluate(() => (window as any).__MODEL_PICKER_DRAFT__?.selectedPath))
+                .toBe(newSessionRecentPath(23));
+            await expect(route.getByTestId('new-session-recent-path-list').count()).resolves.toBe(0);
+            await route.getByText(newSessionRecentPath(23), { exact: true }).waitFor({ state: 'visible' });
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
     }, 30_000);
 
     it.each([
