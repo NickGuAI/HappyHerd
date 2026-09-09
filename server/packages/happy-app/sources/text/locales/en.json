@@ -405,6 +405,7 @@
   },
   "newSession": {
     "title": "Start New Session",
+    "showHidden": "Show hidden",
     "machineOffline": "Machine is offline",
     "switchMachinesHint": "• Switch machines by clicking on the machine above",
     "workspace": "Workspace",

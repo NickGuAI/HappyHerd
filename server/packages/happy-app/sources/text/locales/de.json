@@ -405,6 +405,7 @@
   },
   "newSession": {
     "title": "Neue Sitzung starten",
+    "showHidden": "Ausgeblendete anzeigen",
     "machineOffline": "Maschine ist offline",
     "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken",
     "workspace": "Arbeitsbereich",

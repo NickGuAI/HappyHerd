@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getNewSessionCommanderPickerOptionListMaxHeight,
     getNewSessionSidebarLayout,
+    NEW_SESSION_SIDEBAR_MAX_WIDTH,
 } from './newSessionSidebarLayout';
 
 describe('getNewSessionSidebarLayout', () => {
@@ -15,8 +16,29 @@ describe('getNewSessionSidebarLayout', () => {
         })).toEqual({
             canShowSidebar: true,
             showSidebar: true,
-            sidebarWidth: 360,
+            sidebarWidth: 720,
         });
+    });
+
+    it('doubles the 30%-based width until the approved 720px cap is reached', () => {
+        expect(getNewSessionSidebarLayout({
+            platform: 'web',
+            isMac: false,
+            fileDiffsSidebarEnabled: true,
+            zenMode: false,
+            windowWidth: 1100,
+        }).sidebarWidth).toBe(660);
+
+        for (const windowWidth of [1200, 1440, 1920]) {
+            expect(getNewSessionSidebarLayout({
+                platform: 'web',
+                isMac: false,
+                fileDiffsSidebarEnabled: true,
+                zenMode: false,
+                windowWidth,
+            }).sidebarWidth).toBe(NEW_SESSION_SIDEBAR_MAX_WIDTH);
+        }
+        expect(NEW_SESSION_SIDEBAR_MAX_WIDTH).toBe(720);
     });
 
     it('disables the sidebar when the setting is off', () => {

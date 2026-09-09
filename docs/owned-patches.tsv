@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+NEW_SESSION_PANEL_UX	accepted	fix: improve new session panel size and folder navigation	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 SIDE_CHAT_PERMISSION	accepted	fix(side-chat): propagate explicit permission and confirmed settings	server/packages/happy-cli/src/daemon/run.resume.test.ts
 PROVIDER_QUOTA_EXHAUSTION	accepted	fix(providers): surface exhausted quota	server/packages/happy-cli/src/daemon/run.resume.test.ts
 SIDE_CHAT_LAUNCH_SETTINGS	accepted	feat(side-chat): accept explicit model and effort	server/packages/happy-cli/src/daemon/run.resume.test.ts

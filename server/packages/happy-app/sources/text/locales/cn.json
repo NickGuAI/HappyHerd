@@ -325,6 +325,7 @@
   },
   "newSession": {
     "title": "开始新会话",
+    "showHidden": "显示隐藏项目",
     "machineOffline": "设备离线",
     "switchMachinesHint": "• 点击上方的设备来切换设备",
     "workspace": "工作区",

@@ -78,6 +78,7 @@ import {
     getNewSessionCommanderPickerOptionListMaxHeight,
     getNewSessionSidebarLayout,
     NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
+    NEW_SESSION_PANEL_ROW_FONT_SIZE,
 } from '@/utils/newSessionSidebarLayout';
 import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloor';
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
@@ -118,6 +119,7 @@ import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
 import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
+import { NewSessionPathScrollView } from '@/components/NewSessionPathScrollView';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
@@ -734,8 +736,13 @@ function PathPickerContent({
                 {t("workspace.recent")}
             </Text>
 
-            <ScrollView
-                style={[pickerStyles.optionList, embedded && pickerStyles.embeddedOptionList]}
+            <NewSessionPathScrollView
+                testID="new-session-recent-path-list"
+                style={[
+                    pickerStyles.optionList,
+                    embedded && pickerStyles.embeddedOptionList,
+                ]}
+                maxHeight={176}
                 contentContainerStyle={embedded && pickerStyles.embeddedOptionListContent}
                 keyboardShouldPersistTaps="handled"
             >
@@ -793,7 +800,7 @@ function PathPickerContent({
                         {t("uiCopy.noRecentProjectsYet")}
                     </Text>
                 )}
-            </ScrollView>
+            </NewSessionPathScrollView>
         </View>
     );
 }
@@ -3235,7 +3242,7 @@ const styles = StyleSheet.create((theme) => ({
         zIndex: NEW_SESSION_PICKER_LAYERS.composer,
     },
     mobileHeaderTitle: {
-        fontSize: 16,
+        fontSize: NEW_SESSION_PANEL_ROW_FONT_SIZE,
         lineHeight: 20,
         fontWeight: '600',
         color: theme.colors.text,
@@ -3418,7 +3425,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     configLabel: {
         minWidth: 0,
-        fontSize: Platform.select({ web: 14, default: 16 }),
+        fontSize: NEW_SESSION_PANEL_ROW_FONT_SIZE,
         color: theme.colors.text,
         ...Typography.default('semiBold'),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
@@ -3737,7 +3744,7 @@ const pickerStyles = {
     searchInput: {
         flex: 1,
         minWidth: 0,
-        fontSize: Platform.select({ web: 16, default: 15 }),
+        fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 15 }),
         padding: 0,
         ...Typography.default(),
         ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
@@ -3816,7 +3823,7 @@ const pickerStyles = {
     optionText: {
         minWidth: 0,
         flexShrink: 1,
-        fontSize: 15,
+        fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 15 }),
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
@@ -3833,7 +3840,6 @@ const pickerStyles = {
         width: '100%',
         maxWidth: '100%',
         minWidth: 0,
-        maxHeight: 176,
     } as const,
     embeddedOptionListContent: {
         width: '100%',

@@ -149,6 +149,7 @@ vi.mock('@/utils/responsive', () => ({
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/newSessionSidebarLayout', () => ({
     NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH: 1100,
+    NEW_SESSION_PANEL_ROW_FONT_SIZE: 16,
     getNewSessionSidebarLayout: () => ({ showSidebar: false, sidebarWidth: 0 }),
 }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
@@ -545,6 +546,18 @@ describe('Full New Session path selection', () => {
         expect(initialTrigger).toBeDefined();
         await act(async () => initialTrigger!.props.onPress());
 
+        const recentPathList = renderer.root.findAllByType('ScrollView' as any).find((node: any) => (
+            node.props.testID === 'new-session-recent-path-list'
+        ));
+        expect(recentPathList).toBeDefined();
+        expect(recentPathList!.props.nestedScrollEnabled).toBe(true);
+        expect(flattenStyle(recentPathList!.props.style)).toMatchObject({
+            maxHeight: 176,
+            overscrollBehaviorY: 'contain',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+        });
+
         const secondRecent = renderer.root.findByProps({
             testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
         });
@@ -603,11 +616,23 @@ describe('Full New Session path selection', () => {
 
         const trigger = findPathTrigger(renderer, '~/starting');
         expect(trigger).toBeDefined();
+        const pathConfigLabel = trigger!.findAllByType('Text' as any).find((text: any) => (
+            text.props.children === '~/starting'
+        ));
+        expect(flattenStyle(pathConfigLabel?.props.style).fontSize).toBe(16);
         await act(async () => trigger!.props.onPress());
 
         for (const input of renderer.root.findAllByType('TextInput' as any)) {
             expect(flattenStyle(input.props.style).fontSize).toBeGreaterThanOrEqual(16);
         }
+        const firstRecentPath = renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent('/Users/dev/project-0')}`,
+        }).findAllByType('Text' as any)[0];
+        expect(flattenStyle(firstRecentPath.props.style).fontSize).toBe(16);
+        const recentSectionLabel = renderer.root.findAllByType('Text' as any).find((text: any) => (
+            text.props.children === 'workspace.recent'
+        ));
+        expect(flattenStyle(recentSectionLabel?.props.style).fontSize).toBe(13);
         act(() => renderer.unmount());
     });
 });
