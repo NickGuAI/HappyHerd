@@ -16,7 +16,7 @@ impose that source-state gate.
 | Owned patch discipline | `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-patch-discipline.sh`, `scripts/list-owned-patches.sh`, `scripts/test-owned-merge-provenance.sh` |
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |
 | Upstream merge proposal | `docs/upstream-sync-rehearsal.md` | native `happyherd automation`, `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |
-| End-user local install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/test-public-launcher-release-contract.sh` |
+| End-user native install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/{test-native-installer-asset,test-public-launcher-release-contract}.sh`, `.github/workflows/native-installer-release.yml` |
 | CLI command reference | `server/packages/happy-cli/README.md` | `happyherd --help` |
 | Side-chat delegation, lifecycle, and recovery | `.dev/playbooks/side-chat-lifecycle.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happyherd session side-chat` brief and lifecycle commands |
 | Unified Workspace | `.dev/playbooks/file-workspaces.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `SessionView`, `DesktopFileWorkspace`, `MachineWorkspaceBrowser`, and the rendered browser fixtures |
