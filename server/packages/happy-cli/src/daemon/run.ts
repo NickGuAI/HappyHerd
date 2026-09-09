@@ -651,6 +651,9 @@ export async function startDaemon(): Promise<void> {
         if (options.isSideChat) {
           extraEnv.HAPPY_SIDE_CHAT = '1';
         }
+        if (options.isSuperSession) {
+          extraEnv.HAPPYHERD_SUPER_SESSION = '1';
+        }
         // For fork: spawned Happy CLI needs to know which Claude JSONL to
         // backfill into the fresh Happy session row. Without this, the
         // SDK reads the JSONL silently as context but never re-emits the

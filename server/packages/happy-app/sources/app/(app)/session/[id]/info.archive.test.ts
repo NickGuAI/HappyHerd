@@ -115,6 +115,7 @@ vi.mock('@/components/navigation/headerMetrics', () => ({ MOBILE_GLASS_HEADER_HE
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/sync/storage', () => ({
     useIsDataReady: () => true,
+    useProjects: () => ({}),
     useSession: () => mocks.session,
     useSessionProjectAvatar: () => null,
 }));

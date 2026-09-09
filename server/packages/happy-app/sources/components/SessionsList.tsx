@@ -53,6 +53,7 @@ type SessionListDisplayItem = SessionListViewItem | {
     row: FlatSessionRowData;
     last: boolean;
     archived?: boolean;
+    pinned?: boolean;
 };
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -201,8 +202,11 @@ export function SessionsList({
         const matchesSession = (session: FlatSessionRowData['session']) => (
             !normalizedQuery || sessionMatchesFlatListSearch(session, normalizedQuery)
         );
+        const superSession = sourceData.find((item): item is Extract<SessionListViewItem, { type: 'super-session' }> => (
+            item.type === 'super-session'
+        ));
         const primaryRows = sourceData.flatMap<SessionListViewItem>((item) => {
-            if (item.type === 'header' || item.type === 'session') return [];
+            if (item.type === 'super-session' || item.type === 'header' || item.type === 'session') return [];
             if (item.type === 'active-sessions') {
                 const sessions = item.sessions.filter(matchesSession);
                 return sessions.length > 0 ? [{ ...item, sessions }] : [];
@@ -246,10 +250,17 @@ export function SessionsList({
         const archiveToggle: SessionListDisplayItem[] = hasArchivedSessions
             ? [{ type: 'archive-toggle', hidden: hideArchivedSessions }]
             : [];
+        const pinnedRow = superSession ? toFlatSessionRow(superSession.session) : null;
 
         if (flatSessionList) {
             const flatRows = buildFlatSessionRows(primaryRows);
             return [
+                ...(pinnedRow ? [{
+                    type: 'flat-session' as const,
+                    row: pinnedRow,
+                    last: flatRows.length === 0 && archiveToggle.length === 0 && archiveItems.length === 0,
+                    pinned: true,
+                }] : []),
                 ...flatRows.map<SessionListDisplayItem>((row, index) => ({
                     type: 'flat-session',
                     row,
@@ -260,8 +271,14 @@ export function SessionsList({
             ];
         }
 
+        const personalProjects = primaryRows.filter((item): item is Extract<SessionListViewItem, { type: 'project' }> => (
+            item.type === 'project' && item.source === 'personal'
+        ));
+        const machineRows = primaryRows.filter((item) => (
+            item.type !== 'project' || item.source !== 'personal'
+        ));
         const machineGroups = buildSessionProjectDisplayGroups(
-            primaryRows,
+            machineRows,
             machines,
             t('status.unknown'),
         );
@@ -273,10 +290,26 @@ export function SessionsList({
             },
             ...group.projects,
         ]);
-        const legacyItems = primaryRows.filter((item) => (
+        const legacyItems = machineRows.filter((item) => (
             item.type !== 'project' && item.type !== 'projects-header'
         ));
-        return [...hierarchy, ...legacyItems, ...archiveToggle, ...archiveItems];
+        return [
+            ...(pinnedRow ? [{
+                type: 'flat-session' as const,
+                row: pinnedRow,
+                last: personalProjects.length === 0
+                    && hierarchy.length === 0
+                    && legacyItems.length === 0
+                    && archiveToggle.length === 0
+                    && archiveItems.length === 0,
+                pinned: true,
+            }] : []),
+            ...personalProjects,
+            ...hierarchy,
+            ...legacyItems,
+            ...archiveToggle,
+            ...archiveItems,
+        ];
     }, [flatSessionList, hasArchivedSessions, hideArchivedSessions, machines, searchQuery, sourceData]);
 
     if (!data) {
@@ -285,6 +318,7 @@ export function SessionsList({
 
     const keyExtractor = React.useCallback((item: SessionListDisplayItem, index: number) => {
         switch (item.type) {
+            case 'super-session': return `super-session-${item.session.id}`;
             case 'machine-header': return `machine-header-${item.machineId ?? 'unknown'}`;
             case 'archive-toggle': return 'archive-toggle';
             case 'archive-header': return `archive-header-${item.title}-${index}`;
@@ -309,6 +343,7 @@ export function SessionsList({
                         selected={item.row.session.id === selectedSessionId}
                         showBorder={!item.last}
                         archived={item.archived}
+                        pinned={item.pinned}
                     />
                 );
             case 'archive-toggle':
@@ -352,6 +387,7 @@ export function SessionsList({
                 );
             case 'project-group':
             case 'projects-header':
+            case 'super-session':
             case 'session':
                 return null;
         }

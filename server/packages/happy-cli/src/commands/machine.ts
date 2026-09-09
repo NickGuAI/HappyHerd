@@ -84,6 +84,7 @@ type SessionCreateOptions = {
   effort?: string;
   permission?: string;
   commanderId?: string;
+  isSuperSession: boolean;
   createDirectory: boolean;
   json: boolean;
 };
@@ -122,7 +123,7 @@ function sessionHelp(): string {
 Usage:
   happyherd session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
-    [--create-dir] [--json]
+    [--super-session] [--create-dir] [--json]
   happyherd session set-commander <session-id> <commander-id|none> [--json]
   happyherd session side-chat create <parent-session-id> <brief-options> \
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
@@ -134,10 +135,11 @@ target-confirmed machine-session protocol. Upgrade and restart older daemons.
 Rig machines use a separate, idempotent creation contract and are not accepted.
 The target path must already exist unless --create-dir explicitly approves
 directory creation on the selected machine. The --commander flag is validated
-by the target daemon during session creation. For reassignment, set-commander
-resolves the ID on the owning machine's canonical registry, or none detaches the
-Commander. Reassignment or detachment takes effect when the session is next
-resumed, without altering any live conversation context.`;
+by the target daemon during session creation. Mark the created session as the
+persistent Super Session. This option (--super-session) requires --commander.
+For reassignment, set-commander resolves the ID on the owning machine's canonical
+registry, or none detaches the Commander. Reassignment or detachment takes effect
+when the session is next resumed, without altering any live conversation context.`;
 }
 
 function parseFlags(args: string[], allowedValueFlags: Set<string>, allowedBooleanFlags: Set<string>): ParsedFlags {
@@ -192,13 +194,18 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
   const flags = parseFlags(
     args,
     new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission', 'commander']),
-    new Set(['create-dir', 'json']),
+    new Set(['super-session', 'create-dir', 'json']),
   );
   const machineSelector = requiredFlag(flags, 'machine');
   const directory = requiredFlag(flags, 'path');
   const providerValue = requiredFlag(flags, 'provider');
   if (!DAEMON_PROVIDERS.includes(providerValue as Provider)) {
     throw new Error(`Unsupported Happy CLI daemon provider "${providerValue}". Expected one of: ${DAEMON_PROVIDERS.join(', ')}`);
+  }
+  const commanderId = optionalFlag(flags, 'commander');
+  const isSuperSession = flags['super-session'] === true;
+  if (isSuperSession && !commanderId) {
+    throw new Error('--super-session requires --commander');
   }
   return {
     machineSelector,
@@ -207,7 +214,8 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
     model: optionalFlag(flags, 'model'),
     effort: optionalFlag(flags, 'effort'),
     permission: optionalFlag(flags, 'permission'),
-    commanderId: optionalFlag(flags, 'commander'),
+    commanderId,
+    isSuperSession,
     createDirectory: flags['create-dir'] === true,
     json: flags.json === true,
   };
@@ -651,6 +659,7 @@ export async function handleSessionCommand(
     ...(options.effort ? { effortLevel: options.effort } : {}),
     ...(options.permission ? { permissionMode: options.permission } : {}),
     ...(options.commanderId ? { commanderId: options.commanderId } : {}),
+    ...(options.isSuperSession ? { isSuperSession: true } : {}),
   }));
   const commanderReceipt = options.commanderId
     ? commanderReceiptFromSession(created.session, options.commanderId)
@@ -668,6 +677,7 @@ export async function handleSessionCommand(
     path: options.directory,
     settings: created.settings,
     commander: commanderReceipt,
+    ...(options.isSuperSession ? { superSession: true } : {}),
   };
   if (options.json) {
     outputFor(dependencies)(JSON.stringify(receipt));
@@ -677,4 +687,5 @@ export async function handleSessionCommand(
   outputFor(dependencies)(`Path: ${options.directory}`);
   outputFor(dependencies)(`Settings: ${JSON.stringify(created.settings)}`);
   if (commanderReceipt) outputFor(dependencies)(`Commander: ${commanderReceipt.name} (${commanderReceipt.id})`);
+  if (options.isSuperSession) outputFor(dependencies)('Super Session (Pinned)');
 }

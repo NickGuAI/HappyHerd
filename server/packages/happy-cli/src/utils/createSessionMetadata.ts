@@ -53,6 +53,10 @@ export interface CreateSessionMetadataOptions {
     isSideChat?: boolean;
 }
 
+export function superSessionMetadataFromEnvironment(): Pick<Metadata, 'isSuperSession'> {
+    return process.env.HAPPYHERD_SUPER_SESSION === '1' ? { isSuperSession: true } : {};
+}
+
 /**
  * Result containing both state and metadata for session creation.
  */
@@ -151,6 +155,7 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.forkedFromMessageId ? { forkedFromMessageId: opts.forkedFromMessageId } : {}),
         ...(opts.isSideChat ? { isSideChat: true } : {}),
         ...sideChatMetadataFromEnvironment(),
+        ...superSessionMetadataFromEnvironment(),
         ...providerContinuationMetadataFromEnvironment(),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),

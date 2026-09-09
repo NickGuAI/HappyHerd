@@ -315,6 +315,7 @@ describe('HappyControlClient machine session creation', () => {
             metadata: {
                 ...(session().metadata as Record<string, unknown>),
                 commanderId: 'athena',
+                isSuperSession: true,
             },
         }]);
 
@@ -323,6 +324,7 @@ describe('HappyControlClient machine session creation', () => {
             approvedNewDirectoryCreation: false,
             agent: 'grok',
             commanderId: 'athena',
+            isSuperSession: true,
         })).resolves.toMatchObject({ session: { id: 'session-real' } });
 
         mocks.listSessions.mockResolvedValueOnce([session()]);
@@ -332,6 +334,21 @@ describe('HappyControlClient machine session creation', () => {
             agent: 'grok',
             commanderId: 'athena',
         })).rejects.toThrow('did not persist Commander athena');
+
+        mocks.listSessions.mockResolvedValueOnce([{
+            ...session(),
+            metadata: {
+                ...(session().metadata as Record<string, unknown>),
+                commanderId: 'athena',
+            },
+        }]);
+        await expect(client.spawnSessionOnMachineConfirmed(target, {
+            directory: '/srv/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            commanderId: 'athena',
+            isSuperSession: true,
+        })).rejects.toThrow('did not persist the Super Session marker');
     });
 
     it('keeps strict confirmation unavailable for a legacy success receipt', async () => {

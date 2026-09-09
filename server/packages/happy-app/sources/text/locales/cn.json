@@ -1777,5 +1777,27 @@
     "noChanges": "无变更",
     "binaryFile": "二进制文件未显示",
     "renamed": "已重命名"
+  },
+  "projects": {
+    "create": "创建项目",
+    "createTitle": "创建新项目",
+    "createPrompt": "输入项目名称",
+    "renameTitle": "重命名项目",
+    "renamePrompt": "为 {name} 输入新名称",
+    "emptyDescription": "项目可在您的设备间同步，并独立于机器或工作目录。创建一个项目以组织您的会话。",
+    "project": "项目",
+    "noProject": "无项目",
+    "sessionCount": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} 个会话",
+          "other": "{count} 个会话"
+        }
+      }
+    }
+  },
+  "superSession": {
+    "pinned": "Super Session（已置顶）"
   }
 }

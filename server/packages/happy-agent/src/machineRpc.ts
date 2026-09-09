@@ -29,6 +29,7 @@ export type SpawnSessionOnMachineOptions = {
     modelMode?: string;
     effortLevel?: string;
     commanderId?: string;
+    isSuperSession?: boolean;
     runtimeContext?: SpawnSessionRuntimeContext;
     resumeClaudeSessionId?: string;
     resumeCodexThreadId?: string;
@@ -157,6 +158,7 @@ export async function spawnSessionOnMachine(
                 modelMode: options.modelMode,
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
+                ...(options.isSuperSession ? { isSuperSession: true } : {}),
                 runtimeContext: normalizedRuntimeContext(options.runtimeContext),
                 resumeClaudeSessionId: options.resumeClaudeSessionId,
                 resumeCodexThreadId: options.resumeCodexThreadId,

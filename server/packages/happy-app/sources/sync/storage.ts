@@ -5,7 +5,13 @@ import { useDeepEqual } from './storeSelectors';
 import { Session, Machine, GitStatus, SessionAgentModesPatch } from "./storageTypes";
 import type { GitStatusFiles } from "./gitStatusFiles";
 import type { ProjectFilesList } from "./projectFiles";
-import { buildPathProjectGroups, buildProjectGroups, isProjectSession, type ProjectGroupData } from "./projectGroups";
+import {
+    buildPathProjectGroups,
+    buildPersonalProjectGroups,
+    buildProjectGroups,
+    isProjectSession,
+    type ProjectGroupData,
+} from "./projectGroups";
 import {
     selectAgentFormCommunication,
     selectPendingCommunications,
@@ -46,6 +52,7 @@ import type { Project } from './projectTypes';
 import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
 import { selectSideChatSessions } from './sideChatSessions';
 import { selectProviderContinuationSessions } from '@/utils/providerContinuation';
+import { selectSuperSession } from './superSession';
 
 // Debounce timer for realtimeMode changes
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -260,11 +267,12 @@ function buildSessionRowData(
 
 // Unified list item type for SessionsList component
 export type SessionListViewItem =
+    | { type: 'super-session'; session: SessionRowData }
     | { type: 'header'; title: string }
     | { type: 'active-sessions'; sessions: SessionRowData[] }
     | { type: 'project-group'; displayPath: string; machine: Machine }
-    | { type: 'projects-header'; source: 'rig' | 'happy' }
-    | { type: 'project'; source: 'rig' | 'happy'; project: ProjectGroupData }
+    | { type: 'projects-header'; source: 'rig' | 'happy' | 'personal' }
+    | { type: 'project'; source: 'rig' | 'happy' | 'personal'; project: ProjectGroupData }
     | { type: 'session'; session: SessionRowData };
 
 export type { ProjectGroupData, ProjectWorkspaceGroup } from './projectGroups';
@@ -377,10 +385,14 @@ function buildSessionListViewData(
 ): SessionListViewItem[] {
     const rigProjectSessions: Session[] = [];
     const rigPathSessions: Session[] = [];
+    const personalProjectSessions: Session[] = [];
     const happySessions: Session[] = [];
     const archivedSessions: Session[] = [];
 
-    filterSessionsForTopLevelLists(Object.values(sessions)).forEach(session => {
+    const topLevelSessions = filterSessionsForTopLevelLists(Object.values(sessions));
+    const superSession = selectSuperSession(topLevelSessions);
+    topLevelSessions.forEach(session => {
+        if (session.id === superSession?.id) return;
         // The archive is a flat chronological tail, not part of any project.
         if (isSessionArchived(session)) {
             archivedSessions.push(session);
@@ -393,7 +405,9 @@ function buildSessionListViewData(
                 rigPathSessions.push(session);
             }
         } else {
-            happySessions.push(session);
+            const projectId = session.projectId?.trim();
+            if (projectId && projects[projectId]?.kind === 'personal') personalProjectSessions.push(session);
+            else happySessions.push(session);
         }
     });
 
@@ -405,6 +419,7 @@ function buildSessionListViewData(
     const sortProjectSessions = (items: Session[]) => items.sort(compareSessionsByActivity);
     sortProjectSessions(rigProjectSessions);
     sortProjectSessions(rigPathSessions);
+    sortProjectSessions(personalProjectSessions);
     sortProjectSessions(happySessions);
     archivedSessions.sort(compareSessionsByActivity);
 
@@ -424,6 +439,10 @@ function buildSessionListViewData(
         daemonIdentities,
     );
 
+    if (superSession) {
+        listData.push({ type: 'super-session', session: toRow(superSession) });
+    }
+
     const rigProjects = [
         ...buildProjectGroups(rigProjectSessions, toRow, isSessionActive),
         ...buildPathProjectGroups(rigPathSessions, toRow, isSessionActive, 'rig'),
@@ -433,6 +452,16 @@ function buildSessionListViewData(
         for (const project of rigProjects) {
             listData.push({ type: 'project', source: 'rig', project });
         }
+    }
+
+    const personalProjects = buildPersonalProjectGroups(
+        personalProjectSessions,
+        projects,
+        toRow,
+        isSessionActive,
+    );
+    for (const project of personalProjects) {
+        listData.push({ type: 'project', source: 'personal', project });
     }
 
     const happyProjects = buildPathProjectGroups(

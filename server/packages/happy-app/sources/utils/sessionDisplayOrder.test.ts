@@ -125,6 +125,24 @@ describe('session display order', () => {
         ]);
     });
 
+    it('keeps the Super Session first in keyboard shortcut order', () => {
+        const data: SessionListViewItem[] = [
+            {
+                type: 'active-sessions',
+                sessions: [session('recent-session', 'machine-z', '/project', 30)],
+            },
+            {
+                type: 'super-session',
+                session: session('super-session', 'machine-a', '/assistant', 1),
+            },
+        ];
+
+        expect(getSessionShortcutIdsInDisplayOrder(data, machines, 'Unknown')).toEqual([
+            'super-session',
+            'recent-session',
+        ]);
+    });
+
     it('numbers sessions nested in the shared project-card layout', () => {
         const data: SessionListViewItem[] = [
             { type: 'projects-header', source: 'rig' },

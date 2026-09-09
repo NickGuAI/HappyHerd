@@ -112,6 +112,11 @@ export const SidebarView = React.memo(() => {
                         />
                     )}
                     <SidebarNavigationButton
+                        icon="albums-outline"
+                        label={t('sidebar.projects')}
+                        onPress={() => router.navigate('/projects')}
+                    />
+                    <SidebarNavigationButton
                         icon="time-outline"
                         label={t('happyHerd.automations.title')}
                         onPress={() => router.navigate('/automations')}

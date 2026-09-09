@@ -26,6 +26,7 @@ const ROW_PADDING_LEFT = 16;
 const AVATAR_GAP = 12;
 const TOP_RIGHT_SLOT_WIDTH = 56;
 const UNREAD_RING_CLEAR_GRACE_MS = 350;
+const sessionListText = t as (key: string) => string;
 
 /**
  * The single colour the flat list paints, rows and page alike, so nothing reads
@@ -43,10 +44,11 @@ export function flatListBackgroundColor(theme: Theme): string {
  * with a hairline under it, so the list reads as one continuous column rather
  * than a stack of project cards.
  */
-export const FlatSessionRow = React.memo(({ row, selected, showBorder }: {
+export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }: {
     row: FlatSessionRowData;
     selected?: boolean;
     showBorder?: boolean;
+    pinned?: boolean;
     /** Archive uses the same deterministic row presentation as Home. */
     archived?: boolean;
 }) => {
@@ -153,7 +155,7 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder }: {
                             ]}
                             numberOfLines={1}
                         >
-                            {session.name}
+                            {pinned ? sessionListText('superSession.pinned') : session.name}
                         </Text>
                     </View>
                     <SessionShortcutHintBadge sessionId={session.id} style={styles.shortcutBadge} />

@@ -1777,5 +1777,27 @@
     "noChanges": "No changes",
     "binaryFile": "Binary file not shown",
     "renamed": "Renamed"
+  },
+  "projects": {
+    "create": "Create Project",
+    "createTitle": "Create New Project",
+    "createPrompt": "Enter project name",
+    "renameTitle": "Rename Project",
+    "renamePrompt": "Enter a new name for {name}",
+    "emptyDescription": "Projects persist across your devices and are independent of machines or working directories. Create one to organize your sessions.",
+    "project": "Project",
+    "noProject": "No Project",
+    "sessionCount": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} session",
+          "other": "{count} sessions"
+        }
+      }
+    }
+  },
+  "superSession": {
+    "pinned": "Super Session (Pinned)"
   }
 }

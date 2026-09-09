@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { encodeBase64 } from '@/encryption/base64';
+import { decodeBase64, encodeBase64 } from '@/encryption/base64';
 import type { AuthCredentials } from '@/auth/tokenStorage';
-import { decryptProjectRecord, loadProjectAvatar } from './projects';
+import { decryptProjectRecord, encryptProjectMetadata, loadProjectAvatar } from './projects';
 import type { ApiProjectRecord } from './projectTypes';
 
 const { decryptBlobMock, downloadProjectAvatarMock } = vi.hoisted(() => ({
@@ -79,6 +79,29 @@ describe('project decryption', () => {
         expect(result?.project.name).toBe('Happy');
         expect(encryption.decryptEncryptionKey).not.toHaveBeenCalled();
         expect(encryption.openEncryption).toHaveBeenCalledWith(null);
+    });
+});
+
+describe('project encryption', () => {
+    it('encrypts metadata with the supplied project key', async () => {
+        const encrypt = vi.fn(async (values: unknown[]) => [
+            new TextEncoder().encode(JSON.stringify(values[0])),
+        ]);
+        const openEncryption = vi.fn(async () => ({ encrypt, decrypt: vi.fn() }));
+        const dataKey = new Uint8Array([4, 5, 6]);
+
+        const ciphertext = await encryptProjectMetadata(
+            { name: 'Independent project', kind: 'personal' },
+            dataKey,
+            { openEncryption },
+        );
+
+        expect(openEncryption).toHaveBeenCalledWith(dataKey);
+        expect(encrypt).toHaveBeenCalledWith([{ name: 'Independent project', kind: 'personal' }]);
+        expect(JSON.parse(new TextDecoder().decode(decodeBase64(ciphertext)))).toEqual({
+            name: 'Independent project',
+            kind: 'personal',
+        });
     });
 });
 

@@ -140,6 +140,17 @@ describe('createSessionMetadata', () => {
         expect(metadata.parentSessionId).toBe('happy-parent');
     });
 
+    it('persists the daemon Super Session marker in provider metadata', () => {
+        vi.stubEnv('HAPPYHERD_SUPER_SESSION', '1');
+
+        const { metadata } = createSessionMetadata({
+            flavor: 'codex',
+            machineId: 'machine-assistant',
+        });
+
+        expect(metadata.isSuperSession).toBe(true);
+    });
+
     it.each(['gemini', 'grok', 'dsh', 'agy'] as const)(
         'sets exact side-chat lineage from the daemon handoff for %s',
         (flavor) => {

@@ -179,6 +179,8 @@ export interface SpawnSessionOptions {
     effectiveSettings?: HappyHerdMachineSessionSettings;
     /** Existing HappyHerd Commander identity to bind to this session. */
     commanderId?: string;
+    /** Marks the one persistent assistant conversation pinned in HappyHerd. */
+    isSuperSession?: boolean;
     /**
      * Machine-local automation snapshot. Only the daemon automation service
      * sets this field; the remote spawn RPC deliberately does not forward it.

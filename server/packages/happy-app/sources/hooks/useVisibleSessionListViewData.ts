@@ -29,7 +29,7 @@ export function useVisibleSessionListViewData(): SessionListViewItem[] | null {
         }
 
         const visibleProjects = new Map<number, SessionListViewItem>();
-        const visibleProjectSources = new Set<'rig' | 'happy'>();
+        const visibleProjectSources = new Set<'rig' | 'happy' | 'personal'>();
         data.forEach((item, index) => {
             if (item.type !== 'project') return;
             const project = hideArchivedSessions
@@ -43,6 +43,10 @@ export function useVisibleSessionListViewData(): SessionListViewItem[] | null {
 
         const result: SessionListViewItem[] = [];
         data.forEach((item, index) => {
+            if (item.type === 'super-session') {
+                result.push(item);
+                return;
+            }
             if (item.type === 'projects-header') {
                 if (visibleProjectSources.has(item.source)) result.push(item);
                 return;

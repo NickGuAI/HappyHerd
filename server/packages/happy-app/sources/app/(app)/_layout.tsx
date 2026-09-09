@@ -146,6 +146,22 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="projects/index"
+                options={{
+                    headerShown: true,
+                    headerTitle: t('sidebar.projects'),
+                    headerBackTitle: t('common.back'),
+                }}
+            />
+            <Stack.Screen
+                name="session/[id]/project"
+                options={{
+                    headerShown: true,
+                    headerTitle: t('sidebar.projects'),
+                    headerBackTitle: t('common.back'),
+                }}
+            />
+            <Stack.Screen
                 name="automations/index"
                 options={{
                     headerShown: true,

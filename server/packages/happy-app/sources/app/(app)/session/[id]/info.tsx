@@ -7,7 +7,7 @@ import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Avatar } from '@/components/Avatar';
-import { useSession, useIsDataReady, useSessionProjectAvatar } from '@/sync/storage';
+import { useProjects, useSession, useIsDataReady, useSessionProjectAvatar } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getSessionAvatarId, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
@@ -115,6 +115,9 @@ function SessionInfoContent({ session }: { session: Session }) {
     const { theme } = useUnistyles();
     const router = useRouter();
     const projectAvatar = useSessionProjectAvatar(session.id);
+    const projects = useProjects();
+    const projectText = t as (key: string, params?: Record<string, string | number>) => string;
+    const projectName = session.projectId ? projects[session.projectId]?.name : null;
     const devModeEnabled = __DEV__;
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
@@ -362,6 +365,14 @@ function SessionInfoContent({ session }: { session: Session }) {
 
                 {/* Session Details */}
                 <ItemGroup>
+                    <Item
+                        title={projectText('projects.project')}
+                        detail={projectName ?? (session.projectId
+                            ? projectText('projects.project')
+                            : projectText('projects.noProject'))}
+                        icon={<Ionicons name="albums-outline" size={29} color="#007AFF" />}
+                        onPress={() => router.push(`/session/${session.id}/project` as any)}
+                    />
                     <Item
                         title={t('sessionInfo.happySessionId')}
                         subtitle={`${session.id.substring(0, 8)}...${session.id.substring(session.id.length - 8)}`}
