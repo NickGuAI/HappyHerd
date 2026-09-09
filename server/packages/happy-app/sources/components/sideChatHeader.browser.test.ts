@@ -375,6 +375,7 @@ const virtualModules: Record<string, string> = {
     '@/text': `
         export const t = (key, params) => ({
             'sideChat.panelTitle': 'Side chats',
+            'sideChat.resizePanel': 'Resize side panel',
             'sideChat.openCount': 'Open side chats (' + (params?.count ?? '') + ')',
             'sideChat.collapse': 'Collapse side chats',
             'sideChat.newChat': 'New side chat',
@@ -1386,6 +1387,81 @@ describe('Side chats browser interaction', () => {
             .waitFor({ state: 'detached', timeout: 2_000 });
         await page.close();
     }, 10_000);
+
+    it('drags the production desktop side panel beyond 360px, applies clamps, and keeps the narrow host full-screen', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        const divider = foreground.getByRole('slider', { name: 'Resize side panel' });
+        await divider.waitFor({ state: 'visible', timeout: 2_000 });
+
+        const rightPanelWidth = async () => {
+            const [hostBox, dividerBox] = await Promise.all([
+                foreground.boundingBox(),
+                divider.boundingBox(),
+            ]);
+            if (!hostBox || !dividerBox) throw new Error('session side panel has no rendered geometry');
+            return {
+                hostBox,
+                dividerBox,
+                width: hostBox.x + hostBox.width - dividerBox.x - dividerBox.width,
+            };
+        };
+
+        const initial = await rightPanelWidth();
+        expect(initial.width).toBeCloseTo(360, 0);
+        const initialPointerX = initial.dividerBox.x + initial.dividerBox.width / 2;
+        await page.mouse.move(initialPointerX, initial.dividerBox.y + initial.dividerBox.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(initialPointerX - 240, initial.dividerBox.y + 20, { steps: 4 });
+        await page.mouse.up();
+
+        const widened = await rightPanelWidth();
+        expect(widened.width).toBeGreaterThan(360);
+        expect(widened.width).toBeCloseTo(600, 0);
+
+        await page.mouse.move(
+            widened.dividerBox.x + widened.dividerBox.width / 2,
+            widened.dividerBox.y + widened.dividerBox.height / 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(widened.hostBox.x, widened.dividerBox.y + 20, { steps: 4 });
+        await page.mouse.up();
+
+        const clamped = await rightPanelWidth();
+        const paneWidth = clamped.hostBox.width - clamped.dividerBox.width;
+        expect(clamped.width).toBeCloseTo(paneWidth * 0.75, 0);
+        expect(clamped.dividerBox.x - clamped.hostBox.x).toBeGreaterThanOrEqual(paneWidth * 0.25 - 1);
+
+        await foreground.getByLabel('Add panel').click();
+        await foreground.getByText('Changes', { exact: true }).last().click();
+        await expect(foreground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(1);
+        expect((await rightPanelWidth()).width).toBeCloseTo(clamped.width, 0);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+
+        const narrowPage = await browser.newPage({ viewport: { width: 700, height: 900 } });
+        const narrowErrors: string[] = [];
+        narrowPage.on('pageerror', (error) => narrowErrors.push(error.stack ?? error.message));
+        await narrowPage.goto(origin);
+        const narrowForeground = narrowPage.getByTestId('foreground-session');
+        await narrowForeground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        await expect(narrowForeground.getByText('Newest child').isVisible()).resolves.toBe(true);
+        await expect(narrowForeground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(0);
+        expect(narrowErrors).toEqual([]);
+        await narrowPage.close();
+    }, 15_000);
 
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],

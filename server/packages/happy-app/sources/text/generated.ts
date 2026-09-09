@@ -952,6 +952,7 @@ export type TranslationKey =
     | "sideChat.newChat"
     | "sideChat.openCount"
     | "sideChat.panelTitle"
+    | "sideChat.resizePanel"
     | "sideChat.stopUnconfirmed"
     | "sideChat.tabLabel"
     | "sideChat.unavailable"

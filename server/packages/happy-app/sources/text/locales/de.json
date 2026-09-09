@@ -934,6 +934,7 @@
   },
   "sideChat": {
     "panelTitle": "Side-Chats",
+    "resizePanel": "Seitenbereich anpassen",
     "newChat": "Neuer Side-Chat",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",

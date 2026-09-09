@@ -934,6 +934,7 @@
   },
   "sideChat": {
     "panelTitle": "Side chats",
+    "resizePanel": "Resize side panel",
     "newChat": "New side chat",
     "emptyTitle": "No side chats yet",
     "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",

@@ -850,6 +850,11 @@ function fullscreenSideChatHosts(renderer: ReactTestRenderer) {
     ));
 }
 
+function sessionSidebarDividers(renderer: ReactTestRenderer) {
+    return renderer.root.findAllByType('View' as any)
+        .filter((node: any) => node.props.testID === 'session-sidebar-divider');
+}
+
 function chatHeader(renderer: ReactTestRenderer) {
     return renderer.root.findByType('ChatHeaderView' as any);
 }
@@ -1260,6 +1265,52 @@ describe('SessionView Web composer workspace access', () => {
 });
 
 describe('SessionView side-chat integration', () => {
+    it('resizes the shared desktop side panel beyond 360px, clamps it, and keeps mobile full-screen', () => {
+        const renderer = renderParent();
+        expect(sessionSidebarDividers(renderer)).toHaveLength(1);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        act(() => renderer.root.findByProps({ testID: 'session-view-split-host' }).props.onLayout({
+            nativeEvent: { layout: { width: 800 } },
+        }));
+
+        let sidebar = desktopSideChatHosts(renderer)[0];
+        expect(sidebar.parent?.props.style).toMatchObject({ width: 360 });
+        const divider = renderer.root.findByProps({ testID: 'session-sidebar-divider' });
+        const currentTarget = { setPointerCapture: vi.fn(), releasePointerCapture: vi.fn() };
+        act(() => divider.props.onPointerDown({
+            nativeEvent: { pointerId: 5, clientX: 700, button: 0 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerMove({
+            nativeEvent: { pointerId: 5, clientX: 100 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerUp({
+            nativeEvent: { pointerId: 5, clientX: 100 },
+            currentTarget,
+        }));
+
+        sidebar = desktopSideChatHosts(renderer)[0];
+        expect(sidebar.parent?.props.style).toMatchObject({ width: 594 });
+        expect(currentTarget.setPointerCapture).toHaveBeenCalledWith(5);
+        expect(currentTarget.releasePointerCapture).toHaveBeenCalledWith(5);
+
+        pressByLabel(renderer, 'Collapse side chats');
+        expect(sessionSidebarDividers(renderer)).toHaveLength(1);
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(desktopSideChatHosts(renderer)[0]?.parent?.props.style).toMatchObject({ width: 594 });
+
+        mocks.width = 700;
+        act(() => {
+            for (const listener of mocks.listeners) listener();
+        });
+        expect(sessionSidebarDividers(renderer)).toHaveLength(0);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
+    });
+
     it('routes dsh Photos through the machine uploader instead of inline attachments', async () => {
         mocks.sessions.parent.metadata!.flavor = 'dsh';
         mocks.pickImagesForUpload.mockResolvedValue([{
