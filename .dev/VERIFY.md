@@ -205,6 +205,4 @@ TickTick only when upstream advances.
 - merge SHA, successful Quality and `Contract suite` job evidence;
 - merged head SHA, ancestry proof, and exact branch cleanup result.
 
-The public native-launcher matrix is separate: it runs for `happyherd-v*` tags
-or manual dispatch, not for ordinary PRs. Do not claim five-platform release
-proof from the normal PR gates.
+The native installer workflow runs a four-target build and smoke matrix on pull requests, tags, and manual dispatch; only `happyherd-v*` tags publish. The first prepared stable release is required before the latest installer URL can work. Published-download proof remains separate from PR build and smoke results.

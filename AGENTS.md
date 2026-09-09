@@ -88,7 +88,7 @@ contract suite before release.
   `ui-surface-inventory.json` and `ui-tree.html` with
   `pnpm --filter happy-app ui:inventory:generate`.
 - `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
-  parity, semantic exemptions, AST copy scanning, the 36-route inventory, and
+  parity, semantic exemptions, AST copy scanning, the 38-route inventory, and
   the critical locale/viewport/theme smoke matrix.
 - Every top-level desktop sidebar destination must use the shared
   `SidebarNavigationButton` component and live in the primary navigation
