@@ -306,10 +306,12 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             directory: '/tmp/project',
             agent: 'claude',
             commanderId: 'athena',
+            isSuperSession: true,
         });
 
         expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
             commanderId: 'athena',
+            isSuperSession: true,
             effectiveSettings: settings,
         }));
     });

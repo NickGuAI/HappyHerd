@@ -233,6 +233,7 @@ function fakeClient(options: {
           commanderWorkspace: createdCommander.workspace,
           commanderAgentContextPath: createdCommander.agentContextPath,
         } : {}),
+        ...(launch.isSuperSession ? { isSuperSession: true } : {}),
       }),
       settings,
     };
@@ -321,6 +322,7 @@ describe('machine and session command parsing', () => {
     expect(() => parseSessionCreateOptions(sessionArgs('--model'))).toThrow('--model requires a value');
     expect(() => parseSessionCreateOptions(sessionArgs('--wat'))).toThrow('Unknown option: --wat');
     expect(() => parseSessionCreateOptions(sessionArgs('--json', '--json'))).toThrow('may only be specified once');
+    expect(() => parseSessionCreateOptions(sessionArgs('--super-session'))).toThrow('--super-session requires --commander');
     expect(() => parseSessionCreateOptions([
       '--machine', 'm', '--path', '/x', '--provider', 'unknown',
     ])).toThrow('Unsupported Happy CLI daemon provider "unknown"');
@@ -557,6 +559,35 @@ describe('remote tracked session creation', () => {
       path: targetAthena.commanderPath,
       workspace: targetAthena.workspace,
       agentContextPath: targetAthena.agentContextPath,
+    });
+  });
+
+  it('creates a Commander-bound Super Session on the exact requested workspace', async () => {
+    const fake = fakeClient({ createdCommander: targetAthena });
+    const output = vi.fn();
+
+    await handleSessionCommand(['create', ...sessionArgs(
+      '--commander', 'athena',
+      '--super-session',
+      '--json',
+    )], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.spawnSessionOnMachineConfirmed).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'machine-1' }),
+      expect.objectContaining({
+        directory: '/srv/project',
+        commanderId: 'athena',
+        isSuperSession: true,
+      }),
+    );
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      sessionId: 'session-real',
+      path: '/srv/project',
+      superSession: true,
+      commander: { id: 'athena', workspace: '/remote/project' },
     });
   });
 

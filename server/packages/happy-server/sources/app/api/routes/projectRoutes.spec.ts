@@ -99,6 +99,15 @@ const {
     const sessionFindMany = vi.fn(async (args: any) => state.sessions
         .filter((session) => session.projectId === args?.where?.projectId)
         .map((session) => ({ id: session.id })));
+    const sessionFindFirst = vi.fn(async (args: any) => state.sessions.find((session) => (
+        (args?.where?.id === undefined || session.id === args.where.id)
+        && (args?.where?.accountId === undefined || session.accountId === args.where.accountId)
+    )) ?? null);
+    const sessionUpdate = vi.fn(async (args: any) => {
+        const session = state.sessions.find((candidate) => candidate.id === args.where.id)!;
+        session.projectId = args.data.projectId;
+        return { ...session };
+    });
     const sessionUpdateMany = vi.fn(async (args: any) => {
         for (const session of state.sessions) {
             if (session.projectId === args.where.projectId) session.projectId = args.data.projectId;
@@ -108,7 +117,12 @@ const {
 
     const dbMock = {
         project: { findFirst: projectFindFirst, findMany: projectFindMany, create: projectCreate, update: projectUpdate, delete: projectDelete },
-        session: { findMany: sessionFindMany, updateMany: sessionUpdateMany },
+        session: {
+            findFirst: sessionFindFirst,
+            findMany: sessionFindMany,
+            update: sessionUpdate,
+            updateMany: sessionUpdateMany,
+        },
     };
     const emitUpdate = vi.fn();
     const filesMock = {
@@ -260,6 +274,68 @@ describe('projectRoutes', () => {
         });
         expect(update.statusCode).toBe(200);
         expect(update.json()).toMatchObject({ metadata: 'two', metadataVersion: 2 });
+    });
+
+    it('assigns and clears an account-owned session project without crossing accounts', async () => {
+        app = await createApp();
+        const project = await app.inject({
+            method: 'POST',
+            url: '/v1/projects',
+            headers: { 'x-user-id': 'u1' },
+            payload: { externalId: 'personal', metadata: 'encrypted' },
+        });
+        const foreignProject = await app.inject({
+            method: 'POST',
+            url: '/v1/projects',
+            headers: { 'x-user-id': 'u2' },
+            payload: { externalId: 'foreign', metadata: 'encrypted' },
+        });
+        state.sessions.push(
+            { id: 'owned-session', accountId: 'u1', projectId: null },
+            { id: 'foreign-session', accountId: 'u2', projectId: null },
+        );
+
+        const assigned = await app.inject({
+            method: 'PATCH',
+            url: '/v1/sessions/owned-session/project',
+            headers: { 'x-user-id': 'u1' },
+            payload: { projectId: project.json().id },
+        });
+        expect(assigned.statusCode).toBe(200);
+        expect(assigned.json()).toEqual({
+            session: { id: 'owned-session', projectId: project.json().id },
+        });
+        expect(state.sessions[0].projectId).toBe(project.json().id);
+        expect(emitUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
+            userId: 'u1',
+            recipientFilter: { type: 'user-scoped-only' },
+        }));
+
+        const foreignSession = await app.inject({
+            method: 'PATCH',
+            url: '/v1/sessions/foreign-session/project',
+            headers: { 'x-user-id': 'u1' },
+            payload: { projectId: project.json().id },
+        });
+        expect(foreignSession.statusCode).toBe(404);
+
+        const foreignAssignment = await app.inject({
+            method: 'PATCH',
+            url: '/v1/sessions/owned-session/project',
+            headers: { 'x-user-id': 'u1' },
+            payload: { projectId: foreignProject.json().id },
+        });
+        expect(foreignAssignment.statusCode).toBe(404);
+
+        const cleared = await app.inject({
+            method: 'PATCH',
+            url: '/v1/sessions/owned-session/project',
+            headers: { 'x-user-id': 'u1' },
+            payload: { projectId: null },
+        });
+        expect(cleared.statusCode).toBe(200);
+        expect(cleared.json()).toEqual({ session: { id: 'owned-session', projectId: null } });
+        expect(state.sessions[0].projectId).toBeNull();
     });
 
     it('uploads locally, requires explicit avatar activation, and downloads only the current ref', async () => {

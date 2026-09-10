@@ -42,6 +42,8 @@ const mocks = vi.hoisted(() => ({
   rotationDependencies: undefined as ProviderLimitRotationDependencies | undefined,
   rpcHandlers: undefined as unknown,
   spawnHappyCLI: vi.fn(),
+  isTmuxAvailable: vi.fn(async () => false),
+  spawnInTmux: vi.fn(),
 }));
 
 vi.mock('@/api/api', () => ({
@@ -100,6 +102,12 @@ vi.mock('@/resume/localResumeStore', () => ({
 
 vi.mock('@/utils/spawnHappyCLI', () => ({
   spawnHappyCLI: mocks.spawnHappyCLI,
+}));
+
+vi.mock('@/utils/tmux', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/utils/tmux')>(),
+  isTmuxAvailable: mocks.isTmuxAvailable,
+  getTmuxUtilities: () => ({ spawnInTmux: mocks.spawnInTmux }),
 }));
 
 vi.mock('@/ui/auth', () => ({
@@ -259,6 +267,8 @@ type CapturedRpcHandlers = {
     agent: 'codex';
     effectiveSettings: typeof codexAdvertisedDefaultSettings;
     continuedFromSessionId?: string;
+    isSuperSession?: boolean;
+    environmentVariables?: Record<string, string>;
   }) => Promise<{ type: string; sessionId?: string; errorMessage?: string; settings?: unknown }>;
   resumeSession: (
     sessionId: string,
@@ -348,6 +358,7 @@ describe('daemon session continuity', () => {
     }));
     mocks.persistSession.mockReturnValue(true);
     mocks.readPersistedSessions.mockReturnValue({});
+    mocks.isTmuxAvailable.mockResolvedValue(false);
     mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
       selection: { type: 'unconfigured' },
       env: {},
@@ -386,6 +397,7 @@ describe('daemon session continuity', () => {
     for (const directory of temporaryDirectories.splice(0)) {
       await rm(directory, { recursive: true, force: true });
     }
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -669,6 +681,47 @@ describe('daemon session continuity', () => {
     expect(prepareCommanderContext).not.toHaveBeenCalled();
     expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
     expect(mocks.persistSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { tmux: false, isSuperSession: false },
+    { tmux: false, isSuperSession: true },
+    { tmux: true, isSuperSession: false },
+    { tmux: true, isSuperSession: true },
+  ])('uses only explicit Super Session designation (tmux=$tmux, explicit=$isSuperSession)', async ({ tmux, isSuperSession }) => {
+    vi.stubEnv('HAPPYHERD_SUPER_SESSION', '1');
+    mocks.isTmuxAvailable.mockResolvedValue(tmux);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4322, kill: vi.fn(), on: vi.fn() });
+    mocks.spawnInTmux.mockResolvedValue({ success: true, pid: 4322, sessionId: 'test-tmux-session' });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const spawn = rpc.spawnSession({
+      directory: process.cwd(), agent: 'codex', effectiveSettings: codexAdvertisedDefaultSettings,
+      isSuperSession,
+      environmentVariables: { HAPPYHERD_SUPER_SESSION: '1', ...(tmux ? { TMUX_SESSION_NAME: 'test' } : {}) },
+    });
+    const launch = tmux ? mocks.spawnInTmux : mocks.spawnHappyCLI;
+    await vi.waitFor(() => expect(launch).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('target-session', {
+      path: process.cwd(), flavor: 'codex', codexThreadId: 'fresh-thread',
+      host: 'test-host', hostPid: 4322, machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy', happyToolsDir: '/srv/happy/tools',
+      spawnSettings: codexAdvertisedDefaultSettings,
+      ...(isSuperSession ? { isSuperSession: true } : {}),
+    });
+    await expect(spawn).resolves.toMatchObject({ type: 'success', sessionId: 'target-session' });
+
+    const environment = tmux ? launch.mock.calls[0][2] : launch.mock.calls[0][1].env;
+    expect(environment.HAPPYHERD_SUPER_SESSION).toBe(isSuperSession ? '1' : undefined);
+    if (tmux) {
+      const command = launch.mock.calls[0][0][0] as string;
+      const unsetCommand = command.split(';')[0];
+      expect(unsetCommand.includes('HAPPYHERD_SUPER_SESSION')).toBe(!isSuperSession);
+    }
   });
 
   it('carries provider-continuation lineage into a fresh daemon spawn without native resume state', async () => {

@@ -320,8 +320,25 @@ function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; t
             '/workspace/notes.md',
             reference,
         );
-        return openDesktopFile(withNotes, '/workspace/task.html', reference);
+        const withSource = openDesktopFile(withNotes, '/workspace/review.ts', reference);
+        return openDesktopFile(withSource, '/workspace/task.html', reference);
     });
+
+    const fileWorkspace = (
+        <DesktopFileWorkspace
+            sessionId="ordinary-session"
+            paths={workspace.paths}
+            activePath={workspace.activePath}
+            references={workspace.references}
+            dirtyPaths={new Set()}
+            compact={compact}
+            onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+            onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+            onFileDeleted={() => undefined}
+            onClosePicker={() => undefined}
+            onDirtyChange={() => undefined}
+        />
+    );
 
     return (
         <div
@@ -330,24 +347,21 @@ function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; t
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
-                width: compact ? 390 : 900,
+                width: compact ? 390 : 1900,
                 height: compact ? 844 : 520,
                 overflow: 'hidden',
             }}
         >
-            <DesktopFileWorkspace
-                sessionId="ordinary-session"
-                paths={workspace.paths}
-                activePath={workspace.activePath}
-                references={workspace.references}
-                dirtyPaths={new Set()}
-                compact={compact}
-                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
-                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
-                onFileDeleted={() => undefined}
-                onClosePicker={() => undefined}
-                onDirtyChange={() => undefined}
-            />
+            {compact ? fileWorkspace : (
+                <DesktopFileWorkspaceSplit
+                    workspaceVisible
+                    workspaceFullscreen={false}
+                    workspace={fileWorkspace}
+                    fallback={null}
+                >
+                    <MainAgentChatProbe />
+                </DesktopFileWorkspaceSplit>
+            )}
         </div>
     );
 }

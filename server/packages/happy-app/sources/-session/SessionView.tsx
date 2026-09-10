@@ -47,6 +47,7 @@ import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
 import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloor';
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
+import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
 import {
     closeDesktopFile,
     desktopFileIdentity,
@@ -56,6 +57,7 @@ import {
     normalizeWorkspaceLocalhostUrl,
     openDesktopFile,
     openDesktopLocalhost,
+    resolveDesktopFileWorkspaceWidth,
     selectDesktopFile,
     type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
@@ -152,7 +154,12 @@ export type SessionWorkspaceController = {
 
 export const SessionWorkspaceControllerContext = React.createContext<SessionWorkspaceController | null>(null);
 
-export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
+export const SessionView = React.memo((props: {
+    id: string;
+    focusMessageId?: string;
+    openChangesRequestId?: string;
+    onOpenChangesRequestConsumed?: (requestId: string) => void;
+}) => {
     const sessionId = props.id;
     const router = useRouter();
     const session = useSession(sessionId);
@@ -213,8 +220,23 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const canShowFileSidebar = sidebarPresentation.fileSidebarAvailable && isDataReady && !!session;
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
-    // Match left sidebar width: 30% of window, clamped to 250–360px
-    const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
+    const fixedSidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
+    const [sessionLayoutWidth, setSessionLayoutWidth] = React.useState(windowWidth);
+    const [resizableSidebarWidth, setResizableSidebarWidth] = React.useState(() => (
+        resolveDesktopFileWorkspaceWidth(fixedSidebarWidth, windowWidth)
+    ));
+    const sidebarWidth = Platform.OS === 'web' ? resizableSidebarWidth : fixedSidebarWidth;
+    const handleSessionLayout = React.useCallback((event: LayoutChangeEvent) => {
+        const nextAvailableWidth = event.nativeEvent.layout.width;
+        if (nextAvailableWidth <= 0) return;
+        setSessionLayoutWidth(nextAvailableWidth);
+        setResizableSidebarWidth((current) => (
+            resolveDesktopFileWorkspaceWidth(current, nextAvailableWidth)
+        ));
+    }, []);
+    const handleSidebarWidthChange = React.useCallback((requestedWidth: number) => {
+        setResizableSidebarWidth(resolveDesktopFileWorkspaceWidth(requestedWidth, sessionLayoutWidth));
+    }, [sessionLayoutWidth]);
     const [desktopWorkspaces, setDesktopWorkspaces] = React.useState<Record<string, ChatFileWorkspace>>({});
     const desktopWorkspacesRef = React.useRef(desktopWorkspaces);
     const [desktopFileWorkspaceSessionId, setDesktopFileWorkspaceSessionId] = React.useState(sessionId);
@@ -433,13 +455,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
         && !sideChatFullscreenOpen;
-    const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
-        && canUseDesktopFileWorkspaceSession
-        && !canShowSessionFileWorkspaceSplit
-        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
-        && !sideChatFullscreenTransitionPending;
-    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
-    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
     const showSidebar = !zenMode
         && (canShowFileSidebar || sideChatSidebarExpanded);
     const canRenderSidebar = canShowFileSidebar
@@ -630,6 +645,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const diffViewOpen = overlayCurrent.kind === 'diff';
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file ?? null : null;
+    const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
+        && canUseDesktopFileWorkspaceSession
+        && !canShowSessionFileWorkspaceSplit
+        && !diffViewOpen
+        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
+        && !sideChatFullscreenTransitionPending;
+    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
     const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
     const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
@@ -859,6 +882,27 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
         }
     }, [canShowFileSidebar]);
+
+    // Route handoffs run after file-panel initialization so compact Web can
+    // open its existing full-screen Changes overlay on the first request.
+    const handledOpenChangesRequestId = React.useRef<string | null>(null);
+    React.useEffect(() => {
+        const requestId = props.openChangesRequestId;
+        if (!requestId || handledOpenChangesRequestId.current === requestId || !isDataReady || !session) return;
+        handledOpenChangesRequestId.current = requestId;
+        if (canUseSessionFileWorkspace) {
+            openChangesForSession(sessionId);
+        }
+        props.onOpenChangesRequestConsumed?.(requestId);
+    }, [
+        canUseSessionFileWorkspace,
+        isDataReady,
+        openChangesForSession,
+        props.onOpenChangesRequestConsumed,
+        props.openChangesRequestId,
+        session,
+        sessionId,
+    ]);
 
     // Right-side header content published by the active overlay (diff toggle / save button).
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
@@ -1140,7 +1184,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             }}
         >
             {mainContent}
-            {diffViewOpen && (canShowFileSidebar || (isWebMobileSessionViewport && canUseDesktopFileWorkspaceSession)) && (
+            {diffViewOpen && (canShowFileSidebar || canUseDesktopFileWorkspaceSession) && (
                 <View
                     testID="mobile-changes-workspace-overlay"
                     pointerEvents="box-none"
@@ -1206,29 +1250,37 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     };
 
     const fallbackRightSurface = (
-        <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-            <View style={{ width: sidebarWidth, flex: 1 }}>
-                <FilesSidebar
-                    sessionId={sessionId}
-                    selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : null}
-                    onFilePress={handleSidebarFilePress}
-                    openPanels={visibleSidebarPanels}
-                    activePanel={visibleSidebarPanelActive}
-                    onOpenPanel={openMainSidebarPanel}
-                    onSelectPanel={selectMainSidebarPanel}
-                    onClosePanel={removeSidebarPanel}
-                    onOpenWorkspace={openWorkspaceFromRightSidebar}
-                    canOpenFilePanels={canShowFileSidebar}
-                    sideChats={sideChats}
-                    activeSideChatId={activeSideChatId}
-                    onSelectSideChat={selectSideChat}
-                    onCloseSideChat={closeSideChat}
-                    creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
-                    canCreateSideChat={canCreateSideChat}
-                    onCreateSideChat={createSideChat}
+        <>
+            {Platform.OS === 'web' && showSidebar ? (
+                <SessionSidebarDivider
+                    width={sidebarWidth}
+                    onWidthChange={handleSidebarWidthChange}
                 />
-            </View>
-        </Animated.View>
+            ) : null}
+            <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
+                <View style={{ width: sidebarWidth, flex: 1 }}>
+                    <FilesSidebar
+                        sessionId={sessionId}
+                        selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : null}
+                        onFilePress={handleSidebarFilePress}
+                        openPanels={visibleSidebarPanels}
+                        activePanel={visibleSidebarPanelActive}
+                        onOpenPanel={openMainSidebarPanel}
+                        onSelectPanel={selectMainSidebarPanel}
+                        onClosePanel={removeSidebarPanel}
+                        onOpenWorkspace={openWorkspaceFromRightSidebar}
+                        canOpenFilePanels={canShowFileSidebar}
+                        sideChats={sideChats}
+                        activeSideChatId={activeSideChatId}
+                        onSelectSideChat={selectSideChat}
+                        onCloseSideChat={closeSideChat}
+                        creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
+                        canCreateSideChat={canCreateSideChat}
+                        onCreateSideChat={createSideChat}
+                    />
+                </View>
+            </Animated.View>
+        </>
     );
 
     const workspaceSurface = (
@@ -1279,14 +1331,20 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 <WorkspaceLinkPressContext.Provider
                     value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
                 >
-                    <DesktopFileWorkspaceSplit
-                        workspaceVisible={rightWorkspaceVisible}
-                        workspaceFullscreen={rightWorkspaceFullscreen}
-                        workspace={workspaceSurface}
-                        fallback={canRenderSidebar ? fallbackRightSurface : null}
+                    <View
+                        style={{ flex: 1, minWidth: 0 }}
+                        onLayout={handleSessionLayout}
+                        testID="session-view-split-host"
                     >
-                        {chatSurface}
-                    </DesktopFileWorkspaceSplit>
+                        <DesktopFileWorkspaceSplit
+                            workspaceVisible={rightWorkspaceVisible}
+                            workspaceFullscreen={rightWorkspaceFullscreen}
+                            workspace={workspaceSurface}
+                            fallback={canRenderSidebar ? fallbackRightSurface : null}
+                        >
+                            {chatSurface}
+                        </DesktopFileWorkspaceSplit>
+                    </View>
                 </WorkspaceLinkPressContext.Provider>
             </SessionWorkspaceControllerContext.Provider>
         </MobileTypographyFloor>

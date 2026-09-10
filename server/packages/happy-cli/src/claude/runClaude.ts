@@ -63,7 +63,10 @@ import {
 } from '@/automations/providerOutcome';
 import { systemPrompt } from './utils/systemPrompt';
 import { usageLimitsForProviderAccount } from './utils/usageLimits';
-import { providerContinuationMetadataFromEnvironment } from '@/utils/createSessionMetadata';
+import {
+    providerContinuationMetadataFromEnvironment,
+    superSessionMetadataFromEnvironment,
+} from '@/utils/createSessionMetadata';
 import {
     composeUserSafeguardPrompt,
     resolveUserSafeguardPromptMode,
@@ -204,6 +207,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
+        ...superSessionMetadataFromEnvironment(),
         ...providerContinuationMetadataFromEnvironment(),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),

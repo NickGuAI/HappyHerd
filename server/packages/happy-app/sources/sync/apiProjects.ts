@@ -75,11 +75,30 @@ function asProjectRecord(value: unknown): ApiProjectRecord | null {
     };
 }
 
-/** Fetch only the opaque Project records referenced by current sessions. */
+async function projectRecordFromResponse(response: Response, operation: string): Promise<ApiProjectRecord> {
+    if (!response.ok) {
+        throw new Error(`${operation}: ${response.status}`);
+    }
+    const record = asProjectRecord(await response.json());
+    if (!record) throw new Error(`${operation}: invalid response`);
+    return record;
+}
+
+/** Fetch the account catalog, or a bounded subset when ids are supplied. */
 export async function fetchProjects(
     credentials: AuthCredentials,
-    projectIds: readonly string[],
+    projectIds?: readonly string[],
 ): Promise<ApiProjectRecord[]> {
+    if (projectIds === undefined) {
+        const response = await fetch(`${getServerUrl()}/v1/projects`, {
+            headers: authHeaders(credentials),
+        });
+        if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`);
+        const body: unknown = await response.json();
+        const values = isRecord(body) && Array.isArray(body.projects) ? body.projects : [];
+        return values.map(asProjectRecord).filter((record): record is ApiProjectRecord => record !== null);
+    }
+
     const ids = [...new Set(projectIds.filter((id) => id.length > 0))];
     if (ids.length === 0) return [];
 
@@ -100,6 +119,55 @@ export async function fetchProjects(
         projects.push(...values.map(asProjectRecord).filter((record): record is ApiProjectRecord => record !== null));
     }
     return projects;
+}
+
+export async function createProjectRecord(
+    credentials: AuthCredentials,
+    input: { externalId: string; metadata: string; dataEncryptionKey: string },
+): Promise<ApiProjectRecord> {
+    const response = await fetch(`${getServerUrl()}/v1/projects`, {
+        method: 'POST',
+        headers: authHeaders(credentials),
+        body: JSON.stringify(input),
+    });
+    return projectRecordFromResponse(response, 'Failed to create project');
+}
+
+export async function updateProjectRecord(
+    credentials: AuthCredentials,
+    projectId: string,
+    input: { metadata: string; expectedMetadataVersion: number },
+): Promise<ApiProjectRecord> {
+    const response = await fetch(`${getServerUrl()}/v1/projects/${encodeURIComponent(projectId)}`, {
+        method: 'PATCH',
+        headers: authHeaders(credentials),
+        body: JSON.stringify(input),
+    });
+    return projectRecordFromResponse(response, response.status === 409
+        ? 'Project changed on another device'
+        : 'Failed to rename project');
+}
+
+export async function assignSessionProject(
+    credentials: AuthCredentials,
+    sessionId: string,
+    projectId: string | null,
+): Promise<{ id: string; projectId: string | null }> {
+    const response = await fetch(`${getServerUrl()}/v1/sessions/${encodeURIComponent(sessionId)}/project`, {
+        method: 'PATCH',
+        headers: authHeaders(credentials),
+        body: JSON.stringify({ projectId }),
+    });
+    if (!response.ok) throw new Error(`Failed to assign project: ${response.status}`);
+    const body: unknown = await response.json();
+    const session = isRecord(body) ? body.session : null;
+    if (!isRecord(session)
+        || typeof session.id !== 'string'
+        || session.id !== sessionId
+        || (session.projectId !== null && typeof session.projectId !== 'string')) {
+        throw new Error('Failed to assign project: invalid response');
+    }
+    return { id: session.id, projectId: session.projectId as string | null };
 }
 
 /**

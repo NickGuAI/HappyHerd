@@ -1656,6 +1656,11 @@ async function sessionPersistArchivedLifecycle(
  * the provider process is already unreachable.
  */
 export async function sessionArchive(sessionId: string): Promise<{ success: boolean; message?: string }> {
+    if (storage.getState().sessions[sessionId]?.metadata?.bot) {
+        const { t } = await import('@/text');
+        return { success: false, message: t('sessionInfo.botArchiveRequiresMachine') };
+    }
+
     try {
         const response = await apiSocket.request(`/v1/sessions/${sessionId}/archive`, {
             method: 'POST'
@@ -1702,6 +1707,11 @@ export async function sessionArchive(sessionId: string): Promise<{ success: bool
  * The session should be inactive/archived before deletion
  */
 export async function sessionDelete(sessionId: string): Promise<{ success: boolean; message?: string }> {
+    if (storage.getState().sessions[sessionId]?.metadata?.bot) {
+        const { t } = await import('@/text');
+        return { success: false, message: t('sessionInfo.botDeleteUnavailable') };
+    }
+
     try {
         const response = await apiSocket.request(`/v1/sessions/${sessionId}`, {
             method: 'DELETE'

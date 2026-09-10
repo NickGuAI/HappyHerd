@@ -325,6 +325,7 @@
   },
   "newSession": {
     "title": "开始新会话",
+    "showHidden": "显示隐藏项",
     "machineOffline": "设备离线",
     "switchMachinesHint": "• 点击上方的设备来切换设备",
     "workspace": "工作区",
@@ -481,7 +482,9 @@
     "worktreeCleanupTitle": "删除 Worktree？",
     "worktreeCleanupMessage": "Worktree 没有未提交的更改。是否要删除 Worktree 文件？",
     "worktreeCleanupDelete": "删除 Worktree",
-    "worktreeCleanupKeep": "保留文件"
+    "worktreeCleanupKeep": "保留文件",
+    "botArchiveRequiresMachine": "要归档此机器人，请连接拥有该机器人的电脑。",
+    "botDeleteUnavailable": "机器人保留单个连续对话；请使用归档代替删除。"
   },
   "components": {
     "emptyMainScreen": {
@@ -854,6 +857,7 @@
   },
   "sideChat": {
     "panelTitle": "侧聊",
+    "resizePanel": "拖动以调整侧边栏大小",
     "newChat": "新建侧聊",
     "emptyTitle": "暂无侧聊",
     "emptyDescription": "点击“新建侧聊”打开空白侧聊，然后像往常一样在输入框中输入消息。",
@@ -1775,5 +1779,30 @@
     "noChanges": "无变更",
     "binaryFile": "二进制文件未显示",
     "renamed": "已重命名"
+  },
+  "projects": {
+    "create": "创建项目",
+    "createTitle": "创建新项目",
+    "createPrompt": "输入项目名称",
+    "renameTitle": "重命名项目",
+    "renamePrompt": "为 {name} 输入新名称",
+    "emptyDescription": "项目可在您的设备间同步，并独立于机器或工作目录。创建一个项目以组织您的会话。",
+    "project": "项目",
+    "noProject": "无项目",
+    "sessionCount": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} 个会话",
+          "other": "{count} 个会话"
+        }
+      }
+    }
+  },
+  "superSession": {
+    "pinned": "Super Session（已置顶）"
+  },
+  "sessions": {
+    "bots": "机器人"
   }
 }

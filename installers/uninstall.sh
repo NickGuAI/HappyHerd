@@ -8,6 +8,7 @@ set -eu
 
 install_root="$HOME/.local/share/happyherd"
 runtime_root="$install_root/runtime"
+node_root="$install_root/node"
 bin_root="$HOME/.local/bin"
 managed_server_pid="$HOME/.happyherd/server.pid"
 
@@ -61,6 +62,11 @@ is_managed_command_for_entry() {
 
   [ "$managed_line_1" = '#!/bin/sh' ] || return 1
   [ "$managed_line_2" = '# HappyHerd managed command' ] || return 1
+  managed_bundled_line="PATH=\"$node_root/bin:\$PATH\" exec \"$node_root/bin/node\" \"$managed_check_entry\" \"\$@\""
+  if [ "$managed_line_3" = "$managed_bundled_line" ]; then
+    return 0
+  fi
+
   managed_prefix='exec "'
   managed_suffix="\" \"$managed_check_entry\" \"\$@\""
   case "$managed_line_3" in

@@ -338,6 +338,13 @@ const HeaderRight = React.memo(({
                         </Pressable>
                     )}
                     <Pressable
+                        onPress={() => router.push('/projects')}
+                        style={styles.headerActionButton}
+                        accessibilityLabel={t('sidebar.projects')}
+                    >
+                        <Ionicons name="albums-outline" size={21} color={theme.colors.header.tint} />
+                    </Pressable>
+                    <Pressable
                         onPress={() => router.push('/automations')}
                         style={styles.headerActionButton}
                         accessibilityLabel={t("happyHerd.automations.title")}
@@ -379,6 +386,14 @@ const HeaderRight = React.memo(({
                         <Ionicons name="folder-open-outline" size={22} color={theme.colors.header.tint} />
                     </Pressable>
                 )}
+                <Pressable
+                    onPress={() => router.push('/projects')}
+                    hitSlop={12}
+                    style={styles.headerButton}
+                    accessibilityLabel={t('sidebar.projects')}
+                >
+                    <Ionicons name="albums-outline" size={22} color={theme.colors.header.tint} />
+                </Pressable>
                 <Pressable
                     onPress={() => router.push('/automations')}
                     hitSlop={12}

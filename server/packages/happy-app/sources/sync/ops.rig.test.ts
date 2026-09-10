@@ -27,6 +27,18 @@ describe('Rig session RPC capability gates', () => {
         expect(sessionRPC).toHaveBeenCalledWith('rig', 'abort', {});
     });
 
+    it('calls the encrypted session-scoped kill RPC with an empty payload', async () => {
+        sessionRPC.mockResolvedValueOnce({ success: true, message: 'Archive accepted' });
+        const { sessionKill } = await import('./ops');
+
+        await expect(sessionKill('rig')).resolves.toEqual({
+            success: true,
+            message: 'Archive accepted',
+        });
+        expect(sessionRPC).toHaveBeenCalledWith('rig', 'killSession', {});
+        expect(machineRPC).not.toHaveBeenCalled();
+    });
+
     it('does not call RPC methods that disappear after metadata refresh', async () => {
         getState.mockReturnValue({
             sessions: {

@@ -19,8 +19,11 @@ happy-server-self-host ──builds──► happy-server + Prisma + happy-app w
 - `happy-wire` is the shared protocol leaf. A schema change can affect every
   application and runtime even if TypeScript finds only some consumers.
 - `@happyherd/cli` lives at `packages/happy-cli` and exposes `happyherd` as its
-  sole primary command. The root installer owns only source build, normal
-  server settings, and user commands.
+  sole primary command. The root `install.sh` installs a prepared target-specific
+  release asset containing the built CLI, `happy-server-self-host` with Web
+  bundle, unpacked platform tools, and bundled Node runtime. It retains normal
+  settings, server choice, auth/accounts, sessions, provider homes, and
+  user-managed Skills.
 - `@happyherd/happyherd-agent` composes `happy-agent/control` with Discord and
   the governed organization-service broker.
 - `happy-server-self-host` directly consumes `happy-wire` and also has
@@ -576,7 +579,7 @@ allowlist entry to hide new hardcoded interface copy.
 | Self-host server | `happy-server-self-host`, server, Prisma, and app web bundle |
 | Host daemon | `happy-cli` and embedded/runtime dependencies |
 | Governed bridge | `happy-agent`, `happyherd-agent`, deploy/runtime contracts |
-| Local user installer | `install.sh`, `happy-cli`, `happy-server-self-host` |
+| Local user installer | `install.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/test-native-installer-asset.sh`, `.github/workflows/native-installer-release.yml`, `happy-cli`, `happy-server-self-host`, unpacked platform tools, and bundled Node runtime |
 
 These are independent delivery lanes. The self-host server intentionally
 contains the Web bundle, but changing the CLI/daemon, mobile client, governed
@@ -612,3 +615,7 @@ paths are under `.dev/`. Upstream integration is a non-squashed subtree merge
 limited to `server/` and must survive the real range-diff rehearsal. Do not use
 ordinary merge commits to refresh a feature branch; rebase that branch onto
 current `origin/main` instead.
+
+## Named projects and the pinned assistant
+
+Independent named Projects use existing encrypted records synchronized via `apiProjects.ts`, `projects.ts`, and `sync.ts` under server route `projectRoutes.ts`. UI routes `projects/index.tsx` and `session/[id]/project.tsx` handle display, while session assignment uses an authenticated PATCH on the session `projectId` while catalog projects remain available even when no sessions reference them. Projections in `storage.ts` and `projectGroups.ts` prioritize explicit personal assignments while preserving native Rig project/worktree grouping for native assignments. Super Session status is persisted in `metadata.isSuperSession`; `superSession.ts` selects the oldest session by `createdAt` then ID to pin first across desktop/mobile list components. Creating a CLI session via `run.ts` and `createSessionMetadata.ts` with `--super-session` requires `--commander`, routing through agent control and `machineRpc` to propagate a session-scoped environment marker that is stripped from ambient children, reusing ordinary session identities without introducing a new bot lifecycle.

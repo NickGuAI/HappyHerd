@@ -1,4 +1,6 @@
 # gate	state	subject	evidence
+NEW_SESSION_PANEL_UX	accepted	fix(new-session): preserve native sizing and prove route gestures	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+NEW_SESSION_PANEL_UX	accepted	fix: improve new session panel size and folder navigation	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 SIDE_CHAT_PERMISSION	accepted	fix(side-chat): propagate explicit permission and confirmed settings	server/packages/happy-cli/src/daemon/run.resume.test.ts
 PROVIDER_QUOTA_EXHAUSTION	accepted	fix(providers): surface exhausted quota	server/packages/happy-cli/src/daemon/run.resume.test.ts
 SIDE_CHAT_LAUNCH_SETTINGS	accepted	feat(side-chat): accept explicit model and effort	server/packages/happy-cli/src/daemon/run.resume.test.ts
@@ -304,3 +306,19 @@ SESSION_ARCHIVE	accepted	fix(skill): move session-archive machine parameters to 
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): open chat localhost links in Workspace	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): restore IPv6 chat links and verify side chat drafts	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 PUBLIC_BOUNDARY	accepted	docs(archive): route machine parameters through private overlay	.dev/ROUTING.md
+WORKSPACE_DOCUMENT_PREVIEW	accepted	fix: let document previews fill the workspace pane	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+SESSION_SIDE_PANEL	accepted	feat: make the session side panel resizable	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+NATIVE_INSTALLER	accepted	feat: install prepared platform release artifacts	scripts/test-native-installer-asset.sh
+NATIVE_INSTALLER	accepted	fix: verify portable installer process cleanup	scripts/test-native-installer-asset.sh
+PERSONAL_PROJECTS	accepted	feat: add personal projects and a persistent assistant entry	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+PERSONAL_PROJECTS	accepted	fix(projects): preserve session state and explicit assignments	server/packages/happy-app/sources/sync/storage.projects.test.ts
+INITIAL_LAUNCH	accepted	docs: synchronize launch guides and UI catalogs	server/packages/happy-app/sources/changelog/changelog.json
+INITIAL_LAUNCH	accepted	docs: align launch verification guidance	.dev/VERIFY.md
+SESSION_SIDE_PANEL	accepted	test: remove duplicate narrow side panel setup	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+BOT_SESSION_IDENTITY	accepted	feat: preserve typed bot session identity	server/packages/happy-wire/src/rigMetadata.test.ts
+BOT_SESSION_COPY	accepted	feat: localize bot session controls	server/packages/happy-app/sources/text/locales/en.json
+BOT_SESSION_LIFECYCLE	accepted	feat: keep bot conversations machine-owned	server/packages/happy-app/sources/hooks/useSessionQuickActions.test.ts
+SELECTED_UPSTREAM_BOTS	accepted	docs: record selected session and bot adaptations	docs/upstream-selected-session-bots.md
+BOT_SESSION_DISPLAY	accepted	feat(app): surface bot sessions in the session list	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+SESSION_INFO_ACTIONS	accepted	feat: prioritize safe Session Info actions	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
+SELECTED_UPSTREAM_BOTS	accepted	docs: synchronize selected session and bot UI inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json

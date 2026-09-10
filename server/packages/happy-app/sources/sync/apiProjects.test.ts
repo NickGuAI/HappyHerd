@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthCredentials } from '@/auth/tokenStorage';
 import {
+    assignSessionProject,
+    createProjectRecord,
     downloadProjectAvatar,
     fetchProjects,
     requestProjectAvatarDownload,
+    updateProjectRecord,
 } from './apiProjects';
 
 vi.mock('./serverConfig', () => ({
@@ -18,6 +21,17 @@ vi.mock('./apiSocket', () => ({
 const credentials: AuthCredentials = {
     token: 'token-1',
     secret: 'secret-1',
+};
+
+const project = {
+    id: 'project-1',
+    externalId: 'external-1',
+    metadata: 'ciphertext',
+    metadataVersion: 1,
+    dataEncryptionKey: 'wrapped-key',
+    avatar: null,
+    createdAt: 10,
+    updatedAt: 20,
 };
 
 function response(body: unknown, options: { ok?: boolean; status?: number; bytes?: Uint8Array } = {}) {
@@ -74,6 +88,46 @@ describe('project API transport', () => {
     it('does not hit the project API when no session references a project', async () => {
         await expect(fetchProjects(credentials, [])).resolves.toEqual([]);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('loads the full account catalog when no project ids are supplied', async () => {
+        fetchMock.mockResolvedValueOnce(response({ projects: [project] }));
+
+        await expect(fetchProjects(credentials)).resolves.toEqual([project]);
+        expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/v1/projects', {
+            headers: expect.objectContaining({ Authorization: 'Bearer token-1' }),
+        });
+    });
+
+    it('persists encrypted create, rename, assignment, and clearing payloads', async () => {
+        fetchMock
+            .mockResolvedValueOnce(response(project))
+            .mockResolvedValueOnce(response({ ...project, metadata: 'renamed', metadataVersion: 2 }))
+            .mockResolvedValueOnce(response({ session: { id: 'session-1', projectId: 'project-1' } }))
+            .mockResolvedValueOnce(response({ session: { id: 'session-1', projectId: null } }));
+
+        await createProjectRecord(credentials, {
+            externalId: 'external-1',
+            metadata: 'ciphertext',
+            dataEncryptionKey: 'wrapped-key',
+        });
+        await updateProjectRecord(credentials, 'project-1', {
+            metadata: 'renamed',
+            expectedMetadataVersion: 1,
+        });
+        await assignSessionProject(credentials, 'session-1', 'project-1');
+        await assignSessionProject(credentials, 'session-1', null);
+
+        expect(fetchMock.mock.calls.map(([url, options]) => [url, options?.method, options?.body])).toEqual([
+            ['https://api.example.test/v1/projects', 'POST', JSON.stringify({
+                externalId: 'external-1', metadata: 'ciphertext', dataEncryptionKey: 'wrapped-key',
+            })],
+            ['https://api.example.test/v1/projects/project-1', 'PATCH', JSON.stringify({
+                metadata: 'renamed', expectedMetadataVersion: 1,
+            })],
+            ['https://api.example.test/v1/sessions/session-1/project', 'PATCH', JSON.stringify({ projectId: 'project-1' })],
+            ['https://api.example.test/v1/sessions/session-1/project', 'PATCH', JSON.stringify({ projectId: null })],
+        ]);
     });
 
     it('requests the server-resolved current avatar with no body or client ref', async () => {

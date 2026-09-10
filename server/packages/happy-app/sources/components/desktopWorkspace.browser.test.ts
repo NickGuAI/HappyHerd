@@ -642,6 +642,16 @@ function recordPageErrors(page: Page): string[] {
     return errors;
 }
 
+async function closestFiniteMaxWidth(locator: Locator): Promise<string | null> {
+    return locator.evaluate((element) => {
+        for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+            const maxWidth = getComputedStyle(ancestor).maxWidth;
+            if (maxWidth !== 'none') return maxWidth;
+        }
+        return null;
+    });
+}
+
 describe('Desktop workspace browser interaction', () => {
     let browser: Browser;
     let server: Server;
@@ -1839,10 +1849,14 @@ describe('Desktop workspace browser interaction', () => {
     }, 60_000);
 
     it('opens task HTML in the single scriptless Preview with no separate Interactive control', async () => {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const page = await browser.newPage({ viewport: { width: 1920, height: 900 } });
         await page.goto(origin + '?interactive-html=desktop');
 
         const workspace = page.getByTestId('interactive-html-workspace-wide');
+        const host = workspace.getByTestId('desktop-file-workspace-host');
+        const divider = workspace.getByTestId('desktop-file-workspace-divider');
+        const htmlPanel = workspace.getByTestId('desktop-file-panel:/workspace/task.html');
+        const iframe = htmlPanel.locator('iframe');
         const frame = workspace.frameLocator('iframe');
         await frame.getByText('Scripts have not run', { exact: true }).waitFor();
         await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
@@ -1851,8 +1865,51 @@ describe('Desktop workspace browser interaction', () => {
         // HTML exposes one Preview; the separate Interactive toggle is absent.
         await expect(workspace.getByRole('button', { name: 'Interactive', exact: true }).count()).resolves.toBe(0);
         await expect(workspace.getByRole('button', { name: 'Preview', exact: true }).count()).resolves.toBeGreaterThan(0);
+
+        const initialFrameBox = await iframe.boundingBox();
+        const initialHostBox = await host.boundingBox();
+        const dividerBox = await divider.boundingBox();
+        if (!initialFrameBox || !initialHostBox || !dividerBox) {
+            throw new Error('document preview split has no browser layout');
+        }
+        expect(Math.abs(initialFrameBox.width - initialHostBox.width)).toBeLessThan(2);
+
+        await page.mouse.move(
+            dividerBox.x + dividerBox.width / 2,
+            dividerBox.y + dividerBox.height / 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(dividerBox.x - 350, dividerBox.y + dividerBox.height / 2, { steps: 8 });
+        await expect.poll(async () => (await iframe.boundingBox())?.width ?? 0)
+            .toBeGreaterThan(initialFrameBox.width + 250);
+        await page.mouse.move(dividerBox.x - 2_000, dividerBox.y + dividerBox.height / 2, { steps: 8 });
+        await page.mouse.up();
+
+        const expandedFrameBox = await iframe.boundingBox();
+        const expandedHostBox = await host.boundingBox();
+        if (!expandedFrameBox || !expandedHostBox) {
+            throw new Error('expanded document preview has no browser layout');
+        }
+        expect(expandedFrameBox.width).toBeGreaterThan(1_200);
+        expect(Math.abs(expandedFrameBox.width - expandedHostBox.width)).toBeLessThan(2);
+
         // Switching tabs and back keeps the scriptless Preview surface.
         await workspace.getByRole('tab', { name: 'Open notes.md' }).click();
+        const markdownRoot = workspace.locator('.hh-markdown-root');
+        await markdownRoot.waitFor();
+        await expect(closestFiniteMaxWidth(markdownRoot)).resolves.toBe('1200px');
+        expect((await markdownRoot.boundingBox())?.width).toBeLessThanOrEqual(1_200);
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = workspace.getByTestId('code-editor');
+        await editor.waitFor();
+        await expect(closestFiniteMaxWidth(editor)).resolves.toBe('1200px');
+        expect((await editor.boundingBox())?.width).toBeLessThanOrEqual(1_200);
+        await workspace.getByRole('button', { name: 'Preview', exact: true }).click();
+        await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
+        const diff = workspace.locator('diffs-container');
+        await diff.waitFor();
+        await expect(closestFiniteMaxWidth(diff)).resolves.toBe('1200px');
+        expect((await diff.boundingBox())?.width).toBeLessThanOrEqual(1_200);
         await workspace.getByRole('tab', { name: 'Open task.html' }).click();
         await frame.getByText('Scripts have not run', { exact: true }).waitFor();
         await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);

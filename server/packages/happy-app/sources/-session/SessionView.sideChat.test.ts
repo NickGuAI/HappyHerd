@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     canBrowseFiles: true,
     canUseShell: true,
     isRig: false,
+    dataReady: true,
     revision: 0,
     sessions: {} as Record<string, Session>,
     localSettings: {
@@ -483,7 +484,11 @@ vi.mock('@/sync/storage', async () => {
     const storage = Object.assign(() => undefined, { getState });
     return {
         storage,
-        useIsDataReady: () => true,
+        useIsDataReady: () => ReactModule.useSyncExternalStore(
+            subscribe,
+            () => mocks.dataReady,
+            () => mocks.dataReady,
+        ),
         useLocalSetting: (key: keyof typeof mocks.localSettings) => ReactModule.useSyncExternalStore(
             subscribe,
             () => mocks.localSettings[key],
@@ -810,6 +815,7 @@ beforeEach(() => {
     mocks.voiceToggle.mockReset();
     mocks.composerText = {};
     mocks.expImageUpload = false;
+    mocks.dataReady = true;
     mocks.workspaceEntries = [];
     mocks.pickImages.mockReset();
     mocks.pickImagesForUpload.mockReset();
@@ -822,10 +828,10 @@ beforeEach(() => {
     seedSessions();
 });
 
-function renderParent(): ReactTestRenderer {
+function renderParent(props: Record<string, unknown> = {}): ReactTestRenderer {
     let renderer!: ReactTestRenderer;
     act(() => {
-        renderer = create(React.createElement(SessionView, { id: 'parent' }));
+        renderer = create(React.createElement(SessionView, { id: 'parent', ...props }));
     });
     return renderer;
 }
@@ -848,6 +854,11 @@ function fullscreenSideChatHosts(renderer: ReactTestRenderer) {
         Array.isArray(node.props.sideChats)
         && typeof node.props.onCollapse === 'function'
     ));
+}
+
+function sessionSidebarDividers(renderer: ReactTestRenderer) {
+    return renderer.root.findAllByType('View' as any)
+        .filter((node: any) => node.props.testID === 'session-sidebar-divider');
 }
 
 function chatHeader(renderer: ReactTestRenderer) {
@@ -1008,6 +1019,82 @@ describe('SessionView mobile back navigation', () => {
 
         expect(mocks.routerBack).toHaveBeenCalledOnce();
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+});
+
+describe('Session Info Changes handoff', () => {
+    it.each([
+        { width: 1280, height: 900 },
+        { width: 1024, height: 1366 },
+        { width: 390, height: 844 },
+    ])('consumes each route request once and opens the existing Workspace at $width×$height', ({ width, height }) => {
+        mocks.width = width;
+        mocks.height = height;
+        const consumed = vi.fn();
+        const renderer = renderParent({
+            openChangesRequestId: 'request-one',
+            onOpenChangesRequestConsumed: consumed,
+        });
+        const composer = composerForSession(renderer, 'parent');
+
+        expect(consumed).toHaveBeenCalledWith('request-one');
+        expect(renderer.root.findByType('AllFilesDiffView' as any).props.sessionId).toBe('parent');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        act(() => renderer.update(React.createElement(SessionView, {
+            id: 'parent',
+            openChangesRequestId: 'request-one',
+            onOpenChangesRequestConsumed: consumed,
+        })));
+        expect(consumed).toHaveBeenCalledTimes(1);
+
+        act(() => renderer.update(React.createElement(SessionView, {
+            id: 'parent',
+            openChangesRequestId: 'request-two',
+            onOpenChangesRequestConsumed: consumed,
+        })));
+        expect(consumed).toHaveBeenNthCalledWith(2, 'request-two');
+        expect(renderer.root.findByType('AllFilesDiffView' as any).props.sessionId).toBe('parent');
+        expect(composerForSession(renderer, 'parent')).toBe(composer);
+        act(() => renderer.unmount());
+    });
+
+    it('waits through an unfocused ready transition and opens once when the target route returns', () => {
+        mocks.dataReady = false;
+        const consumed = vi.fn();
+        const renderer = renderParent({
+            openChangesRequestId: 'request-pending',
+            onOpenChangesRequestConsumed: consumed,
+        });
+
+        expect(consumed).not.toHaveBeenCalled();
+        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
+
+        mocks.dataReady = true;
+        act(() => renderer.update(React.createElement(SessionView, {
+            id: 'parent',
+            openChangesRequestId: undefined,
+            onOpenChangesRequestConsumed: consumed,
+        })));
+        expect(consumed).not.toHaveBeenCalled();
+        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
+
+        act(() => renderer.update(React.createElement(SessionView, {
+            id: 'parent',
+            openChangesRequestId: 'request-pending',
+            onOpenChangesRequestConsumed: consumed,
+        })));
+        expect(consumed).toHaveBeenCalledOnce();
+        expect(consumed).toHaveBeenCalledWith('request-pending');
+        expect(renderer.root.findByType('AllFilesDiffView' as any).props.sessionId).toBe('parent');
+
+        act(() => renderer.update(React.createElement(SessionView, {
+            id: 'parent',
+            openChangesRequestId: 'request-pending',
+            onOpenChangesRequestConsumed: consumed,
+        })));
+        expect(consumed).toHaveBeenCalledOnce();
+        act(() => renderer.unmount());
     });
 });
 
@@ -1260,6 +1347,52 @@ describe('SessionView Web composer workspace access', () => {
 });
 
 describe('SessionView side-chat integration', () => {
+    it('resizes the shared desktop side panel beyond 360px, clamps it, and keeps mobile full-screen', () => {
+        const renderer = renderParent();
+        expect(sessionSidebarDividers(renderer)).toHaveLength(1);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        act(() => renderer.root.findByProps({ testID: 'session-view-split-host' }).props.onLayout({
+            nativeEvent: { layout: { width: 800 } },
+        }));
+
+        let sidebar = desktopSideChatHosts(renderer)[0];
+        expect(sidebar.parent?.props.style).toMatchObject({ width: 360 });
+        const divider = renderer.root.findByProps({ testID: 'session-sidebar-divider' });
+        const currentTarget = { setPointerCapture: vi.fn(), releasePointerCapture: vi.fn() };
+        act(() => divider.props.onPointerDown({
+            nativeEvent: { pointerId: 5, clientX: 700, button: 0 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerMove({
+            nativeEvent: { pointerId: 5, clientX: 100 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerUp({
+            nativeEvent: { pointerId: 5, clientX: 100 },
+            currentTarget,
+        }));
+
+        sidebar = desktopSideChatHosts(renderer)[0];
+        expect(sidebar.parent?.props.style).toMatchObject({ width: 594 });
+        expect(currentTarget.setPointerCapture).toHaveBeenCalledWith(5);
+        expect(currentTarget.releasePointerCapture).toHaveBeenCalledWith(5);
+
+        pressByLabel(renderer, 'Collapse side chats');
+        expect(sessionSidebarDividers(renderer)).toHaveLength(1);
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(desktopSideChatHosts(renderer)[0]?.parent?.props.style).toMatchObject({ width: 594 });
+
+        mocks.width = 700;
+        act(() => {
+            for (const listener of mocks.listeners) listener();
+        });
+        expect(sessionSidebarDividers(renderer)).toHaveLength(0);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
+    });
+
     it('routes dsh Photos through the machine uploader instead of inline attachments', async () => {
         mocks.sessions.parent.metadata!.flavor = 'dsh';
         mocks.pickImagesForUpload.mockResolvedValue([{

@@ -41,6 +41,7 @@ const uploadRateState = new Map<string, { count: number; windowStart: number }>(
 type StoredBytes = ReturnType<typeof privacyKit.decodeBase64>;
 
 const projectIdParams = z.object({ projectId: z.string().min(1) });
+const sessionIdParams = z.object({ sessionId: z.string().min(1) });
 const projectCreateBody = z.object({
     externalId: z.string().min(1).max(512),
     metadata: z.string().min(1).max(MAX_METADATA_SIZE),
@@ -50,6 +51,10 @@ const projectCreateBody = z.object({
 const projectPatchBody = z.object({
     metadata: z.string().min(1).max(MAX_METADATA_SIZE).optional(),
     expectedMetadataVersion: z.number().int().min(0).optional(),
+}).strict();
+
+const sessionProjectPatchBody = z.object({
+    projectId: z.string().min(1).nullable(),
 }).strict();
 
 const avatarActivateBody = z.object({
@@ -240,6 +245,52 @@ export function projectRoutes(app: Fastify) {
         });
         if (!project) return reply.code(404).send({ error: 'Project not found' });
         return reply.send(serializeProject(project as ProjectRecord));
+    });
+
+    app.patch('/v1/sessions/:sessionId/project', {
+        preHandler: app.authenticate,
+        schema: { params: sessionIdParams, body: sessionProjectPatchBody },
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.params;
+        const { projectId } = request.body;
+        const session = await db.session.findFirst({
+            where: { id: sessionId, accountId: userId },
+            select: { id: true, projectId: true },
+        });
+        if (!session) return reply.code(404).send({ error: 'Session not found' });
+
+        if (projectId !== null) {
+            const project = await db.project.findFirst({
+                where: { id: projectId, accountId: userId },
+                select: { id: true },
+            });
+            if (!project) return reply.code(404).send({ error: 'Project not found' });
+        }
+
+        if (session.projectId === projectId) {
+            return reply.send({ session: { id: session.id, projectId: session.projectId } });
+        }
+
+        const updated = await db.session.update({
+            where: { id: session.id },
+            data: { projectId },
+            select: { id: true, projectId: true },
+        });
+        const updateSeq = await allocateUserSeq(userId);
+        eventRouter.emitUpdate({
+            userId,
+            payload: buildUpdateSessionUpdate(
+                updated.id,
+                updateSeq,
+                randomKeyNaked(12),
+                undefined,
+                undefined,
+                updated.projectId,
+            ),
+            recipientFilter: { type: 'user-scoped-only' },
+        });
+        return reply.send({ session: { id: updated.id, projectId: updated.projectId } });
     });
 
     app.patch('/v1/projects/:projectId', {

@@ -1,12 +1,18 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { BubblePressable } from '@/components/BubblePressable';
+import { NewSessionPathScrollView } from '@/components/NewSessionPathScrollView';
+import { Switch } from '@/components/Switch';
 import { machineGetDirectoryTree, type DirectoryTreeNode } from '@/sync/ops';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { hostRoot, parentHostPath } from '@/utils/hostPath';
+import {
+    NEW_SESSION_PANEL_ROW_FONT_SIZE,
+    NEW_SESSION_PANEL_SECTION_FONT_SIZE,
+} from '@/utils/newSessionSidebarLayout';
 
 import { t } from '@/text';
 export type FavoriteMachinePath = { machineId: string; path: string };
@@ -38,6 +44,7 @@ export function MachinePathBrowser({
     const [tree, setTree] = React.useState<DirectoryTreeNode | null>(null);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [showHidden, setShowHidden] = React.useState(true);
 
     React.useEffect(() => {
         setCurrentDirectory(homeDir || root);
@@ -68,8 +75,11 @@ export function MachinePathBrowser({
     const isFavorite = favorites.some((favorite) => (
         favorite.machineId === machineId && favorite.path === currentDirectory
     ));
-    const directories = tree?.children?.filter((entry) => entry.type === 'directory') ?? [];
-    const files = tree?.children?.filter((entry) => entry.type === 'file') ?? [];
+    const visibleEntries = tree?.children?.filter((entry) => (
+        showHidden || !entry.name.startsWith('.')
+    )) ?? [];
+    const directories = visibleEntries.filter((entry) => entry.type === 'directory');
+    const files = visibleEntries.filter((entry) => entry.type === 'file');
 
     return (
         <View style={styles.container}>
@@ -155,7 +165,18 @@ export function MachinePathBrowser({
 
             <View style={styles.listHeader}>
                 <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t("uiCopy.hostFolders")}</Text>
-                {loading && <ActivityIndicator size="small" color={theme.colors.textSecondary} />}
+                <View style={styles.listHeaderControls}>
+                    {loading && <ActivityIndicator size="small" color={theme.colors.textSecondary} />}
+                    <Text style={[styles.showHiddenLabel, { color: theme.colors.textSecondary }]}>
+                        {t('newSession.showHidden')}
+                    </Text>
+                    <Switch
+                        testID="machine-path-show-hidden"
+                        accessibilityLabel={t('newSession.showHidden')}
+                        value={showHidden}
+                        onValueChange={setShowHidden}
+                    />
+                </View>
             </View>
             {error ? (
                 <View style={styles.messageRow}>
@@ -163,7 +184,11 @@ export function MachinePathBrowser({
                     <Text style={[styles.messageText, { color: theme.colors.textSecondary }]}>{error}</Text>
                 </View>
             ) : (
-                <ScrollView style={styles.treeList} keyboardShouldPersistTaps="handled">
+                <NewSessionPathScrollView
+                    testID="machine-path-browser-tree"
+                    maxHeight={260}
+                    keyboardShouldPersistTaps="handled"
+                >
                     {directories.map((entry) => (
                         <BubblePressable
                             key={entry.path}
@@ -186,7 +211,7 @@ export function MachinePathBrowser({
                     {!loading && directories.length === 0 && files.length === 0 && (
                         <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>{t("uiCopy.folderIsEmpty")}</Text>
                     )}
-                </ScrollView>
+                </NewSessionPathScrollView>
             )}
             {selectedPath && selectedPath !== currentDirectory && (
                 <Text style={[styles.selectedHint, { color: theme.colors.textSecondary }]} numberOfLines={1}>
@@ -201,19 +226,20 @@ const styles = StyleSheet.create({
     container: { gap: 8, minHeight: 220 },
     toolbar: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-    currentPath: { flex: 1, fontSize: 13, fontWeight: '600', paddingHorizontal: 4 },
+    currentPath: { flex: 1, fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 13 }), fontWeight: '600', paddingHorizontal: 4 },
     useFolderButton: { minHeight: 38, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-    useFolderText: { fontSize: 13, fontWeight: '600' },
+    useFolderText: { fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 13 }), fontWeight: '600' },
     favoriteSection: { gap: 5 },
     favoriteRow: { gap: 6, paddingRight: 8 },
     favoriteChip: { maxWidth: 180, minHeight: 30, paddingHorizontal: 9, borderWidth: 1, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
-    favoriteText: { fontSize: 12, flexShrink: 1 },
-    sectionLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
+    favoriteText: { fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 12 }), flexShrink: 1 },
+    sectionLabel: { fontSize: Platform.select({ web: NEW_SESSION_PANEL_SECTION_FONT_SIZE, default: 11 }), fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
     listHeader: { minHeight: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    treeList: { maxHeight: 260 },
+    listHeaderControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    showHiddenLabel: { fontSize: Platform.select({ web: NEW_SESSION_PANEL_SECTION_FONT_SIZE, default: 11 }), fontWeight: '600' },
     treeRow: { minHeight: 38, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8 },
     fileRow: { opacity: 0.68 },
-    treeName: { flex: 1, fontSize: 13 },
+    treeName: { flex: 1, fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 13 }) },
     messageRow: { minHeight: 80, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, padding: 16 },
     messageText: { fontSize: 12, flexShrink: 1 },
     emptyText: { textAlign: 'center', padding: 18, fontSize: 12 },

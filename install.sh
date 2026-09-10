@@ -2,26 +2,25 @@
 set -eu
 
 REPOSITORY="https://github.com/NickGuAI/HappyHerd"
-ARCHIVE_URL="$REPOSITORY/archive/refs/heads/main.tar.gz"
 DEFAULT_SERVER="http://127.0.0.1:3005"
-PNPM_VERSION="10.11.0"
-BUN_VERSION="1.3.11"
 
 server_url=""
-source_path=""
+asset_source=""
+release_version=""
 start_host=1
 
 usage() {
   cat <<'EOF'
-Install HappyHerd into the current user's home directory.
+Install a prepared HappyHerd release into the current user's home directory.
 
 Usage:
-  install.sh [--server URL] [--source PATH] [--no-start]
+  install.sh [--server URL] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
 
 Options:
-  --server URL  Persist this Happy server URL (default: http://127.0.0.1:3005).
-  --source PATH Build from an existing HappyHerd checkout instead of downloading main.
-  --no-start    Install and configure without starting the local server or daemon.
+  --server URL         Persist this Happy server URL (default: http://127.0.0.1:3005).
+  --version VERSION    Install a tagged release instead of the latest stable release.
+  --asset FILE_OR_URL  Install a prepared platform asset directly.
+  --no-start           Install and configure without starting the local server or daemon.
 EOF
 }
 
@@ -32,9 +31,14 @@ while [ "$#" -gt 0 ]; do
       server_url="$2"
       shift 2
       ;;
-    --source)
-      [ "$#" -ge 2 ] || { echo 'error: --source requires a path' >&2; exit 1; }
-      source_path="$2"
+    --version)
+      [ "$#" -ge 2 ] || { echo 'error: --version requires a value' >&2; exit 1; }
+      release_version="$2"
+      shift 2
+      ;;
+    --asset)
+      [ "$#" -ge 2 ] || { echo 'error: --asset requires a file or URL' >&2; exit 1; }
+      asset_source="$2"
       shift 2
       ;;
     --no-start)
@@ -65,8 +69,31 @@ for command_name in curl tar; do
   }
 done
 
+case "$(uname -s):$(uname -m)" in
+  Darwin:arm64) target='darwin-arm64' ;;
+  Darwin:x86_64) target='darwin-x64' ;;
+  Linux:aarch64|Linux:arm64) target='linux-arm64' ;;
+  Linux:x86_64) target='linux-x64' ;;
+  *) echo "error: unsupported platform: $(uname -s) $(uname -m)" >&2; exit 1 ;;
+esac
+asset_name="happyherd-$target.tar.gz"
+
+if [ -z "$asset_source" ]; then
+  if [ -n "$release_version" ]; then
+    case "$release_version" in
+      happyherd-v*) release_tag="$release_version" ;;
+      v*) release_tag="happyherd-$release_version" ;;
+      *) release_tag="happyherd-v$release_version" ;;
+    esac
+    asset_source="$REPOSITORY/releases/download/$release_tag/$asset_name"
+  else
+    asset_source="$REPOSITORY/releases/latest/download/$asset_name"
+  fi
+fi
+
 install_root="$HOME/.local/share/happyherd"
 runtime_root="$install_root/runtime"
+node_root="$install_root/node"
 bin_root="$HOME/.local/bin"
 settings_path="$HOME/.happyherd/settings.json"
 managed_server_pid="$HOME/.happyherd/server.pid"
@@ -99,6 +126,11 @@ is_managed_command_for_entry() {
 
   [ "$managed_line_1" = '#!/bin/sh' ] || return 1
   [ "$managed_line_2" = '# HappyHerd managed command' ] || return 1
+  managed_bundled_line="PATH=\"$node_root/bin:\$PATH\" exec \"$node_root/bin/node\" \"$managed_check_entry\" \"\$@\""
+  if [ "$managed_line_3" = "$managed_bundled_line" ]; then
+    return 0
+  fi
+
   managed_prefix='exec "'
   managed_suffix="\" \"$managed_check_entry\" \"\$@\""
   case "$managed_line_3" in
@@ -169,124 +201,44 @@ has_terminal() {
 
 check_happyherd_target "$bin_root/happyherd"
 mkdir -p "$install_root" "$bin_root" "$(dirname "$settings_path")"
-work_root=$(mktemp -d "${TMPDIR:-/tmp}/happyherd-install.XXXXXX")
-tooling_root="$work_root/tooling"
+work_root=$(mktemp -d "$install_root/.install.XXXXXX")
+stage_root="$work_root/stage"
+mkdir -p "$stage_root"
 cleanup() {
   rm -rf -- "$work_root"
 }
 trap cleanup EXIT HUP INT TERM
+asset_archive="$work_root/$asset_name"
 
-node_bin=""
-npm_bin=""
-if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-  node_major=$(node -p 'Number(process.versions.node.split(".")[0])')
-  if [ "$node_major" -ge 20 ]; then
-    node_bin=$(command -v node)
-    npm_bin=$(command -v npm)
-  fi
-fi
-
-if [ -z "$node_bin" ]; then
-  os=$(uname -s)
-  arch=$(uname -m)
-  case "$os:$arch" in
-    Darwin:arm64) node_target='darwin-arm64' ;;
-    Darwin:x86_64) node_target='darwin-x64' ;;
-    Linux:aarch64|Linux:arm64) node_target='linux-arm64' ;;
-    Linux:x86_64) node_target='linux-x64' ;;
-    *) echo "error: unsupported platform: $os $arch" >&2; exit 1 ;;
-  esac
-
-  node_listing=$(curl -fsSL 'https://nodejs.org/dist/latest-v22.x/')
-  node_archive=$(printf '%s\n' "$node_listing" | sed -n "s/.*href=\"[^\"]*\/\(node-v[^\"]*-$node_target\\.tar\\.gz\)\".*/\1/p" | head -n 1)
-  [ -n "$node_archive" ] || { echo 'error: could not find the current Node.js archive' >&2; exit 1; }
-  curl -fL "https://nodejs.org/dist/latest-v22.x/$node_archive" -o "$work_root/node.tar.gz"
-  rm -rf -- "$install_root/node"
-  mkdir -p "$install_root/node"
-  tar -xzf "$work_root/node.tar.gz" -C "$install_root/node" --strip-components=1
-  node_bin="$install_root/node/bin/node"
-  npm_bin="$install_root/node/bin/npm"
-fi
-
-rm -rf -- "$tooling_root"
-mkdir -p "$tooling_root"
-npm_config_cache="$work_root/npm-cache" \
-  PATH="$(dirname "$node_bin"):$PATH" "$npm_bin" install --global --prefix "$tooling_root" \
-  "pnpm@$PNPM_VERSION" "bun@$BUN_VERSION" --no-audit --no-fund
-pnpm_bin="$tooling_root/bin/pnpm"
-
-if [ -n "$source_path" ]; then
-  source_root=$(CDPATH='' cd -- "$source_path" && pwd)
-  [ -f "$source_root/server/pnpm-workspace.yaml" ] || {
-    echo "error: not a HappyHerd source checkout: $source_root" >&2
-    exit 1
-  }
+if [ -f "$asset_source" ]; then
+  cp "$asset_source" "$asset_archive"
 else
-  curl -fL "$ARCHIVE_URL" -o "$work_root/happyherd.tar.gz"
-  source_root="$work_root/source"
-  mkdir -p "$source_root"
-  tar -xzf "$work_root/happyherd.tar.gz" -C "$source_root" --strip-components=1
+  case "$asset_source" in
+    http://*|https://*) curl -fL "$asset_source" -o "$asset_archive" ;;
+    *) echo "error: asset is not a readable file or HTTP URL: $asset_source" >&2; exit 1 ;;
+  esac
 fi
 
-PATH="$tooling_root/bin:$(dirname "$node_bin"):$PATH"
-export PATH
-npm_config_store_dir="$work_root/pnpm-store"
-export npm_config_store_dir
-CI=1
-export CI
-(
-  cd "$source_root/server"
-  "$pnpm_bin" install --frozen-lockfile --ignore-scripts \
-    --filter @happyherd/cli... \
-    --filter happy-server-self-host... \
-    --filter happy-server... \
-    --filter happy-app...
-  SKIP_HAPPY_WIRE_BUILD=1 "$pnpm_bin" exec node scripts/postinstall.cjs
-  "$pnpm_bin" --filter happy-app --fail-if-no-match exec patch-package
-  "$pnpm_bin" --filter happy-app --fail-if-no-match exec setup-skia-web public
-  "$pnpm_bin" --filter happy-server --fail-if-no-match generate
-  "$pnpm_bin" --filter @slopus/happy-wire --fail-if-no-match build
-  "$pnpm_bin" --filter happy-agent --fail-if-no-match build
-  "$pnpm_bin" --filter @happyherd/cli --fail-if-no-match build
-  "$pnpm_bin" --filter happy-server-self-host --fail-if-no-match build
-  "$pnpm_bin" --filter happy-server-self-host --fail-if-no-match bundle:webapp
-  "$pnpm_bin" --ignore-scripts --filter @happyherd/cli --fail-if-no-match \
-    deploy --legacy --prod "$work_root/runtime"
-  "$pnpm_bin" --ignore-scripts --filter happy-server-self-host --fail-if-no-match \
-    deploy --legacy --prod "$work_root/server"
-)
+tar -xzf "$asset_archive" -C "$stage_root"
+asset_root="$stage_root/happyherd"
+staged_node="$asset_root/node/bin/node"
+staged_runtime="$asset_root/runtime"
+[ -x "$staged_node" ] || { echo 'error: prepared release has no Node runtime' >&2; exit 1; }
+[ -f "$asset_root/node/LICENSE" ] || { echo 'error: prepared release has no Node license' >&2; exit 1; }
+[ -f "$staged_runtime/bin/happy.mjs" ] || { echo 'error: prepared release has no HappyHerd command' >&2; exit 1; }
+[ -x "$staged_runtime/tools/unpacked/rg" ] || { echo 'error: prepared release has no platform tools' >&2; exit 1; }
+[ -f "$staged_runtime/node_modules/happy-server-self-host/package.json" ] || {
+  echo 'error: prepared release has no self-host server' >&2
+  exit 1
+}
+[ -f "$staged_runtime/node_modules/happy-server-self-host/webapp/index.html" ] || {
+  echo 'error: prepared release has no Web app' >&2
+  exit 1
+}
+[ -f "$asset_root/uninstall.sh" ] || { echo 'error: prepared release has no uninstaller' >&2; exit 1; }
+[ -f "$asset_root/cleanup-legacy.sh" ] || { echo 'error: prepared release has no legacy cleanup' >&2; exit 1; }
+"$staged_node" "$staged_runtime/bin/happy.mjs" --version >/dev/null
 
-[ -f "$work_root/runtime/bin/happy.mjs" ] || {
-  echo 'error: the HappyHerd command was not built' >&2
-  exit 1
-}
-[ -f "$work_root/runtime/package.json" ] || {
-  echo 'error: the HappyHerd package was not deployed' >&2
-  exit 1
-}
-[ -f "$work_root/server/package.json" ] || {
-  echo 'error: the local Happy server was not deployed' >&2
-  exit 1
-}
-mv "$work_root/server" "$work_root/runtime/node_modules/happy-server-self-host"
-
-happy_package="$work_root/runtime"
-server_package="$work_root/runtime/node_modules/happy-server-self-host"
-if [ -f "$happy_package/scripts/unpack-tools.cjs" ]; then
-  "$node_bin" "$happy_package/scripts/unpack-tools.cjs"
-fi
-if [ -f "$server_package/scripts/postinstall.cjs" ]; then
-  (
-    cd "$server_package"
-    PATH="$server_package/node_modules/.bin:$PATH" "$node_bin" scripts/postinstall.cjs
-  )
-fi
-[ -x "$happy_package/tools/unpacked/rg" ] || {
-  echo 'error: the Happy command tools were not unpacked' >&2
-  exit 1
-}
-
-happyherd_entry="$runtime_root/bin/happy.mjs"
 if is_managed_command "$bin_root/happyherd"; then
   "$bin_root/happyherd" daemon stop >/dev/null 2>&1 || true
 fi
@@ -295,9 +247,14 @@ legacy_happy_entry="$runtime_root/node_modules/happy/bin/happy.mjs"
 if is_managed_command_for_entry "$bin_root/happy" "$legacy_happy_entry"; then
   rm -f -- "$bin_root/happy"
 fi
-rm -rf -- "$runtime_root"
-mv "$work_root/runtime" "$runtime_root"
+rm -rf -- "$runtime_root" "$node_root"
+mv "$staged_runtime" "$runtime_root"
+mv "$asset_root/node" "$node_root"
+PATH="$node_root/bin:$PATH"
+export PATH
 
+happyherd_entry="$runtime_root/bin/happy.mjs"
+node_bin="$node_root/bin/node"
 install_command() {
   command_path="$1"
   entry_path="$2"
@@ -309,7 +266,9 @@ install_command() {
   {
     echo '#!/bin/sh'
     echo '# HappyHerd managed command'
-    printf 'exec "%s" "%s" "$@"\n' "$node_bin" "$entry_path"
+    # The installed wrapper must expand PATH when it runs, not while it is written.
+    # shellcheck disable=SC2016
+    printf 'PATH="%s/bin:$PATH" exec "%s" "%s" "$@"\n' "$node_root" "$node_bin" "$entry_path"
   } > "$command_temporary"
   chmod 755 "$command_temporary"
   mv -f -- "$command_temporary" "$command_path"
@@ -358,15 +317,15 @@ fs.writeFileSync(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o
 fs.renameSync(temporary, path);
 NODE
 
-cp "$source_root/installers/uninstall.sh" "$install_root/uninstall.sh"
-cp "$source_root/installers/cleanup-legacy.sh" "$install_root/cleanup-legacy.sh"
+cp "$asset_root/uninstall.sh" "$install_root/uninstall.sh"
+cp "$asset_root/cleanup-legacy.sh" "$install_root/cleanup-legacy.sh"
 chmod 755 "$install_root/uninstall.sh" "$install_root/cleanup-legacy.sh"
 
 auth_deferred=0
 if [ "$start_host" -eq 1 ]; then
   if [ "$server_url" = "$DEFAULT_SERVER" ]; then
     if ! curl -fsS "$DEFAULT_SERVER/health" >/dev/null 2>&1; then
-      nohup "$node_bin" "$happyherd_entry" server --host 127.0.0.1 --port 3005 --no-persist \
+      nohup "$node_bin" --no-warnings --no-deprecation "$happyherd_entry" server --host 127.0.0.1 --port 3005 --no-persist \
         > "$HOME/.happyherd/server.log" 2>&1 < /dev/null &
       echo "$!" > "$managed_server_pid"
     fi
@@ -404,7 +363,6 @@ printf '\nHappyHerd installed.\n'
 printf 'Server: %s\n' "$server_url"
 printf 'Command: %s/happyherd\n' "$bin_root"
 printf 'Open a new terminal, then run: happyherd --help\n'
-[ "$auth_deferred" -eq 0 ] || \
-  printf 'Next: happyherd auth login && happyherd daemon start\n'
+[ "$auth_deferred" -eq 0 ] || printf 'Next: happyherd auth login && happyherd daemon start\n'
 printf 'Uninstall code only: %s/uninstall.sh\n' "$install_root"
 printf 'Normal Happy state in %s/.happyherd is preserved.\n' "$HOME"

@@ -49,6 +49,7 @@ export type SpawnMachineSessionOptions = {
     modelMode?: string;
     effortLevel?: string;
     commanderId?: string;
+    isSuperSession?: boolean;
     runtimeContext?: SpawnSessionRuntimeContext;
     resumeClaudeSessionId?: string;
     resumeCodexThreadId?: string;
@@ -225,6 +226,9 @@ export class HappyControlClient {
         if (options.commanderId && metadata?.commanderId !== options.commanderId) {
             throw new Error(`Session ${result.sessionId} did not persist Commander ${options.commanderId}`);
         }
+        if (options.isSuperSession && metadata?.isSuperSession !== true) {
+            throw new Error(`Session ${result.sessionId} did not persist the Super Session marker`);
+        }
         return { session, settings: confirmedSettings.data };
     }
 
@@ -244,6 +248,7 @@ export class HappyControlClient {
                 modelMode: options.modelMode,
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
+                ...(options.isSuperSession ? { isSuperSession: true } : {}),
                 runtimeContext: options.runtimeContext,
                 resumeClaudeSessionId: options.resumeClaudeSessionId,
                 resumeCodexThreadId: options.resumeCodexThreadId,

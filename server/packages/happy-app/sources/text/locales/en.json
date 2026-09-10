@@ -405,6 +405,7 @@
   },
   "newSession": {
     "title": "Start New Session",
+    "showHidden": "Show hidden",
     "machineOffline": "Machine is offline",
     "switchMachinesHint": "• Switch machines by clicking on the machine above",
     "workspace": "Workspace",
@@ -561,7 +562,9 @@
     "worktreeCleanupTitle": "Delete Worktree?",
     "worktreeCleanupMessage": "The worktree has no uncommitted changes. Would you like to delete the worktree files?",
     "worktreeCleanupDelete": "Delete Worktree",
-    "worktreeCleanupKeep": "Keep Files"
+    "worktreeCleanupKeep": "Keep Files",
+    "botArchiveRequiresMachine": "To archive this bot, connect the machine that owns it.",
+    "botDeleteUnavailable": "A bot keeps one continuous conversation; use Archive instead of Delete."
   },
   "components": {
     "emptyMainScreen": {
@@ -934,6 +937,7 @@
   },
   "sideChat": {
     "panelTitle": "Side chats",
+    "resizePanel": "Drag to resize the side panel",
     "newChat": "New side chat",
     "emptyTitle": "No side chats yet",
     "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",
@@ -1775,5 +1779,30 @@
     "noChanges": "No changes",
     "binaryFile": "Binary file not shown",
     "renamed": "Renamed"
+  },
+  "projects": {
+    "create": "Create Project",
+    "createTitle": "Create New Project",
+    "createPrompt": "Enter project name",
+    "renameTitle": "Rename Project",
+    "renamePrompt": "Enter a new name for {name}",
+    "emptyDescription": "Projects persist across your devices and are independent of machines or working directories. Create one to organize your sessions.",
+    "project": "Project",
+    "noProject": "No Project",
+    "sessionCount": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} session",
+          "other": "{count} sessions"
+        }
+      }
+    }
+  },
+  "superSession": {
+    "pinned": "Super Session (Pinned)"
+  },
+  "sessions": {
+    "bots": "Bots"
   }
 }

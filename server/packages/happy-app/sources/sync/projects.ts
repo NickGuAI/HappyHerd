@@ -48,6 +48,18 @@ function parseProjectPreview(value: unknown): ProjectAvatarPreview | null {
     return { thumbhash, mimeType };
 }
 
+/** Encrypt plaintext project metadata with the same per-project key used on reads. */
+export async function encryptProjectMetadata(
+    metadata: ProjectMetadata,
+    dataKey: Uint8Array | null,
+    encryption: Pick<Encryption, 'openEncryption'>,
+): Promise<string> {
+    const encryptor = await encryption.openEncryption(dataKey);
+    const encrypted = await encryptor.encrypt([metadata]);
+    if (!encrypted[0]) throw new Error('Project metadata encryption failed');
+    return encodeBase64(encrypted[0]);
+}
+
 async function decryptJson(
     ciphertext: string,
     dataKey: Uint8Array | null,

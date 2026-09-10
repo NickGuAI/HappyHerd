@@ -421,6 +421,8 @@ export type Metadata = {
    * inside the parent session's sidebar panel.
    */
   isSideChat?: boolean
+  /** Marks the one persistent HappyHerd assistant entry pinned on Home. */
+  isSuperSession?: boolean
   /** HappyHerd Commander/AgentContext provenance for this session. */
   commanderId?: string
   commanderName?: string

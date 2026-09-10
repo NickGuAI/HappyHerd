@@ -1,5 +1,6 @@
 import type { Session } from './storageTypes';
 import type { SessionRowData } from './storage';
+import type { Project } from './projectTypes';
 import { getRepoPath, getWorktreeName, isWorktreePath } from '@/utils/worktreePaths';
 
 // One git worktree inside a project. `id` is empty and `name` is null for
@@ -90,6 +91,42 @@ export function buildPathProjectGroups(
     }
 
     return [...projects.values()];
+}
+
+/** Groups account-catalog projects independently of a session's machine or cwd. */
+export function buildPersonalProjectGroups(
+    sessions: Session[],
+    projects: Record<string, Project>,
+    toRow: (session: Session) => SessionRowData,
+    isActive: (session: Session) => boolean,
+): ProjectGroupData[] {
+    const groups = new Map<string, ProjectGroupData>();
+
+    for (const session of sessions) {
+        const projectId = session.projectId?.trim();
+        if (!projectId) continue;
+        const project = projects[projectId];
+        if (!project || project.kind !== 'personal') continue;
+
+        let group = groups.get(projectId);
+        if (!group) {
+            group = {
+                id: project.id,
+                name: project.name,
+                machineId: null,
+                workspaces: [{ id: '', name: null, sessions: [] }],
+                sessionCount: 0,
+                activeCount: 0,
+            };
+            groups.set(projectId, group);
+        }
+
+        group.workspaces[0].sessions.push(toRow(session));
+        group.sessionCount += 1;
+        if (isActive(session)) group.activeCount += 1;
+    }
+
+    return [...groups.values()];
 }
 
 function pathProjectName(path: string, homeDir: string | undefined): string {

@@ -56,34 +56,40 @@ boundaries.
 
 ## Install and run locally
 
-On macOS or Linux, install HappyHerd as your normal user with one command:
+Install HappyHerd on macOS or Linux as your normal user:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh
 ```
 
-The installer downloads the source, builds it in a user-owned directory, and
-installs the public `@happyherd/cli` package with `happyherd` as its sole
-primary command. It preserves any unrelated `happy` command and removes only
-the exact launcher previously managed by HappyHerd.
+The installer selects a prepared release for the current operating system and
+CPU. The archive contains the built `@happyherd/cli`, self-host server, Web app,
+platform tools, and Node runtime. Installation needs only `curl` and `tar`; it
+does not need Node.js, npm, pnpm, Bun, compilers, `sudo`, or a `TMPDIR`
+workaround.
 
-Start the local server and ordinary detached daemon:
+An interactive first run asks for a server endpoint. Press Enter for the local
+default, `http://127.0.0.1:3005`, or enter a remote URL. The choice is stored in
+`~/.happyherd/settings.json`, so no server URL environment variables are
+needed. The local default starts the bundled server and ordinary detached Happy
+daemon. A noninteractive fresh install prints the authentication command to run
+next.
 
-```sh
-happyherd daemon status
-# If the local server was stopped:
-happyherd server --no-persist
-```
+Re-run the command to upgrade. It keeps the current server choice unless you
+pass another `--server` value, and it preserves accounts, sessions, provider
+homes, user-managed Skills, and normal `~/.happyherd` state. Use `--version
+1.2.3` for tag `happyherd-v1.2.3`, `--asset FILE_OR_URL` for a prepared asset,
+or `--no-start` to skip starting the server and daemon.
 
-The installer asks for a server URL and defaults to
-`http://127.0.0.1:3005`. The choice is stored in normal Happy settings; a
-remote server is used only when the user explicitly selects one. The local
-server and ordinary detached daemon start automatically for the local default.
-No issuer,
-manifest, checksum, broker, credential vault, or environment-variable setup is
-part of the local install.
+The default command requires a stable GitHub Release containing the four new
+native assets. Tagged release CI supplies the macOS and ARM evidence that a
+local Linux build cannot provide.
 
 See [docs/public-launcher-release.md](docs/public-launcher-release.md) for the
 installer and cleanup contract.
 
 See [docs/lineage.md](docs/lineage.md) for upstream provenance.
+
+## Projects and assistant
+
+[HappyHerd Projects and Assistant Guide](docs/projects-and-assistant.md)

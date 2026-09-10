@@ -405,6 +405,7 @@
   },
   "newSession": {
     "title": "Neue Sitzung starten",
+    "showHidden": "Versteckte Elemente anzeigen",
     "machineOffline": "Maschine ist offline",
     "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken",
     "workspace": "Arbeitsbereich",
@@ -561,7 +562,9 @@
     "worktreeCleanupTitle": "Arbeitsbaum löschen?",
     "worktreeCleanupMessage": "Der Arbeitsbaum enthält keine nicht festgeschriebenen Änderungen. Möchten Sie die Worktree-Dateien löschen?",
     "worktreeCleanupDelete": "Arbeitsbaum löschen",
-    "worktreeCleanupKeep": "Dateien aufbewahren"
+    "worktreeCleanupKeep": "Dateien aufbewahren",
+    "botArchiveRequiresMachine": "Verbinden Sie den Computer, dem dieser Bot gehört, um ihn zu archivieren.",
+    "botDeleteUnavailable": "Der Bot führt eine kontinuierliche Konversation; verwenden Sie Archivieren statt Löschen."
   },
   "components": {
     "emptyMainScreen": {
@@ -934,6 +937,7 @@
   },
   "sideChat": {
     "panelTitle": "Side-Chats",
+    "resizePanel": "Ziehen, um die Größe des Seitenpanels zu ändern",
     "newChat": "Neuer Side-Chat",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",
@@ -1775,5 +1779,30 @@
     "noChanges": "Keine Änderungen",
     "binaryFile": "Binärdatei nicht angezeigt",
     "renamed": "Umbenannt"
+  },
+  "projects": {
+    "create": "Projekt erstellen",
+    "createTitle": "Neues Projekt erstellen",
+    "createPrompt": "Projektname eingeben",
+    "renameTitle": "Projekt umbenennen",
+    "renamePrompt": "Geben Sie einen neuen Namen für {name} ein",
+    "emptyDescription": "Projekte bleiben geräteübergreifend bestehen und sind unabhängig von Maschinen oder Arbeitsverzeichnissen. Erstellen Sie eines, um Ihre Sitzungen zu organisieren.",
+    "project": "Projekt",
+    "noProject": "Kein Projekt",
+    "sessionCount": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} Sitzung",
+          "other": "{count} Sitzungen"
+        }
+      }
+    }
+  },
+  "superSession": {
+    "pinned": "Super Session (Angeheftet)"
+  },
+  "sessions": {
+    "bots": "Bots"
   }
 }

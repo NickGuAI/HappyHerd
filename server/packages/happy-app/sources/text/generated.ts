@@ -613,6 +613,7 @@ export type TranslationKey =
     | "newSession.machineOffline"
     | "newSession.newWorkspace"
     | "newSession.noWorkspace"
+    | "newSession.showHidden"
     | "newSession.switchMachinesHint"
     | "newSession.title"
     | "newSession.workspace"
@@ -627,6 +628,15 @@ export type TranslationKey =
     | "profile.status"
     | "profile.userProfile"
     | "profile.username"
+    | "projects.create"
+    | "projects.createPrompt"
+    | "projects.createTitle"
+    | "projects.emptyDescription"
+    | "projects.noProject"
+    | "projects.project"
+    | "projects.renamePrompt"
+    | "projects.renameTitle"
+    | "projects.sessionCount"
     | "review.enjoyingApp"
     | "review.feedbackPrompt"
     | "review.notReally"
@@ -691,6 +701,8 @@ export type TranslationKey =
     | "sessionInfo.archiveSession"
     | "sessionInfo.archiveSessionConfirm"
     | "sessionInfo.archiveSessionSubtitle"
+    | "sessionInfo.botArchiveRequiresMachine"
+    | "sessionInfo.botDeleteUnavailable"
     | "sessionInfo.claudeCodeSessionId"
     | "sessionInfo.claudeCodeSessionIdCopied"
     | "sessionInfo.cliVersion"
@@ -747,6 +759,7 @@ export type TranslationKey =
     | "sessionInfo.worktreeCleanupKeep"
     | "sessionInfo.worktreeCleanupMessage"
     | "sessionInfo.worktreeCleanupTitle"
+    | "sessions.bots"
     | "sessionsFilter.appearanceSettings"
     | "sessionsFilter.flatList"
     | "sessionsFilter.groupByProject"
@@ -952,6 +965,7 @@ export type TranslationKey =
     | "sideChat.newChat"
     | "sideChat.openCount"
     | "sideChat.panelTitle"
+    | "sideChat.resizePanel"
     | "sideChat.stopUnconfirmed"
     | "sideChat.tabLabel"
     | "sideChat.unavailable"
@@ -972,6 +986,7 @@ export type TranslationKey =
     | "status.permissionRequired"
     | "status.unknown"
     | "status.unread"
+    | "superSession.pinned"
     | "tabs.inbox"
     | "tabs.sessions"
     | "tabs.settings"
@@ -1503,6 +1518,8 @@ export interface TranslationParamsByKey {
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
     "offlineMachines.singleUnreachable": { name: string };
+    "projects.renamePrompt": { name: string };
+    "projects.sessionCount": { count: number };
     "session.providerContinuationFrom": { provider: string };
     "session.providerContinuationHandoff": { provider: string };
     "session.providerContinuationTo": { provider: string };

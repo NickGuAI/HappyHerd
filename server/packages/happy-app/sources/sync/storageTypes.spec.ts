@@ -3,6 +3,21 @@ import { AgentGoalStatusSchema, AgentStateSchema, MachineMetadataSchema, Metadat
 import { rigMetadataFixture } from './__testdata__/rigMetadata';
 
 describe('MetadataSchema', () => {
+    it('keeps bot identity separate from Commander binding and the pinned assistant marker', () => {
+        const bot = {
+            id: 'bot-1', name: 'Build assistant', username: 'build-assistant',
+            workspaceId: 'workspace-1', orderKey: 'a0', futureField: true,
+        };
+        const metadata = MetadataSchema.parse({
+            path: '/tmp/project', host: 'local-machine', bot,
+            commanderId: 'commander-1', isSuperSession: true,
+        });
+        expect(metadata.bot).toEqual(bot);
+        expect(metadata.commanderId).toBe('commander-1');
+        expect(metadata.isSuperSession).toBe(true);
+        expect(MetadataSchema.parse({ path: '/tmp/project', host: 'local-machine' }).bot).toBeUndefined();
+        expect(MetadataSchema.safeParse({ ...metadata, bot: { ...bot, orderKey: '' } }).success).toBe(false);
+    });
     it('preserves archive lifecycle metadata', () => {
         const metadata = MetadataSchema.parse({
             path: '/tmp/project',

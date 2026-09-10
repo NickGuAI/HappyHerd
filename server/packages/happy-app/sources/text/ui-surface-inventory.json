@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "93b454682ac1602b430908df787e08b7d366ce4e523510d75ecfcfb3b58b6cbd",
-  "routeCount": 36,
-  "surfaceCount": 262,
+  "sourceFingerprint": "a846b51b417a1ced84556bab20e9665becdbb36b590efa8fcd5fa2a5e45e069c",
+  "routeCount": 38,
+  "surfaceCount": 267,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -341,6 +341,18 @@
       ]
     },
     {
+      "path": "/projects",
+      "owner": "sources/app/(app)/projects/index.tsx",
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
       "path": "/restore",
       "owner": "sources/app/(app)/restore/index.tsx",
       "translationKeys": [
@@ -438,6 +450,7 @@
         "common.yes",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
+        "files.changes",
         "happyHerd.heartbeat.automation",
         "happyHerd.heartbeat.clear",
         "happyHerd.heartbeat.every",
@@ -462,6 +475,8 @@
         "sessionInfo.aiProvider",
         "sessionInfo.archiveSession",
         "sessionInfo.archiveSessionSubtitle",
+        "sessionInfo.botArchiveRequiresMachine",
+        "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
         "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
@@ -528,6 +543,17 @@
       "owner": "sources/app/(app)/session/[id]/message/[messageId].tsx",
       "translationKeys": [],
       "states": []
+    },
+    {
+      "path": "/session/[id]/project",
+      "owner": "sources/app/(app)/session/[id]/project.tsx",
+      "translationKeys": [
+        "common.error",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ]
     },
     {
       "path": "/session/recent",
@@ -1089,6 +1115,7 @@
         "settings.account",
         "settings.appearance",
         "settings.title",
+        "sidebar.projects",
         "tabs.inbox",
         "textSelection.title",
         "workspace.title"
@@ -1489,6 +1516,23 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/projects/index.tsx",
+      "kind": "route",
+      "route": "/projects",
+      "exports": [
+        "ProjectsScreen"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/restore/index.tsx",
       "kind": "route",
       "route": "/restore",
@@ -1614,6 +1658,7 @@
         "common.yes",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
+        "files.changes",
         "happyHerd.heartbeat.automation",
         "happyHerd.heartbeat.clear",
         "happyHerd.heartbeat.every",
@@ -1638,6 +1683,8 @@
         "sessionInfo.aiProvider",
         "sessionInfo.archiveSession",
         "sessionInfo.archiveSessionSubtitle",
+        "sessionInfo.botArchiveRequiresMachine",
+        "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
         "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
@@ -1707,6 +1754,22 @@
       "exports": [],
       "translationKeys": [],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/project.tsx",
+      "kind": "route",
+      "route": "/session/[id]/project",
+      "exports": [
+        "SessionProjectScreen"
+      ],
+      "translationKeys": [
+        "common.error",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -3688,6 +3751,7 @@
         "MachinePathBrowser"
       ],
       "translationKeys": [
+        "newSession.showHidden",
         "uiCopy.addWorkspaceFavorite",
         "uiCopy.browseFilesystemRoot",
         "uiCopy.browseParentFolder",
@@ -3752,6 +3816,7 @@
         "sessionsFilter.groupingTitle",
         "sessionsFilter.title",
         "settings.title",
+        "sidebar.projects",
         "status.connected",
         "status.connecting",
         "status.disconnected",
@@ -4105,6 +4170,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/NewSessionPathScrollView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NewSessionPathScrollView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/OAuthView.tsx",
       "kind": "component",
       "route": null,
@@ -4399,6 +4475,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SessionSidebarDivider.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "SessionSidebarDivider"
+      ],
+      "translationKeys": [
+        "sideChat.resizePanel"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SessionsList.tsx",
       "kind": "component",
       "route": null,
@@ -4407,6 +4496,7 @@
       ],
       "translationKeys": [
         "sessionHistory.empty",
+        "sessions.bots",
         "sidebar.hideArchived",
         "sidebar.showArchived",
         "status.unknown"
@@ -4655,6 +4745,7 @@
         "settings.title",
         "sidebar.hideArchived",
         "sidebar.newSession",
+        "sidebar.projects",
         "sidebar.showArchived",
         "workspace.title"
       ],
@@ -5478,6 +5569,7 @@
         "session.forkErrorGeneric",
         "session.forkErrorMissingMetadata",
         "session.providerContinuationAction",
+        "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.copyMetadata",
         "sessionInfo.resumeSession",
         "sessionInfo.resumeSessionMissingMachine",
@@ -5670,6 +5762,72 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/sync/ops.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "claudeDuplicateSession",
+        "claudeForkSession",
+        "claudeListRewindPoints",
+        "codexDuplicateThread",
+        "codexForkThread",
+        "codexListRewindPoints",
+        "forkAndSpawn",
+        "machineAutomationHistory",
+        "machineBash",
+        "machineControlHeartbeat",
+        "machineCreateAutomation",
+        "machineCreateDirectory",
+        "machineCreateSideChat",
+        "machineDelete",
+        "machineDeleteAutomation",
+        "machineDeleteFile",
+        "machineGetDirectoryTree",
+        "machineHashFile",
+        "machineListAutomations",
+        "machineListCommanders",
+        "machineListDirectory",
+        "machinePauseAutomation",
+        "machineReadFile",
+        "machineReadFileWithinRoot",
+        "machineResumeAutomation",
+        "machineResumeSession",
+        "machineRunAutomationNow",
+        "machineSpawnNewSession",
+        "machineStopDaemon",
+        "machineStopSession",
+        "machineTransitionGrokPermissionMode",
+        "machineUpdateAutomation",
+        "machineUpdateMetadata",
+        "machineUploadFile",
+        "machineWriteFile",
+        "sessionAbort",
+        "sessionAllow",
+        "sessionAnswerQuestion",
+        "sessionArchive",
+        "sessionBash",
+        "sessionCancelCommunication",
+        "sessionDelete",
+        "sessionDeleteFile",
+        "sessionDeny",
+        "sessionGetDirectoryTree",
+        "sessionGoalAction",
+        "sessionKill",
+        "sessionListDirectory",
+        "sessionReadFile",
+        "sessionRipgrep",
+        "sessionSetAgentModes",
+        "sessionSwitch",
+        "sessionWriteFile"
+      ],
+      "translationKeys": [
+        "sessionInfo.botArchiveRequiresMachine",
+        "sessionInfo.botDeleteUnavailable"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

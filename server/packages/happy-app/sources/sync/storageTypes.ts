@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
     AgentMessageQueueStateSchema,
     HappyHerdMachineSessionSettingsSchema,
+    RigBotSchema,
 } from '@slopus/happy-wire';
 
 //
@@ -9,6 +10,7 @@ import {
 //
 
 export const MetadataSchema = z.object({
+    bot: RigBotSchema.optional(),
     models: z.array(z.object({
         code: z.string(),
         value: z.string(),
@@ -201,6 +203,8 @@ export const MetadataSchema = z.object({
      * inside the parent session's sidebar panel (see `useSideChatSession`).
      */
     isSideChat: z.boolean().optional(),
+    /** Marks the one persistent HappyHerd assistant entry pinned on Home. */
+    isSuperSession: z.boolean().optional(),
     /** HappyHerd Commander/AgentContext provenance for this session. */
     commanderId: z.string().optional(),
     commanderName: z.string().optional(),

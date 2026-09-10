@@ -41,6 +41,9 @@ function session(
         commanderId: null,
         commanderName: null,
         machineOffline: false,
+        botId: null,
+        botUsername: null,
+        machineName: null,
         path,
         homeDir: null,
         completedTodosCount: 0,
@@ -122,6 +125,61 @@ describe('session display order', () => {
             'inactive-4',
             'inactive-5',
             'inactive-6',
+        ]);
+    });
+
+    it('keeps the Super Session first in keyboard shortcut order', () => {
+        const data: SessionListViewItem[] = [
+            {
+                type: 'active-sessions',
+                sessions: [session('recent-session', 'machine-z', '/project', 30)],
+            },
+            {
+                type: 'super-session',
+                session: session('super-session', 'machine-a', '/assistant', 1),
+            },
+        ];
+
+        expect(getSessionShortcutIdsInDisplayOrder(data, machines, 'Unknown')).toEqual([
+            'super-session',
+            'recent-session',
+        ]);
+    });
+
+    it('includes bots in the same activity order used by the flat list after the Super Session', () => {
+        const bot = { ...session('bot-session', 'machine-a', '/bot', 20), botId: 'bot-1' };
+        const data: SessionListViewItem[] = [
+            { type: 'bots', sessions: [bot] },
+            {
+                type: 'super-session',
+                session: session('super-session', 'machine-a', '/assistant', 1),
+            },
+            {
+                type: 'project',
+                source: 'happy',
+                project: {
+                    id: 'ordinary',
+                    name: 'ordinary',
+                    machineId: 'machine-a',
+                    activeCount: 2,
+                    sessionCount: 2,
+                    workspaces: [{
+                        id: '',
+                        name: null,
+                        sessions: [
+                            session('newer', 'machine-a', '/ordinary', 30),
+                            session('older', 'machine-a', '/ordinary', 10),
+                        ],
+                    }],
+                },
+            },
+        ];
+
+        expect(getSessionShortcutIdsInDisplayOrder(data, machines, 'Unknown')).toEqual([
+            'super-session',
+            'newer',
+            'bot-session',
+            'older',
         ]);
     });
 

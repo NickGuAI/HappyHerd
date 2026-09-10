@@ -236,7 +236,7 @@ export class ApiMachineClient {
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId, isSideChat } = params || {};
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, isSuperSession, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId, isSideChat } = params || {};
             logger.debug('[API MACHINE] Spawning session', {
                 directory,
                 agent,
@@ -257,6 +257,12 @@ export class ApiMachineClient {
                     'Generic spawn-happy-session cannot create a side chat; use happyherd session side-chat create with all six delegation brief fields.',
                 );
             }
+            if (isSuperSession !== undefined && typeof isSuperSession !== 'boolean') {
+                throw new Error('isSuperSession must be a boolean');
+            }
+            if (isSuperSession === true && (typeof commanderId !== 'string' || commanderId.length === 0)) {
+                throw new Error('Super Session creation requires a Commander');
+            }
 
             const provider = HappyHerdMachineSessionProviderSchema.parse(agent ?? 'claude');
             const effectiveSettings = resolveEffectiveSessionSettings(
@@ -270,7 +276,7 @@ export class ApiMachineClient {
                 },
             );
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, isSuperSession, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId });
 
             switch (result.type) {
                 case 'success':

@@ -20,7 +20,7 @@ import { Session, Machine } from './storageTypes';
 import { InvalidateSync } from '@/utils/sync';
 import { delay } from '@/utils/time';
 import { ActivityUpdateAccumulator } from './reducer/activityUpdateAccumulator';
-import { randomUUID } from 'expo-crypto';
+import { getRandomBytes, randomUUID } from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { syncCurrentPushToken } from './pushRegistration';
 import { Platform, AppState, type AppStateStatus } from 'react-native';
@@ -92,8 +92,18 @@ import {
     type OutboxBatchPolicy,
 } from './sendMessageLocalBatch';
 import { StrictOutboxBatchTracker } from './strictOutboxBatchTracker';
-import { fetchProjects as fetchProjectRecords } from './apiProjects';
-import { decryptProjectRecord, loadProjectAvatar, type DecryptedProjectRecord } from './projects';
+import {
+    assignSessionProject as assignSessionProjectRecord,
+    createProjectRecord,
+    fetchProjects as fetchProjectRecords,
+    updateProjectRecord,
+} from './apiProjects';
+import {
+    decryptProjectRecord,
+    encryptProjectMetadata,
+    loadProjectAvatar,
+    type DecryptedProjectRecord,
+} from './projects';
 import type { Project, ProjectAvatar } from './projectTypes';
 
 type V3GetSessionMessagesResponse = {
@@ -268,6 +278,7 @@ class Sync {
                 this.machinesSync.invalidate();
                 this.pushTokenSync.invalidate();
                 this.sessionsSync.invalidate();
+                this.projectsSync.invalidate();
                 this.nativeUpdateSync.invalidate();
                 log.log('📱 App became active: Invalidating artifacts sync');
                 this.artifactsSync.invalidate();
@@ -355,6 +366,7 @@ class Sync {
         // Invalidate sync
         log.log('🔄 #init: Invalidating all syncs');
         this.sessionsSync.invalidate();
+        this.projectsSync.invalidate();
         this.settingsSync.invalidate();
         this.profileSync.invalidate();
         this.purchasesSync.invalidate();
@@ -1347,6 +1359,70 @@ class Sync {
     // Private
     //
 
+    public async createProject(name: string): Promise<Project> {
+        const normalizedName = name.trim();
+        if (!normalizedName) throw new Error('Project name is required');
+
+        const externalId = this.encryption.generateId();
+        const dataKey = getRandomBytes(32);
+        const metadata = await encryptProjectMetadata(
+            { name: normalizedName, kind: 'personal' },
+            dataKey,
+            this.encryption,
+        );
+        const encryptedKey = await this.encryption.encryptEncryptionKey(dataKey);
+        const record = await createProjectRecord(this.credentials, {
+            externalId,
+            metadata,
+            dataEncryptionKey: encodeBase64(encryptedKey, 'base64'),
+        });
+        const decrypted = await decryptProjectRecord(record, this.encryption);
+        if (!decrypted) throw new Error('Created project could not be decrypted');
+
+        this.projectDataKeys.set(decrypted.project.id, decrypted.dataKey);
+        storage.getState().applyProjects([decrypted.project]);
+        return decrypted.project;
+    }
+
+    public async renameProject(projectId: string, name: string): Promise<Project> {
+        const normalizedName = name.trim();
+        if (!normalizedName) throw new Error('Project name is required');
+        const current = storage.getState().projects[projectId];
+        if (!current) throw new Error('Project not found');
+        if (current.name === normalizedName) return current;
+        if (!this.projectDataKeys.has(projectId)) throw new Error('Project encryption key is unavailable');
+
+        const dataKey = this.projectDataKeys.get(projectId) ?? null;
+        const metadata = await encryptProjectMetadata(
+            { name: normalizedName, kind: current.kind },
+            dataKey,
+            this.encryption,
+        );
+        const record = await updateProjectRecord(this.credentials, projectId, {
+            metadata,
+            expectedMetadataVersion: current.metadataVersion,
+        });
+        const decrypted = await decryptProjectRecord(record, this.encryption);
+        if (!decrypted) throw new Error('Renamed project could not be decrypted');
+
+        this.projectDataKeys.set(projectId, decrypted.dataKey);
+        storage.getState().applyProjects([decrypted.project]);
+        return decrypted.project;
+    }
+
+    public async assignSessionProject(sessionId: string, projectId: string | null): Promise<void> {
+        const current = storage.getState().sessions[sessionId];
+        if (!current) throw new Error('Session not found');
+        if (projectId !== null && !storage.getState().projects[projectId]) {
+            throw new Error('Project not found');
+        }
+        if ((current.projectId ?? null) === projectId) return;
+
+        const assigned = await assignSessionProjectRecord(this.credentials, sessionId, projectId);
+        const latest = storage.getState().sessions[sessionId];
+        if (latest) this.applySessions([{ ...latest, projectId: assigned.projectId }]);
+    }
+
     private clearProjectAvatarCache(projectId: string): void {
         const prefix = `${projectId}:`;
         for (const key of this.projectAvatarCache.keys()) {
@@ -1416,10 +1492,7 @@ class Sync {
     private fetchProjects = async (): Promise<void> => {
         if (!this.credentials) return;
 
-        const projectIds = [...new Set(Object.values(storage.getState().sessions)
-            .map((session) => session.projectId)
-            .filter((projectId): projectId is string => typeof projectId === 'string' && projectId.length > 0))];
-        const records = await fetchProjectRecords(this.credentials, projectIds);
+        const records = await fetchProjectRecords(this.credentials);
         const decryptedRecords = (await Promise.all(records.map(async (record) => {
             try {
                 return await decryptProjectRecord(record, this.encryption);
@@ -1459,7 +1532,7 @@ class Sync {
             this.projectDataKeys.set(projectId, record.dataKey);
         }
 
-        // The referenced project snapshot is authoritative. Discard entries
+        // The account project snapshot is authoritative. Discard entries
         // for removed/changed descriptors before starting new downloads.
         for (const cacheKey of this.projectAvatarCache.keys()) {
             if (!expectedAvatarCacheKeys.has(cacheKey)) this.projectAvatarCache.delete(cacheKey);

@@ -177,13 +177,20 @@ export function getSessionShortcutIdsInDisplayOrder(
         return [];
     }
 
+    const superSession = data.find((item): item is Extract<SessionListViewItem, { type: 'super-session' }> => (
+        item.type === 'super-session'
+    ));
     const primary = buildFlatSessionRows(data);
     const archived = data
         .filter((item): item is Extract<SessionListViewItem, { type: 'session' }> => item.type === 'session')
         .map((item) => toFlatSessionRow(item.session))
         .sort(compareFlatSessionRows);
 
-    return [...primary, ...archived]
+    return [
+        ...(superSession ? [toFlatSessionRow(superSession.session)] : []),
+        ...primary,
+        ...archived,
+    ]
         .map((row) => row.session.id)
         .slice(0, 9);
 }

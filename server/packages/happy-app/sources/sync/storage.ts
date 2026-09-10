@@ -5,7 +5,13 @@ import { useDeepEqual } from './storeSelectors';
 import { Session, Machine, GitStatus, SessionAgentModesPatch } from "./storageTypes";
 import type { GitStatusFiles } from "./gitStatusFiles";
 import type { ProjectFilesList } from "./projectFiles";
-import { buildPathProjectGroups, buildProjectGroups, isProjectSession, type ProjectGroupData } from "./projectGroups";
+import {
+    buildPathProjectGroups,
+    buildPersonalProjectGroups,
+    buildProjectGroups,
+    isProjectSession,
+    type ProjectGroupData,
+} from "./projectGroups";
 import {
     selectAgentFormCommunication,
     selectPendingCommunications,
@@ -46,6 +52,7 @@ import type { Project } from './projectTypes';
 import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
 import { selectSideChatSessions } from './sideChatSessions';
 import { selectProviderContinuationSessions } from '@/utils/providerContinuation';
+import { selectSuperSession } from './superSession';
 
 // Debounce timer for realtimeMode changes
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -117,6 +124,11 @@ interface SessionMessages {
 
 // Display-only row data — all primitives, cheap to deep-equal
 export interface SessionRowData {
+    /** Stable identity for a machine-owned bot conversation. */
+    botId?: string | null;
+    botUsername?: string | null;
+    /** Human machine label used to disambiguate bot identities. */
+    machineName?: string | null;
     id: string;
     name: string;
     subtitle: string;
@@ -211,6 +223,12 @@ function buildSessionRowData(
     const metadataProject = session.metadata?.project;
     const projectAvatar = isHappyAgentSession(session) ? linkedProject?.avatar : null;
     return {
+        botId: session.metadata?.bot?.id ?? null,
+        botUsername: session.metadata?.bot?.username ?? null,
+        machineName: machine?.metadata?.displayName
+            || machine?.metadata?.host
+            || session.metadata?.host
+            || null,
         id: session.id,
         name: getSessionName(session),
         subtitle: getSessionSubtitle(session),
@@ -260,11 +278,13 @@ function buildSessionRowData(
 
 // Unified list item type for SessionsList component
 export type SessionListViewItem =
+    | { type: 'super-session'; session: SessionRowData }
+    | { type: 'bots'; sessions: SessionRowData[] }
     | { type: 'header'; title: string }
     | { type: 'active-sessions'; sessions: SessionRowData[] }
     | { type: 'project-group'; displayPath: string; machine: Machine }
-    | { type: 'projects-header'; source: 'rig' | 'happy' }
-    | { type: 'project'; source: 'rig' | 'happy'; project: ProjectGroupData }
+    | { type: 'projects-header'; source: 'rig' | 'happy' | 'personal' }
+    | { type: 'project'; source: 'rig' | 'happy' | 'personal'; project: ProjectGroupData }
     | { type: 'session'; session: SessionRowData };
 
 export type { ProjectGroupData, ProjectWorkspaceGroup } from './projectGroups';
@@ -377,16 +397,28 @@ function buildSessionListViewData(
 ): SessionListViewItem[] {
     const rigProjectSessions: Session[] = [];
     const rigPathSessions: Session[] = [];
+    const personalProjectSessions: Session[] = [];
+    const botSessions: Session[] = [];
     const happySessions: Session[] = [];
     const archivedSessions: Session[] = [];
 
-    filterSessionsForTopLevelLists(Object.values(sessions)).forEach(session => {
+    const topLevelSessions = filterSessionsForTopLevelLists(Object.values(sessions));
+    const superSession = selectSuperSession(topLevelSessions);
+    topLevelSessions.forEach(session => {
+        if (session.id === superSession?.id) return;
         // The archive is a flat chronological tail, not part of any project.
         if (isSessionArchived(session)) {
             archivedSessions.push(session);
             return;
         }
-        if (isRigMetadata(session.metadata)) {
+        if (session.metadata?.bot) {
+            botSessions.push(session);
+            return;
+        }
+        const projectId = session.projectId?.trim();
+        if (projectId && projects[projectId]?.kind === 'personal') {
+            personalProjectSessions.push(session);
+        } else if (isRigMetadata(session.metadata)) {
             if (isProjectSession(session)) {
                 rigProjectSessions.push(session);
             } else {
@@ -405,6 +437,7 @@ function buildSessionListViewData(
     const sortProjectSessions = (items: Session[]) => items.sort(compareSessionsByActivity);
     sortProjectSessions(rigProjectSessions);
     sortProjectSessions(rigPathSessions);
+    sortProjectSessions(personalProjectSessions);
     sortProjectSessions(happySessions);
     archivedSessions.sort(compareSessionsByActivity);
 
@@ -424,6 +457,25 @@ function buildSessionListViewData(
         daemonIdentities,
     );
 
+    if (superSession) {
+        listData.push({ type: 'super-session', session: toRow(superSession) });
+    }
+
+    if (botSessions.length > 0) {
+        botSessions.sort((a, b) => {
+            const machineOrder = (a.metadata?.machineId ?? '').localeCompare(b.metadata?.machineId ?? '');
+            if (machineOrder !== 0) return machineOrder;
+            const aOrderKey = a.metadata!.bot!.orderKey;
+            const bOrderKey = b.metadata!.bot!.orderKey;
+            return aOrderKey < bOrderKey
+                ? -1
+                : aOrderKey > bOrderKey
+                    ? 1
+                    : a.id.localeCompare(b.id);
+        });
+        listData.push({ type: 'bots', sessions: botSessions.map(toRow) });
+    }
+
     const rigProjects = [
         ...buildProjectGroups(rigProjectSessions, toRow, isSessionActive),
         ...buildPathProjectGroups(rigPathSessions, toRow, isSessionActive, 'rig'),
@@ -433,6 +485,16 @@ function buildSessionListViewData(
         for (const project of rigProjects) {
             listData.push({ type: 'project', source: 'rig', project });
         }
+    }
+
+    const personalProjects = buildPersonalProjectGroups(
+        personalProjectSessions,
+        projects,
+        toRow,
+        isSessionActive,
+    );
+    for (const project of personalProjects) {
+        listData.push({ type: 'project', source: 'personal', project });
     }
 
     const happyProjects = buildPathProjectGroups(
