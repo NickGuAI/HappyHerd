@@ -532,8 +532,17 @@ const interactiveHtmlSurface = new URLSearchParams(window.location.search).get('
 const fileReviewSurface = new URLSearchParams(window.location.search).get('file-review');
 const localhostLiveSurface = new URLSearchParams(window.location.search).get('localhost-live');
 const reviewNavigationSurface = new URLSearchParams(window.location.search).get('review-navigation');
+const workspaceBrowserSurface = new URLSearchParams(window.location.search).get('workspace-browser');
 
-createRoot(document.getElementById('root')!).render(reviewNavigationSurface ? (
+createRoot(document.getElementById('root')!).render(workspaceBrowserSurface ? (
+    <div data-testid="workspace-browser-host" style={{ display: 'flex', flexDirection: 'column', width: workspaceBrowserSurface === 'embedded' ? 'min(100vw, 360px)' : '100vw', height: '100vh' }}>
+        <MachineWorkspaceBrowser
+            embedded={workspaceBrowserSurface === 'embedded'}
+            initialMachineId="machine-2"
+            initialPath="/machine-root/deleted-worktree"
+        />
+    </div>
+) : reviewNavigationSurface ? (
     <ReviewNavigationWorkspaceDemo compact={reviewNavigationSurface === 'mobile'} />
 ) : localhostLiveSurface ? (
     <LocalhostLiveWorkspaceDemo
