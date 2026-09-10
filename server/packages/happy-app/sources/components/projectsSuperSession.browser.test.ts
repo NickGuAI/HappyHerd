@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser } from 'playwright-core';
+import { transformSync } from '@babel/core';
+import { chromium, type Browser, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -23,7 +24,7 @@ const virtualModules: Record<string, string> = {
         const theme = {
             dark: false,
             colors: {
-                divider: '#dedede', surface: '#fff', surfaceHigh: '#f3f3f3', surfaceHighest: '#eee',
+                switch: { track: { active: '#2868c7', inactive: '#999' }, thumb: { active: '#fff' } }, header: { tint: '#181818' }, input: { background: '#eee', text: '#181818', placeholder: '#777' }, divider: '#dedede', surface: '#fff', surfaceHigh: '#f3f3f3', surfaceHighest: '#eee',
                 surfacePressed: '#ececec', surfacePressedOverlay: '#ececec', surfaceSelected: '#e8eef9',
                 surfaceRipple: '#ececec', text: '#181818', textSecondary: '#676767', textDestructive: '#c22',
                 textLink: '#2868c7', groupped: { background: '#f7f7f7', chevron: '#777', sectionTitle: '#666' },
@@ -37,12 +38,13 @@ const virtualModules: Record<string, string> = {
             hairlineWidth: 1,
         };
         export const useUnistyles = () => ({ theme });
+        export const UnistylesRuntime = { setAdaptiveThemes() {}, setTheme() {}, setRootViewBackgroundColor() {} };
     `,
     '@expo/vector-icons': `
         import React from 'react';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name, 'aria-hidden': true }, '•');
         Icon.glyphMap = {};
-        export const Ionicons = Icon;
+        export const Ionicons = Icon; export const MaterialCommunityIcons = Icon;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'react-native-gesture-handler': `
@@ -54,20 +56,20 @@ const virtualModules: Record<string, string> = {
     'expo-router': `
         import React from 'react';
         const initialScreen = new URLSearchParams(window.location.search).get('screen');
-        let pathname = initialScreen === 'assignment' ? '/session/ordinary-session/project' : '/';
+        let pathname = initialScreen === 'assignment' ? '/session/ordinary-session/project' : initialScreen === 'appearance' ? '/settings/appearance' : initialScreen === 'detail' ? '/projects/' + (new URLSearchParams(window.location.search).get('project') ?? 'project-alpha') : '/';
+        const history = ['/'];
         const listeners = new Set();
         const emit = () => listeners.forEach((listener) => listener());
         const record = (path) => {
             window.__ROUTER_CALLS__ = [...(window.__ROUTER_CALLS__ ?? []), path];
-            if (path === '/projects' || path.endsWith('/project')) {
-                pathname = path;
-                emit();
-            }
+            history.push(pathname);
+            pathname = path;
+            emit();
         };
         const router = {
             navigate: record,
             push: record,
-            back() { window.__ROUTER_BACK_COUNT__ = (window.__ROUTER_BACK_COUNT__ ?? 0) + 1; },
+            back() { window.__ROUTER_BACK_COUNT__ = (window.__ROUTER_BACK_COUNT__ ?? 0) + 1; pathname = history.pop() ?? '/'; emit(); },
         };
         export const useRouter = () => router;
         export const usePathname = () => React.useSyncExternalStore(
@@ -77,6 +79,7 @@ const virtualModules: Record<string, string> = {
         );
         export const useLocalSearchParams = () => ({ id: pathname.split('/')[2] ?? '' });
         export const Stack = { Screen: () => null };
+        export const routerFixture = router;
     `,
     '@/sync/storage': `
         import React from 'react';
@@ -124,55 +127,91 @@ const virtualModules: Record<string, string> = {
                 metadataVersion: 1, avatar: null, createdAt: 2, updatedAt: 2,
             },
         };
-        let sessions = {
-            'super-session': {
-                id: 'super-session', seq: 1, createdAt: 1, updatedAt: 1, active: true, activeAt: 1,
-                presence: 'online', projectId: null,
-                metadata: { path: '/assistant', machineId: 'machine-1', isSuperSession: true },
-            },
-            'ordinary-session': {
-                id: 'ordinary-session', seq: 999, createdAt: 2, updatedAt: 999, active: true, activeAt: 999,
-                presence: 'online', projectId: 'project-alpha',
-                metadata: { path: '/work/current', machineId: 'machine-1' },
-            },
-        };
+        let sessions;
+        const richProjects = new URLSearchParams(window.location.search).get('scenario') === 'projects';
+        let extraRows = [];
+        if (richProjects) {
+            projects = { ...projects,
+                'project-duplicate': { ...projects['project-alpha'], id: 'project-duplicate', externalId: 'duplicate' },
+                'archive-only': { ...projects['project-alpha'], id: 'archive-only', externalId: 'archive', name: 'Historical project' },
+            };
+            superRow.projectId = 'project-alpha';
+            superRow.projectName = 'Project Alpha';
+            archivedBot.projectId = 'archive-only';
+            extraRows = [
+                row('remote-session', 'Remote project session', 900, 'Project Alpha', { machineId: 'machine-b', machineName: 'Beta machine', path: '/remote/checkout', projectId: 'project-alpha' }),
+                row('duplicate-session', 'Same workspace different project', 850, 'Project Alpha', { projectId: 'project-duplicate' }),
+                row('unassigned-session', 'Unassigned work', 750, null),
+            ];
+        }
+        const superState = new URLSearchParams(window.location.search).get('super-state');
+        if (superState) {
+            superRow.active = false;
+            superRow.archived = superState === 'archived';
+            superRow.state = 'disconnected';
+            archivedBot.projectId = 'project-alpha';
+        }
+        const rows = [superRow, ordinaryRow, botAlpha, botBeta, archivedBot, ...extraRows];
+        sessions = Object.fromEntries(rows.map((item) => [item.id, {
+            id: item.id, seq: item.updateSequence, createdAt: item.createdAt, updatedAt: item.lastActivityAt,
+            active: item.active, activeAt: item.lastActivityAt, archived: item.archived, projectId: item.projectId,
+            presence: 'online', metadata: { path: item.path, machineId: item.machineId, summary: { text: item.name },
+                isSuperSession: item.id === 'super-session', homeDir: '/work' },
+        }]));
         let sessionList = Object.values(sessions);
         const settings = {
             hideInactiveSessions: true,
-            sessionListGrouping: new URLSearchParams(window.location.search).get('grouping') === 'project' ? 'project' : 'flat',
+            sessionListGrouping: localStorage.getItem('fixture-grouping') ?? new URLSearchParams(window.location.search).get('grouping') ?? 'flat',
+            userMessageBubbleColor: 'blue', sessionStatusBarDisplay: 'above', avatarStyle: 'brutalist', preferredLanguage: 'en',
             machineWorkspace: true,
             commanderProfilePictures: true,
         };
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
-        const listData = [
-            {
-                type: 'project', source: 'personal',
-                project: {
-                    id: 'project-alpha', name: 'Project Alpha', machineId: null,
-                    activeCount: 1, sessionCount: 1,
-                    workspaces: [{ id: '', name: null, sessions: [ordinaryRow] }],
-                },
-            },
-            { type: 'super-session', session: superRow },
-            { type: 'bots', sessions: [botAlpha, botBeta] },
-            { type: 'header', title: 'Today' },
-            { type: 'session', session: archivedBot },
-        ];
+        let listData = [];
+        const rebuild = () => {
+            const currentRows = rows.map((item) => ({ ...item, projectId: sessions[item.id].projectId,
+                projectName: projects[sessions[item.id].projectId]?.name ?? null }));
+            const ordinary = currentRows.filter((item) => !item.botId && !item.archived && item.id !== 'super-session');
+            listData = [
+                { type: 'active-sessions', sessions: ordinary },
+                { type: 'super-session', session: currentRows.find((item) => item.id === 'super-session') },
+                { type: 'bots', sessions: currentRows.filter((item) => item.botId && !item.archived && item.id !== 'super-session') },
+                { type: 'header', title: 'Today' },
+                ...currentRows.filter((item) => item.archived && item.id !== 'super-session').map((session) => ({ type: 'session', session })),
+            ];
+        };
+        let projectsLoaded = new URLSearchParams(window.location.search).get('catalog') !== 'delayed';
+        if (!projectsLoaded) {
+            const catalog = projects;
+            projects = {};
+            fetch('/fixture-catalog').then((response) => response.json()).then((response) => {
+                projects = response.empty ? {} : catalog;
+                projectsLoaded = true;
+                rebuild();
+                emit();
+            });
+        }
+        rebuild();
         export const storage = { getState: () => ({ sessions, projects }) };
-        export const useSessionListViewData = () => listData;
+        export const useSessionListViewData = () => React.useSyncExternalStore(subscribe, () => listData, () => listData);
         export const useSetting = (key) => React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
         export const useSettingMutable = (key) => [
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
-            (value) => { settings[key] = value; emit(); },
+            (value) => { settings[key] = value; if (key === 'sessionListGrouping') localStorage.setItem('fixture-grouping', value); emit(); },
         ];
+        export const useLocalSettingMutable = useSettingMutable;
+        export const useFriendRequests = () => [];
+        export const useSocketStatus = () => ({ status: 'connected' });
+        export const useSessionGitStatus = () => null;
         export const useAllMachines = () => [
             { id: 'machine-1', active: true, metadata: { displayName: 'Main machine' } },
             { id: 'machine-a', active: true, metadata: { displayName: 'Alpha machine' } },
             { id: 'machine-b', active: true, metadata: { displayName: 'Beta machine' } },
         ];
         export const useRealtimeStatus = () => 'disconnected';
+        export const useProjectsLoaded = () => React.useSyncExternalStore(subscribe, () => projectsLoaded, () => projectsLoaded);
         export const useProjects = () => React.useSyncExternalStore(subscribe, () => projects, () => projects);
         export const useAllSessions = () => React.useSyncExternalStore(subscribe, () => sessionList, () => sessionList);
         export const useSession = (id) => React.useSyncExternalStore(
@@ -184,17 +223,20 @@ const virtualModules: Record<string, string> = {
                 id, externalId: 'external-created', name, kind: 'personal', metadataVersion: 1,
                 avatar: null, createdAt: 3, updatedAt: 3,
             } };
+            rebuild();
             emit();
             return projects[id];
         };
         export const __renameProject = (id, name) => {
             projects = { ...projects, [id]: { ...projects[id], name, metadataVersion: projects[id].metadataVersion + 1 } };
+            rebuild();
             emit();
             return projects[id];
         };
         export const __assignProject = (sessionId, projectId) => {
             sessions = { ...sessions, [sessionId]: { ...sessions[sessionId], projectId } };
             sessionList = Object.values(sessions);
+            rebuild();
             emit();
         };
     `,
@@ -216,6 +258,8 @@ const virtualModules: Record<string, string> = {
         };
     `,
     '@/text': `
+        export const getLanguageNativeName = () => 'English';
+        export const resolveSupportedLanguage = () => 'en';
         export const t = (key, params) => ({
             'sidebar.newSession': 'New Session', 'sidebar.projects': 'Projects',
             'sidebar.showArchived': 'Show Archived', 'sidebar.hideArchived': 'Hide Archived',
@@ -233,8 +277,12 @@ const virtualModules: Record<string, string> = {
             'projects.createPrompt': 'Enter project name', 'projects.renameTitle': 'Rename Project',
             'projects.renamePrompt': 'Enter a new name for ' + (params?.name ?? ''),
             'projects.emptyDescription': 'Projects persist across your devices and are independent of machines or working directories. Create one to organize your sessions.',
-            'projects.project': 'Project', 'projects.noProject': 'No Project',
+            'projects.project': 'Project',
             'projects.sessionCount': (params?.count ?? 0) + ((params?.count ?? 0) === 1 ? ' session' : ' sessions'),
+            'projects.rename': 'Rename project', 'projects.sessionsEmpty': 'No sessions in this project yet', 'projects.notFound': 'Project not found',
+            'sessionsFilter.groupingTitle': 'Grouping', 'sessionsFilter.flatList': 'Flat List',
+            'sessionsFilter.groupByWorkspace': 'By workspace', 'sessionsFilter.groupByProject': 'By project',
+            'sessionsFilter.noProject': 'No project', 'projects.noProject': 'No project',
             'common.rename': 'Rename', 'common.error': 'Error',
             'happyHerd.automations.unknownError': 'Something went wrong',
         }[key] ?? key);
@@ -251,7 +299,7 @@ const virtualModules: Record<string, string> = {
     '@/components/StyledText': `export { Text } from 'react-native';`,
     '@/components/layout': `export const layout = { maxWidth: 800 };`,
     '@/components/BubblePressable': `import { Pressable } from 'react-native'; export const BubblePressable = Pressable;`,
-    '@/components/SessionActionsPopover': `export const SessionActionsPopover = () => null;`,
+    '@/components/SessionActionsPopover': `export const SessionActionsPopover = () => null; export const SessionActionsAnchor = ({ children }) => children;`,
     '@/components/ShortcutHints': `
         export const SessionShortcutHintBadge = () => null;
         export const ShortcutHintBadge = () => null;
@@ -274,29 +322,42 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/StatusDot': `
         import React from 'react';
+        export const StatusDot = () => null;
         export const StatusPulse = ({ isPulsing }) => React.createElement('span', { 'data-status-pulse': isPulsing ? 'true' : 'false', 'aria-hidden': true });
     `,
     '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};`,
     '@/hooks/useHappyAction': `export const useHappyAction = (action) => [false, action];`,
-    '@/sync/ops': `export const sessionKill = async () => ({ success: true });`,
+    '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ exitCode: 0 });`,
     '@/utils/errors': `export class HappyError extends Error {}`,
-    '@/track': `export const trackSessionSwitched = () => {};`,
+    '@/track': `export const trackSessionSwitched = () => {}; export const trackFriendsSearch = () => {};`,
     '@/utils/requestReview': `export const requestReview = () => {};`,
     '@/components/UpdateBanner': `export const UpdateBanner = () => null;`,
-    '@/components/ActiveSessionsGroupCompact': `export const ActiveSessionsGroupCompact = () => null;`,
-    '@/components/ProjectGroup': `
-        import React from 'react';
-        export const ProjectGroup = ({ project }) => React.createElement('section', { 'data-testid': 'project-group' }, project.name);
-    `,
     '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null;`,
-    '@/components/MainViewFixture': `
+    '@/components/EmptySessionsTablet': `export const EmptySessionsTablet = () => null;`,
+    '@/components/EmptyMainScreen': `export const EmptyMainScreen = () => null;`,
+    '@/components/InboxView': `export const InboxView = () => null;`,
+    '@/components/HomeDock': `export const HomeDock = () => null; export const MOBILE_HOME_DOCK_CONTENT_INSET = 128;`,
+    '@/components/SettingsViewWrapper': `export const SettingsViewWrapper = () => null;`,
+    '@/components/TabBar': `export const TabBar = () => null;`,
+    '@/components/HeaderLogo': `export const HeaderLogo = () => null;`,
+    '@/components/navigation/Header': `
         import React from 'react';
-        import { SessionsList } from '@/components/SessionsList';
-        export const MainView = () => React.createElement(SessionsList, {
-            bottomContentInset: 12,
-            searchQuery: new URLSearchParams(window.location.search).get('search') ?? '',
-        });
+        export const Header = ({ title, headerLeft, headerRight }) => React.createElement('header',
+            { style: { display: 'flex', minHeight: 48, justifyContent: 'space-between' } }, headerLeft?.(), title, headerRight?.());
     `,
+    '@/components/NativeSettingsMenu': `export const NativeSettingsMenu = () => null;`,
+    '@/components/MobileGlass': `import React from 'react'; export const MobileGlassSurface = ({ children }) => children;`,
+    '@/components/AnimatedOverlay': `export const AnimatedCollapsible = ({ children, expanded }) => expanded ? children : null;`,
+    '@/components/Avatar': `export const Avatar = () => null;`,
+    '@/components/AvatarBrutalist': `export const AvatarBrutalist = () => null;`,
+    '@/components/AvatarSkia': `export const AvatarSkia = () => null;`,
+    '@/components/AvatarGradient': `export const AvatarGradient = () => null;`,
+    '@/sync/serverConfig': `export const isUsingCustomServer = () => false;`,
+    '@/hooks/useNewSessionDraft': `export const useNewSessionDraft = () => ({}); useNewSessionDraft.getState = () => ({ attachments: [] });`,
+    '@/hooks/useStartSessionFromDraft': `export const useStartSessionFromDraft = () => ({ isStarting: false, startSession: async () => false, cancelStart() {} });`,
+    '@/theme': `export const darkTheme = {}; export const lightTheme = {};`,
+    'expo-localization': `export const getLocales = () => [{ languageTag: 'en-US' }];`,
+    'expo-system-ui': `export const setBackgroundColorAsync = async () => {};`,
     '@/utils/responsive': `
         export const useHeaderHeight = () => 0;
         export const useIsTablet = () => window.innerWidth >= 768;
@@ -308,12 +369,24 @@ const fixturePlugin: Plugin = {
     name: 'projects-super-session-browser-fixture',
     setup(bundle) {
         bundle.onResolve({ filter: /.*/ }, (args) => {
-            if (args.path === './MainView' && args.importer.endsWith('/components/SidebarView.tsx')) {
-                return { path: '@/components/MainViewFixture', namespace: 'fixture-stub' };
+            if (args.path.startsWith('react-native-unistyles/components/native/')) {
+                return { path: resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/components/native', `${args.path.split('/').at(-1)}.js`) };
             }
+            if (args.path === 'react-native-unistyles' && /components\/Sidebar(View|NavigationButton)\.tsx$/.test(args.importer)) {
+                return { path: 'sidebar-production-styles', namespace: 'fixture-stub' };
+            }
+
             const relativeStubs: Record<string, string> = {
-                './ActiveSessionsGroupCompact': '@/components/ActiveSessionsGroupCompact',
-                './ProjectGroup': '@/components/ProjectGroup',
+                './EmptySessionsTablet': '@/components/EmptySessionsTablet',
+                './EmptyMainScreen': '@/components/EmptyMainScreen',
+                './InboxView': '@/components/InboxView',
+                './HomeDock': '@/components/HomeDock',
+                './SettingsViewWrapper': '@/components/SettingsViewWrapper',
+                './TabBar': '@/components/TabBar',
+                './HeaderLogo': '@/components/HeaderLogo',
+                './navigation/Header': '@/components/navigation/Header',
+                './NativeSettingsMenu': '@/components/NativeSettingsMenu',
+                './Avatar': '@/components/Avatar',
                 './UpdateBanner': '@/components/UpdateBanner',
                 './SessionActionsPopover': '@/components/SessionActionsPopover',
                 './ShortcutHints': '@/components/ShortcutHints',
@@ -339,10 +412,36 @@ const fixturePlugin: Plugin = {
             return null;
         });
         bundle.onLoad({ filter: /.*/, namespace: 'fixture-stub' }, (args) => ({
-            contents: virtualModules[args.path],
+            contents: args.path === 'sidebar-production-styles'
+                ? virtualModules['react-native-unistyles'].split('export const StyleSheet =')[0]
+                    + `
+                        import { StyleSheet, useUnistyles } from ${JSON.stringify(resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/index.js'))};
+                        StyleSheet.configure({ themes: { fixture: theme }, settings: { initialTheme: 'fixture' } });
+                        export { StyleSheet, useUnistyles };
+                    `
+                : virtualModules[args.path],
             loader: 'tsx',
             resolveDir: appRoot,
         }));
+        bundle.onLoad({ filter: /components\/Sidebar(View|NavigationButton)\.tsx$/ }, (args) => {
+            // Use the same Babel component wrappers as the shipped Web layout.
+            // Unistyles disables this transform under Vitest's NODE_ENV=test.
+            const previousNodeEnv = process.env.NODE_ENV;
+            process.env.NODE_ENV = 'production';
+            let transformed;
+            try {
+                const caller = { name: 'metro', platform: 'web', supportsStaticESM: true };
+                transformed = transformSync(readFileSync(args.path, 'utf8'), {
+                    filename: args.path, configFile: false, babelrc: false, caller,
+                    presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
+                    plugins: [['react-native-unistyles/plugin', { root: 'sources' }]],
+                });
+            } finally {
+                process.env.NODE_ENV = previousNodeEnv;
+            }
+            if (!transformed?.code) throw new Error('Sidebar production style transform failed');
+            return { contents: transformed.code, loader: 'js', resolveDir: dirname(args.path) };
+        });
     },
 };
 
@@ -357,21 +456,40 @@ describe('Projects and Super Session production UI gestures', () => {
                 contents: `
                     import React from 'react';
                     import { createRoot } from 'react-dom/client';
-                    import { usePathname } from 'expo-router';
+                    import { usePathname, routerFixture } from 'expo-router';
+                    import { useSession } from '@/sync/storage';
                     import { SidebarView } from '@/components/SidebarView';
                     import { SessionsList } from '@/components/SessionsList';
+                    import { MainView } from '@/components/MainView';
+                    import AppearanceScreen from '@/app/(app)/settings/appearance';
+                    import ProjectDetailScreen from '@/app/(app)/projects/[id]';
                     import ProjectsScreen from '@/app/(app)/projects/index';
                     import SessionProjectScreen from '@/app/(app)/session/[id]/project';
 
+                    function SessionDestination({ id }) {
+                        const session = useSession(id);
+                        return React.createElement('article', { 'data-testid': 'opened-session' },
+                            React.createElement('h1', null, session?.metadata?.summary?.text ?? id));
+                    }
                     function Fixture() {
                         const pathname = usePathname();
-                        if (pathname === '/projects') return React.createElement(ProjectsScreen);
-                        if (pathname.endsWith('/project')) return React.createElement(SessionProjectScreen);
-                        const mobile = new URLSearchParams(window.location.search).get('mobile') === '1';
-                        const searchQuery = new URLSearchParams(window.location.search).get('search') ?? '';
-                        return mobile
-                            ? React.createElement(SessionsList, { bottomContentInset: 12, searchQuery })
-                            : React.createElement('aside', { 'data-testid': 'desktop-sidebar', style: { width: 390, height: '100%' } }, React.createElement(SidebarView));
+                        const query = new URLSearchParams(window.location.search);
+                        let content;
+                        if (pathname === '/projects') content = React.createElement(ProjectsScreen);
+                        else if (pathname.startsWith('/projects/')) content = React.createElement(ProjectDetailScreen);
+                        else if (pathname.endsWith('/project')) content = React.createElement(SessionProjectScreen);
+                        else if (pathname === '/settings/appearance') content = React.createElement(AppearanceScreen);
+                        else if (pathname.startsWith('/session/')) content = React.createElement(SessionDestination, { id: pathname.split('/')[2] });
+                        else if (pathname !== '/') content = React.createElement('h1', null, pathname);
+                        else if (query.has('search')) content = React.createElement(SessionsList, { searchQuery: query.get('search'), bottomContentInset: 12 });
+                        else content = query.get('mobile') === '1'
+                            ? React.createElement(MainView, { variant: 'phone' })
+                            : React.createElement('aside', { 'data-testid': 'desktop-sidebar', style: { width: 'min(390px, 100vw)', height: '100%', display: 'flex' } }, React.createElement(SidebarView));
+                        // This replaces Expo's stack host only. All project/list
+                        // actions under test originate in production components.
+                        return React.createElement('div', { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
+                            pathname !== '/' && React.createElement('button', { onClick: routerFixture.back, style: { minHeight: 40, flexShrink: 0 } }, 'Back'),
+                            content);
                     }
                     createRoot(document.getElementById('root')).render(React.createElement(Fixture));
                 `,
@@ -413,220 +531,279 @@ describe('Projects and Super Session production UI gestures', () => {
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
 
-    it('pins one stable existing assistant row below desktop navigation and first on mobile', async () => {
-        for (const surface of [
-            { name: 'desktop', query: '', viewport: { width: 1440, height: 900 } },
-            { name: 'mobile', query: '?mobile=1', viewport: { width: 390, height: 844 } },
-        ] as const) {
-            const page = await browser.newPage({ viewport: surface.viewport });
-            page.setDefaultTimeout(2_000);
-            page.setDefaultNavigationTimeout(4_000);
-            const pageErrors: string[] = [];
-            page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
-            await page.goto(`${origin}/${surface.query}`);
+    const surfaces = [
+        { name: 'desktop', query: '', viewport: { width: 1440, height: 900 } },
+        { name: 'mobile', query: 'mobile=1&', viewport: { width: 390, height: 844 } },
+    ] as const;
 
+    async function openPage(surface: typeof surfaces[number], query = '') {
+        const page = await browser.newPage({ viewport: surface.viewport });
+        page.setDefaultTimeout(3_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+        await page.goto(`${origin}/?${surface.query}${query}`);
+        return { page, errors };
+    }
+
+    async function screenshot(page: Page, name: string) {
+        const directory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
+        if (!directory) return;
+        mkdirSync(resolve(directory), { recursive: true });
+        await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
+    }
+
+    async function openProjects(page: Page) {
+        await page.getByLabel('Projects', { exact: true }).click();
+        await page.getByText('Create Project', { exact: true }).waitFor();
+    }
+
+    for (const surface of surfaces) {
+        it(`keeps one pinned session first and opens the same stable ID repeatedly on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface);
             const pinned = page.getByText('Super Session (Pinned)', { exact: true });
-            const ordinary = page.getByText('Newest ordinary session', { exact: true });
-            await pinned.waitFor({ state: 'visible' }).catch(async (error) => {
-                throw new Error(`${String(error)}\nBody:\n${await page.locator('body').innerText()}\nBrowser errors:\n${pageErrors.join('\n')}`);
-            });
-            await ordinary.waitFor({ state: 'visible' });
-            const [pinnedBox, ordinaryBox] = await Promise.all([pinned.boundingBox(), ordinary.boundingBox()]);
-            expect(pinnedBox).not.toBeNull();
-            expect(ordinaryBox).not.toBeNull();
+            await pinned.waitFor();
+            expect(await pinned.count()).toBe(1);
+            const [pinnedBox, ordinaryBox] = await Promise.all([
+                pinned.boundingBox(), page.getByText('Newest ordinary session', { exact: true }).boundingBox(),
+            ]);
             expect(pinnedBox!.y).toBeLessThan(ordinaryBox!.y);
-
-            if (surface.name === 'desktop') {
-                const labels = ['New Session', 'Workspace', 'Projects', 'Automations'];
-                const navigationBoxes = await Promise.all(labels.map((label) => (
-                    page.getByRole('button', { name: label, exact: true }).boundingBox()
-                )));
-                navigationBoxes.forEach((box) => expect(box).not.toBeNull());
-                expect(navigationBoxes.map((box) => box!.y)).toEqual(
-                    [...navigationBoxes.map((box) => box!.y)].sort((a, b) => a - b),
-                );
-                expect(navigationBoxes.at(-1)!.y).toBeLessThan(pinnedBox!.y);
+            await screenshot(page, `super-session-${surface.name}`);
+            for (let index = 0; index < 2; index += 1) {
+                await pinned.click();
+                await page.getByTestId('opened-session').getByText('Persistent assistant source title').waitFor();
+                await page.getByRole('button', { name: 'Back', exact: true }).click();
             }
-
-            await pinned.click();
-            await pinned.click();
-            await expect(page.evaluate(() => (window as any).__ROUTER_CALLS__)).resolves.toEqual([
-                '/session/super-session',
-                '/session/super-session',
+            expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
+                '/session/super-session', '/session/super-session',
             ]);
-            await expect(page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__ ?? [])).resolves.toEqual([]);
+            expect(errors).toEqual([]);
+            await page.close();
+        }, 15_000);
 
-            const evidenceDirectory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
-            if (evidenceDirectory) {
-                mkdirSync(resolve(evidenceDirectory), { recursive: true });
-                await page.screenshot({ path: resolve(evidenceDirectory, `super-session-${surface.name}.png`), fullPage: true });
+        it(`navigates project rows to assigned sessions, opens a session, and retains membership through Rename on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface, 'scenario=projects');
+            await openProjects(page);
+            const duplicateNames = page.getByText('Project Alpha', { exact: true });
+            expect(await duplicateNames.count()).toBe(2);
+            await duplicateNames.first().click();
+            await page.getByTestId('project-detail-screen').waitFor();
+            expect(await page.getByTestId('project-session-row-super-session').count()).toBe(1);
+            for (const id of ['ordinary-session', 'remote-session', 'bot-alpha']) {
+                await page.getByTestId(`project-session-row-${id}`).waitFor();
             }
-            expect(pageErrors).toEqual([]);
+            expect(await page.getByText('Same workspace different project', { exact: true }).count()).toBe(0);
+            expect(await page.getByText('Unassigned work', { exact: true }).count()).toBe(0);
+            const before = await page.locator('[data-testid^="project-session-row-"]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')));
+            expect(before[0]).toBe('project-session-row-super-session');
+            await page.getByText('Remote project session', { exact: true }).click();
+            await page.getByTestId('opened-session').getByText('Remote project session').waitFor();
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            page.once('dialog', (dialog) => dialog.accept('Renamed Alpha'));
+            await page.getByText('Rename project', { exact: true }).click();
+            expect(await page.evaluate(() => (window as any).__PROJECT_RENAME_CALLS__)).toEqual([
+                { id: 'project-alpha', name: 'Renamed Alpha' },
+            ]);
+            expect(await page.locator('[data-testid^="project-session-row-"]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')))).toEqual(before);
+            await screenshot(page, `project-detail-${surface.name}`);
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByText('Renamed Alpha', { exact: true }).waitFor();
+            await page.getByText('Project Alpha', { exact: true }).click();
+            await page.getByText('Same workspace different project', { exact: true }).waitFor();
+            expect(await page.getByText('Remote project session', { exact: true }).count()).toBe(0);
+            expect(await page.locator('[data-testid^="project-session-row-"]').count()).toBe(1);
+            expect(errors).toEqual([]);
             await page.close();
-        }
-    }, 15_000);
+        }, 15_000);
 
-    it('renders two same-name bots with machine identity and the real bot status avatar on desktop and mobile', async () => {
-        for (const surface of [
-            { name: 'desktop', query: '', viewport: { width: 1440, height: 900 } },
-            { name: 'mobile', query: '?mobile=1', viewport: { width: 390, height: 844 } },
-        ] as const) {
-            const page = await browser.newPage({ viewport: surface.viewport });
-            page.setDefaultTimeout(2_000);
-            page.setDefaultNavigationTimeout(4_000);
-            const pageErrors: string[] = [];
-            page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
-            await page.goto(`${origin}/${surface.query}`);
+        it(`supports empty and archive-only projects without changing global archive visibility on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface, 'scenario=projects');
+            await openProjects(page);
+            await page.getByText('Roadmap', { exact: true }).click();
+            await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByText('Historical project', { exact: true }).click();
+            expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
+            await page.getByTestId('project-archive-toggle').click();
+            await page.getByText('Retired assistant', { exact: true }).waitFor();
+            await page.getByTestId('project-session-row-bot-archived').waitFor();
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
+            expect(errors).toEqual([]);
+            await page.close();
+        }, 15_000);
 
-            const bots = page.getByText('Build assistant', { exact: true });
-            await expect(bots.count()).resolves.toBe(2);
-            await page.getByText('@builder-a · Alpha machine', { exact: true }).waitFor({ state: 'visible' });
-            await page.getByText('@builder-b · Beta machine', { exact: true }).waitFor({ state: 'visible' });
-            await expect(page.getByRole('img', { name: /Build assistant, Machine ID: machine-[ab], Waiting/ }).count())
-                .resolves.toBe(2);
-
-            // The target is the production SessionStatusAvatar. Its bot branch
-            // emits the hardware-chip glyph while the shared ring and harness
-            // remain mounted around it.
-            await expect(page.locator('[data-icon="hardware-chip-outline"]').count()).resolves.toBe(3);
-            await expect(page.locator('[data-harness="codex"]').count()).resolves.toBeGreaterThanOrEqual(3);
-            await expect(page.locator('[data-status-pulse="false"]').count()).resolves.toBeGreaterThanOrEqual(3);
-
-            const pinned = page.getByText('Super Session (Pinned)', { exact: true });
-            const ordinary = page.getByText('Newest ordinary session', { exact: true });
-            const [pinnedBox, ordinaryBox, firstBotBox, secondBotBox] = await Promise.all([
-                pinned.boundingBox(),
-                ordinary.boundingBox(),
-                bots.nth(0).boundingBox(),
-                bots.nth(1).boundingBox(),
-            ]);
-            expect(pinnedBox).not.toBeNull();
-            expect(ordinaryBox).not.toBeNull();
-            expect(firstBotBox).not.toBeNull();
-            expect(secondBotBox).not.toBeNull();
-            expect(pinnedBox!.y).toBeLessThan(ordinaryBox!.y);
-            expect(ordinaryBox!.y).toBeLessThan(firstBotBox!.y);
-            expect(firstBotBox!.y).toBeLessThan(secondBotBox!.y);
-
-            await bots.nth(0).click();
-            await bots.nth(0).click();
-            await expect(page.evaluate(() => (window as any).__ROUTER_CALLS__)).resolves.toEqual([
-                '/session/bot-alpha',
-                '/session/bot-alpha',
-            ]);
-
-            const evidenceDirectory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
-            if (evidenceDirectory) {
-                mkdirSync(resolve(evidenceDirectory), { recursive: true });
-                await page.screenshot({ path: resolve(evidenceDirectory, `bots-flat-${surface.name}.png`), fullPage: true });
+        it(`selects all three real Appearance view choices, retains the preference, and separates project IDs from workspaces on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface, 'scenario=projects&screen=appearance');
+            const grouping = page.getByRole('combobox', { name: 'Grouping', exact: true });
+            await grouping.waitFor();
+            expect(await grouping.locator('option').allTextContents()).toEqual(['Flat List', 'By workspace', 'By project']);
+            for (const value of ['personal-project', 'project', 'flat']) {
+                await grouping.selectOption(value);
+                await page.reload();
+                expect(await grouping.inputValue()).toBe(value);
+                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                const pinned = page.getByText('Super Session (Pinned)', { exact: true });
+                await pinned.waitFor();
+                expect(await pinned.count()).toBe(1);
+                await page.getByText('Remote project session', { exact: true }).waitFor();
+                await page.getByText('Same workspace different project', { exact: true }).waitFor();
+                const [pinnedBox, ordinaryBox] = await Promise.all([
+                    pinned.boundingBox(), page.getByText('Newest ordinary session', { exact: true }).boundingBox(),
+                ]);
+                expect(pinnedBox!.y).toBeLessThan(ordinaryBox!.y);
+                if (value === 'personal-project') {
+                    const projectHeaders = page.getByRole('heading', { name: 'Project Alpha', exact: true });
+                    expect(await projectHeaders.count()).toBe(2);
+                    const alphaGroup = projectHeaders.first().locator('..').locator('..');
+                    const [botsBox, projectBox] = await Promise.all([
+                        page.getByRole('heading', { name: 'Bots', exact: true }).boundingBox(),
+                        projectHeaders.first().boundingBox(),
+                    ]);
+                    expect(pinnedBox!.y).toBeLessThan(botsBox!.y);
+                    expect(botsBox!.y).toBeLessThan(projectBox!.y);
+                    await alphaGroup.getByText('Newest ordinary session', { exact: true }).waitFor();
+                    await alphaGroup.getByText('Remote project session', { exact: true }).waitFor();
+                    expect(await alphaGroup.getByText('Same workspace different project', { exact: true }).count()).toBe(0);
+                    await projectHeaders.nth(1).locator('..').locator('..').getByText('Same workspace different project', { exact: true }).waitFor();
+                    await page.getByRole('heading', { name: 'No project', exact: true }).locator('..').locator('..').getByText('Unassigned work', { exact: true }).waitFor();
+                } else if (value === 'project') {
+                    expect(await page.getByRole('heading', { name: 'Project Alpha', exact: true }).count()).toBe(0);
+                    const workspace = page.getByText('current', { exact: true }).first().locator('..').locator('..').locator('..');
+                    await workspace.getByText('Newest ordinary session', { exact: true }).waitFor();
+                    await workspace.getByText('Same workspace different project', { exact: true }).waitFor();
+                    expect(await workspace.getByText('Remote project session', { exact: true }).count()).toBe(0);
+                    await page.getByText('checkout', { exact: true }).first().waitFor();
+                }
+                const archive = page.getByRole('button', { name: 'Show Archived', exact: true }).last();
+                await archive.click();
+                await page.getByText('Retired assistant', { exact: true }).waitFor();
+                await screenshot(page, `grouping-${value}-${surface.name}`);
+                await page.goto(`${origin}/?${surface.query}scenario=projects&screen=appearance`);
             }
-            expect(pageErrors).toEqual([]);
+            expect(errors).toEqual([]);
             await page.close();
-        }
-    }, 15_000);
+        }, 15_000);
 
-    it('places the Bots section before Projects in grouped mode and filters bot identity through Home search', async () => {
-        for (const surface of [
-            { name: 'desktop', query: '?grouping=project', viewport: { width: 1440, height: 900 } },
-            { name: 'mobile', query: '?mobile=1&grouping=project', viewport: { width: 390, height: 844 } },
-        ] as const) {
-            const page = await browser.newPage({ viewport: surface.viewport });
-            page.setDefaultTimeout(2_000);
-            await page.goto(`${origin}/${surface.query}`);
+        it(`waits for a delayed project catalog before resolving a direct detail route on ${surface.name}`, async () => {
+            for (const missing of [false, true]) {
+                const page = await browser.newPage({ viewport: surface.viewport });
+                page.setDefaultTimeout(3_000);
+                let releaseCatalog!: () => void;
+                const responseReady = new Promise<void>((resolveReady) => { releaseCatalog = resolveReady; });
+                await page.route('**/fixture-catalog', async (route) => {
+                    await responseReady;
+                    await route.fulfill({ json: { empty: missing } });
+                });
+                await page.goto(`${origin}/?${surface.query}scenario=projects&screen=detail&catalog=delayed&project=${missing ? 'missing-project' : 'project-alpha'}`);
+                await page.getByTestId('project-detail-loading').waitFor();
+                expect(await page.getByText('Project not found', { exact: true }).count()).toBe(0);
+                releaseCatalog();
+                if (missing) await page.getByText('Project not found', { exact: true }).waitFor();
+                else await page.getByTestId('project-session-row-ordinary-session').waitFor();
+                expect(await page.getByTestId('project-detail-loading').count()).toBe(0);
+                await page.close();
+            }
+        }, 15_000);
 
-            const pinned = page.getByText('Super Session (Pinned)', { exact: true });
-            const botsHeader = page.getByRole('heading', { name: 'Bots', exact: true });
-            const project = page.getByText('Project Alpha', { exact: true });
-            const [pinnedBox, botsBox, projectBox] = await Promise.all([
-                pinned.boundingBox(),
-                botsHeader.boundingBox(),
-                project.boundingBox(),
-            ]);
-            expect(pinnedBox).not.toBeNull();
-            expect(botsBox).not.toBeNull();
-            expect(projectBox).not.toBeNull();
-            expect(pinnedBox!.y).toBeLessThan(botsBox!.y);
-            expect(botsBox!.y).toBeLessThan(projectBox!.y);
-            await expect(page.getByText('Build assistant', { exact: true }).count()).resolves.toBe(2);
+        it(`retains bot names, machine identities, status avatars, and archive access on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface);
+            expect(await page.getByText('Build assistant', { exact: true }).count()).toBe(2);
+            await page.getByText('@builder-a · Alpha machine', { exact: true }).waitFor();
+            await page.getByText('@builder-b · Beta machine', { exact: true }).waitFor();
+            expect(await page.getByRole('img', { name: /Build assistant, Machine ID: machine-[ab], Waiting/ }).count()).toBe(2);
+            expect(await page.locator('[data-icon="hardware-chip-outline"]').count()).toBe(3);
+            await page.getByRole('button', { name: 'Show Archived', exact: true }).last().click();
+            await page.getByRole('img', { name: /Retired assistant, Machine ID: machine-b, Disconnected/ }).waitFor();
+            expect(await page.locator('[data-icon="hardware-chip-outline"]').count()).toBe(4);
+            expect(errors).toEqual([]);
             await page.close();
+        }, 15_000);
+    }
+
+    it('lays out three accessible equal-width icon destinations above New Session and Archive', async () => {
+        const { page, errors } = await openPage(surfaces[0]);
+        const labels = ['Workspace', 'Projects', 'Automations'];
+        const icons = labels.map((name) => page.getByRole('button', { name, exact: true }));
+        const boxes = await Promise.all(icons.map((icon) => icon.boundingBox()));
+        for (let index = 0; index < icons.length; index += 1) {
+            expect(boxes[index]).not.toBeNull();
+            expect(boxes[index]!.height).toBe(40);
+            expect(boxes[index]!.y).toBe(boxes[0]!.y);
+            expect(Math.abs(boxes[index]!.width - boxes[0]!.width)).toBeLessThan(1);
+            expect((await icons[index].innerText()).trim()).toBe('•');
+            expect(await icons[index].getAttribute('title')).toBe(labels[index]);
+            if (index) expect(boxes[index]!.x).toBeGreaterThan(boxes[index - 1]!.x);
         }
-
-        const search = await browser.newPage({ viewport: { width: 390, height: 844 } });
-        search.setDefaultTimeout(2_000);
-        await search.goto(`${origin}/?mobile=1&search=builder-b`);
-        await expect(search.getByText('Build assistant', { exact: true }).count()).resolves.toBe(1);
-        await search.getByText('@builder-b · Beta machine', { exact: true }).waitFor({ state: 'visible' });
-        await expect(search.getByText('@builder-a · Alpha machine', { exact: true }).count()).resolves.toBe(0);
-        await search.close();
-    }, 15_000);
-
-    it('reveals an archived bot with the same name and avatar identity after the visible archive gesture', async () => {
-        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-        page.setDefaultTimeout(2_000);
-        await page.goto(`${origin}/?mobile=1`);
-
-        await expect(page.getByText('Retired assistant', { exact: true }).count()).resolves.toBe(0);
-        await page.getByRole('button', { name: 'Show Archived', exact: true }).click();
-        await page.getByText('Retired assistant', { exact: true }).waitFor({ state: 'visible' });
-        await page.getByText('@retired · Beta machine', { exact: true }).waitFor({ state: 'visible' });
-        await page.getByRole('img', { name: /Retired assistant, Machine ID: machine-b, Disconnected/ })
-            .waitFor({ state: 'visible' });
-        await expect(page.locator('[data-icon="hardware-chip-outline"]').count()).resolves.toBe(4);
-        await page.close();
-    }, 10_000);
-
-    it('creates and renames independent projects from the production Projects screen', async () => {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-        page.setDefaultTimeout(2_000);
-        page.setDefaultNavigationTimeout(4_000);
-        const pageErrors: string[] = [];
-        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
-        await page.goto(origin);
-        await page.getByRole('button', { name: 'Projects', exact: true }).click();
-
-        await expect(page.getByText('Roadmap', { exact: true }).count()).resolves.toBe(1);
-        await expect(page.getByText('0 sessions', { exact: true }).count()).resolves.toBe(1);
-
-        page.once('dialog', (dialog) => dialog.accept('Client launch'));
-        await page.getByText('Create Project', { exact: true }).click();
-        await page.getByText('Client launch', { exact: true }).waitFor();
-
-        page.once('dialog', (dialog) => dialog.accept('Launch plan'));
-        await page.getByText('Client launch', { exact: true }).click();
-        await page.getByText('Launch plan', { exact: true }).waitFor();
-
-        await expect(page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).resolves.toEqual(['Client launch']);
-        await expect(page.evaluate(() => (window as any).__PROJECT_RENAME_CALLS__)).resolves.toEqual([
-            { id: 'created-project', name: 'Launch plan' },
+        const newButton = page.getByRole('button', { name: 'New Session', exact: true });
+        const archive = page.getByRole('button', { name: 'Show Archived', exact: true }).first();
+        const [newBox, archiveBox, pinnedBox] = await Promise.all([
+            newButton.boundingBox(), archive.boundingBox(), page.getByText('Super Session (Pinned)', { exact: true }).boundingBox(),
         ]);
-        const evidenceDirectory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
-        if (evidenceDirectory) {
-            mkdirSync(resolve(evidenceDirectory), { recursive: true });
-            await page.screenshot({ path: resolve(evidenceDirectory, 'projects-management.png'), fullPage: true });
+        expect(newBox!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
+        expect(newBox!.y).toBe(archiveBox!.y);
+        expect(newBox!.width).toBeGreaterThan(archiveBox!.width * 4);
+        expect(archiveBox!.x).toBeGreaterThan(newBox!.x);
+        expect(pinnedBox!.y).toBeGreaterThan(newBox!.y + newBox!.height);
+        await screenshot(page, 'compact-sidebar-navigation');
+        for (const [name, destination] of [['Workspace', '/workspace'], ['Projects', '/projects'], ['Automations', '/automations'], ['New Session', '/new']]) {
+            await page.getByRole('button', { name, exact: true }).click();
+            expect((await page.evaluate(() => (window as any).__ROUTER_CALLS__)).at(-1)).toBe(destination);
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
         }
-        expect(pageErrors).toEqual([]);
+        expect(errors).toEqual([]);
         await page.close();
-    }, 10_000);
+    }, 15_000);
 
-    it('assigns an existing session to a selected project from the production selector', async () => {
-        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-        page.setDefaultTimeout(2_000);
-        page.setDefaultNavigationTimeout(4_000);
-        const pageErrors: string[] = [];
-        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
-        await page.goto(`${origin}/?screen=assignment`);
-
-        const evidenceDirectory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
-        if (evidenceDirectory) {
-            mkdirSync(resolve(evidenceDirectory), { recursive: true });
-            await page.screenshot({ path: resolve(evidenceDirectory, 'session-project-selector.png'), fullPage: true });
+    it('keeps bot identity search and project assignment on their production components', async () => {
+        const { page, errors } = await openPage(surfaces[1], 'search=builder-b');
+        for (const grouping of ['flat', 'project', 'personal-project']) {
+            await page.goto(`${origin}/?mobile=1&grouping=${grouping}&search=builder-b`);
+            expect(await page.getByText('Build assistant', { exact: true }).count()).toBe(1);
+            await page.getByText('@builder-b · Beta machine', { exact: true }).waitFor();
+            expect(await page.getByText('@builder-a · Alpha machine', { exact: true }).count()).toBe(0);
         }
+        await page.goto(`${origin}/?screen=assignment`);
         await page.getByText('Roadmap', { exact: true }).click();
-        await expect(page.evaluate(() => (window as any).__PROJECT_ASSIGN_CALLS__)).resolves.toEqual([
+        expect(await page.evaluate(() => (window as any).__PROJECT_ASSIGN_CALLS__)).toEqual([
             { sessionId: 'ordinary-session', projectId: 'empty-project' },
         ]);
-        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__)).resolves.toBe(1);
-        expect(pageErrors).toEqual([]);
+        expect(errors).toEqual([]);
         await page.close();
-    }, 10_000);
+    }, 15_000);
+
+    it('keeps an archived or inactive assigned Super Session pinned above the project archive', async () => {
+        for (const surface of surfaces) {
+            for (const state of ['archived', 'inactive']) {
+                const { page, errors } = await openPage(surface, `scenario=projects&super-state=${state}`);
+                await openProjects(page);
+                await page.getByText('Project Alpha', { exact: true }).first().click();
+                const pinned = page.getByTestId('project-session-row-super-session');
+                await pinned.waitFor();
+                expect(await pinned.count()).toBe(1);
+                const [pinnedBox, ordinaryBox] = await Promise.all([
+                    pinned.boundingBox(), page.getByTestId('project-session-row-ordinary-session').boundingBox(),
+                ]);
+                expect(pinnedBox!.y).toBeLessThan(ordinaryBox!.y);
+                expect(await page.getByTestId('project-session-row-bot-archived').count()).toBe(0);
+                await page.getByTestId('project-archive-toggle').click();
+                await page.getByTestId('project-session-row-bot-archived').waitFor();
+                expect(await pinned.count()).toBe(1);
+                expect(errors).toEqual([]);
+                await page.close();
+            }
+        }
+    }, 30_000);
+
+    it('creates a project through the production dialog and opens its empty session list', async () => {
+        const { page, errors } = await openPage(surfaces[0]);
+        await openProjects(page);
+        page.once('dialog', (dialog) => dialog.accept('Client launch'));
+        await page.getByText('Create Project', { exact: true }).click();
+        await page.getByText('Client launch', { exact: true }).click();
+        await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).toEqual(['Client launch']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
 });
