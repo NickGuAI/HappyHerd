@@ -88,13 +88,9 @@ contract suite before release.
   `ui-surface-inventory.json` and `ui-tree.html` with
   `pnpm --filter happy-app ui:inventory:generate`.
 - `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
-  parity, semantic exemptions, AST copy scanning, the 38-route inventory, and
+  parity, semantic exemptions, AST copy scanning, the route inventory, and
   the critical locale/viewport/theme smoke matrix.
-- Every top-level desktop sidebar destination must use the shared
-  `SidebarNavigationButton` component and live in the primary navigation
-  column. Do not give vertically stacked navigation controls flexible height;
-  new destinations must match the New Session button's width, height, spacing,
-  typography, interaction states, and accessibility semantics.
+- All top-level desktop sidebar destinations must use the shared `SidebarNavigationButton` component. The first horizontal row must contain icon-only buttons for Workspace, Projects, and Automations, while the second row contains the wide New Session button and the existing archive visibility icon. This compact navigation sidebar must maintain a natural or fixed height without vertical flex growth, ensuring all icons retain accessible labels and hover hints.
 
 ## Product changelog
 

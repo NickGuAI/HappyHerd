@@ -240,8 +240,9 @@
     "title": "Filter",
     "groupingTitle": "Grouping",
     "flatList": "Flat List",
-    "groupByProject": "Group by Project",
-    "appearanceSettings": "Appearance Settings"
+    "groupByProject": "By project",
+    "appearanceSettings": "Appearance Settings",
+    "groupByWorkspace": "By workspace"
   },
   "settingsFeatures": {
     "experiments": "Experiments",
@@ -1797,7 +1798,10 @@
           "other": "{count} sessions"
         }
       }
-    }
+    },
+    "sessionsEmpty": "No sessions in this project yet",
+    "notFound": "Project not found",
+    "rename": "Rename project"
   },
   "superSession": {
     "pinned": "Super Session (Pinned)"
