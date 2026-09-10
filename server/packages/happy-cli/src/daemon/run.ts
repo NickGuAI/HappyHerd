@@ -2167,6 +2167,7 @@ export async function startDaemon(): Promise<void> {
         isSuperSession: true,
         commanderId: commander.id,
         commanderName: commander.name,
+        summary: { text: commander.name, updatedAt: Date.now() },
         commanderPath: commander.commanderPath,
         commanderWorkspace: commander.workspace,
         commanderAgentContextPath: commander.agentContextPath,

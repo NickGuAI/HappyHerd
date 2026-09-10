@@ -261,6 +261,7 @@ import {
 import { prepareCommanderContext } from '@/agentContext/commanderContext';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
 import { DefaultAssistantApi } from '@/api/defaultAssistant';
+import * as defaultAssistantCommander from '@/agentContext/defaultAssistant';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -434,6 +435,47 @@ describe('daemon session continuity', () => {
     expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
     expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
     expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+  });
+
+  it('publishes a recognizable title when creating the initial Assistant and waits for its registered session', async () => {
+    const sessionId = 'new-default-assistant';
+    const commander = {
+      id: 'custom-assistant', name: 'My Assistant', workspace: process.cwd(),
+      commanderPath: '/context/COMMANDER.md', agentContextPath: '/context/agentcontext',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    let prepared: import('@/api/types').Session | undefined;
+    vi.spyOn(defaultAssistantCommander, 'ensureDefaultAssistantCommander').mockResolvedValue(commander);
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue(null);
+    vi.spyOn(DefaultAssistantApi.prototype, 'prepare').mockImplementation((metadata) => {
+      prepared = { id: sessionId, ...encryption, metadata, agentState: null };
+      return prepared;
+    });
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish').mockResolvedValue({
+      session: { id: sessionId } as any, isRequestedSession: true,
+    });
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    let completed = false;
+    const ensure = control.ensureDefaultAssistant().then(result => { completed = true; return result; });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    expect(completed).toBe(false);
+    expect(publish.mock.calls[0][0].metadata).toMatchObject({
+      commanderId: commander.id,
+      summary: { text: commander.name, updatedAt: expect.any(Number) },
+    });
+    const [, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    control.onHappySessionWebhook(sessionId, {
+      ...prepared!.metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'created', sessionId, commanderId: commander.id });
   });
 
   it('initializes an Assistant with a reused untracked metadata PID instead of treating that process as its provider', async () => {
