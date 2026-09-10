@@ -333,3 +333,4 @@ PROJECT_SESSION_NAVIGATION	accepted	docs: synchronize project navigation invento
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): verify navigation grouping and compact sidebar gestures	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): retain bot ordering and avatar assertions	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
 NATIVE_INSTALLER_AUTH	accepted	test(installer): prove paired daemon and retained history across upgrades	scripts/test-native-installer-auth.mjs
+NATIVE_INSTALLER_AUTH	accepted	test(installer): require installer-owned daemon restart	scripts/test-native-installer-auth.mjs

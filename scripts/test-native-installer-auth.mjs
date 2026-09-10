@@ -245,7 +245,6 @@ try {
   });
   assert((await run(cli, ['auth', 'login'])).includes('Already authenticated'),
     'upgrade lost CLI authentication');
-  await run(cli, ['daemon', 'start']);
   await connect();
   stage = 'post-upgrade online daemon and retained history';
   const after = await onlineMachine(accountEncryption, before.id);
