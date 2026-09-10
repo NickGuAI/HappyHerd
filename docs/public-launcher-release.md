@@ -132,3 +132,5 @@ four-target build/smoke matrix must pass on the reviewed head to prove macOS and
 and a download from the resulting GitHub Release are the evidence that the
 public assets exist; source, local tests, and an untagged workflow run do not
 prove publication.
+
+The HappyHerd native installer workflow now verifies real CLI authentication over PTY, daemon connectivity, and encrypted read-only machine RPC operations. It registers disposable account keys in memory to establish and verify an encrypted, server-persisted session history that persists across installer reruns. Setting the manual `verify_published` input to `true` on `workflow_dispatch` skips local compilation entirely to fetch and run the latest live public script (`curl ... | sh`) on macOS/Linux arm64/x64 runners to check the published install path.

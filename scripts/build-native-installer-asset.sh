@@ -137,6 +137,7 @@ deploy_locked() {
 )
 deploy_locked @happyherd/cli "$runtime_stage"
 deploy_locked happy-server-self-host "$server_stage"
+node "$repo_root/server/patches/fix-pglite-prisma-bytes.cjs" "$server_stage"
 
 [[ -f "$runtime_stage/bin/happy.mjs" ]] || { echo 'error: CLI deployment is incomplete' >&2; exit 1; }
 [[ -f "$server_stage/package.json" ]] || { echo 'error: server deployment is incomplete' >&2; exit 1; }

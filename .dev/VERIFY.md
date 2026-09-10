@@ -208,3 +208,5 @@ TickTick only when upstream advances.
 - merged head SHA, ancestry proof, and exact branch cleanup result.
 
 The native installer workflow runs a four-target build and smoke matrix on pull requests, tags, and manual dispatch; only `happyherd-v*` tags publish. The first prepared stable release is required before the latest installer URL can work. Published-download proof remains separate from PR build and smoke results.
+
+Setting the manual `verify_published` input to `true` on `workflow_dispatch` skips local compilation entirely to fetch and run the latest live public script (`curl ... | sh`) on macOS/Linux arm64/x64 runners to check the published install path.

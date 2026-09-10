@@ -11,6 +11,9 @@
  */
 const fs = require('fs');
 const path = require('path');
+const root = require.main === module && process.argv[2]
+    ? path.resolve(process.argv[2])
+    : path.resolve(__dirname, '..');
 
 const files = [
     'node_modules/pglite-prisma-adapter/dist/index.mjs',
@@ -22,7 +25,7 @@ const files = [
 let patched = 0;
 
 for (const file of files) {
-    const filePath = path.resolve(__dirname, '..', file);
+    const filePath = path.resolve(root, file);
     if (!fs.existsSync(filePath)) continue;
 
     let content = fs.readFileSync(filePath, 'utf8');

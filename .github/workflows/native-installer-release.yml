@@ -6,6 +6,11 @@ on:
     tags:
       - happyherd-v*
   workflow_dispatch:
+    inputs:
+      verify_published:
+        description: Test the public latest installer without rebuilding
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,6 +21,7 @@ env:
 
 jobs:
   build:
+    if: ${{ !inputs.verify_published }}
     name: Build and test ${{ matrix.target }}
     strategy:
       fail-fast: false
@@ -110,3 +116,25 @@ jobs:
               "${release_flags[@]}" \
               --generate-notes
           fi
+
+  published:
+    name: Public install and auth ${{ matrix.target }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_published }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-14
+          - target: darwin-x64
+            runner: macos-15-intel
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: linux-x64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise public download, pairing, machine RPC, and upgrade
+        shell: bash
+        run: scripts/test-native-installer-asset.sh --published "${{ matrix.target }}"
