@@ -32,6 +32,7 @@ import type { PersistedSession } from '@/persistence';
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, listDaemonSessions, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
 import type { LocalSessionCreationRequest, LocalSessionCreationReceipt } from './controlServer';
+import type { LocalSessionSendRequest, LocalSessionSendReceipt, LocalSessionInspectRequest, LocalSessionInspectReceipt } from './localSessionClient';
 import { statSync } from 'fs';
 import { join } from 'path';
 import { projectPath } from '@/projectPath';
@@ -1704,6 +1705,12 @@ export async function startDaemon(): Promise<void> {
     let createLocalSession = async (_request: LocalSessionCreationRequest): Promise<LocalSessionCreationReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry local session creation.');
     };
+    let sendLocalMessage = async (_request: LocalSessionSendRequest): Promise<LocalSessionSendReceipt> => {
+      throw new Error('HappyHerd daemon is still starting; retry local session messaging.');
+    };
+    let inspectLocalSession = async (_request: LocalSessionInspectRequest): Promise<LocalSessionInspectReceipt> => {
+      throw new Error('HappyHerd daemon is still starting; retry local session inspection.');
+    };
 
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
@@ -1717,6 +1724,8 @@ export async function startDaemon(): Promise<void> {
       automations,
       ensureDefaultAssistant: () => ensureDefaultAssistant(),
       createLocalSession: (request) => createLocalSession(request),
+      sendLocalMessage: (request) => sendLocalMessage(request),
+      inspectLocalSession: (request) => inspectLocalSession(request),
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -1780,8 +1789,9 @@ export async function startDaemon(): Promise<void> {
         throw new Error(result.type === 'error' ? result.errorMessage : `Directory creation requires approval: ${result.directory}`);
       }
       const metadata = persisted[result.sessionId]?.metadata;
-      if (!metadata || metadata.path !== request.directory || metadata.machineId !== machineId
-        || !persistedMachineSessionSettingsMatch(metadata, effectiveSettings)) {
+      if (!metadata || metadata.machineId !== machineId
+        || !persistedMachineSessionSettingsMatch(metadata, effectiveSettings)
+        || await fs.realpath(metadata.path) !== await fs.realpath(request.directory)) {
         throw new Error(`Session ${result.sessionId} did not persist its confirmed machine-session settings`);
       }
       let commander: LocalSessionCreationReceipt['commander'] = null;
@@ -2146,6 +2156,69 @@ export async function startDaemon(): Promise<void> {
       sampleResources: sampleHostResourceUsage,
     });
     manageLocalSideChat = (request) => sideChatLifecycle.execute(request);
+
+    const readOwnedLocalSession = async (sessionId: string) => {
+      const saved = persisted[sessionId];
+      if (!saved || saved.metadata.machineId !== machineId) {
+        throw new Error(`Session ${sessionId} is not stored on this machine`);
+      }
+      const inspected = await api.inspectSessionAuthoritative(localSessionFromPersistence(sessionId));
+      if (inspected.session.id !== sessionId || inspected.session.metadata.machineId !== machineId) {
+        throw new Error(`Session ${sessionId} belongs to another machine`);
+      }
+      persistAuthoritativeSession(inspected.session);
+      return inspected;
+    };
+    const isLocalProviderRunning = (sessionId: string) => {
+      const tracked = [...pidToTrackedSession.values()].find(item => item.happySessionId === sessionId);
+      return Boolean(tracked && !hasProviderProcessExited(tracked.pid));
+    };
+    sendLocalMessage = async (request) => {
+      const identity = {
+        schemaVersion: 1 as const, type: 'session-message' as const,
+        sessionId: request.sessionId, messageId: request.messageId,
+      };
+      let seq: number | undefined;
+      try {
+        const { session } = await readOwnedLocalSession(request.sessionId);
+        ({ seq } = await api.postSessionTask(session, { localId: request.messageId, text: request.text }));
+        if (!isLocalProviderRunning(request.sessionId)) {
+          const pending = queueMessageIdsForResume(session.agentState?.messageQueue).includes(request.messageId);
+          if (seq <= session.seq && !pending) {
+            throw new Error('Message is persisted, but prior execution is unknown while the provider is stopped. Inspect the session before submitting a new message ID.');
+          }
+          const resumed = await resumeSession(request.sessionId,
+            seq > session.seq ? { replayQueueMessageId: request.messageId } : undefined);
+          if (resumed.type !== 'success') {
+            throw new Error(resumed.type === 'error' ? resumed.errorMessage : 'Session workspace is unavailable');
+          }
+        }
+        return { ...identity, success: true, status: 'queued', seq };
+      } catch (error) {
+        return {
+          ...identity, success: false, status: seq === undefined ? 'failed' : 'queued',
+          ...(seq === undefined ? {} : { seq }),
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    };
+    inspectLocalSession = async (request) => {
+      const { session, active } = await readOwnedLocalSession(request.sessionId);
+      const messages = await api.readRecentSessionMessages(session, request.limit);
+      const metadata = session.metadata;
+      return {
+        schemaVersion: 1, type: 'session-inspection', recent: true, limit: request.limit,
+        session: {
+          id: session.id, active, seq: session.seq, providerRunning: isLocalProviderRunning(session.id),
+          metadata: {
+            path: metadata.path, flavor: metadata.flavor,
+            commanderId: metadata.commanderId, commanderName: metadata.commanderName,
+            title: metadata.summary?.text, isSuperSession: metadata.isSuperSession, lifecycleState: metadata.lifecycleState,
+          },
+        },
+        messages: [...messages].sort((left, right) => left.seq - right.seq),
+      };
+    };
 
     const defaultAssistant = new DefaultAssistantBootstrap({
       machineId,

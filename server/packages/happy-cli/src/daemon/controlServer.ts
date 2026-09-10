@@ -17,6 +17,12 @@ import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/comma
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import type { DefaultAssistantReceipt } from './defaultAssistant';
 import { HappyHerdMachineSessionProviderSchema, HappyHerdMachineSessionSettingsSchema } from '@slopus/happy-wire';
+import {
+  LocalSessionSendRequestSchema, LocalSessionSendReceiptSchema,
+  LocalSessionInspectRequestSchema, LocalSessionInspectReceiptSchema,
+  type LocalSessionSendRequest, type LocalSessionSendReceipt,
+  type LocalSessionInspectRequest, type LocalSessionInspectReceipt,
+} from './localSessionClient';
 
 const LocalSessionCreationRequestSchema = z.object({
   directory: z.string().min(1),
@@ -55,6 +61,8 @@ export function startDaemonControlServer({
   automations,
   ensureDefaultAssistant,
   createLocalSession,
+  sendLocalMessage,
+  inspectLocalSession,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
@@ -66,6 +74,8 @@ export function startDaemonControlServer({
   automations: HappyHerdAutomationService;
   ensureDefaultAssistant?: () => Promise<DefaultAssistantReceipt>;
   createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
+  sendLocalMessage?: (request: LocalSessionSendRequest) => Promise<LocalSessionSendReceipt>;
+  inspectLocalSession?: (request: LocalSessionInspectRequest) => Promise<LocalSessionInspectReceipt>;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -87,6 +97,16 @@ export function startDaemonControlServer({
     }, async (request, reply) => {
       if (!createLocalSession) return reply.code(503).send({ error: 'Local session creation is unavailable' });
       return LocalSessionCreationReceiptSchema.parse(await createLocalSession(request.body));
+    });
+
+    typed.post('/session-send', { schema: { body: LocalSessionSendRequestSchema } }, async (request, reply) => {
+      if (!sendLocalMessage) return reply.code(503).send({ error: 'Local session messaging is unavailable' });
+      return LocalSessionSendReceiptSchema.parse(await sendLocalMessage(request.body));
+    });
+
+    typed.post('/session-inspect', { schema: { body: LocalSessionInspectRequestSchema } }, async (request, reply) => {
+      if (!inspectLocalSession) return reply.code(503).send({ error: 'Local session inspection is unavailable' });
+      return LocalSessionInspectReceiptSchema.parse(await inspectLocalSession(request.body));
     });
 
     // Session reports itself after creation
