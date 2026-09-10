@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+NATIVE_INSTALLER_PROOF	accepted	fix(installer): keep database byte handling in prepared releases	.github/workflows/native-installer-release.yml
 NEW_SESSION_PANEL_UX	accepted	fix(new-session): preserve native sizing and prove route gestures	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 NEW_SESSION_PANEL_UX	accepted	fix: improve new session panel size and folder navigation	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 SIDE_CHAT_PERMISSION	accepted	fix(side-chat): propagate explicit permission and confirmed settings	server/packages/happy-cli/src/daemon/run.resume.test.ts

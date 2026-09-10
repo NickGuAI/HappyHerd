@@ -1,5 +1,6 @@
 # September 10 — Sidebar Layout & Session Grouping Updates
 
+- Local machine pairing works after binary installation.
 - Added project session lists and project grouping, with compact sidebar navigation.
 
 # September 10 — Workspace Layout Restoration
