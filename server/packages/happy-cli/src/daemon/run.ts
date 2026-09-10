@@ -13,6 +13,9 @@ import {
 } from '@slopus/happy-wire';
 
 import { ApiClient } from '@/api/api';
+import { DefaultAssistantApi } from '@/api/defaultAssistant';
+import { DefaultAssistantBootstrap, hasAssistantProviderIdentity, type DefaultAssistantReceipt } from './defaultAssistant';
+import { ensureDefaultAssistantCommander } from '@/agentContext/defaultAssistant';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata, type Session } from '@/api/types';
 import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@slopus/happy-wire';
@@ -28,6 +31,7 @@ import type { PersistedSession } from '@/persistence';
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, listDaemonSessions, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
+import type { LocalSessionCreationRequest, LocalSessionCreationReceipt } from './controlServer';
 import { statSync } from 'fs';
 import { join } from 'path';
 import { projectPath } from '@/projectPath';
@@ -1228,9 +1232,13 @@ export async function startDaemon(): Promise<void> {
           && (metadata.isSideChat !== true || metadata.flavor !== freshSideChatProvider)) {
           throw new Error(`Session ${resolvedSessionId} is not a ${freshSideChatProvider} side chat.`);
         }
-        const launch = freshSideChatProvider
+        const initialAssistantProvider = metadata.isSuperSession === true && !hasAssistantProviderIdentity(metadata)
+          ? resolveDaemonResumeAgent(metadata) : null;
+        const freshProvider = freshSideChatProvider ?? initialAssistantProvider;
+        const launch = freshProvider
           ? {
-            args: [freshSideChatProvider, '--happy-starting-mode', 'remote', '--started-by', 'daemon'],
+            args: [freshProvider, ...(freshSideChatProvider || freshProvider === 'claude'
+              ? ['--happy-starting-mode', 'remote'] : []), '--started-by', 'daemon'],
             cwd: metadata.path,
           }
           : buildResumeLaunch(
@@ -1690,6 +1698,13 @@ export async function startDaemon(): Promise<void> {
       providerLimitRotations.set(key, handling);
     };
 
+    let ensureDefaultAssistant = async (): Promise<DefaultAssistantReceipt> => {
+      throw new Error('HappyHerd daemon is still starting; retry Assistant setup.');
+    };
+    let createLocalSession = async (_request: LocalSessionCreationRequest): Promise<LocalSessionCreationReceipt> => {
+      throw new Error('HappyHerd daemon is still starting; retry local session creation.');
+    };
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
@@ -1700,6 +1715,8 @@ export async function startDaemon(): Promise<void> {
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       automations,
+      ensureDefaultAssistant: () => ensureDefaultAssistant(),
+      createLocalSession: (request) => createLocalSession(request),
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -1749,6 +1766,48 @@ export async function startDaemon(): Promise<void> {
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
+
+    createLocalSession = async (request) => {
+      if (request.isSuperSession && !request.commanderId) throw new Error('Super Session creation requires a Commander');
+      const effectiveSettings = resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+        provider: request.agent,
+        model: request.modelMode,
+        effort: request.effortLevel,
+        permission: request.permissionMode,
+      });
+      const result = await spawnSession({ ...request, effectiveSettings });
+      if (result.type !== 'success') {
+        throw new Error(result.type === 'error' ? result.errorMessage : `Directory creation requires approval: ${result.directory}`);
+      }
+      const metadata = persisted[result.sessionId]?.metadata;
+      if (!metadata || metadata.path !== request.directory || metadata.machineId !== machineId
+        || !persistedMachineSessionSettingsMatch(metadata, effectiveSettings)) {
+        throw new Error(`Session ${result.sessionId} did not persist its confirmed machine-session settings`);
+      }
+      let commander: LocalSessionCreationReceipt['commander'] = null;
+      if (request.commanderId) {
+        if (metadata.commanderId !== request.commanderId || !metadata.commanderName || !metadata.commanderPath
+          || !metadata.commanderWorkspace || !metadata.commanderAgentContextPath) {
+          throw new Error(`Session ${result.sessionId} did not persist Commander ${request.commanderId}`);
+        }
+        commander = {
+          id: metadata.commanderId, name: metadata.commanderName, path: metadata.commanderPath,
+          workspace: metadata.commanderWorkspace, agentContextPath: metadata.commanderAgentContextPath,
+        };
+      }
+      if (request.isSuperSession && metadata.isSuperSession !== true) {
+        throw new Error(`Session ${result.sessionId} did not persist the Super Session marker`);
+      }
+      return {
+        success: true,
+        sessionId: result.sessionId,
+        machine: { id: machineId, host: machine.metadata.host, platform: machine.metadata.platform },
+        path: metadata.path,
+        settings: HappyHerdMachineSessionSettingsSchema.parse(result.settings),
+        commander,
+        ...(request.isSuperSession ? { superSession: true as const } : {}),
+      };
+    };
 
     // Set RPC handlers
     apiMachine.setRPCHandlers({
@@ -2087,6 +2146,49 @@ export async function startDaemon(): Promise<void> {
       sampleResources: sampleHostResourceUsage,
     });
     manageLocalSideChat = (request) => sideChatLifecycle.execute(request);
+
+    const defaultAssistant = new DefaultAssistantBootstrap({
+      machineId,
+      api: new DefaultAssistantApi(credentials),
+      sessions: () => Object.keys(persisted).map(localSessionFromPersistence),
+      persist: persistAuthoritativeSession,
+      ensureCommander: ensureDefaultAssistantCommander,
+      machineMetadata: () => machine.metadata,
+      createMetadata: (commander, settings) => ({
+        path: commander.workspace,
+        host: os.hostname(),
+        homeDir: os.homedir(),
+        happyHomeDir: configuration.happyHomeDir,
+        happyLibDir: projectPath(),
+        happyToolsDir: join(projectPath(), 'tools', 'unpacked'),
+        machineId,
+        flavor: settings.provider,
+        spawnSettings: settings,
+        isSuperSession: true,
+        commanderId: commander.id,
+        commanderName: commander.name,
+        commanderPath: commander.commanderPath,
+        commanderWorkspace: commander.workspace,
+        commanderAgentContextPath: commander.agentContextPath,
+      }),
+      isRunning: (session) => {
+        const tracked = [...pidToTrackedSession.values()].find(item => item.happySessionId === session.id);
+        const pid = tracked?.pid ?? session.metadata.hostPid;
+        return Boolean(pid && !hasProviderProcessExited(pid));
+      },
+      start: async (session) => {
+        const result = await resumeSession(session.id);
+        if (result.type !== 'success') {
+          throw new Error(result.type === 'error' ? result.errorMessage : 'Assistant workspace is unavailable');
+        }
+      },
+    });
+    ensureDefaultAssistant = () => defaultAssistant.ensure();
+    apiMachine.onCapabilitiesReady = () => {
+      void ensureDefaultAssistant().catch(error => {
+        logger.debug('[DEFAULT ASSISTANT] Setup deferred:', error instanceof Error ? error.message : String(error));
+      });
+    };
 
     // Connect to server
     apiMachine.connect();

@@ -15,6 +15,34 @@ import type { HappyHerdAutomationService } from '@/automations/service';
 import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import type { DefaultAssistantReceipt } from './defaultAssistant';
+import { HappyHerdMachineSessionProviderSchema, HappyHerdMachineSessionSettingsSchema } from '@slopus/happy-wire';
+
+const LocalSessionCreationRequestSchema = z.object({
+  directory: z.string().min(1),
+  agent: HappyHerdMachineSessionProviderSchema,
+  modelMode: z.string().optional(),
+  effortLevel: z.string().optional(),
+  permissionMode: z.string().optional(),
+  commanderId: z.string().min(1).optional(),
+  isSuperSession: z.boolean().optional(),
+  approvedNewDirectoryCreation: z.boolean(),
+}).strict();
+
+const LocalSessionCreationReceiptSchema = z.object({
+  success: z.literal(true),
+  sessionId: z.string(),
+  machine: z.object({ id: z.string(), host: z.string(), platform: z.string() }),
+  path: z.string(),
+  settings: HappyHerdMachineSessionSettingsSchema,
+  commander: z.object({
+    id: z.string(), name: z.string(), path: z.string(), workspace: z.string(), agentContextPath: z.string(),
+  }).nullable(),
+  superSession: z.literal(true).optional(),
+});
+
+export type LocalSessionCreationRequest = z.infer<typeof LocalSessionCreationRequestSchema>;
+export type LocalSessionCreationReceipt = z.infer<typeof LocalSessionCreationReceiptSchema>;
 
 export function startDaemonControlServer({
   getChildren,
@@ -25,6 +53,8 @@ export function startDaemonControlServer({
   requestShutdown,
   onHappySessionWebhook,
   automations,
+  ensureDefaultAssistant,
+  createLocalSession,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
@@ -34,6 +64,8 @@ export function startDaemonControlServer({
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
+  ensureDefaultAssistant?: () => Promise<DefaultAssistantReceipt>;
+  createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -44,6 +76,18 @@ export function startDaemonControlServer({
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     const typed = app.withTypeProvider<ZodTypeProvider>();
+
+    typed.post('/ensure-assistant', async (_request, reply) => {
+      if (!ensureDefaultAssistant) return reply.code(503).send({ error: 'Default Assistant setup is unavailable' });
+      return ensureDefaultAssistant();
+    });
+
+    typed.post('/create-session', {
+      schema: { body: LocalSessionCreationRequestSchema },
+    }, async (request, reply) => {
+      if (!createLocalSession) return reply.code(503).send({ error: 'Local session creation is unavailable' });
+      return LocalSessionCreationReceiptSchema.parse(await createLocalSession(request.body));
+    });
 
     // Session reports itself after creation
     typed.post('/session-started', {
