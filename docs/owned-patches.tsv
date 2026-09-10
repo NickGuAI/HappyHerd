@@ -321,3 +321,4 @@ BOT_SESSION_LIFECYCLE	accepted	feat: keep bot conversations machine-owned	server
 SELECTED_UPSTREAM_BOTS	accepted	docs: record selected session and bot adaptations	docs/upstream-selected-session-bots.md
 BOT_SESSION_DISPLAY	accepted	feat(app): surface bot sessions in the session list	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
 SESSION_INFO_ACTIONS	accepted	feat: prioritize safe Session Info actions	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
+SELECTED_UPSTREAM_BOTS	accepted	docs: synchronize selected session and bot UI inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
