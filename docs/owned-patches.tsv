@@ -324,3 +324,4 @@ SESSION_INFO_ACTIONS	accepted	feat: prioritize safe Session Info actions	server/
 SELECTED_UPSTREAM_BOTS	accepted	docs: synchronize selected session and bot UI inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 WORKSPACE_CHIP_LAYOUT	accepted	fix(workspace): keep machine and path choices compact	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 PROJECT_SESSION_NAVIGATION	accepted	feat(sidebar): compact navigation into two rows	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+PROJECT_SESSION_DETAIL	accepted	feat(projects): open assigned sessions from named projects	server/packages/happy-app/sources/utils/projectSessionList.test.ts

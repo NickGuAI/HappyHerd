@@ -154,6 +154,14 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="projects/[id]"
+                options={{
+                    headerShown: true,
+                    headerTitle: t('sidebar.projects'),
+                    headerBackTitle: t('sidebar.projects'),
+                }}
+            />
+            <Stack.Screen
                 name="session/[id]/project"
                 options={{
                     headerShown: true,
