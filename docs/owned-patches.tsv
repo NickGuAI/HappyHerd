@@ -332,3 +332,4 @@ PROJECT_SESSION_DETAIL	accepted	fix(projects): retain inactive pinned assistant 
 PROJECT_SESSION_NAVIGATION	accepted	docs: synchronize project navigation inventory and guide	server/packages/happy-app/sources/text/ui-surface-inventory.json
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): verify navigation grouping and compact sidebar gestures	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): retain bot ordering and avatar assertions	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+NATIVE_INSTALLER_AUTH	accepted	test(installer): prove paired daemon and retained history across upgrades	scripts/test-native-installer-auth.mjs
