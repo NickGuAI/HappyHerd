@@ -12,7 +12,7 @@ import { Text } from '@/components/StyledText';
 import { layout } from '@/components/layout';
 import { Typography } from '@/constants/Typography';
 import { Modal } from '@/modal';
-import { useProjects, useSessionListViewData } from '@/sync/storage';
+import { useProjects, useProjectsLoaded, useSessionListViewData } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { buildProjectSessionList } from '@/utils/projectSessionList';
@@ -24,6 +24,7 @@ export default React.memo(function ProjectSessionsScreen() {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const projects = useProjects();
+    const projectsLoaded = useProjectsLoaded();
     const sourceData = useSessionListViewData();
     const project = projects[id];
     const [renaming, setRenaming] = React.useState(false);
@@ -56,7 +57,7 @@ export default React.memo(function ProjectSessionsScreen() {
         <View style={styles.container} testID="project-detail-screen">
             <Stack.Screen options={{ headerTitle: title }} />
             <View style={styles.content}>
-                {sourceData === null ? (
+                {sourceData === null || (!project && !projectsLoaded) ? (
                     <View style={styles.state} testID="project-detail-loading">
                         <ActivityIndicator color={theme.colors.textSecondary} />
                     </View>
