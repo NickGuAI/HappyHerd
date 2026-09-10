@@ -1,6 +1,7 @@
 # September 10 — Sidebar Layout & Session Grouping Updates
 
 - Local machine pairing works after binary installation.
+- Fixed packaged self-host server startup on Amazon Linux 2023.
 - Added project session lists and project grouping, with compact sidebar navigation.
 
 # September 10 — Workspace Layout Restoration

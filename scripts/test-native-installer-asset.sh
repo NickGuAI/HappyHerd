@@ -104,6 +104,8 @@ customer_path="$forbidden_bin:$PATH"
 HOME="$test_home" SHELL=/bin/sh PATH="$customer_path" "${installer[@]}" \
   --server https://remote.example --no-start >/dev/null
 "$test_home/.local/bin/happyherd" --version >/dev/null
+"$test_home/.local/share/happyherd/node/bin/node" --test \
+  "$repo_root/server/packages/happy-server-self-host/index.test.cjs"
 "$test_home/.local/share/happyherd/node/bin/node" -e '
   const fs = require("node:fs");
   const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
