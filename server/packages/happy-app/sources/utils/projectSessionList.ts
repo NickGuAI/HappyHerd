@@ -25,13 +25,13 @@ export function buildProjectSessionList(
     const assigned = Array.from(rows.values())
         .filter((row) => row.session.projectId === projectId)
         .sort(compareFlatSessionRows);
-    const sessions = assigned.filter((row) => !row.session.archived);
+    const sessions = assigned.filter((row) => row.session.id === superSessionId || !row.session.archived);
     const superIndex = sessions.findIndex((row) => row.session.id === superSessionId);
     if (superIndex > 0) sessions.unshift(...sessions.splice(superIndex, 1));
 
     return {
         sessions,
-        archivedSessions: assigned.filter((row) => row.session.archived),
+        archivedSessions: assigned.filter((row) => row.session.id !== superSessionId && row.session.archived),
         superSessionId,
     };
 }

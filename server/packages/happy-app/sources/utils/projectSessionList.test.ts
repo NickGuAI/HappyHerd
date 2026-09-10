@@ -49,6 +49,19 @@ describe('buildProjectSessionList', () => {
         expect(result.sessions.find((row) => row.session.id === 'bot')?.session.botId).toBe('bot-id');
     });
 
+    it('keeps an archived or offline Super Session pinned above its project archive', () => {
+        const pinned = session('assistant', { active: false, archived: true, lastActivityAt: 1 });
+        const result = buildProjectSessionList([
+            { type: 'super-session', session: pinned },
+            group([session('ordinary', { lastActivityAt: 30 })]),
+            { type: 'session', session: session('archive', { archived: true, lastActivityAt: 50 }) },
+        ], 'project-a');
+
+        expect(result.sessions.map((row) => row.session.id)).toEqual(['assistant', 'ordinary']);
+        expect(result.archivedSessions.map((row) => row.session.id)).toEqual(['archive']);
+        expect(result.superSessionId).toBe('assistant');
+    });
+
     it('matches exact project IDs across machines and ignores equal names, paths and surrounding group IDs', () => {
         const result = buildProjectSessionList([
             group([
