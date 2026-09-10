@@ -328,3 +328,4 @@ PROJECT_SESSION_DETAIL	accepted	feat(projects): open assigned sessions from name
 PROJECT_CATALOG_READINESS	accepted	fix(projects): wait for catalog before showing missing project	server/packages/happy-app/sources/sync/storage.projects.test.ts
 PROJECT_SESSION_GROUPING	accepted	feat: add distinct project and workspace session views	server/packages/happy-app/sources/sync/sessionListGrouping.test.ts
 PROJECT_SESSION_DETAIL	accepted	fix(projects): retain inactive pinned assistant visibility	server/packages/happy-app/sources/utils/projectSessionList.test.ts
+PROJECT_SESSION_NAVIGATION	accepted	docs: synchronize project navigation inventory and guide	server/packages/happy-app/sources/text/ui-surface-inventory.json

@@ -90,7 +90,13 @@ contract suite before release.
 - `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
   parity, semantic exemptions, AST copy scanning, the route inventory, and
   the critical locale/viewport/theme smoke matrix.
-- All top-level desktop sidebar destinations must use the shared `SidebarNavigationButton` component. The first horizontal row must contain icon-only buttons for Workspace, Projects, and Automations, while the second row contains the wide New Session button and the existing archive visibility icon. This compact navigation sidebar must maintain a natural or fixed height without vertical flex growth, ensuring all icons retain accessible labels and hover hints.
+- All top-level desktop sidebar destinations must use the shared
+  `SidebarNavigationButton` component. The first horizontal row must contain
+  icon-only buttons for Workspace, Projects, and Automations, while the second
+  row contains the wide New Session button and the existing archive visibility
+  icon. This compact navigation sidebar must maintain a natural or fixed height
+  without vertical flex growth, ensuring all icons retain accessible labels and
+  hover hints.
 
 ## Product changelog
 

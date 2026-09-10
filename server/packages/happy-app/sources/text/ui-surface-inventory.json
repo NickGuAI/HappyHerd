@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "74c26fe5a96f35824c3aefa71946cf25516d47476964934fdbc53904e0c1d328",
-  "routeCount": 38,
-  "surfaceCount": 267,
+  "sourceFingerprint": "26ce7c8ab0c57e8a5419140ee757989a2b92cef4bb87fdcb03c372114a7a8a12",
+  "routeCount": 39,
+  "surfaceCount": 268,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -341,11 +341,25 @@
       ]
     },
     {
+      "path": "/projects/[id]",
+      "owner": "sources/app/(app)/projects/[id].tsx",
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError",
+        "sidebar.hideArchived",
+        "sidebar.projects",
+        "sidebar.showArchived"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
       "path": "/projects",
       "owner": "sources/app/(app)/projects/index.tsx",
       "translationKeys": [
         "common.error",
-        "common.rename",
         "happyHerd.automations.unknownError"
       ],
       "states": [
@@ -676,6 +690,7 @@
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "sessionsFilter.flatList",
         "sessionsFilter.groupByProject",
+        "sessionsFilter.groupByWorkspace",
         "sessionsFilter.groupingTitle",
         "settings.appearance",
         "settingsAppearance.alwaysShowContextSize",
@@ -1516,6 +1531,24 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/projects/[id].tsx",
+      "kind": "route",
+      "route": "/projects/[id]",
+      "exports": [],
+      "translationKeys": [
+        "common.error",
+        "common.rename",
+        "happyHerd.automations.unknownError",
+        "sidebar.hideArchived",
+        "sidebar.projects",
+        "sidebar.showArchived"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/projects/index.tsx",
       "kind": "route",
       "route": "/projects",
@@ -1524,7 +1557,6 @@
       ],
       "translationKeys": [
         "common.error",
-        "common.rename",
         "happyHerd.automations.unknownError"
       ],
       "states": [
@@ -1910,6 +1942,7 @@
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "sessionsFilter.flatList",
         "sessionsFilter.groupByProject",
+        "sessionsFilter.groupByWorkspace",
         "sessionsFilter.groupingTitle",
         "settings.appearance",
         "settingsAppearance.alwaysShowContextSize",
@@ -3813,6 +3846,7 @@
         "sessionsFilter.appearanceSettings",
         "sessionsFilter.flatList",
         "sessionsFilter.groupByProject",
+        "sessionsFilter.groupByWorkspace",
         "sessionsFilter.groupingTitle",
         "sessionsFilter.title",
         "settings.title",
@@ -4495,6 +4529,7 @@
         "SessionsList"
       ],
       "translationKeys": [
+        "projects.noProject",
         "sessionHistory.empty",
         "sessions.bots",
         "sidebar.hideArchived",
@@ -5860,6 +5895,7 @@
         "useMessage",
         "useProfile",
         "useProjects",
+        "useProjectsLoaded",
         "useProviderContinuationSessions",
         "useRealtimeMode",
         "useRealtimeStatus",
