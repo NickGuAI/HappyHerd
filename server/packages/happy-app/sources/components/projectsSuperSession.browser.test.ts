@@ -713,6 +713,25 @@ describe('Projects and Super Session production UI gestures', () => {
             await page.getByText('@builder-b · Beta machine', { exact: true }).waitFor();
             expect(await page.getByRole('img', { name: /Build assistant, Machine ID: machine-[ab], Waiting/ }).count()).toBe(2);
             expect(await page.locator('[data-icon="hardware-chip-outline"]').count()).toBe(3);
+            expect(await page.locator('[data-harness="codex"]').count()).toBeGreaterThanOrEqual(3);
+            expect(await page.locator('[data-status-pulse="false"]').count()).toBeGreaterThanOrEqual(3);
+            const bots = page.getByText('Build assistant', { exact: true });
+            const [pinnedBox, ordinaryBox, firstBotBox, secondBotBox] = await Promise.all([
+                page.getByText('Super Session (Pinned)', { exact: true }).boundingBox(),
+                page.getByText('Newest ordinary session', { exact: true }).boundingBox(),
+                bots.nth(0).boundingBox(), bots.nth(1).boundingBox(),
+            ]);
+            expect(pinnedBox!.y).toBeLessThan(ordinaryBox!.y);
+            expect(ordinaryBox!.y).toBeLessThan(firstBotBox!.y);
+            expect(firstBotBox!.y).toBeLessThan(secondBotBox!.y);
+            for (let index = 0; index < 2; index += 1) {
+                await bots.first().click();
+                await page.getByTestId('opened-session').getByText('Build assistant', { exact: true }).waitFor();
+                await page.getByRole('button', { name: 'Back', exact: true }).click();
+            }
+            expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
+                '/session/bot-alpha', '/session/bot-alpha',
+            ]);
             await page.getByRole('button', { name: 'Show Archived', exact: true }).last().click();
             await page.getByRole('img', { name: /Retired assistant, Machine ID: machine-b, Disconnected/ }).waitFor();
             expect(await page.locator('[data-icon="hardware-chip-outline"]').count()).toBe(4);
