@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 10 — Workspace Layout Restoration",
+      "summary": "",
+      "markdown": "- Fixed a layout bug where the device selectors and path bars stretched vertically when displaying a missing directory, restoring the intended compact design."
+    },
+    {
       "title": "September 9 — Bot Sync and Session Management",
       "summary": "",
       "markdown": "- Streamlined the Session Info panel to put Quick Actions first, with Changes opening the existing Workspace, and removed the duplicate large avatar, name, and status block.\n- Grouped mode displays Bots before Projects and includes distinct bot names, avatars, and owning machine details, while default flat mode preserves activity order.\n- Bot sessions use Archive on the connected owning machine and keep their conversation history. Delete is unavailable in the app, and failed archive requests remain visible for retry."
@@ -621,5 +626,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 9 — Bot Sync and Session Management"
+  "latestTitle": "September 10 — Workspace Layout Restoration"
 }

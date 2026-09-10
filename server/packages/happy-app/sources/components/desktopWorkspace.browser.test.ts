@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
+import { transformSync } from '@babel/core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -159,7 +160,11 @@ const virtualModules: Record<string, string> = {
             navigationSidebarCollapsed: false,
             zenMode: false,
             machineWorkspace: true,
-            recentMachinePaths: [],
+            recentMachinePaths: new URLSearchParams(window.location.search).has('workspace-browser') ? [
+                { machineId: 'machine-2', path: '/machine-root/deleted-worktree' },
+                { machineId: 'machine-2', path: '/machine-root/projects/a-long-project-folder/materials/reference-documents' },
+                { machineId: 'machine-2', path: '/machine-root' },
+            ] : [],
             favoriteMachinePaths: [],
         };
         const listeners = new Set();
@@ -279,6 +284,9 @@ const virtualModules: Record<string, string> = {
         export const machineDeleteFile = async () => ({ success: true });
         export const machineGetDirectoryTree = async (machineId, path, depth) => {
             window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
+            if (path === '/machine-root/deleted-worktree') {
+                return { success: false, error: "ENOENT: no such file or directory, stat '/machine-root/deleted-worktree/project/long-project-folder/materials/reference-documents'" };
+            }
             if (machineId !== 'machine-2' || path !== '/machine-root' || depth !== 1) {
                 return { success: false, error: 'Unexpected Workspace request' };
             }
@@ -578,6 +586,12 @@ const fixturePlugin: Plugin = {
     name: 'desktop-workspace-browser-fixture',
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
+            if (args.path.startsWith('react-native-unistyles/components/native/')) {
+                return { path: resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/components/native', `${args.path.split('/').at(-1)}.js`) };
+            }
+            if (args.path === 'react-native-unistyles' && args.importer.endsWith('/app/(app)/workspace/index.tsx')) {
+                return { path: 'workspace-production-styles', namespace: 'fixture-stub' };
+            }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
             if (args.path === '@/components/markdown/MarkdownView' || (args.path === './markdown/MarkdownView' && args.importer.endsWith('/CanvasFileViewer.web.tsx'))) {
                 return { path: resolve(appRoot, 'sources/components/markdown/MarkdownView.web.tsx') };
@@ -626,10 +640,38 @@ const fixturePlugin: Plugin = {
             return null;
         });
         buildContext.onLoad({ filter: /.*/, namespace: 'fixture-stub' }, (args) => ({
-            contents: virtualModules[args.path],
+            contents: args.path === 'workspace-production-styles'
+                ? virtualModules['react-native-unistyles'].split('export const StyleSheet =')[0]
+                    + `
+                        import { StyleSheet, useUnistyles } from ${JSON.stringify(resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/index.js'))};
+                        StyleSheet.configure({ themes: { fixture: theme }, settings: { initialTheme: 'fixture' } });
+                        export { StyleSheet, useUnistyles };
+                    `
+                : virtualModules[args.path],
             loader: 'tsx',
             resolveDir: appRoot,
         }));
+        buildContext.onLoad({ filter: /app\/\(app\)\/workspace\/index\.tsx$/ }, (args) => {
+            const previousNodeEnv = process.env.NODE_ENV;
+            // Unistyles disables its production component transform in NODE_ENV=test.
+            process.env.NODE_ENV = 'production';
+            let transformed;
+            try {
+                const caller = { name: 'metro', platform: 'web', supportsStaticESM: true };
+                transformed = transformSync(readFileSync(args.path, 'utf8'), {
+                    filename: args.path,
+                    configFile: false,
+                    babelrc: false,
+                    caller,
+                    presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
+                    plugins: [['react-native-unistyles/plugin', { root: 'sources' }]],
+                });
+            } finally {
+                process.env.NODE_ENV = previousNodeEnv;
+            }
+            if (!transformed?.code) throw new Error('Workspace production style transform failed');
+            return { contents: transformed.code, loader: 'js', resolveDir: dirname(args.path) };
+        });
     },
 };
 
@@ -667,6 +709,7 @@ describe('Desktop workspace browser interaction', () => {
             splitting: true,
             platform: 'browser',
             jsx: 'automatic',
+            define: { __DEV__: 'false' },
             alias: { 'react-native': 'react-native-web' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
@@ -714,6 +757,60 @@ describe('Desktop workspace browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([
+        { surface: 'standalone', width: 1440, height: 900 },
+        { surface: 'standalone', width: 390, height: 844 },
+        { surface: 'embedded', width: 1440, height: 900 },
+        { surface: 'embedded', width: 390, height: 844 },
+    ])('keeps Workspace machine choices compact and recovers a missing path: $surface $width', async ({ surface, width, height }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        const errors = recordPageErrors(page);
+        await page.goto(`${origin}/?workspace-browser=${surface}`);
+        await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+        const machine = page.getByRole('button', { name: 'remote', exact: true });
+        const box = await machine.boundingBox();
+        if (!box) throw new Error('Workspace machine choice is not rendered');
+        const evidenceDirectory = process.env.HAPPYHERD_WORKSPACE_LAYOUT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}-missing.png`) });
+        expect(box.height).toBeGreaterThanOrEqual(38);
+        expect(box.height).toBeLessThanOrEqual(48);
+
+        const recentChip = page.getByText('~/projects/a-long-project-folder/materials/reference-documents', { exact: true }).locator('..');
+        const recentBox = await recentChip.boundingBox();
+        expect(recentBox?.height).toBeGreaterThanOrEqual(32);
+        expect(recentBox?.height).toBeLessThanOrEqual(40);
+        const recentStrip = recentChip.locator('../..');
+        await recentStrip.hover();
+        await page.mouse.wheel(600, 0);
+        await expect.poll(() => recentStrip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+        await page.getByText('~', { exact: true }).click();
+        await page.getByText('remote.md', { exact: true }).waitFor();
+
+        const path = page.getByPlaceholder('Path');
+        await path.fill('/machine-root/deleted-worktree');
+        await path.press('Enter');
+        await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+
+        await page.getByText('Home', { exact: true }).click();
+        await page.getByText('remote.md', { exact: true }).waitFor();
+        await expect(page.getByText('workspace.missingPathTitle', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByPlaceholder('Path').inputValue()).resolves.toBe('/machine-root');
+        await expect(page.evaluate(() => window.__MACHINE_DIRECTORY_CALLS__?.at(-1))).resolves.toEqual({
+            machineId: 'machine-2', path: '/machine-root', depth: 1,
+        });
+        const loadedBox = await machine.boundingBox();
+        expect(loadedBox?.height).toBeLessThanOrEqual(48);
+        await page.getByRole('button', { name: 'session', exact: true }).click();
+        await expect.poll(() => page.getByPlaceholder('Path').inputValue()).toBe('/workspace');
+        await machine.click();
+        await page.getByText('workspace.missingPathTitle', { exact: true }).waitFor();
+        await page.getByText('Parent', { exact: true }).click();
+        await page.getByText('remote.md', { exact: true }).waitFor();
+        if (evidenceDirectory) await page.screenshot({ path: resolve(evidenceDirectory, `workspace-${surface}-${width}.png`) });
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 10_000);
 
     it('keeps the hidden navigation toggle clear of the real session header', async () => {
         const page = await browser.newPage({ viewport: { width: 900, height: 300 } });

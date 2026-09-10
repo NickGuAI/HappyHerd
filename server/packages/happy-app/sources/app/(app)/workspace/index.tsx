@@ -542,7 +542,7 @@ export function MachineWorkspaceBrowser({
                 {machines.length === 0 ? (
                     <EmptyState icon="desktop-outline" title={t('workspace.selectMachine')} description={t('workspace.noMachines')} />
                 ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
                         {machines.map((machine) => {
                             const selected = machine.id === selectedMachineId;
                             const online = isMachineOnline(machine);
@@ -931,7 +931,7 @@ function PathChipSection({
     return (
         <View style={{ gap: 5 }}>
             <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{title}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
                 {paths.map((path) => (
                     <Pressable
                         key={path}
@@ -1063,6 +1063,7 @@ const styles = StyleSheet.create((theme) => ({
     browserContent: { padding: 16, gap: 14, paddingBottom: 32 },
     viewerPane: { flex: 1, minWidth: 0, backgroundColor: theme.colors.surface },
     sectionLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.7, ...Typography.default('semiBold') },
+    chipScroll: Platform.OS === 'web' ? { flexGrow: 0, flexShrink: 0 } : {},
     chipRow: { gap: 8, paddingRight: 8 },
     machineChip: { maxWidth: 240, minHeight: 38, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10 },
     statusDot: { width: 7, height: 7, borderRadius: 4 },

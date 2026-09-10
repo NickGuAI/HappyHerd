@@ -1,3 +1,7 @@
+# September 10 — Workspace Layout Restoration
+
+- Fixed a layout bug where the device selectors and path bars stretched vertically when displaying a missing directory, restoring the intended compact design.
+
 # September 9 — Bot Sync and Session Management
 
 - Streamlined the Session Info panel to put Quick Actions first, with Changes opening the existing Workspace, and removed the duplicate large avatar, name, and status block.
