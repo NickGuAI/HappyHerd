@@ -70,11 +70,34 @@ const virtualModules: Record<string, string> = {
         export default Svg;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
-    '@react-navigation/native': `export const useIsFocused = () => true;`,
+    '@react-navigation/native': `
+        export const CommonActions = {
+            setParams: (params) => ({ type: 'SET_PARAMS', payload: { params } }),
+        };
+        export const StackActions = {
+            pop: (count) => ({ type: 'POP', payload: { count } }),
+        };
+        export const useIsFocused = () => true;
+        export const useNavigation = () => ({
+            dispatch(action) { globalThis.__HAPPYHERD_ROUTE_ACTION__?.(action); },
+            getState() { return globalThis.__HAPPYHERD_ROUTE_STATE__ ?? { index: 0, routes: [] }; },
+            setOptions() {},
+            setParams() {},
+        });
+    `,
     'expo-router': `
-        export const useRouter = () => ({ push() {}, back() { window.__NEW_SESSION_BACK__ = true; }, dismissTo() {} });
+        export const useRouter = () => ({
+            push(href) { globalThis.__HAPPYHERD_ROUTE_PUSH__?.(href); },
+            navigate(href) { globalThis.__HAPPYHERD_ROUTE_NAVIGATE__?.(href); },
+            replace(href) { globalThis.__HAPPYHERD_ROUTE_REPLACE__?.(href); },
+            back() {
+                if (globalThis.__HAPPYHERD_ROUTE_BACK__) globalThis.__HAPPYHERD_ROUTE_BACK__();
+                else window.__NEW_SESSION_BACK__ = true;
+            },
+            dismissTo() {},
+        });
         export const useNavigation = () => ({ setOptions() {} });
-        export const useLocalSearchParams = () => ({});
+        export const useLocalSearchParams = () => globalThis.__HAPPYHERD_ROUTE_PARAMS__ ?? {};
         export const Stack = { Screen: () => null };
     `,
     'react-native-reanimated': `
@@ -102,7 +125,10 @@ const virtualModules: Record<string, string> = {
         export const useReanimatedKeyboardAnimation = () => ({ height: { value: 0 }, progress: { value: 0 } });
     `,
     'expo-constants': `export default { statusBarHeight: 0 };`,
-    'expo-crypto': `export const randomUUID = () => 'fixture-request-id'; export const getRandomBytes = (count) => new Uint8Array(count);`,
+    'expo-crypto': `
+        export const randomUUID = () => 'fixture-request-' + (globalThis.__FIXTURE_UUID_COUNT__ = (globalThis.__FIXTURE_UUID_COUNT__ ?? 0) + 1);
+        export const getRandomBytes = (count) => new Uint8Array(count);
+    `,
     'zustand/react/shallow': `export const useShallow = (selector) => selector;`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
     'expo-haptics': `
@@ -187,6 +213,22 @@ const virtualModules: Record<string, string> = {
                 modelMode: 'Gemini 3.6 Flash (High)',
                 permissionMode: 'default',
                 metadata: { ...sessions.parent.metadata, flavor: 'agy' },
+            };
+        }
+        if (fixtureOptions.botLifecycle) {
+            sessions.parent = {
+                ...sessions.parent,
+                metadata: {
+                    ...sessions.parent.metadata,
+                    flavor: 'rig',
+                    bot: {
+                        id: 'bot-one',
+                        name: 'Bot assistant',
+                        username: 'bot-assistant',
+                        workspaceId: 'workspace-one',
+                        orderKey: 'a0',
+                    },
+                },
             };
         }
         if (fixtureOptions.workspaceRetention) {
@@ -298,10 +340,15 @@ const virtualModules: Record<string, string> = {
             sessions[sessionId] = { ...sessions[sessionId], ...patch };
             emit();
         };
-        export const storage = Object.assign(() => undefined, { getState });
+        export const __applyBotArchiveSync = () => {
+            sessions.parent = { ...sessions.parent, active: false, presence: 'offline' };
+            emit();
+        };
+        export const storage = Object.assign(() => undefined, { getState, __applyBotArchiveSync });
         export const useIsDataReady = () => true;
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
+        export const useProjects = () => ({});
         export const useAllMachines = () => machines;
         export const useSessions = () => sessionList;
         export const useRealtimeStatus = () => fixtureOptions.realtimeStatus ?? 'disconnected';
@@ -401,6 +448,13 @@ const virtualModules: Record<string, string> = {
             'sideChat.close': 'Close side chat',
             'sideChat.expand': 'Expand side chat',
             'files.changes': 'Changes',
+            'sessionInfo.quickActions': 'Quick Actions',
+            'sessionInfo.archiveSession': 'Archive Session',
+            'sessionInfo.deleteSession': 'Delete Session',
+            'sessionInfo.botArchiveRequiresMachine': 'Connect the owning machine to archive this bot session.',
+            'profile.details': 'Details',
+            'uiCopy.archive': 'Archive',
+            'common.error': 'Error',
             'files.addPanel': 'Add panel',
             'files.resizeWorkspace': 'Resize file workspace',
             'files.openFileTab': 'Open file ' + (params?.name ?? ''),
@@ -528,7 +582,25 @@ const virtualModules: Record<string, string> = {
         import { createRoot } from 'react-dom/client';
         import { WebPromptModal } from '@/modal/components/WebPromptModal';
         export const Modal = {
-            alert() {},
+            alert(title, message, buttons = []) {
+                window.__HAPPYHERD_ALERTS__ = [...(window.__HAPPYHERD_ALERTS__ ?? []), { title, message }];
+                document.querySelector('[data-testid="fixture-alert"]')?.remove();
+                const host = document.createElement('div');
+                host.dataset.testid = 'fixture-alert';
+                host.setAttribute('role', 'alert');
+                const text = document.createElement('div');
+                text.textContent = [title, message].filter(Boolean).join(': ');
+                host.append(text);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = buttons[0]?.text ?? 'OK';
+                button.onclick = () => {
+                    buttons[0]?.onPress?.();
+                    host.remove();
+                };
+                host.append(button);
+                document.body.append(host);
+            },
             confirm: async () => true,
             prompt(title, message, options) {
                 return new Promise((resolve) => Modal.show({
@@ -740,7 +812,11 @@ const virtualModules: Record<string, string> = {
         const available = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable === true;
         return { available, configured: available, enabled: available, loading: false };
     };`,
-    '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree = async () => {};`,
+    '@/hooks/useWorktreeCleanup': `
+        export const maybeCleanupWorktree = async (...args) => {
+            window.__WORKTREE_CLEANUP_CALLS__ = [...(window.__WORKTREE_CLEANUP_CALLS__ ?? []), args];
+        };
+    `,
     '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
     '@/sync/agentSessionPlaces': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentSessionPlaces.ts')}';
@@ -890,8 +966,22 @@ const virtualModules: Record<string, string> = {
             window.__SESSION_MODE_MUTATIONS__ = [...(window.__SESSION_MODE_MUTATIONS__ ?? []), { sessionId, patch }];
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker) __applySessionModes(sessionId, patch);
         };
-        export const sessionKill = async () => {};
-        export const sessionArchive = async () => {};
+        export const sessionKill = async (sessionId) => {
+            const calls = window.__SESSION_KILL_CALLS__ = [...(window.__SESSION_KILL_CALLS__ ?? []), sessionId];
+            const results = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.botArchiveResults ?? [];
+            const accepted = results[calls.length - 1] ?? true;
+            return accepted
+                ? { success: true, message: 'accepted by owning machine' }
+                : { success: false, message: '' };
+        };
+        export const sessionArchive = async (sessionId) => {
+            window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
+            return { success: true };
+        };
+        export const sessionDelete = async (sessionId) => {
+            window.__SESSION_DELETE_CALLS__ = [...(window.__SESSION_DELETE_CALLS__ ?? []), sessionId];
+            return { success: true };
+        };
         export const sessionReadFile = async (sessionId, path) => {
             window.__SESSION_READ_CALLS__ = [...(window.__SESSION_READ_CALLS__ ?? []), { sessionId, path }];
             return path.startsWith('/outside/')
@@ -923,8 +1013,9 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/rig': `
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
+        export const getRigIdentity = () => null;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
-        export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        export const isRigMetadata = (metadata) => Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
         export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;
         export const getRigModels = () => []; export const getRigReasoningLevels = () => []; export const getRigSelectedModelKey = () => null;
         export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => false;
@@ -990,12 +1081,16 @@ const virtualModules: Record<string, string> = {
         export const visibleRigGitLineChanges = () => null;
     `,
     '@/utils/sessionUtils': `
-        export const formatPathRelativeToHome = (path) => path; export const formatLastSeen = () => ''; export const getResumeCommandBlock = () => null;
+        export const formatOSPlatform = (value) => value; export const formatPathRelativeToHome = (path) => path; export const formatLastSeen = () => '';
+        export const getResumeCommand = () => null; export const getResumeCommandBlock = () => null;
         export const getSessionAvatarId = (session) => session.id; export const getSessionName = (session) => session.metadata?.summary?.text ?? session.id;
         export const useSessionStatus = (session) => ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
     `,
     '@/utils/versionUtils': `export { compareVersionsWithPrerelease, isWellFormedVersion } from '${resolve(appRoot, 'sources/utils/versionUtils.ts')}'; export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
-    '@/utils/heartbeatCommand': `export const HEARTBEAT_COMMAND = { dispatch: async () => ({ handled: false }) };`,
+    '@/utils/heartbeatCommand': `
+        export const HEARTBEAT_COMMAND = { dispatch: async () => ({ handled: false }) };
+        export const formatHeartbeatStatusPresentation = () => ({ summary: '', details: [] });
+    `,
     '@/utils/sessionContinuation': `export const deliverSessionTurn = async (options) => options.deliver({
         deliveryMode: options.requestedDeliveryMode,
         awaitDelivery: options.awaitDelivery,
@@ -2816,5 +2911,250 @@ describe('Side chats browser interaction', () => {
             await context.close();
         }
     }, 30_000);
+
+    it.each([
+        { label: 'Web Desktop', width: 1440, height: 900, mobile: false },
+        { label: 'Web tablet', width: 1024, height: 1366, mobile: false },
+        { label: 'Web Mobile', width: 390, height: 844, mobile: true },
+    ])('opens Session Info Changes twice in the retained Workspace on $label', async ({ width, height, mobile }) => {
+        const context = await browser.newContext({
+            viewport: { width, height },
+            ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+        });
+        const page = await context.newPage();
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { sessionInfoJourney: true };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            const composer = foreground.locator('textarea').first();
+            await composer.fill('Retain this draft through Info');
+            await composer.evaluate((element) => { element.dataset.infoRetention = 'same-composer'; });
+
+            await foreground.getByText('parent', { exact: true }).first().click();
+            const info = page.getByTestId('session-info-route');
+            await info.getByText('Quick Actions', { exact: true }).waitFor();
+            const changes = info.getByText('Changes', { exact: true });
+            await changes.waitFor();
+            const quickActionsBox = await info.getByText('Quick Actions', { exact: true }).boundingBox();
+            const changesBox = await changes.boundingBox();
+            if (!quickActionsBox || !changesBox) throw new Error('Session Info actions have no visible geometry');
+            expect(changesBox.y).toBeGreaterThan(quickActionsBox.y);
+            await expect(info.getByText('parent', { exact: true }).count()).resolves.toBe(0);
+
+            await changes.click();
+            await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'visible' });
+            await expect.poll(() => page.evaluate(() => (window as any).__INFO_CONSUMED_REQUESTS__?.length ?? 0)).toBe(1);
+            await expect(foreground.locator('textarea[data-info-retention="same-composer"]').count()).resolves.toBe(1);
+            await expect(foreground.locator('textarea[data-info-retention="same-composer"]').inputValue())
+                .resolves.toBe('Retain this draft through Info');
+            await expect(foreground.getAttribute('data-route-key')).resolves.toBe('session-parent-key');
+
+            await foreground.getByText('parent', { exact: true }).first().click();
+            await info.getByText('Changes', { exact: true }).waitFor();
+            await info.getByText('Changes', { exact: true }).click();
+            await expect.poll(() => page.evaluate(() => (window as any).__INFO_CONSUMED_REQUESTS__?.length ?? 0)).toBe(2);
+            const consumedRequests = await page.evaluate(() => (window as any).__INFO_CONSUMED_REQUESTS__ ?? []);
+            expect(new Set(consumedRequests).size).toBe(2);
+            await expect(foreground.locator('textarea[data-info-retention="same-composer"]').inputValue())
+                .resolves.toBe('Retain this draft through Info');
+            const routeActions = await page.evaluate(() => (window as any).__INFO_NAV_ACTIONS__ ?? []);
+            expect(routeActions.filter((action: any) => action.type === 'SET_PARAMS'))
+                .toEqual(expect.arrayContaining([expect.objectContaining({ source: 'session-parent-key' })]));
+            expect(routeActions.filter((action: any) => action.type === 'POP').every(
+                (action: any) => action.payload?.count === 1,
+            )).toBe(true);
+            expect(errors).toEqual([]);
+        } finally {
+            await context.close();
+        }
+    }, 20_000);
+
+    it('shows Info Changes above a retained dirty editor after narrowing to compact Web', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { sessionInfoJourney: true };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
+            const workspace = foreground.getByTestId('desktop-file-workspace');
+            await workspace.waitFor({ state: 'visible' });
+            await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+            const editor = workspace.locator('textarea.code-editor-textarea');
+            await editor.waitFor({ state: 'visible' });
+            const dirtyValue = 'Unsaved editor state retained through Info and Changes';
+            await editor.fill(dirtyValue);
+            await editor.evaluate((element) => { element.dataset.infoDirtyEditor = 'mounted'; });
+
+            await foreground.getByText('parent', { exact: true }).first().click();
+            const info = page.getByTestId('session-info-route');
+            await info.getByText('Changes', { exact: true }).waitFor();
+            await page.setViewportSize({ width: 390, height: 844 });
+            await info.getByText('Changes', { exact: true }).click();
+
+            const changesOverlay = foreground.getByTestId('mobile-changes-workspace-overlay');
+            await changesOverlay.waitFor({ state: 'visible' });
+            await expect(workspace.isVisible()).resolves.toBe(false);
+            await expect(editor.count()).resolves.toBe(1);
+            await expect(editor.inputValue()).resolves.toBe(dirtyValue);
+            await expect(changesOverlay.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                return Boolean(hit?.closest('[data-testid="mobile-changes-workspace-overlay"]'));
+            })).resolves.toBe(true);
+
+            await changesOverlay
+                .locator('..')
+                .locator('[data-icon="arrow-back"]')
+                .first()
+                .locator('..')
+                .click();
+            await changesOverlay.waitFor({ state: 'detached' });
+            await workspace.waitFor({ state: 'visible' });
+            await expect(editor.getAttribute('data-info-dirty-editor')).resolves.toBe('mounted');
+            await expect(editor.inputValue()).resolves.toBe(dirtyValue);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 20_000);
+
+    it.each([
+        { label: 'Web Desktop', width: 1440, height: 900, mobile: false },
+        { label: 'Web Mobile', width: 390, height: 844, mobile: true },
+    ])('keeps bot Info archive visible and retryable after owner failure on $label', async ({ width, height, mobile }) => {
+        const context = await browser.newContext({
+            viewport: { width, height },
+            ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+        });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                sessionInfoJourney: true,
+                botLifecycle: true,
+                botArchiveResults: [false, false],
+            };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            await foreground.getByText('parent', { exact: true }).first().click();
+            const info = page.getByTestId('session-info-route');
+            await info.getByText('Archive Session', { exact: true }).waitFor();
+            await expect(info.getByText('Delete Session', { exact: true }).count()).resolves.toBe(0);
+
+            await info.getByText('Archive Session', { exact: true }).click();
+            const alert = page.getByRole('alert');
+            await alert.getByText('Error: Connect the owning machine to archive this bot session.', { exact: true }).waitFor();
+            await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length ?? 0)).toBe(1);
+            await alert.getByRole('button', { name: 'OK', exact: true }).click();
+            await info.getByText('Archive Session', { exact: true }).click();
+            await alert.getByText('Error: Connect the owning machine to archive this bot session.', { exact: true }).waitFor();
+            await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length ?? 0)).toBe(2);
+
+            expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent', 'parent']);
+            expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__INFO_BACK_COUNT__ ?? 0)).toBe(0);
+            await expect(info.isVisible()).resolves.toBe(true);
+        } finally {
+            await context.close();
+        }
+    }, 15_000);
+
+    it('treats a successful bot Info archive as machine acceptance without a local archive fallback', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                sessionInfoJourney: true,
+                botLifecycle: true,
+                botArchiveResults: [true],
+            };
+        });
+        try {
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            await foreground.getByText('parent', { exact: true }).first().click();
+            await page.getByTestId('session-info-route').getByText('Archive Session', { exact: true }).click();
+
+            await expect.poll(() => page.evaluate(() => (window as any).__INFO_BACK_COUNT__ ?? 0)).toBe(2);
+            expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent']);
+            expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+            await expect(foreground.getAttribute('data-route-key')).resolves.toBe('session-parent-key');
+            await expect(foreground.getByText('parent', { exact: true }).first().isVisible()).resolves.toBe(true);
+        } finally {
+            await page.close();
+        }
+    }, 15_000);
+
+    it('keeps the shared bot action menu retryable without cleanup or server fallback', async () => {
+        const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                botActionMenu: true,
+                botLifecycle: true,
+                botArchiveResults: [false, false],
+            };
+        });
+        try {
+            await page.goto(origin);
+            const row = page.getByTestId('bot-action-menu');
+            await row.getByText('Bot assistant', { exact: true }).click({ button: 'right' });
+            await page.getByRole('button', { name: 'Archive', exact: true }).click();
+            const alert = page.getByRole('alert');
+            await alert.getByText('Error: Connect the owning machine to archive this bot session.', { exact: true }).waitFor();
+            await alert.getByRole('button', { name: 'OK', exact: true }).click();
+
+            await row.getByText('Bot assistant', { exact: true }).click({ button: 'right' });
+            await page.getByRole('button', { name: 'Archive', exact: true }).click();
+            await alert.getByText('Error: Connect the owning machine to archive this bot session.', { exact: true }).waitFor();
+            await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length ?? 0)).toBe(2);
+            expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent', 'parent']);
+            expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+            await expect(row.getAttribute('data-session-id')).resolves.toBe('parent');
+            await expect(row.getByText('Bot assistant', { exact: true }).isVisible()).resolves.toBe(true);
+        } finally {
+            await page.close();
+        }
+    }, 15_000);
+
+    it('waits for synced lifecycle state after the shared bot action accepts Archive', async () => {
+        const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                botActionMenu: true,
+                botLifecycle: true,
+                botArchiveResults: [true],
+            };
+        });
+        try {
+            await page.goto(origin);
+            const row = page.getByTestId('bot-action-menu');
+            await row.getByText('Bot assistant', { exact: true }).click({ button: 'right' });
+            await page.getByRole('button', { name: 'Archive', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length ?? 0)).toBe(1);
+
+            await expect(row.getByText('Bot assistant', { exact: true }).isVisible()).resolves.toBe(true);
+            await expect(page.getByTestId('bot-archive-synced').count()).resolves.toBe(0);
+            await page.evaluate(() => (window as any).__APPLY_BOT_ARCHIVE_SYNC__());
+            const synced = page.getByTestId('bot-archive-synced');
+            await synced.waitFor();
+            await expect(synced.getAttribute('data-session-id')).resolves.toBe('parent');
+            expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__ ?? [])).toEqual([]);
+            expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+            await expect(page.getByRole('alert').count()).resolves.toBe(0);
+        } finally {
+            await page.close();
+        }
+    }, 15_000);
 
 });

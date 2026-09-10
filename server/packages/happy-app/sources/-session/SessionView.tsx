@@ -154,7 +154,12 @@ export type SessionWorkspaceController = {
 
 export const SessionWorkspaceControllerContext = React.createContext<SessionWorkspaceController | null>(null);
 
-export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
+export const SessionView = React.memo((props: {
+    id: string;
+    focusMessageId?: string;
+    openChangesRequestId?: string;
+    onOpenChangesRequestConsumed?: (requestId: string) => void;
+}) => {
     const sessionId = props.id;
     const router = useRouter();
     const session = useSession(sessionId);
@@ -450,13 +455,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
         && !sideChatFullscreenOpen;
-    const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
-        && canUseDesktopFileWorkspaceSession
-        && !canShowSessionFileWorkspaceSplit
-        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
-        && !sideChatFullscreenTransitionPending;
-    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
-    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
     const showSidebar = !zenMode
         && (canShowFileSidebar || sideChatSidebarExpanded);
     const canRenderSidebar = canShowFileSidebar
@@ -647,6 +645,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const diffViewOpen = overlayCurrent.kind === 'diff';
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file ?? null : null;
+    const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
+        && canUseDesktopFileWorkspaceSession
+        && !canShowSessionFileWorkspaceSplit
+        && !diffViewOpen
+        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
+        && !sideChatFullscreenTransitionPending;
+    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
     const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
     const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
@@ -876,6 +882,27 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
         }
     }, [canShowFileSidebar]);
+
+    // Route handoffs run after file-panel initialization so compact Web can
+    // open its existing full-screen Changes overlay on the first request.
+    const handledOpenChangesRequestId = React.useRef<string | null>(null);
+    React.useEffect(() => {
+        const requestId = props.openChangesRequestId;
+        if (!requestId || handledOpenChangesRequestId.current === requestId || !isDataReady || !session) return;
+        handledOpenChangesRequestId.current = requestId;
+        if (canUseSessionFileWorkspace) {
+            openChangesForSession(sessionId);
+        }
+        props.onOpenChangesRequestConsumed?.(requestId);
+    }, [
+        canUseSessionFileWorkspace,
+        isDataReady,
+        openChangesForSession,
+        props.onOpenChangesRequestConsumed,
+        props.openChangesRequestId,
+        session,
+        sessionId,
+    ]);
 
     // Right-side header content published by the active overlay (diff toggle / save button).
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
@@ -1157,7 +1184,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             }}
         >
             {mainContent}
-            {diffViewOpen && (canShowFileSidebar || (isWebMobileSessionViewport && canUseDesktopFileWorkspaceSession)) && (
+            {diffViewOpen && (canShowFileSidebar || canUseDesktopFileWorkspaceSession) && (
                 <View
                     testID="mobile-changes-workspace-overlay"
                     pointerEvents="box-none"
