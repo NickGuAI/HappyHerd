@@ -339,3 +339,4 @@ NATIVE_INSTALLER_PRISMA	accepted	test(installer): run packaged engine contract w
 NATIVE_INSTALLER_PTY	accepted	test(installer): supply a real pipe to macOS auth PTY	scripts/test-native-installer-auth.mjs
 DEFAULT_ASSISTANT_SESSION	accepted	feat(server): retain one default Assistant session per account	server/packages/happy-server/sources/app/api/routes/sessionRoutes.defaultAssistant.spec.ts
 DEFAULT_ASSISTANT_BOOTSTRAP	accepted	feat(assistant): initialize the persistent default session through the daemon	server/packages/happy-cli/src/daemon/defaultAssistant.test.ts
+DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): require live registration before reusing a provider process	server/packages/happy-cli/src/daemon/run.resume.test.ts

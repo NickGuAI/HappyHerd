@@ -2173,8 +2173,7 @@ export async function startDaemon(): Promise<void> {
       }),
       isRunning: (session) => {
         const tracked = [...pidToTrackedSession.values()].find(item => item.happySessionId === session.id);
-        const pid = tracked?.pid ?? session.metadata.hostPid;
-        return Boolean(pid && !hasProviderProcessExited(pid));
+        return Boolean(tracked && !hasProviderProcessExited(tracked.pid));
       },
       start: async (session) => {
         const result = await resumeSession(session.id);

@@ -260,6 +260,7 @@ import {
 } from './run';
 import { prepareCommanderContext } from '@/agentContext/commanderContext';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
+import { DefaultAssistantApi } from '@/api/defaultAssistant';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -287,6 +288,7 @@ type CapturedRpcHandlers = {
 };
 
 type CapturedControlHandlers = {
+  ensureDefaultAssistant: () => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
   createLocalSession: (request: import('./controlServer').LocalSessionCreationRequest) => Promise<import('./controlServer').LocalSessionCreationReceipt>;
   onHappySessionWebhook: (
     sessionId: string,
@@ -432,6 +434,46 @@ describe('daemon session continuity', () => {
     expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
     expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
     expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+  });
+
+  it('initializes an Assistant with a reused untracked metadata PID instead of treating that process as its provider', async () => {
+    const sessionId = 'assistant-with-stale-pid';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1', hostPid: 9876,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', isSuperSession: true, commanderId: 'assistant',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    // The old PID is alive, but this daemon has no session registration for it.
+    mocks.hasProviderProcessExited.mockReturnValue(false);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue({ id: sessionId } as any);
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    const prepare = vi.spyOn(DefaultAssistantApi.prototype, 'prepare');
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish');
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const ensure = control.ensureDefaultAssistant();
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata, hostPid: 4321, codexThreadId: 'initialized-thread', spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'existing', sessionId });
+    const [, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalledWith(9876);
+    await expect(control.ensureDefaultAssistant()).resolves.toMatchObject({ status: 'existing', sessionId });
+    expect(mocks.hasProviderProcessExited).toHaveBeenCalledWith(4321);
+    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it('confirms local Commander launches against persisted provider metadata without account-control auth', async () => {
