@@ -336,3 +336,4 @@ NATIVE_INSTALLER_AUTH	accepted	test(installer): prove paired daemon and retained
 NATIVE_INSTALLER_AUTH	accepted	test(installer): require installer-owned daemon restart	scripts/test-native-installer-auth.mjs
 NATIVE_INSTALLER_PRISMA	accepted	fix(server): select the prepared platform Prisma engine	server/packages/happy-server-self-host/index.test.cjs
 NATIVE_INSTALLER_PRISMA	accepted	test(installer): run packaged engine contract with native assets	scripts/test-native-installer-asset.sh
+NATIVE_INSTALLER_PTY	accepted	test(installer): supply a real pipe to macOS auth PTY	scripts/test-native-installer-auth.mjs

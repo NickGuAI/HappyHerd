@@ -188,7 +188,10 @@ try {
   const scriptArgs = process.platform === 'darwin'
     ? ['-q', '/dev/null', cli, 'auth', 'login']
     : ['-q', '-e', '-c', `${quote(cli)} auth login`, '/dev/null'];
-  authChild = start('script', scriptArgs);
+  // Node stdio "pipes" are sockets. Apple script's tcgetattr/ioctl rejects
+  // socket stdin with EOPNOTSUPP; a shell pipe supplies the real Unix pipe it
+  // supports. The pipeline exits with script's status, not the feeder's status.
+  authChild = start('/bin/sh', ['-c', `cat | script ${scriptArgs.map(quote).join(' ')}`]);
   await waitFor(() => {
     if (authChild.child.exitCode !== null) throw new Error('auth CLI exited before method selection');
     return authChild.output().includes('How would you like to authenticate?');
@@ -204,6 +207,8 @@ try {
     publicKey: base64(publicKey),
     response: base64(box(Buffer.concat([Buffer.from([0]), accountEncryption.publicKey]), publicKey)),
   });
+  await waitFor(() => authChild.output().includes('Authentication successful'));
+  authChild.child.stdin.end();
   assert((await finish(authChild)).includes('Authentication successful'));
   console.log('native-installer-auth: v2 CLI pairing passed');
 
@@ -263,6 +268,14 @@ try {
   console.log('native-installer-auth: rerun retained account, machine key, session and history; next message persisted');
 } catch (error) {
   console.error(`native-installer-auth: failed during ${stage}: ${error.message}`);
+  if (stage === 'pairing' && authChild) {
+    const output = authChild.output();
+    const reason = /script:.*(?:tcgetattr|ioctl)/.test(output) ? 'PTY stdin rejected'
+      : /ERR_MODULE_NOT_FOUND|Cannot find module/.test(output) ? 'runtime module missing'
+        : /Raw mode is not supported/.test(output) ? 'auth stdin is not a terminal'
+          : 'unclassified';
+    console.error(`native-installer-auth: pairing diagnostic: ${reason}; exit=${authChild.child.exitCode}; outputBytes=${Buffer.byteLength(output)}`);
+  }
   process.exitCode = 1;
 } finally {
   socket?.disconnect();
