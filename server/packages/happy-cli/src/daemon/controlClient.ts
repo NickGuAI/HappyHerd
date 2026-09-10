@@ -17,6 +17,8 @@ import type {
 } from '@/commands/sideChat';
 import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import type { DefaultAssistantReceipt } from './defaultAssistant';
+import type { LocalSessionCreationRequest, LocalSessionCreationReceipt } from './controlServer';
 
 async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -148,6 +150,24 @@ export async function notifyDaemonProviderLimited(
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {
   const result = await daemonPost('/spawn-session', { directory, sessionId });
   return result;
+}
+
+export async function ensureDaemonAssistant(): Promise<DefaultAssistantReceipt> {
+  const result = await daemonPost('/ensure-assistant', {}, 120_000);
+  if (result?.error) throw new Error(result.error);
+  if (result?.schemaVersion !== 1 || result?.type !== 'default-assistant') {
+    throw new Error('Daemon returned an invalid default Assistant receipt');
+  }
+  return result as DefaultAssistantReceipt;
+}
+
+export async function spawnLocalDaemonSession(options: LocalSessionCreationRequest): Promise<LocalSessionCreationReceipt> {
+  const result = await daemonPost('/create-session', options, 120_000);
+  if (result?.error) throw new Error(result.error);
+  if (result?.success !== true || !result.sessionId || !result.settings || !result.machine) {
+    throw new Error('Daemon did not return a confirmed local session; upgrade the daemon and inspect existing sessions before retrying.');
+  }
+  return result as LocalSessionCreationReceipt;
 }
 
 const SIDE_CHAT_REQUEST_TIMEOUT_MS = 60_000;

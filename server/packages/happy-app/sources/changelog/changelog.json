@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 10 — Persistent HappyHerd Assistant",
+      "summary": "",
+      "markdown": "- Automatically creates a persistent HappyHerd Assistant once the authenticated machine and supported provider are ready, allowing one account entry to be reused across restarts or another machine, which stays pinned on the web desktop or mobile beyond the recent list window.\n- Local session creation, task delivery, and response inspection use the existing daemon login without an additional account-control link."
+    },
+    {
       "title": "September 10 — Sidebar Layout & Session Grouping Updates",
       "summary": "",
       "markdown": "- Local machine pairing works after binary installation.\n- Fixed packaged self-host server startup on Amazon Linux 2023.\n- Added project session lists and project grouping, with compact sidebar navigation."
@@ -631,5 +636,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 10 — Sidebar Layout & Session Grouping Updates"
+  "latestTitle": "September 10 — Persistent HappyHerd Assistant"
 }

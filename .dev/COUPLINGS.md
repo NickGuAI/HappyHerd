@@ -50,6 +50,12 @@ Changes to ordering, reconnect, delivery, completion, or visibility require
 inspection at every layer. A transport-presence signal is not a substitute for
 canonical persisted session/message state.
 
+### Default Assistant
+
+The server enforces a unique constraint on the existing `(accountId, tag)` to reserve one account entry. A stable prepared session ID and key are stored in the reconnect store before publishing, so retries or lost responses reuse the identity, and another machine reuses the existing entry without decrypting or relaunching it. The initial server list includes the reserved row outside the 150 most recent updates.
+
+Evidence: `server/packages/happy-server/sources/app/api/routes/sessionRoutes.ts` and `server/packages/happy-cli/src/{api,daemon,agentContext}/defaultAssistant.ts`. Local `session ensure-assistant` and `session create --local` use `daemon/controlClient.ts` → `daemon/controlServer.ts`; `session send` and `session inspect` use `daemon/localSessionClient.ts` with the existing encrypted message API. Remote `--machine` retains the separate account-control owner.
+
 ### Machine RPC
 
 ```text
