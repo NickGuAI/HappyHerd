@@ -11,6 +11,9 @@ if (!artifact) {
 }
 
 const env = { ...process.env };
+if (artifact.prismaQueryEngineLibrary && !env.PRISMA_QUERY_ENGINE_LIBRARY) {
+  env.PRISMA_QUERY_ENGINE_LIBRARY = artifact.prismaQueryEngineLibrary;
+}
 if (artifact.webappDir && !env.HAPPY_STATIC_DIR) {
   env.HAPPY_STATIC_DIR = artifact.webappDir;
 }

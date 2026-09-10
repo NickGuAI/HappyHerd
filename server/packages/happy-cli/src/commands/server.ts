@@ -118,11 +118,12 @@ export async function handleServerCommand(args: string[]): Promise<void> {
         disableAnalytics: true,
     });
 
-    // The bundled bun binary can't embed Prisma's native query engine. Source/dev
-    // mode resolves the engine from node_modules normally, but bundled mode needs
-    // an explicit path because bun's bunfs execPath defeats Prisma's search.
-    if (artifacts.bundled) {
-        const prismaEngine = artifacts.prismaQueryEngineLibrary ?? resolvePrismaQueryEngineLibrary(artifacts.cwd);
+    // Prepared packages declare their shipped engine so Prisma does not select
+    // a different distro name. Legacy Bun binaries also need an explicit path.
+    if (artifacts.bundled || artifacts.prismaQueryEngineLibrary) {
+        const prismaEngine = env.PRISMA_QUERY_ENGINE_LIBRARY
+            ?? artifacts.prismaQueryEngineLibrary
+            ?? resolvePrismaQueryEngineLibrary(artifacts.cwd);
         if (!prismaEngine) {
             console.error(chalk.red('Could not locate the Prisma query engine for this platform.'));
             if (artifacts.source === 'package') {
