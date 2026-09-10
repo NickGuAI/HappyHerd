@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
+import { NativeSettingsMenu } from '@/components/NativeSettingsMenu';
 import { useSettingMutable, useLocalSettingMutable } from '@/sync/storage';
 import { useRouter } from 'expo-router';
 import * as Localization from 'expo-localization';
@@ -12,6 +13,7 @@ import * as SystemUI from 'expo-system-ui';
 import { darkTheme, lightTheme } from '@/theme';
 import {
     SESSION_STATUS_BAR_DISPLAY_MODES,
+    SESSION_LIST_GROUPING_MODES,
     type SessionListGrouping,
     type SessionStatusBarDisplay,
 } from '@/sync/settings';
@@ -156,6 +158,8 @@ const getSessionListGroupingLabel = (mode: SessionListGrouping): string => {
         case 'flat':
             return t('sessionsFilter.flatList');
         case 'project':
+            return t('sessionsFilter.groupByWorkspace');
+        case 'personal-project':
             return t('sessionsFilter.groupByProject');
     }
 };
@@ -584,16 +588,49 @@ export default function AppearanceSettingsScreen() {
             </ItemGroup>
 
             <ItemGroup title={t('settingsAppearance.display')} footer={t('settingsAppearance.displayDescription')}>
-                {/* Same setting the home filter menu drives; two values, so a
-                    tap flips between them like the theme row does. */}
-                <Item
-                    title={t('sessionsFilter.groupingTitle')}
-                    icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
-                    detail={getSessionListGroupingLabel(sessionListGrouping === 'project' ? 'project' : 'flat')}
-                    onPress={() => {
-                        setSessionListGrouping(sessionListGrouping === 'project' ? 'flat' : 'project');
-                    }}
-                />
+                {Platform.OS === 'web' ? (
+                    <Item
+                        title={t('sessionsFilter.groupingTitle')}
+                        icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
+                        showChevron={false}
+                        rightElement={
+                            <select
+                                aria-label={t('sessionsFilter.groupingTitle')}
+                                value={sessionListGrouping}
+                                onChange={(event) => setSessionListGrouping(event.target.value as SessionListGrouping)}
+                                style={{
+                                    fontSize: 16, minHeight: 44, maxWidth: '100%', padding: 8,
+                                    color: theme.colors.text, backgroundColor: theme.colors.surface,
+                                    border: 0, borderRadius: 6,
+                                }}
+                            >
+                                {SESSION_LIST_GROUPING_MODES.map(mode => (
+                                    <option key={mode} value={mode}>{getSessionListGroupingLabel(mode)}</option>
+                                ))}
+                            </select>
+                        }
+                    />
+                ) : (
+                    <NativeSettingsMenu
+                        accessibilityLabel={t('sessionsFilter.groupingTitle')}
+                        anchor="top"
+                        groups={[{
+                            key: 'grouping',
+                            label: t('sessionsFilter.groupingTitle'),
+                            options: SESSION_LIST_GROUPING_MODES.map(mode => ({ key: mode, label: getSessionListGroupingLabel(mode) })),
+                            selectedKey: sessionListGrouping,
+                            onSelect: (key) => {
+                                if (key === 'flat' || key === 'project' || key === 'personal-project') setSessionListGrouping(key);
+                            },
+                        }]}
+                    >
+                        <Item
+                            title={t('sessionsFilter.groupingTitle')}
+                            icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
+                            detail={getSessionListGroupingLabel(sessionListGrouping)}
+                        />
+                    </NativeSettingsMenu>
+                )}
                 <Item
                     title={t('settingsAppearance.compactToolCalls')}
                     subtitle={t('settingsAppearance.compactToolCallsDescription')}

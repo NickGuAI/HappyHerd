@@ -297,10 +297,13 @@ const HeaderRight = React.memo(({
                     systemImage: 'rectangle.grid.1x2',
                     options: [
                         { key: 'flat', label: t('sessionsFilter.flatList') },
-                        { key: 'project', label: t('sessionsFilter.groupByProject') },
+                        { key: 'project', label: t('sessionsFilter.groupByWorkspace') },
+                        { key: 'personal-project', label: t('sessionsFilter.groupByProject') },
                     ],
-                    selectedKey: sessionListGrouping === 'project' ? 'project' : 'flat',
-                    onSelect: (key) => setSessionListGrouping(key === 'project' ? 'project' : 'flat'),
+                    selectedKey: sessionListGrouping,
+                    onSelect: (key) => {
+                        if (key === 'flat' || key === 'project' || key === 'personal-project') setSessionListGrouping(key);
+                    },
                 },
                 // A plain row, not a choice: it leaves this screen for the
                 // appearance settings, where the avatar options now live.

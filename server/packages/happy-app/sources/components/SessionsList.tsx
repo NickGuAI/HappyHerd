@@ -19,10 +19,17 @@ import { useIsTablet } from '@/utils/responsive';
 import {
     type SessionListViewItem,
     useAllMachines,
+    useAllSessions,
+    useProjects,
     useSetting,
     useSettingMutable,
 } from '@/sync/storage';
-import { filterProjectGroupSessions } from '@/sync/projectGroups';
+import {
+    buildPersonalSessionGroups,
+    buildSessionWorkspaceGroups,
+    filterProjectGroupSessions,
+    type PersonalSessionGroup,
+} from '@/sync/projectGroups';
 import { t } from '@/text';
 import {
     buildFlatSessionRows,
@@ -39,6 +46,9 @@ import { UpdateBanner } from './UpdateBanner';
 import { layout } from './layout';
 
 type SessionListDisplayItem = SessionListViewItem | {
+    type: 'personal-project';
+    group: PersonalSessionGroup;
+} | {
     type: 'machine-header';
     machineId: string | null;
     machineName: string;
@@ -190,7 +200,10 @@ export function SessionsList({
     const sourceData = useVisibleSessionListViewData();
     const hasArchivedSessions = useHasArchivedSessions();
     const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
-    const flatSessionList = useSetting('sessionListGrouping') !== 'project';
+    const grouping = useSetting('sessionListGrouping');
+    const flatSessionList = grouping === 'flat';
+    const sessions = useAllSessions();
+    const projects = useProjects();
     const machines = useAllMachines();
     const pathname = usePathname();
     const isTablet = useIsTablet();
@@ -282,48 +295,35 @@ export function SessionsList({
         const bots = primaryRows.filter((item): item is Extract<SessionListViewItem, { type: 'bots' }> => (
             item.type === 'bots'
         ));
-        const personalProjects = primaryRows.filter((item): item is Extract<SessionListViewItem, { type: 'project' }> => (
-            item.type === 'project' && item.source === 'personal'
-        ));
-        const machineRows = primaryRows.filter((item) => (
-            item.type !== 'bots' && (item.type !== 'project' || item.source !== 'personal')
-        ));
-        const machineGroups = buildSessionProjectDisplayGroups(
-            machineRows,
-            machines,
-            t('status.unknown'),
-        );
-        const hierarchy = machineGroups.flatMap<SessionListDisplayItem>((group) => [
-            {
-                type: 'machine-header',
-                machineId: group.machineId,
-                machineName: group.machineName,
-            },
-            ...group.projects,
-        ]);
-        const legacyItems = machineRows.filter((item) => (
-            item.type !== 'bots' && item.type !== 'project' && item.type !== 'projects-header'
-        ));
+        const ordinaryRows = buildFlatSessionRows(primaryRows.filter(item => item.type !== 'bots'))
+            .map(row => row.session);
+        const groupedRows: SessionListDisplayItem[] = grouping === 'personal-project'
+            ? buildPersonalSessionGroups(ordinaryRows, sessions, projects)
+                .map(group => ({ type: 'personal-project' as const, group }))
+            : buildSessionProjectDisplayGroups(
+                buildSessionWorkspaceGroups(ordinaryRows, sessions),
+                machines,
+                t('status.unknown'),
+            ).flatMap<SessionListDisplayItem>((group) => [
+                { type: 'machine-header', machineId: group.machineId, machineName: group.machineName },
+                ...group.projects,
+            ]);
         return [
             ...(pinnedRow ? [{
                 type: 'flat-session' as const,
                 row: pinnedRow,
                 last: bots.length === 0
-                    && personalProjects.length === 0
-                    && hierarchy.length === 0
-                    && legacyItems.length === 0
+                    && groupedRows.length === 0
                     && archiveToggle.length === 0
                     && archiveItems.length === 0,
                 pinned: true,
             }] : []),
             ...bots,
-            ...personalProjects,
-            ...hierarchy,
-            ...legacyItems,
+            ...groupedRows,
             ...archiveToggle,
             ...archiveItems,
         ];
-    }, [flatSessionList, hasArchivedSessions, hideArchivedSessions, machines, searchQuery, sourceData]);
+    }, [flatSessionList, grouping, hasArchivedSessions, hideArchivedSessions, machines, projects, searchQuery, sessions, sourceData]);
 
     if (!data) {
         return <View style={[styles.container, flatSessionList && styles.containerFlat]} />;
@@ -333,6 +333,7 @@ export function SessionsList({
         switch (item.type) {
             case 'super-session': return `super-session-${item.session.id}`;
             case 'bots': return 'bots';
+            case 'personal-project': return `personal-project-${JSON.stringify(item.group.projectId)}`;
             case 'machine-header': return `machine-header-${item.machineId ?? 'unknown'}`;
             case 'archive-toggle': return 'archive-toggle';
             case 'archive-header': return `archive-header-${item.title}-${index}`;
@@ -348,20 +349,21 @@ export function SessionsList({
 
     const renderItem = React.useCallback(({ item }: { item: SessionListDisplayItem }) => {
         switch (item.type) {
+            case 'personal-project':
             case 'bots':
                 return (
                     <View style={styles.botSection}>
                         <View style={styles.botHeader}>
                             <Text accessibilityRole="header" style={styles.headerText}>
-                                {t('sessions.bots')}
+                                {item.type === 'bots' ? t('sessions.bots') : item.group.name ?? t('projects.noProject')}
                             </Text>
                         </View>
-                        {item.sessions.map((session, index) => (
+                        {(item.type === 'bots' ? item.sessions : item.group.sessions).map((session, index, sessions) => (
                             <FlatSessionRow
                                 key={session.id}
                                 row={toFlatSessionRow(session)}
                                 selected={session.id === selectedSessionId}
-                                showBorder={index < item.sessions.length - 1}
+                                showBorder={index < sessions.length - 1}
                             />
                         ))}
                     </View>

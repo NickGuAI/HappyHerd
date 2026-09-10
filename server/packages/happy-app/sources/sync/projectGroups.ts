@@ -1,5 +1,5 @@
 import type { Session } from './storageTypes';
-import type { SessionRowData } from './storage';
+import type { SessionListViewItem, SessionRowData } from './storage';
 import type { Project } from './projectTypes';
 import { getRepoPath, getWorktreeName, isWorktreePath } from '@/utils/worktreePaths';
 
@@ -20,6 +20,78 @@ export interface ProjectGroupData {
     workspaces: ProjectWorkspaceGroup[];
     sessionCount: number;
     activeCount: number;
+}
+
+export interface PersonalSessionGroup {
+    projectId: string | null;
+    name: string | null;
+    sessions: SessionRowData[];
+}
+
+/** Regroups visible rows by workspace without changing their personal assignments. */
+export function buildSessionWorkspaceGroups(
+    rows: readonly SessionRowData[],
+    rawSessions: readonly Session[],
+): Extract<SessionListViewItem, { type: 'project' }>[] {
+    const sessionsById = new Map(rawSessions.map(session => [session.id, session]));
+    const rowsById = new Map(rows.map(row => [row.id, row]));
+    const rigByMachine = new Map<string | null, Session[]>();
+    const rigPaths: Session[] = [];
+    const happyPaths: Session[] = [];
+    for (const row of rows) {
+        const session = sessionsById.get(row.id);
+        if (!session) continue;
+        if (session.metadata?.client?.id !== 'rig') {
+            happyPaths.push(session);
+        } else if (!isProjectSession(session)) {
+            rigPaths.push(session);
+        } else {
+            const machineId = session.metadata?.machineId ?? null;
+            const machineSessions = rigByMachine.get(machineId) ?? [];
+            machineSessions.push(session);
+            rigByMachine.set(machineId, machineSessions);
+        }
+    }
+    const toRow = (session: Session) => rowsById.get(session.id)!;
+    const isActive = (session: Session) => toRow(session).active;
+    const rigProjects = [
+        ...[...rigByMachine.values()].flatMap(sessions => buildProjectGroups(sessions, toRow, isActive)),
+        ...buildPathProjectGroups(rigPaths, toRow, isActive, 'rig'),
+    ];
+    return [
+        ...rigProjects.map(project => ({ type: 'project' as const, source: 'rig' as const, project })),
+        ...buildPathProjectGroups(happyPaths, toRow, isActive, 'happy')
+            .map(project => ({ type: 'project' as const, source: 'happy' as const, project })),
+    ];
+}
+
+/** Personal project identity comes only from an explicit account-catalog assignment. */
+export function buildPersonalSessionGroups(
+    rows: readonly SessionRowData[],
+    rawSessions: readonly Session[],
+    projects: Record<string, Project>,
+): PersonalSessionGroup[] {
+    const sessionsById = new Map(rawSessions.map(session => [session.id, session]));
+    const groups = new Map<string, PersonalSessionGroup>();
+    const unassigned: SessionRowData[] = [];
+    for (const row of rows) {
+        const projectId = sessionsById.get(row.id)?.projectId?.trim();
+        const project = projectId ? projects[projectId] : undefined;
+        if (!project || project.kind !== 'personal') {
+            unassigned.push(row);
+            continue;
+        }
+        let group = groups.get(project.id);
+        if (!group) {
+            group = { projectId: project.id, name: project.name, sessions: [] };
+            groups.set(project.id, group);
+        }
+        group.sessions.push(row);
+    }
+    return [
+        ...groups.values(),
+        ...(unassigned.length > 0 ? [{ projectId: null, name: null, sessions: unassigned }] : []),
+    ];
 }
 
 /**

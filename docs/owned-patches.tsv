@@ -326,3 +326,4 @@ WORKSPACE_CHIP_LAYOUT	accepted	fix(workspace): keep machine and path choices com
 PROJECT_SESSION_NAVIGATION	accepted	feat(sidebar): compact navigation into two rows	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
 PROJECT_SESSION_DETAIL	accepted	feat(projects): open assigned sessions from named projects	server/packages/happy-app/sources/utils/projectSessionList.test.ts
 PROJECT_CATALOG_READINESS	accepted	fix(projects): wait for catalog before showing missing project	server/packages/happy-app/sources/sync/storage.projects.test.ts
+PROJECT_SESSION_GROUPING	accepted	feat: add distinct project and workspace session views	server/packages/happy-app/sources/sync/sessionListGrouping.test.ts
