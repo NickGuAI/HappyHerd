@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   persistSession: vi.fn(() => true),
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
+  postSessionTask: vi.fn(async (): Promise<{ seq: number }> => ({ seq: 9 })),
   readRecentSessionMessages: vi.fn(async (): Promise<any[]> => []),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
@@ -53,6 +54,7 @@ vi.mock('@/api/api', () => ({
       inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
+      postSessionTask: mocks.postSessionTask,
       readRecentSessionMessages: mocks.readRecentSessionMessages,
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
         id: 'machine-record',
@@ -259,6 +261,9 @@ import {
   startDaemon,
 } from './run';
 import { prepareCommanderContext } from '@/agentContext/commanderContext';
+import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
+import { DefaultAssistantApi } from '@/api/defaultAssistant';
+import * as defaultAssistantCommander from '@/agentContext/defaultAssistant';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -286,6 +291,10 @@ type CapturedRpcHandlers = {
 };
 
 type CapturedControlHandlers = {
+  sendLocalMessage: (request: import('./localSessionClient').LocalSessionSendRequest) => Promise<import('./localSessionClient').LocalSessionSendReceipt>;
+  inspectLocalSession: (request: import('./localSessionClient').LocalSessionInspectRequest) => Promise<import('./localSessionClient').LocalSessionInspectReceipt>;
+  ensureDefaultAssistant: () => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
+  createLocalSession: (request: import('./controlServer').LocalSessionCreationRequest) => Promise<import('./controlServer').LocalSessionCreationReceipt>;
   onHappySessionWebhook: (
     sessionId: string,
     metadata: Metadata,
@@ -357,6 +366,8 @@ describe('daemon session continuity', () => {
       active: mocks.authoritativeActive,
     }));
     mocks.persistSession.mockReturnValue(true);
+    mocks.postSessionTask.mockResolvedValue({ seq: 9 });
+    mocks.readRecentSessionMessages.mockResolvedValue([]);
     mocks.readPersistedSessions.mockReturnValue({});
     mocks.isTmuxAvailable.mockResolvedValue(false);
     mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
@@ -399,6 +410,239 @@ describe('daemon session continuity', () => {
     }
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+  });
+
+  async function localMessagingFixture(machineId = 'machine-1') {
+    const sessionId = 'local-command-session';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', codexThreadId: 'thread-local', commanderId: 'selected', commanderName: 'Selected Commander',
+      summary: { text: 'Delegated task', updatedAt: 1 },
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 8, metadataVersion: 2, agentStateVersion: 3,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
+  }
+
+  it('sends a local task through the original session key and reads only bounded safe metadata and messages', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321 }, encryption);
+    mocks.authoritativeActive = true;
+    mocks.readRecentSessionMessages.mockResolvedValue([
+      { seq: 9, localId: 'reply-one', createdAt: 3, content: { role: 'agent', content: { type: 'text', text: 'Done.' } } },
+      { seq: 8, localId: 'task-one', createdAt: 2, content: { role: 'user', content: { type: 'text', text: 'Task' } } },
+    ]);
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({
+      success: true, status: 'queued', sessionId, messageId: 'task-one', seq: 9,
+    });
+    expect(mocks.postSessionTask).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: sessionId, encryptionKey: encryption.encryptionKey }), { localId: 'task-one', text: 'Task' });
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+    const result = await control.inspectLocalSession({ sessionId, limit: 5 });
+    expect(result).toMatchObject({ recent: true, limit: 5, session: { id: sessionId, active: true, providerRunning: true,
+      metadata: { path: metadata.path, commanderId: 'selected', commanderName: 'Selected Commander', title: 'Delegated task' } }, messages: [{ seq: 8 }, { seq: 9 }] });
+    expect(mocks.readRecentSessionMessages).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ encryptionKey: encryption.encryptionKey }), 5);
+    expect(result.session).not.toHaveProperty('encryptionKey');
+    expect(result.session.metadata).not.toHaveProperty('hostPid');
+  });
+
+  it.each(['persisted', 'authoritative'] as const)('rejects a foreign-machine local session from %s ownership before posting or reading messages', async (ownership) => {
+    const { sessionId, control } = await localMessagingFixture(ownership === 'persisted' ? 'foreign-machine' : 'machine-1');
+    if (ownership === 'authoritative') mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, metadata: { ...session.metadata, machineId: 'foreign-machine' } }, active: false,
+    }));
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({ success: false, status: 'failed', sessionId, messageId: 'task-one' });
+    await expect(control.inspectLocalSession({ sessionId, limit: 20 })).rejects.toThrow('machine');
+    expect(mocks.postSessionTask).not.toHaveBeenCalled(); expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+  });
+
+  it.each(['fresh', 'known-pending'] as const)('resumes stopped local work with original identity when the message is %s', async (kind) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    if (kind === 'known-pending') mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, seq: 9, agentState: { messageQueue: { currentMessageIds: [], pendingMessageIds: ['task-one'], updatedAt: 1 } } }, active: false,
+    }));
+    const send = control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    const [, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(launch.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toBe(kind === 'fresh' ? 'task-one' : undefined);
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(send).resolves.toMatchObject({ success: true, status: 'queued', sessionId, messageId: 'task-one', seq: 9 });
+  });
+
+  it('reports ambiguous delivery after a lost acknowledgement without skipping or replaying a stopped duplicate', async () => {
+    const { sessionId, control } = await localMessagingFixture();
+    const request = { sessionId, messageId: 'task-one', text: 'Task' };
+    mocks.postSessionTask.mockRejectedValueOnce(new Error('Acknowledgement lost'));
+    await expect(control.sendLocalMessage(request)).resolves.toMatchObject({ success: false, sessionId, messageId: 'task-one', error: 'Acknowledgement lost' });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({ session: { ...session, seq: 9 }, active: false }));
+    await expect(control.sendLocalMessage(request)).resolves.toMatchObject({
+      success: false, status: 'queued', sessionId, messageId: 'task-one', seq: 9, error: expect.stringContaining('prior execution is unknown'),
+    });
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+  });
+
+  it('does not rerun a completed message when a stopped session receives the same ID again', async () => {
+    const { sessionId, control } = await localMessagingFixture();
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, seq: 15, agentState: { messageQueue: { currentMessageIds: [], pendingMessageIds: [], updatedAt: 2 } } }, active: false,
+    }));
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({
+      success: false, status: 'queued', seq: 9, error: expect.stringContaining('Inspect the session'),
+    });
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+  });
+
+  it.each(['codex', 'claude', 'grok', 'dsh'] as const)('attaches an initial %s Assistant to its precreated Happy ID and original key', async (provider) => {
+    const sessionId = 'prepared-assistant';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: provider, isSuperSession: true, commanderId: 'assistant',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    const settings = resolveEffectiveSessionSettings(initialMachineMetadata, 'machine-1', { provider });
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: settings }, encryption);
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    const [args, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args[0]).toBe(provider);
+    expect(args).not.toContain('--resume');
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+  });
+
+  it('publishes a recognizable title when creating the initial Assistant and waits for its registered session', async () => {
+    const sessionId = 'new-default-assistant';
+    const commander = {
+      id: 'custom-assistant', name: 'My Assistant', workspace: process.cwd(),
+      commanderPath: '/context/COMMANDER.md', agentContextPath: '/context/agentcontext',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    let prepared: import('@/api/types').Session | undefined;
+    vi.spyOn(defaultAssistantCommander, 'ensureDefaultAssistantCommander').mockResolvedValue(commander);
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue(null);
+    vi.spyOn(DefaultAssistantApi.prototype, 'prepare').mockImplementation((metadata) => {
+      prepared = { id: sessionId, ...encryption, metadata, agentState: null };
+      return prepared;
+    });
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish').mockResolvedValue({
+      session: { id: sessionId } as any, isRequestedSession: true,
+    });
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    let completed = false;
+    const ensure = control.ensureDefaultAssistant().then(result => { completed = true; return result; });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    expect(completed).toBe(false);
+    expect(publish.mock.calls[0][0].metadata).toMatchObject({
+      commanderId: commander.id,
+      summary: { text: commander.name, updatedAt: expect.any(Number) },
+    });
+    const [, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    control.onHappySessionWebhook(sessionId, {
+      ...prepared!.metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'created', sessionId, commanderId: commander.id });
+  });
+
+  it('initializes an Assistant with a reused untracked metadata PID instead of treating that process as its provider', async () => {
+    const sessionId = 'assistant-with-stale-pid';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1', hostPid: 9876,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', isSuperSession: true, commanderId: 'assistant',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    // The old PID is alive, but this daemon has no session registration for it.
+    mocks.hasProviderProcessExited.mockReturnValue(false);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue({ id: sessionId } as any);
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    const prepare = vi.spyOn(DefaultAssistantApi.prototype, 'prepare');
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish');
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const ensure = control.ensureDefaultAssistant();
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata, hostPid: 4321, codexThreadId: 'initialized-thread', spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'existing', sessionId });
+    const [, launch] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalledWith(9876);
+    await expect(control.ensureDefaultAssistant()).resolves.toMatchObject({ status: 'existing', sessionId });
+    expect(mocks.hasProviderProcessExited).toHaveBeenCalledWith(4321);
+    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it.each(['exact', 'trailing-slash', 'symlink'] as const)('confirms local Commander launches with a %s workspace path without account-control auth', async (form) => {
+    let directory = form === 'trailing-slash' ? `${process.cwd()}/./` : process.cwd();
+    if (form === 'symlink') {
+      const temporary = await mkdtemp(join(tmpdir(), 'happy-local-create-path-'));
+      temporaryDirectories.push(temporary);
+      directory = join(temporary, 'workspace');
+      await symlink(process.cwd(), directory);
+    }
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const create = control.createLocalSession({
+      directory, agent: 'codex', commanderId: 'assistant', isSuperSession: true,
+      approvedNewDirectoryCreation: false,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('local-created', {
+      path: process.cwd(), host: 'test-host', hostPid: 4321, machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', spawnSettings: codexAdvertisedDefaultSettings, isSuperSession: true,
+      commanderId: 'assistant', commanderName: 'Assistant', commanderPath: '/context/COMMANDER.md',
+      commanderWorkspace: '/home/test', commanderAgentContextPath: '/context/agentcontext',
+    }, { encryptionKey: new Uint8Array(32).fill(8), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0 });
+    await expect(create).resolves.toMatchObject({
+      success: true, sessionId: 'local-created', path: process.cwd(), settings: codexAdvertisedDefaultSettings,
+      commander: { id: 'assistant', name: 'Assistant' }, superSession: true,
+    });
+    expect(prepareCommanderContext).toHaveBeenCalledWith('assistant', directory);
   });
 
   it('backfills a missing local record despite a reused stale metadata PID and spawns the same Happy session', async () => {

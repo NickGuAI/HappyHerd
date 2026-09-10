@@ -2,12 +2,32 @@ import { eventRouter, buildNewSessionUpdate, buildUpdateSessionUpdate, buildSess
 import { type Fastify } from "../types";
 import { db } from "@/storage/db";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Session } from "@prisma/client";
 import { log } from "@/utils/log";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { allocateUserSeq } from "@/storage/seq";
 import { sessionDelete } from "@/app/session/sessionDelete";
 import { activityCache } from "@/app/presence/sessionCache";
+
+const DEFAULT_ASSISTANT_TAG = 'happyherd-default-assistant';
+
+function serializeSession(session: Session) {
+    return {
+        id: session.id,
+        seq: session.seq,
+        metadata: session.metadata,
+        metadataVersion: session.metadataVersion,
+        agentState: session.agentState,
+        agentStateVersion: session.agentStateVersion,
+        dataEncryptionKey: session.dataEncryptionKey ? Buffer.from(session.dataEncryptionKey).toString('base64') : null,
+        projectId: session.projectId,
+        active: session.active,
+        activeAt: session.lastActiveAt.getTime(),
+        createdAt: session.createdAt.getTime(),
+        updatedAt: session.updatedAt.getTime(),
+        lastMessage: null,
+    };
+}
 
 export function sessionRoutes(app: Fastify) {
 
@@ -48,6 +68,13 @@ export function sessionRoutes(app: Fastify) {
             }
         });
 
+        const defaultAssistant = await db.session.findUnique({
+            where: { accountId_tag: { accountId: userId, tag: DEFAULT_ASSISTANT_TAG } },
+        });
+        if (defaultAssistant && !sessions.some(session => session.id === defaultAssistant.id)) {
+            sessions.push(defaultAssistant);
+        }
+
         return reply.send({
             sessions: sessions.map((v) => {
                 // const lastMessage = v.messages[0];
@@ -71,6 +98,80 @@ export function sessionRoutes(app: Fastify) {
                 };
             })
         });
+    });
+
+    app.get('/v1/sessions/default-assistant', {
+        preHandler: app.authenticate,
+    }, async (request, reply) => {
+        const session = await db.session.findUnique({
+            where: { accountId_tag: { accountId: request.userId, tag: DEFAULT_ASSISTANT_TAG } },
+        });
+        return reply.send({ session: session ? serializeSession(session) : null });
+    });
+
+    app.post('/v1/sessions/default-assistant', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({
+                sessionId: z.string().min(1),
+                metadata: z.string(),
+                agentState: z.string().nullish(),
+                dataEncryptionKey: z.string().nullish(),
+            }),
+        },
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId, metadata, agentState, dataEncryptionKey } = request.body;
+        const accountTag = { accountId_tag: { accountId: userId, tag: DEFAULT_ASSISTANT_TAG } };
+        const existing = await db.session.findUnique({ where: accountTag });
+        if (existing) {
+            return reply.send({ session: serializeSession(existing), isRequestedSession: existing.id === sessionId });
+        }
+
+        const candidate = await db.session.findUnique({ where: { id: sessionId } });
+        if (candidate && candidate.accountId !== userId) {
+            return reply.code(404).send({ error: 'Session not found' });
+        }
+
+        let session: Session;
+        let created = false;
+        let creationSeq = 0;
+        try {
+            if (candidate) {
+                // Adoption preserves the existing encrypted state, history and activity.
+                session = await db.session.update({
+                    where: { id: sessionId, accountId: userId },
+                    data: { tag: DEFAULT_ASSISTANT_TAG },
+                });
+            } else {
+                creationSeq = await allocateUserSeq(userId);
+                session = await db.session.create({
+                    data: {
+                        id: sessionId,
+                        accountId: userId,
+                        tag: DEFAULT_ASSISTANT_TAG,
+                        metadata,
+                        agentState,
+                        dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined,
+                    },
+                });
+                created = true;
+            }
+        } catch (error) {
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+            const winner = await db.session.findUnique({ where: accountTag });
+            if (!winner) return reply.code(409).send({ error: 'Session ID unavailable' });
+            session = winner;
+        }
+
+        if (created) {
+            eventRouter.emitUpdate({
+                userId,
+                payload: buildNewSessionUpdate(session, creationSeq, randomKeyNaked(12)),
+                recipientFilter: { type: 'user-scoped-only' },
+            });
+        }
+        return reply.send({ session: serializeSession(session), isRequestedSession: session.id === sessionId });
     });
 
     // V2 Sessions API - Active sessions only

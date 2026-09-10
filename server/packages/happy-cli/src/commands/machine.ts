@@ -37,7 +37,8 @@ import {
   type SideChatLifecycleReceipt,
   type SideChatLifecycleRequest,
 } from './sideChat';
-import { manageDaemonSideChat } from '@/daemon/controlClient';
+import { ensureDaemonAssistant, manageDaemonSideChat, spawnLocalDaemonSession } from '@/daemon/controlClient';
+import { handleLocalSessionInspectCommand, handleLocalSessionSendCommand, type LocalSessionCommandDependencies } from './localSession';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -64,6 +65,9 @@ export type MachineCommandDependencies = {
   output?: Output;
   setExitCode?: (code: number) => void;
   manageLocalSideChat?: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
+  ensureLocalAssistant?: typeof ensureDaemonAssistant;
+  createLocalSession?: typeof spawnLocalDaemonSession;
+  localSession?: LocalSessionCommandDependencies;
 };
 
 type AccountControlConfig = {
@@ -78,6 +82,7 @@ type ParsedFlags = Record<string, string | true>;
 
 type SessionCreateOptions = {
   machineSelector: string;
+  local?: boolean;
   directory: string;
   provider: Provider;
   model?: string;
@@ -121,6 +126,11 @@ function sessionHelp(): string {
   return `happyherd session - Create a tracked session on an account machine
 
 Usage:
+  happyherd session ensure-assistant [--json]
+  happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID [--json]
+  happyherd session inspect SESSION_ID [--limit 1..100] [--json]
+  happyherd session create --local --path ABSOLUTE_PATH --provider PROVIDER \\
+    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] [--json]
   happyherd session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
     [--super-session] [--create-dir] [--json]
@@ -129,6 +139,9 @@ Usage:
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--json]
 
 Happy CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
+
+ensure-assistant uses the local daemon's existing machine login and reuses the
+account's persistent Assistant session. It does not require machine auth login.
 
 The selected machine must run a native Happy CLI daemon that advertises the
 target-confirmed machine-session protocol. Upgrade and restart older daemons.
@@ -194,9 +207,12 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
   const flags = parseFlags(
     args,
     new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission', 'commander']),
-    new Set(['super-session', 'create-dir', 'json']),
+    new Set(['super-session', 'create-dir', 'json', 'local']),
   );
-  const machineSelector = requiredFlag(flags, 'machine');
+  if (flags.local === true && flags.machine !== undefined) {
+    throw new Error('--local and --machine cannot be combined');
+  }
+  const machineSelector = flags.local === true ? '' : requiredFlag(flags, 'machine');
   const directory = requiredFlag(flags, 'path');
   const providerValue = requiredFlag(flags, 'provider');
   if (!DAEMON_PROVIDERS.includes(providerValue as Provider)) {
@@ -209,6 +225,7 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
   }
   return {
     machineSelector,
+    ...(flags.local === true ? { local: true } : {}),
     directory,
     provider: providerValue as Provider,
     model: optionalFlag(flags, 'model'),
@@ -635,12 +652,67 @@ export async function handleSessionCommand(
     await handleSessionSetCommanderCommand(rest, dependencies);
     return;
   }
+  if (action === 'send' || action === 'inspect') {
+    if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
+      outputFor(dependencies)(sessionHelp());
+      return;
+    }
+    const handler = action === 'send' ? handleLocalSessionSendCommand : handleLocalSessionInspectCommand;
+    await handler(rest, {
+      ...dependencies?.localSession,
+      output: outputFor(dependencies),
+      setExitCode: dependencies?.setExitCode,
+    });
+    return;
+  }
+  if (action === 'ensure-assistant') {
+    if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
+      outputFor(dependencies)(sessionHelp());
+      return;
+    }
+    const flags = parseFlags(rest, new Set(), new Set(['json']));
+    const receipt = await (dependencies?.ensureLocalAssistant ?? ensureDaemonAssistant)();
+    if (flags.json === true) {
+      outputFor(dependencies)(JSON.stringify(receipt));
+    } else {
+      outputFor(dependencies)(`Assistant: ${receipt.status}${receipt.sessionId ? ` (${receipt.sessionId})` : ''}`);
+    }
+    if (receipt.status === 'waiting-for-provider' || !receipt.sessionId) {
+      (dependencies?.setExitCode ?? ((code) => { process.exitCode = code; }))(1);
+    }
+    return;
+  }
   if (action !== 'create') throw new Error(`Unknown session command: ${action}`);
   if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
     outputFor(dependencies)(sessionHelp());
     return;
   }
   const options = parseSessionCreateOptions(rest);
+  if (options.local) {
+    const created = await (dependencies?.createLocalSession ?? spawnLocalDaemonSession)({
+      directory: options.directory,
+      agent: options.provider,
+      approvedNewDirectoryCreation: options.createDirectory,
+      ...(options.model ? { modelMode: options.model } : {}),
+      ...(options.effort ? { effortLevel: options.effort } : {}),
+      ...(options.permission ? { permissionMode: options.permission } : {}),
+      ...(options.commanderId ? { commanderId: options.commanderId } : {}),
+      ...(options.isSuperSession ? { isSuperSession: true } : {}),
+    });
+    const receipt = {
+      schemaVersion: 1,
+      type: 'session-created' as const,
+      sessionId: created.sessionId,
+      machine: created.machine,
+      path: created.path,
+      settings: created.settings,
+      commander: created.commander,
+      ...(created.superSession ? { superSession: true } : {}),
+    };
+    if (options.json) outputFor(dependencies)(JSON.stringify(receipt));
+    else outputFor(dependencies)(`Created Happy session ${created.sessionId} on ${created.machine.host} (${created.machine.id})`);
+    return;
+  }
   const client = await controlCall(() => clientFor(dependencies));
   const selected = resolveMachineSelector(
     await controlCall(() => client.listMachines()),

@@ -259,8 +259,8 @@ export class ApiClient {
     session: Session,
     content: unknown,
     localId: string,
-  ): Promise<void> {
-    await axios.post(
+  ): Promise<unknown> {
+    const response = await axios.post(
       `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
       {
         messages: [{
@@ -277,19 +277,33 @@ export class ApiClient {
         timeout: 60000,
       },
     );
+    return response.data;
   }
 
   private async postQueuedUserMessage(session: Session, input: {
     localId: string;
     text: string;
     meta: NonNullable<UserMessage['meta']>;
-  }): Promise<void> {
+  }): Promise<unknown> {
     const content: UserMessage = {
       role: 'user',
       content: { type: 'text', text: input.text },
       meta: input.meta,
     };
-    await this.postEncryptedSessionMessage(session, content, input.localId);
+    return this.postEncryptedSessionMessage(session, content, input.localId);
+  }
+
+  async postSessionTask(session: Session, input: { localId: string; text: string }): Promise<{ seq: number }> {
+    const response = await this.postQueuedUserMessage(session, {
+      ...input,
+      meta: { sentFrom: 'happyherd-cli', deliveryMode: 'queue', queueMessageId: input.localId },
+    }) as { messages?: Array<{ localId?: string; seq?: number }> } | null;
+    const acknowledged = Array.isArray(response?.messages)
+      ? response.messages.find(message => message.localId === input.localId) : undefined;
+    if (typeof acknowledged?.seq !== 'number' || !Number.isInteger(acknowledged.seq) || acknowledged.seq < 0) {
+      throw new Error(`Server did not acknowledge message ${input.localId} for session ${session.id}`);
+    }
+    return { seq: acknowledged.seq };
   }
 
   async postSessionEvent(

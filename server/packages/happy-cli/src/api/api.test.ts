@@ -488,6 +488,38 @@ describe('Api server error handling', () => {
         });
     });
 
+    describe('postSessionTask', () => {
+        const session = { id: 'session/one', seq: 2, encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey' as const,
+            metadata: testMetadata, metadataVersion: 1, agentState: null, agentStateVersion: 0 };
+
+        it('sends a stable encrypted queue message and returns the persisted sequence on retry', async () => {
+            mockPost.mockResolvedValue({ data: { messages: [{ localId: 'task-one', seq: 3 }] } });
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                await expect(api.postSessionTask(session, { localId: 'task-one', text: 'Perform the bounded task.' })).resolves.toEqual({ seq: 3 });
+            }
+            expect(mockPost).toHaveBeenCalledTimes(2);
+            expect(mockPost.mock.calls[0]).toEqual(mockPost.mock.calls[1]);
+            expect(mockPost).toHaveBeenCalledWith('https://api.example.com/v3/sessions/session%2Fone/messages', {
+                messages: [{ localId: 'task-one', content: {
+                    role: 'user', content: { type: 'text', text: 'Perform the bounded task.' },
+                    meta: { sentFrom: 'happyherd-cli', deliveryMode: 'queue', queueMessageId: 'task-one' },
+                } }],
+            }, expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }) }));
+        });
+
+        it.each([{}, { messages: {} }, { messages: [{ localId: 'other', seq: 3 }] }, { messages: [{ localId: 'task-one', seq: -1 }] }])(
+            'rejects an unconfirmed persistence response %j', async (data) => {
+                mockPost.mockResolvedValue({ data });
+                await expect(api.postSessionTask(session, { localId: 'task-one', text: 'Task' })).rejects.toThrow('did not acknowledge');
+            },
+        );
+
+        it('propagates queue delivery failure instead of returning a success', async () => {
+            mockPost.mockRejectedValue(new Error('Server unavailable'));
+            await expect(api.postSessionTask(session, { localId: 'task-one', text: 'Task' })).rejects.toThrow('Server unavailable');
+        });
+    });
+
     describe('postSideChatBrief', () => {
         it('posts the complete brief through the ordinary encrypted queue without heartbeat semantics', async () => {
             mockPost.mockResolvedValue({ data: {} });

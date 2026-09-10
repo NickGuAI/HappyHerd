@@ -151,6 +151,7 @@ async function withCodexAppServerClient<T>(
 }
 
 export class ApiMachineClient {
+    onCapabilitiesReady?: () => void;
     private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>;
     private keepAliveInterval: NodeJS.Timeout | null = null;
     private lastKnownCLIAvailability: CLIAvailability | null = null;
@@ -771,6 +772,7 @@ export class ApiMachineClient {
             logger.debug('[API MACHINE] Failed to refresh agent capability catalog:', error);
         }).finally(() => {
             this.capabilitiesRefreshInFlight = null;
+            this.onCapabilitiesReady?.();
         });
 
         return this.capabilitiesRefreshInFlight;

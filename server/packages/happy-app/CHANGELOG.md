@@ -1,3 +1,8 @@
+# September 10 — Persistent HappyHerd Assistant
+
+- Automatically creates a persistent HappyHerd Assistant once the authenticated machine and supported provider are ready, allowing one account entry to be reused across restarts or another machine, which stays pinned on the web desktop or mobile beyond the recent list window.
+- Local session creation, task delivery, and response inspection use the existing daemon login without an additional account-control link.
+
 # September 10 — Sidebar Layout & Session Grouping Updates
 
 - Local machine pairing works after binary installation.
