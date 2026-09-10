@@ -309,6 +309,7 @@ interface StorageState {
     sessionFileCache: Record<string, Record<string, { content: string | null; diff: string | null; isBinary: boolean; cachedAt: number }>>;
     machines: Record<string, Machine>;
     projects: Record<string, Project>;
+    projectsLoaded: boolean;
     artifacts: Record<string, DecryptedArtifact>;  // New artifacts storage
     friends: Record<string, UserProfile>;  // All relationships (friends, pending, requested, etc.)
     users: Record<string, UserProfile | null>;  // Global user cache, null = 404/failed fetch
@@ -542,6 +543,7 @@ export const storage = create<StorageState>()((set, get) => {
         sessions: {},
         machines: {},
         projects: {},
+        projectsLoaded: false,
         artifacts: {},  // Initialize artifacts
         friends: {},  // Initialize relationships cache
         users: {},  // Initialize global user cache
@@ -1312,6 +1314,7 @@ export const storage = create<StorageState>()((set, get) => {
             return {
                 ...state,
                 projects: mergedProjects,
+                projectsLoaded: state.projectsLoaded || replace,
                 sessionListViewData: buildSessionListViewData(
                     state.sessions,
                     state.unreadSessionIds,
@@ -1597,6 +1600,10 @@ const emptyArray: unknown[] = [];
 
 export function useProjects(): Record<string, Project> {
     return storage(useShallow((state) => state.projects));
+}
+
+export function useProjectsLoaded(): boolean {
+    return storage((state) => state.projectsLoaded);
 }
 
 export function useSessionProjectAvatar(sessionId: string): Project['avatar'] {

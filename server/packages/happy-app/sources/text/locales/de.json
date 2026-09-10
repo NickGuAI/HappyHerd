@@ -240,8 +240,9 @@
     "title": "Sitzungen filtern",
     "groupingTitle": "Gruppierung",
     "flatList": "Flache Liste",
-    "groupByProject": "Nach Projekt gruppieren",
-    "appearanceSettings": "Darstellungseinstellungen"
+    "groupByProject": "Nach Projekt",
+    "appearanceSettings": "Darstellungseinstellungen",
+    "groupByWorkspace": "Nach Workspace"
   },
   "settingsFeatures": {
     "experiments": "Experimente",
@@ -1797,7 +1798,10 @@
           "other": "{count} Sitzungen"
         }
       }
-    }
+    },
+    "sessionsEmpty": "Noch keine Sitzungen in diesem Projekt",
+    "notFound": "Projekt nicht gefunden",
+    "rename": "Projekt umbenennen"
   },
   "superSession": {
     "pinned": "Super Session (Angeheftet)"

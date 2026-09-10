@@ -40,11 +40,28 @@ function rigSession(id: string, native = true): Session {
 }
 
 beforeEach(() => {
-    storage.setState({ sessions: {}, projects: {}, machines: {}, sessionListViewData: null });
+    storage.setState({ sessions: {}, projects: {}, projectsLoaded: false, machines: {}, sessionListViewData: null });
     storage.getState().applyProjects([personalProject, nativeProject]);
 });
 
 describe('personal project assignment in the production session projection', () => {
+    it('does not treat partial project creates or updates as a loaded catalog', () => {
+        expect(storage.getState().projectsLoaded).toBe(false);
+        storage.getState().applyProjects([{ ...personalProject, name: 'Renamed' }]);
+        expect(storage.getState().projects[personalProject.id].name).toBe('Renamed');
+        expect(storage.getState().projectsLoaded).toBe(false);
+    });
+
+    it('marks an authoritative empty snapshot loaded and retains readiness after partial updates', () => {
+        storage.getState().applyProjects([], true);
+        expect(storage.getState().projects).toEqual({});
+        expect(storage.getState().projectsLoaded).toBe(true);
+
+        storage.getState().applyProjects([personalProject]);
+        expect(storage.getState().projects[personalProject.id]).toEqual(personalProject);
+        expect(storage.getState().projectsLoaded).toBe(true);
+    });
+
     it.each([true, false])('moves a Rig session from native=%s grouping into its assigned personal project', (native) => {
         const session = rigSession('assigned-rig', native);
         storage.getState().applySessions([session]);

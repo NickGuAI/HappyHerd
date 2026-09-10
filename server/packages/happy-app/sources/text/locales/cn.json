@@ -240,8 +240,9 @@
     "title": "筛选",
     "groupingTitle": "分组",
     "flatList": "平铺列表",
-    "groupByProject": "按项目分组",
-    "appearanceSettings": "外观设置"
+    "groupByProject": "按项目",
+    "appearanceSettings": "外观设置",
+    "groupByWorkspace": "按工作区"
   },
   "settingsFeatures": {
     "experiments": "实验功能",
@@ -1797,7 +1798,10 @@
           "other": "{count} 个会话"
         }
       }
-    }
+    },
+    "sessionsEmpty": "此项目暂无会话",
+    "notFound": "未找到项目",
+    "rename": "重命名项目"
   },
   "superSession": {
     "pinned": "Super Session（已置顶）"

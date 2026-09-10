@@ -1,3 +1,7 @@
+# September 10 — Sidebar Layout & Session Grouping Updates
+
+- Added project session lists and project grouping, with compact sidebar navigation.
+
 # September 10 — Workspace Layout Restoration
 
 - Fixed a layout bug where the device selectors and path bars stretched vertically when displaying a missing directory, restoring the intended compact design.

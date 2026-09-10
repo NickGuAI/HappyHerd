@@ -130,7 +130,7 @@ if (process.argv.includes('--write')) {
     console.log(`[ui-inventory] verified ${analysis.routes.length} routes, ${analysis.surfaces.length} surfaces, and ${smokeMatrix.length} smoke cases`);
 }
 
-if (analysis.routes.length !== 38) throw new Error(`Expected 38 production routes, found ${analysis.routes.length}`);
+if (analysis.routes.length !== 39) throw new Error(`Expected 39 production routes, found ${analysis.routes.length}`);
 if (analysis.hardcodedCopy.length > 0) {
     const details = analysis.hardcodedCopy.slice(0, 80).map((finding) => (
         `${finding.owner}:${finding.line}:${finding.column} [${finding.context}] ${finding.text}`

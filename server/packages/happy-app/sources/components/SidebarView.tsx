@@ -23,16 +23,22 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderColor: theme.colors.divider,
     },
     topControls: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
         marginHorizontal: 16,
         marginTop: 8,
         marginBottom: 4,
         gap: 8,
     },
     primaryNavigation: {
-        flex: 1,
+        flexDirection: 'row',
         gap: 8,
+    },
+    sessionActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    newSession: {
+        flex: 1,
     },
     archiveButton: {
         width: 40,
@@ -97,52 +103,59 @@ export const SidebarView = React.memo(() => {
         <View style={[styles.container, { paddingTop: safeArea.top + headerHeight }]}>
             <View style={styles.topControls}>
                 <View style={styles.primaryNavigation}>
-                    <SidebarNavigationButton
-                        icon="create-outline"
-                        label={t('sidebar.newSession')}
-                        onPress={handleNewSession}
-                        highlighted={shortcutHintsVisible}
-                        trailing={<ShortcutHintBadge shortcutKey="N" />}
-                    />
                     {machineWorkspaceEnabled && (
                         <SidebarNavigationButton
+                            iconOnly
                             icon="folder-open-outline"
                             label={t('workspace.title')}
                             onPress={() => router.navigate('/workspace')}
                         />
                     )}
                     <SidebarNavigationButton
+                        iconOnly
                         icon="albums-outline"
                         label={t('sidebar.projects')}
                         onPress={() => router.navigate('/projects')}
                     />
                     <SidebarNavigationButton
+                        iconOnly
                         icon="time-outline"
                         label={t('happyHerd.automations.title')}
                         onPress={() => router.navigate('/automations')}
                     />
                 </View>
-                {hasArchivedSessions && (
-                    <Pressable
-                        onPress={handleArchiveVisibility}
-                        accessibilityLabel={hideArchivedSessions
-                            ? t('sidebar.showArchived')
-                            : t('sidebar.hideArchived')}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: !hideArchivedSessions }}
-                        style={({ pressed }) => [
-                            styles.archiveButton,
-                            !hideArchivedSessions && styles.archiveButtonActive,
-                            pressed && styles.archiveButtonPressed,
-                        ]}
-                    >
-                        <Ionicons
-                            name={hideArchivedSessions ? 'archive-outline' : 'archive'}
-                            size={18}
-                            color={theme.colors.text}
+                <View style={styles.sessionActions}>
+                    <View style={styles.newSession}>
+                        <SidebarNavigationButton
+                            icon="create-outline"
+                            label={t('sidebar.newSession')}
+                            onPress={handleNewSession}
+                            highlighted={shortcutHintsVisible}
+                            trailing={<ShortcutHintBadge shortcutKey="N" />}
                         />
-                    </Pressable>
-                )}
+                    </View>
+                    {hasArchivedSessions && (
+                        <Pressable
+                            onPress={handleArchiveVisibility}
+                            accessibilityLabel={hideArchivedSessions
+                                ? t('sidebar.showArchived')
+                                : t('sidebar.hideArchived')}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: !hideArchivedSessions }}
+                            style={({ pressed }) => [
+                                styles.archiveButton,
+                                !hideArchivedSessions && styles.archiveButtonActive,
+                                pressed && styles.archiveButtonPressed,
+                            ]}
+                        >
+                            <Ionicons
+                                name={hideArchivedSessions ? 'archive-outline' : 'archive'}
+                                size={18}
+                                color={theme.colors.text}
+                            />
+                        </Pressable>
+                    )}
+                </View>
             </View>
 
             {realtimeStatus !== 'disconnected' && (

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { Item } from '@/components/Item';
@@ -14,6 +15,7 @@ import { t } from '@/text';
 const projectText = t as (key: string, params?: Record<string, string | number>) => string;
 
 export default function ProjectsScreen() {
+    const router = useRouter();
     const { theme } = useUnistyles();
     const projectsById = useProjects();
     const sessions = useAllSessions();
@@ -49,23 +51,6 @@ export default function ProjectsScreen() {
         }
     }, []);
 
-    const renameProject = React.useCallback(async (projectId: string, currentName: string) => {
-        const name = await Modal.prompt(
-            projectText('projects.renameTitle'),
-            projectText('projects.renamePrompt', { name: currentName }),
-            { defaultValue: currentName, confirmText: t('common.rename') },
-        );
-        if (!name?.trim() || name.trim() === currentName) return;
-        setBusyProjectId(projectId);
-        try {
-            await sync.renameProject(projectId, name);
-        } catch {
-            Modal.alert(t('common.error'), t('happyHerd.automations.unknownError'));
-        } finally {
-            setBusyProjectId(null);
-        }
-    }, []);
-
     return (
         <ItemList>
             <ItemGroup
@@ -88,7 +73,7 @@ export default function ProjectsScreen() {
                             icon={<Ionicons name="folder-outline" size={29} color={theme.colors.textLink} />}
                             loading={busyProjectId === project.id}
                             disabled={busyProjectId !== null}
-                            onPress={() => renameProject(project.id, project.name)}
+                            onPress={() => router.push(`/projects/${encodeURIComponent(project.id)}` as any)}
                         />
                     );
                 })}

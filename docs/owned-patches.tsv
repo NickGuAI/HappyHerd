@@ -323,3 +323,11 @@ BOT_SESSION_DISPLAY	accepted	feat(app): surface bot sessions in the session list
 SESSION_INFO_ACTIONS	accepted	feat: prioritize safe Session Info actions	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
 SELECTED_UPSTREAM_BOTS	accepted	docs: synchronize selected session and bot UI inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 WORKSPACE_CHIP_LAYOUT	accepted	fix(workspace): keep machine and path choices compact	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+PROJECT_SESSION_NAVIGATION	accepted	feat(sidebar): compact navigation into two rows	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+PROJECT_SESSION_DETAIL	accepted	feat(projects): open assigned sessions from named projects	server/packages/happy-app/sources/utils/projectSessionList.test.ts
+PROJECT_CATALOG_READINESS	accepted	fix(projects): wait for catalog before showing missing project	server/packages/happy-app/sources/sync/storage.projects.test.ts
+PROJECT_SESSION_GROUPING	accepted	feat: add distinct project and workspace session views	server/packages/happy-app/sources/sync/sessionListGrouping.test.ts
+PROJECT_SESSION_DETAIL	accepted	fix(projects): retain inactive pinned assistant visibility	server/packages/happy-app/sources/utils/projectSessionList.test.ts
+PROJECT_SESSION_NAVIGATION	accepted	docs: synchronize project navigation inventory and guide	server/packages/happy-app/sources/text/ui-surface-inventory.json
+PROJECT_NAVIGATION_BROWSER	accepted	test(projects): verify navigation grouping and compact sidebar gestures	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts
+PROJECT_NAVIGATION_BROWSER	accepted	test(projects): retain bot ordering and avatar assertions	server/packages/happy-app/sources/components/projectsSuperSession.browser.test.ts

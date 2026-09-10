@@ -2,6 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { SettingsSchema, settingsParse, applySettings, settingsDefaults, settingsToSyncPayload, type Settings } from './settings';
 
 describe('settings', () => {
+    it.each(['flat', 'project', 'personal-project'] as const)('preserves the %s session list preference through sync', (mode) => {
+        const settings = settingsParse({ sessionListGrouping: mode });
+        expect(settings.sessionListGrouping).toBe(mode);
+        expect(settingsParse(settingsToSyncPayload(settings)).sessionListGrouping).toBe(mode);
+    });
+
+    it('defaults an unknown session list mode to the flat view', () => {
+        expect(settingsParse({ sessionListGrouping: 'unknown-view' }).sessionListGrouping).toBe('flat');
+    });
+
     describe('settingsParse', () => {
         it('should return defaults when given invalid input', () => {
             expect(settingsParse(null)).toEqual(settingsDefaults);
