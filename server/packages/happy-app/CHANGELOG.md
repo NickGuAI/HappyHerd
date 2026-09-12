@@ -1,3 +1,8 @@
+# September 12 — Stable chat images
+
+- Unchanged chat images now remain visible when chat updates arrive, preventing repeated loading indicators and layout jumps.
+- Initial loading, source changes, and error retry actions remain supported.
+
 # September 10 — Persistent HappyHerd Assistant
 
 - Automatically creates a persistent HappyHerd Assistant once the authenticated machine and supported provider are ready, allowing one account entry to be reused across restarts or another machine, which stays pinned on the web desktop or mobile beyond the recent list window.

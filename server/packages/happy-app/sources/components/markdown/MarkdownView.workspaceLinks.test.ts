@@ -411,6 +411,52 @@ describe('MarkdownView workspace-link opt-in', () => {
         act(() => renderer.unmount());
     });
 
+    it('retains a native workspace image and its measured size across unrelated updates', async () => {
+        const base64 = onePixelPng.toString('base64');
+        mocks.machineReadFileWithinRoot.mockResolvedValue({ success: true, content: base64 });
+        const props = { markdown: '![chart](images/chart.png)', sessionId: 'session-one', enableWorkspaceLinks: true };
+        let renderer!: ReactTestRenderer;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, props)); });
+        const image = renderer.root.findByType('Image' as any);
+        act(() => image.props.onLoad({ source: { width: 4, height: 3 } }));
+        for (let index = 0; index < 3; index += 1) {
+            await act(async () => {
+                renderer.update(React.createElement(MarkdownView, { ...props, onOptionPress: vi.fn() }));
+            });
+            expect(renderer.root.findByType('Image' as any) === image).toBe(true);
+            expect(image.props.style.aspectRatio).toBe(4 / 3);
+        }
+        expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledOnce();
+        act(() => renderer.unmount());
+    });
+
+    it('keeps a native workspace read pending across equal references and reloads a changed source', async () => {
+        const base64 = onePixelPng.toString('base64');
+        let finish!: (response: { success: boolean; content: string }) => void;
+        mocks.machineReadFileWithinRoot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+        const props = { markdown: '![chart](images/chart.png)', sessionId: 'session-one', enableWorkspaceLinks: true };
+        let renderer!: ReactTestRenderer;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, props)); });
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...props, onOptionPress: vi.fn() }));
+        });
+        expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledOnce();
+        await act(async () => { finish({ success: true, content: base64 }); });
+        expect(renderer.root.findByType('Image' as any).props.source.uri).toBe(`data:image/png;base64,${base64}`);
+        const reference = mocks.resolveWorkspaceImage.mock.results[0].value;
+        mocks.resolveWorkspaceImage.mockReturnValueOnce({
+            ...reference,
+            workspaceRoute: { ...reference.workspaceRoute, params: { ...reference.workspaceRoute.params, machineId: 'machine-two' } },
+        });
+        mocks.machineReadFileWithinRoot.mockResolvedValue({ success: true, content: base64 });
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...props, onOptionPress: vi.fn() }));
+        });
+        expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledTimes(2);
+        expect(mocks.machineReadFileWithinRoot).toHaveBeenLastCalledWith('machine-two', '/workspace/images/chart.png', '/workspace');
+        act(() => renderer.unmount());
+    });
+
     it('renders an exact persisted inline-image override without reading the workspace', () => {
         const dataUri = `data:image/png;base64,${onePixelPng.toString('base64')}`;
         let renderer!: ReactTestRenderer;

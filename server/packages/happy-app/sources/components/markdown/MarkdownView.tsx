@@ -428,7 +428,14 @@ function NativeMarkdownImage(props: {
             if (!cancelled) setState({ status: 'failed' });
         })();
         return () => { cancelled = true; };
-    }, [props.reference, props.sourceOverride, props.url, retryToken]);
+    }, [
+        props.reference?.rootPath,
+        props.reference?.workspaceRoute.params.machineId,
+        props.reference?.workspaceRoute.params.absolutePath,
+        props.sourceOverride,
+        props.url,
+        retryToken,
+    ]);
 
     if (state.status === 'loading') return <View style={styles.imageFailure}><ActivityIndicator /></View>;
     if (state.status === 'failed' || !state.url) {
