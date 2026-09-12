@@ -350,3 +350,4 @@ MOBILE_PDF_FIT_PAGE	accepted	test(workspace): retain responsive helpers in brows
 WORKSPACE_BROWSER_DELETE	accepted	feat(workspace): confirm file and folder deletion from browser rows	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
 WORKSPACE_ITEM_DELETION	accepted	feat(workspace): reconcile deleted items across chat workspaces	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and isolate browser fixtures	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
+WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

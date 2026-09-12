@@ -2325,8 +2325,8 @@ describe('Side chats browser interaction', () => {
     }, 20_000);
 
     it.each([
-        ['directory', '/work/project/reports', /^reports /, /^report\.md /],
-        ['machine', '/work/child-newest', /^SideEC2$/, /^child-newest-machine-file\.md /],
+        ['directory', '/work/project/reports', /^reports$/, /^report\.md$/],
+        ['machine', '/work/child-newest', /^SideEC2$/, /^child-newest-machine-file\.md$/],
     ] as const)('keeps newer picker %s navigation while its directory request and an older reply probe are pending', async (_gesture, targetPath, buttonName, fileName) => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         page.setDefaultTimeout(3_000);
