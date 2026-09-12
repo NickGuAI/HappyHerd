@@ -150,3 +150,69 @@ describe('Rig session RPC capability gates', () => {
         expect(sessionRPC).not.toHaveBeenCalled();
     });
 });
+
+describe('machine directory deletion', () => {
+    beforeEach(() => {
+        sessionRPC.mockReset();
+        machineRPC.mockReset();
+        machineRPC.mockResolvedValue({ success: true });
+    });
+
+    it.each([undefined, false])('does not infer directory deletion from file deletion, advertised=%s', async (supportsDirectoryDelete) => {
+        getState.mockReturnValue({ machines: {
+            target: { metadata: { supportsFileDelete: true, supportsDirectoryDelete } },
+        } });
+        const { machineDeleteDirectory } = await import('./ops');
+
+        expect(await machineDeleteDirectory('target', '/workspace/folder')).toEqual({
+            success: false,
+            error: 'Directory deletion is not available for this machine',
+        });
+        expect(machineRPC).not.toHaveBeenCalled();
+        expect(sessionRPC).not.toHaveBeenCalled();
+    });
+
+    it('uses the exact target machine capability and sends explicit recursive deletion', async () => {
+        getState.mockReturnValue({ machines: {
+            other: { metadata: { supportsDirectoryDelete: true } },
+        } });
+        const { machineDeleteDirectory } = await import('./ops');
+
+        expect(await machineDeleteDirectory('target', '/workspace/folder')).toMatchObject({ success: false });
+        expect(machineRPC).not.toHaveBeenCalled();
+
+        getState.mockReturnValue({ machines: {
+            target: { metadata: { supportsDirectoryDelete: true } },
+        } });
+        expect(await machineDeleteDirectory('target', '/workspace/folder')).toEqual({ success: true });
+        expect(machineRPC).toHaveBeenCalledExactlyOnceWith('target', 'deleteFile', {
+            path: '/workspace/folder', recursive: true,
+        });
+        expect(sessionRPC).not.toHaveBeenCalled();
+    });
+
+    it('preserves the original file-only request payload', async () => {
+        const { machineDeleteFile } = await import('./ops');
+
+        expect(await machineDeleteFile('target', '/workspace/note.txt')).toEqual({ success: true });
+        expect(machineRPC).toHaveBeenCalledExactlyOnceWith('target', 'deleteFile', { path: '/workspace/note.txt' });
+        expect(sessionRPC).not.toHaveBeenCalled();
+    });
+
+    it('preserves daemon errors and reports transport failure', async () => {
+        getState.mockReturnValue({ machines: {
+            target: { metadata: { supportsDirectoryDelete: true } },
+        } });
+        const { machineDeleteDirectory } = await import('./ops');
+        machineRPC.mockResolvedValueOnce({ success: false, error: 'ENOENT: target is missing' });
+
+        expect(await machineDeleteDirectory('target', '/workspace/folder')).toEqual({
+            success: false, error: 'ENOENT: target is missing',
+        });
+
+        machineRPC.mockRejectedValueOnce(new Error('Machine disconnected'));
+        expect(await machineDeleteDirectory('target', '/workspace/folder')).toEqual({
+            success: false, error: 'Machine disconnected',
+        });
+    });
+});

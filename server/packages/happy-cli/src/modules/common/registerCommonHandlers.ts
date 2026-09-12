@@ -1,7 +1,7 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { link, lstat, mkdir, open, readFile, realpath, writeFile, readdir, rename, stat, unlink, type FileHandle } from 'fs/promises';
+import { link, lstat, mkdir, open, readFile, realpath, writeFile, readdir, rename, rm, stat, unlink, type FileHandle } from 'fs/promises';
 import { constants as fsConstants } from 'fs';
 import { createHash, randomUUID } from 'crypto';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
@@ -91,6 +91,7 @@ interface WriteFileResponse {
 
 interface DeleteFileRequest {
     path: string;
+    recursive?: boolean;
 }
 
 interface DeleteFileResponse {
@@ -677,6 +678,10 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
 
         try {
             const fileInfo = await lstat(validation.resolvedPath!);
+            if (fileInfo.isDirectory() && data.recursive === true) {
+                await rm(validation.resolvedPath!, { recursive: true, force: false });
+                return { success: true };
+            }
             if (!fileInfo.isFile()) {
                 return { success: false, error: 'Path is not a file' };
             }

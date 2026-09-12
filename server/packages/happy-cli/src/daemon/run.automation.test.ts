@@ -74,6 +74,7 @@ describe('daemon automation lifecycle guardrails', () => {
 
   it('advertises machine-scoped file deletion for existing sessions', () => {
     expect(initialMachineMetadata.supportsFileDelete).toBe(true);
+    expect(initialMachineMetadata.supportsDirectoryDelete).toBe(true);
   });
 
   it('requires exact automation, run, session, PID, and daemon provenance', () => {
