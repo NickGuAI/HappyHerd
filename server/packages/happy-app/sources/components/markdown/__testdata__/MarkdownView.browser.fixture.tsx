@@ -51,6 +51,8 @@ declare global {
         __MARKDOWN_LINE_COMMENTS__?: number[];
         __MARKDOWN_OPTION_PRESSES__?: string[];
         __REFRESH_MARKDOWN_REVIEW__?: () => void;
+        __REFRESH_MARKDOWN_IMAGE_SESSION__?: () => void;
+        __MARKDOWN_IMAGE_READS__?: string[][];
     }
 }
 
@@ -129,6 +131,15 @@ function MarkdownFixture() {
     );
 }
 
+const params = new URLSearchParams(window.location.search);
 createRoot(document.getElementById('root')!).render(
-    new URLSearchParams(window.location.search).has('review') ? <MarkdownReviewFixture /> : <MarkdownFixture />,
+    params.has('images') ? (
+        <main style={{ maxWidth: 800, margin: 'auto' }}>
+            <MarkdownView
+                markdown={'Before image\n\n![Neutral diagram](images/neutral.svg)\n\nAfter image'}
+                sessionId="image-session"
+                enableWorkspaceLinks
+            />
+        </main>
+    ) : params.has('review') ? <MarkdownReviewFixture /> : <MarkdownFixture />,
 );

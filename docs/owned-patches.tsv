@@ -343,3 +343,4 @@ DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): require live registration b
 DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): name new default sessions after their Commander	server/packages/happy-cli/src/daemon/run.resume.test.ts
 LOCAL_COMMANDER_TASK_DELIVERY	accepted	feat(sessions): send tasks and inspect local Commander sessions	server/packages/happy-cli/src/daemon/run.resume.test.ts
 DEFAULT_ASSISTANT_LOCAL_CLI	accepted	feat(assistant): expose default setup and local delegation commands	server/packages/happy-cli/src/commands/machine.defaultAssistant.test.ts
+CHAT_IMAGE_STABILITY	accepted	fix(markdown): retain loaded images across session updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts

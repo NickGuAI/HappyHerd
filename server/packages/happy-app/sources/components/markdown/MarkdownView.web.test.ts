@@ -185,6 +185,138 @@ describe('MarkdownView web parity', () => {
         }
     });
 
+    const imageProps = {
+        markdown: '![chart](images/chart.png)',
+        sessionId: 'session-one',
+        enableWorkspaceLinks: true,
+    };
+    const imageReference = (patch: Partial<Record<'rootPath' | 'originSessionId' | 'machineId' | 'absolutePath', string>> = {}) => ({
+        rootPath: patch.rootPath ?? '/repo',
+        workspaceRoute: {
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: patch.originSessionId ?? 'session-one',
+                machineId: patch.machineId ?? 'machine-one',
+                absolutePath: patch.absolutePath ?? '/repo/images/chart.png',
+            },
+        },
+    });
+
+    it('retains a loaded workspace image across equal references and opens the current route', async () => {
+        mocks.resolveImage.mockImplementation(({ originSessionId }) => imageReference({ originSessionId }));
+        mocks.loadWorkspaceImage.mockResolvedValue('data:image/png;base64,loaded');
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        const image = renderer.root.findByType('img');
+        for (let index = 0; index < 3; index += 1) {
+            await act(async () => {
+                renderer.update(React.createElement(MarkdownView, {
+                    ...imageProps,
+                    sessionId: 'session-two',
+                    onOptionPress: vi.fn(),
+                }));
+            });
+            expect(renderer.root.findByType('img') === image).toBe(true);
+        }
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledOnce();
+        act(() => renderer.root.findByProps({ className: 'hh-markdown-image-button' }).props.onClick());
+        expect(mocks.openWorkspace).toHaveBeenCalledWith(imageReference({ originSessionId: 'session-two' }).workspaceRoute);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the initial workspace read pending through unrelated updates', async () => {
+        let finish!: (url: string) => void;
+        mocks.resolveImage.mockImplementation(() => imageReference());
+        mocks.loadWorkspaceImage.mockImplementation(() => new Promise<string>((resolve) => { finish = resolve; }));
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...imageProps, onOptionPress: vi.fn() }));
+        });
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByProps({ className: 'hh-markdown-image-status' })).toHaveLength(1);
+        await act(async () => { finish('data:image/png;base64,loaded'); });
+        expect(renderer.root.findByType('img').props.src).toBe('data:image/png;base64,loaded');
+        act(() => renderer.unmount());
+    });
+
+    it.each([
+        { machineId: 'machine-two' },
+        { absolutePath: '/repo/images/other.png' },
+        { rootPath: '/' },
+    ])('reloads when the byte source changes: %j', async (patch) => {
+        mocks.resolveImage.mockImplementation(() => imageReference());
+        mocks.loadWorkspaceImage.mockResolvedValueOnce('data:image/png;base64,first').mockResolvedValueOnce('data:image/png;base64,second');
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        mocks.resolveImage.mockImplementation(() => imageReference(patch));
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...imageProps, onOptionPress: vi.fn() }));
+        });
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledTimes(2);
+        expect(mocks.loadWorkspaceImage).toHaveBeenLastCalledWith(imageReference(patch));
+        expect(renderer.root.findByType('img').props.src).toBe('data:image/png;base64,second');
+        act(() => renderer.unmount());
+    });
+
+    it('replaces an override source and ignores an earlier workspace response', async () => {
+        let finishFirst!: (url: string) => void;
+        mocks.resolveImage.mockImplementation(() => imageReference());
+        mocks.loadWorkspaceImage.mockImplementationOnce(() => new Promise<string>((resolve) => { finishFirst = resolve; }));
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        for (const source of ['data:image/png;base64,override-one', 'data:image/png;base64,override-two']) {
+            await act(async () => {
+                renderer.update(React.createElement(MarkdownView, {
+                    ...imageProps,
+                    inlineImages: { sources: new Map([['images/chart.png', source]]), suppressed: new Set<string>() },
+                }));
+            });
+            expect(renderer.root.findByType('img').props.src).toBe(source);
+        }
+        await act(async () => { finishFirst('data:image/png;base64,stale'); });
+        expect(renderer.root.findByType('img').props.src).toBe('data:image/png;base64,override-two');
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledOnce();
+        act(() => renderer.unmount());
+    });
+
+    it('ignores a stale workspace response after the source changes', async () => {
+        let finishFirst!: (url: string) => void;
+        mocks.resolveImage.mockImplementation(() => imageReference());
+        mocks.loadWorkspaceImage
+            .mockImplementationOnce(() => new Promise<string>((resolve) => { finishFirst = resolve; }))
+            .mockResolvedValueOnce('data:image/png;base64,second');
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        mocks.resolveImage.mockImplementation(() => imageReference({ machineId: 'machine-two' }));
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...imageProps, onOptionPress: vi.fn() }));
+        });
+        await act(async () => { finishFirst('data:image/png;base64,stale'); });
+        expect(renderer.root.findByType('img').props.src).toBe('data:image/png;base64,second');
+        act(() => renderer.unmount());
+    });
+
+    it('preserves a decode failure across updates and retries only on request', async () => {
+        mocks.resolveImage.mockImplementation(() => imageReference());
+        mocks.loadWorkspaceImage.mockResolvedValue('data:image/png;base64,loaded');
+        let renderer: any;
+        await act(async () => { renderer = create(React.createElement(MarkdownView, imageProps)); });
+        act(() => renderer.root.findByType('img').props.onError());
+        await act(async () => {
+            renderer.update(React.createElement(MarkdownView, { ...imageProps, onOptionPress: vi.fn() }));
+        });
+        expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(1);
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledOnce();
+        await act(async () => {
+            renderer.root.find((node: any) => node.type === 'button' && node.props.children === 'common.retry').props.onClick();
+        });
+        expect(mocks.loadWorkspaceImage).toHaveBeenCalledTimes(2);
+        expect(renderer.root.findByType('img').props.src).toBe('data:image/png;base64,loaded');
+        act(() => renderer.unmount());
+    });
+
     it('copies fenced code through the existing action', async () => {
         let renderer: any;
         act(() => { renderer = create(React.createElement(MarkdownView, { markdown: '```ts\nconst answer = 42;\n```' })); });

@@ -195,7 +195,13 @@ function MarkdownImage(props: {
             if (!cancelled) setState({ status: 'failed' });
         })();
         return () => { cancelled = true; };
-    }, [props.inlineSource, props.reference, retryToken]);
+    }, [
+        props.inlineSource,
+        props.reference?.rootPath,
+        props.reference?.workspaceRoute.params.machineId,
+        props.reference?.workspaceRoute.params.absolutePath,
+        retryToken,
+    ]);
 
     if (props.suppressed) return null;
     if (state.status === 'loading') return <span className="hh-markdown-image-status">{t('common.loading')}</span>;

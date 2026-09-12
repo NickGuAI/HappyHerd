@@ -37,15 +37,30 @@ const virtualModules: Record<string, string> = {
     'expo-router': `export const useRouter = () => ({ push() {} });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/-session/workspaceLinkNavigation': `export const useWorkspaceLinkPress = () => null;`,
-    '@/sync/storage': `export const useSession = () => null;`,
+    '@/sync/storage': `
+        import { useSyncExternalStore } from 'react';
+        let session = { metadata: { machineId: 'fixture-machine', path: '/workspace', os: 'linux' }, activeAt: 0 };
+        const listeners = new Set();
+        window.__REFRESH_MARKDOWN_IMAGE_SESSION__ = () => {
+            session = { ...session, activeAt: session.activeAt + 1 };
+            for (const listener of listeners) listener();
+        };
+        export const useSession = (id) => useSyncExternalStore(
+            (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
+            () => id === 'image-session' ? session : null,
+        );
+    `,
     '@/sync/sync': `export const sync = { sendMessage: async () => ({ id: 'fixture-receipt' }) };`,
     '@/components/StyledText': `export { Text } from 'react-native';`,
     '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
-    '@/utils/markdownWorkspaceLink': `
-        export const resolveMarkdownWorkspaceImageReference = () => null;
-        export const resolveMarkdownWorkspaceLinkRoute = () => null;
+    '@/sync/ops': `
+        window.__MARKDOWN_IMAGE_READS__ = [];
+        export const machineReadFileWithinRoot = async (...args) => {
+            window.__MARKDOWN_IMAGE_READS__.push(args);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return { success: true, content: btoa('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#438e78"/></svg>') };
+        };
     `,
-    '@/utils/markdownWorkspaceImage': `export const loadMarkdownWorkspaceImage = async () => null;`,
     '@/utils/openExternalUrl': `export const openExternalUrl = async () => {};`,
     '@/text': `export const t = (key) => key;`,
     '@/modal': `export const Modal = { alert() {}, show() {} };`,
@@ -118,6 +133,32 @@ describe('MarkdownView browser theme and option parity', () => {
             args: process.platform === 'linux' ? ['--no-sandbox'] : [],
         });
     }, 30_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['Web Mobile', { width: 390, height: 844 }],
+    ])('retains the loaded image and layout through session updates on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        const errors = recordPageErrors(page);
+        await page.goto(`${origin}/?images`);
+        await page.waitForFunction(() => document.querySelector('img')?.naturalWidth === 640);
+        const image = await page.locator('.hh-markdown-root img').elementHandle();
+        const initialLayout = await page.locator('.hh-markdown-root').boundingBox();
+        for (let index = 0; index < 3; index += 1) {
+            await page.evaluate(async () => {
+                window.__REFRESH_MARKDOWN_IMAGE_SESSION__?.();
+                await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+            });
+            expect(await image?.evaluate((element) => element.isConnected)).toBe(true);
+            expect(await page.locator('.hh-markdown-image-status').count()).toBe(0);
+            expect(await page.locator('.hh-markdown-root').boundingBox()).toEqual(initialLayout);
+        }
+        expect(await page.evaluate(() => window.__MARKDOWN_IMAGE_READS__)).toEqual([
+            ['fixture-machine', '/workspace/images/neutral.svg', '/workspace'],
+        ]);
+        expect(errors).toEqual([]);
+        await page.close();
+    });
 
     it.each([1, 3, 5, 7, 11, 15].flatMap((line) => (
         [1440, 390].map((width) => [line, width] as const)
