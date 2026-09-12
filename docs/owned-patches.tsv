@@ -347,3 +347,4 @@ DEFAULT_ASSISTANT_LOCAL_CLI	accepted	feat(assistant): expose default setup and l
 CHAT_IMAGE_STABILITY	accepted	fix(markdown): retain loaded images across session updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	fix(workspace): fit mobile PDF pages and support zoom gestures	server/packages/happy-app/sources/utils/pdfPageLayout.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	test(workspace): retain responsive helpers in browser fixtures	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_BROWSER_DELETE	accepted	feat(workspace): confirm file and folder deletion from browser rows	server/packages/happy-app/sources/app/(app)/workspace/index.delete.browser.test.ts

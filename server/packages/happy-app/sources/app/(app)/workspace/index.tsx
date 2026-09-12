@@ -21,6 +21,8 @@ import { Modal } from '@/modal';
 import {
     machineGetDirectoryTree,
     machineCreateDirectory,
+    machineDeleteFile,
+    machineDeleteDirectory,
     machineReadFile,
     machineWriteFile,
     type DirectoryTreeNode,
@@ -56,7 +58,7 @@ import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
 import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
-import { normalizeWorkspaceLocalhostUrl } from '@/components/desktopFileWorkspaceModel';
+import { isWorkspacePathDeleted, normalizeWorkspaceLocalhostUrl } from '@/components/desktopFileWorkspaceModel';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 import {
     dismissWorkspaceLinkToOrigin,
@@ -174,6 +176,19 @@ function WorkspaceLinkRouteScreen({ params }: {
     );
 }
 
+type WorkspaceDeletedItem = {
+    machineId: string;
+    path: string;
+    type: 'file' | 'directory';
+    platform?: string;
+};
+
+function canDeleteWorkspaceItem(machine: Machine | null | undefined, type: 'file' | 'directory'): boolean {
+    return Platform.OS === 'web' && !!machine && isMachineOnline(machine) && (type === 'directory'
+        ? machine.metadata?.supportsDirectoryDelete === true
+        : machine.metadata?.supportsFileDelete === true);
+}
+
 export function MachineWorkspaceBrowser({
     embedded = false,
     initialMachineId,
@@ -182,6 +197,8 @@ export function MachineWorkspaceBrowser({
     onNavigate,
     onFilePress,
     onLocalhostUrlPress,
+    onDeleted,
+    hasUnsavedChanges,
 }: {
     embedded?: boolean;
     initialMachineId?: string;
@@ -190,6 +207,8 @@ export function MachineWorkspaceBrowser({
     onNavigate?: () => void;
     onFilePress?: (file: { machineId: string; path: string }) => void;
     onLocalhostUrlPress?: (target: { machineId: string; url: string }) => void;
+    onDeleted?: (item: WorkspaceDeletedItem) => void;
+    hasUnsavedChanges?: (item: WorkspaceDeletedItem) => boolean;
 }) {
     const router = useRouter();
     const params = useLocalSearchParams<{
@@ -232,6 +251,10 @@ export function MachineWorkspaceBrowser({
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
     const [fileDirty, setFileDirty] = React.useState(false);
     const [creatingFolder, setCreatingFolder] = React.useState(false);
+    const [deleting, setDeleting] = React.useState(false);
+    const deletePending = React.useRef(false);
+    const currentSelection = React.useRef({ machines, selectedMachineId, currentDirectory, selectedFile, selectionSessionId });
+    currentSelection.current = { machines, selectedMachineId, currentDirectory, selectedFile, selectionSessionId };
     const [reloadToken, setReloadToken] = React.useState(0);
     const [stagedEntries, setStagedEntries] = React.useState<Map<string, WorkspaceContextEntry>>(
         () => new Map((selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : [])
@@ -499,6 +522,75 @@ export function MachineWorkspaceBrowser({
         }
     }, [applyDirectory, creatingFolder, currentDirectory, onNavigate, selectedMachine]);
 
+    const deleteItem = React.useCallback(async (entry: DirectoryTreeNode) => {
+        if (deletePending.current || !selectedMachine || !canDeleteWorkspaceItem(selectedMachine, entry.type)) return;
+        const target: WorkspaceDeletedItem = {
+            machineId: selectedMachine.id,
+            path: entry.path,
+            type: entry.type,
+            platform: selectedMachine.metadata?.platform,
+        };
+        const sourceDirectory = currentDirectory;
+        const sourceSessionId = selectionSessionId;
+        const matchesPath = (path: string) => isWorkspacePathDeleted(path, target.path, target.type, target.platform);
+        const matchesContext = (item: WorkspaceContextEntry) => item.source.kind === 'machine'
+            && item.source.machineId === target.machineId && matchesPath(item.path);
+        const dirty = (fileDirty && !!selectedFile && matchesPath(selectedFile)) || hasUnsavedChanges?.(target);
+        const message = t(target.type === 'directory' ? 'workspace.deleteFolderConfirm' : 'workspace.deleteFileConfirm', { path: target.path });
+        deletePending.current = true;
+        setDeleting(true);
+        try {
+            const confirmed = await Modal.confirm(
+                t(target.type === 'directory' ? 'workspace.deleteFolderTitle' : 'workspace.deleteFileTitle'),
+                dirty ? `${message}\n\n${t('uiCopy.yourCurrentFileEditsHaveNotBeenSaved')}` : message,
+                { cancelText: t('common.cancel'), confirmText: t('common.delete'), destructive: true },
+            );
+            if (!confirmed) return;
+            const targetMachine = currentSelection.current.machines.find((machine) => machine.id === target.machineId);
+            if (!canDeleteWorkspaceItem(targetMachine, target.type)) {
+                Modal.alert(t('common.error'), t('workspace.deleteItemFailed'));
+                return;
+            }
+            const response = target.type === 'directory'
+                ? await machineDeleteDirectory(target.machineId, target.path)
+                : await machineDeleteFile(target.machineId, target.path);
+            if (!response.success) {
+                Modal.alert(t('common.error'), response.error ?? t('workspace.deleteItemFailed'));
+                return;
+            }
+            if (sourceSessionId) {
+                getWorkspaceContextEntries(sourceSessionId).filter(matchesContext).forEach((item) => {
+                    removeWorkspaceContextEntry(sourceSessionId, item);
+                });
+            }
+            const current = currentSelection.current;
+            if (current.selectionSessionId === sourceSessionId) {
+                setStagedEntries((entries) => new Map([...entries].filter(([, item]) => !matchesContext(item))));
+            }
+            if (current.selectedMachineId === target.machineId) {
+                if (current.selectedFile && matchesPath(current.selectedFile)) {
+                    setSelectedFile(null);
+                    setHeaderRightSlot(null);
+                    setFileDirty(false);
+                }
+                if (target.type === 'directory' && matchesPath(current.currentDirectory)) {
+                    const parent = parentHostPath(target.path, target.platform);
+                    setCurrentDirectory(parent);
+                    setPathDraft(parent);
+                    setSearchQuery('');
+                } else if (current.currentDirectory === sourceDirectory) {
+                    setReloadToken((value) => value + 1);
+                }
+            }
+            onDeleted?.(target);
+        } catch (error) {
+            Modal.alert(t('common.error'), error instanceof Error ? error.message : t('workspace.deleteItemFailed'));
+        } finally {
+            deletePending.current = false;
+            setDeleting(false);
+        }
+    }, [currentDirectory, fileDirty, hasUnsavedChanges, onDeleted, selectedFile, selectedMachine, selectionSessionId]);
+
     const commitAttachments = React.useCallback(() => {
         if (!attachmentMode || !sessionId || !selectedMachine) return;
         const existing = getWorkspaceContextEntries(sessionId);
@@ -724,6 +816,8 @@ export function MachineWorkspaceBrowser({
                                         attachmentMode={contextSelectionMode}
                                         onOpen={() => entry.type === 'directory' ? openDirectory(entry.path) : selectFile(entry.path)}
                                         onToggleAttach={() => toggleStagedEntry(entry.path, entry.type)}
+                                        onDelete={canDeleteWorkspaceItem(selectedMachine, entry.type) ? () => void deleteItem(entry) : undefined}
+                                        deleteDisabled={deleting}
                                     />
                                 ))}
                             </View>
@@ -955,6 +1049,8 @@ function FileRow({
     attachmentMode,
     onOpen,
     onToggleAttach,
+    onDelete,
+    deleteDisabled,
 }: {
     entry: DirectoryTreeNode;
     selected: boolean;
@@ -962,6 +1058,8 @@ function FileRow({
     attachmentMode: boolean;
     onOpen: () => void;
     onToggleAttach: () => void;
+    onDelete?: () => void;
+    deleteDisabled: boolean;
 }) {
     const { theme } = useUnistyles();
     return (
@@ -974,6 +1072,7 @@ function FileRow({
                 pressed && { opacity: 0.75 },
             ]}
             accessibilityRole="button"
+            accessibilityLabel={Platform.OS === 'web' ? entry.name : undefined}
         >
             {entry.type === 'directory'
                 ? <Ionicons name="folder-outline" size={20} color={theme.colors.textSecondary} />
@@ -1001,6 +1100,21 @@ function FileRow({
                         size={20}
                         color={attached ? theme.colors.success : theme.colors.textSecondary}
                     />
+                </Pressable>
+            )}
+            {onDelete && (
+                <Pressable
+                    onPress={(event) => {
+                        event.stopPropagation?.();
+                        onDelete();
+                    }}
+                    disabled={deleteDisabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('workspace.deleteItemAction', { name: entry.name })}
+                    accessibilityState={{ disabled: deleteDisabled }}
+                    style={({ pressed }) => [styles.deleteButton, { opacity: deleteDisabled ? 0.4 : pressed ? 0.65 : 1 }]}
+                >
+                    <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
                 </Pressable>
             )}
             {entry.type === 'directory' && <Ionicons name="chevron-forward" size={17} color={theme.colors.textSecondary} />}
@@ -1082,6 +1196,7 @@ const styles = StyleSheet.create((theme) => ({
     loadingState: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
     fileList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
     fileRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+    deleteButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
     attachButton: { minWidth: 38, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
     viewerHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
     viewerBackButton: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, marginRight: 4 },

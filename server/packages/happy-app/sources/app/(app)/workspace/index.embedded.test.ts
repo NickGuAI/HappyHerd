@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+    platform: 'web',
     getTree: vi.fn(),
     createDirectory: vi.fn(),
     prompt: vi.fn(async (): Promise<string | null> => null),
@@ -14,6 +15,8 @@ const mocks = vi.hoisted(() => ({
             displayName: string;
             homeDir: string;
             platform: string;
+            supportsFileDelete?: boolean;
+            supportsDirectoryDelete?: boolean;
         };
     }>,
     recentPaths: [] as Array<{ machineId: string; path: string }>,
@@ -35,7 +38,7 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         ActivityIndicator: host('ActivityIndicator'),
-        Platform: { OS: 'web' },
+        Platform: { get OS() { return mocks.platform; } },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
         TextInput: host('TextInput'),
@@ -211,6 +214,7 @@ beforeAll(() => {
 afterAll(() => vi.restoreAllMocks());
 
 beforeEach(() => {
+    mocks.platform = 'web';
     mocks.machines = [{
         id: 'main-machine',
         active: true,
@@ -309,6 +313,17 @@ function contextToggleInRow(row: any) {
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
+    it.each(['ios', 'android', 'macos'])('preserves native %s rows without new delete controls', async (platform) => {
+        mocks.platform = platform;
+        mocks.machines[0].metadata.supportsFileDelete = true;
+        mocks.machines[0].metadata.supportsDirectoryDelete = true;
+        const renderer = await renderBrowser({ initialMachineId: 'main-machine', initialPath: '/workspace/user' });
+        expect(renderer.root.findAllByType('Pressable' as any)
+            .filter((node: any) => node.props.accessibilityLabel === 'workspace.deleteItemAction')).toHaveLength(0);
+        expect(rowByName(renderer, 'notes.md')!.props.accessibilityLabel).toBeUndefined();
+        act(() => renderer.unmount());
+    });
+
     it('notifies once at confirmed folder creation before the RPC and not again on completion', async () => {
         const onNavigate = vi.fn();
         const renderer = await renderBrowser({
