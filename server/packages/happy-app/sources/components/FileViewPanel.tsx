@@ -702,7 +702,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 </ScrollView>
             ) : fileState.kind === 'pdf' ? (
                 <View style={styles.documentPreview}>
-                    <FileDocumentPreview kind="pdf" uri={fileState.uri} title={t("uiCopy.previewOfValue", { value1: fileName })} />
+                    <FileDocumentPreview kind="pdf" fileName={fileName} uri={fileState.uri} title={t("uiCopy.previewOfValue", { value1: fileName })} />
                 </View>
             ) : fileState.kind === 'unsupported' ? (
                 <View style={styles.centered}>

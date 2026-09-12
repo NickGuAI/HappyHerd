@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "5351dbb81c98717f4fb38f60e90f756b14c565d0e145c538c40fb43b1c8c967a",
+  "sourceFingerprint": "e6afdf2aa053922fab33179c3a0abfba1d066850a1ff73c47d12c3881efa32bd",
   "routeCount": 39,
-  "surfaceCount": 268,
+  "surfaceCount": 269,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3299,7 +3299,7 @@
     },
     {
       "owner": "sources/components/FileDocumentPreview.web.tsx",
-      "kind": "ui-module",
+      "kind": "component",
       "route": null,
       "exports": [
         "FileDocumentPreview"
@@ -3962,6 +3962,30 @@
       ],
       "translationKeys": [],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MobilePdfPreview.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MobilePdfPreview"
+      ],
+      "translationKeys": [
+        "common.loading",
+        "common.retry",
+        "files.pdf.download",
+        "files.pdf.fitPage",
+        "files.pdf.loadFailed",
+        "files.pdf.nextPage",
+        "files.pdf.pageIndicator",
+        "files.pdf.previousPage",
+        "files.pdf.zoomIn",
+        "files.pdf.zoomOut"
+      ],
+      "states": [
+        "loading"
+      ],
       "hardcodedCopy": []
     },
     {

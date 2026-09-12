@@ -934,7 +934,17 @@
     "commentPlaceholder": "Kommentar schreiben…",
     "pinComment": "Kommentar anpinnen",
     "sendComments": "{count} Kommentare senden",
-    "commentOnHoveredLine": "Zeile kommentieren"
+    "commentOnHoveredLine": "Zeile kommentieren",
+    "pdf": {
+      "previousPage": "Vorherige Seite",
+      "nextPage": "Nächste Seite",
+      "pageIndicator": "Seite {current} von {total}",
+      "download": "Herunterladen",
+      "fitPage": "An Seite anpassen",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "loadFailed": "PDF konnte nicht geladen werden"
+    }
   },
   "sideChat": {
     "panelTitle": "Side-Chats",

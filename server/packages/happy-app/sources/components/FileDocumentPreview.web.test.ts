@@ -1,6 +1,9 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/utils/responsive', () => ({ useDeviceType: () => 'tablet' }));
+vi.mock('./MobilePdfPreview.web', () => ({ MobilePdfPreview: () => null }));
 import { FileDocumentPreview } from './FileDocumentPreview.web';
 
 describe('FileDocumentPreview web embed policy', () => {

@@ -265,6 +265,14 @@ export type TranslationKey =
     | "files.openExistingFile"
     | "files.openFileTab"
     | "files.overwrite"
+    | "files.pdf.download"
+    | "files.pdf.fitPage"
+    | "files.pdf.loadFailed"
+    | "files.pdf.nextPage"
+    | "files.pdf.pageIndicator"
+    | "files.pdf.previousPage"
+    | "files.pdf.zoomIn"
+    | "files.pdf.zoomOut"
     | "files.pinComment"
     | "files.pinnedComment"
     | "files.projectRoot"
@@ -1476,6 +1484,7 @@ export interface TranslationParamsByKey {
     "files.lineNumber": { line: string };
     "files.loadingFile": { fileName: string };
     "files.openFileTab": { name: string };
+    "files.pdf.pageIndicator": { current: string; total: string | number };
     "files.searchResults": { count: number };
     "files.sendComments": { count: number };
     "files.stagedChanges": { count: number };

@@ -854,7 +854,17 @@
     "commentPlaceholder": "写下评论…",
     "pinComment": "固定评论",
     "sendComments": "发送 {count} 条评论",
-    "commentOnHoveredLine": "在行上发表评论"
+    "commentOnHoveredLine": "在行上发表评论",
+    "pdf": {
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "pageIndicator": "第 {current} 页，共 {total} 页",
+      "download": "下载",
+      "fitPage": "自适应页面",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "loadFailed": "PDF 加载失败"
+    }
   },
   "sideChat": {
     "panelTitle": "侧聊",

@@ -16,6 +16,7 @@ COPY packages/happy-wire/package.json packages/happy-wire/
 
 # Workspace postinstall requirements
 COPY packages/happy-app/patches packages/happy-app/patches
+COPY packages/happy-app/scripts/setup-pdfjs-web.mjs packages/happy-app/scripts/setup-pdfjs-web.mjs
 
 # The repo defaults to a hoisted linker for local development. Keep this Docker
 # install isolated so unrelated workspace native deps do not get built here.
