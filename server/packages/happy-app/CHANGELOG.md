@@ -1,3 +1,8 @@
+# September 12 — Workspace file and folder deletion
+
+- Delete individual files and folders including contents from standalone or in-chat Workspace with explicit confirmation
+- Folder deletion available on machines running updated HappyHerd daemon
+
 # September 12 — Stable chat images
 
 - Unchanged chat images now remain visible when chat updates arrive, preventing repeated loading indicators and layout jumps.

@@ -330,7 +330,13 @@
     "selectedCount": "{count} der ausgewählten {max}-Dateien",
     "openWorkspace": "Arbeitsbereich öffnen",
     "browseMachine": "Durchsuchen Sie Maschinendateien",
-    "mobileBackToFiles": "Zurück zu den Dateien"
+    "mobileBackToFiles": "Zurück zu den Dateien",
+    "deleteFileTitle": "Datei löschen?",
+    "deleteFolderTitle": "Ordner löschen?",
+    "deleteFileConfirm": "Sind Sie sicher, dass Sie {path} dauerhaft entfernen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteFolderConfirm": "Sind Sie sicher, dass Sie {path} und all seine Inhalte dauerhaft entfernen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteItemAction": "{name} löschen",
+    "deleteItemFailed": "Fehler beim Löschen des Elements."
   },
   "imageUpload": {
     "permissionTitle": "Zugang zur Fotobibliothek",

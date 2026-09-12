@@ -135,6 +135,30 @@ export function closeDesktopFile(
     };
 }
 
+export function isWorkspacePathDeleted(
+    candidatePath: string,
+    deletedPath: string,
+    type: 'file' | 'directory',
+    platform?: string,
+): boolean {
+    const normalize = (path: string) => (platform === 'win32' ? path.replace(/\\/g, '/') : path).replace(/\/+$/, '');
+    const candidate = normalize(candidatePath);
+    const deleted = normalize(deletedPath);
+    return candidate === deleted || (type === 'directory' && candidate.startsWith(`${deleted}/`));
+}
+
+export function deletedDesktopFilePaths(
+    state: DesktopFileWorkspaceState,
+    item: { machineId: string; path: string; type: 'file' | 'directory'; platform?: string },
+): string[] {
+    return state.paths.filter((identity) => {
+        const reference = state.references[identity];
+        return reference?.machineId === item.machineId
+            && !isDesktopLocalhostReference(reference)
+            && isWorkspacePathDeleted(desktopFilePath(identity), item.path, item.type, item.platform);
+    });
+}
+
 export function desktopFileIdentity(path: string, machineId: string): string {
     return JSON.stringify([machineId, path]);
 }

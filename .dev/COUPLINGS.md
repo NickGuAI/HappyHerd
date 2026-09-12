@@ -309,6 +309,8 @@ active Main Agent or active Side chat (session + machine + cwd)
                          │                                  └─► exact chat
                          ├─ loopback URL + selected machine
                          │        └─► service worker ─► encrypted machine RPC
+                         ├─ Delete → confirmation → sync/ops → daemon deleteFile
+                         │        └─ success → listing + SessionView tabs/context
                          ▼
                  SessionView state (machine + path / URL)
                          │

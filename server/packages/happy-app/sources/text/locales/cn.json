@@ -1283,7 +1283,13 @@
     "selectedCount": "已选择 {count}/{max} 个文件",
     "openWorkspace": "打开工作区",
     "browseMachine": "浏览设备文件",
-    "mobileBackToFiles": "返回文件列表"
+    "mobileBackToFiles": "返回文件列表",
+    "deleteFileTitle": "删除文件？",
+    "deleteFolderTitle": "删除文件夹？",
+    "deleteFileConfirm": "您确定要永久删除 {path} 吗？此操作无法撤销。",
+    "deleteFolderConfirm": "您确定要永久删除 {path} 及其所有内容吗？此操作无法撤销。",
+    "deleteItemAction": "删除 {name}",
+    "deleteItemFailed": "删除项目失败。"
   },
   "imageUpload": {
     "permissionTitle": "访问照片库",

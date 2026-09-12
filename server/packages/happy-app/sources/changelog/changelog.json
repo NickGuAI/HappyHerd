@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 12 — Workspace file and folder deletion",
+      "summary": "",
+      "markdown": "- Delete individual files and folders including contents from standalone or in-chat Workspace with explicit confirmation\n- Folder deletion available on machines running updated HappyHerd daemon"
+    },
+    {
       "title": "September 12 — Stable chat images",
       "summary": "",
       "markdown": "- Unchanged chat images now remain visible when chat updates arrive, preventing repeated loading indicators and layout jumps.\n- Initial loading, source changes, and error retry actions remain supported."
@@ -646,5 +651,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 12 — Stable chat images"
+  "latestTitle": "September 12 — Workspace file and folder deletion"
 }

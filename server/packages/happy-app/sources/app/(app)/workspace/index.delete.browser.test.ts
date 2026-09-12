@@ -117,6 +117,12 @@ describe('Workspace item deletion through the shared browser', () => {
             await page.getByRole('button', { name: 'Delete folder', exact: true }).click();
             await page.getByText('Delete folder?', { exact: true }).waitFor();
             expect(await page.getByText(/\/workspace\/folder and all its contents/).count()).toBe(1);
+            await expect.poll(() => page.getByText('Delete folder?', { exact: true }).evaluate((element) => {
+                for (let current: Element | null = element; current; current = current.parentElement) {
+                    if (Number(getComputedStyle(current).opacity) < 0.99) return false;
+                }
+                return true;
+            })).toBe(true);
             if (process.env.HAPPYHERD_DELETE_EVIDENCE_DIR) await page.screenshot({ path: resolve(process.env.HAPPYHERD_DELETE_EVIDENCE_DIR, `${surface}-${width}-confirm.png`) });
             await confirm(page, 'Delete');
             await expect.poll(() => page.getByText('folder', { exact: true }).count()).toBe(0);

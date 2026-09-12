@@ -26,6 +26,16 @@ connected machine without the browser snapping back to the initial directory.
 The standalone `/workspace` route has no owning chat and retains its ordinary
 machine and path selection behavior.
 
+The shared MachineWorkspaceBrowser in embedded Main/Side chat and standalone
+Workspace now features per-row Delete actions for files and directories.
+Before confirmation, the exact target machine and path are captured.
+Confirmation warns that removal is permanent, includes directory contents, and
+discards affected unsaved edits. Only successful deletions refresh the file
+listing, clear active selected references, and close affected same-machine
+file tabs—including all descendants—while keeping unrelated workspace state
+intact. Symlink deletion is rejected directly, and nested symlinks are never
+traversed during directory removal.
+
 The Human can add an existing file or directory from Workspace to the exact
 chat's next-message context. This records a machine/path reference through the
 existing session context store; it does not upload, copy, move, create a

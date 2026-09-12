@@ -283,6 +283,7 @@ const virtualModules: Record<string, string> = {
             '</body></html>',
         ].join(''));
         export const machineDeleteFile = async () => ({ success: true });
+        export const machineDeleteDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
         export const machineGetDirectoryTree = async (machineId, path, depth) => {
             window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
             if (path === '/machine-root/deleted-worktree') {

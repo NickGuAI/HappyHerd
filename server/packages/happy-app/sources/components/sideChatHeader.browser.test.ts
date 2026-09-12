@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
@@ -286,6 +286,9 @@ const virtualModules: Record<string, string> = {
             } },
             { id: 'machine-newest', active: true, metadata: { displayName: 'SideEC2', host: 'fixture-side', homeDir: '/work/child-newest', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
+        if (fixtureOptions.workspaceDelete) {
+            for (const machine of machines) machine.metadata.supportsDirectoryDelete = true;
+        }
         if (modelPicker) {
             machines[0].metadata.cliAvailability = { claude: true, codex: true, agy: true };
             machines[0].metadata.agentCapabilities = { agy: {
@@ -499,6 +502,14 @@ const virtualModules: Record<string, string> = {
             'workspace.favorites': 'Favorites',
             'workspace.upload': 'Upload',
             'workspace.newFolder': 'New folder',
+            'workspace.deleteFileTitle': 'Delete file?',
+            'workspace.deleteFolderTitle': 'Delete folder?',
+            'workspace.deleteFileConfirm': 'Are you sure you want to permanently remove ' + params?.path + '? This action cannot be undone.',
+            'workspace.deleteFolderConfirm': 'Are you sure you want to permanently remove ' + params?.path + ' and all its contents? This action cannot be undone.',
+            'workspace.deleteItemAction': 'Delete ' + params?.name,
+            'workspace.deleteItemFailed': 'Failed to delete the item.',
+            'common.delete': 'Delete',
+            'common.cancel': 'Cancel',
             'workspace.folderNamePlaceholder': 'Folder name',
             'common.create': 'Create',
             'workspace.searchPlaceholder': 'Search files',
@@ -581,6 +592,7 @@ const virtualModules: Record<string, string> = {
         import React from 'react';
         import { createRoot } from 'react-dom/client';
         import { WebPromptModal } from '@/modal/components/WebPromptModal';
+        import { WebAlertModal } from '@/modal/components/WebAlertModal';
         export const Modal = {
             alert(title, message, buttons = []) {
                 window.__HAPPYHERD_ALERTS__ = [...(window.__HAPPYHERD_ALERTS__ ?? []), { title, message }];
@@ -601,7 +613,13 @@ const virtualModules: Record<string, string> = {
                 host.append(button);
                 document.body.append(host);
             },
-            confirm: async () => true,
+            confirm(title, message, options) {
+                if (!globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceDelete) return Promise.resolve(true);
+                return new Promise((resolve) => Modal.show({
+                    component: WebAlertModal,
+                    props: { config: { id: 'fixture-confirm', type: 'confirm', title, message, ...options }, onConfirm: resolve },
+                }));
+            },
             prompt(title, message, options) {
                 return new Promise((resolve) => Modal.show({
                     component: WebPromptModal,
@@ -854,6 +872,7 @@ const virtualModules: Record<string, string> = {
     '@/sync/gitStatusSync': `export const gitStatusSync = { getSync: () => ({ invalidate() {} }) };`,
     '@/sync/ops': `
         import { __applySessionModes } from '@/sync/storage';
+        const deletedItems = new Set();
         export const machineControlHeartbeat = async () => {};
         export const machineBash = async () => ({ success: false, error: 'not used' });
         export const machineListCommanders = async () => ({ commanders: [] });
@@ -868,6 +887,13 @@ const virtualModules: Record<string, string> = {
             return { success: false, phases: [] };
         };
         export const machineGetDirectoryTree = async (_machineId, path) => {
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceDelete) {
+                const children = [
+                    { type: 'file', name: 'notes.md', path: path + '/notes.md', size: 12 },
+                    { type: 'directory', name: 'reports', path: path + '/reports' },
+                ].filter((entry) => !deletedItems.has(JSON.stringify([_machineId, entry.path])));
+                return { success: true, tree: { type: 'directory', path, children } };
+            }
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout) return {
                 success: true,
                 tree: { type: 'directory', name: path.split('/').pop(), path, children: [
@@ -944,6 +970,12 @@ const virtualModules: Record<string, string> = {
         };
         export const machineDeleteFile = async (machineId, path) => {
             window.__MACHINE_DELETE_CALLS__ = [...(window.__MACHINE_DELETE_CALLS__ ?? []), { machineId, path }];
+            deletedItems.add(JSON.stringify([machineId, path]));
+            return { success: true };
+        };
+        export const machineDeleteDirectory = async (machineId, path) => {
+            window.__MACHINE_DELETE_CALLS__ = [...(window.__MACHINE_DELETE_CALLS__ ?? []), { machineId, path, recursive: true }];
+            deletedItems.add(JSON.stringify([machineId, path]));
             return { success: true };
         };
         export const machineReadFile = async (machineId, path) => {
@@ -2132,6 +2164,67 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 30_000);
 
+    it.each([
+        ['parent', 1440, 900], ['child-newest', 1440, 900],
+        ['parent', 390, 844], ['child-newest', 390, 844],
+    ] as const)('deletes files and folders through the actual %s Workspace host at width %s', async (owner, width, height) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceDelete: true }; });
+        await page.goto(origin);
+        const foreground = page.getByTestId('foreground-session');
+        const child = owner === 'child-newest';
+        if (child) await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        const actions = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true });
+        await (child ? actions.last() : actions.first()).click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const machineId = child ? 'machine-newest' : 'machine-1';
+        const directory = child ? '/work/child-newest' : '/work/project';
+        const evidence = process.env.HAPPYHERD_WORKSPACE_DELETE_EVIDENCE_DIR;
+        const capture = async (phase: string) => {
+            if (!evidence) return;
+            mkdirSync(evidence, { recursive: true });
+            await page.screenshot({ path: resolve(evidence, `${owner}-${width}-${phase}.png`), fullPage: true });
+        };
+        await workspace.getByLabel('Upload', { exact: true }).waitFor({ state: 'visible' });
+        await capture('initial');
+        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
+        const modal = page.getByRole('dialog');
+        await modal.getByText('Delete folder?', { exact: true }).waitFor({ state: 'visible' });
+        await expect(modal.getByText('Delete folder?', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(modal.getByText(`Are you sure you want to permanently remove ${directory}/reports and all its contents? This action cannot be undone.`, { exact: true }).isVisible()).resolves.toBe(true);
+        await expect.poll(() => modal.getByText('Delete folder?', { exact: true }).evaluate((element) => {
+            for (let current: Element | null = element; current; current = current.parentElement) {
+                if (Number(getComputedStyle(current).opacity) < 0.99) return false;
+            }
+            return true;
+        })).toBe(true);
+        await capture('confirmation');
+        await modal.getByText('Cancel', { exact: true }).click();
+        await modal.waitFor({ state: 'detached' });
+        expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__ ?? [])).toEqual([]);
+        await expect(workspace.getByRole('button', { name: 'Delete reports', exact: true }).isVisible()).resolves.toBe(true);
+
+        await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).click();
+        await modal.getByText('Delete', { exact: true }).click();
+        await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).waitFor({ state: 'detached' });
+        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
+        await modal.getByText('Delete', { exact: true }).click();
+        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).waitFor({ state: 'detached' });
+        expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__)).toEqual([
+            { machineId, path: `${directory}/notes.md` },
+            { machineId, path: `${directory}/reports`, recursive: true },
+        ]);
+        await expect(workspace.getByLabel('Upload', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(workspace.getByLabel('New folder', { exact: true }).isVisible()).resolves.toBe(true);
+        await capture('deleted');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
     it('keeps Main and Side chat reviews separate for the same machine and file', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         page.setDefaultTimeout(3_000);
@@ -2144,7 +2237,7 @@ describe('Side chats browser interaction', () => {
             const actions = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true });
             await (child ? actions.last() : actions.first()).click();
             await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
-            await workspace.getByRole('button', { name: /^machine-file\.md / }).filter({ visible: true }).click();
+            await workspace.getByRole('button', { name: 'machine-file.md', exact: true }).filter({ visible: true }).click();
         };
         const pin = async (text: string) => {
             await workspace.getByRole('button', { name: 'Comment on line 1', exact: true }).filter({ visible: true }).click();
@@ -2192,7 +2285,7 @@ describe('Side chats browser interaction', () => {
         await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
         await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
-        await workspace.getByRole('button', { name: /^machine-file\.md / }).filter({ visible: true }).click();
+        await workspace.getByRole('button', { name: 'machine-file.md', exact: true }).filter({ visible: true }).click();
         const newerPanel = workspace.getByTestId('desktop-file-panel:/work/project/machine-file.md');
         await newerPanel.waitFor({ state: 'visible' });
         await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
@@ -2302,7 +2395,7 @@ describe('Side chats browser interaction', () => {
         await foreground.getByText('Browse reports', { exact: true }).first().click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await expect.poll(() => workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).toBe('/work/reports');
-        await workspace.getByRole('button', { name: /^report\.md / }).filter({ visible: true }).click();
+        await workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).click();
         if (viewport.width < 900) {
             await workspace.getByTestId('desktop-file-workspace-picker-close').click();
             await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
@@ -2311,7 +2404,7 @@ describe('Side chats browser interaction', () => {
             await workspace.getByLabel('Workspace', { exact: true }).click();
         }
         await expect(workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).resolves.toBe('/work/reports');
-        await expect(workspace.getByRole('button', { name: /^report\.md / }).filter({ visible: true }).isVisible()).resolves.toBe(true);
+        await expect(workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).isVisible()).resolves.toBe(true);
         await page.close();
     }, 20_000);
 
