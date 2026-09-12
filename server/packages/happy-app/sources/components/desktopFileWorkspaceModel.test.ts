@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
     closeDesktopFile,
+    deletedDesktopFilePaths,
     defaultDesktopFileWorkspaceWidth,
     DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
     DESKTOP_FILE_WORKSPACE_MAX_SHARE,
     desktopFileIdentity,
     desktopLocalhostIdentity,
     EMPTY_DESKTOP_FILE_WORKSPACE,
+    isWorkspacePathDeleted,
     openDesktopFile,
     openDesktopLocalhost,
     normalizeWorkspaceLocalhostUrl,
@@ -16,6 +18,34 @@ import {
 } from './desktopFileWorkspaceModel';
 
 describe('desktop file workspace state', () => {
+    it('matches only the deleted file or directory descendants at a path boundary', () => {
+        expect(isWorkspacePathDeleted('/work/reports/a.md', '/work/reports', 'directory')).toBe(true);
+        expect(isWorkspacePathDeleted('/work/reports/a.md', '/work/reports/', 'directory')).toBe(true);
+        expect(isWorkspacePathDeleted('/work/reports', '/work/reports', 'directory')).toBe(true);
+        expect(isWorkspacePathDeleted('/work/reports-old/a.md', '/work/reports', 'directory')).toBe(false);
+        expect(isWorkspacePathDeleted('/work/reports/a.md', '/work/reports', 'file')).toBe(false);
+        expect(isWorkspacePathDeleted('C:\\work\\reports\\a.md', 'C:\\work\\reports', 'directory', 'win32')).toBe(true);
+        expect(isWorkspacePathDeleted('/work/reports\\a.md', '/work/reports', 'directory', 'linux')).toBe(false);
+        expect(isWorkspacePathDeleted('/work/reports\\a.md', '/work/reports/a.md', 'file')).toBe(false);
+    });
+
+    it('reconciles deleted descendants only on their machine and keeps live tabs', () => {
+        let state = EMPTY_DESKTOP_FILE_WORKSPACE;
+        for (const machineId of ['machine-1', 'machine-2']) {
+            for (const path of ['/work/reports/a.md', '/work/reports/nested/b.md', '/work/reports-old/c.md']) {
+                state = openDesktopFile(state, path, { machineId, source: 'machine' });
+            }
+        }
+        state = openDesktopLocalhost(state, 'machine-1', 'http://localhost:4173/work/reports');
+        expect(deletedDesktopFilePaths(state, { machineId: 'machine-1', path: '/work/reports', type: 'directory' }))
+            .toEqual([
+                desktopFileIdentity('/work/reports/a.md', 'machine-1'),
+                desktopFileIdentity('/work/reports/nested/b.md', 'machine-1'),
+            ]);
+        expect(deletedDesktopFilePaths(state, { machineId: 'machine-2', path: '/work/reports/a.md', type: 'file' }))
+            .toEqual([desktopFileIdentity('/work/reports/a.md', 'machine-2')]);
+    });
+
     it('opens unique paths once and focuses a reopened path', () => {
         const reference = { machineId: 'machine-1', source: 'session' as const };
         const first = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', reference);

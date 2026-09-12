@@ -61,6 +61,8 @@ const mocks = vi.hoisted(() => ({
     composerText: {} as Record<string, string>,
     expImageUpload: false,
     workspaceEntries: [] as any[],
+    workspaceEntriesBySession: new Map<string, any[]>(),
+    removeWorkspaceContextEntry: vi.fn(),
     pickImages: vi.fn(),
     pickImagesForUpload: vi.fn(),
     uploadAssets: vi.fn(),
@@ -568,8 +570,8 @@ vi.mock('@/sync/workspaceContext', () => ({
     addWorkspaceContextFile: mocks.addWorkspaceContextFile,
     buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
     clearWorkspaceContextFiles: mocks.clearWorkspaceContextFiles,
-    getWorkspaceContextEntries: () => mocks.workspaceEntries,
-    removeWorkspaceContextEntry: vi.fn(),
+    getWorkspaceContextEntries: (sessionId: string) => mocks.workspaceEntriesBySession.get(sessionId) ?? mocks.workspaceEntries,
+    removeWorkspaceContextEntry: mocks.removeWorkspaceContextEntry,
     subscribeWorkspaceContext: () => () => undefined,
 }));
 vi.mock('@/sync/queueProjection', () => ({ projectSessionQueue: () => ({ items: mocks.emptyArray }) }));
@@ -817,6 +819,12 @@ beforeEach(() => {
     mocks.expImageUpload = false;
     mocks.dataReady = true;
     mocks.workspaceEntries = [];
+    mocks.workspaceEntriesBySession.clear();
+    mocks.removeWorkspaceContextEntry.mockReset();
+    mocks.removeWorkspaceContextEntry.mockImplementation((owner: string, entry: any) => {
+        const current = mocks.workspaceEntriesBySession.get(owner) ?? mocks.workspaceEntries;
+        mocks.workspaceEntriesBySession.set(owner, current.filter((candidate) => candidate !== entry));
+    });
     mocks.pickImages.mockReset();
     mocks.pickImagesForUpload.mockReset();
     mocks.pickImagesForUpload.mockResolvedValue([]);
@@ -2064,6 +2072,109 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.dirtyPaths.has('/work/b.md')).toBe(false);
         expect(mocks.modalConfirm).not.toHaveBeenCalled();
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+    });
+
+    it.each([1280, 390])('reconciles a confirmed folder deletion across retained chats only on its machine at width %s', async (width) => {
+        mocks.width = width;
+        const renderer = renderParent();
+        openParentWorkspaceFile(renderer, '/work/reports/a.md');
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onDirtyChange('/work/reports/a.md', true));
+        openParentWorkspaceFile(renderer, '/work/reports-old/keep.md');
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onDirtyChange('/work/reports-old/keep.md', true));
+        openParentWorkspaceFile(renderer, '/work/reports/a.md', 'machine-2');
+
+        const openLink = renderer.root.findAllByType('EmptyMessages' as any)
+            .find((node: any) => typeof node.props.onWorkspaceLinkPress === 'function')!.props.onWorkspaceLinkPress;
+        await act(async () => {
+            openLink({ pathname: '/workspace', params: {
+                mode: 'link', originSessionId: 'newest', machineId: 'machine-1', absolutePath: '/work/reports/nested/side.md',
+            } });
+            await Promise.resolve();
+        });
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.sessionId).toBe('newest');
+        act(() => workspace.props.onDirtyChange('/work/reports/nested/side.md', true));
+        act(() => workspace.props.onOpenMachinePicker());
+        const browser = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+        const target = { machineId: 'machine-1', path: '/work/reports', type: 'directory' };
+        expect(browser.props.hasUnsavedChanges(target)).toBe(true);
+        expect(browser.props.hasUnsavedChanges({ ...target, machineId: 'machine-2' })).toBe(false);
+        act(() => browser.props.onDeleted(target));
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual([]);
+        expect(workspace.props.dirtyPaths.size).toBe(0);
+        expect(browser.props.hasUnsavedChanges(target)).toBe(false);
+
+        act(() => composerForSession(renderer, 'parent').props.webWorkspaceActions.onOpenWorkspace());
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/reports-old/keep.md', '/work/reports/a.md']);
+        expect(Object.keys(workspace.props.references)).toEqual([
+            JSON.stringify(['machine-1', '/work/reports-old/keep.md']),
+            JSON.stringify(['machine-2', '/work/reports/a.md']),
+        ]);
+        expect(workspace.props.dirtyPaths).toEqual(new Set(['/work/reports-old/keep.md']));
+        expect(renderedComposerSessions(renderer)).toContain('parent');
+        expect(mocks.modalConfirm).not.toHaveBeenCalled();
+    });
+
+    it.each(['file', 'directory'] as const)('does not reopen a deleted %s from an earlier link lookup', async (type) => {
+        const renderer = renderParent();
+        openParentWorkspaceFile(renderer, '/work/keep.md');
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onOpenMachinePicker());
+        const browser = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+        const openLink = renderer.root.findAllByType('EmptyMessages' as any)
+            .find((node: any) => typeof node.props.onWorkspaceLinkPress === 'function')!.props.onWorkspaceLinkPress;
+        let resolveLookup!: (result: any) => void;
+        mocks.machineGetDirectoryTree.mockImplementationOnce(() => new Promise((resolve) => { resolveLookup = resolve; }));
+        act(() => openLink({ pathname: '/workspace', params: {
+            mode: 'link', originSessionId: 'parent', machineId: 'machine-1', absolutePath: '/work/reports/removed',
+        } }));
+        act(() => browser.props.onDeleted({ machineId: 'machine-1', path: '/work/reports', type: 'directory' }));
+        await act(async () => {
+            resolveLookup(type === 'directory'
+                ? { success: true, tree: { type: 'directory', path: '/work/reports/removed', children: [] } }
+                : { success: false, error: 'Not a directory' });
+            await Promise.resolve();
+        });
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths).toEqual(['/work/keep.md']);
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props.initialPath).toBe('/srv/project');
+    });
+
+    it('preserves an unrelated pending link when another item is deleted', async () => {
+        const renderer = renderParent();
+        openParentWorkspaceFile(renderer, '/work/keep.md');
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onOpenMachinePicker());
+        const browser = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+        const openLink = renderer.root.findAllByType('EmptyMessages' as any)
+            .find((node: any) => typeof node.props.onWorkspaceLinkPress === 'function')!.props.onWorkspaceLinkPress;
+        let resolveLookup!: (result: any) => void;
+        mocks.machineGetDirectoryTree.mockImplementationOnce(() => new Promise((resolve) => { resolveLookup = resolve; }));
+        act(() => openLink({ pathname: '/workspace', params: {
+            mode: 'link', originSessionId: 'parent', machineId: 'machine-2', absolutePath: '/work/reports/keep.md',
+        } }));
+        act(() => browser.props.onDeleted({ machineId: 'machine-1', path: '/work/reports', type: 'directory' }));
+        await act(async () => { resolveLookup({ success: false, error: 'Not a directory' }); await Promise.resolve(); });
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.activePath).toBe('/work/reports/keep.md');
+        expect(workspace.props.references[JSON.stringify(['machine-2', '/work/reports/keep.md'])]).toBeDefined();
+    });
+
+    it('removes deleted context references across chats while retaining other machines and adjacent folders', () => {
+        const removed = { path: '/work/reports/a.md', kind: 'file', source: { kind: 'machine', machineId: 'machine-1' } };
+        const otherMachine = { ...removed, source: { kind: 'machine', machineId: 'machine-2' } };
+        const neighbor = { ...removed, path: '/work/reports-old/a.md' };
+        const sideFolder = { ...removed, path: '/work/reports/nested', kind: 'directory' };
+        mocks.workspaceEntriesBySession.set('parent', [removed, otherMachine, neighbor]);
+        mocks.workspaceEntriesBySession.set('newest', [sideFolder]);
+        const renderer = renderParent();
+        openParentWorkspaceFile(renderer, '/work/keep.md');
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onOpenMachinePicker());
+        act(() => renderer.root.findByType('MachineWorkspaceBrowser' as any).props.onDeleted({
+            machineId: 'machine-1', path: '/work/reports', type: 'directory',
+        }));
+        expect(mocks.workspaceEntriesBySession.get('parent')).toEqual([otherMachine, neighbor]);
+        expect(mocks.workspaceEntriesBySession.get('newest')).toEqual([]);
+        expect(mocks.removeWorkspaceContextEntry.mock.calls).toEqual([['parent', removed], ['newest', sideFolder]]);
     });
 
     it('keeps the desktop workspace header free of the removed Changes action', () => {

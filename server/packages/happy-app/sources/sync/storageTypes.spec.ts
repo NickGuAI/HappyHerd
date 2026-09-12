@@ -79,6 +79,7 @@ describe('MachineMetadataSchema', () => {
             happyHomeDir: '/srv/agent-home/project/.happy',
             homeDir: '/srv/agent-home/project',
             supportsFileDelete: true,
+            supportsDirectoryDelete: true,
             grokCapabilityError: 'Run `grok login`.',
             dshCapabilityError: 'Verify `dsh --profile acp` starts.',
             agentCapabilities: {
@@ -115,6 +116,21 @@ describe('MachineMetadataSchema', () => {
         expect(metadata.grokCapabilityError).toBe('Run `grok login`.');
         expect(metadata.dshCapabilityError).toBe('Verify `dsh --profile acp` starts.');
         expect(metadata.supportsFileDelete).toBe(true);
+        expect(metadata.supportsDirectoryDelete).toBe(true);
+    });
+
+    it('accepts old machine metadata without inferring recursive deletion support', () => {
+        const metadata = MachineMetadataSchema.parse({
+            host: 'workstation',
+            platform: 'linux',
+            happyCliVersion: '1.2.1',
+            happyHomeDir: '/srv/.happyherd',
+            homeDir: '/srv',
+            supportsFileDelete: true,
+        });
+
+        expect(metadata.supportsFileDelete).toBe(true);
+        expect(metadata.supportsDirectoryDelete).toBeUndefined();
     });
 
     it('preserves the dsh capability catalog and session/resume boundary', () => {

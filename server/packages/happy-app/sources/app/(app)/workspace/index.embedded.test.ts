@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+    platform: 'web',
     getTree: vi.fn(),
     createDirectory: vi.fn(),
     prompt: vi.fn(async (): Promise<string | null> => null),
@@ -14,6 +15,8 @@ const mocks = vi.hoisted(() => ({
             displayName: string;
             homeDir: string;
             platform: string;
+            supportsFileDelete?: boolean;
+            supportsDirectoryDelete?: boolean;
         };
     }>,
     recentPaths: [] as Array<{ machineId: string; path: string }>,
@@ -35,7 +38,7 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         ActivityIndicator: host('ActivityIndicator'),
-        Platform: { OS: 'web' },
+        Platform: { get OS() { return mocks.platform; } },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
         TextInput: host('TextInput'),
@@ -211,6 +214,7 @@ beforeAll(() => {
 afterAll(() => vi.restoreAllMocks());
 
 beforeEach(() => {
+    mocks.platform = 'web';
     mocks.machines = [{
         id: 'main-machine',
         active: true,
@@ -303,12 +307,25 @@ function rowByName(renderer: ReactTestRenderer, name: string) {
 }
 
 function contextToggleInRow(row: any) {
-    return row.findAllByType('Pressable' as any).find((candidate: any) => (
-        candidate !== row && typeof candidate.props.accessibilityLabel === 'string'
+    const container = mocks.platform === 'web' ? row.parent.parent : row;
+    return container.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate.props.accessibilityLabel === 'uiCopy.attachValueToNextMessage'
+        || candidate.props.accessibilityLabel === 'uiCopy.removeValueFromMessageContext'
     ));
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
+    it.each(['ios', 'android', 'macos'])('preserves native %s rows without new delete controls', async (platform) => {
+        mocks.platform = platform;
+        mocks.machines[0].metadata.supportsFileDelete = true;
+        mocks.machines[0].metadata.supportsDirectoryDelete = true;
+        const renderer = await renderBrowser({ initialMachineId: 'main-machine', initialPath: '/workspace/user' });
+        expect(renderer.root.findAllByType('Pressable' as any)
+            .filter((node: any) => node.props.accessibilityLabel === 'workspace.deleteItemAction')).toHaveLength(0);
+        expect(rowByName(renderer, 'notes.md')!.props.accessibilityLabel).toBeUndefined();
+        act(() => renderer.unmount());
+    });
+
     it('notifies once at confirmed folder creation before the RPC and not again on completion', async () => {
         const onNavigate = vi.fn();
         const renderer = await renderBrowser({
@@ -531,7 +548,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
         }]);
 
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
         act(() => notesRow.props.onPress());
         expect(onFilePress).toHaveBeenCalledWith({
@@ -564,7 +581,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
         let notesRow = rowByName(renderer, 'notes.md');
         act(() => contextToggleInRow(notesRow).props.onPress({ stopPropagation: vi.fn() }));
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
 
         act(() => mocks.removeWorkspaceContextEntry('shared-composer-session', {
@@ -573,9 +590,9 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             source: { kind: 'machine', machineId: 'main-machine' },
         }));
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(false);
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'ellipse-outline')).toBe(true);
         act(() => renderer.unmount());
     });
@@ -610,7 +627,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             await Promise.resolve();
         });
         let notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(false);
         act(() => contextToggleInRow(notesRow).props.onPress({ stopPropagation: vi.fn() }));
 
@@ -627,7 +644,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             },
         ]);
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
         act(() => renderer.unmount());
     });

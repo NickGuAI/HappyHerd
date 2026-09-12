@@ -549,6 +549,7 @@ export const MachineMetadataSchema = z.object({
     }).passthrough().optional(),
     /** The restarted Happy daemon exposes deleteFile through machine RPC. */
     supportsFileDelete: z.boolean().optional(),
+    supportsDirectoryDelete: z.boolean().optional(),
     // The Rig catalog below mirrors the optionality of MetadataSchema at the top
     // of this file, which models the same payload for a session. Rig is a
     // separate codebase shipping on its own schedule, so a field it omits or

@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happy-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
 NATIVE_INSTALLER_PROOF	accepted	fix(installer): keep database byte handling in prepared releases	.github/workflows/native-installer-release.yml
 NEW_SESSION_PANEL_UX	accepted	fix(new-session): preserve native sizing and prove route gestures	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 NEW_SESSION_PANEL_UX	accepted	fix: improve new session panel size and folder navigation	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
@@ -346,3 +347,7 @@ DEFAULT_ASSISTANT_LOCAL_CLI	accepted	feat(assistant): expose default setup and l
 CHAT_IMAGE_STABILITY	accepted	fix(markdown): retain loaded images across session updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	fix(workspace): fit mobile PDF pages and support zoom gestures	server/packages/happy-app/sources/utils/pdfPageLayout.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	test(workspace): retain responsive helpers in browser fixtures	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_BROWSER_DELETE	accepted	feat(workspace): confirm file and folder deletion from browser rows	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
+WORKSPACE_ITEM_DELETION	accepted	feat(workspace): reconcile deleted items across chat workspaces	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and isolate browser fixtures	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
+WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

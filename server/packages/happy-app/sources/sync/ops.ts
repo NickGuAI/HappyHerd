@@ -133,6 +133,7 @@ interface SessionWriteFileResponse {
 
 interface SessionDeleteFileRequest {
     path: string;
+    recursive?: boolean;
 }
 
 interface SessionDeleteFileResponse {
@@ -938,6 +939,24 @@ export async function machineDeleteFile(machineId: string, path: string): Promis
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to delete machine file',
+        };
+    }
+}
+
+export async function machineDeleteDirectory(machineId: string, path: string): Promise<SessionDeleteFileResponse> {
+    if (storage.getState().machines[machineId]?.metadata?.supportsDirectoryDelete !== true) {
+        return { success: false, error: 'Directory deletion is not available for this machine' };
+    }
+    try {
+        return await apiSocket.machineRPC<SessionDeleteFileResponse, SessionDeleteFileRequest>(
+            machineId,
+            'deleteFile',
+            { path, recursive: true },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to delete machine directory',
         };
     }
 }

@@ -227,6 +227,7 @@ describe('ApiMachineClient socket reconnection', () => {
             agentCapabilities: {},
         };
         expect(machine.metadata?.supportsFileDelete).toBeUndefined();
+        expect(machine.metadata?.supportsDirectoryDelete).toBeUndefined();
         mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
             if (event === 'machine-update-metadata') {
                 return {
@@ -248,6 +249,7 @@ describe('ApiMachineClient socket reconnection', () => {
 
         await vi.waitFor(() => {
             expect(machine.metadata?.supportsFileDelete).toBe(true);
+            expect(machine.metadata?.supportsDirectoryDelete).toBe(true);
         });
         expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
             'machine-update-metadata',
@@ -261,6 +263,7 @@ describe('ApiMachineClient socket reconnection', () => {
         machine.metadata = {
             ...machine.metadata!,
             supportsFileDelete: true,
+            supportsDirectoryDelete: true,
             cliAvailability: mockDetectCLIAvailability(),
             resumeSupport: {
                 rpcAvailable: false,
@@ -296,6 +299,28 @@ describe('ApiMachineClient socket reconnection', () => {
                 expect.objectContaining({ machineId: 'test-machine-id', expectedVersion: 0 }),
             );
         });
+        client.shutdown();
+    });
+
+    it('republishes directory deletion on reconnect even when local metadata already advertises it', () => {
+        const machine = makeMachine();
+        const storedMetadata = machine.metadata;
+        machine.metadata = { ...machine.metadata!, supportsFileDelete: true, supportsDirectoryDelete: true };
+        const client = new ApiMachineClient('fake-token', machine);
+        const publications: Machine['metadata'][] = [];
+        vi.spyOn(client, 'updateMachineMetadata').mockImplementation(async (handler) => {
+            publications.push(handler(storedMetadata));
+        });
+        client.connect();
+        emitSocketEvent('connect');
+        publications.length = 0;
+
+        emitSocketEvent('connect');
+
+        expect(publications).toContainEqual(expect.objectContaining({
+            supportsFileDelete: true,
+            supportsDirectoryDelete: true,
+        }));
         client.shutdown();
     });
 

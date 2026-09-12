@@ -626,7 +626,7 @@ export class ApiMachineClient {
             // Human-facing app can see file deletion yet.
             void this.updateMachineMetadata((metadata) => {
                 if (!metadata) throw new Error('Machine metadata is unavailable');
-                return { ...metadata, supportsFileDelete: true };
+                return { ...metadata, supportsFileDelete: true, supportsDirectoryDelete: true };
             }).catch((error) => {
                 logger.debug('[API MACHINE] Failed to advertise machine file deletion:', error);
             });

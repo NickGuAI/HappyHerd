@@ -330,7 +330,13 @@
     "selectedCount": "{count} of {max} files selected",
     "openWorkspace": "Open Workspace",
     "browseMachine": "Browse machine files",
-    "mobileBackToFiles": "Back to files"
+    "mobileBackToFiles": "Back to files",
+    "deleteFileTitle": "Delete file?",
+    "deleteFolderTitle": "Delete folder?",
+    "deleteFileConfirm": "Are you sure you want to permanently remove {path}? This action cannot be undone.",
+    "deleteFolderConfirm": "Are you sure you want to permanently remove {path} and all its contents? This action cannot be undone.",
+    "deleteItemAction": "Delete {name}",
+    "deleteItemFailed": "Failed to delete the item."
   },
   "imageUpload": {
     "permissionTitle": "Photo Library Access",

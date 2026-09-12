@@ -41,6 +41,13 @@ change. When behavior changes, update both this skill and
   implementation (arbitrary-line comment affordance) and is never published as
   a mode. Images, PDFs, and other non-editable formats show only applicable
   controls.
+- **File and folder deletion.** MachineWorkspaceBrowser exposes per-row
+  deletion using daemon-advertised supportsFileDelete and
+  supportsDirectoryDelete capabilities; only directory requests carry
+  `recursive: true`. Capture the exact path before warning of permanent
+  deletion and unsaved edits. On success, refresh the listing, clear
+  references, and close affected same-machine open tabs while preserving
+  direct symlink rejection.
 - **Commentable rendered Preview.** Renderable Markdown opens as rendered,
   commentable Preview whether opened normally or with a line deep link. A
   `requestedLine` is navigation/comment context, never a mode selector: it

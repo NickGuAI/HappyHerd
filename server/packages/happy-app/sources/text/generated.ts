@@ -1390,6 +1390,12 @@ export type TranslationKey =
     | "workspace.browseContext"
     | "workspace.browseMachine"
     | "workspace.createFolderFailed"
+    | "workspace.deleteFileConfirm"
+    | "workspace.deleteFileTitle"
+    | "workspace.deleteFolderConfirm"
+    | "workspace.deleteFolderTitle"
+    | "workspace.deleteItemAction"
+    | "workspace.deleteItemFailed"
     | "workspace.emptyFolder"
     | "workspace.favorites"
     | "workspace.featureDisabled"
@@ -1606,6 +1612,9 @@ export interface TranslationParamsByKey {
     "usage.coverage.estimated": { provider: string };
     "usage.coverage.partial": { metric: string; provider: string };
     "usage.coverage.unavailable": { metric: string; provider: string };
+    "workspace.deleteFileConfirm": { path: string };
+    "workspace.deleteFolderConfirm": { path: string };
+    "workspace.deleteItemAction": { name: string };
     "workspace.liveCommentOnElement": { element: string };
     "workspace.liveElement": { element: string };
     "workspace.selectedCount": { count: number; max: number };

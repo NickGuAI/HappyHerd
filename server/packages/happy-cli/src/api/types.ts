@@ -200,6 +200,7 @@ export const MachineMetadataSchema = z.object({
   agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
   /** The restarted daemon exposes deleteFile through its machine RPC. */
   supportsFileDelete: z.boolean().optional(),
+  supportsDirectoryDelete: z.boolean().optional(),
   grokCapabilityError: z.string().optional(),
   dshCapabilityError: z.string().optional(),
 })

@@ -88,6 +88,7 @@ const virtualModules: Record<string, string> = {
         export const machineWriteFile = async () => ({ success: true });
         export const machineReadFileWithinRoot = async () => ({ success: false });
         export const machineDeleteFile = async () => ({ success: true });
+        export const machineDeleteDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
         export const sessionReadFile = async () => { throw new Error('Unexpected session file read'); };
         export const sessionWriteFile = async () => { throw new Error('Unexpected session file write'); };
         export const sessionDeleteFile = async () => { throw new Error('Unexpected session file delete'); };

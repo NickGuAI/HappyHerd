@@ -50,10 +50,12 @@ import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/De
 import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
 import {
     closeDesktopFile,
+    deletedDesktopFilePaths,
     desktopFileIdentity,
     desktopFilePath,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     isDesktopLocalhostReference,
+    isWorkspacePathDeleted,
     normalizeWorkspaceLocalhostUrl,
     openDesktopFile,
     openDesktopLocalhost,
@@ -260,9 +262,11 @@ export const SessionView = React.memo((props: {
         && rigCanBrowseFiles(desktopFileWorkspaceSession.metadata)
         && rigCanUseShell(desktopFileWorkspaceSession.metadata);
     const workspaceLinkRequestGeneration = React.useRef(0);
+    const pendingWorkspaceLink = React.useRef<{ generation: number; machineId: string; path: string } | null>(null);
 
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
+        pendingWorkspaceLink.current = null;
         desktopWorkspacesRef.current = {};
         setDesktopWorkspaces({});
         setDesktopFileWorkspaceSessionId(sessionId);
@@ -723,11 +727,17 @@ export const SessionView = React.memo((props: {
             }
             setDesktopFileWorkspaceSessionId(route.params.originSessionId);
 
+            pendingWorkspaceLink.current = {
+                generation: requestGeneration,
+                machineId: route.params.machineId,
+                path: route.params.absolutePath,
+            };
             void machineGetDirectoryTree(
                 route.params.machineId,
                 route.params.absolutePath,
                 1,
             ).then((response) => {
+                if (pendingWorkspaceLink.current?.generation === requestGeneration) pendingWorkspaceLink.current = null;
                 if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
                 if (response.success && response.tree?.type === 'directory') {
                     updateDesktopWorkspace(route.params.originSessionId, (current) => ({
@@ -832,6 +842,42 @@ export const SessionView = React.memo((props: {
         setHeaderRightSlot(null);
         setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
     }, []);
+    const hasWorkspaceDeleteUnsavedChanges = React.useCallback((item: { machineId: string; path: string; type: 'file' | 'directory'; platform?: string }) => (
+        Object.values(desktopWorkspacesRef.current).some((workspace) => (
+            deletedDesktopFilePaths(workspace.files, item).some((path) => workspace.dirtyPaths.has(path))
+        ))
+    ), []);
+    const handleWorkspaceItemDeleted = React.useCallback((item: { machineId: string; path: string; type: 'file' | 'directory'; platform?: string }) => {
+        const pending = pendingWorkspaceLink.current;
+        if (pending?.generation === workspaceLinkRequestGeneration.current
+            && pending.machineId === item.machineId
+            && isWorkspacePathDeleted(pending.path, item.path, item.type, item.platform)) {
+            workspaceLinkRequestGeneration.current += 1;
+            pendingWorkspaceLink.current = null;
+        }
+        for (const owner of Object.keys(desktopWorkspacesRef.current)) {
+            updateDesktopWorkspace(owner, (current) => {
+                const deletedPaths = deletedDesktopFilePaths(current.files, item);
+                if (deletedPaths.length === 0) return current;
+                const dirtyPaths = new Set(current.dirtyPaths);
+                let files = current.files;
+                for (const path of deletedPaths) {
+                    files = closeDesktopFile(files, path);
+                    dirtyPaths.delete(path);
+                }
+                return { ...current, files, dirtyPaths };
+            });
+        }
+        for (const owner of new Set([sessionId, ...sideChatIds, ...Object.keys(desktopWorkspacesRef.current)])) {
+            const ownerMachineId = storage.getState().sessions[owner]?.metadata?.machineId;
+            for (const entry of getWorkspaceContextEntries(owner)) {
+                const machineId = entry.source.kind === 'machine' ? entry.source.machineId : ownerMachineId;
+                if (machineId === item.machineId && isWorkspacePathDeleted(entry.path, item.path, item.type, item.platform)) {
+                    removeWorkspaceContextEntry(owner, entry);
+                }
+            }
+        }
+    }, [sessionId, sideChatIds, updateDesktopWorkspace]);
     const handleMachineWorkspaceFilePress = React.useCallback(({ machineId, path }: { machineId: string; path: string }) => {
         workspaceLinkRequestGeneration.current += 1;
         updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({
@@ -1244,6 +1290,8 @@ export const SessionView = React.memo((props: {
                 workspaceContextSessionId={owner}
                 onNavigate={() => { workspaceLinkRequestGeneration.current += 1; }}
                 onFilePress={handleMachineWorkspaceFilePress}
+                hasUnsavedChanges={hasWorkspaceDeleteUnsavedChanges}
+                onDeleted={handleWorkspaceItemDeleted}
                 onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
             />
         ) : null;
