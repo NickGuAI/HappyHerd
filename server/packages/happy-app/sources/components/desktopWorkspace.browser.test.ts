@@ -577,6 +577,12 @@ const virtualModules: Record<string, string> = {
             'workspace.favorites': 'Favorites',
             'workspace.upload': 'Upload',
             'workspace.newFolder': 'New folder',
+            'workspace.deleteItemAction': 'Delete ' + (params?.name ?? ''),
+            'workspace.deleteFileTitle': 'Delete file?',
+            'workspace.deleteFolderTitle': 'Delete folder?',
+            'workspace.deleteFileConfirm': 'Are you sure you want to permanently remove ' + (params?.path ?? '') + '? This action cannot be undone.',
+            'workspace.deleteFolderConfirm': 'Are you sure you want to permanently remove ' + (params?.path ?? '') + ' and all its contents? This action cannot be undone.',
+            'workspace.deleteItemFailed': 'Failed to delete the item.',
             'workspace.searchPlaceholder': 'Search files',
             'uiCopy.attachValueToNextMessage': 'Add ' + (params?.value1 ?? '') + ' to message',
             'uiCopy.removeValueFromMessageContext': 'Remove ' + (params?.value1 ?? '') + ' from message',
@@ -1088,14 +1094,14 @@ describe('Desktop workspace browser interaction', () => {
         await wide.getByRole('button', { name: 'Preview' }).waitFor();
         await expect(wide.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(wide.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
-        await expect(wide.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(1);
+        await expect(wide.getByRole('button', { name: 'Delete', exact: true }).count()).resolves.toBe(1);
         await expect(wide.locator('.hh-markdown-root').isVisible()).resolves.toBe(true);
 
         await wide.getByRole('button', { name: 'Edit' }).click();
         await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await wide.getByRole('button', { name: 'Preview' }).click();
         await expect(wide.locator('.hh-markdown-root').isVisible()).resolves.toBe(true);
-        await wide.getByRole('button', { name: 'Delete' }).click();
+        await wide.getByRole('button', { name: 'Delete', exact: true }).click();
         await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(1);
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(1);
 
@@ -1106,7 +1112,7 @@ describe('Desktop workspace browser interaction', () => {
         await narrow.getByRole('button', { name: 'Preview' }).waitFor();
         await expect(narrow.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(narrow.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
-        await expect(narrow.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(0);
+        await expect(narrow.getByRole('button', { name: 'Delete', exact: true }).count()).resolves.toBe(0);
         await narrow.getByRole('button', { name: 'Edit' }).click();
         await expect(narrow.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await narrow.getByRole('button', { name: 'Preview' }).click();
@@ -2114,13 +2120,13 @@ describe('Desktop workspace browser interaction', () => {
         const feedback = () => workspace.getByPlaceholder('Share file feedback').filter({ visible: true });
         await feedback().fill('first file feedback');
         await workspace.getByRole('button', { name: 'Add photo', exact: true }).filter({ visible: true }).click();
-        await workspace.getByLabel('Workspace').click();
+        await workspace.getByLabel('Workspace', { exact: true }).click();
         await workspace.getByText('second.md', { exact: true }).click();
         await feedback().fill('second file feedback');
         await workspace.getByRole('tab', { name: 'Open demo.md' }).click();
         await expect(feedback().inputValue()).resolves.toBe('first file feedback');
         await expect(workspace.locator('img[src^="data:image/png"]').filter({ visible: true }).count()).resolves.toBe(1);
-        await workspace.getByLabel('Workspace').click();
+        await workspace.getByLabel('Workspace', { exact: true }).click();
         await workspace.getByTestId('desktop-file-workspace-picker-close').click();
         await expect(feedback().inputValue()).resolves.toBe('first file feedback');
         await workspace.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).click();
@@ -2141,7 +2147,7 @@ describe('Desktop workspace browser interaction', () => {
 
         const wide = page.getByTestId('wide-file-workspace');
         await expect(wide.getByLabel('Open existing file').count()).resolves.toBe(0);
-        await wide.getByLabel('Workspace').click();
+        await wide.getByLabel('Workspace', { exact: true }).click();
         await wide.getByTestId('machine-picker').waitFor();
         await wide.getByTestId('machine-picker').getByText('second.md', { exact: true }).click();
         await expect(wide.getByRole('tab').count()).resolves.toBe(2);
@@ -2154,7 +2160,7 @@ describe('Desktop workspace browser interaction', () => {
         await demoEditor.fill('# Unsaved draft\n'.repeat(40));
         await demoEditor.evaluate((element) => { element.scrollTop = 120; });
 
-        await wide.getByLabel('Workspace').click();
+        await wide.getByLabel('Workspace', { exact: true }).click();
         await wide.getByTestId('machine-picker').waitFor();
         await wide.getByTestId('machine-picker').getByText('second.md', { exact: true }).click();
         await expect(wide.getByRole('tab').count()).resolves.toBe(2);
@@ -2177,13 +2183,13 @@ describe('Desktop workspace browser interaction', () => {
         await page.goto(origin);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByLabel('Workspace').click({ timeout: 3_000 });
+        await wide.getByLabel('Workspace', { exact: true }).click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(true);
         await wide.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(false);
         await expect(wide.getByRole('tab').count()).resolves.toBe(1);
 
-        await wide.getByLabel('Workspace').click({ timeout: 3_000 });
+        await wide.getByLabel('Workspace', { exact: true }).click({ timeout: 3_000 });
         await wide.getByText('remote.md', { exact: true }).click({ timeout: 3_000 });
         await expect(wide.getByRole('tab', { name: 'Open remote.md' }).count()).resolves.toBe(1);
         await expect(wide.getByTestId('desktop-file-panel:/machine-root/remote.md').count()).resolves.toBe(1);

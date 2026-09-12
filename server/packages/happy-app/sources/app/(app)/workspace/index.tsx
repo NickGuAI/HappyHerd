@@ -1062,18 +1062,8 @@ function FileRow({
     deleteDisabled: boolean;
 }) {
     const { theme } = useUnistyles();
-    return (
-        <Pressable
-            onPress={onOpen}
-            style={({ pressed }) => [
-                styles.fileRow,
-                { borderBottomColor: theme.colors.divider },
-                selected && { backgroundColor: theme.colors.surfaceSelected },
-                pressed && { opacity: 0.75 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={Platform.OS === 'web' ? entry.name : undefined}
-        >
+    const fileLabel = (
+        <>
             {entry.type === 'directory'
                 ? <Ionicons name="folder-outline" size={20} color={theme.colors.textSecondary} />
                 : <FileIcon fileName={entry.name} size={20} />}
@@ -1083,41 +1073,75 @@ function FileRow({
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 11, ...Typography.default() }}>{formatBytes(entry.size)}</Text>
                 )}
             </View>
-            {attachmentMode && (
+        </>
+    );
+    const attachButton = attachmentMode && (
+        <Pressable
+            onPress={(event) => {
+                event.stopPropagation?.();
+                onToggleAttach();
+            }}
+            hitSlop={8}
+            style={styles.attachButton}
+            accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+            accessibilityLabel={attached
+                ? t('uiCopy.removeValueFromMessageContext', { value1: entry.name })
+                : t('uiCopy.attachValueToNextMessage', { value1: entry.name })}
+        >
+            <Ionicons
+                name={attached ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={attached ? theme.colors.success : theme.colors.textSecondary}
+            />
+        </Pressable>
+    );
+    const chevron = entry.type === 'directory'
+        ? <Ionicons name="chevron-forward" size={17} color={theme.colors.textSecondary} />
+        : null;
+    const rowStyle = [
+        styles.fileRow,
+        { borderBottomColor: theme.colors.divider },
+        selected && { backgroundColor: theme.colors.surfaceSelected },
+    ];
+
+    if (Platform.OS === 'web') {
+        return (
+            <View style={rowStyle}>
                 <Pressable
-                    onPress={(event) => {
-                        event.stopPropagation?.();
-                        onToggleAttach();
-                    }}
-                    hitSlop={8}
-                    style={styles.attachButton}
-                    accessibilityLabel={attached
-                        ? t('uiCopy.removeValueFromMessageContext', { value1: entry.name })
-                        : t('uiCopy.attachValueToNextMessage', { value1: entry.name })}
-                >
-                    <Ionicons
-                        name={attached ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={20}
-                        color={attached ? theme.colors.success : theme.colors.textSecondary}
-                    />
-                </Pressable>
-            )}
-            {onDelete && (
-                <Pressable
-                    onPress={(event) => {
-                        event.stopPropagation?.();
-                        onDelete();
-                    }}
-                    disabled={deleteDisabled}
+                    onPress={onOpen}
                     accessibilityRole="button"
-                    accessibilityLabel={t('workspace.deleteItemAction', { name: entry.name })}
-                    accessibilityState={{ disabled: deleteDisabled }}
-                    style={({ pressed }) => [styles.deleteButton, { opacity: deleteDisabled ? 0.4 : pressed ? 0.65 : 1 }]}
+                    accessibilityLabel={entry.name}
+                    style={({ pressed }) => [styles.fileOpenButton, pressed && { opacity: 0.75 }]}
                 >
-                    <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
+                    {fileLabel}
+                    {chevron}
                 </Pressable>
-            )}
-            {entry.type === 'directory' && <Ionicons name="chevron-forward" size={17} color={theme.colors.textSecondary} />}
+                {attachButton}
+                {onDelete && (
+                    <Pressable
+                        onPress={onDelete}
+                        disabled={deleteDisabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('workspace.deleteItemAction', { name: entry.name })}
+                        accessibilityState={{ disabled: deleteDisabled }}
+                        style={({ pressed }) => [styles.deleteButton, { opacity: deleteDisabled ? 0.4 : pressed ? 0.65 : 1 }]}
+                    >
+                        <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
+                    </Pressable>
+                )}
+            </View>
+        );
+    }
+
+    return (
+        <Pressable
+            onPress={onOpen}
+            style={({ pressed }) => [rowStyle, pressed && { opacity: 0.75 }]}
+            accessibilityRole="button"
+        >
+            {fileLabel}
+            {attachButton}
+            {chevron}
         </Pressable>
     );
 }
@@ -1196,6 +1220,7 @@ const styles = StyleSheet.create((theme) => ({
     loadingState: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
     fileList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
     fileRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+    fileOpenButton: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },
     deleteButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
     attachButton: { minWidth: 38, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
     viewerHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },

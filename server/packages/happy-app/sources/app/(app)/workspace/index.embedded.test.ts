@@ -307,8 +307,10 @@ function rowByName(renderer: ReactTestRenderer, name: string) {
 }
 
 function contextToggleInRow(row: any) {
-    return row.findAllByType('Pressable' as any).find((candidate: any) => (
-        candidate !== row && typeof candidate.props.accessibilityLabel === 'string'
+    const container = mocks.platform === 'web' ? row.parent.parent : row;
+    return container.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate.props.accessibilityLabel === 'uiCopy.attachValueToNextMessage'
+        || candidate.props.accessibilityLabel === 'uiCopy.removeValueFromMessageContext'
     ));
 }
 
@@ -546,7 +548,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
         }]);
 
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
         act(() => notesRow.props.onPress());
         expect(onFilePress).toHaveBeenCalledWith({
@@ -579,7 +581,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
         let notesRow = rowByName(renderer, 'notes.md');
         act(() => contextToggleInRow(notesRow).props.onPress({ stopPropagation: vi.fn() }));
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
 
         act(() => mocks.removeWorkspaceContextEntry('shared-composer-session', {
@@ -588,9 +590,9 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             source: { kind: 'machine', machineId: 'main-machine' },
         }));
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(false);
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'ellipse-outline')).toBe(true);
         act(() => renderer.unmount());
     });
@@ -625,7 +627,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             await Promise.resolve();
         });
         let notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(false);
         act(() => contextToggleInRow(notesRow).props.onPress({ stopPropagation: vi.fn() }));
 
@@ -642,7 +644,7 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             },
         ]);
         notesRow = rowByName(renderer, 'notes.md');
-        expect(notesRow.findAllByType('Ionicons' as any)
+        expect(contextToggleInRow(notesRow).findAllByType('Ionicons' as any)
             .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
         act(() => renderer.unmount());
     });

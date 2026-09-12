@@ -1,14 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { build } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
-const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 let server: Server;
 let browser: Browser;
 let origin: string;
+const browserErrors: string[] = [];
 
 beforeAll(async () => {
     const virtual: Record<string, string> = {
@@ -82,13 +83,21 @@ afterAll(async () => {
     if (server) await new Promise<void>((done) => server.close(() => done()));
 });
 
+afterEach(() => {
+    expect(browserErrors.splice(0)).toEqual([]);
+});
+
 async function open(surface = 'standalone', width = 1440) {
     const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, hasTouch: width === 390, isMobile: width === 390 });
     const page = await context.newPage();
     page.setDefaultTimeout(5000);
-    page.on('pageerror', error => { throw error; });
+    page.on('pageerror', error => browserErrors.push(error.message));
+    page.on('console', message => {
+        if (message.type() === 'error') browserErrors.push(message.text());
+    });
     await page.goto(`${origin}/?surface=${surface}`);
     await page.getByText('note.txt', { exact: true }).waitFor();
+    expect(await page.locator('button button').count()).toBe(0);
     return { context, page };
 }
 
