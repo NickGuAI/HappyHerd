@@ -934,7 +934,17 @@
     "commentPlaceholder": "Write a comment…",
     "pinComment": "Pin comment",
     "sendComments": "Send {count} comments",
-    "commentOnHoveredLine": "Comment on line"
+    "commentOnHoveredLine": "Comment on line",
+    "pdf": {
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageIndicator": "Page {current} of {total}",
+      "download": "Download",
+      "fitPage": "Fit to page",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "loadFailed": "Failed to load PDF"
+    }
   },
   "sideChat": {
     "panelTitle": "Side chats",

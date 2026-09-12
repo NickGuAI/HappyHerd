@@ -46,7 +46,7 @@ const virtualModules: Record<string, string> = {
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'expo-router': `export const useRouter = () => ({ push() {} });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
-    '@/utils/responsive': `export const useHeaderHeight = () => 64; export const getDeviceType = () => window.innerWidth < 500 ? 'phone' : 'desktop';`,
+    '@/utils/responsive': `export { useDeviceType } from '${resolve(appRoot, 'sources/utils/responsive.ts')}'; export const useHeaderHeight = () => 64; export const getDeviceType = () => window.innerWidth < 500 ? 'phone' : 'desktop';`,
     '@/constants/Typography': `export const Typography = { default: () => ({}), mono: () => ({}) };`,
     '@/components/FileIcon': `
         import React from 'react';

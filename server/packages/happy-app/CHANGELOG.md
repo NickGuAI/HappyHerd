@@ -3,6 +3,11 @@
 - Unchanged chat images now remain visible when chat updates arrive, preventing repeated loading indicators and layout jumps.
 - Initial loading, source changes, and error retry actions remain supported.
 
+# September 12 — Mobile PDF page fitting
+
+- Opening a PDF on mobile Web now fits the entire page within the reader area at the correct aspect ratio.
+- Added zoom, pinch, pan, page navigation, download, and fit reset controls.
+
 # September 10 — Persistent HappyHerd Assistant
 
 - Automatically creates a persistent HappyHerd Assistant once the authenticated machine and supported provider are ready, allowing one account entry to be reused across restarts or another machine, which stays pinned on the web desktop or mobile beyond the recent list window.

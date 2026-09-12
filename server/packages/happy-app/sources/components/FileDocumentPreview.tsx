@@ -6,6 +6,7 @@ type FileDocumentPreviewProps = {
     html?: string;
     uri?: string;
     title: string;
+    fileName?: string;
     interactive?: boolean;
 };
 

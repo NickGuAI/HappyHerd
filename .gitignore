@@ -10,3 +10,5 @@ logs/
 !docs/acceptance/*.log
 *.pid
 *.local
+
+/server/packages/happy-app/public/pdfjs/
