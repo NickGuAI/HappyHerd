@@ -204,6 +204,7 @@ const virtualModules: Record<string, string> = {
         }) };
     `,
     '@/utils/responsive': `
+        export { useDeviceType } from '${resolve(appRoot, 'sources/utils/responsive.ts')}';
         export const useHeaderHeight = () => 64;
         export const useIsTablet = () => true;
     `,
