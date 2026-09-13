@@ -51,6 +51,44 @@ describe('sessionEnvironment', () => {
         expect(childEnv).not.toHaveProperty('HAPPY_RECONNECT_SESSION_ID');
     });
 
+    it('makes a selected managed provider account override ambient direct keys', () => {
+        const ambient = {
+            XAI_API_KEY: 'ambient-xai',
+            OPENAI_API_KEY: 'ambient-openai',
+            KEEP_ME: 'safe',
+        };
+        const grok = buildSessionChildEnvironment(ambient, {
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'grok',
+            HAPPYHERD_GROK_ACCOUNT_AUTH_FILE: '/accounts/grok/work/auth.json',
+        });
+        expect(grok.KEEP_ME).toBe('safe');
+        expect(grok).not.toHaveProperty('XAI_API_KEY');
+        expect(sessionEnvironmentKeysToUnset(grok)).toContain('XAI_API_KEY');
+
+        const codex = buildSessionChildEnvironment(ambient, {
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/accounts/codex/work/auth.json',
+        });
+        expect(codex).not.toHaveProperty('OPENAI_API_KEY');
+
+        const claude = buildSessionChildEnvironment({
+            ANTHROPIC_API_KEY: 'ambient-anthropic',
+            CLAUDE_API_KEY: 'ambient-claude',
+            CLAUDE_CODE_OAUTH_TOKEN: 'ambient-oauth',
+        }, {
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'claude',
+            CLAUDE_CODE_OAUTH_TOKEN: 'managed-token',
+        });
+        expect(claude.CLAUDE_CODE_OAUTH_TOKEN).toBe('managed-token');
+        expect(claude).not.toHaveProperty('ANTHROPIC_API_KEY');
+        expect(claude).not.toHaveProperty('CLAUDE_API_KEY');
+        expect(sessionEnvironmentKeysToUnset(claude)).not.toContain('CLAUDE_CODE_OAUTH_TOKEN');
+        expect(sessionEnvironmentKeysToUnset(claude)).toContain('ANTHROPIC_API_KEY');
+    });
+
     it('replaces stale reconnect state with the values for the resumed session', () => {
         const childEnv = buildSessionChildEnvironment(contaminatedEnvironment(), {
             HAPPY_RECONNECT_SESSION_ID: 'new-session',

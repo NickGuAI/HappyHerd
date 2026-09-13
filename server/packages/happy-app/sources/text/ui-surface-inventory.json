@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e383ffd3ee954ae5613334b82b262deeef34ad50ca1d499a54e883b2e5b564db",
-  "routeCount": 39,
-  "surfaceCount": 269,
+  "sourceFingerprint": "b1e6e9dd626cbdf6d108e10bd6e5ddf17639d7b6381f7592873d250a4d5dd771",
+  "routeCount": 40,
+  "surfaceCount": 271,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -764,6 +764,12 @@
       "states": []
     },
     {
+      "path": "/settings/credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
@@ -1138,6 +1144,7 @@
         "settings.account",
         "settings.appearance",
         "settings.title",
+        "settingsCredentials.title",
         "sidebar.projects",
         "tabs.inbox",
         "textSelection.title",
@@ -2026,6 +2033,17 @@
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "kind": "route",
+      "route": "/settings/credentials",
+      "exports": [
+        "CredentialsSettingsScreen"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3007,6 +3025,87 @@
         "uiCopy.happyTerminal"
       ],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CredentialsSettingsView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CredentialsSettingsView"
+      ],
+      "translationKeys": [
+        "settingsCredentials.accountHelp",
+        "settingsCredentials.accountNickname",
+        "settingsCredentials.accountNicknamePlaceholder",
+        "settingsCredentials.addAccount",
+        "settingsCredentials.addCredential",
+        "settingsCredentials.cancel",
+        "settingsCredentials.cancelLogin",
+        "settingsCredentials.credentialChanged",
+        "settingsCredentials.credentialHelp",
+        "settingsCredentials.credentialName",
+        "settingsCredentials.credentialType",
+        "settingsCredentials.default",
+        "settingsCredentials.deleteCredential",
+        "settingsCredentials.deleteCredentialMessage",
+        "settingsCredentials.deleteCredentialTitle",
+        "settingsCredentials.editCredential",
+        "settingsCredentials.emptyAccounts",
+        "settingsCredentials.emptyCredentials",
+        "settingsCredentials.hideSecret",
+        "settingsCredentials.keepExistingSecret",
+        "settingsCredentials.limitedUntil",
+        "settingsCredentials.loadFailed",
+        "settingsCredentials.loading",
+        "settingsCredentials.login",
+        "settingsCredentials.loginCanceled",
+        "settingsCredentials.loginExpired",
+        "settingsCredentials.loginFailed",
+        "settingsCredentials.loginPending",
+        "settingsCredentials.loginSuccess",
+        "settingsCredentials.machine",
+        "settingsCredentials.machineOffline",
+        "settingsCredentials.machineScope",
+        "settingsCredentials.machineUnsupported",
+        "settingsCredentials.noMachines",
+        "settingsCredentials.openProvider",
+        "settingsCredentials.provider",
+        "settingsCredentials.providerAccounts",
+        "settingsCredentials.reload",
+        "settingsCredentials.relogin",
+        "settingsCredentials.removeLocal",
+        "settingsCredentials.removeLocalMessage",
+        "settingsCredentials.removeLocalTitle",
+        "settingsCredentials.rename",
+        "settingsCredentials.required",
+        "settingsCredentials.retry",
+        "settingsCredentials.save",
+        "settingsCredentials.saveFailed",
+        "settingsCredentials.savedCredentials",
+        "settingsCredentials.secret",
+        "settingsCredentials.selectMachine",
+        "settingsCredentials.service",
+        "settingsCredentials.servicePlaceholder",
+        "settingsCredentials.setDefault",
+        "settingsCredentials.showSecret",
+        "settingsCredentials.stored",
+        "settingsCredentials.submitCode",
+        "settingsCredentials.typeConnection",
+        "settingsCredentials.typeLogin",
+        "settingsCredentials.typeToken",
+        "settingsCredentials.usage",
+        "settingsCredentials.usageBrowser",
+        "settingsCredentials.usageMcp",
+        "settingsCredentials.usageSkills",
+        "settingsCredentials.username",
+        "settingsCredentials.verificationCode",
+        "status.lastSeen",
+        "status.online"
+      ],
+      "states": [
+        "loading"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -4685,6 +4784,8 @@
         "settings.whatsNew",
         "settings.whatsNewSubtitle",
         "settingsAccount.statusActive",
+        "settingsCredentials.settingsRow",
+        "settingsCredentials.settingsRowSubtitle",
         "status.offline",
         "status.online",
         "uiCopy.agentDefaults",
@@ -6888,6 +6989,150 @@
       "copy": {
         "settingsAccount.accountInformation": "Kontoinformationen",
         "settingsAccount.analytics": "Analytik"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "Credentials & Accounts",
+        "settingsCredentials.subtitle": "Manage connected providers and saved credentials"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "Credentials & Accounts",
+        "settingsCredentials.subtitle": "Manage connected providers and saved credentials"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "Credentials & Accounts",
+        "settingsCredentials.subtitle": "Manage connected providers and saved credentials"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "Credentials & Accounts",
+        "settingsCredentials.subtitle": "Manage connected providers and saved credentials"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "凭据与账号",
+        "settingsCredentials.subtitle": "管理服务商账号和已存凭据"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "凭据与账号",
+        "settingsCredentials.subtitle": "管理服务商账号和已存凭据"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "凭据与账号",
+        "settingsCredentials.subtitle": "管理服务商账号和已存凭据"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "凭据与账号",
+        "settingsCredentials.subtitle": "管理服务商账号和已存凭据"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "Anmeldedaten & Konten",
+        "settingsCredentials.subtitle": "Anbieterkonten und gespeicherte Anmeldedaten verwalten"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "Anmeldedaten & Konten",
+        "settingsCredentials.subtitle": "Anbieterkonten und gespeicherte Anmeldedaten verwalten"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsCredentials.title": "Anmeldedaten & Konten",
+        "settingsCredentials.subtitle": "Anbieterkonten und gespeicherte Anmeldedaten verwalten"
+      }
+    },
+    {
+      "surface": "credentials",
+      "owner": "sources/app/(app)/settings/credentials.tsx",
+      "route": "/settings/credentials",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsCredentials.title": "Anmeldedaten & Konten",
+        "settingsCredentials.subtitle": "Anbieterkonten und gespeicherte Anmeldedaten verwalten"
       }
     },
     {

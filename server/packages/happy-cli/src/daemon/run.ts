@@ -63,6 +63,7 @@ import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 import { hasProviderProcessExited } from './processStatus';
 import { startHappyTerminalDaemon } from './happyTerminalBoot';
 import { loadSessionRecords } from '@/api/sessionLookup';
+import { CredentialAccountManager } from '@/credentialPool/manager';
 import {
   machineSessionSettingsEnvironment,
   persistedMachineSessionSettingsMatch,
@@ -235,6 +236,7 @@ export const initialMachineMetadata: MachineMetadata = {
   agentCapabilities: buildBaselineAgentCapabilities(initialCLIAvailability),
   supportsFileDelete: true,
   supportsDirectoryDelete: true,
+  credentialManagementProtocolVersion: 1,
 };
 
 export async function startDaemon(): Promise<void> {
@@ -252,6 +254,7 @@ export async function startDaemon(): Promise<void> {
   //
   // In case the setup malfunctions - our signal handlers will not properly
   // shut down. We will force exit the process with code 1.
+  let credentialAccounts: CredentialAccountManager | undefined;
   let requestShutdown: (source: 'happy-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string) => void;
   let resolvesWhenShutdownRequested = new Promise<({ source: 'happy-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string })>((resolve) => {
     requestShutdown = (source, errorMessage) => {
@@ -265,7 +268,7 @@ export async function startDaemon(): Promise<void> {
         await new Promise(resolve => setTimeout(resolve, 100))
 
         process.exit(1);
-      }, 1_000);
+      }, 10_000);
 
       // Start graceful shutdown
       resolve({ source, errorMessage });
@@ -1256,6 +1259,7 @@ export async function startDaemon(): Promise<void> {
         const credentialResolution = credentialProvider
           ? await resolveCredentialAccountEnvironment(credentialProvider, {
             preferred: metadata.providerAccount,
+            preferredId: metadata.providerAccountId,
           })
           : { selection: { type: 'unconfigured' as const }, env: {} };
         if (credentialResolution.selection.type === 'all-limited') {
@@ -1606,7 +1610,18 @@ export async function startDaemon(): Promise<void> {
       }, incidentId);
     };
     const onProviderLimited = (notice: ProviderLimitNotice): void => {
-      const key = `${notice.sessionId}:${notice.provider}:${notice.account ?? 'unmanaged'}`;
+      if (notice.accountId) {
+        const tracked = findTrackedSessionById(notice.sessionId);
+        const metadata = tracked?.happySessionMetadataFromLocalWebhook;
+        if (
+          metadata?.providerAccountId !== notice.accountId
+          || metadata.providerAccountCredentialVersion !== notice.credentialVersion
+        ) {
+          logger.debug(`[CREDENTIAL POOL] Ignoring stale ${notice.provider} limit notice for ${notice.sessionId}`);
+          return;
+        }
+      }
+      const key = `${notice.sessionId}:${notice.provider}:${notice.accountId ?? notice.account ?? 'unmanaged'}:${notice.credentialVersion ?? 'legacy'}`;
       if (providerLimitRotations.has(key)) return;
       const rotationIncidentId = randomUUID();
       const quotaIncidentId = randomUUID();
@@ -1712,6 +1727,12 @@ export async function startDaemon(): Promise<void> {
     let inspectLocalSession = async (_request: LocalSessionInspectRequest): Promise<LocalSessionInspectReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry local session inspection.');
     };
+    let assertCredentialAccountMutationAllowed = async (_request: {
+      provider: CredentialProvider;
+      name: string;
+    }): Promise<void> => {
+      throw new Error('HappyHerd daemon is still starting; retry credential account management.');
+    };
 
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
@@ -1727,6 +1748,7 @@ export async function startDaemon(): Promise<void> {
       createLocalSession: (request) => createLocalSession(request),
       sendLocalMessage: (request) => sendLocalMessage(request),
       inspectLocalSession: (request) => inspectLocalSession(request),
+      assertCredentialAccountMutationAllowed: (request) => assertCredentialAccountMutationAllowed(request),
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -1776,6 +1798,30 @@ export async function startDaemon(): Promise<void> {
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
+    const activeCredentialAccounts = new CredentialAccountManager({
+      isLegacyAccountInUse: (target) => [...pidToTrackedSession.values()].some((session) => {
+        if (hasProviderProcessExited(session.pid)) return false;
+        const metadata = session.happySessionMetadataFromLocalWebhook;
+        if (!metadata?.providerAccount) return false;
+        const provider = metadata.flavor === 'codex' || metadata.flavor === 'grok'
+          ? metadata.flavor
+          : metadata.flavor === undefined || metadata.flavor === 'claude'
+            ? 'claude'
+            : null;
+        if (provider !== target.provider) return false;
+        const matches = metadata.providerAccountId
+          ? metadata.providerAccountId === target.id
+          : metadata.providerAccount === target.name;
+        return matches && (
+          !metadata.providerAccountId
+          || !Number.isInteger(metadata.providerAccountCredentialVersion)
+        );
+      }),
+    });
+    credentialAccounts = activeCredentialAccounts;
+    assertCredentialAccountMutationAllowed = (request) => (
+      activeCredentialAccounts.assertNamedMutationAllowed(request)
+    );
 
     createLocalSession = async (request) => {
       if (request.isSuperSession && !request.commanderId) throw new Error('Super Session creation requires a Commander');
@@ -1829,6 +1875,7 @@ export async function startDaemon(): Promise<void> {
       requestShutdown: () => requestShutdown('happy-app'),
       automations,
       sideChat: (request) => manageLocalSideChat(request),
+      credentialAccounts: activeCredentialAccounts,
     });
 
     const localSessionFromPersistence = (sessionId: string): Session => {
@@ -1904,6 +1951,7 @@ export async function startDaemon(): Promise<void> {
         const codexCredentialResolution = isCodexParent && inheritedProviderAccount
           ? await resolveCredentialAccountEnvironment('codex', {
             preferred: inheritedProviderAccount,
+            preferredId: parent.metadata.providerAccountId,
           })
           : null;
         if (codexCredentialResolution?.selection.type === 'all-limited') {
@@ -2321,6 +2369,7 @@ export async function startDaemon(): Promise<void> {
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
         await automations.stop();
+        await activeCredentialAccounts.dispose();
         apiMachine.shutdown();
         await stopControlServer();
         await cleanupDaemonState();
@@ -2392,6 +2441,7 @@ export async function startDaemon(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await automations.stop();
+      await activeCredentialAccounts.dispose();
       apiMachine.shutdown();
       await stopControlServer();
       await cleanupDaemonState();
@@ -2409,6 +2459,9 @@ export async function startDaemon(): Promise<void> {
     await cleanupAndShutdown(shutdownRequest.source, shutdownRequest.errorMessage);
   } catch (error) {
     logger.debug('[DAEMON RUN][FATAL] Failed somewhere unexpectedly - exiting with code 1', error);
+    await credentialAccounts?.dispose().catch((cleanupError) => {
+      logger.debug('[DAEMON RUN][FATAL] Failed to clean up credential logins', cleanupError);
+    });
     process.exit(1);
   }
 }

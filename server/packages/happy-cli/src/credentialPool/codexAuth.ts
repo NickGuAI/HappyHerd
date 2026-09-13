@@ -3,6 +3,11 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import type { CredentialAccount } from './types';
+import {
+  defaultCredentialPoolPaths,
+  persistRegisteredCredentialFile,
+  type CredentialPoolPaths,
+} from './store';
 
 type CodexCredentialAccount = Extract<CredentialAccount, { provider: 'codex' }>;
 
@@ -26,17 +31,24 @@ export async function activateCodexCredential(
 
 export async function persistActiveCodexCredential(
   env: NodeJS.ProcessEnv = process.env,
+  paths: CredentialPoolPaths = defaultCredentialPoolPaths(),
 ): Promise<boolean> {
-  const accountAuthFile = env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE?.trim();
-  if (!accountAuthFile) return false;
+  const accountId = env.HAPPYHERD_PROVIDER_ACCOUNT_ID?.trim();
+  const rawCredentialVersion = env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION?.trim();
+  const credentialVersion = rawCredentialVersion === undefined ? Number.NaN : Number(rawCredentialVersion);
+  if (!accountId || !Number.isInteger(credentialVersion) || credentialVersion < 1) return false;
   const runtimeAuthFile = join(codexRuntimeHome(env), 'auth.json');
-  if (resolve(accountAuthFile) === resolve(runtimeAuthFile)) {
-    await chmod(runtimeAuthFile, 0o600);
-    return true;
-  }
-  await mkdir(dirname(accountAuthFile), { recursive: true, mode: 0o700 });
-  await chmod(dirname(accountAuthFile), 0o700);
-  await copyFile(runtimeAuthFile, accountAuthFile);
-  await chmod(accountAuthFile, 0o600);
-  return true;
+  return persistRegisteredCredentialFile('codex', {
+    accountId,
+    credentialVersion,
+  }, async (accountAuthFile) => {
+    if (resolve(accountAuthFile) === resolve(runtimeAuthFile)) {
+      await chmod(runtimeAuthFile, 0o600);
+      return;
+    }
+    await mkdir(dirname(accountAuthFile), { recursive: true, mode: 0o700 });
+    await chmod(dirname(accountAuthFile), 0o700);
+    await copyFile(runtimeAuthFile, accountAuthFile);
+    await chmod(accountAuthFile, 0o600);
+  }, paths);
 }

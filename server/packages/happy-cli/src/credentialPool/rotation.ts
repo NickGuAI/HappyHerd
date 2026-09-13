@@ -27,6 +27,7 @@ export type ProviderLimitRotationDependencies = {
 };
 
 export type ProviderLimitRotationResult =
+  | { type: 'refreshed'; account: string }
   | { type: 'ignored' }
   | { type: 'unchanged'; account: string }
   | { type: 'rotated'; account: string }
@@ -49,19 +50,30 @@ export async function rotateProviderSessionAfterLimit(
     notice.provider,
     notice.account,
     notice.limitedUntil,
-    { paths: dependencies.paths, now: now() },
+    {
+      paths: dependencies.paths,
+      now: now(),
+      accountId: notice.accountId,
+      credentialVersion: notice.credentialVersion,
+    },
   );
   if (rotation.type === 'ignored') return { type: 'ignored' };
+  if (rotation.type === 'credential-changed') {
+    await dependencies.stopProvider(notice.sessionId);
+    return { type: 'refreshed', account: await dependencies.resumeProvider(notice.sessionId) };
+  }
+
+  const fromAccount = rotation.fromAccount;
 
   if (rotation.type === 'all-limited') await dependencies.onNoUsableAccount?.();
   await dependencies.stopProvider(notice.sessionId);
   const resumeAndAnnounce = async (): Promise<{ account: string; switched: boolean }> => {
     const toAccount = await dependencies.resumeProvider(notice.sessionId);
-    if (toAccount === notice.account) return { account: toAccount, switched: false };
+    if (toAccount === fromAccount) return { account: toAccount, switched: false };
     await dependencies.onAccountSwitched?.({
       sessionId: notice.sessionId,
       provider: notice.provider,
-      fromAccount: notice.account,
+      fromAccount,
       toAccount,
     });
     return { account: toAccount, switched: true };

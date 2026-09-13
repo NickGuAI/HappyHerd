@@ -47,6 +47,13 @@ const LocalSessionCreationReceiptSchema = z.object({
   superSession: z.literal(true).optional(),
 });
 
+const CredentialAccountMutationCheckSchema = z.object({
+  provider: z.enum(['claude', 'codex', 'grok']),
+  name: z.string().min(1).max(64),
+}).strict();
+
+export type CredentialAccountMutationCheck = z.infer<typeof CredentialAccountMutationCheckSchema>;
+
 export type LocalSessionCreationRequest = z.infer<typeof LocalSessionCreationRequestSchema>;
 export type LocalSessionCreationReceipt = z.infer<typeof LocalSessionCreationReceiptSchema>;
 
@@ -63,6 +70,7 @@ export function startDaemonControlServer({
   createLocalSession,
   sendLocalMessage,
   inspectLocalSession,
+  assertCredentialAccountMutationAllowed,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
@@ -76,6 +84,7 @@ export function startDaemonControlServer({
   createLocalSession?: (request: LocalSessionCreationRequest) => Promise<LocalSessionCreationReceipt>;
   sendLocalMessage?: (request: LocalSessionSendRequest) => Promise<LocalSessionSendReceipt>;
   inspectLocalSession?: (request: LocalSessionInspectRequest) => Promise<LocalSessionInspectReceipt>;
+  assertCredentialAccountMutationAllowed?: (request: CredentialAccountMutationCheck) => Promise<void>;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -107,6 +116,16 @@ export function startDaemonControlServer({
     typed.post('/session-inspect', { schema: { body: LocalSessionInspectRequestSchema } }, async (request, reply) => {
       if (!inspectLocalSession) return reply.code(503).send({ error: 'Local session inspection is unavailable' });
       return LocalSessionInspectReceiptSchema.parse(await inspectLocalSession(request.body));
+    });
+
+    typed.post('/credential-account-mutation-check', {
+      schema: { body: CredentialAccountMutationCheckSchema },
+    }, async (request, reply) => {
+      if (!assertCredentialAccountMutationAllowed) {
+        return reply.code(503).send({ error: 'Credential account management is unavailable' });
+      }
+      await assertCredentialAccountMutationAllowed(request.body);
+      return { status: 'allowed' as const };
     });
 
     // Session reports itself after creation
@@ -156,6 +175,8 @@ export function startDaemonControlServer({
           sessionId: z.string().min(1),
           provider: z.enum(['claude', 'codex', 'grok', 'dsh']),
           account: z.string().min(1).optional(),
+          accountId: z.string().uuid().optional(),
+          credentialVersion: z.number().int().positive().optional(),
           limitedUntil: z.number().int().positive(),
         }),
         response: {

@@ -3,19 +3,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const spawn = Object.assign(vi.fn(), { sync: vi.fn() });
+  const credentialPoolPaths = {
+    stateFile: '/managed/credential-pools.json',
+    accountsDir: '/managed/accounts',
+  };
   return {
-    accountAuthFile: vi.fn((provider: string, name: string) => `/managed/${provider}/${name}/auth.json`),
-    accountHome: vi.fn((provider: string, name: string) => `/managed/${provider}/${name}`),
     apiCreate: vi.fn(),
     authenticateClaude: vi.fn(),
     authenticateCodex: vi.fn(),
     authenticateGemini: vi.fn(),
-    chmodSync: vi.fn(),
+    chmod: vi.fn(),
+    commitCredentialLogin: vi.fn(async (
+      input: { provider: string; name: string; token?: string; authFile?: Buffer },
+      _options?: unknown,
+    ) => ({
+      id: '00000000-0000-4000-8000-000000000001',
+      provider: input.provider,
+      name: input.name,
+      credential: input.provider === 'claude'
+        ? { type: 'oauth-token', token: 'stored-token' }
+        : { type: 'auth-file', path: `/managed/accounts/${input.provider}/account-id/auth.json` },
+      credentialVersion: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      limitedUntil: null,
+    })),
+    credentialPoolPaths,
+    defaultCredentialPoolPaths: vi.fn(() => credentialPoolPaths),
+    listCredentialAccounts: vi.fn(async () => ({ state: {}, accounts: [] })),
+    mkdir: vi.fn(),
     mkdirSync: vi.fn(),
+    mkdtemp: vi.fn(async () => '/managed/accounts/.pending/terminal-test'),
+    readFile: vi.fn(async () => Buffer.from('{"token":"grok-token"}')),
     readCredentials: vi.fn(),
     registerVendorToken: vi.fn(),
+    rm: vi.fn(),
     spawn,
-    upsertCredentialAccount: vi.fn(),
     useCredentialAccount: vi.fn(),
     validateAccountName: vi.fn((name: string) => name),
     writeFileSync: vi.fn(),
@@ -25,14 +48,20 @@ const mocks = vi.hoisted(() => {
 vi.mock('cross-spawn', () => ({ default: mocks.spawn }));
 vi.mock('fs', async (importOriginal) => ({
   ...await importOriginal<typeof import('fs')>(),
-  chmodSync: mocks.chmodSync,
   mkdirSync: mocks.mkdirSync,
   writeFileSync: mocks.writeFileSync,
 }));
+vi.mock('node:fs/promises', () => ({
+  chmod: mocks.chmod,
+  mkdir: mocks.mkdir,
+  mkdtemp: mocks.mkdtemp,
+  readFile: mocks.readFile,
+  rm: mocks.rm,
+}));
 vi.mock('@/credentialPool/store', () => ({
-  accountAuthFile: mocks.accountAuthFile,
-  accountHome: mocks.accountHome,
-  upsertCredentialAccount: mocks.upsertCredentialAccount,
+  commitCredentialLogin: mocks.commitCredentialLogin,
+  defaultCredentialPoolPaths: mocks.defaultCredentialPoolPaths,
+  listCredentialAccounts: mocks.listCredentialAccounts,
   useCredentialAccount: mocks.useCredentialAccount,
   validateAccountName: mocks.validateAccountName,
 }));
@@ -75,22 +104,22 @@ describe('named provider account connection', () => {
 
     await handleConnectCommand(['claude', '--acct', 'work']);
 
-    expect(mocks.upsertCredentialAccount).toHaveBeenCalledWith({
+    expect(mocks.commitCredentialLogin).toHaveBeenCalledWith({
       provider: 'claude',
       name: 'work',
-      credential: { type: 'oauth-token', token: 'claude-setup-token' },
+      token: 'claude-setup-token',
+    }, { paths: mocks.credentialPoolPaths, target: { type: 'new' } });
+    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('claude', 'work', mocks.credentialPoolPaths, {
+      id: '00000000-0000-4000-8000-000000000001', credentialVersion: 1,
     });
-    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('claude', 'work');
   });
 
-  it('writes Codex OAuth material into the named account home', async () => {
+  it('commits Codex OAuth material through the credential pool owner', async () => {
     await handleConnectCommand(['codex', '--acct', 'personal']);
 
-    expect(mocks.mkdirSync).toHaveBeenCalledWith('/managed/codex/personal', { recursive: true, mode: 0o700 });
-    const [path, contents, options] = mocks.writeFileSync.mock.calls[0];
-    expect(path).toBe('/managed/codex/personal/auth.json');
-    expect(options).toEqual({ encoding: 'utf8', mode: 0o600 });
-    expect(JSON.parse(contents)).toMatchObject({
+    const [input, options] = mocks.commitCredentialLogin.mock.calls[0];
+    expect(input).toMatchObject({ provider: 'codex', name: 'personal' });
+    expect(JSON.parse(input.authFile!.toString('utf8'))).toMatchObject({
       OPENAI_API_KEY: null,
       tokens: {
         id_token: 'id-token',
@@ -99,10 +128,9 @@ describe('named provider account connection', () => {
         account_id: 'account-id',
       },
     });
-    expect(mocks.upsertCredentialAccount).toHaveBeenCalledWith({
-      provider: 'codex',
-      name: 'personal',
-      credential: { type: 'auth-file', path: '/managed/codex/personal/auth.json' },
+    expect(options).toEqual({ paths: mocks.credentialPoolPaths, target: { type: 'new' } });
+    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('codex', 'personal', mocks.credentialPoolPaths, {
+      id: '00000000-0000-4000-8000-000000000001', credentialVersion: 1,
     });
   });
 
@@ -110,14 +138,23 @@ describe('named provider account connection', () => {
     await handleConnectCommand(['grok', '--acct', 'backup']);
 
     expect(mocks.spawn.sync).toHaveBeenCalledWith('grok', ['login'], expect.objectContaining({
-      env: expect.objectContaining({ GROK_HOME: '/managed/grok/backup' }),
+      env: expect.objectContaining({ GROK_HOME: '/managed/accounts/.pending/terminal-test' }),
     }));
-    expect(mocks.upsertCredentialAccount).toHaveBeenCalledWith({
+    expect(mocks.mkdir).toHaveBeenCalledWith('/managed/accounts/.pending', { recursive: true, mode: 0o700 });
+    expect(mocks.chmod).toHaveBeenCalledWith('/managed/accounts/.pending', 0o700);
+    expect(mocks.readFile).toHaveBeenCalledWith('/managed/accounts/.pending/terminal-test/auth.json');
+    expect(mocks.commitCredentialLogin).toHaveBeenCalledWith({
       provider: 'grok',
       name: 'backup',
-      credential: { type: 'auth-file', path: '/managed/grok/backup/auth.json' },
+      authFile: Buffer.from('{"token":"grok-token"}'),
+    }, { paths: mocks.credentialPoolPaths, target: { type: 'new' } });
+    expect(mocks.rm).toHaveBeenCalledWith('/managed/accounts/.pending/terminal-test', {
+      recursive: true,
+      force: true,
     });
-    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('grok', 'backup');
+    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('grok', 'backup', mocks.credentialPoolPaths, {
+      id: '00000000-0000-4000-8000-000000000001', credentialVersion: 1,
+    });
   });
 
   it.each([
@@ -166,7 +203,7 @@ describe('named provider account connection', () => {
     expect(mocks.authenticateGemini).not.toHaveBeenCalled();
     expect(mocks.spawn).not.toHaveBeenCalled();
     expect(mocks.spawn.sync).not.toHaveBeenCalled();
-    expect(mocks.upsertCredentialAccount).not.toHaveBeenCalled();
+    expect(mocks.commitCredentialLogin).not.toHaveBeenCalled();
     expect(mocks.useCredentialAccount).not.toHaveBeenCalled();
   });
 
@@ -196,6 +233,7 @@ describe('named provider account connection', () => {
     const token = 'sk-ant-demo1';
 
     const connecting = handleConnectCommand(['claude', '--acct', 'work']);
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
     const firstFrame = Buffer.from(
       '\u001b[?2026hWelcome to Claude Code v2.1.220\n\n'
       + ' · Opening browser to sign in…'
@@ -237,12 +275,11 @@ describe('named provider account connection', () => {
     expect(mocks.spawn).toHaveBeenCalledWith('claude', ['setup-token'], expect.objectContaining({
       stdio: ['inherit', 'pipe', 'pipe'],
     }));
-    expect(mocks.upsertCredentialAccount).toHaveBeenCalledWith({
+    expect(mocks.commitCredentialLogin).toHaveBeenCalledWith({
       provider: 'claude',
       name: 'work',
-      credential: { type: 'oauth-token', token },
-    });
-    expect(mocks.useCredentialAccount).toHaveBeenCalledWith('claude', 'work');
+      token,
+    }, { paths: mocks.credentialPoolPaths, target: { type: 'new' } });
   });
 
   it('waits for close before extracting a token from trailing stderr output', async () => {
@@ -255,6 +292,7 @@ describe('named provider account connection', () => {
     const token = 'sk-ant-demo2';
 
     const connecting = handleConnectCommand(['claude', '--acct', 'late-token']);
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
     child.emit('exit', 0);
     child.stderr.emit('data', Buffer.from(`Final Claude setup output\n${token}`));
     child.emit('close', 0);
@@ -264,11 +302,11 @@ describe('named provider account connection', () => {
     const shown = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
     expect(shown).toContain('Final Claude setup output');
     expect(shown).toContain(token);
-    expect(mocks.upsertCredentialAccount).toHaveBeenCalledWith({
+    expect(mocks.commitCredentialLogin).toHaveBeenCalledWith({
       provider: 'claude',
       name: 'late-token',
-      credential: { type: 'oauth-token', token },
-    });
+      token,
+    }, { paths: mocks.credentialPoolPaths, target: { type: 'new' } });
   });
 
   it('flushes trailing stderr output on close before rejecting a nonzero exit', async () => {
@@ -280,16 +318,16 @@ describe('named provider account connection', () => {
     const stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     const connecting = handleConnectCommand(['claude', '--acct', 'failed']);
-    const rejected = expect(connecting).rejects.toThrow('claude setup-token exited with status 7');
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
     child.emit('exit', 7);
     child.stderr.emit('data', Buffer.from('Final Claude setup error'));
     child.emit('close', 7);
 
-    await rejected;
+    await expect(connecting).rejects.toThrow('claude setup-token exited with status 7');
 
     const shown = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
     expect(shown).toContain('Final Claude setup error');
-    expect(mocks.upsertCredentialAccount).not.toHaveBeenCalled();
+    expect(mocks.commitCredentialLogin).not.toHaveBeenCalled();
     expect(mocks.useCredentialAccount).not.toHaveBeenCalled();
   });
 
@@ -302,13 +340,13 @@ describe('named provider account connection', () => {
     const failure = new Error('could not spawn claude');
 
     const connecting = handleConnectCommand(['claude', '--acct', 'failed-spawn']);
-    const rejected = expect(connecting).rejects.toBe(failure);
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
     child.emit('error', failure);
     child.emit('close', null);
 
-    await rejected;
+    await expect(connecting).rejects.toBe(failure);
 
-    expect(mocks.upsertCredentialAccount).not.toHaveBeenCalled();
+    expect(mocks.commitCredentialLogin).not.toHaveBeenCalled();
     expect(mocks.useCredentialAccount).not.toHaveBeenCalled();
   });
 });

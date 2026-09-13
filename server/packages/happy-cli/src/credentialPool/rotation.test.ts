@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { rotateProviderSessionAfterLimit } from './rotation';
 import {
+  commitCredentialLogin,
   markCredentialAccountLimited,
+  readCredentialPoolState,
+  renameCredentialAccount,
   upsertCredentialAccount,
   type CredentialPoolPaths,
 } from './store';
@@ -198,5 +201,61 @@ describe('quota-triggered same-session rotation', () => {
       fromAccount: 'one',
       toAccount: 'three',
     });
+  });
+
+  it('resolves a renamed account by stable id before recording its limit', async () => {
+    const first = (await readCredentialPoolState(paths)).accounts.find((account) => account.name === 'one')!;
+    await renameCredentialAccount('codex', 'one', 'primary', paths, {
+      id: first.id,
+      credentialVersion: first.credentialVersion,
+    });
+
+    const result = await rotateProviderSessionAfterLimit({
+      sessionId: 'happy-session-renamed',
+      provider: 'codex',
+      account: 'one',
+      accountId: first.id,
+      credentialVersion: first.credentialVersion,
+      limitedUntil: 500,
+    }, {
+      paths,
+      now: () => now,
+      stopProvider: vi.fn(async () => {}),
+      resumeProvider: vi.fn(async () => 'two'),
+    });
+
+    expect(result).toEqual({ type: 'rotated', account: 'two' });
+    expect((await readCredentialPoolState(paths)).accounts.find((account) => account.id === first.id))
+      .toMatchObject({ name: 'primary', limitedUntil: 500 });
+  });
+
+  it('refreshes an old-revision session without limiting the new credential', async () => {
+    const first = (await readCredentialPoolState(paths)).accounts.find((account) => account.name === 'one')!;
+    const current = await commitCredentialLogin({
+      provider: 'codex',
+      name: 'one',
+      authFile: Buffer.from('{"tokens":{"access_token":"new"}}'),
+    }, {
+      paths,
+      now: 3,
+      target: { type: 'existing', id: first.id, credentialVersion: first.credentialVersion },
+    });
+    const stopProvider = vi.fn(async () => {});
+    const resumeProvider = vi.fn(async () => 'one');
+
+    const result = await rotateProviderSessionAfterLimit({
+      sessionId: 'happy-session-old-revision',
+      provider: 'codex',
+      account: 'one',
+      accountId: first.id,
+      credentialVersion: first.credentialVersion,
+      limitedUntil: 500,
+    }, { paths, now: () => now, stopProvider, resumeProvider });
+
+    expect(result).toEqual({ type: 'refreshed', account: 'one' });
+    expect(stopProvider).toHaveBeenCalledOnce();
+    expect(resumeProvider).toHaveBeenCalledOnce();
+    expect((await readCredentialPoolState(paths)).accounts.find((account) => account.id === current.id)?.limitedUntil)
+      .toBeNull();
   });
 });

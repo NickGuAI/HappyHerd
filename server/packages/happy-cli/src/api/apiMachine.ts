@@ -11,6 +11,13 @@ import {
     type GrokPermissionModeTransitionRequest,
     HappyHerdMachineSessionProviderSchema,
     HappyHerdMachineSessionSettingsSchema,
+    CredentialAccountRenameRequestSchema,
+    CredentialAccountTargetSchema,
+    CredentialLoginFlowRequestSchema,
+    CredentialLoginFlowSchema,
+    CredentialLoginStartRequestSchema,
+    CredentialLoginSubmitCodeRequestSchema,
+    ManagedProviderAccountListSchema,
 } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { configuration } from '@/configuration';
@@ -49,6 +56,7 @@ import type {
     SideChatLifecycleReceipt,
     SideChatLifecycleRequest,
 } from '@/commands/sideChat';
+import type { CredentialAccountManager } from '@/credentialPool/manager';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -125,6 +133,7 @@ type MachineRpcHandlers = {
     requestShutdown: () => void;
     automations?: HappyHerdAutomationService;
     sideChat?: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
+    credentialAccounts?: CredentialAccountManager;
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
@@ -232,8 +241,47 @@ export class ApiMachineClient {
         requestShutdown,
         automations,
         sideChat,
+        credentialAccounts,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
+
+        if (credentialAccounts) {
+            this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-list', async () => (
+                ManagedProviderAccountListSchema.parse({ accounts: await credentialAccounts.listAccounts() })
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-use', async (params: unknown) => (
+                ManagedProviderAccountListSchema.parse({
+                    accounts: await credentialAccounts.use(CredentialAccountTargetSchema.parse(params)),
+                })
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-rename', async (params: unknown) => (
+                ManagedProviderAccountListSchema.parse({
+                    accounts: await credentialAccounts.rename(CredentialAccountRenameRequestSchema.parse(params)),
+                })
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-remove', async (params: unknown) => (
+                ManagedProviderAccountListSchema.parse({
+                    accounts: await credentialAccounts.remove(CredentialAccountTargetSchema.parse(params)),
+                })
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-auth-start', async (params: unknown) => (
+                CredentialLoginFlowSchema.parse(
+                    await credentialAccounts.startLogin(CredentialLoginStartRequestSchema.parse(params)),
+                )
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-credential-auth-status', async (params: unknown) => {
+                const request = CredentialLoginFlowRequestSchema.parse(params);
+                return CredentialLoginFlowSchema.parse(credentialAccounts.login.status(request.id));
+            });
+            this.rpcHandlerManager.registerHandler('happyherd-credential-auth-submit', async (params: unknown) => {
+                const request = CredentialLoginSubmitCodeRequestSchema.parse(params);
+                return CredentialLoginFlowSchema.parse(await credentialAccounts.login.submitCode(request.id, request.code));
+            });
+            this.rpcHandlerManager.registerHandler('happyherd-credential-auth-cancel', async (params: unknown) => {
+                const request = CredentialLoginFlowRequestSchema.parse(params);
+                return CredentialLoginFlowSchema.parse(await credentialAccounts.login.cancel(request.id));
+            });
+        }
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
@@ -626,9 +674,14 @@ export class ApiMachineClient {
             // Human-facing app can see file deletion yet.
             void this.updateMachineMetadata((metadata) => {
                 if (!metadata) throw new Error('Machine metadata is unavailable');
-                return { ...metadata, supportsFileDelete: true, supportsDirectoryDelete: true };
+                return {
+                    ...metadata,
+                    supportsFileDelete: true,
+                    supportsDirectoryDelete: true,
+                    credentialManagementProtocolVersion: 1,
+                };
             }).catch((error) => {
-                logger.debug('[API MACHINE] Failed to advertise machine file deletion:', error);
+                logger.debug('[API MACHINE] Failed to advertise machine capabilities:', error);
             });
 
             this.rpcHandlerManager.onSocketConnect(this.socket);

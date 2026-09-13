@@ -145,6 +145,14 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT
             ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
             : {}),
+        ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID
+            && Number.isInteger(Number(process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION))
+            && Number(process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION) > 0
+            ? {
+                providerAccountId: process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID,
+                providerAccountCredentialVersion: Number(process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION),
+            }
+            : {}),
         sandbox: opts.sandbox?.enabled ? opts.sandbox : null,
         dangerouslySkipPermissions: opts.dangerouslySkipPermissions ?? null,
         ...(opts.spawnSettings

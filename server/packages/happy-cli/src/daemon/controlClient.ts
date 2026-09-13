@@ -18,7 +18,11 @@ import type {
 import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import type { DefaultAssistantReceipt } from './defaultAssistant';
-import type { LocalSessionCreationRequest, LocalSessionCreationReceipt } from './controlServer';
+import type {
+  CredentialAccountMutationCheck,
+  LocalSessionCreationRequest,
+  LocalSessionCreationReceipt,
+} from './controlServer';
 
 async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -145,6 +149,16 @@ export async function notifyDaemonProviderLimited(
   notice: ProviderLimitNotice,
 ): Promise<{ status?: 'scheduled'; error?: string }> {
   return daemonPost('/provider-limited', notice);
+}
+
+export async function assertDaemonCredentialAccountMutationAllowed(
+  target: CredentialAccountMutationCheck,
+): Promise<void> {
+  const result = await daemonPost('/credential-account-mutation-check', target);
+  if (result?.error) throw new Error(result.error);
+  if (result?.status !== 'allowed') {
+    throw new Error('Daemon returned an invalid credential account mutation receipt.');
+  }
 }
 
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {

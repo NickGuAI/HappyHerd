@@ -12,3 +12,4 @@ export * from './workspaceLive';
 export * from './agentQueue';
 export * from './machineSession';
 export * from './grokPermissionMode';
+export * from './credentialManager';

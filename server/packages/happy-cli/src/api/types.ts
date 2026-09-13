@@ -176,6 +176,8 @@ export const MachineMetadataSchema = z.object({
   // machine-session creation. Callers that require this protocol must check
   // the advertised version before issuing the spawn RPC.
   machineSessionProtocolVersion: z.number().int().positive().optional(),
+  // Optional for metadata published before credential management shipped.
+  credentialManagementProtocolVersion: z.number().int().positive().optional(),
   homeDir: z.string(),
   happyHomeDir: z.string(),
   happyLibDir: z.string(),
@@ -384,6 +386,8 @@ export type Metadata = {
   codexHome?: string, // CODEX_HOME used to create codexThreadId
   /** Named local credential-pool account used by this provider process. */
   providerAccount?: string,
+  providerAccountId?: string,
+  providerAccountCredentialVersion?: number,
   tools?: string[],
   slashCommands?: string[],
   mcpServers?: Array<{ name: string; status: string }>,

@@ -21,6 +21,7 @@ const criticalSurfaces = [
     { id: 'workspace', route: '/workspace', keys: ['workspace.title', 'workspace.searchPlaceholder'] },
     { id: 'automations', route: '/automations', keys: ['happyHerd.automations.title', 'happyHerd.automations.subtitle'] },
     { id: 'account', route: '/settings/account', keys: ['settingsAccount.accountInformation', 'settingsAccount.analytics'] },
+    { id: 'credentials', route: '/settings/credentials', keys: ['settingsCredentials.title', 'settingsCredentials.subtitle'] },
     { id: 'composer', owner: 'sources/components/AgentInput.tsx', keys: ['session.inputPlaceholder', 'happyHerd.composer.queueMessage'] },
 ];
 
@@ -130,7 +131,7 @@ if (process.argv.includes('--write')) {
     console.log(`[ui-inventory] verified ${analysis.routes.length} routes, ${analysis.surfaces.length} surfaces, and ${smokeMatrix.length} smoke cases`);
 }
 
-if (analysis.routes.length !== 39) throw new Error(`Expected 39 production routes, found ${analysis.routes.length}`);
+if (analysis.routes.length !== 40) throw new Error(`Expected 40 production routes, found ${analysis.routes.length}`);
 if (analysis.hardcodedCopy.length > 0) {
     const details = analysis.hardcodedCopy.slice(0, 80).map((finding) => (
         `${finding.owner}:${finding.line}:${finding.column} [${finding.context}] ${finding.text}`
