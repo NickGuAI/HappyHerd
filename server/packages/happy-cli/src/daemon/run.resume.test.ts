@@ -249,6 +249,12 @@ vi.mock('@/credentialPool/store', () => ({
   resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
 }));
 
+vi.mock('@/credentialPool/manager', () => ({
+  CredentialAccountManager: class {
+    dispose = vi.fn(async () => undefined);
+  },
+}));
+
 vi.mock('@/credentialPool/rotation', () => ({
   rotateProviderSessionAfterLimit: mocks.rotateProviderSessionAfterLimit,
 }));
@@ -650,12 +656,15 @@ describe('daemon session continuity', () => {
     const encryptionKey = new Uint8Array([1, 2, 3, 4]);
     const codexHome = '/unavailable/provider-home';
     const accountAuthFile = '/managed/codex/account-two/auth.json';
+    const providerAccountId = '00000000-0000-4000-8000-000000000004';
     const metadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
       codexThreadId: 'thread-legacy',
       codexHome,
       providerAccount: 'account-one',
+      providerAccountId,
+      providerAccountCredentialVersion: 2,
       host: 'test-host',
       hostPid: 9876,
       machineId: 'machine-1',
@@ -694,12 +703,14 @@ describe('daemon session continuity', () => {
       selection: {
         type: 'available',
         account: {
+          id: providerAccountId,
           provider: 'codex',
           name: 'account-two',
           credential: { type: 'auth-file', path: accountAuthFile },
           createdAt: 1,
           updatedAt: 2,
           limitedUntil: null,
+          credentialVersion: 2,
         },
       },
       env: {
@@ -748,6 +759,7 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.cwd).toBe(metadata.path);
     expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
       preferred: 'account-one',
+      preferredId: providerAccountId,
     });
     expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
     expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe('account-two');
@@ -1643,6 +1655,67 @@ describe('daemon session continuity', () => {
     expect(localId).toBe(event.incidentId);
   });
 
+  it('does not let an in-flight old-revision limit suppress a relogged credential notice', async () => {
+    const sessionId = 'codex-provider-relogin-notice';
+    const accountId = '00000000-0000-4000-8000-000000000006';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([35, 36, 37, 38]),
+      encryptionVariant: 'dataKey',
+      seq: 28,
+      metadataVersion: 9,
+      agentStateVersion: 10,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-provider-relogin-notice',
+      providerAccount: 'work',
+      providerAccountId: accountId,
+      providerAccountCredentialVersion: 1,
+      host: 'test-host',
+      hostPid: 7332,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    let resolveOldRevision!: (result: { type: 'refreshed'; account: string }) => void;
+    mocks.rotateProviderSessionAfterLimit
+      .mockImplementationOnce(async () => new Promise((resolve) => { resolveOldRevision = resolve; }))
+      .mockResolvedValueOnce({ type: 'rotated', account: 'work' });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappySessionWebhook(sessionId, metadata, encryption);
+    control.onProviderLimited({
+      sessionId,
+      provider: 'codex',
+      account: 'work',
+      accountId,
+      credentialVersion: 1,
+      limitedUntil: 12_345,
+    });
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce());
+
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      providerAccountCredentialVersion: 2,
+    }, encryption);
+    control.onProviderLimited({
+      sessionId,
+      provider: 'codex',
+      account: 'work',
+      accountId,
+      credentialVersion: 2,
+      limitedUntil: 23_456,
+    });
+
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledTimes(2));
+    resolveOldRevision({ type: 'refreshed', account: 'work' });
+  });
+
   it.each(['claude', 'codex', 'grok', 'dsh'] as const)(
     'persists one provider-named %s quota event when no managed account can switch',
     async (provider) => {
@@ -2164,6 +2237,7 @@ describe('daemon session continuity', () => {
     temporaryDirectories.push(testRoot);
     const codexHome = join(testRoot, 'runtime');
     const providerAccount = 'rotated-account';
+    const providerAccountId = '00000000-0000-4000-8000-000000000005';
     const accountHome = join(testRoot, 'accounts', providerAccount);
     const accountAuthFile = join(accountHome, 'auth.json');
     const selectedAccountAuth = '{"account":"rotated"}';
@@ -2185,6 +2259,8 @@ describe('daemon session continuity', () => {
       codexThreadId: 'thread-parent',
       codexHome,
       providerAccount,
+      providerAccountId,
+      providerAccountCredentialVersion: 3,
       host: 'test-host',
       hostPid: 9876,
       machineId: 'machine-1',
@@ -2197,12 +2273,14 @@ describe('daemon session continuity', () => {
       selection: {
         type: 'available',
         account: {
+          id: providerAccountId,
           provider: 'codex',
           name: providerAccount,
           credential: { type: 'auth-file', path: accountAuthFile },
           createdAt: 1,
           updatedAt: 2,
           limitedUntil: null,
+          credentialVersion: 3,
         },
       },
       env: {
@@ -2296,6 +2374,7 @@ describe('daemon session continuity', () => {
     expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
     expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
       preferred: providerAccount,
+      preferredId: providerAccountId,
     });
     expect(mocks.forkCodexBackendThread).toHaveBeenCalledWith(
       parentMetadata.path,

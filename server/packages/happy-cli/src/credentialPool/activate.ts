@@ -1,7 +1,8 @@
 import { resolveCredentialAccountEnvironment, type CredentialPoolPaths } from './store';
 import type { CredentialPoolSelection, CredentialProvider } from './types';
-import { activateCodexCredential } from './codexAuth';
+import { activateCodexCredential, codexRuntimeHome } from './codexAuth';
 import { activateGrokCredential, grokRuntimeHome } from './grokAuth';
+import { managedProviderDirectAuthKeys } from '@/daemon/sessionEnvironment';
 
 export type ActivateCredentialAccountDependencies = {
   paths?: CredentialPoolPaths;
@@ -18,6 +19,7 @@ export async function activateCredentialAccount(
     : undefined;
   const { selection, env } = await resolveCredentialAccountEnvironment(provider, {
     preferred,
+    preferredId: targetEnv.HAPPYHERD_PROVIDER_ACCOUNT_ID,
     paths: dependencies.paths,
   });
   if (selection.type === 'all-limited') {
@@ -25,9 +27,12 @@ export async function activateCredentialAccount(
       `All ${provider} accounts are limited until ${new Date(selection.limitedUntil).toISOString()}.`,
     );
   }
+  if (selection.type === 'available') {
+    for (const key of managedProviderDirectAuthKeys(provider)) delete targetEnv[key];
+  }
   Object.assign(targetEnv, env);
   if (provider === 'codex' && selection.type === 'available' && selection.account.provider === 'codex') {
-    await activateCodexCredential(selection.account);
+    await activateCodexCredential(selection.account, codexRuntimeHome(targetEnv));
   } else if (provider === 'grok' && selection.type === 'available' && selection.account.provider === 'grok') {
     await activateGrokCredential(selection.account, grokRuntimeHome(targetEnv));
   }

@@ -320,6 +320,25 @@ describe('createSessionMetadata', () => {
         }));
     });
 
+    it('records stable provider account identity only with a valid credential revision', () => {
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT', 'renamed');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', '00000000-0000-4000-8000-000000000003');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION', '4');
+
+        const { metadata } = createSessionMetadata({ flavor: 'codex', machineId: 'machine-account' });
+
+        expect(metadata).toMatchObject({
+            providerAccount: 'renamed',
+            providerAccountId: '00000000-0000-4000-8000-000000000003',
+            providerAccountCredentialVersion: 4,
+        });
+
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION', 'invalid');
+        const invalid = createSessionMetadata({ flavor: 'codex', machineId: 'machine-invalid' });
+        expect(invalid.metadata.providerAccountId).toBeUndefined();
+        expect(invalid.metadata.providerAccountCredentialVersion).toBeUndefined();
+    });
+
     it('omits metadata.gitBranch when git is unavailable or detached', () => {
         mockedExecSync.mockReturnValue('HEAD\n');
 

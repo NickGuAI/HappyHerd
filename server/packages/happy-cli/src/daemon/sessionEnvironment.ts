@@ -40,6 +40,8 @@ export const SESSION_SCOPED_ENV_KEYS = [
     'HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON',
     'HAPPYHERD_PROVIDER_ACCOUNT',
     'HAPPYHERD_PROVIDER_ACCOUNT_TYPE',
+    'HAPPYHERD_PROVIDER_ACCOUNT_ID',
+    'HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION',
     'HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE',
     'HAPPYHERD_GROK_ACCOUNT_AUTH_FILE',
     'CODEX_THREAD_ID',
@@ -180,10 +182,50 @@ export function buildSessionChildEnvironment(
     ambientEnv: NodeJS.ProcessEnv = process.env,
     explicitEnv: NodeJS.ProcessEnv = {},
 ): NodeJS.ProcessEnv {
-    return {
-        ...sanitizeSessionEnvironment(ambientEnv),
-        ...explicitEnv,
-    };
+    const ambient = sanitizeSessionEnvironment(ambientEnv);
+    for (const key of managedProviderOverrideKeys(explicitEnv)) delete ambient[key];
+    return { ...ambient, ...explicitEnv };
+}
+
+const MANAGED_PROVIDER_DIRECT_AUTH_KEYS: Record<string, readonly string[]> = {
+    claude: [
+        'ANTHROPIC_API_KEY',
+        'ANTHROPIC_AUTH_TOKEN',
+        'ANTHROPIC_IDENTITY_TOKEN',
+        'ANTHROPIC_IDENTITY_TOKEN_FILE',
+        'CLAUDE_API_KEY',
+        'CLAUDE_BRIDGE_OAUTH_TOKEN',
+        'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
+        'CLAUDE_CODE_OAUTH_TOKEN',
+        'CLAUDE_CODE_SESSION_ACCESS_TOKEN',
+        'CLAUDE_TRUSTED_DEVICE_TOKEN',
+    ],
+    codex: [
+        'OPENAI_API_KEY',
+        'OPENAI_ACCESS_TOKEN',
+        'CODEX_API_KEY',
+        'CODEX_ACCESS_TOKEN',
+        'CODEX_AUTH',
+    ],
+    grok: [
+        'XAI_API_KEY',
+        'GROK_API_KEY',
+        'GROK_AUTH',
+        'GROK_AUTH_PATH',
+        'GROK_CODE_XAI_API_KEY',
+        'GROK_DEPLOYMENT_KEY',
+        'GROK_AUTH_PROVIDER_ACCESS_TOKEN',
+        'GROK_AUTH_PROVIDER_REFRESH_TOKEN',
+        'GROK_LOCAL_AUTH',
+    ],
+};
+
+export function managedProviderDirectAuthKeys(provider: string | undefined): string[] {
+    return provider ? [...(MANAGED_PROVIDER_DIRECT_AUTH_KEYS[provider] ?? [])] : [];
+}
+
+function managedProviderOverrideKeys(explicitEnv: NodeJS.ProcessEnv): string[] {
+    return managedProviderDirectAuthKeys(explicitEnv.HAPPYHERD_PROVIDER_ACCOUNT_TYPE);
 }
 
 /**
@@ -192,7 +234,10 @@ export function buildSessionChildEnvironment(
  * starting a child, unless this launch intentionally supplies a replacement.
  */
 export function sessionEnvironmentKeysToUnset(explicitEnv: NodeJS.ProcessEnv = {}): string[] {
-    return SESSION_SCOPED_ENV_KEYS.filter((key) => explicitEnv[key] === undefined);
+    return [
+        ...SESSION_SCOPED_ENV_KEYS.filter((key) => explicitEnv[key] === undefined),
+        ...managedProviderOverrideKeys(explicitEnv).filter((key) => explicitEnv[key] === undefined),
+    ];
 }
 
 export function wrapTmuxCommandWithSessionEnvironmentSanitizer(

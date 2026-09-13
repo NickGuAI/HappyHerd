@@ -11,7 +11,7 @@
 <body><main>
   <p>HappyHerd · generated artifact</p>
   <h1>UI Surface Inventory</h1>
-  <p class="meta">Schema 1 · source e383ffd3ee954ae5 · 39 routes · 269 UI owners · 0 hardcoded findings</p>
+  <p class="meta">Schema 1 · source b1e6e9dd626cbdf6 · 40 routes · 271 UI owners · 0 hardcoded findings</p>
   <h2>Production routes</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Source owner</th><th>Keys</th><th>States</th></tr></thead><tbody>
     <tr>
       <td><code>/artifacts/[id]</code></td>
@@ -182,6 +182,12 @@
       <td>—</td>
     </tr>
     <tr>
+      <td><code>/settings/credentials</code></td>
+      <td><code>sources/app/(app)/settings/credentials.tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
       <td><code>/settings/features</code></td>
       <td><code>sources/app/(app)/settings/features.tsx</code></td>
       <td>19</td>
@@ -273,7 +279,7 @@
       <td>component</td>
       <td><code>sources/app/(app)/_layout.tsx</code></td>
       <td>RootLayout, unstable_settings</td>
-      <td>25</td>
+      <td>26</td>
       <td>—</td>
     </tr>
     <tr>
@@ -470,6 +476,13 @@
       <td><code>sources/app/(app)/settings/connect/claude.tsx</code></td>
       <td>ClaudeOAuth</td>
       <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/credentials.tsx</code></td>
+      <td>CredentialsSettingsScreen</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -856,6 +869,13 @@
       <td>ConnectButton</td>
       <td>4</td>
       <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CredentialsSettingsView.tsx</code></td>
+      <td>CredentialsSettingsView</td>
+      <td>67</td>
+      <td>loading</td>
     </tr>
     <tr>
       <td>component</td>
@@ -1533,7 +1553,7 @@
       <td>component</td>
       <td><code>sources/components/SettingsView.tsx</code></td>
       <td>SettingsView</td>
-      <td>53</td>
+      <td>55</td>
       <td>offline</td>
     </tr>
     <tr>
@@ -2371,6 +2391,54 @@
     <article class="smoke desktop dark" lang="de">
       <small>account · de · desktop · dark</small>
       <p><b>settingsAccount.accountInformation</b><br>Kontoinformationen</p><p><b>settingsAccount.analytics</b><br>Analytik</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>credentials · en · mobile · light</small>
+      <p><b>settingsCredentials.title</b><br>Credentials &amp; Accounts</p><p><b>settingsCredentials.subtitle</b><br>Manage connected providers and saved credentials</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>credentials · en · mobile · dark</small>
+      <p><b>settingsCredentials.title</b><br>Credentials &amp; Accounts</p><p><b>settingsCredentials.subtitle</b><br>Manage connected providers and saved credentials</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>credentials · en · desktop · light</small>
+      <p><b>settingsCredentials.title</b><br>Credentials &amp; Accounts</p><p><b>settingsCredentials.subtitle</b><br>Manage connected providers and saved credentials</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>credentials · en · desktop · dark</small>
+      <p><b>settingsCredentials.title</b><br>Credentials &amp; Accounts</p><p><b>settingsCredentials.subtitle</b><br>Manage connected providers and saved credentials</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>credentials · cn · mobile · light</small>
+      <p><b>settingsCredentials.title</b><br>凭据与账号</p><p><b>settingsCredentials.subtitle</b><br>管理服务商账号和已存凭据</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>credentials · cn · mobile · dark</small>
+      <p><b>settingsCredentials.title</b><br>凭据与账号</p><p><b>settingsCredentials.subtitle</b><br>管理服务商账号和已存凭据</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>credentials · cn · desktop · light</small>
+      <p><b>settingsCredentials.title</b><br>凭据与账号</p><p><b>settingsCredentials.subtitle</b><br>管理服务商账号和已存凭据</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>credentials · cn · desktop · dark</small>
+      <p><b>settingsCredentials.title</b><br>凭据与账号</p><p><b>settingsCredentials.subtitle</b><br>管理服务商账号和已存凭据</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>credentials · de · mobile · light</small>
+      <p><b>settingsCredentials.title</b><br>Anmeldedaten &amp; Konten</p><p><b>settingsCredentials.subtitle</b><br>Anbieterkonten und gespeicherte Anmeldedaten verwalten</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>credentials · de · mobile · dark</small>
+      <p><b>settingsCredentials.title</b><br>Anmeldedaten &amp; Konten</p><p><b>settingsCredentials.subtitle</b><br>Anbieterkonten und gespeicherte Anmeldedaten verwalten</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>credentials · de · desktop · light</small>
+      <p><b>settingsCredentials.title</b><br>Anmeldedaten &amp; Konten</p><p><b>settingsCredentials.subtitle</b><br>Anbieterkonten und gespeicherte Anmeldedaten verwalten</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>credentials · de · desktop · dark</small>
+      <p><b>settingsCredentials.title</b><br>Anmeldedaten &amp; Konten</p><p><b>settingsCredentials.subtitle</b><br>Anbieterkonten und gespeicherte Anmeldedaten verwalten</p>
     </article>
     <article class="smoke mobile light" lang="en">
       <small>composer · en · mobile · light</small>

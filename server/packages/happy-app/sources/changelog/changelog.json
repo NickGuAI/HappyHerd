@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 13 — Credentials & Accounts Management",
+      "summary": "",
+      "markdown": "- Open **Settings > Credentials & Accounts** to list, add or log in again, rename, select defaults, and remove machine-local named Claude, Codex, and Grok accounts. Removing an account locally does not revoke access with the provider or stop active sessions.\n- Manage saved credentials that are encrypted on the HappyHerd server, masked by default, and explicitly revealable. Add, edit, or delete credentials with labels for Skills, Browser, and MCP to document their intended use without automatic secret injection."
+    },
+    {
       "title": "September 12 — Workspace file and folder deletion",
       "summary": "",
       "markdown": "- Delete individual files and folders including contents from standalone or in-chat Workspace with explicit confirmation\n- Folder deletion available on machines running updated HappyHerd daemon"
@@ -651,5 +656,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 12 — Workspace file and folder deletion"
+  "latestTitle": "September 13 — Credentials & Accounts Management"
 }

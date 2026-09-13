@@ -6,6 +6,7 @@ import {
   useCredentialAccount,
 } from '@/credentialPool/store';
 import { CredentialProviderSchema, type CredentialProvider } from '@/credentialPool/types';
+import { assertDaemonCredentialAccountMutationAllowed } from '@/daemon/controlClient';
 
 function provider(value: string | undefined): CredentialProvider {
   const parsed = CredentialProviderSchema.safeParse(value?.toLowerCase());
@@ -28,11 +29,24 @@ If a nickname is shared by multiple providers, disambiguate with:
 `);
 }
 
-async function accountTarget(args: string[]): Promise<{ provider: CredentialProvider; name: string }> {
+async function accountTarget(args: string[]): Promise<{
+  provider: CredentialProvider;
+  name: string;
+  id: string;
+  credentialVersion: number;
+}> {
   if (!args[1]) throw new Error('Account nickname is required.');
   const explicitProvider = CredentialProviderSchema.safeParse(args[1].toLowerCase());
   if (explicitProvider.success && args[2]) {
-    return { provider: explicitProvider.data, name: args[2] };
+    const { accounts } = await listCredentialAccounts(explicitProvider.data);
+    const account = accounts.find((candidate) => candidate.name === args[2]);
+    if (!account) throw new Error(`No ${explicitProvider.data} account named "${args[2]}".`);
+    return {
+      provider: account.provider,
+      name: account.name,
+      id: account.id,
+      credentialVersion: account.credentialVersion,
+    };
   }
 
   const name = args[1];
@@ -42,7 +56,12 @@ async function accountTarget(args: string[]): Promise<{ provider: CredentialProv
   if (matches.length > 1) {
     throw new Error(`Account nickname "${name}" matches multiple providers; specify the provider.`);
   }
-  return { provider: matches[0].provider, name };
+  return {
+    provider: matches[0].provider,
+    name,
+    id: matches[0].id,
+    credentialVersion: matches[0].credentialVersion,
+  };
 }
 
 export async function handleAccountsCommand(args: string[]): Promise<void> {
@@ -83,14 +102,21 @@ export async function handleAccountsCommand(args: string[]): Promise<void> {
 
   if (action === 'use') {
     const target = await accountTarget(args);
-    const account = await useCredentialAccount(target.provider, target.name);
+    const account = await useCredentialAccount(target.provider, target.name, undefined, {
+      id: target.id,
+      credentialVersion: target.credentialVersion,
+    });
     console.log(`Using ${account.provider} account "${account.name}".`);
     return;
   }
 
   if (action === 'remove') {
     const target = await accountTarget(args);
-    const account = await removeCredentialAccount(target.provider, target.name);
+    await assertDaemonCredentialAccountMutationAllowed({ provider: target.provider, name: target.name });
+    const account = await removeCredentialAccount(target.provider, target.name, undefined, {
+      id: target.id,
+      credentialVersion: target.credentialVersion,
+    });
     console.log(`Removed ${account.provider} account "${account.name}".`);
     return;
   }

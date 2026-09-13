@@ -47,6 +47,7 @@ model Account {
     Project             Project[]
     UploadedFile        UploadedFile[]
     ServiceAccountToken ServiceAccountToken[]
+    SavedCredential     SavedCredential[]
     RelationshipsFrom   UserRelationship[]    @relation("RelationshipsFrom")
     RelationshipsTo     UserRelationship[]    @relation("RelationshipsTo")
     Artifact            Artifact[]
@@ -279,6 +280,22 @@ model ServiceAccountToken {
 
     @@unique([accountId, vendor])
     @@index([accountId])
+}
+
+model SavedCredential {
+    id               String   @id
+    accountId        String
+    account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    name             String
+    kind             String
+    usages           Json
+    encryptedPayload Bytes
+    version          Int      @default(0)
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+
+    @@unique([accountId, name])
+    @@index([accountId, updatedAt(sort: Desc)])
 }
 
 //

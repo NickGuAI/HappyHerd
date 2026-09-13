@@ -1,13 +1,14 @@
 import * as React from 'react';
-import { 
-    View, 
-    Text, 
-    StyleProp, 
-    ViewStyle, 
+import {
+    View,
+    Text,
+    StyleProp,
+    ViewStyle,
     TextStyle,
     Platform,
-    ActivityIndicator
+    ActivityIndicator,
 } from 'react-native';
+import type { PressableProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import * as Clipboard from 'expo-clipboard';
@@ -39,6 +40,9 @@ export interface ItemProps {
     dividerInset?: number;
     pressableStyle?: StyleProp<ViewStyle>;
     copy?: boolean | string;
+    accessibilityLabel?: PressableProps['accessibilityLabel'];
+    accessibilityRole?: PressableProps['accessibilityRole'];
+    accessibilityState?: PressableProps['accessibilityState'];
 }
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
@@ -142,7 +146,10 @@ export const Item = React.memo<ItemProps>((props) => {
         showDivider = true,
         dividerInset = isIOS ? 15 : 16,
         pressableStyle,
-        copy
+        copy,
+        accessibilityLabel,
+        accessibilityRole,
+        accessibilityState,
     } = props;
 
     // Handle copy functionality
@@ -295,6 +302,9 @@ export const Item = React.memo<ItemProps>((props) => {
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 disabled={disabled || loading}
+                accessibilityLabel={accessibilityLabel}
+                accessibilityRole={accessibilityRole}
+                accessibilityState={accessibilityState}
                 bubbleScale={1.012}
                 style={[
                     {

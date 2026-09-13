@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { chmod, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { StringDecoder } from 'string_decoder';
@@ -11,17 +12,19 @@ import { authenticateGemini } from './connect/authenticateGemini';
 import { decodeJwtPayload } from './connect/utils';
 import spawn from 'cross-spawn';
 import {
-    accountAuthFile,
-    accountHome,
-    upsertCredentialAccount,
+    commitCredentialLogin,
+    defaultCredentialPoolPaths,
+    listCredentialAccounts,
     useCredentialAccount,
     validateAccountName,
 } from '@/credentialPool/store';
 import type { CredentialPoolPaths } from '@/credentialPool/store';
-import type { CredentialAccount, CredentialProvider } from '@/credentialPool/types';
+import type { CredentialProvider } from '@/credentialPool/types';
+import { assertDaemonCredentialAccountMutationAllowed } from '@/daemon/controlClient';
 
 export type ConnectCommandDependencies = {
     credentialPoolPaths?: CredentialPoolPaths;
+    assertMutationAllowed?: typeof assertDaemonCredentialAccountMutationAllowed;
 };
 
 /**
@@ -356,75 +359,63 @@ async function createClaudeSetupToken(): Promise<string> {
     });
 }
 
-type CredentialAccountInput = Omit<CredentialAccount, 'createdAt' | 'updatedAt' | 'limitedUntil'>;
-
-async function retainCredentialAccount(
-    account: CredentialAccountInput,
-    paths?: CredentialPoolPaths,
-): Promise<void> {
-    if (paths) await upsertCredentialAccount(account, { paths });
-    else await upsertCredentialAccount(account);
-}
-
-async function selectCredentialAccount(
-    provider: CredentialProvider,
-    name: string,
-    paths?: CredentialPoolPaths,
-): Promise<void> {
-    if (paths) await useCredentialAccount(provider, name, paths);
-    else await useCredentialAccount(provider, name);
-}
-
-function ensureOwnerOnlyAccountHome(home: string): void {
-    mkdirSync(home, { recursive: true, mode: 0o700 });
-    chmodSync(dirname(dirname(home)), 0o700);
-    chmodSync(dirname(home), 0o700);
-    chmodSync(home, 0o700);
-}
-
 async function handleConnectNamedAccount(
     provider: CredentialProvider,
     name: string,
     dependencies: ConnectCommandDependencies,
 ): Promise<void> {
     console.log(chalk.bold(`\nConnecting ${provider} account "${name}"\n`));
+    const paths = dependencies.credentialPoolPaths ?? defaultCredentialPoolPaths();
+    const existing = (await listCredentialAccounts(provider, paths)).accounts.find(
+        (account) => account.name === name,
+    );
+    if (existing) {
+        await (dependencies.assertMutationAllowed ?? assertDaemonCredentialAccountMutationAllowed)({ provider, name });
+    }
+    const target = existing
+        ? { type: 'existing' as const, id: existing.id, credentialVersion: existing.credentialVersion }
+        : { type: 'new' as const };
+    let committed: Awaited<ReturnType<typeof commitCredentialLogin>>;
     if (provider === 'claude') {
         const token = await createClaudeSetupToken();
-        await retainCredentialAccount({
+        committed = await commitCredentialLogin({
             provider,
             name,
-            credential: { type: 'oauth-token', token },
-        }, dependencies.credentialPoolPaths);
+            token,
+        }, { paths, target });
     } else if (provider === 'codex') {
-        const authFile = accountAuthFile(provider, name, dependencies.credentialPoolPaths);
-        const home = dirname(authFile);
-        ensureOwnerOnlyAccountHome(home);
         const tokens = await authenticateCodex();
-        writeFileSync(authFile, codexAuthFile(tokens), { encoding: 'utf8', mode: 0o600 });
-        chmodSync(authFile, 0o600);
-        await retainCredentialAccount({
+        committed = await commitCredentialLogin({
             provider,
             name,
-            credential: { type: 'auth-file', path: authFile },
-        }, dependencies.credentialPoolPaths);
+            authFile: Buffer.from(codexAuthFile(tokens)),
+        }, { paths, target });
     } else {
-        const home = accountHome(provider, name, dependencies.credentialPoolPaths);
-        ensureOwnerOnlyAccountHome(home);
-        const result = spawn.sync('grok', ['login'], {
-            stdio: 'inherit',
-            windowsHide: true,
-            env: { ...process.env, GROK_HOME: home },
-        });
-        if (result.error) throw result.error;
-        if (result.status !== 0) throw new Error(`grok login exited with status ${result.status ?? 'unknown'}`);
-        chmodSync(join(home, 'auth.json'), 0o600);
-        await retainCredentialAccount({
-            provider,
-            name,
-            credential: { type: 'auth-file', path: join(home, 'auth.json') },
-        }, dependencies.credentialPoolPaths);
+        const pendingRoot = join(paths.accountsDir, '.pending');
+        await mkdir(pendingRoot, { recursive: true, mode: 0o700 });
+        await chmod(pendingRoot, 0o700);
+        const home = await mkdtemp(join(pendingRoot, 'terminal-'));
+        try {
+            const result = spawn.sync('grok', ['login'], {
+                stdio: 'inherit',
+                windowsHide: true,
+                env: { ...process.env, GROK_HOME: home },
+            });
+            if (result.error) throw result.error;
+            if (result.status !== 0) throw new Error(`grok login exited with status ${result.status ?? 'unknown'}`);
+            committed = await commitCredentialLogin({
+                provider,
+                name,
+                authFile: await readFile(join(home, 'auth.json')),
+            }, { paths, target });
+        } finally {
+            await rm(home, { recursive: true, force: true });
+        }
     }
-    await selectCredentialAccount(provider, name, dependencies.credentialPoolPaths);
+    await useCredentialAccount(provider, committed.name, paths, {
+        id: committed.id,
+        credentialVersion: committed.credentialVersion,
+    });
     console.log(chalk.green(`Connected and selected ${provider} account "${name}".`));
 }
 

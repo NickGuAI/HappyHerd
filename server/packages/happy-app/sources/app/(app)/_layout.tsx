@@ -184,6 +184,12 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="settings/credentials"
+                options={{
+                    headerTitle: t('settingsCredentials.title'),
+                }}
+            />
+            <Stack.Screen
                 name="settings/appearance"
                 options={{
                     headerTitle: t('settings.appearance'),

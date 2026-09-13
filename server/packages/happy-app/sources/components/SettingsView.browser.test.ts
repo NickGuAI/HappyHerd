@@ -57,7 +57,11 @@ const virtualModules: Record<string, string> = {
     'expo-constants': `
         export default { expoConfig: { version: '1.2.2', runtimeVersion: '21', extra: { app: {} } } };
     `,
-    'expo-router': `export const useRouter = () => ({ push() {} });`,
+    'expo-router': `
+        export const useRouter = () => ({
+            push(path) { globalThis.__SETTINGS_ROUTES__ = [...(globalThis.__SETTINGS_ROUTES__ ?? []), path]; },
+        });
+    `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/auth/AuthContext': `export const useAuth = () => ({ credentials: { token: 'test' } });`,
     '@/components/Avatar': `import { View } from 'react-native'; export const Avatar = View;`,
@@ -124,6 +128,8 @@ const virtualModules: Record<string, string> = {
             'settings.termsOfService': 'Terms of Service',
             'settings.whatsNew': "What's New",
             'settings.whatsNewSubtitle': 'Recent changes',
+            'settingsCredentials.settingsRow': 'Credentials & Accounts',
+            'settingsCredentials.settingsRowSubtitle': 'Provider accounts and saved credentials',
         };
         export const t = (key) => labels[key] ?? key;
     `,
@@ -219,6 +225,7 @@ describe('Settings policy links browser interaction', () => {
         await page.addInitScript(() => {
             (window as any).__OPEN_CALLS__ = [];
             (window as any).__PAYWALL_CALLS__ = [];
+            (window as any).__SETTINGS_ROUTES__ = [];
             window.open = ((url?: string | URL, target?: string, features?: string) => {
                 (window as any).__OPEN_CALLS__.push({ url: String(url), target, features });
                 return null;
@@ -249,6 +256,8 @@ describe('Settings policy links browser interaction', () => {
         await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Version', { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('HappyHerd 1.2.2 · Runtime 21', { exact: true }).count()).resolves.toBe(1);
+        await page.getByText('Credentials & Accounts', { exact: true }).click();
+        await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toContain('/settings/credentials');
 
         await page.waitForFunction(() => (window as any).__OPEN_CALLS__.length === 5);
         await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([

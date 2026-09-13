@@ -4,6 +4,11 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { activateCodexCredential, persistActiveCodexCredential } from './codexAuth';
+import {
+  credentialAccountEnvironment,
+  upsertCredentialAccount,
+  type CredentialPoolPaths,
+} from './store';
 
 describe('Codex account auth switching', () => {
   let root: string;
@@ -24,11 +29,13 @@ describe('Codex account auth switching', () => {
 
     await activateCodexCredential({
       provider: 'codex',
+      id: '11111111-1111-4111-8111-111111111111',
       name: 'work',
       credential: { type: 'auth-file', path: accountAuthFile },
       createdAt: 1,
       updatedAt: 1,
       limitedUntil: null,
+      credentialVersion: 1,
     }, runtimeHome);
 
     expect(await readFile(join(runtimeHome, 'auth.json'), 'utf8')).toBe('{"account":"work"}');
@@ -37,14 +44,23 @@ describe('Codex account auth switching', () => {
   it('copies refreshed runtime credentials back to the named account', async () => {
     const accountAuthFile = join(root, 'accounts', 'work', 'auth.json');
     const runtimeHome = join(root, 'runtime');
+    const paths: CredentialPoolPaths = {
+      stateFile: join(root, 'credential-pools.json'),
+      accountsDir: join(root, 'accounts'),
+    };
+    const account = await upsertCredentialAccount({
+      provider: 'codex',
+      name: 'work',
+      credential: { type: 'auth-file', path: accountAuthFile },
+    }, { paths, now: 1 });
     await mkdir(runtimeHome, { recursive: true });
     await writeFile(join(runtimeHome, 'auth.json'), '{"account":"refreshed"}');
     await chmod(join(runtimeHome, 'auth.json'), 0o664);
 
     await expect(persistActiveCodexCredential({
       CODEX_HOME: runtimeHome,
-      HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
-    })).resolves.toBe(true);
+      ...credentialAccountEnvironment(account),
+    }, paths)).resolves.toBe(true);
 
     expect(await readFile(accountAuthFile, 'utf8')).toBe('{"account":"refreshed"}');
     expect((await stat(accountAuthFile)).mode & 0o777).toBe(0o600);

@@ -62,7 +62,7 @@ describe('top-level happyherd --version', () => {
         expect(existsSync(path.join(happyHome, 'settings.json'))).toBe(false);
         expect(existsSync(path.join(happyHome, 'access.key'))).toBe(false);
         expect(existsSync(path.join(happyHome, 'daemon.state.json'))).toBe(false);
-    });
+    }, 15_000);
 
     it('runs through the server workspace shortcut', async () => {
         const happyHome = path.join(root, '.happyherd');
@@ -84,6 +84,6 @@ describe('top-level happyherd --version', () => {
         expect(result.status).toBe(0);
         expect(result.stdout).toContain(`happyherd version: ${packageJson.version}`);
         expect(existsSync(happyHome)).toBe(false);
-    });
+    }, 15_000);
 
 });

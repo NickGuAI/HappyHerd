@@ -7,6 +7,7 @@ import { authRoutes } from "./routes/authRoutes";
 import { pushRoutes } from "./routes/pushRoutes";
 import { sessionRoutes } from "./routes/sessionRoutes";
 import { connectRoutes } from "./routes/connectRoutes";
+import { credentialRoutes } from "./routes/credentialRoutes";
 import { accountRoutes } from "./routes/accountRoutes";
 import { startSocket } from "./socket";
 import { machinesRoutes } from "./routes/machinesRoutes";
@@ -104,6 +105,7 @@ export async function startApi(opts: StartApiOptions = {}) {
     sessionRoutes(typed);
     accountRoutes(typed);
     connectRoutes(typed);
+    credentialRoutes(typed);
     machinesRoutes(typed);
     artifactsRoutes(typed);
     accessKeysRoutes(typed);

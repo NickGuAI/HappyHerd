@@ -42,4 +42,35 @@ describe('provider-limit daemon control route', () => {
       limitedUntil: 1234,
     });
   });
+
+  it('delegates credential mutation checks and returns a bounded rejection', async () => {
+    const assertCredentialAccountMutationAllowed = vi.fn(async ({ name }: { name: string }) => {
+      if (name === 'legacy') throw new Error('Finish the legacy session first.');
+    });
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: () => false,
+      spawnSession: vi.fn(),
+      sideChat: vi.fn(),
+      requestShutdown: vi.fn(),
+      onHappySessionWebhook: vi.fn(),
+      onProviderLimited: vi.fn(),
+      assertCredentialAccountMutationAllowed,
+      automations: {} as any,
+    });
+    stop = server.stop;
+    const post = (body: unknown) => fetch(`http://127.0.0.1:${server.port}/credential-account-mutation-check`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const allowed = await post({ provider: 'codex', name: 'work' });
+    expect(allowed.status).toBe(200);
+    await expect(allowed.json()).resolves.toEqual({ status: 'allowed' });
+    const rejected = await post({ provider: 'codex', name: 'legacy' });
+    expect(rejected.status).toBe(500);
+    await expect(rejected.json()).resolves.toMatchObject({ message: 'Finish the legacy session first.' });
+    expect(assertCredentialAccountMutationAllowed).toHaveBeenCalledTimes(2);
+  });
 });

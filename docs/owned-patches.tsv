@@ -351,3 +351,4 @@ WORKSPACE_BROWSER_DELETE	accepted	feat(workspace): confirm file and folder delet
 WORKSPACE_ITEM_DELETION	accepted	feat(workspace): reconcile deleted items across chat workspaces	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and isolate browser fixtures	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
 WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+CREDENTIAL_MANAGER	accepted	feat(credentials): add account and credential management	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
