@@ -260,6 +260,8 @@ const virtualModules: Record<string, string> = {
         export const startManagedCredentialLogin = async (machineId, target) => {
             state().calls.push(['login-start', machineId, target]);
             state().loginPolls = 0;
+            state().lastLoginProvider = target.provider;
+            state().lastLoginName = target.name;
             if (state().scenario === 'stale-account-relogin' && !state().staleReloginRaised) {
                 state().staleReloginRaised = true;
                 state().accounts = state().accounts.map((item) => (
@@ -281,7 +283,11 @@ const virtualModules: Record<string, string> = {
             }
             return {
                 id: 'flow-1', ...target, state: 'waiting-user',
-                verificationUrl: target.provider === 'grok' ? 'https://accounts.x.ai/device' : 'https://claude.com/oauth',
+                verificationUrl: target.provider === 'grok'
+                    ? 'https://accounts.x.ai/device'
+                    : target.provider === 'claude'
+                        ? 'https://claude.com/cai/oauth/authorize?client_id=fixture'
+                        : 'https://auth.openai.com/codex/device',
                 userCode: target.provider === 'grok' ? 'ABCD-EFGH' : undefined,
                 requiresCodeEntry: target.provider === 'claude',
                 expiresAt: Date.now() + 60000,
@@ -303,8 +309,14 @@ const virtualModules: Record<string, string> = {
             }
             if (state().loginPolls < 2) return {
                 id: 'flow-1', provider: state().lastLoginProvider ?? 'grok', name: state().lastLoginName ?? 'added',
-                state: 'waiting-user', verificationUrl: 'https://accounts.x.ai/device',
-                userCode: 'ABCD-EFGH', requiresCodeEntry: false, expiresAt: Date.now() + 60000,
+                state: 'waiting-user',
+                verificationUrl: state().lastLoginProvider === 'claude'
+                    ? 'https://claude.com/cai/oauth/authorize?client_id=fixture'
+                    : state().lastLoginProvider === 'codex'
+                        ? 'https://auth.openai.com/codex/device'
+                        : 'https://accounts.x.ai/device',
+                userCode: state().lastLoginProvider === 'claude' ? undefined : 'ABCD-EFGH',
+                requiresCodeEntry: state().lastLoginProvider === 'claude', expiresAt: Date.now() + 60000,
             };
             const call = [...state().calls].reverse().find((entry) => entry[0] === 'login-start');
             const target = call[2];
@@ -389,6 +401,11 @@ const virtualModules: Record<string, string> = {
             'settingsCredentials.deleteCredentialMessage': 'Delete {name}?',
             'settingsCredentials.loading': 'Loading…',
             'settingsCredentials.emptyAccounts': 'No provider accounts on this machine',
+            'settingsCredentials.noManagedAccounts': 'No managed accounts',
+            'settingsCredentials.oneManagedAccount': '1 managed account',
+            'settingsCredentials.manyManagedAccounts': '{count} managed accounts',
+            'settingsCredentials.connectProvider': 'Connect {provider} account',
+            'settingsCredentials.addProviderAccount': 'Add another {provider} account',
             'settingsCredentials.emptyCredentials': 'No saved credentials',
             'settingsCredentials.retry': 'Retry',
             'settingsCredentials.reload': 'Reload',
@@ -398,7 +415,7 @@ const virtualModules: Record<string, string> = {
             'settingsCredentials.loadFailed': 'Could not load credentials',
             'settingsCredentials.noMachines': 'No machines available',
             'settingsCredentials.selectMachine': 'Select a Machine',
-            'settingsCredentials.accountHelp': 'Local account help',
+            'settingsCredentials.accountHelp': 'This page lists HappyHerd-managed accounts stored on this machine. Native provider CLI sign-ins are separate and not shown here.',
             'settingsCredentials.credentialHelp': 'Encrypted server credential help',
             'settingsCredentials.credentialChanged': 'The saved credential has been changed elsewhere. You must reload before editing again.',
             'settingsCredentials.required': 'Required',
@@ -470,6 +487,24 @@ describe('CredentialsSettingsView browser journeys', () => {
                     const submitGate = new Promise((resolve) => { releaseSubmit = resolve; });
                     const credentialSaveGate = new Promise((resolve) => { releaseCredentialSave = resolve; });
                     const primaryAccounts = scenario === 'empty' ? []
+                        : scenario === 'provider-groups'
+                            ? [
+                                {
+                                    id: '11111111-1111-4111-8111-111111111111', credentialVersion: 1,
+                                    provider: 'claude', name: 'claude-one', status: 'stored', current: true,
+                                    limitedUntil: null, createdAt: 1, updatedAt: 2,
+                                },
+                                {
+                                    id: '22222222-2222-4222-8222-222222222222', credentialVersion: 1,
+                                    provider: 'codex', name: 'codex-one', status: 'stored', current: true,
+                                    limitedUntil: null, createdAt: 1, updatedAt: 2,
+                                },
+                                {
+                                    id: '55555555-5555-4555-8555-555555555555', credentialVersion: 1,
+                                    provider: 'codex', name: 'codex-two', status: 'stored', current: false,
+                                    limitedUntil: null, createdAt: 3, updatedAt: 4,
+                                },
+                            ]
                         : scenario.startsWith('long-account-')
                             ? Array.from({ length: 100 }, (_, index) => ({
                                 id: '00000000-0000-4000-8000-' + String(index + 1).padStart(12, '0'),
@@ -603,7 +638,15 @@ describe('CredentialsSettingsView browser journeys', () => {
         await page.getByText('Credentials & Accounts', { exact: true }).waitFor();
         await expect(page.getByText('Credentials & Accounts', { exact: true }).count()).resolves.toBe(1);
         await page.getByText('Demo token', { exact: true }).waitFor();
-        for (const name of ['Add Account', 'work', 'personal', 'Add Credential', 'Demo token']) {
+        for (const name of [
+            'Add another Claude account',
+            'Add another Codex account',
+            'Connect Grok account',
+            'work',
+            'personal',
+            'Add Credential',
+            'Demo token',
+        ]) {
             await expect(page.getByRole('button', { name: new RegExp(name) }).count()).resolves.toBe(1);
         }
         expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true);
@@ -632,6 +675,107 @@ describe('CredentialsSettingsView browser journeys', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 15_000);
+
+    it('keeps every supported provider discoverable when no managed account exists', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(`${origin}/?scenario=empty`);
+        await page.getByRole('button', { name: 'Connect Claude account', exact: true }).waitFor();
+
+        const positions = await Promise.all(['Claude', 'Codex', 'Grok'].map(async (provider) => {
+            await expect(page.getByText(provider, { exact: true }).count()).resolves.toBe(1);
+            const box = await page.getByText(provider, { exact: true }).boundingBox();
+            return box?.y ?? 0;
+        }));
+        expect(positions[0]).toBeLessThan(positions[1]);
+        expect(positions[1]).toBeLessThan(positions[2]);
+        await expect(page.getByText(
+            'No managed accounts',
+            { exact: true },
+        ).count()).resolves.toBe(3);
+        for (const provider of ['Claude', 'Codex', 'Grok']) {
+            await expect(page.getByRole('button', {
+                name: `Connect ${provider} account`,
+                exact: true,
+            }).count()).resolves.toBe(1);
+        }
+        await page.getByText(/Native provider CLI sign-ins are separate and not shown here/).waitFor();
+        const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
+        if (evidenceDir) {
+            await mkdir(evidenceDir, { recursive: true });
+            await page.screenshot({ path: resolve(evidenceDir, 'empty-providers-mobile.png'), fullPage: true });
+        }
+        await page.close();
+    });
+
+    it('groups one, many, and zero managed accounts under their providers', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.goto(`${origin}/?scenario=provider-groups`);
+        await page.getByText('codex-two', { exact: true }).waitFor();
+
+        await expect(page.getByText('1 managed account', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('2 managed accounts', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('No managed accounts', { exact: true }).count()).resolves.toBe(1);
+        for (const action of [
+            'Add another Claude account',
+            'Add another Codex account',
+            'Connect Grok account',
+        ]) {
+            await expect(page.getByRole('button', { name: action, exact: true }).count()).resolves.toBe(1);
+        }
+
+        const providerTops = await Promise.all(['Claude', 'Codex', 'Grok'].map(async (provider) => (
+            (await page.getByText(provider, { exact: true }).boundingBox())?.y ?? 0
+        )));
+        const accountTops = await Promise.all(['claude-one', 'codex-one', 'codex-two'].map(async (account) => (
+            (await page.getByText(account, { exact: true }).boundingBox())?.y ?? 0
+        )));
+        expect(providerTops[0]).toBeLessThan(accountTops[0]);
+        expect(accountTops[0]).toBeLessThan(providerTops[1]);
+        expect(providerTops[1]).toBeLessThan(accountTops[1]);
+        expect(accountTops[2]).toBeLessThan(providerTops[2]);
+        await page.close();
+    });
+
+    it('recomputes provider groups when the selected machine changes', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(`${origin}/?scenario=deferred-mutation`);
+        await page.getByRole('button', { name: 'Connect Grok account', exact: true }).waitFor();
+        await page.getByText('Studio', { exact: true }).first().click();
+        await page.getByText('Laptop', { exact: true }).click();
+        await page.getByText('laptop-only', { exact: true }).waitFor();
+
+        await expect(page.getByRole('button', { name: 'Add another Claude account', exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByRole('button', { name: 'Connect Codex account', exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByRole('button', { name: 'Connect Grok account', exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('1 managed account', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('No managed accounts', { exact: true }).count()).resolves.toBe(2);
+        await expect(page.getByText('work', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('personal', { exact: true }).count()).resolves.toBe(0);
+        await page.close();
+    });
+
+    it.each(['Claude', 'Codex', 'Grok'] as const)(
+        'starts a new %s login from its provider action',
+        async (provider) => {
+            const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+            await page.goto(`${origin}/?scenario=empty`);
+            await page.getByRole('button', { name: `Connect ${provider} account`, exact: true }).click();
+            await page.getByLabel('Nickname', { exact: true }).fill(`${provider.toLowerCase()}-new`);
+            await page.getByRole('button', { name: 'Log In', exact: true }).click();
+            await page.getByText('Waiting for provider login', { exact: true }).waitFor();
+
+            const calls = await page.evaluate(() => (
+                (window as any).__FIXTURE_STATE__.calls.filter((call: unknown[]) => call[0] === 'login-start')
+            ));
+            expect(calls).toEqual([[
+                'login-start',
+                'machine-1',
+                { provider: provider.toLowerCase(), name: `${provider.toLowerCase()}-new` },
+            ]]);
+            await page.getByRole('button', { name: 'Cancel Login', exact: true }).click();
+            await page.close();
+        },
+    );
 
     it('reveals only on demand and clears plaintext when the row collapses', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -946,8 +1090,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('starts, opens, cancels, and retries a machine provider login', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=empty`);
-        await page.getByText('Add Account', { exact: true }).dispatchEvent('click');
-        await page.getByRole('button', { name: 'Grok', exact: true }).click();
+        await page.getByRole('button', { name: 'Connect Grok account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('secondary');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByText('ABCD-EFGH', { exact: true }).waitFor();
@@ -966,15 +1109,24 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('submits a Claude verification code through the selected machine', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=empty`);
-        await page.getByText('Add Account', { exact: true }).click();
+        await page.getByRole('button', { name: 'Connect Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('claude-work');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
+        await page.getByRole('button', { name: 'Open Claude', exact: true }).click();
         await page.getByLabel('Verification Code', { exact: true }).fill('one-time-code');
+        const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
+        if (evidenceDir) {
+            await mkdir(evidenceDir, { recursive: true });
+            await page.screenshot({ path: resolve(evidenceDir, 'claude-auth-code-mobile.png'), fullPage: true });
+        }
         await page.getByRole('button', { name: 'Submit Code', exact: true }).click();
         await expect.poll(async () => page.evaluate(() => (
             (window as any).__FIXTURE_STATE__.calls.some((call: unknown[]) => call[0] === 'login-submit')
         ))).toBe(true);
         const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(await page.evaluate(() => (window as any).__FIXTURE_STATE__.opened)).toEqual([
+            'https://claude.com/cai/oauth/authorize?client_id=fixture',
+        ]);
         expect(calls).toContainEqual(['login-submit', 'machine-1', 'flow-1', 'one-time-code']);
         await page.close();
     });
@@ -982,8 +1134,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('shows a terminal login failure and retries without keeping a failed account', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=login-failure`);
-        await page.getByText('Add Account', { exact: true }).click();
-        await page.getByRole('button', { name: 'Grok', exact: true }).click();
+        await page.getByRole('button', { name: 'Connect Grok account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('recovered');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByText('Provider denied the login.', { exact: true }).waitFor({ timeout: 4_000 });
@@ -1001,7 +1152,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('cancels an active provider login when the settings view unmounts', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=empty`);
-        await page.getByText('Add Account', { exact: true }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Connect Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('leaving');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByText('Waiting for provider login', { exact: true }).waitFor();
@@ -1015,8 +1166,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('retries a transient status failure without starting a second login', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=poll-retry`);
-        await page.getByText('Add Account', { exact: true }).dispatchEvent('click');
-        await page.getByRole('button', { name: 'Grok', exact: true }).click();
+        await page.getByRole('button', { name: 'Connect Grok account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('retry-status');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByText('Temporary status failure', { exact: true }).waitFor({ timeout: 4_000 });
@@ -1229,7 +1379,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('serializes account mutations while a provider login is active', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(origin);
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('active-login');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByLabel('Verification Code', { exact: true }).waitFor();
@@ -1247,7 +1397,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('does not let a retry replace a pending account mutation busy state', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=deferred-mutation`);
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('retry-after-cancel');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByLabel('Verification Code', { exact: true }).waitFor();
@@ -1294,7 +1444,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('cancels a login start that resolves after switching machines', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         await page.goto(`${origin}/?scenario=deferred-login`);
-        await page.getByText('Add Account', { exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('late-login');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await expect.poll(async () => page.evaluate(() => (
@@ -1314,7 +1464,7 @@ describe('CredentialsSettingsView browser journeys', () => {
 
     it.each([
         ['mutation', 'deferred-mutation', 'personal', 'Set as Default', 'account-use', 'releaseMutation'],
-        ['login', 'deferred-login', 'Add Account', 'Log In', 'login-start', 'releaseLogin'],
+        ['login', 'deferred-login', 'Add another Claude account', 'Log In', 'login-start', 'releaseLogin'],
     ] as const)('cleans up a deferred account %s when the selected machine is removed', async (
         kind,
         scenario,
@@ -1355,12 +1505,12 @@ describe('CredentialsSettingsView browser journeys', () => {
     });
 
     it.each([
-        ['Add Account'],
+        ['Add another Claude account'],
         ['Cancel'],
     ] as const)('cancels a delayed login start and unlocks controls through %s', async (closeAction) => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=deferred-login`);
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('slow-login');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await expect.poll(async () => page.evaluate(() => (
@@ -1373,7 +1523,7 @@ describe('CredentialsSettingsView browser journeys', () => {
             (window as any).__FIXTURE_STATE__.calls.filter((call: unknown[]) => call[0] === 'login-cancel').length
         ))).toBe(1);
 
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('retry-login');
         await expect(page.getByRole('button', { name: 'Log In', exact: true }).isDisabled()).resolves.toBe(false);
         await page.close();
@@ -1382,7 +1532,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('unlocks account controls after canceling a deferred verification-code submit', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=deferred-submit`);
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('code-login');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByLabel('Verification Code', { exact: true }).fill('verification-code');
@@ -1402,7 +1552,7 @@ describe('CredentialsSettingsView browser journeys', () => {
     it('clears an entered verification code before retrying a canceled login', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(origin);
-        await page.getByRole('button', { name: 'Add Account', exact: true }).click();
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
         await page.getByLabel('Nickname', { exact: true }).fill('code-retry');
         await page.getByRole('button', { name: 'Log In', exact: true }).click();
         await page.getByLabel('Verification Code', { exact: true }).fill('expired-code');
@@ -1425,6 +1575,7 @@ describe('CredentialsSettingsView browser journeys', () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(`${origin}/?scenario=${scenario}`);
         await page.getByText(expected, { exact: true }).first().waitFor();
+        await expect(page.getByRole('button', { name: /^(Connect|Add another) (Claude|Codex|Grok) account$/ }).count()).resolves.toBe(0);
         await page.close();
     });
 });
