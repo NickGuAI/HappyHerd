@@ -912,8 +912,10 @@ export type TranslationKey =
     | "settingsCredentials.accountNicknamePlaceholder"
     | "settingsCredentials.addAccount"
     | "settingsCredentials.addCredential"
+    | "settingsCredentials.addProviderAccount"
     | "settingsCredentials.cancel"
     | "settingsCredentials.cancelLogin"
+    | "settingsCredentials.connectProvider"
     | "settingsCredentials.credentialChanged"
     | "settingsCredentials.credentialHelp"
     | "settingsCredentials.credentialName"
@@ -940,7 +942,10 @@ export type TranslationKey =
     | "settingsCredentials.machineOffline"
     | "settingsCredentials.machineScope"
     | "settingsCredentials.machineUnsupported"
+    | "settingsCredentials.manyManagedAccounts"
     | "settingsCredentials.noMachines"
+    | "settingsCredentials.noManagedAccounts"
+    | "settingsCredentials.oneManagedAccount"
     | "settingsCredentials.openProvider"
     | "settingsCredentials.provider"
     | "settingsCredentials.providerAccounts"
@@ -1618,8 +1623,11 @@ export interface TranslationParamsByKey {
     "settings.githubConnected": { login: string };
     "settings.machineStatus": { name: string; status: string };
     "settings.showOfflineMachines": { count: number };
+    "settingsCredentials.addProviderAccount": { provider: string };
+    "settingsCredentials.connectProvider": { provider: string };
     "settingsCredentials.deleteCredentialMessage": { name: string };
     "settingsCredentials.limitedUntil": { time: string };
+    "settingsCredentials.manyManagedAccounts": { count: number };
     "settingsCredentials.openProvider": { provider: string };
     "settingsCredentials.removeLocalMessage": { name: string; provider: string };
     "settingsVoice.language.footer": { count: number };

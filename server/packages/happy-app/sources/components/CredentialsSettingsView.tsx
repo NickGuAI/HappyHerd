@@ -86,6 +86,12 @@ function providerName(provider: ManagedCredentialProvider): string {
     return 'Grok';
 }
 
+function managedAccountSummary(count: number): string {
+    if (count === 0) return t('settingsCredentials.noManagedAccounts');
+    if (count === 1) return t('settingsCredentials.oneManagedAccount');
+    return t('settingsCredentials.manyManagedAccounts', { count });
+}
+
 function credentialTypeLabel(type: ManagedCredentialType): string {
     if (type === 'login') return t('settingsCredentials.typeLogin');
     if (type === 'connection') return t('settingsCredentials.typeConnection');
@@ -460,6 +466,12 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
     ) => {
         if (!selectedMachine || !name.trim()) return;
         cancelActiveLoginBestEffort();
+        if (account) {
+            setAddingAccount(false);
+        } else {
+            setAddingAccount(true);
+            setNewProvider(provider);
+        }
         setLogin(null);
         setLoginMachineId(null);
         setLoginCode('');
@@ -710,6 +722,30 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
         login && ['starting', 'waiting-user'].includes(login.state),
     );
     const credentialInteractionDisabled = credentialBusy || credentialConflict;
+    const accountsByProvider = React.useMemo(() => {
+        const grouped: Record<ManagedCredentialProvider, ManagedProviderAccountSummary[]> = {
+            claude: [],
+            codex: [],
+            grok: [],
+        };
+        for (const account of accounts) grouped[account.provider].push(account);
+        return grouped;
+    }, [accounts]);
+
+    const toggleProviderAccountForm = React.useCallback((provider: ManagedCredentialProvider) => {
+        const opening = !addingAccount || newProvider !== provider;
+        cancelActiveLoginBestEffort();
+        setAccountError(null);
+        setAccountRowError(null);
+        setAddingAccount(opening);
+        setNewProvider(provider);
+        setLogin(null);
+        setLoginMachineId(null);
+        setLoginAccountIdentity(null);
+        setLoginCode('');
+        setLoginPollError(null);
+        setNewAccountName('');
+    }, [addingAccount, cancelActiveLoginBestEffort, newProvider]);
 
     return (
         <ItemList
@@ -756,64 +792,6 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                     <Item title={t('settingsCredentials.machineUnsupported')} showChevron={false} />
                 ) : (
                     <>
-                        <Item
-                            title={t('settingsCredentials.addAccount')}
-                            icon={<Ionicons name="add-circle-outline" size={29} color="#34C759" />}
-                            onPress={() => {
-                                cancelActiveLoginBestEffort();
-                                setAccountError(null);
-                                setAccountRowError(null);
-                                setAddingAccount((value) => !value);
-                                setLogin(null);
-                                setNewAccountName('');
-                            }}
-                            showChevron={false}
-                            accessibilityRole="button"
-                            accessibilityState={{ expanded: addingAccount }}
-                        />
-                        {addingAccount && (
-                            <InlinePanel>
-                                <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                                    {t('settingsCredentials.provider')}
-                                </Text>
-                                <ButtonRow>
-                                    {providers.map((provider) => (
-                                        <ActionButton
-                                            key={provider}
-                                            label={providerName(provider)}
-                                            selected={newProvider === provider}
-                                            onPress={() => setNewProvider(provider)}
-                                        />
-                                    ))}
-                                </ButtonRow>
-                                <FormField
-                                    label={t('settingsCredentials.accountNickname')}
-                                    value={newAccountName}
-                                    onChangeText={setNewAccountName}
-                                    placeholder={t('settingsCredentials.accountNicknamePlaceholder')}
-                                />
-                                {!login && (
-                                    <ButtonRow>
-                                        <ActionButton
-                                            label={t('settingsCredentials.login')}
-                                            disabled={!newAccountName.trim() || Boolean(accountBusy)}
-                                            onPress={() => void beginLogin(newProvider, newAccountName)}
-                                        />
-                                        <ActionButton
-                                            label={t('settingsCredentials.cancel')}
-                                            onPress={() => {
-                                                cancelActiveLoginBestEffort();
-                                                setAccountError(null);
-                                                setAccountRowError(null);
-                                                setAddingAccount(false);
-                                                setLogin(null);
-                                                setNewAccountName('');
-                                            }}
-                                        />
-                                    </ButtonRow>
-                                )}
-                            </InlinePanel>
-                        )}
                         {accountError && accountLoadState !== 'error' && !login && (
                             <Item title={accountError} showChevron={false} destructive />
                         )}
@@ -831,207 +809,256 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                                 accessibilityRole="button"
                             />
                         )}
-                        {accountLoadState === 'ready' && accounts.length === 0 && !addingAccount && (
-                            <Item title={t('settingsCredentials.emptyAccounts')} showChevron={false} />
-                        )}
-                        {accounts.map((account) => {
-                            const key = account.id;
-                            const expanded = expandedAccount === key;
-                            const status = account.status === 'limited' && account.limitedUntil
-                                ? t('settingsCredentials.limitedUntil', { time: new Date(account.limitedUntil).toLocaleString() })
-                                : t('settingsCredentials.stored');
+                        {accountLoadState === 'ready' && providers.map((provider) => {
+                            const providerAccounts = accountsByProvider[provider];
+                            const providerFormOpen = addingAccount && newProvider === provider;
+                            const providerLoginOpen = Boolean(
+                                login
+                                && loginMachineId === selectedMachine.id
+                                && login.provider === provider,
+                            );
+                            const providerAction = providerAccounts.length === 0
+                                ? t('settingsCredentials.connectProvider', { provider: providerName(provider) })
+                                : t('settingsCredentials.addProviderAccount', { provider: providerName(provider) });
                             return (
-                                <React.Fragment key={key}>
+                                <React.Fragment key={provider}>
                                     <Item
-                                        title={account.name}
-                                        subtitle={`${providerName(account.provider)} · ${status}`}
-                                        detail={account.current ? t('settingsCredentials.default') : undefined}
-                                        icon={<ProviderIcon kind={account.provider} size={29} />}
-                                        loading={accountBusy === key}
-                                        onPress={() => {
-                                            setExpandedAccount(expanded ? null : key);
-                                            setRenamingAccount(null);
-                                            setRenameValue(account.name);
-                                            setAccountRowError((current) => current?.id === key ? current : null);
-                                        }}
+                                        title={providerName(provider)}
+                                        subtitle={managedAccountSummary(providerAccounts.length)}
+                                        detail={providerAction}
+                                        icon={<ProviderIcon kind={provider} size={29} />}
+                                        onPress={() => toggleProviderAccountForm(provider)}
+                                        showChevron={false}
+                                        accessibilityLabel={providerAction}
                                         accessibilityRole="button"
-                                        accessibilityState={{ expanded, selected: account.current }}
+                                        accessibilityState={{
+                                            expanded: providerFormOpen || providerLoginOpen,
+                                        }}
                                     />
-                                    {expanded && (
+                                    {providerFormOpen && (
                                         <InlinePanel>
-                                            {renamingAccount === key ? (
-                                                <>
-                                                    <FormField
-                                                        label={t('settingsCredentials.accountNickname')}
-                                                        value={renameValue}
-                                                        onChangeText={setRenameValue}
-                                                    />
-                                                    <ButtonRow>
-                                                        <ActionButton
-                                                            label={t('settingsCredentials.save')}
-                                                            disabled={!renameValue.trim() || accountActionsDisabled}
-                                                            onPress={() => void applyAccountMutation(key, () => (
-                                                                renameManagedCredentialAccount(selectedMachine.id, {
-                                                                    id: account.id,
-                                                                    provider: account.provider,
-                                                                    name: account.name,
-                                                                    expectedCredentialVersion: account.credentialVersion,
-                                                                    newName: renameValue.trim(),
-                                                                })
-                                                            ), () => {
-                                                                setRenamingAccount(null);
-                                                                setExpandedAccount(account.id);
-                                                            })}
-                                                        />
-                                                        <ActionButton label={t('settingsCredentials.cancel')} onPress={() => setRenamingAccount(null)} />
-                                                    </ButtonRow>
-                                                </>
-                                            ) : (
+                                            <FormField
+                                                label={t('settingsCredentials.accountNickname')}
+                                                value={newAccountName}
+                                                onChangeText={setNewAccountName}
+                                                placeholder={t('settingsCredentials.accountNicknamePlaceholder')}
+                                            />
+                                            {!login && (
                                                 <ButtonRow>
-                                                    {!account.current && (
-                                                        <ActionButton
-                                                            label={t('settingsCredentials.setDefault')}
-                                                            disabled={accountActionsDisabled}
-                                                            onPress={() => void applyAccountMutation(key, () => (
-                                                                useManagedCredentialAccount(selectedMachine.id, {
-                                                                    id: account.id,
-                                                                    provider: account.provider,
-                                                                    name: account.name,
-                                                                    expectedCredentialVersion: account.credentialVersion,
-                                                                })
-                                                            ))}
-                                                        />
-                                                    )}
                                                     <ActionButton
-                                                        label={t('settingsCredentials.rename')}
-                                                        disabled={accountActionsDisabled}
-                                                        onPress={() => setRenamingAccount(key)}
+                                                        label={t('settingsCredentials.login')}
+                                                        disabled={!newAccountName.trim() || Boolean(accountBusy)}
+                                                        onPress={() => void beginLogin(provider, newAccountName)}
                                                     />
                                                     <ActionButton
-                                                        label={t('settingsCredentials.relogin')}
-                                                        disabled={accountActionsDisabled}
-                                                        onPress={() => void beginLogin(account.provider, account.name, account)}
-                                                    />
-                                                    <ActionButton
-                                                        label={t('settingsCredentials.removeLocal')}
-                                                        destructive
-                                                        disabled={accountActionsDisabled}
-                                                        onPress={() => void (async () => {
-                                                            const confirmed = await Modal.confirm(
-                                                                t('settingsCredentials.removeLocalTitle'),
-                                                                t('settingsCredentials.removeLocalMessage', {
-                                                                    name: account.name,
-                                                                    provider: providerName(account.provider),
-                                                                }),
-                                                                { confirmText: t('settingsCredentials.removeLocal'), destructive: true },
-                                                            );
-                                                            if (!confirmed) return;
-                                                            await applyAccountMutation(key, () => (
-                                                                removeManagedCredentialAccount(selectedMachine.id, {
-                                                                    id: account.id,
-                                                                    provider: account.provider,
-                                                                    name: account.name,
-                                                                    expectedCredentialVersion: account.credentialVersion,
-                                                                })
-                                                            ), () => {
-                                                                setExpandedAccount(null);
-                                                            });
-                                                        })()}
+                                                        label={t('settingsCredentials.cancel')}
+                                                        onPress={() => toggleProviderAccountForm(provider)}
                                                     />
                                                 </ButtonRow>
                                             )}
-                                            {accountRowError?.id === account.id && (
+                                        </InlinePanel>
+                                    )}
+                                    {providerAccounts.map((account) => {
+                                        const key = account.id;
+                                        const expanded = expandedAccount === key;
+                                        const status = account.status === 'limited' && account.limitedUntil
+                                            ? t('settingsCredentials.limitedUntil', { time: new Date(account.limitedUntil).toLocaleString() })
+                                            : t('settingsCredentials.stored');
+                                        return (
+                                            <React.Fragment key={key}>
+                                                <Item
+                                                    title={account.name}
+                                                    subtitle={status}
+                                                    detail={account.current ? t('settingsCredentials.default') : undefined}
+                                                    icon={<ProviderIcon kind={account.provider} size={29} />}
+                                                    loading={accountBusy === key}
+                                                    onPress={() => {
+                                                        setExpandedAccount(expanded ? null : key);
+                                                        setRenamingAccount(null);
+                                                        setRenameValue(account.name);
+                                                        setAccountRowError((current) => current?.id === key ? current : null);
+                                                    }}
+                                                    accessibilityRole="button"
+                                                    accessibilityState={{ expanded, selected: account.current }}
+                                                />
+                                                {expanded && (
+                                                    <InlinePanel>
+                                                        {renamingAccount === key ? (
+                                                            <>
+                                                                <FormField
+                                                                    label={t('settingsCredentials.accountNickname')}
+                                                                    value={renameValue}
+                                                                    onChangeText={setRenameValue}
+                                                                />
+                                                                <ButtonRow>
+                                                                    <ActionButton
+                                                                        label={t('settingsCredentials.save')}
+                                                                        disabled={!renameValue.trim() || accountActionsDisabled}
+                                                                        onPress={() => void applyAccountMutation(key, () => (
+                                                                            renameManagedCredentialAccount(selectedMachine.id, {
+                                                                                id: account.id,
+                                                                                provider: account.provider,
+                                                                                name: account.name,
+                                                                                expectedCredentialVersion: account.credentialVersion,
+                                                                                newName: renameValue.trim(),
+                                                                            })
+                                                                        ), () => {
+                                                                            setRenamingAccount(null);
+                                                                            setExpandedAccount(account.id);
+                                                                        })}
+                                                                    />
+                                                                    <ActionButton label={t('settingsCredentials.cancel')} onPress={() => setRenamingAccount(null)} />
+                                                                </ButtonRow>
+                                                            </>
+                                                        ) : (
+                                                            <ButtonRow>
+                                                                {!account.current && (
+                                                                    <ActionButton
+                                                                        label={t('settingsCredentials.setDefault')}
+                                                                        disabled={accountActionsDisabled}
+                                                                        onPress={() => void applyAccountMutation(key, () => (
+                                                                            useManagedCredentialAccount(selectedMachine.id, {
+                                                                                id: account.id,
+                                                                                provider: account.provider,
+                                                                                name: account.name,
+                                                                                expectedCredentialVersion: account.credentialVersion,
+                                                                            })
+                                                                        ))}
+                                                                    />
+                                                                )}
+                                                                <ActionButton
+                                                                    label={t('settingsCredentials.rename')}
+                                                                    disabled={accountActionsDisabled}
+                                                                    onPress={() => setRenamingAccount(key)}
+                                                                />
+                                                                <ActionButton
+                                                                    label={t('settingsCredentials.relogin')}
+                                                                    disabled={accountActionsDisabled}
+                                                                    onPress={() => void beginLogin(account.provider, account.name, account)}
+                                                                />
+                                                                <ActionButton
+                                                                    label={t('settingsCredentials.removeLocal')}
+                                                                    destructive
+                                                                    disabled={accountActionsDisabled}
+                                                                    onPress={() => void (async () => {
+                                                                        const confirmed = await Modal.confirm(
+                                                                            t('settingsCredentials.removeLocalTitle'),
+                                                                            t('settingsCredentials.removeLocalMessage', {
+                                                                                name: account.name,
+                                                                                provider: providerName(account.provider),
+                                                                            }),
+                                                                            { confirmText: t('settingsCredentials.removeLocal'), destructive: true },
+                                                                        );
+                                                                        if (!confirmed) return;
+                                                                        await applyAccountMutation(key, () => (
+                                                                            removeManagedCredentialAccount(selectedMachine.id, {
+                                                                                id: account.id,
+                                                                                provider: account.provider,
+                                                                                name: account.name,
+                                                                                expectedCredentialVersion: account.credentialVersion,
+                                                                            })
+                                                                        ), () => {
+                                                                            setExpandedAccount(null);
+                                                                        });
+                                                                    })()}
+                                                                />
+                                                            </ButtonRow>
+                                                        )}
+                                                        {accountRowError?.id === account.id && (
+                                                            <>
+                                                                <Text
+                                                                    accessibilityLiveRegion="polite"
+                                                                    style={{ color: theme.colors.textDestructive, fontSize: 15 }}
+                                                                >
+                                                                    {accountRowError.message}
+                                                                </Text>
+                                                                {accountRowError.canReload && (
+                                                                    <ActionButton
+                                                                        label={t('settingsCredentials.reload')}
+                                                                        onPress={() => {
+                                                                            setAccountRowError(null);
+                                                                            void loadAccounts();
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </InlinePanel>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+
+                                    {providerLoginOpen && login && (
+                                        <InlinePanel>
+                                            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+                                                {providerName(login.provider)} · {login.name}
+                                            </Text>
+                                            <Text
+                                                accessibilityLiveRegion="polite"
+                                                style={{ color: ['failed', 'expired'].includes(login.state) ? theme.colors.textDestructive : theme.colors.textSecondary, fontSize: 15 }}
+                                            >
+                                                {login.state === 'succeeded'
+                                                    ? t('settingsCredentials.loginSuccess')
+                                                    : login.state === 'failed'
+                                                        ? login.error ?? t('settingsCredentials.loginFailed')
+                                                        : login.state === 'canceled'
+                                                            ? t('settingsCredentials.loginCanceled')
+                                                            : login.state === 'expired'
+                                                                ? t('settingsCredentials.loginExpired')
+                                                                : t('settingsCredentials.loginPending')}
+                                            </Text>
+                                            {loginPollError && (
+                                                <Text accessibilityLiveRegion="polite" style={{ color: theme.colors.textDestructive, fontSize: 15 }}>
+                                                    {loginPollError}
+                                                </Text>
+                                            )}
+                                            {accountError && (
+                                                <Text accessibilityLiveRegion="polite" style={{ color: theme.colors.textDestructive, fontSize: 15 }}>
+                                                    {accountError}
+                                                </Text>
+                                            )}
+                                            {login.userCode && (
+                                                <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '700', letterSpacing: 1 }}>
+                                                    {login.userCode}
+                                                </Text>
+                                            )}
+                                            {login.verificationUrl && (
+                                                <ActionButton
+                                                    label={t('settingsCredentials.openProvider', { provider: providerName(login.provider) })}
+                                                    onPress={() => void openExternalUrl(login.verificationUrl!)}
+                                                />
+                                            )}
+                                            {login.requiresCodeEntry && login.state === 'waiting-user' && (
                                                 <>
-                                                    <Text
-                                                        accessibilityLiveRegion="polite"
-                                                        style={{ color: theme.colors.textDestructive, fontSize: 15 }}
-                                                    >
-                                                        {accountRowError.message}
-                                                    </Text>
-                                                    {accountRowError.canReload && (
-                                                        <ActionButton
-                                                            label={t('settingsCredentials.reload')}
-                                                            onPress={() => {
-                                                                setAccountRowError(null);
-                                                                void loadAccounts();
-                                                            }}
-                                                        />
-                                                    )}
+                                                    <FormField
+                                                        label={t('settingsCredentials.verificationCode')}
+                                                        value={loginCode}
+                                                        onChangeText={setLoginCode}
+                                                        autoCapitalize="none"
+                                                    />
+                                                    <ActionButton
+                                                        label={t('settingsCredentials.submitCode')}
+                                                        disabled={!loginCode.trim() || Boolean(accountBusy)}
+                                                        onPress={() => void submitLoginCode()}
+                                                    />
                                                 </>
+                                            )}
+                                            {['starting', 'waiting-user'].includes(login.state) && (
+                                                <ActionButton label={t('settingsCredentials.cancelLogin')} onPress={() => void cancelLogin()} />
+                                            )}
+                                            {['failed', 'canceled', 'expired'].includes(login.state) && (
+                                                <ActionButton
+                                                    label={t('settingsCredentials.retry')}
+                                                    disabled={Boolean(accountBusy)}
+                                                    onPress={() => void beginLogin(login.provider, login.name, loginAccountIdentity)}
+                                                />
                                             )}
                                         </InlinePanel>
                                     )}
                                 </React.Fragment>
                             );
                         })}
-
-                        {login && loginMachineId === selectedMachine.id && (
-                            <InlinePanel>
-                                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
-                                    {providerName(login.provider)} · {login.name}
-                                </Text>
-                                <Text
-                                    accessibilityLiveRegion="polite"
-                                    style={{ color: ['failed', 'expired'].includes(login.state) ? theme.colors.textDestructive : theme.colors.textSecondary, fontSize: 15 }}
-                                >
-                                    {login.state === 'succeeded'
-                                        ? t('settingsCredentials.loginSuccess')
-                                        : login.state === 'failed'
-                                            ? login.error ?? t('settingsCredentials.loginFailed')
-                                            : login.state === 'canceled'
-                                                ? t('settingsCredentials.loginCanceled')
-                                                : login.state === 'expired'
-                                                    ? t('settingsCredentials.loginExpired')
-                                                    : t('settingsCredentials.loginPending')}
-                                </Text>
-                                {loginPollError && (
-                                    <Text accessibilityLiveRegion="polite" style={{ color: theme.colors.textDestructive, fontSize: 15 }}>
-                                        {loginPollError}
-                                    </Text>
-                                )}
-                                {accountError && (
-                                    <Text accessibilityLiveRegion="polite" style={{ color: theme.colors.textDestructive, fontSize: 15 }}>
-                                        {accountError}
-                                    </Text>
-                                )}
-                                {login.userCode && (
-                                    <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '700', letterSpacing: 1 }}>
-                                        {login.userCode}
-                                    </Text>
-                                )}
-                                {login.verificationUrl && (
-                                    <ActionButton
-                                        label={t('settingsCredentials.openProvider', { provider: providerName(login.provider) })}
-                                        onPress={() => void openExternalUrl(login.verificationUrl!)}
-                                    />
-                                )}
-                                {login.requiresCodeEntry && login.state === 'waiting-user' && (
-                                    <>
-                                        <FormField
-                                            label={t('settingsCredentials.verificationCode')}
-                                            value={loginCode}
-                                            onChangeText={setLoginCode}
-                                            autoCapitalize="none"
-                                        />
-                                        <ActionButton
-                                            label={t('settingsCredentials.submitCode')}
-                                            disabled={!loginCode.trim() || Boolean(accountBusy)}
-                                            onPress={() => void submitLoginCode()}
-                                        />
-                                    </>
-                                )}
-                                {['starting', 'waiting-user'].includes(login.state) && (
-                                    <ActionButton label={t('settingsCredentials.cancelLogin')} onPress={() => void cancelLogin()} />
-                                )}
-                                {['failed', 'canceled', 'expired'].includes(login.state) && (
-                                    <ActionButton
-                                        label={t('settingsCredentials.retry')}
-                                        disabled={Boolean(accountBusy)}
-                                        onPress={() => void beginLogin(login.provider, login.name, loginAccountIdentity)}
-                                    />
-                                )}
-                            </InlinePanel>
-                        )}
                     </>
                 )}
             </ItemGroup>

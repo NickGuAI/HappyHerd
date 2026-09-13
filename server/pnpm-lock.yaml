@@ -952,6 +952,9 @@ importers:
       '@anthropic-ai/sandbox-runtime':
         specifier: ^0.0.37
         version: 0.0.37
+      '@lydell/node-pty':
+        specifier: 1.2.0-beta.15
+        version: 1.2.0-beta.15
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.4.3)

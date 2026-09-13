@@ -192,11 +192,14 @@ the resumed webhook's selected account, and a stable incident ID. A failed
 daemon notice stays retryable; no receipt is emitted for ignored notices,
 failed stop or resume, or a wait that returns to the same account.
 
-Machine-local Claude, Codex, and Grok named accounts are owned by the
-`happy-cli` `credentialPool` manager, login manager, and store, then exposed to
-`CredentialsSettingsView` through authenticated machine RPC. Login runs the
-installed provider CLI in an isolated staging home, exposes provider
-verification details, supports cancellation and expiry, and commits only
+The Settings page always presents the three supported providers (Claude,
+Codex, and Grok) and separately labels HappyHerd-managed accounts—which are
+owned by the `happy-cli` credential pool and exposed through authenticated
+machine RPC—from native provider CLI sign-ins. While the Claude `setup-token`
+requires a PTY to emit and accept its browser authorization flow and both Codex
+and Grok retain their device-auth child-process flows, login utilizes an
+isolated staging home to support startup failure, cancellation, or expiry,
+publishing only validated provider verification details and committing only
 validated credentials. Local removal does not revoke provider access or stop
 sessions. Account-wide saved credentials are owned by `happy-server`
 `credentialRoutes` and the Prisma `SavedCredential` model; service, username,

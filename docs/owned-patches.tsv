@@ -352,3 +352,4 @@ WORKSPACE_ITEM_DELETION	accepted	feat(workspace): reconcile deleted items across
 WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and isolate browser fixtures	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
 WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 CREDENTIAL_MANAGER	accepted	feat(credentials): add account and credential management	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
+CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run Claude login in a PTY	server/packages/happy-cli/src/credentialPool/loginManager.test.ts

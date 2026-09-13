@@ -21,8 +21,10 @@ import {
   type CredentialLoginTarget,
   type CredentialPoolPaths,
 } from './store';
+import { spawnPtyLoginProcess, type PtyLoginSpawnOptions } from './ptyLoginProcess';
 
 const LOGIN_TTL_MS = 15 * 60 * 1_000;
+const CLAUDE_STARTUP_TTL_MS = 60 * 1_000;
 const FINISHED_TTL_MS = 5 * 60 * 1_000;
 const TERMINATE_GRACE_MS = 2_000;
 const MAX_ACTIVE_LOGIN_ATTEMPTS = 3;
@@ -38,6 +40,7 @@ type LoginAttempt = {
   targetKey: string;
   stagingHome: string;
   expiryTimer: NodeJS.Timeout;
+  startupTimer?: NodeJS.Timeout;
   finalization?: Promise<void>;
   loginTarget?: CredentialLoginTarget;
 };
@@ -45,6 +48,8 @@ type LoginAttempt = {
 export type CredentialLoginManagerDependencies = {
   paths?: CredentialPoolPaths;
   spawn?: typeof crossSpawn;
+  spawnPty?: (command: string, args: string[], options: PtyLoginSpawnOptions) => ChildProcess;
+  claudeStartupTtlMs?: number;
   now?: () => number;
   commitLogin?: typeof commitCredentialLogin;
   prepareStagingHome?: (stagingHome: string) => Promise<void>;
@@ -64,8 +69,26 @@ function providerUrl(provider: ManagedCredentialProvider, output: string): strin
     try {
       const url = new URL(candidate.replace(/[),.;\]}]+$/, ''));
       if (url.protocol !== 'https:') continue;
-      if (provider === 'claude' && (url.hostname === 'claude.com' || url.hostname === 'claude.ai')) {
-        return url.toString();
+      if (provider === 'claude') {
+        const supportedEndpoint = (
+          url.hostname === 'claude.com' && url.pathname === '/cai/oauth/authorize'
+        ) || (
+          url.hostname === 'claude.ai' && url.pathname === '/oauth/authorize'
+        );
+        const requiredParameters = [
+          'client_id',
+          'code',
+          'response_type',
+          'redirect_uri',
+          'scope',
+          'code_challenge',
+          'code_challenge_method',
+          'state',
+        ];
+        if (
+          supportedEndpoint
+          && requiredParameters.every((parameter) => Boolean(url.searchParams.get(parameter)))
+        ) return url.toString();
       }
       if (provider === 'codex' && url.hostname === 'auth.openai.com' && url.pathname.startsWith('/codex/device')) {
         return url.toString();
@@ -138,6 +161,8 @@ function targetKey(provider: ManagedCredentialProvider, name: string): string {
 export class CredentialLoginManager {
   private readonly paths: CredentialPoolPaths;
   private readonly spawn: typeof crossSpawn;
+  private readonly spawnPty: NonNullable<CredentialLoginManagerDependencies['spawnPty']>;
+  private readonly claudeStartupTtlMs: number;
   private readonly now: () => number;
   private readonly commitLogin: typeof commitCredentialLogin;
   private readonly prepareStagingHome: (stagingHome: string) => Promise<void>;
@@ -150,6 +175,8 @@ export class CredentialLoginManager {
   constructor(dependencies: CredentialLoginManagerDependencies = {}) {
     this.paths = dependencies.paths ?? defaultCredentialPoolPaths();
     this.spawn = dependencies.spawn ?? crossSpawn;
+    this.spawnPty = dependencies.spawnPty ?? spawnPtyLoginProcess;
+    this.claudeStartupTtlMs = dependencies.claudeStartupTtlMs ?? CLAUDE_STARTUP_TTL_MS;
     this.now = dependencies.now ?? Date.now;
     this.commitLogin = dependencies.commitLogin ?? commitCredentialLogin;
     this.prepareStagingHome = dependencies.prepareStagingHome ?? (async (stagingHome) => {
@@ -181,11 +208,14 @@ export class CredentialLoginManager {
 
         const command = provider === 'claude' ? 'claude' : provider;
         const args = provider === 'claude' ? ['setup-token'] : ['login', '--device-auth'];
-        const child = this.spawn(command, args, {
-          env: providerLoginEnvironment(provider, stagingHome),
-          stdio: ['pipe', 'pipe', 'pipe'],
-          windowsHide: true,
-        });
+        const env = providerLoginEnvironment(provider, stagingHome);
+        const child = provider === 'claude'
+          ? this.spawnPty(command, args, { cwd: stagingHome, env })
+          : this.spawn(command, args, {
+              env,
+              stdio: ['pipe', 'pipe', 'pipe'],
+              windowsHide: true,
+            });
         const expiresAt = this.now() + LOGIN_TTL_MS;
         const attempt = {} as LoginAttempt;
         attempt.public = {
@@ -206,6 +236,15 @@ export class CredentialLoginManager {
           this.beginFinalization(attempt, () => this.expire(id));
         }, LOGIN_TTL_MS);
         attempt.expiryTimer.unref?.();
+        if (provider === 'claude') {
+          attempt.startupTimer = setTimeout(() => {
+            this.beginFinalization(attempt, () => this.finishFailure(
+              attempt,
+              'The provider login did not provide an authorization link.',
+            ));
+          }, this.claudeStartupTtlMs);
+          attempt.startupTimer.unref?.();
+        }
         this.attempts.set(id, attempt);
 
         const capture = (chunk: Buffer | string) => this.capture(attempt, String(chunk));
@@ -252,7 +291,7 @@ export class CredentialLoginManager {
     attempt.public = { ...attempt.public, state: 'starting' };
     try {
       await new Promise<void>((resolveWrite, rejectWrite) => {
-        attempt.child.stdin!.write(`${code}\n`, (error) => error ? rejectWrite(error) : resolveWrite());
+        attempt.child.stdin!.write(`${code}\r`, (error) => error ? rejectWrite(error) : resolveWrite());
       });
     } catch {
       if (!attempt.settled) attempt.public = { ...attempt.public, state: 'waiting-user' };
@@ -301,6 +340,10 @@ export class CredentialLoginManager {
       ? undefined
       : providerCode(output);
     if (verificationUrl) {
+      if (attempt.startupTimer) {
+        clearTimeout(attempt.startupTimer);
+        attempt.startupTimer = undefined;
+      }
       attempt.public = {
         ...attempt.public,
         state: 'waiting-user',
@@ -418,6 +461,7 @@ export class CredentialLoginManager {
     if (attempt.settled) return false;
     attempt.settled = true;
     clearTimeout(attempt.expiryTimer);
+    if (attempt.startupTimer) clearTimeout(attempt.startupTimer);
     return true;
   }
 
