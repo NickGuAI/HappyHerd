@@ -353,3 +353,4 @@ WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and iso
 WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 CREDENTIAL_MANAGER	accepted	feat(credentials): add account and credential management	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
 CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run Claude login in a PTY	server/packages/happy-cli/src/credentialPool/loginManager.test.ts
+UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integration	docs/upstream-sync-4b7d763e.md
