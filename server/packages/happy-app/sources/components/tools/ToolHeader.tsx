@@ -1,103 +1,49 @@
+import { isToolIdentityCompatibleWithFlavor } from '@/utils/toolDisplay';
 import * as React from 'react';
-import { Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, Text } from 'react-native';
 import { ToolCall } from '@/sync/typesMessage';
-import { getToolCategoryIcon, knownTools } from '@/components/tools/knownTools';
-import { getToolSummaryCategory } from '@/utils/toolDisplay';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { getToolDisplayTitle, isToolIdentityCompatibleWithFlavor } from '@/utils/toolDisplay';
-import { Metadata } from '@/sync/storageTypes';
+import type { Metadata } from '@/sync/storageTypes';
+import { knownTools } from '@/components/tools/knownTools';
+import { getToolActivityLabel, getToolDisplayTitle, isTerminalToolName } from '@/utils/toolDisplay';
+import { Typography } from '@/constants/Typography';
+import { t } from '@/text';
+import { StyleSheet } from 'react-native-unistyles';
 
 interface ToolHeaderProps {
-    tool: ToolCall;
+    tool?: ToolCall;
     metadata?: Metadata | null;
 }
 
+/** One bounded, non-interactive navigation title, including while loading. */
 export function ToolHeader({ tool, metadata = null }: ToolHeaderProps) {
-    const { theme } = useUnistyles();
-    const knownTool = isToolIdentityCompatibleWithFlavor(tool.name, metadata?.flavor)
-        ? knownTools[tool.name as keyof typeof knownTools] as any
-        : undefined;
-
-    // Extract status first for Bash tool to potentially use as title
-    let status: string | null = null;
-    if (knownTool && typeof knownTool.extractStatus === 'function') {
-        const extractedStatus = knownTool.extractStatus({ tool, metadata });
-        if (typeof extractedStatus === 'string' && extractedStatus) {
-            status = extractedStatus;
+    let title = t('common.message');
+    if (tool) {
+        const knownTool = isToolIdentityCompatibleWithFlavor(tool.name, metadata?.flavor)
+            ? knownTools[tool.name as keyof typeof knownTools] : undefined;
+        title = getToolDisplayTitle(tool);
+        if (!tool.title?.trim() && knownTool && 'title' in knownTool && knownTool.title) {
+            title = typeof knownTool.title === 'function'
+                ? knownTool.title({ tool, metadata })
+                : knownTool.title;
         }
-    }
-
-    // Handle optional title and function type
-    const providerTitle = tool.title?.trim();
-    let toolTitle = getToolDisplayTitle(tool);
-    if (!providerTitle && knownTool?.title) {
-        if (typeof knownTool.title === 'function') {
-            toolTitle = knownTool.title({ tool, metadata });
-        } else {
-            toolTitle = knownTool.title;
-        }
-    }
-
-    const icon = knownTool?.icon
-        ? knownTool.icon(18, theme.colors.header.tint)
-        : (getToolCategoryIcon(getToolSummaryCategory(tool.name), 18, theme.colors.header.tint)
-            ?? <Ionicons name="construct-outline" size={18} color={theme.colors.header.tint} />);
-
-    // Extract subtitle using the same logic as ToolView
-    let subtitle = null;
-    if (knownTool && typeof knownTool.extractSubtitle === 'function') {
-        const extractedSubtitle = knownTool.extractSubtitle({ tool, metadata });
-        if (typeof extractedSubtitle === 'string' && extractedSubtitle) {
-            subtitle = extractedSubtitle;
-        }
+        if (isTerminalToolName(tool.name)) title = getToolActivityLabel(tool);
     }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.titleContainer}>
-                <View style={styles.titleRow}>
-                    {icon}
-                    <Text style={styles.title} numberOfLines={1}>{toolTitle}</Text>
-                </View>
-                {subtitle && (
-                    <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
-                )}
-            </View>
-        </View>
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="middle" accessibilityRole="header">
+            {title}
+        </Text>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
-    container: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexGrow: 1,
-        flexBasis: 0,
-        paddingHorizontal: 4,
-    },
-    titleContainer: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        flexGrow: 1,
-        flexBasis: 0
-    },
-    titleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
     title: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: theme.colors.text,
+        ...Typography.default('semiBold'),
+        fontSize: Platform.OS === 'web' ? 17 : 16,
+        lineHeight: 20,
+        color: theme.colors.header.tint,
         textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 11,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: 2,
+        maxWidth: '100%',
+        flexShrink: 1,
     },
 }));

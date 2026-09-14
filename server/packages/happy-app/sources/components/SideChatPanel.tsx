@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useSession, useSideChatSessions } from '@/sync/storage';
-import { sync } from '@/sync/sync';
 import { Modal } from '@/modal';
 import type { Session } from '@/sync/storageTypes';
 import {
@@ -65,6 +64,7 @@ export const SideChatAccessButton = React.memo(function SideChatAccessButton({
         </Pressable>
     );
 });
+import { useIsFocused } from '@react-navigation/native';
 
 /**
  * Right-sidebar "side chat" panel (controlled).
@@ -97,13 +97,9 @@ export const SideChatPanel = React.memo(function SideChatPanel({
         return resolvedId ? sideChats.find((session) => session.id === resolvedId) ?? null : null;
     }, [activeSideChatId, sideChats]);
 
-    // Pull the focused side chat's messages into the store while mounted.
+    // An off-screen parent route must not activate its embedded chat.
+    const isFocused = useIsFocused();
     const activeId = activeSession?.id ?? null;
-    React.useEffect(() => {
-        if (activeId) {
-            sync.onSessionVisible(activeId);
-        }
-    }, [activeId]);
 
     if (sideChats.length === 0) {
         return (
@@ -148,7 +144,7 @@ export const SideChatPanel = React.memo(function SideChatPanel({
                 canCreate={canCreateSideChat}
             />
             {activeSession && (
-                <SideChatConversation key={activeSession.id} session={activeSession} />
+                <SideChatConversation key={activeSession.id} session={activeSession} active={isFocused} />
             )}
         </View>
     );
@@ -304,7 +300,7 @@ const SideChatTab = React.memo(function SideChatTab({
 });
 
 /** Focused side chat inside the panel: the real chat body + an expand button. */
-const SideChatConversation = React.memo(function SideChatConversation({ session }: { session: Session }) {
+const SideChatConversation = React.memo(function SideChatConversation({ session, active }: { session: Session; active: boolean }) {
     const { theme } = useUnistyles();
     const workspaceController = React.useContext(SessionWorkspaceControllerContext);
     const openFullScreen = React.useCallback(() => {
@@ -327,7 +323,7 @@ const SideChatConversation = React.memo(function SideChatConversation({ session 
                 </Pressable>
             </View>
             <View style={styles.chatWrap}>
-                <SessionViewLoaded sessionId={session.id} session={session} embedded />
+                <SessionViewLoaded sessionId={session.id} session={session} active={active} embedded />
             </View>
         </View>
     );

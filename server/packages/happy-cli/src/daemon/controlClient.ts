@@ -330,7 +330,7 @@ export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolea
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
-        signal: AbortSignal.timeout(2000)
+        signal: AbortSignal.timeout(5000)
       });
       if (response.ok) {
         return true;

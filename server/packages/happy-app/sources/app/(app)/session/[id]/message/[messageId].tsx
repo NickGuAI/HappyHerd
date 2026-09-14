@@ -52,47 +52,23 @@ export default React.memo(() => {
         }
     }, [messagesLoaded, message, router]);
     
-    // Configure header for tool messages
-    React.useLayoutEffect(() => {
-        if (message && message.kind === 'tool-call' && message.tool) {
-            // Header is configured in the Stack.Screen options
-        }
-    }, [message]);
-    
-    // Show loader while waiting for session and messages to load
-    if (!session || !messagesLoaded) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-            </View>
-        );
-    }
-    
-    // If messages are loaded but specific message not found, show loader briefly
-    // The useEffect above will navigate back
-    if (!message) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-            </View>
-        );
-    }
-    
+    const tool = message?.kind === 'tool-call' ? message.tool : undefined;
+    const headerTitle = React.useCallback(() => (
+        <ToolHeader tool={tool} metadata={session?.metadata ?? null} />
+    ), [tool, session?.metadata]);
+    const headerRight = React.useCallback(() => tool ? <ToolStatusIndicator tool={tool} /> : null, [tool]);
     return (
         <>
-            {message && message.kind === 'tool-call' && message.tool && (
-                <Stack.Screen
-                    options={{
-                        headerTitle: () => <ToolHeader tool={message.tool} metadata={session.metadata} />,
-                        headerRight: () => <ToolStatusIndicator tool={message.tool} />,
-                        headerTintColor: theme.colors.header.tint,
-                        headerShadowVisible: false,
-                    }}
-                />
+            <Stack.Screen options={{ headerTitle, headerRight, headerTintColor: theme.colors.header.tint, headerShadowVisible: false }} />
+            {!session || !messagesLoaded || !message ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                </View>
+            ) : (
+                <Deferred>
+                    <FullView message={message} sessionId={sessionId!} metadata={session.metadata} focusFile={file} />
+                </Deferred>
             )}
-            <Deferred>
-                <FullView message={message} sessionId={sessionId!} metadata={session.metadata} focusFile={file} />
-            </Deferred>
         </>
     );
 });

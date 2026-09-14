@@ -56,7 +56,7 @@ const codeAgentDefaults: Record<StoredAgentKey, AgentDefaultConfig> = {
     // Max is the configured default. The selected model's advertised
     // capabilities remain authoritative, so unsupported models fall back to
     // their highest available effort rather than receiving an invalid value.
-    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.6-sol', effortLevel: 'max' },
+    codex: { permissionMode: 'yolo', modelMode: 'gpt-6-astra', effortLevel: 'max' },
     // GrokBuild publishes its real defaults and selectable launch values
     // through the selected machine's capability catalog.
     // Empty defaults are deliberately neutral so an offline settings read can

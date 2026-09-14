@@ -1,5 +1,6 @@
 import type { Machine, MachineMetadata } from './storageTypes';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
+import { sortRigModelsForPicker } from '@/utils/rigModelPickerOrder';
 import { qualifyRigModelKey } from './rig';
 
 /** A model option as published by a Rig machine, qualified by provider. */
@@ -211,7 +212,8 @@ export function getRigMachineSessionCreation(
     );
 
     return {
-        models,
+        // Display ordering must not change the published/default fallback above.
+        models: sortRigModelsForPicker(models),
         permissionModes,
         defaultModelKey,
         defaultPermissionMode,

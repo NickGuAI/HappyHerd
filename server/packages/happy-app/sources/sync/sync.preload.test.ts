@@ -1,0 +1,210 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { messagePlanMode } from './messagePlanMode';
+
+const mocks = vi.hoisted(() => ({
+    state: { sessions: {}, sessionMessages: {}, currentViewingSessionId: null } as any,
+    request: vi.fn(),
+    applyMessages: vi.fn(),
+    applyMessagesLoaded: vi.fn(),
+    applyOlderMessagesPagination: vi.fn(),
+    setModes: vi.fn(),
+    gitInvalidate: vi.fn(),
+    voiceFocus: vi.fn(),
+    voiceMessages: vi.fn(),
+    voiceReady: vi.fn(),
+}));
+
+// Exercise the real Sync orchestration, locking and pagination with only the
+// native services/network/store boundary replaced. No Expo runtime or sockets.
+vi.mock('expo-constants', () => ({ default: {} }));
+vi.mock('expo-device', () => ({}));
+vi.mock('expo-crypto', () => ({ randomUUID: () => 'id' }));
+vi.mock('expo-notifications', () => ({}));
+vi.mock('react-native', () => ({ Platform: { OS: 'ios' }, AppState: { currentState: 'active', addEventListener: vi.fn() } }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
+vi.mock('@/sync/apiSocket', () => ({ apiSocket: { request: mocks.request }, getCurrentAppState: () => 'active' }));
+vi.mock('@/sync/webTabTitle', () => ({ notifyUnreadMessage: vi.fn() }));
+vi.mock('@/sync/encryption/encryption', () => ({ Encryption: class {} }));
+vi.mock('@/sync/encryption/artifactEncryption', () => ({ ArtifactEncryption: class {} }));
+vi.mock('@/sync/encryption/encryptionCache', () => ({ EncryptionCache: class {} }));
+vi.mock('@/sync/storage', () => ({ storage: { getState: () => ({
+    ...mocks.state,
+    applyMessages: mocks.applyMessages,
+    applyMessagesLoaded: mocks.applyMessagesLoaded,
+    applyOlderMessagesPagination: mocks.applyOlderMessagesPagination,
+}) } }));
+vi.mock('@/sync/ops', () => ({ sessionSetAgentModes: mocks.setModes }));
+vi.mock('@/sync/persistence', () => ({ loadPendingSettings: () => ({}), savePendingSettings: vi.fn() }));
+vi.mock('@/sync/revenueCat', () => ({ RevenueCat: {}, LogLevel: {}, PaywallResult: {} }));
+vi.mock('@/sync/serverConfig', () => ({ getServerUrl: () => 'https://example.invalid' }));
+vi.mock('@/sync/pushRegistration', () => ({ syncCurrentPushToken: vi.fn() }));
+vi.mock('@/sync/apiArtifacts', () => ({ fetchArtifact: vi.fn(), fetchArtifacts: vi.fn(), createArtifact: vi.fn(), updateArtifact: vi.fn() }));
+vi.mock('@/sync/apiFriends', () => ({ getFriendsList: vi.fn(), getUserProfile: vi.fn() }));
+vi.mock('@/sync/apiFeed', () => ({ fetchFeed: vi.fn() }));
+vi.mock('@/sync/apiAttachments', () => ({ requestAttachmentUpload: vi.fn(), uploadEncryptedBlob: vi.fn() }));
+vi.mock('@/sync/apiProjects', () => ({ fetchProjects: vi.fn() }));
+vi.mock('@/sync/projects', () => ({ decryptProjectRecord: vi.fn(), loadProjectAvatar: vi.fn() }));
+vi.mock('@/sync/typesRaw', () => ({ normalizeRawMessage: (_id: string, _localId: string, _time: number, content: unknown) => content }));
+vi.mock('@/config', () => ({ config: {} }));
+vi.mock('@/log', () => ({ log: { log: vi.fn() } }));
+vi.mock('@/track', () => ({ tracking: null }));
+vi.mock('@/modal', () => ({ Modal: {} }));
+vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/encryption/blob', () => ({}));
+vi.mock('@/utils/readFileBytes', () => ({}));
+vi.mock('@/sync/gitStatusSync', () => ({ gitStatusSync: { getSync: () => ({ invalidate: mocks.gitInvalidate }) } }));
+vi.mock('@/realtime/hooks/voiceHooks', () => ({ voiceHooks: {
+    onSessionFocus: mocks.voiceFocus, onMessages: mocks.voiceMessages, onReady: mocks.voiceReady,
+} }));
+
+import { sync } from './sync';
+
+let engine: any;
+let encryption: { decryptMessages: ReturnType<typeof vi.fn> };
+function response(messages: any[], hasMore = false) {
+    return { ok: true, json: async () => ({ messages, hasMore }) };
+}
+function message(name?: string) {
+    return {
+        id: 'message', seq: 100, localId: null, createdAt: 1,
+        content: { role: 'agent', content: name ? [{ type: 'tool-call', name }] : [{ type: 'text', text: 'Hello' }] },
+    };
+}
+async function waitForPreload() {
+    await vi.waitFor(() => expect(mocks.applyMessagesLoaded).toHaveBeenCalled());
+    await Promise.resolve();
+}
+
+beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.state = {
+        sessions: { a: { id: 'a', permissionMode: 'auto', metadata: {} }, b: { id: 'b', permissionMode: 'auto', metadata: {} } },
+        sessionMessages: {}, currentViewingSessionId: null,
+    };
+    mocks.request.mockResolvedValue(response([message()]));
+    mocks.applyMessages.mockImplementation((id, messages, source) => {
+        mocks.state.sessionMessages[id] = { messages, messagesMap: { message: messages[0] }, hasMoreOlder: false };
+        const enteredPlanMode = messagePlanMode(messages) === true;
+        if (enteredPlanMode && source !== 'preload') mocks.state.sessions[id].permissionMode = 'plan';
+        return { changed: ['message'], hasReadyEvent: true, enteredPlanMode };
+    });
+    mocks.applyOlderMessagesPagination.mockImplementation((id, { hasMore }) => {
+        mocks.state.sessionMessages[id] ??= {};
+        mocks.state.sessionMessages[id].hasMoreOlder = hasMore;
+    });
+    mocks.setModes.mockImplementation((id, patch) => Object.assign(mocks.state.sessions[id], patch));
+    engine = new (sync.constructor as new () => typeof sync)();
+    encryption = { decryptMessages: vi.fn(async (messages: any[]) => messages) };
+    engine.encryption = { getSessionEncryption: (id: string) => mocks.state.sessions[id] ? encryption : undefined };
+});
+
+describe('chat preload sync integration', () => {
+    it('hydrates one latest page without read, voice, git, or history side effects', async () => {
+        mocks.request.mockResolvedValue(response([message()], true));
+        const older = vi.spyOn(engine, 'loadOlderMessages');
+        engine.preloadSession('a');
+        await waitForPreload();
+        expect(mocks.request).toHaveBeenCalledOnce();
+        expect(mocks.request.mock.calls[0][0]).toBe('/v3/sessions/a/messages?before_seq=2147483647&limit=100');
+        expect(mocks.applyMessages.mock.calls[0][2]).toBe('preload');
+        expect(mocks.state.currentViewingSessionId).toBeNull();
+        expect(mocks.voiceFocus).not.toHaveBeenCalled();
+        expect(mocks.voiceMessages).not.toHaveBeenCalled();
+        expect(mocks.voiceReady).not.toHaveBeenCalled();
+        expect(mocks.gitInvalidate).not.toHaveBeenCalled();
+        expect(older).not.toHaveBeenCalled();
+        engine.preloadSession('a');
+        await Promise.resolve();
+        expect(mocks.request).toHaveBeenCalledOnce();
+    });
+
+    it('shares the in-flight first page with touch-up and activates it normally', async () => {
+        let finish!: (value: unknown) => void;
+        mocks.request.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+        engine.preloadSession('a');
+        await vi.waitFor(() => expect(mocks.request).toHaveBeenCalledOnce());
+        mocks.state.currentViewingSessionId = 'a';
+        engine.onSessionVisible('a');
+        finish(response([message()]));
+        await engine.getMessagesSync('a').awaitQueue();
+        expect(mocks.request).toHaveBeenCalledOnce();
+        expect(encryption.decryptMessages).toHaveBeenCalledOnce();
+        expect(mocks.applyMessages.mock.calls[0][2]).toBe('sync');
+        expect(mocks.voiceMessages).toHaveBeenCalledOnce();
+        expect(mocks.voiceFocus).toHaveBeenCalledWith('a', {});
+    });
+
+    it('revalidates a completed preload and starts older history only after a visit', async () => {
+        mocks.request.mockResolvedValueOnce(response([message()], true)).mockResolvedValue(response([]));
+        // End this test's history loop after its first attempt, without timers.
+        const older = vi.spyOn(engine, 'loadOlderMessages').mockRejectedValue(new Error('test stop'));
+        engine.preloadSession('a');
+        await waitForPreload();
+        expect(older).not.toHaveBeenCalled();
+        mocks.state.currentViewingSessionId = 'a';
+        engine.onSessionVisible('a');
+        await engine.getMessagesSync('a').awaitQueue();
+        expect(mocks.request.mock.calls[1][0]).toBe('/v3/sessions/a/messages?after_seq=100&limit=100');
+        expect(older).toHaveBeenCalledExactlyOnceWith('a');
+    });
+
+    it('defers plan-mode changes until the session is actually opened, exactly once', async () => {
+        mocks.request.mockResolvedValueOnce(response([message('EnterPlanMode')])).mockResolvedValue(response([]));
+        engine.preloadSession('a');
+        await waitForPreload();
+        expect(mocks.state.sessions.a.permissionMode).toBe('auto');
+        expect(mocks.setModes).not.toHaveBeenCalled();
+        engine.onSessionVisible('a');
+        await engine.getMessagesSync('a').awaitQueue();
+        expect(mocks.setModes).toHaveBeenCalledExactlyOnceWith('a', { permissionMode: 'plan' });
+        expect(mocks.state.sessions.a.permissionMode).toBe('plan');
+    });
+
+    it.each(['new-choice', 'exit-event', 'exit-on-refresh'])('does not replay an obsolete plan transition: %s', async (reason) => {
+        mocks.request.mockResolvedValueOnce(response([message('EnterPlanMode')])).mockResolvedValue(response([]));
+        engine.preloadSession('a');
+        await waitForPreload();
+        if (reason === 'new-choice') mocks.state.sessions.a.permissionMode = 'yolo';
+        else if (reason === 'exit-event') engine.applyMessages('a', [message('ExitPlanMode').content]);
+        else mocks.request.mockResolvedValue(response([{ ...message('ExitPlanMode'), seq: 101 }]));
+        engine.onSessionVisible('a');
+        await engine.getMessagesSync('a').awaitQueue();
+        expect(mocks.setModes).not.toHaveBeenCalled();
+    });
+
+    it('drops an abandoned page even if the transport ignores abort', async () => {
+        let finish!: (value: unknown) => void;
+        mocks.request.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })).mockResolvedValue(response([message()]));
+        engine.preloadSession('a');
+        await vi.waitFor(() => expect(mocks.request).toHaveBeenCalledOnce());
+        engine.preloadSession('b');
+        expect(mocks.request.mock.calls[0][1].signal.aborted).toBe(true);
+        finish(response([message()]));
+        await vi.waitFor(() => expect(mocks.applyMessagesLoaded).toHaveBeenCalledWith('b'));
+        expect(mocks.applyMessagesLoaded).not.toHaveBeenCalledWith('a');
+        expect(engine.sessionLastSeq.has('a')).toBe(false);
+    });
+
+    it('does not hydrate after the session is deleted during decryption', async () => {
+        let finish!: (value: unknown) => void;
+        encryption.decryptMessages.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+        engine.preloadSession('a');
+        await vi.waitFor(() => expect(encryption.decryptMessages).toHaveBeenCalledOnce());
+        const pending = engine.messagePreloader.take('a');
+        delete mocks.state.sessions.a;
+        finish([message()]);
+        await expect(pending).resolves.toBe(false);
+        expect(mocks.applyMessages).not.toHaveBeenCalled();
+        expect(engine.sessionLastSeq.has('a')).toBe(false);
+    });
+
+    it('server events preserve voice-follow without claiming a visit or fetching all history', async () => {
+        mocks.request.mockResolvedValue(response([message()], true));
+        const older = vi.spyOn(engine, 'loadOlderMessages');
+        engine.onSessionDataUpdated('a');
+        await engine.getMessagesSync('a').awaitQueue();
+        expect(mocks.voiceFocus).toHaveBeenCalledWith('a', {});
+        expect(mocks.state.currentViewingSessionId).toBeNull();
+        expect(older).not.toHaveBeenCalled();
+    });
+});

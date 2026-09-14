@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ToolCall } from '@/sync/typesMessage';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
+import { getToolActivityLabel } from '@/utils/toolDisplay';
 
 interface FilteredTool {
     tool: ToolCall;
@@ -21,20 +22,8 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
         if (m.kind === 'tool-call') {
             const knownTool = knownTools[m.tool.name as keyof typeof knownTools] as any;
             
-            // Extract title using extractDescription if available, otherwise use title
-            let title = m.tool.name;
-            if (knownTool) {
-                if ('extractDescription' in knownTool && typeof knownTool.extractDescription === 'function') {
-                    title = knownTool.extractDescription({ tool: m.tool, metadata });
-                } else if (knownTool.title) {
-                    // Handle optional title and function type
-                    if (typeof knownTool.title === 'function') {
-                        title = knownTool.title({ tool: m.tool, metadata });
-                    } else {
-                        title = knownTool.title;
-                    }
-                }
-            }
+            if (knownTool?.hidden) continue;
+            const title = getToolActivityLabel(m.tool);
 
             if (m.tool.state === 'running' || m.tool.state === 'completed' || m.tool.state === 'error') {
                 filtered.push({
@@ -96,8 +85,8 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
         return null;
     }
 
-    const visibleTools = filtered.slice(filtered.length - 3);
-    const remainingCount = filtered.length - 3;
+    const visibleTools = filtered.slice(-3);
+    const remainingCount = Math.max(0, filtered.length - 3);
 
     return (
         <View style={styles.container}>

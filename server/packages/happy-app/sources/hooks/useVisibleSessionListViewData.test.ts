@@ -66,6 +66,12 @@ beforeEach(() => {
 });
 
 describe('useVisibleSessionListViewData', () => {
+    it('keeps idle and offline bots visible when archives are hidden', () => {
+        mocks.data = [{ type: 'bots', sessions: [row('bot', { active: false })] }];
+        mocks.hideArchivedSessions = true;
+        expect(useVisibleSessionListViewData()).toEqual(mocks.data);
+    });
+
     // A project card and a flat row, each holding one merely-disconnected
     // session and one archived one.
     function mixedList(): SessionListViewItem[] {

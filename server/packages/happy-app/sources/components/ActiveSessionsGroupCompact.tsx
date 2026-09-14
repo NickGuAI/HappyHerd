@@ -10,7 +10,7 @@ import { Typography } from '@/constants/Typography';
 import { useAllMachines, useSessionGitStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
-import { useNavigateToSession } from '@/hooks/useNavigateToSession';
+import { useSessionPressHandlers } from '@/hooks/useNavigateToSession';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
 import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPopover';
@@ -219,7 +219,7 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
 export const CompactSessionRow = React.memo(({ session, selected, showBorder }: { session: SessionRowData; selected?: boolean; showBorder?: boolean }) => {
     const styles = stylesheet;
     const connected = !session.machineOffline && session.state !== 'disconnected';
-    const navigateToSession = useNavigateToSession();
+    const sessionPressHandlers = useSessionPressHandlers(session.id);
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';
     const [actionsAnchor, setActionsAnchor] = React.useState<SessionActionsAnchor | null>(null);
@@ -235,10 +235,6 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
         swipeableRef.current?.close();
         performArchive();
     }, [performArchive]);
-
-    const handlePress = React.useCallback(() => {
-        navigateToSession(session.id);
-    }, [navigateToSession, session.id]);
 
     const handleContextMenu = React.useCallback((event: any) => {
         event.preventDefault?.();
@@ -286,7 +282,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                 showBorder && styles.sessionRowWithBorder,
                 selected && styles.sessionRowSelected
             ]}
-            onPress={handlePress}
+            {...sessionPressHandlers}
             {...menuProps}
         >
             <View style={styles.sessionContent}>

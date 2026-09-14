@@ -1,3 +1,11 @@
+# September 13 — Upstream integration and responsive changes
+
+- Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.
+- Native chat presses prepare messages without taking focus; watched tool groups stay expanded until the conversation is left or the app is backgrounded.
+- Diff and terminal syntax preparation runs off the rendering thread, with shared file presentation and stable detail headers.
+- Happy Agent model choices put Astra first; explicit saved choices are retained. Offline launch guidance distinguishes Happy Agent from HappyHerd CLI, and daemon health checks allow five seconds.
+- Codium remains available. The experimental expo-tailcat module is included as a standalone package; this update does not enable tunnels, publish a package, or activate a native release pipeline.
+
 # September 13 — Credentials & Accounts Management
 
 - Open **Settings > Credentials & Accounts** to list, add or log in again, rename, select defaults, and remove machine-local named Claude, Codex, and Grok accounts. Removing an account locally does not revoke access with the provider or stop active sessions.

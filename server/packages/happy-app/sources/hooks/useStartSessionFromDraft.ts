@@ -178,7 +178,7 @@ export function useStartSessionFromDraft() {
         // from the selected agent at submit time so a render between picker
         // changes cannot send Happy Agent work to Happy CLI (or vice versa).
         if (!isMachineOnline(machine)) {
-            Modal.alert(t('common.error'), t("newSession.machineOffline"));
+            Modal.alert(t('common.error'), agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'));
             return false;
         }
         const rigCreation = agentType === 'rig'
@@ -397,7 +397,7 @@ export function useStartSessionFromDraft() {
                 // every actual launch attempt, including the approved retry.
                 const latestMachine = storage.getState().machines[machine.id];
                 if (!latestMachine || !isMachineOnline(latestMachine)) {
-                    Modal.alert(t('common.error'), t("newSession.machineOffline"));
+                    Modal.alert(t('common.error'), agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'));
                     return null;
                 }
                 const latestRigCreation = agentType === 'rig'

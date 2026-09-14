@@ -1,3 +1,4 @@
+import { HomeHeaderTitle } from './HomeHeaderTitle';
 import * as React from 'react';
 import {
     View,
@@ -181,68 +182,9 @@ const TAB_TITLES = {
 // Active tabs
 type ActiveTabType = TabType;
 
-// Header title component with connection status
-const HeaderTitle = React.memo(({ activeTab }: { activeTab: ActiveTabType }) => {
-    const { theme } = useUnistyles();
-    const socketStatus = useSocketStatus();
-
-    const connectionStatus = React.useMemo(() => {
-        const { status } = socketStatus;
-        switch (status) {
-            case 'connected':
-                return {
-                    color: theme.colors.status.connected,
-                    isPulsing: false,
-                    text: t('status.connected'),
-                };
-            case 'connecting':
-                return {
-                    color: theme.colors.status.connecting,
-                    isPulsing: true,
-                    text: t('status.connecting'),
-                };
-            case 'disconnected':
-                return {
-                    color: theme.colors.status.disconnected,
-                    isPulsing: false,
-                    text: t('status.disconnected'),
-                };
-            case 'error':
-                return {
-                    color: theme.colors.status.error,
-                    isPulsing: false,
-                    text: t('status.error'),
-                };
-            default:
-                return {
-                    color: theme.colors.status.default,
-                    isPulsing: false,
-                    text: '',
-                };
-        }
-    }, [socketStatus, theme]);
-
-    return (
-        <View style={styles.titleContainer}>
-            <Text style={styles.titleText}>
-                {t(TAB_TITLES[activeTab])}
-            </Text>
-            {shouldShowHomeConnectionStatus(socketStatus.status) && connectionStatus.text && (
-                <View style={styles.statusContainer}>
-                    <StatusDot
-                        color={connectionStatus.color}
-                        isPulsing={connectionStatus.isPulsing}
-                        size={6}
-                        style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.statusText, { color: connectionStatus.color }]}>
-                        {connectionStatus.text}
-                    </Text>
-                </View>
-            )}
-        </View>
-    );
-});
+const HeaderTitle = React.memo(({ activeTab }: { activeTab: ActiveTabType }) => (
+    <HomeHeaderTitle title={t(TAB_TITLES[activeTab])} />
+));
 
 const HeaderSearch = React.memo(({
     value,

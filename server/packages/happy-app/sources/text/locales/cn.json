@@ -1900,5 +1900,17 @@
   },
   "sessions": {
     "bots": "机器人"
+  },
+  "upstreamSync": {
+    "loadFailed": "无法从 Happy Agent 加载更改。",
+    "agentUpdate": "请更新电脑上的 Happy Agent，以查看此会话的更改。",
+    "comparisonUnavailable": "此工作区无法与 origin/main 进行比较。",
+    "contentsMatch": "文件内容与比较基准一致。",
+    "truncatedFiles": "正在显示 {total} 个更改文件中的 {shown} 个。请在电脑上打开工作区查看完整列表。",
+    "approximateCounts": "此工作区的更改计数为估算值。",
+    "mergeConflicts": "此工作区有尚未解决的合并冲突。",
+    "noFileDetails": "此比较没有可用的文件详情。",
+    "agentOffline": "此电脑上的 Happy Agent 处于离线状态。",
+    "cliOffline": "此电脑上的 HappyHerd CLI 处于离线状态。请运行 `happyherd daemon start` 后重试。"
   }
 }
