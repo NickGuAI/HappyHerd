@@ -21,6 +21,33 @@ Preserve the richer HappyHerd tool-result/error protocol, bot conversation owner
 
 The candidate adapts tool/raw-patch presentation, Astra ordering/defaults, prewarming, watched-turn expansion, worktree reads, five-second daemon checks, offline guidance, off-thread syntax and detail presentation. These interaction changes still require review and functional verification.
 
+## September 17 CI repair
+
+The compiler and generated-copy failures captured below are historical preparation
+results, not the current implementation state. Commit `85ed95a4278c94f47f580bc4a22c1e9ceb8e84ce`
+repairs duplicate/undefined integration references, preserves late provider titles
+and separate errors, and reconciles imported fixtures with the retained folder-first
+header, single Workspace, explicit-model choice, and pinned-gutter diff contracts.
+The generated tokenizer moved unchanged to `sources/utils/diffSyntaxFactory.generated.ts`;
+the generator and its byte-identity check own that utility, not UI descriptors.
+The canonical localization scan passes without an added hardcoded-copy exception.
+
+Exact upstream license notices and example lockfile bytes remain intact. Their
+public attribution is distinguished from private operator data by two exact-byte
+email-classification cases, with regressions rejecting modified bytes, private
+emails, secrets, and copies at other paths. Other public-boundary checks remain active.
+
+The local CLI build/typecheck and 1,685 tests pass. The last two browser failures
+were fixture synchronization errors: the resolved RPC preceded the React render,
+and the pointer still hovered the control whose idle state was being measured.
+The corrected two-file browser bundle passes all 90 cases with the original
+user-outcome assertions and unchanged timeouts. Final-head full CI results are
+recorded in the existing PR, independently of these local receipts.
+
+No upstream history was squashed, no active CI workflow was changed, and no merge,
+deployment, native installation/restart, live-session operation, or task mutation
+is part of this repair.
+
 ## Preparation evidence
 
 Dependency lock reconciliation and frozen installation completed. Conflict paths were resolved mechanically; this is not proof of functional equivalence.

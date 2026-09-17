@@ -877,6 +877,15 @@ describe('Desktop workspace browser interaction', () => {
         await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(0);
         const collapsedGeometry = await hiddenToggleClearance();
 
+        // Clicking the collapse control leaves the pointer over its new
+        // location. Move it away before testing the unhovered idle state.
+        await page.mouse.move(
+            collapsedGeometry.boundaryToggleBox.x + collapsedGeometry.boundaryToggleBox.width + 80,
+            collapsedGeometry.boundaryToggleBox.y + collapsedGeometry.boundaryToggleBox.height + 80,
+        );
+        await expect.poll(async () => ['transparent', 'rgba(0, 0, 0, 0)'].includes(
+            await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor),
+        )).toBe(true);
         const idleBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(['transparent', 'rgba(0, 0, 0, 0)']).toContain(idleBackground);
         await boundaryToggle.hover();

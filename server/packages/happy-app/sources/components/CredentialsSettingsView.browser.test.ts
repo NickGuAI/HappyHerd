@@ -1412,7 +1412,9 @@ describe('CredentialsSettingsView browser journeys', () => {
         await expect(page.getByRole('button', { name: 'Retry', exact: true }).isDisabled()).resolves.toBe(true);
 
         await page.evaluate(() => (window as any).__FIXTURE_STATE__.releaseMutation());
-        await expect(page.getByRole('button', { name: 'Retry', exact: true }).isDisabled()).resolves.toBe(false);
+        // The RPC promise resolving is not the React commit. Verify the
+        // actual enabled control after that state reaches the rendered host.
+        await expect.poll(() => page.getByRole('button', { name: 'Retry', exact: true }).isDisabled()).toBe(false);
         await page.close();
     });
 
