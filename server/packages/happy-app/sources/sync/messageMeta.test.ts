@@ -30,7 +30,7 @@ describe('resolveMessageModeMeta', () => {
 
         expect(meta).toEqual({
             permissionMode: 'yolo',
-            model: 'gpt-5.6-sol',
+            model: 'gpt-6-astra',
             effort: 'max',
         });
     });
@@ -307,7 +307,7 @@ describe('resolveMessageModeMeta', () => {
             metadata: { flavor: 'codex' },
         } as any)).toEqual({
             permissionMode: 'default',
-            model: 'gpt-5.6-sol',
+            model: 'gpt-6-astra',
             effort: 'max',
         });
     });

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build } from 'esbuild';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
-import { resolve } from 'node:path';
+import { resolve, relative } from 'node:path';
 import { chromium, type Browser } from 'playwright-core';
 
 const appRoot = process.cwd();
@@ -30,19 +30,23 @@ const modules: Record<string, string> = {
         return typeof value === 'string' ? value.replace(/\\{(\\w+)\\}/g, (_, part) => String(args?.[part] ?? '')) : key;
     };`,
     'expo-image': `import React from 'react'; export const Image = ({source, style}) => React.createElement('img', {src:source.uri, style, alt:''});`,
-    'expo-router': `export const useRouter = () => ({push: (path) => {window.__NAVIGATION__ = path;}});`,
+    'expo-router': `import React from 'react'; export const useFocusEffect = (effect) => React.useEffect(effect, [effect]); export const useRouter = () => ({push: (path) => {window.__NAVIGATION__ = path;}});`,
     '@/sync/storage': `
         import React from 'react';
         const settings = {diffStyle: 'unified', showLineNumbersInToolViews: true, wrapLinesInDiffs: false};
         const listeners = new Set();
+        window.__SET_DIFF_SETTING__ = (key, value) => { settings[key] = value; listeners.forEach((cb) => cb()); };
         const subscribe = (cb) => { listeners.add(cb); return () => listeners.delete(cb); };
         export const useSetting = (key) => React.useSyncExternalStore(subscribe, () => settings[key]);
         export const useSettingMutable = (key) => [useSetting(key), React.useCallback((value) => { settings[key] = value; listeners.forEach((cb) => cb()); }, [key])];
         const file = (fullPath) => ({fullPath, status:'modified', isStaged:false, linesAdded:1, linesRemoved:1});
         const files = {stagedFiles: [], unstagedFiles:[file('src/example.ts'), file('assets/pixel.png')]};
         export const useSessionGitStatusFiles = () => files;
+        export const useSession = (id) => storage.getState().sessions[id] ?? null;
+        export const useLocalSetting = () => false;
         export const storage = {getState: () => ({sessions:{demo:{metadata:{path:'/workspace', machineId:'machine'}}},machines:{machine:{metadata:{platform:'linux'}}}})};
     `,
+    '@/sync/apiSocket': `export const apiSocket = { sessionRPC: async () => { throw new Error('Unexpected RPC in the legacy diff fixture'); } };`,
     '@/sync/ops': `
         window.__COMMANDS__ = [];
         export const sessionBash = async (_, request) => {
@@ -88,11 +92,15 @@ describe('production diff journeys', () => {
             alias:{'react-native':'react-native-web'},
             define:{'process.env.NODE_ENV':'"test"','__DEV__':'false','global':'globalThis'},
             plugins:[{name:'runtime-boundaries',setup(ctx){
-                ctx.onResolve({filter:/.*/}, ({path}) => {
+                ctx.onResolve({filter:/.*/}, ({path, resolveDir}) => {
                     if (path in modules) return {path,namespace:'boundary'};
+                    if (path.startsWith('.') && resolveDir.startsWith(resolve(appRoot, 'sources'))) {
+                        const key = '@/' + relative(resolve(appRoot, 'sources'), resolve(resolveDir, path)).replace(/\.(?:tsx?|jsx?)$/, '');
+                        if (key in modules) return {path:key,namespace:'boundary'};
+                    }
                     if (path.startsWith('@/')) {
                         const base=resolve(appRoot,'sources',path.slice(2));
-                        const found=[base+'.web.tsx',base,base+'.ts',base+'.tsx'].find(existsSync);
+                        const found=[base+'.web.tsx',base+'.web.ts',base,base+'.ts',base+'.tsx',base+'/index.ts',base+'/index.tsx'].find((path) => existsSync(path) && statSync(path).isFile());
                         if (found) return {path:found};
                     }
                 });
@@ -127,6 +135,7 @@ describe('production diff journeys', () => {
             await page.getByText('newValue',{exact:false}).first().waitFor();
             const keyword=page.getByText('const',{exact:true}).first();
             expect(await keyword.evaluate((el)=>getComputedStyle(el).color)).toBe('rgb(207, 34, 46)');
+            if(width===390) expect(await keyword.evaluate((el)=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
             await page.getByRole('checkbox').click();
             await page.waitForFunction(()=> (window as any).__COMMANDS__.some((c:string)=>c.includes(' -w ')));
             await page.getByText(/9 unchanged|9.*lines|diff\.unchangedLines/).first().click();
@@ -137,7 +146,6 @@ describe('production diff journeys', () => {
             await page.locator('img').first().waitFor();
             expect(await page.locator('img').count()).toBe(2);
             await page.waitForFunction(()=>Array.from(document.images).every((img)=>img.complete && img.naturalWidth>0));
-            if(width===390) expect(await keyword.evaluate((el)=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
             expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
             expect(errors).toEqual([]);
             await page.close();
@@ -163,7 +171,12 @@ describe('production diff journeys', () => {
             expect(await page.evaluate(()=>(window as any).__NAVIGATION__)).toBe('/session/demo/message/edit?file=src%2F100%25%20ready.ts');
             expect(await page.getByText('removed',{exact:false}).count()).toBe(1);
             expect(await page.getByText('value',{exact:false}).count()).toBe(2);
-            expect(await page.getByText('value',{exact:false}).first().evaluate((el)=>getComputedStyle(el).whiteSpace)).toBe('pre-wrap');
+            const value = page.getByText('value',{exact:false}).first();
+            expect(await value.evaluate((el)=>getComputedStyle(el).whiteSpace)).toBe('pre');
+            await page.evaluate(() => (window as any).__SET_DIFF_SETTING__('wrapLinesInDiffs', true));
+            // The retired wrap preference must not replace the supported
+            // pinned-gutter horizontal-scrolling renderer.
+            expect(await value.evaluate((el)=>getComputedStyle(el).whiteSpace)).toBe('pre');
             await page.close();
         },20_000);
     }

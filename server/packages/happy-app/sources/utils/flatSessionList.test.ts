@@ -65,6 +65,32 @@ function project(
 }
 
 describe('buildFlatSessionRows', () => {
+    it('distinguishes identically named bots by their machine labels in either list layout', () => {
+        const rows = buildFlatSessionRows([{
+            type: 'bots',
+            sessions: [
+                row({ id: 'laptop-bot', lastActivityAt: 200, name: 'Assistant', botId: 'bot-1', botUsername: 'assistant', machineId: 'laptop', machineName: 'My Laptop' }),
+                row({ id: 'desktop-bot', lastActivityAt: 100, name: 'Assistant', botId: 'bot-2', botUsername: 'assistant', machineId: 'desktop', machineName: 'Office Mac' }),
+            ],
+        }]);
+        expect(rows.map((item) => item.projectName)).toEqual(['@assistant · My Laptop', '@assistant · Office Mac']);
+        expect(rows.every((item) => item.workspaceName === null)).toBe(true);
+    });
+
+    it('includes bot rows in recency order without inventing a project', () => {
+        const bot = row({
+            id: 'bot-session', lastActivityAt: 200,
+            botId: 'bot-1', botUsername: 'assistant',
+            path: '/home/user/Happy/Bots/assistant',
+        });
+        const rows = buildFlatSessionRows([
+            { type: 'bots', sessions: [bot] },
+            project('alpha', [{ id: '', name: null, sessions: [row({ id: 'chat', lastActivityAt: 100 })] }]),
+        ]);
+        expect(rows.map((r) => r.session.id)).toEqual(['bot-session', 'chat']);
+        expect(rows[0]).toMatchObject({ projectName: '@assistant', workspaceName: null });
+    });
+
     it('names the project and worktree each session belongs to', () => {
         const rows = buildFlatSessionRows([
             project('happy', [

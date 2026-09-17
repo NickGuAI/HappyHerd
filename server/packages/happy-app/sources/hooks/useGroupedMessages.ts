@@ -13,6 +13,8 @@ export type TextItem = {
 export type AgentWorkGroupItem = {
     type: 'agent-work-group';
     id: string;
+    /** Stable identity of the user prompt that opened this turn. */
+    turnUserMessageId: string | null;
     /** Hidden intermediate messages, in chronological (render) order. */
     messages: Message[];
     hasRunning: boolean;
@@ -146,6 +148,9 @@ function collectAgentWorkGroups(messages: Message[], turnOf: number[], collapseC
 
         const oldestIdx = Math.max(...hiddenIndexes);
         const hiddenMessages = hiddenIndexes.map((index) => messages[index]);
+        const turnUserMessageId = indexes
+            .map((index) => messages[index])
+            .find((message) => message.kind === 'user-text')?.id ?? null;
         const startedAt = Math.min(...hiddenMessages.map((msg) => msg.createdAt));
         const completedAt = messages[finalTextIndex].createdAt;
         // Members render flat when the group expands, so they are stored in
@@ -158,6 +163,7 @@ function collectAgentWorkGroups(messages: Message[], turnOf: number[], collapseC
             item: {
                 type: 'agent-work-group',
                 id: `work-${messages[oldestIdx].id}`,
+                turnUserMessageId,
                 messages: hiddenMessages,
                 hasRunning: false,
                 hasPendingPermission: hasPendingPermission(hiddenMessages),

@@ -39,7 +39,7 @@ import {
 import { formatLastSeen, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
-import { listWorktrees } from '@/utils/worktree';
+import { useWorktrees } from '@/hooks/useWorktrees';
 import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
 import {
     collectMachineChoices,
@@ -857,7 +857,6 @@ export const HomeDock = React.memo(({
     const selectedWorktreeKey = sessionType === 'worktree'
         ? worktreeKey ?? '__new__'
         : '__none__';
-    const [existingWorktrees, setExistingWorktrees] = React.useState<ModeOption[]>([]);
     const agentWorkspaces = React.useMemo(
         () => collectSessionWorkspaces({
             machineIds: placeMachineIds,
@@ -878,40 +877,18 @@ export const HomeDock = React.memo(({
     );
     const canCreateWorktree = createsNativeHappyAgentWorkspace || worktreeCreationMachine !== null;
 
-    React.useEffect(() => {
-        const path = resolveAbsolutePath(selectedPath ?? '~', selectedHomeDir);
-
-        // A Happy Agent project keeps its own workspaces, each with a name somebody chose. Those
-        // are better than the branches git reports, so git is only asked when nothing knows better.
-        // Starting in one only needs its directory, so this does not wait on the worktree
-        // capability the daemon advertises for making new ones.
-        if (selectedProjectId) {
-            setExistingWorktrees(agentWorkspaces.map((workspace) => ({
-                key: workspace.key,
-                name: workspace.name,
-                description: workspace.path,
-            })));
-            return;
-        }
-
-        if (!worktreeCreationMachine || !path) {
-            setExistingWorktrees([]);
-            return;
-        }
-
-        let cancelled = false;
-        listWorktrees(worktreeCreationMachine.id, path).then((worktrees) => {
-            if (cancelled) return;
-            setExistingWorktrees(worktrees.map((worktree) => ({
-                key: worktree.path,
-                name: worktree.branch,
-                description: worktree.path,
-            })));
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [agentWorkspaces, selectedHomeDir, selectedPath, selectedProjectId, worktreeCreationMachine]);
+    const worktreeMachineId = worktreeCreationMachine?.id ?? null;
+    const worktreeMachineOnline = worktreeCreationMachine !== null && isMachineOnline(worktreeCreationMachine);
+    const resolvedWorktreePath = resolveAbsolutePath(selectedPath ?? '~', selectedHomeDir);
+    const { worktrees } = useWorktrees(
+        worktreeMachineId,
+        resolvedWorktreePath,
+        !picksWorkspaces && supportsWorktree && worktreeMachineOnline,
+    );
+    const existingWorktrees = React.useMemo<ModeOption[]>(() => picksWorkspaces
+        ? agentWorkspaces.map((workspace) => ({ key: workspace.key, name: workspace.name, description: workspace.path }))
+        : worktrees.map((worktree) => ({ key: worktree.path, name: worktree.branch, description: worktree.path })),
+    [agentWorkspaces, picksWorkspaces, worktrees]);
 
     React.useEffect(() => {
         if (!canCreateWorktree && !picksWorkspaces && sessionType === 'worktree') {

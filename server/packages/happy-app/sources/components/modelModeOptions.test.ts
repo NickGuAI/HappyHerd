@@ -653,7 +653,7 @@ describe('modelModeOptions', () => {
         expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
         expect(getDefaultEffortKey('claude')).toBe('max');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
-        expect(getDefaultModelKey('codex')).toBe('gpt-5.6-sol');
+        expect(getDefaultModelKey('codex')).toBe('gpt-6-astra');
         expect(getDefaultEffortKey('codex')).toBe('max');
         expect(getCodexEffortLevels()).toEqual([
             { key: 'low', name: 'low' },
@@ -772,6 +772,38 @@ describe('modelModeOptions', () => {
             ['read_only', 'Read only', 'read-only'],
             ['full_access', 'Full access', 'yolo'],
         ]);
+    });
+
+    it('puts Astra first in the Happy session picker while retaining model capabilities and selection', () => {
+        const metadata = {
+            ...rigMetadataFixture,
+            currentModelCode: 'openai/gpt-5.6-sol',
+            models: [
+                { ...rigMetadataFixture.models![0], id: 'openai/gpt-5.6-sol', name: 'GPT-5.6 Sol' },
+                rigMetadataFixture.models![1],
+                {
+                    ...rigMetadataFixture.models![0],
+                    id: 'openai/gpt-6-astra',
+                    name: 'GPT-6 Astra',
+                    thinkingLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+                    defaultThinkingLevel: 'medium',
+                },
+            ],
+        };
+        const models = getAvailableModels('codex', metadata, translate);
+
+        expect(models.map((model) => model.key)).toEqual([
+            'codex:openai/gpt-6-astra',
+            'codex:openai/gpt-5.6-sol',
+            'claude:shared-model',
+        ]);
+        expect(groupModelModesByProvider(models)[0].models[0]).toMatchObject({
+            name: 'GPT-6 Astra',
+            thinkingLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+            defaultThinkingLevel: 'medium',
+        });
+        expect(resolveCurrentOption(models, ['codex:openai/gpt-5.6-sol'])?.name).toBe('GPT-5.6 Sol');
+        expect(metadata.currentModelCode).toBe('openai/gpt-5.6-sol');
     });
 
     it('shows a missing current Rig model as unavailable instead of selecting another model', () => {

@@ -121,6 +121,35 @@ describe('Rig machine session creation', () => {
         ])).toBeNull();
     });
 
+    it.each([true, false])('puts Astra first in dock options without changing defaults (published: %s)', (publishedDefault) => {
+        const metadata = {
+            ...rigMachine,
+            defaults: publishedDefault ? { providerId: 'codex', modelId: 'openai/gpt-5.6-sol' } : undefined,
+            models: [
+                { providerId: 'codex', id: 'openai/gpt-5.6-sol', thinkingLevels: ['medium'] },
+                { providerId: 'claude', id: 'anthropic/opus-5', thinkingLevels: ['high'] },
+                {
+                    providerId: 'codex', id: 'openai/gpt-6-astra', name: 'GPT-6 Astra',
+                    thinkingLevels: ['medium', 'high', 'ultra'], defaultThinkingLevel: 'high',
+                },
+            ],
+        } as unknown as MachineMetadata;
+        const creation = getRigMachineSessionCreation(metadata);
+
+        expect(creation?.models.map((model) => model.key)).toEqual([
+            'codex:openai/gpt-6-astra',
+            'codex:openai/gpt-5.6-sol',
+            'claude:anthropic/opus-5',
+        ]);
+        expect(creation?.defaultModelKey).toBe('codex:openai/gpt-5.6-sol');
+        expect(creation?.effortsForModel('codex:openai/gpt-6-astra')).toEqual(['medium', 'high', 'ultra']);
+        expect(buildRigSpawnConfiguration(metadata, {
+            directory: '/Users/rig/project',
+            clientRequestId: 'astra-picker',
+            modelKey: creation?.models[0].key,
+        })).toMatchObject({ providerId: 'codex', modelId: 'openai/gpt-6-astra', effort: 'high' });
+    });
+
     it("builds Rig's exact provider-qualified spawn payload", () => {
         expect(buildRigSpawnConfiguration(rigMachine, {
             directory: '/Users/rig/project',

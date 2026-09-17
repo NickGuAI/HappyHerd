@@ -7,15 +7,20 @@ import { ToolCall } from '@/sync/typesMessage';
 import { ToolSectionView } from '../ToolSectionView';
 import { Metadata } from '@/sync/storageTypes';
 import { resolvePath } from '@/utils/pathUtils';
-import { t } from '@/text';
 import { ToolDiffView } from '@/components/tools/ToolDiffView';
+import { DiffFileHeader } from '@/components/diff/DiffFileHeader';
+import { useDiffPalette } from '@/components/diff/DiffPalette';
 import { countContentStats, countPatchStats } from '@/components/diff/engine/stats';
 import { materializeUnifiedDiffPatch } from '@/utils/codexUnifiedDiff';
+import { CodeView } from '@/components/CodeView';
+import { ToolError } from '../ToolError';
+import { toolResultText } from '@/utils/toolResult';
+import { t } from '@/text';
 import {
     getPatchChanges,
     getPatchInput,
-    getPatchKindLabel,
     getPatchKindType,
+    getPatchKindLabel,
     getPatchMovePath,
     type CodexPatchEntry,
 } from '@/utils/codexPatchEntry';
@@ -47,11 +52,12 @@ export const CodexPatchView = React.memo<CodexPatchViewProps>(({ tool, metadata,
     const entries = changes ? Object.entries(changes) : [];
 
     if (entries.length === 0) {
-        return null;
+        return <PatchFallback tool={tool} permissionFooter={permissionFooter} />;
     }
 
     return (
         <>
+            <PatchError tool={tool} />
             {entries.map(([file, change], index) => (
                 <CodexPatchFileView
                     key={file}
@@ -78,7 +84,7 @@ export const CodexPatchViewFull = React.memo<CodexPatchViewProps>(({ tool, metad
     const entries = focused.length > 0 ? focused : allEntries;
 
     if (entries.length === 0) {
-        return null;
+        return <PatchFallback tool={tool} showError={false} />;
     }
 
     return (
@@ -90,14 +96,30 @@ export const CodexPatchViewFull = React.memo<CodexPatchViewProps>(({ tool, metad
     );
 });
 
+function PatchError({ tool }: { tool: ToolCall }) {
+    return tool.state === 'error' && tool.result != null
+        ? <ToolError message={toolResultText(tool.result) ?? ''} /> : null;
+}
+
+/** A rejected or future patch format must never become a blank, headerless card. */
+function PatchFallback({ tool, permissionFooter, showError = true }: { tool: ToolCall; permissionFooter?: React.ReactNode; showError?: boolean }) {
+    const rawPatch = typeof tool.input?.patch === 'string' ? tool.input.patch
+        : typeof tool.input?.input === 'string' ? tool.input.input : toolResultText(tool.input);
+    return (
+        <ToolSectionView title={t('tools.names.applyChanges')}>
+            {showError ? <PatchError tool={tool} /> : null}
+            {rawPatch ? <CodeView code={rawPatch} /> : null}
+            {permissionFooter}
+        </ToolSectionView>
+    );
+}
+
 const CodexPatchFileContent = React.memo(function CodexPatchFileContent(props: {
     file: string;
     change: CodexPatchEntry;
     metadata: Metadata | null;
 }) {
     const { file, change, metadata } = props;
-    const { theme } = useUnistyles();
-
     const filePath = resolvePath(file, metadata);
     const diffInput = getPatchInput(change);
     const kindLabel = localizedPatchKind(change);
@@ -115,20 +137,7 @@ const CodexPatchFileContent = React.memo(function CodexPatchFileContent(props: {
 
     return (
         <View style={styles.fullViewFile}>
-            <View style={styles.fileHeader}>
-                <View style={styles.fileHeaderMain}>
-                    <Octicons name="file-diff" size={16} color={theme.colors.textSecondary} />
-                    <Text style={styles.filePath}>{filePath}</Text>
-                    {kindLabel ? <Text style={styles.kindLabel}>{kindLabel}</Text> : null}
-                    {stats && (stats.additions > 0 || stats.deletions > 0) ? (
-                        <View style={styles.stats}>
-                            {stats.additions > 0 ? <Text style={styles.added}>+{stats.additions}</Text> : null}
-                            {stats.deletions > 0 ? <Text style={styles.removed}>-{stats.deletions}</Text> : null}
-                        </View>
-                    ) : null}
-                </View>
-                {movePath ? <Text style={styles.movePath}>{movePath}</Text> : null}
-            </View>
+            <PatchFileHeader path={filePath} change={change} movePath={movePath} stats={stats} />
             {displayPatch ? (
                 <ToolDiffView patch={displayPatch} fileName={fileName} />
             ) : diffInput?.kind === 'pair' && (diffInput.oldText.length > 0 || diffInput.newText.length > 0) ? (
@@ -183,27 +192,21 @@ const CodexPatchFileView = React.memo(function CodexPatchFileView(props: {
             <View style={styles.editedFileGroup}>
                 <View style={styles.patchContainer}>
                     <Pressable
-                        accessibilityRole="button"
                         accessibilityLabel={filePath}
                         onPress={canOpen ? openFullDiff : undefined}
                         disabled={!canOpen}
-                        style={({ pressed }) => [styles.fileHeader, pressed && styles.fileHeaderPressed]}
+                        accessibilityRole={canOpen ? 'button' : undefined}
+                        style={({ pressed }) => pressed && styles.fileHeaderPressed}
                     >
-                        <View style={styles.fileHeaderMain}>
-                            <Octicons name="file-diff" size={16} color={theme.colors.textSecondary} />
-                            <Text style={styles.filePath}>{filePath}</Text>
-                            {kindLabel ? <Text style={styles.kindLabel}>{kindLabel}</Text> : null}
-                            {stats && (stats.additions > 0 || stats.deletions > 0) ? (
-                                <View style={styles.stats}>
-                                    {stats.additions > 0 ? <Text style={styles.added}>+{stats.additions}</Text> : null}
-                                    {stats.deletions > 0 ? <Text style={styles.removed}>-{stats.deletions}</Text> : null}
-                                </View>
-                            ) : null}
-                            {canOpen ? (
+                        <PatchFileHeader
+                            path={filePath}
+                            change={change}
+                            movePath={movePath}
+                            stats={stats}
+                            right={canOpen ? (
                                 <Octicons name="chevron-right" size={14} color={theme.colors.textSecondary} />
                             ) : null}
-                        </View>
-                        {movePath ? <Text style={styles.movePath}>{movePath}</Text> : null}
+                        />
                     </Pressable>
                     {displayPatch ? (
                         <ToolDiffView patch={displayPatch} fileName={fileName} />
@@ -225,12 +228,37 @@ const CodexPatchFileView = React.memo(function CodexPatchFileView(props: {
     );
 });
 
+/** Chat patches and View Changes use the same file heading and palette. */
+function PatchFileHeader({ path, change, movePath, stats, right }: {
+    path: string;
+    change: CodexPatchEntry;
+    movePath: string | null;
+    stats: { additions: number; deletions: number } | null;
+    right?: React.ReactNode;
+}) {
+    const palette = useDiffPalette();
+    const kind = getPatchKindType(change);
+    return (
+        <View style={{ backgroundColor: palette.hunkBg }}>
+            <DiffFileHeader
+                file={{
+                    path,
+                    kind: movePath ? 'renamed' : kind === 'add' ? 'added' : kind === 'delete' ? 'deleted' : 'modified',
+                    additions: stats?.additions ?? 0,
+                    deletions: stats?.deletions ?? 0,
+                }}
+                right={right}
+            />
+            {movePath ? <Text style={[styles.movePath, { color: palette.textSecondary }]}>{movePath}</Text> : null}
+        </View>
+    );
+}
+
 const styles = StyleSheet.create((theme) => ({
     editedFileGroup: {
         gap: 0,
     },
-    // Flush inside the tool card rather than a rounded box within a rounded
-    // box; files are separated by the header's own rule instead of a border.
+    // Flush inside the tool card, with the same header/body seam as View Changes.
     patchContainer: {
         backgroundColor: theme.colors.surface,
         overflow: 'hidden',
@@ -242,41 +270,11 @@ const styles = StyleSheet.create((theme) => ({
     fileHeaderPressed: {
         opacity: 0.6,
     },
-    fileHeader: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        backgroundColor: theme.colors.surfaceHigh,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.divider,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.divider,
-        gap: 4,
-    },
-    fileHeaderMain: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    filePath: {
-        fontSize: 13,
-        color: theme.colors.text,
-        fontFamily: 'monospace',
-        flex: 1,
-    },
-    kindLabel: {
-        fontSize: 11,
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.6,
-    },
     movePath: {
         fontSize: 12,
-        color: theme.colors.textSecondary,
         fontFamily: 'monospace',
-    },
-    stats: {
-        flexDirection: 'row',
-        gap: 8,
+        paddingHorizontal: 12,
+        paddingBottom: 9,
     },
     fullViewContainer: {
         gap: 16,
@@ -289,15 +287,5 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: theme.colors.divider,
-    },
-    added: {
-        fontSize: 12,
-        fontFamily: 'monospace',
-        color: '#34C759',
-    },
-    removed: {
-        fontSize: 12,
-        fontFamily: 'monospace',
-        color: '#FF3B30',
     },
 }));

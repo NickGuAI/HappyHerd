@@ -1900,5 +1900,17 @@
   },
   "sessions": {
     "bots": "Bots"
+  },
+  "upstreamSync": {
+    "loadFailed": "Could not load changes from Happy Agent.",
+    "agentUpdate": "Update Happy Agent on your computer to view changes in this session.",
+    "comparisonUnavailable": "A comparison with origin/main is not available for this workspace.",
+    "contentsMatch": "File contents match the comparison base.",
+    "truncatedFiles": "Showing {shown} of {total} changed files. Open the workspace on your computer to see the full list.",
+    "approximateCounts": "Change counts are approximate for this workspace.",
+    "mergeConflicts": "This workspace has unresolved merge conflicts.",
+    "noFileDetails": "No file details are available for this comparison.",
+    "agentOffline": "Happy Agent is offline on this computer.",
+    "cliOffline": "HappyHerd CLI is offline on this computer. Run `happyherd daemon start`, then try again."
   }
 }

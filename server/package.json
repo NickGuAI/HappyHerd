@@ -34,7 +34,8 @@
             "packages/happy-wire",
             "packages/happy-app-logs",
             "packages/happyherd-agent",
-            "packages/codium"
+            "packages/codium",
+            "packages/expo-tailcat"
         ]
     },
     "pnpm": {

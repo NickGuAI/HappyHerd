@@ -90,7 +90,9 @@ export default function RootLayout() {
             <Stack.Screen
                 name="session/[id]/message/[messageId]"
                 options={{
+                    header: createPlainHeader,
                     headerShown: true,
+                    headerTitleAlign: 'center',
                     headerBackTitle: t('common.back'),
                     headerTitle: t('common.message')
                 }}

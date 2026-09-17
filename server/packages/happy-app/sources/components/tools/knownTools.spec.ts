@@ -15,4 +15,8 @@ describe('knownTools', () => {
     it('hides Claude Skill tool calls from chat rendering', () => {
         expect((knownTools as Record<string, { hidden?: boolean }>).Skill?.hidden).toBe(true);
     });
+    it('hides provider-only tool discovery under both vendor names', () => {
+        expect(knownTools.ToolSearch.hidden).toBe(true);
+        expect(knownTools.tool_search.hidden).toBe(true);
+    });
 });

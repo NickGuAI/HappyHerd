@@ -1,6 +1,8 @@
 import { ToolCall } from '@/sync/typesMessage';
 import { t } from '@/text';
+import { getPatchChanges } from './codexPatchEntry';
 import { stringifyToolCommand } from './toolCommand';
+import { getShellControl, happyToolDisplay } from './happyToolDisplay';
 
 export type ToolDisplayRuntimeState = ToolCall['state'] | 'interrupted';
 
@@ -108,21 +110,17 @@ export function formatMCPTitle(toolName: string): string {
 }
 
 export function isTerminalToolName(name: string): boolean {
-    return TERMINAL_TOOL_NAMES.has(name);
+    return TERMINAL_TOOL_NAMES.has(name) || happyToolDisplay[name]?.category === 'terminal';
 }
 
 /**
  * Patch tools draw a header per changed file, naming the file and its stats.
  * A card header above that would only repeat the same name, so it is dropped.
  */
-const SELF_HEADING_TOOL_NAMES = new Set(['CodexPatch', 'GeminiPatch']);
+const SELF_HEADING_TOOL_NAMES = new Set(['CodexPatch', 'GeminiPatch', 'apply_patch']);
 
 export function shouldRenderToolCardHeader(toolName: string, _platformOS: string): boolean {
     return !SELF_HEADING_TOOL_NAMES.has(toolName);
-}
-
-export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
-    return tool.title?.trim() || tool.name;
 }
 
 export function formatToolDisplayValue(value: unknown): string {
@@ -152,10 +150,10 @@ export function isToolIdentityCompatibleWithFlavor(toolName: string, flavor: str
 export function shouldUseCompactToolRow(
     tool: Pick<ToolCall, 'name' | 'permission'>,
     compactMode: boolean,
+    hasInlineView: boolean = true,
 ): boolean {
     if (
-        !compactMode
-        || tool.name === 'file'
+        tool.name === 'file'
         || isInteractiveQuestionToolName(tool.name)
         || tool.name === 'Subagent'
     ) {
@@ -166,8 +164,11 @@ export function shouldUseCompactToolRow(
     if (isPlanProposal && tool.permission?.status === 'pending') {
         return false;
     }
+    if (!hasInlineView && tool.permission?.status === 'pending') return false;
 
-    return true;
+    // Unknown operations get an activity row by default, with raw data on the
+    // detail screen. Pending approvals still need their arguments visible.
+    return compactMode || !hasInlineView;
 }
 
 export function isInteractiveQuestionToolName(name: string): boolean {
@@ -175,6 +176,8 @@ export function isInteractiveQuestionToolName(name: string): boolean {
 }
 
 export function getToolSummaryCategory(toolName: string): ToolSummaryCategory {
+    const happyCategory = happyToolDisplay[toolName]?.category;
+    if (happyCategory) return happyCategory;
     if (TERMINAL_TOOL_NAMES.has(toolName)) {
         return 'terminal';
     }
@@ -230,6 +233,15 @@ export function getToolSummaryDetail(tool: Pick<ToolCall, 'name' | 'input' | 'de
         return url.trim();
     }
 
+    const args = tool.input?.input && typeof tool.input.input === 'object'
+        ? tool.input.input : tool.input;
+    // Only display identifiers / short descriptive fields, never raw code,
+    // message bodies, secrets, or the entire argument object in the chat row.
+    for (const key of ['query', 'title', 'name', 'objective', 'workspaceId', 'requestId', 'ask_id', 'id', 'task_id', 'toAgentId', 'targetAgentId', 'target', 'agent_id', 'server', 'at']) {
+        const value = args?.[key];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+
     return tool.description?.trim() || null;
 }
 
@@ -244,18 +256,32 @@ export function getToolActivityLabel(tool: Pick<ToolCall, 'name' | 'title' | 'in
         return providerTitle;
     }
 
-    const summaryDetail = getToolSummaryDetail(tool);
+    // The command is the primary information, even when a provider supplies a
+    // purpose or a boilerplate description such as "Running CodexBash".
+    const command = getTerminalToolCommand(tool);
+    if (command) return command;
+    const control = getShellControl(tool);
+    if (control) return control.label;
+    // Do not confuse the description fallback with an argument-derived detail:
+    // otherwise an unknown tool repeats its title before its own description.
+    const summaryDetail = getToolSummaryDetail({ ...tool, description: null });
+
     const detail = isGenericToolDescription(tool.name, summaryDetail) ? null : summaryDetail;
     const providerDescription = getProviderActivityDescription(tool, detail);
     if (providerDescription) {
         return providerDescription;
     }
 
-    const action = getToolActivityAction(getToolSummaryCategory(tool.name), tool.name);
+    const action = happyToolDisplay[tool.name]?.title
+        ?? getToolActivityAction(getToolSummaryCategory(tool.name), tool.name);
     if (!detail || normalizeActivityText(detail) === normalizeActivityText(action)) {
         return action;
     }
     return `${action}: ${detail}`;
+}
+
+export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
+    return tool.title?.trim() || happyToolDisplay[tool.name]?.title || tool.name;
 }
 
 export function getTerminalToolCommand(tool: Pick<ToolCall, 'name' | 'input'>): string | null {
@@ -301,6 +327,8 @@ function getProviderActivityDescription(
     const normalizedDescription = normalizeActivityText(description);
     const genericDescriptions = new Set([
         normalizeActivityText(tool.name),
+        normalizeActivityText(formatToolName(tool.name)),
+        normalizeActivityText(`Running ${tool.name}`),
         normalizeActivityText(`Running ${formatToolName(tool.name)}`),
         'terminal',
         'bash',
@@ -358,6 +386,7 @@ function isGenericToolDescription(toolName: string, value: string | null): boole
     const normalized = normalizeActivityText(value);
     return normalized === normalizeActivityText(toolName)
         || normalized === normalizeActivityText(formatToolName(toolName))
+        || normalized === normalizeActivityText(`Running ${toolName}`)
         || normalized === normalizeActivityText(`Running ${formatToolName(toolName)}`);
 }
 
@@ -381,33 +410,5 @@ function formatToolName(value: string): string {
 }
 
 function getPatchFiles(input: any): string[] {
-    if (input?.changes && typeof input.changes === 'object' && !Array.isArray(input.changes)) {
-        return Object.keys(input.changes);
-    }
-    if (input?.fileChanges && typeof input.fileChanges === 'object' && !Array.isArray(input.fileChanges)) {
-        return Object.keys(input.fileChanges);
-    }
-    if (Array.isArray(input?.changes)) {
-        return input.changes
-            .map((change: unknown) => {
-                if (!change || typeof change !== 'object' || Array.isArray(change)) {
-                    return null;
-                }
-                const path = (change as { path?: unknown }).path;
-                return typeof path === 'string' && path.trim().length > 0 ? path.trim() : null;
-            })
-            .filter((path: string | null): path is string => path !== null);
-    }
-    if (Array.isArray(input?.fileChanges)) {
-        return input.fileChanges
-            .map((change: unknown) => {
-                if (!change || typeof change !== 'object' || Array.isArray(change)) {
-                    return null;
-                }
-                const path = (change as { path?: unknown }).path;
-                return typeof path === 'string' && path.trim().length > 0 ? path.trim() : null;
-            })
-            .filter((path: string | null): path is string => path !== null);
-    }
-    return [];
+    return Object.keys(getPatchChanges(input) ?? {});
 }

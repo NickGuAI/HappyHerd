@@ -38,7 +38,8 @@ import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
-import { createWorktree, listWorktrees } from '@/utils/worktree';
+import { createWorktree } from '@/utils/worktree';
+import { useWorktrees } from '@/hooks/useWorktrees';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -1276,38 +1277,17 @@ function NewSessionScreen() {
     const canPickWorktree = supportsWorktree || picksWorkspaces;
     const canCreateWorktree = createsNativeHappyAgentWorkspace || supportsWorktree;
 
-    // Fetch existing worktrees/workspaces from the selected computer/path
-    const [worktreeItems, setWorktreeItems] = React.useState<PickerItem[]>([]);
-    React.useEffect(() => {
-        if (!debouncedResolvedSelectedPath) {
-            setWorktreeItems([]);
-            return;
-        }
-
-        if (picksWorkspaces) {
-            setWorktreeItems(agentWorkspaces.map((workspace) => ({
-                key: workspace.key,
-                label: workspace.name,
-                subtitle: workspace.path,
-            })));
-            return;
-        }
-
-        if (!supportsWorktree || !worktreeMachine || !isMachineOnline(worktreeMachine)) {
-            setWorktreeItems([]);
-            return;
-        }
-        let cancelled = false;
-        listWorktrees(worktreeMachine.id, debouncedResolvedSelectedPath).then(worktrees => {
-            if (cancelled) return;
-            setWorktreeItems(worktrees.map(wt => ({
-                key: wt.path,
-                label: wt.branch,
-                subtitle: wt.path,
-            })));
-        });
-        return () => { cancelled = true; };
-    }, [agentWorkspaces, debouncedResolvedSelectedPath, picksWorkspaces, supportsWorktree, worktreeMachine]);
+    const worktreeMachineId = worktreeMachine?.id ?? null;
+    const worktreeMachineOnline = worktreeMachine !== null && isMachineOnline(worktreeMachine);
+    const { worktrees } = useWorktrees(
+        worktreeMachineId,
+        debouncedResolvedSelectedPath,
+        !picksWorkspaces && supportsWorktree && worktreeMachineOnline,
+    );
+    const worktreeItems = React.useMemo<PickerItem[]>(() => !debouncedResolvedSelectedPath ? [] : picksWorkspaces
+        ? agentWorkspaces.map((workspace) => ({ key: workspace.key, label: workspace.name, subtitle: workspace.path }))
+        : worktrees.map((worktree) => ({ key: worktree.path, label: worktree.branch, subtitle: worktree.path })),
+    [agentWorkspaces, debouncedResolvedSelectedPath, picksWorkspaces, worktrees]);
 
     React.useEffect(() => {
         if (!canPickWorktree) {
@@ -1979,7 +1959,7 @@ function NewSessionScreen() {
 
         const initialContext = resolveLatestLaunchContext();
         if (initialContext.status === 'offline') {
-            Modal.alert(t('common.error'), t("newSession.machineOffline"));
+            Modal.alert(t('common.error'), agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'));
             return;
         }
         if (initialContext.status === 'unavailable') {
@@ -2057,7 +2037,7 @@ function NewSessionScreen() {
 
             const spawnContext = resolveLatestLaunchContext();
             if (spawnContext.status === 'offline') {
-                Modal.alert(t('common.error'), t("newSession.machineOffline"));
+                Modal.alert(t('common.error'), agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'));
                 return;
             }
             if (spawnContext.status === 'unavailable') {
@@ -2512,7 +2492,7 @@ function NewSessionScreen() {
                                 <Ionicons name="cloud-offline-outline" size={14} color={theme.colors.status.disconnected} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.offlineHelpTitle, { color: theme.colors.status.disconnected }]}>
-                                        {t('newSession.machineOffline')}
+                                        {selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
                                     </Text>
                                     <Text style={[styles.offlineHelpText, { color: theme.colors.textSecondary }]}>
                                         {t('machine.offlineHelp')}
@@ -2729,7 +2709,7 @@ function NewSessionScreen() {
                                 <Ionicons name="cloud-offline-outline" size={14} color={theme.colors.status.disconnected} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.offlineHelpTitle, { color: theme.colors.status.disconnected }]}>
-                                        {t('newSession.machineOffline')}
+                                        {selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
                                     </Text>
                                     <Text style={[styles.offlineHelpText, { color: theme.colors.textSecondary }]}>
                                         {t('machine.offlineHelp')}

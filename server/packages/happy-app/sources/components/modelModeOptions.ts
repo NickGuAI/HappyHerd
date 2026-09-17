@@ -3,6 +3,7 @@ import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_AGY_EFFORTS, HAPPYHERD_DEFAULT_AGY
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
+import { sortRigModelsForPicker } from '@/utils/rigModelPickerOrder';
 import { compareVersionsWithPrerelease, isWellFormedVersion } from '@/utils/versionUtils';
 import {
     getRigCurrentModel,
@@ -461,7 +462,7 @@ export function getAvailableModels(
 ): ModelMode[] {
     const translateWithParams = translate as (key: any, params: Record<string, string | number | boolean>) => string;
     if (isRigMetadataV1(metadata)) {
-        const models: ModelMode[] = getRigModels(metadata).map((model) => ({
+        const models: ModelMode[] = sortRigModelsForPicker(getRigModels(metadata)).map((model) => ({
             key: model.key,
             name: model.name,
             description: model.providerName,

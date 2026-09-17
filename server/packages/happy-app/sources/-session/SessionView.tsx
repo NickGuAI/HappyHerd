@@ -1,3 +1,5 @@
+import { useIsFocused } from '@react-navigation/native';
+import { useSessionVisibility } from '@/hooks/useSessionVisibility';
 import { AgentContentView } from '@/components/AgentContentView';
 import { MobileGlassBackdrop } from '@/components/MobileGlass';
 import { AgentGoalBar, type AgentGoalAction } from '@/components/AgentGoalBar';
@@ -163,6 +165,7 @@ export const SessionView = React.memo((props: {
     onOpenChangesRequestConsumed?: (requestId: string) => void;
 }) => {
     const sessionId = props.id;
+    const isFocused = useIsFocused();
     const router = useRouter();
     const session = useSession(sessionId);
     const sideChatMachineId = session?.metadata?.machineId ?? '';
@@ -957,7 +960,8 @@ export const SessionView = React.memo((props: {
     const canOverlayBack = overlayHistory.cursor > 0;
     const canOverlayForward = overlayHistory.cursor < overlayHistory.stack.length - 1;
     React.useEffect(() => {
-        useOverlayNav.getState().publish({
+        if (!isFocused) return;
+        const controls = {
             canBack: canOverlayBack,
             canForward: canOverlayForward,
             back: () => {
@@ -976,9 +980,12 @@ export const SessionView = React.memo((props: {
                 )));
                 return true;
             },
-        });
-        return () => useOverlayNav.getState().reset();
-    }, [canOverlayBack, canOverlayForward, withFileDiscardConfirmation]);
+        };
+        useOverlayNav.getState().publish(controls);
+        return () => {
+            if (useOverlayNav.getState().back === controls.back) useOverlayNav.getState().reset();
+        };
+    }, [isFocused, canOverlayBack, canOverlayForward, withFileDiscardConfirmation]);
 
     React.useEffect(() => {
         prefetchPierreDiff();
@@ -1118,6 +1125,7 @@ export const SessionView = React.memo((props: {
                     </View>
                 ) : (
                     <SessionViewLoaded
+                        active={isFocused}
                         key={sessionId}
                         sessionId={sessionId}
                         session={session}
@@ -1499,12 +1507,14 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
 });
 
 export function SessionViewLoaded({
+    active = true,
     sessionId,
     session,
     focusMessageId,
     embedded = false,
     onHeaderBackdropVisibilityChange,
 }: {
+    active?: boolean;
     sessionId: string;
     session: Session;
     focusMessageId?: string;
@@ -2077,40 +2087,14 @@ export function SessionViewLoaded({
     // pill. The composer microphone is reserved for OpenAI dictation.
     const voiceSessionActive = realtimeStatus === 'connected' || realtimeStatus === 'connecting';
 
-    // Track route visibility only. App foregrounding and socket reconnects
-    // reconcile the current conversation inside Sync without remounting it.
-    React.useLayoutEffect(() => {
-
-        // Trigger session sync
-        sync.onSessionVisible(sessionId);
-
-        // Mark session as currently being viewed (clears unread). Skipped when
-        // embedded (e.g. the side-chat panel) so a second mounted chat body
-        // doesn't steal "currently viewing" from the primary session.
-        if (!embedded) {
-            storage.getState().setCurrentViewingSession(sessionId);
-        }
-
-        // Initialize git status sync for this session
-        gitStatusSync.getSync(sessionId).invalidate();
-
-        return () => {
-            if (embedded) {
-                return;
-            }
-            // Clear viewing session on unmount
-            const current = storage.getState().currentViewingSessionId;
-            if (current === sessionId) {
-                storage.getState().setCurrentViewingSession(null);
-            }
-        };
-    }, [sessionId, embedded]);
+    useSessionVisibility(sessionId, active, embedded, realtimeStatus);
 
     let content = (
         <>
             <Deferred>
                 {messages.length > 0 && (
                     <ChatList
+                        active={active}
                         session={session}
                         focusMessageId={focusMessageId}
                         topContentInset={chatListTopContentInset}

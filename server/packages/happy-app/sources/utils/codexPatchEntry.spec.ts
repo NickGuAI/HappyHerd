@@ -4,6 +4,7 @@ import {
     getPatchInput,
     getPatchKindLabel,
     looksLikeUnifiedDiff,
+    parseApplyPatchEnvelope,
 } from './codexPatchEntry';
 
 describe('looksLikeUnifiedDiff', () => {
@@ -96,5 +97,116 @@ describe('getPatchChanges', () => {
     it('returns null when there is no change map at all', () => {
         expect(getPatchChanges({})).toBeNull();
         expect(getPatchChanges({ changes: [] })).toBeNull();
+    });
+
+    it('parses the raw envelope from the Rig `patch` and codex `input` arguments', () => {
+        const envelope = '*** Begin Patch\n*** Update File: a.ts\n@@\n-was\n+is\n*** End Patch\n';
+        for (const input of [{ patch: envelope }, { input: envelope }]) {
+            const changes = getPatchChanges(input);
+            expect(changes?.['a.ts']?.modify).toEqual({ old_content: 'was', new_content: 'is' });
+        }
+    });
+
+    it('ignores strings that are not a patch envelope', () => {
+        expect(getPatchChanges({ patch: 'just some text' })).toBeNull();
+        expect(getPatchChanges({ input: '-was\n+is\n' })).toBeNull();
+    });
+
+    it('honors an explicit workdir for both file and move paths', () => {
+        const changes = getPatchChanges({
+            workdir: '/repo/packages/app',
+            patch: '*** Begin Patch\n*** Update File: ../a.ts\n*** Move to: src/b.ts\n@@\n-old\n+new\n*** End Patch',
+        });
+        expect(Object.keys(changes ?? {})).toEqual(['/repo/packages/a.ts']);
+        expect(changes?.['/repo/packages/a.ts'].kind?.move_path).toBe('/repo/packages/app/src/b.ts');
+    });
+
+    it('returns invalid maps to the raw fallback rather than crashing the renderer', () => {
+        expect(getPatchChanges({ changes: { 'a.ts': null } })).toBeNull();
+        expect(getPatchChanges({ fileChanges: { 'a.ts': 5 } })).toBeNull();
+    });
+});
+
+describe('parseApplyPatchEnvelope', () => {
+    it('parses add, update, and delete sections into a change map', () => {
+        const changes = parseApplyPatchEnvelope([
+            '*** Begin Patch',
+            '*** Add File: docs/new.md',
+            '+# Title',
+            '+',
+            '+Body',
+            '*** Update File: src/a.ts',
+            '@@ export function main() {',
+            '     before',
+            '-    return 1;',
+            '+    return 2;',
+            '     after',
+            '*** Delete File: src/gone.ts',
+            '*** End Patch',
+            '',
+        ].join('\n'));
+
+        expect(Object.keys(changes ?? {})).toEqual(['docs/new.md', 'src/a.ts', 'src/gone.ts']);
+        expect(changes?.['docs/new.md']).toEqual({
+            kind: { type: 'add', move_path: null },
+            add: { content: '# Title\n\nBody' },
+        });
+        expect(getPatchKindLabel(changes!['src/gone.ts'])).toBe('delete');
+
+        // The anchor and context lines land on both sides so the diff view
+        // recomputes exactly the +/- lines.
+        expect(changes?.['src/a.ts']?.modify).toEqual({
+            old_content: 'export function main() {\n    before\n    return 1;\n    after',
+            new_content: 'export function main() {\n    before\n    return 2;\n    after',
+        });
+    });
+
+    it('records a move and keeps the update keyed by the original path', () => {
+        const changes = parseApplyPatchEnvelope([
+            '*** Begin Patch',
+            '*** Update File: src/old.ts',
+            '*** Move to: src/new.ts',
+            '@@',
+            '-a',
+            '+b',
+            '*** End Patch',
+        ].join('\n'));
+
+        expect(changes?.['src/old.ts']?.kind).toEqual({ type: 'update', move_path: 'src/new.ts' });
+        expect(getPatchKindLabel(changes!['src/old.ts'])).toBe('move');
+    });
+
+    it('tolerates unprefixed context and skips End of File markers', () => {
+        const changes = parseApplyPatchEnvelope([
+            '*** Begin Patch',
+            '*** Update File: a.txt',
+            'context without prefix',
+            '-old',
+            '+new',
+            '*** End of File',
+            '*** End Patch',
+        ].join('\n'));
+
+        expect(changes?.['a.txt']?.modify).toEqual({
+            old_content: 'context without prefix\nold',
+            new_content: 'context without prefix\nnew',
+        });
+    });
+
+    it('returns null for an envelope with no file sections', () => {
+        expect(parseApplyPatchEnvelope('*** Begin Patch\n*** End Patch\n')).toBeNull();
+    });
+
+    it('refuses incomplete, unknown, or repeated operations so the raw fallback remains visible', () => {
+        expect(parseApplyPatchEnvelope('*** Begin Patch\n*** Add File: a\n+x')).toBeNull();
+        expect(parseApplyPatchEnvelope('*** Begin Patch\n*** Add File: a\n+x\n*** End Patch\ntrailing')).toBeNull();
+        expect(parseApplyPatchEnvelope('*** Begin Patch\n*** Add File: a\n+x\n*** Unknown\n*** End Patch')).toBeNull();
+        expect(parseApplyPatchEnvelope('*** Begin Patch\n*** Add File: a\n+x\n*** Add File: a\n+y\n*** End Patch')).toBeNull();
+    });
+
+    it('preserves anchor whitespace and prototype-looking file names', () => {
+        const changes = parseApplyPatchEnvelope('*** Begin Patch\n*** Update File: __proto__\n@@     function f() {\n-old\n+new\n*** End Patch');
+        expect(Object.keys(changes ?? {})).toEqual(['__proto__']);
+        expect(changes?.['__proto__'].modify?.old_content).toBe('    function f() {\nold');
     });
 });

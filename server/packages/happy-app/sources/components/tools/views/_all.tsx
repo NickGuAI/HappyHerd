@@ -20,6 +20,7 @@ import { GeminiEditView } from './GeminiEditView';
 import { GeminiExecuteView } from './GeminiExecuteView';
 import { FileView } from './FileView';
 import { SubagentView } from './SubagentView';
+import { isTerminalToolName } from '@/utils/toolDisplay';
 
 export type ToolViewProps = {
     tool: ToolCall;
@@ -42,6 +43,8 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     CodexPatch: CodexPatchView,
     CodexDiff: CodexDiffView,
     Write: WriteView,
+    write: WriteView,
+    search_replace: EditView,
     TodoWrite: TodoView,
     ExitPlanMode: ExitPlanToolView,
     exit_plan_mode: ExitPlanToolView,
@@ -57,6 +60,9 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     // add/modify/delete change map for patches — so the Codex views handle both.
     GeminiDiff: CodexDiffView,
     GeminiPatch: CodexPatchView,
+    // Rig sessions forward the model-native tool name with the raw envelope,
+    // which getPatchChanges parses into the same change map.
+    apply_patch: CodexPatchView,
     // File attachment events
     file: FileView,
     Subagent: SubagentView,
@@ -64,12 +70,16 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
 
 export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
     Bash: BashViewFull,
-    CodexBash: CodexBashView,
+    CodexBash: BashViewFull,
     CodexPatch: CodexPatchViewFull,
     CodexDiff: CodexDiffViewFull,
     GeminiPatch: CodexPatchViewFull,
     GeminiDiff: CodexDiffViewFull,
+    apply_patch: CodexPatchViewFull,
     Edit: EditViewFull,
+    search_replace: EditViewFull,
+    Write: WriteView,
+    write: WriteView,
     MultiEdit: MultiEditViewFull,
     Task: TaskView,
     Agent: TaskView,
@@ -83,7 +93,7 @@ export function getToolViewComponent(toolName: string): ToolViewComponent | null
 
 // Helper function to get the full view component for a tool
 export function getToolFullViewComponent(toolName: string): ToolViewComponent | null {
-    return toolFullViewRegistry[toolName] || null;
+    return toolFullViewRegistry[toolName] || (isTerminalToolName(toolName) ? BashViewFull : null);
 }
 
 // Export individual components

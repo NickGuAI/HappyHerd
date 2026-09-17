@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "title": "September 17 — Consistent upstream integration",
+      "summary": "",
+      "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
+    },
+    {
+      "title": "September 13 — Upstream integration and responsive changes",
+      "summary": "",
+      "markdown": "- Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.\n- Native chat presses prepare messages without taking focus; watched tool groups stay expanded until the conversation is left or the app is backgrounded.\n- Diff and terminal syntax preparation runs off the rendering thread, with shared file presentation and stable detail headers.\n- Happy Agent model choices put Astra first; explicit saved choices are retained. Offline launch guidance distinguishes Happy Agent from HappyHerd CLI, and daemon health checks allow five seconds.\n- Codium remains available. The experimental expo-tailcat module is included as a standalone package; this update does not enable tunnels, publish a package, or activate a native release pipeline."
+    },
+    {
       "title": "September 13 — Credentials & Accounts Management",
       "summary": "",
       "markdown": "- Open **Settings > Credentials & Accounts** to list, add or log in again, rename, select defaults, and remove machine-local named Claude, Codex, and Grok accounts. Removing an account locally does not revoke access with the provider or stop active sessions.\n- Manage saved credentials that are encrypted on the HappyHerd server, masked by default, and explicitly revealable. Add, edit, or delete credentials with labels for Skills, Browser, and MCP to document their intended use without automatic secret injection.\n- Claude, Codex, and Grok remain visible on the Credentials & Accounts page even when a selected machine has no HappyHerd-managed named accounts, and Claude browser authorization now displays the provider link and accepts the returned one-time code, keeping the distinction from native provider CLI sign-ins honest."
@@ -656,5 +666,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 13 — Credentials & Accounts Management"
+  "latestTitle": "September 17 — Consistent upstream integration"
 }

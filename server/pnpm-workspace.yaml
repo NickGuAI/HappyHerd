@@ -8,6 +8,7 @@ packages:
   - "packages/happy-app-logs"
   - "packages/happyherd-agent"
   - "packages/codium"
+  - "packages/expo-tailcat"
 
 injectWorkspacePackages: true
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "fcdedd2ae58612a07c525440496088a29a6e7705197bf590cbd8785759557ad7",
+  "sourceFingerprint": "7b590792fa2ce9f5d7340133790563dbfbb095a757dc2a01b263769fa0a9b903",
   "routeCount": 40,
-  "surfaceCount": 271,
+  "surfaceCount": 277,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -287,7 +287,6 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyAgentUnsupported",
-        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
         "newSession.switchMachinesHint",
@@ -332,6 +331,8 @@
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
+        "upstreamSync.agentOffline",
+        "upstreamSync.cliOffline",
         "workspace.browseContext",
         "workspace.recent",
         "workspace.selectMachine"
@@ -1491,7 +1492,6 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyAgentUnsupported",
-        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
         "newSession.switchMachinesHint",
@@ -1536,6 +1536,8 @@
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
+        "upstreamSync.agentOffline",
+        "upstreamSync.cliOffline",
         "workspace.browseContext",
         "workspace.recent",
         "workspace.selectMachine"
@@ -2629,12 +2631,8 @@
         "AllFilesDiffView"
       ],
       "translationKeys": [
-        "diff.ignoreWhitespace",
-        "files.changedFiles",
         "files.failedToRead",
-        "files.noChanges",
-        "settingsAppearance.diffStyleOptions.split",
-        "settingsAppearance.diffStyleOptions.unified"
+        "files.noChanges"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3197,6 +3195,23 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/diff/DiffHeaderRight.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffHeaderRight"
+      ],
+      "translationKeys": [
+        "diff.ignoreWhitespace",
+        "files.changedFiles",
+        "files.reload",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/diff/DiffImageView.tsx",
       "kind": "component",
       "route": null,
@@ -3247,6 +3262,19 @@
         "files.commentOnHoveredLine",
         "files.pinnedComment"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/syntax/viewport.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffSyntaxCell",
+        "SYNTAX_VIEWABILITY",
+        "SyntaxViewport"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3520,6 +3548,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/GitLineChanges.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "GitLineChanges"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/GitStatusBadge.tsx",
       "kind": "component",
       "route": null,
@@ -3528,6 +3567,29 @@
         "useHasMeaningfulGitStatus"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HappyAgentDiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HappyAgentDiffView"
+      ],
+      "translationKeys": [
+        "common.retry",
+        "files.fileEmpty",
+        "files.noChanges",
+        "upstreamSync.agentUpdate",
+        "upstreamSync.approximateCounts",
+        "upstreamSync.comparisonUnavailable",
+        "upstreamSync.contentsMatch",
+        "upstreamSync.loadFailed",
+        "upstreamSync.mergeConflicts",
+        "upstreamSync.noFileDetails",
+        "upstreamSync.truncatedFiles"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3711,15 +3773,20 @@
         "HomeHeaderNotAuth"
       ],
       "translationKeys": [
-        "sidebar.sessionsTitle",
-        "status.connected",
-        "status.connecting",
-        "status.disconnected",
-        "status.error"
+        "sidebar.sessionsTitle"
       ],
-      "states": [
-        "error"
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HomeHeaderTitle.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HomeHeaderTitle"
       ],
+      "translationKeys": [],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -3968,16 +4035,10 @@
         "sessionsFilter.title",
         "settings.title",
         "sidebar.projects",
-        "status.connected",
-        "status.connecting",
-        "status.disconnected",
-        "status.error",
         "tools.names.search",
         "workspace.title"
       ],
-      "states": [
-        "error"
-      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -5003,6 +5064,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SyntaxText.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SyntaxText"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/TabBar.tsx",
       "kind": "component",
       "route": null,
@@ -5138,7 +5210,9 @@
       "exports": [
         "ToolHeader"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.message"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5207,8 +5281,13 @@
       "exports": [
         "BashViewFull"
       ],
-      "translationKeys": [],
-      "states": [],
+      "translationKeys": [
+        "toolView.input",
+        "tools.fullView.error"
+      ],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -5248,6 +5327,7 @@
       "translationKeys": [
         "diff.renamed",
         "toolGroup.edited",
+        "tools.names.applyChanges",
         "uiCopy.deleted",
         "uiCopy.new"
       ],
@@ -5771,7 +5851,6 @@
         "common.cancel",
         "common.create",
         "common.error",
-        "newSession.machineOffline",
         "newSession.workspaceNoLongerAvailable",
         "uiCopy.createDirectory",
         "uiCopy.failedToCreateWorktree",
@@ -5781,7 +5860,9 @@
         "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.theSelectedAgentConfigurationIsUnavailable",
-        "uiCopy.thisRigMachineIsNotAvailableForSessionCreation"
+        "uiCopy.thisRigMachineIsNotAvailableForSessionCreation",
+        "upstreamSync.agentOffline",
+        "upstreamSync.cliOffline"
       ],
       "states": [
         "error"

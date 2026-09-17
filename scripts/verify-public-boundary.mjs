@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -33,6 +34,21 @@ const approvedRepositoryDisplayPattern = new RegExp(
     + `(?=$|[\\s)"'\\x60\\]}>]|[.,](?:$|[\\s)"'\\x60\\]}>]))`,
   'g',
 );
+// These two files are byte-identical to the explicitly approved public upstream
+// 4b7d763ee3afda04985f3210b9cb9acf9359c7d9. Their license copyright and registry
+// deprecation metadata contain public maintainer attribution, not operator data.
+// Only the email classification is exempted, only for these exact bytes. Edited
+// copies and every secret/identity/path rule remain subject to the normal scan.
+const publicUpstreamAttributionDigests = new Map([
+  ['server/packages/expo-tailcat/THIRD_PARTY_NOTICES.md', 'b0f17fb7be35a36808512d31e809528c4109e6902aee119ace15e2db07cb8476'],
+  ['server/packages/expo-tailcat/example/pnpm-lock.yaml', 'dd87d87b5bf4f9846c6bb588fdf68ae90f5ea25b72ac3aeb36c8e9cb5a26cc1d'],
+]);
+
+function isExactPublicUpstreamAttribution(path, text) {
+  const expected = publicUpstreamAttributionDigests.get(path);
+  return expected !== undefined && createHash('sha256').update(text).digest('hex') === expected;
+}
+
 const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
@@ -131,7 +147,9 @@ function inspectText(path, text) {
     findings.push('operator-specific personal identity');
   }
 
-  if (normalizedPath !== 'server/pnpm-lock.yaml' && !normalizedPath.startsWith('server/.agents/')) {
+  if (normalizedPath !== 'server/pnpm-lock.yaml'
+    && !normalizedPath.startsWith('server/.agents/')
+    && !isExactPublicUpstreamAttribution(normalizedPath, text)) {
     for (const email of text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []) {
       const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
       if (
