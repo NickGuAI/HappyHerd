@@ -16,35 +16,32 @@ jobs:
         with:
           ref: chore/upstream-4b7d763e
           fetch-depth: 0
-      - name: Inspect exact heads and relevant source
+      - name: Read actual failed assertion and matching source
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           git rev-parse HEAD
-          cat .dev/AGENTS.md
           python3 - <<'PY'
-          import json, pathlib, subprocess
-          def gh(*args):
-              return json.loads(subprocess.check_output(['gh',*args], text=True))
-          prs=gh('pr','list','--repo','NickGuAI/HappyHerd','--state','open','--limit','100','--json','number,title,headRefName,headRefOid,statusCheckRollup')
-          for p in prs:
-              print('PR_HEAD',p['number'],p['headRefName'],p['headRefOid'])
-              for c in p['statusCheckRollup']:
-                  print('CHECK',p['number'],c.get('name'),c.get('status'),c.get('conclusion'),c.get('detailsUrl'))
-          root=pathlib.Path('server/packages/happy-app/sources')
-          for p in root.rglob('*'):
-              if not p.is_file() or p.suffix not in ('.ts','.tsx'): continue
-              s=p.read_text()
-              if 'shows a truncation warning when the branch query hits the output cap' in s or 'knownChildren).toBe(knownChildren)' in s or 'class DirectoryTreeBrowser' in s:
-                  print('MATCHED_SOURCE',p)
-                  lines=s.splitlines()
-                  hits=[i for i,l in enumerate(lines) if 'truncation warning' in l or 'knownChildren).toBe(knownChildren)' in l]
-                  for i in hits:
-                      for j in range(max(0,i-45),min(len(lines),i+65)):
-                          print(f'{j+1}: {lines[j]}')
-          print('DIRECTORY_TREE_FILES', subprocess.check_output(['git','ls-files','*Directory*Tree*'],text=True))
-          print('RECENT_OWNED_PATCHES')
-          print('\n'.join(pathlib.Path('docs/owned-patches.tsv').read_text().splitlines()[-12:]))
+          import json, pathlib, re, subprocess
+          p=subprocess.run(['gh','run','view','35250128772','--repo','NickGuAI/HappyHerd','--attempt','1','--log-failed'],capture_output=True,text=True)
+          print('FAILED_LOG_READ_STATUS',p.returncode)
+          if p.returncode: print(p.stderr)
+          cleaned=re.sub(r'\x1b\[[0-9;]*m','',p.stdout)
+          lines=cleaned.splitlines()
+          print('\n'.join(lines[-170:]))
+          paths=set(re.findall(r'(sources/[^\s:]+\.(?:test|spec)\.tsx?)',cleaned))
+          for rel in sorted(paths):
+              path=pathlib.Path('server/packages/happy-app')/rel
+              print('LOG_SOURCE',rel,'EXISTS',path.is_file())
+              if not path.is_file(): continue
+              content=path.read_text().splitlines()
+              for match in re.finditer(re.escape(rel)+r':(\d+)',cleaned):
+                  i=int(match.group(1))-1
+                  for j in range(max(0,i-25),min(len(content),i+30)):
+                      print(f'{j+1}: {content[j]}')
+          for name in ['.dev/VERIFY.md','AGENTS.md','server/AGENTS.md']:
+              print('GUIDANCE',name)
+              print(pathlib.Path(name).read_text())
           PY
