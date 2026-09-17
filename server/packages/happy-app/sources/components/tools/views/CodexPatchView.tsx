@@ -7,7 +7,6 @@ import { ToolCall } from '@/sync/typesMessage';
 import { ToolSectionView } from '../ToolSectionView';
 import { Metadata } from '@/sync/storageTypes';
 import { resolvePath } from '@/utils/pathUtils';
-import { t } from '@/text';
 import { ToolDiffView } from '@/components/tools/ToolDiffView';
 import { DiffFileHeader } from '@/components/diff/DiffFileHeader';
 import { useDiffPalette } from '@/components/diff/DiffPalette';
@@ -21,6 +20,7 @@ import {
     getPatchChanges,
     getPatchInput,
     getPatchKindType,
+    getPatchKindLabel,
     getPatchMovePath,
     type CodexPatchEntry,
 } from '@/utils/codexPatchEntry';
@@ -192,7 +192,6 @@ const CodexPatchFileView = React.memo(function CodexPatchFileView(props: {
             <View style={styles.editedFileGroup}>
                 <View style={styles.patchContainer}>
                     <Pressable
-                        accessibilityRole="button"
                         accessibilityLabel={filePath}
                         onPress={canOpen ? openFullDiff : undefined}
                         disabled={!canOpen}

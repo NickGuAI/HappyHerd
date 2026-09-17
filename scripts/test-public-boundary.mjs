@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   canonicalCommitIdentityText,
   inspectEntries,
@@ -217,5 +218,22 @@ assert.equal(canonicalCommitIdentityText({
   ...normalizedSkillIdentity,
   commit: '119420c5425a62f37a0aae138f04078830611dfb',
 }), null);
+
+
+
+// Preserve upstream license notices rather than removing required attribution.
+// A path alone is never sufficient to exempt an email address from scrutiny.
+for (const path of [
+  'server/packages/expo-tailcat/THIRD_PARTY_NOTICES.md',
+  'server/packages/expo-tailcat/example/pnpm-lock.yaml',
+]) {
+  const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+  assert.deepEqual(inspect(path, text), []);
+  assert(inspect(path, text + '\n' + ['operator', '@', 'private.example.net'].join(''))
+    .includes('non-example email address'));
+  assert(inspect(path, text + '\n' + ['sk-', 'proj-', 'a'.repeat(32)].join(''))
+    .includes('OpenAI-style secret'));
+  assert(inspect('docs/untrusted-copy.md', text).includes('non-example email address'));
+}
 
 process.stdout.write('public-boundary self-test: ok\n');

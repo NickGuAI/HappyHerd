@@ -1,4 +1,4 @@
-import { createDiffSyntax } from './factory.generated';
+import { createDiffSyntax } from '../../../utils/diffSyntaxFactory.generated';
 import type { SyntaxResult, SyntaxWorker } from './protocol';
 import { SyntaxWorkerUnavailableError } from './protocol';
 

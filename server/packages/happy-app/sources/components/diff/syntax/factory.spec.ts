@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { execFileSync } from 'node:child_process';
 import { transformSync } from '@babel/core';
-import { createDiffSyntax } from './factory.generated';
+import { createDiffSyntax } from '../../../utils/diffSyntaxFactory.generated';
 import { tokenize } from './tokenize';
 import { MAX_SYNTAX_LINE } from './protocol';
 
@@ -33,7 +33,7 @@ describe('isolated Prism worker', () => {
     });
 
     it('survives the actual Worklets transform with no captured module functions', () => {
-        const filename = new URL('./factory.generated.ts', import.meta.url).pathname;
+        const filename = new URL('../../../utils/diffSyntaxFactory.generated.ts', import.meta.url).pathname;
         const code = transformSync(readFileSync(filename, 'utf8'), {
             filename, configFile: false, babelrc: false,
             presets: ['@babel/preset-typescript'],

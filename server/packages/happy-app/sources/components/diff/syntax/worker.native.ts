@@ -1,5 +1,5 @@
 import { createWorkletRuntime, scheduleOnRN, scheduleOnRuntime, type WorkletRuntime } from 'react-native-worklets';
-import { createDiffSyntax } from './factory.generated';
+import { createDiffSyntax } from '../../../utils/diffSyntaxFactory.generated';
 import type { SyntaxInput, SyntaxResult, SyntaxWorker } from './protocol';
 import { SyntaxWorkerUnavailableError } from './protocol';
 

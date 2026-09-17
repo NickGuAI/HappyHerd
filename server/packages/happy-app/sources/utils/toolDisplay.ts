@@ -123,10 +123,6 @@ export function shouldRenderToolCardHeader(toolName: string, _platformOS: string
     return !SELF_HEADING_TOOL_NAMES.has(toolName);
 }
 
-export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
-    return tool.title?.trim() || tool.name;
-}
-
 export function formatToolDisplayValue(value: unknown): string {
     if (typeof value === 'string') {
         return value;
@@ -157,8 +153,7 @@ export function shouldUseCompactToolRow(
     hasInlineView: boolean = true,
 ): boolean {
     if (
-        !compactMode
-        || tool.name === 'file'
+        tool.name === 'file'
         || isInteractiveQuestionToolName(tool.name)
         || tool.name === 'Subagent'
     ) {
@@ -277,7 +272,8 @@ export function getToolActivityLabel(tool: Pick<ToolCall, 'name' | 'title' | 'in
         return providerDescription;
     }
 
-    const action = getToolDisplayTitle(tool);
+    const action = happyToolDisplay[tool.name]?.title
+        ?? getToolActivityAction(getToolSummaryCategory(tool.name), tool.name);
     if (!detail || normalizeActivityText(detail) === normalizeActivityText(action)) {
         return action;
     }
@@ -285,8 +281,7 @@ export function getToolActivityLabel(tool: Pick<ToolCall, 'name' | 'title' | 'in
 }
 
 export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
-    return tool.title?.trim() || happyToolDisplay[tool.name]?.title
-        || getToolActivityAction(getToolSummaryCategory(tool.name), tool.name);
+    return tool.title?.trim() || happyToolDisplay[tool.name]?.title || tool.name;
 }
 
 export function getTerminalToolCommand(tool: Pick<ToolCall, 'name' | 'input'>): string | null {

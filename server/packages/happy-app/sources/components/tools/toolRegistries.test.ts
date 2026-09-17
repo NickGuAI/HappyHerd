@@ -18,6 +18,7 @@ vi.mock('./views/AskUserQuestionView', () => ({ AskUserQuestionView: 'Question' 
 vi.mock('./views/RequestUserInputView', () => ({ RequestUserInputView: 'Request' }));
 vi.mock('./views/GeminiEditView', () => ({ GeminiEditView: 'GeminiEdit' }));
 vi.mock('./views/GeminiExecuteView', () => ({ GeminiExecuteView: 'GeminiExecute' }));
+vi.mock('./views/SubagentView', () => ({ SubagentView: 'Subagent' }));
 vi.mock('./views/FileView', () => ({ FileView: 'File' }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 

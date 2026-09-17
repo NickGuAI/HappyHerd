@@ -29,13 +29,13 @@ describe('where a Happy Agent session may be started', () => {
         const bot = { id: 'bot-1', name: 'Assistant', username: 'assistant', workspaceId: 'bot-ws', orderKey: '1' };
         const botSession = session({
             machineId: RIG,
-            path: '/home/steve/Happy/Bots/assistant',
+            path: '/home/user/Happy/Bots/assistant',
             bot,
             project: { id: 'old-synthetic-project', name: 'Assistant' },
             workspace: { id: 'bot-ws', name: 'Assistant' },
         });
         expect(collectSessionPlaces({ machineIds: [RIG], sessions: [session({
-            machineId: RIG, path: '/home/steve/Happy/Bots/assistant', bot,
+            machineId: RIG, path: '/home/user/Happy/Bots/assistant', bot,
         })] })).toEqual([]);
         expect(collectSessionWorkspaces({
             machineIds: [RIG], projectId: 'old-synthetic-project', sessions: [botSession],

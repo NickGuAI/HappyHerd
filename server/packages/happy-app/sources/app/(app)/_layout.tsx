@@ -1,4 +1,3 @@
-import { createPlainHeader } from '@/components/navigation/Header';
 import { Stack } from 'expo-router';
 import 'react-native-reanimated';
 import * as React from 'react';
@@ -93,6 +92,7 @@ export default function RootLayout() {
                 options={{
                     header: createPlainHeader,
                     headerShown: true,
+                    headerTitleAlign: 'center',
                     headerBackTitle: t('common.back'),
                     headerTitle: t('common.message')
                 }}

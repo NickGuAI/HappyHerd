@@ -5,6 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import type { Session } from '@/sync/storageTypes';
 
+vi.hoisted(() => { vi.stubGlobal('__DEV__', false); });
+
 const mocks = vi.hoisted(() => ({
     width: 1280,
     height: 900,
@@ -2589,3 +2591,5 @@ describe('SessionView side-chat integration', () => {
         expect(textValues(renderer)).toContain('created');
     });
 });
+
+vi.mock('@react-navigation/native', () => ({ useIsFocused: () => true, useNavigation: () => ({ dispatch: vi.fn(), getState: () => ({ routes: [] }) }) }));

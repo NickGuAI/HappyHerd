@@ -154,7 +154,7 @@ afterEach(() => {
 function renderHomeHeaderTitle(component: React.ReactElement) {
     const renderer = render(component);
     const header = renderer.root.findByType('Header' as any);
-    expect(header.props.title.type).toBe(HomeHeaderTitle);
+    expect(header.findAllByType('Text' as any).filter((node: any) => node.props.accessibilityRole === 'header')).toHaveLength(1);
     return renderer;
 }
 

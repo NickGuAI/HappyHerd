@@ -1620,6 +1620,8 @@ describe('Desktop workspace browser interaction', () => {
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.canvas' }).click();
         const canvasPanel = workspace.getByTestId('desktop-file-panel:/workspace/review.canvas');
         await canvasPanel.locator('.react-flow').waitFor();
+        // React Flow creates edges after its node measurement callback.
+        await canvasPanel.locator('.react-flow__edge').waitFor();
         await expect(canvasPanel.locator('.react-flow__edge').count()).resolves.toBe(1);
         const canvasFileLink = canvasPanel.getByRole('button', { name: 'notes/My (draft) [v2].md' });
         if (touch) await canvasFileLink.tap();

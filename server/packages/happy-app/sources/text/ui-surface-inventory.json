@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "28033bff82e6d90f85582e8df98cdb3d867feb564286b3c6be30f2094fee8d26",
+  "sourceFingerprint": "7b590792fa2ce9f5d7340133790563dbfbb095a757dc2a01b263769fa0a9b903",
   "routeCount": 40,
-  "surfaceCount": 278,
-  "hardcodedCopyCount": 9,
+  "surfaceCount": 277,
+  "hardcodedCopyCount": 0,
   "routes": [
     {
       "path": "/artifacts/[id]",
@@ -3204,23 +3204,12 @@
       "translationKeys": [
         "diff.ignoreWhitespace",
         "files.changedFiles",
-        "files.reload"
+        "files.reload",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified"
       ],
       "states": [],
-      "hardcodedCopy": [
-        {
-          "line": 85,
-          "column": 48,
-          "text": "Unified",
-          "context": "jsx:Text"
-        },
-        {
-          "line": 85,
-          "column": 60,
-          "text": "Split",
-          "context": "jsx:Text"
-        }
-      ]
+      "hardcodedCopy": []
     },
     {
       "owner": "sources/components/diff/DiffImageView.tsx",
@@ -3275,60 +3264,6 @@
       ],
       "states": [],
       "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/diff/syntax/factory.generated.ts",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "createDiffSyntax"
-      ],
-      "translationKeys": [],
-      "states": [],
-      "hardcodedCopy": [
-        {
-          "line": 36,
-          "column": 34589,
-          "text": "symbol",
-          "context": "descriptor:label"
-        },
-        {
-          "line": 36,
-          "column": 36542,
-          "text": "important",
-          "context": "descriptor:label"
-        },
-        {
-          "line": 36,
-          "column": 72184,
-          "text": "selector",
-          "context": "descriptor:placeholder"
-        },
-        {
-          "line": 36,
-          "column": 74952,
-          "text": "important",
-          "context": "descriptor:title"
-        },
-        {
-          "line": 36,
-          "column": 75040,
-          "text": "important",
-          "context": "descriptor:title"
-        },
-        {
-          "line": 36,
-          "column": 95307,
-          "text": "string",
-          "context": "descriptor:description"
-        },
-        {
-          "line": 36,
-          "column": 95324,
-          "text": "language-markdown",
-          "context": "descriptor:description"
-        }
-      ]
     },
     {
       "owner": "sources/components/diff/syntax/viewport.tsx",

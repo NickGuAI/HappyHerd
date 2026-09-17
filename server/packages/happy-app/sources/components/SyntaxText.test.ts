@@ -20,6 +20,7 @@ vi.mock('react-native-unistyles', async () => {
     const { lightTheme, darkTheme } = await import('@/theme');
     return { useUnistyles: () => ({ theme: state.dark ? darkTheme : lightTheme }) };
 });
+vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('./diff/syntax/shared', () => ({ get diffSyntax() { return state.service; } }));
 
 import { SyntaxText } from './SyntaxText';

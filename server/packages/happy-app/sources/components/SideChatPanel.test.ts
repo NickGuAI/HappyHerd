@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     visible: vi.fn(),
+    focused: true,
 }));
 
 vi.mock('react-native', async () => {
@@ -189,7 +190,10 @@ describe('SideChatPanel', () => {
         const labels = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
         expect(labels).toEqual(expect.arrayContaining(['Side chat 1', 'Side chat 2']));
         expect(renderer.root.findByType('SessionViewLoaded' as any).props.sessionId).toBe('child-two');
-        expect(mocks.visible).toHaveBeenCalledWith('child-two');
+        // SessionViewLoaded's useSessionVisibility owns sync activation. The
+        // panel passes focus; it must not activate the same child a second time.
+        expect(renderer.root.findByType('SessionViewLoaded' as any).props.active).toBe(true);
+        expect(mocks.visible).not.toHaveBeenCalled();
 
         const firstTab = renderer.root.findAllByType('Pressable' as any)
             .find((node: any) => node.findAllByType('Text' as any)
@@ -201,6 +205,18 @@ describe('SideChatPanel', () => {
             .filter((node: any) => node.props.accessibilityLabel === 'sideChat.close');
         act(() => closeButtons[1].props.onPress({ stopPropagation: vi.fn() }));
         expect(props.onCloseSideChat).toHaveBeenCalledWith('child-two');
+    });
+
+    it('passes inactive ownership to a child when the retained parent loses focus', () => {
+        mocks.focused = false;
+        try {
+            const renderer = render(React.createElement(SideChatPanel, panelProps()));
+            expect(renderer.root.findByType('SessionViewLoaded' as any).props.active).toBe(false);
+            expect(mocks.visible).not.toHaveBeenCalled();
+            act(() => renderer.unmount());
+        } finally {
+            mocks.focused = true;
+        }
     });
 
     it('collapses the full-screen host without closing or archiving child tabs', () => {
@@ -217,3 +233,5 @@ describe('SideChatPanel', () => {
             .filter((node: any) => node.props.accessibilityLabel === 'sideChat.close')).toHaveLength(2);
     });
 });
+
+vi.mock('@react-navigation/native', () => ({ useIsFocused: () => mocks.focused, useNavigation: () => ({ dispatch: vi.fn(), getState: () => ({ routes: [] }) }) }));

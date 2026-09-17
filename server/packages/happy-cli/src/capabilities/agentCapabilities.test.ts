@@ -7,6 +7,14 @@ const probeMocks = vi.hoisted(() => ({
     rm: vi.fn(async () => undefined),
 }));
 
+// All catalog payloads in this suite are fixtures. Version/help probing must
+// not invoke whichever native provider happens to be installed on the host.
+vi.mock('cross-spawn', () => {
+    const sync = vi.fn(() => ({ status: 0, stdout: 'fixture-cli 1.0.0', stderr: '', error: undefined }));
+    const spawn = Object.assign(vi.fn(() => { throw new Error('Unexpected native process in catalog unit fixture'); }), { sync });
+    return { default: spawn, spawn, sync };
+});
+
 vi.mock('node:fs/promises', async (importOriginal) => ({
     ...(await importOriginal<typeof import('node:fs/promises')>()),
     mkdtemp: probeMocks.mkdtemp,

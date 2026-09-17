@@ -910,7 +910,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                                 message.realID = msg.id;
                                 message.turn = msg.turn ?? message.turn;
                                 message.tool.name = c.name;
-                                message.tool.title = c.title;
+                                if (c.title !== undefined) message.tool.title = c.title;
                                 message.tool.input = hadStarted
                                     ? c.input
                                     : mergeToolInputs(message.tool.input, c.input);
@@ -1126,7 +1126,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             if (permissionMessage.tool.state !== 'completed' && permissionMessage.tool.state !== 'error') {
                                 permissionMessage.tool.state = 'running';
                                 permissionMessage.tool.name = c.name;
-                                permissionMessage.tool.title = c.title;
+                                if (c.title !== undefined) permissionMessage.tool.title = c.title;
                                 permissionMessage.tool.startedAt = msg.createdAt;
                                 permissionMessage.tool.description = c.description;
                                 changed.add(existingPermissionMessageId);

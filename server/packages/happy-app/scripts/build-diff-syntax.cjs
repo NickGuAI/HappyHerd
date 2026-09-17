@@ -12,7 +12,7 @@ const { readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const output = path.join(root, 'sources/components/diff/syntax/factory.generated.ts');
+const output = path.join(root, 'sources/utils/diffSyntaxFactory.generated.ts');
 const result = buildSync({
     absWorkingDir: root,
     entryPoints: ['sources/components/diff/syntax/tokenize.ts'],

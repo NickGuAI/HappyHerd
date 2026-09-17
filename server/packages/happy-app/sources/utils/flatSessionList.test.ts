@@ -69,10 +69,10 @@ describe('buildFlatSessionRows', () => {
         const rows = buildFlatSessionRows([{
             type: 'bots',
             sessions: [
-                row({ id: 'laptop-bot', name: 'Assistant', botId: 'bot-1', botUsername: 'assistant', machineId: 'laptop', machineName: 'My Laptop' }),
-                row({ id: 'desktop-bot', name: 'Assistant', botId: 'bot-2', botUsername: 'assistant', machineId: 'desktop', machineName: 'Office Mac' }),
+                row({ id: 'laptop-bot', lastActivityAt: 200, name: 'Assistant', botId: 'bot-1', botUsername: 'assistant', machineId: 'laptop', machineName: 'My Laptop' }),
+                row({ id: 'desktop-bot', lastActivityAt: 100, name: 'Assistant', botId: 'bot-2', botUsername: 'assistant', machineId: 'desktop', machineName: 'Office Mac' }),
             ],
-        }], { sortByActivity: true });
+        }]);
         expect(rows.map((item) => item.projectName)).toEqual(['@assistant · My Laptop', '@assistant · Office Mac']);
         expect(rows.every((item) => item.workspaceName === null)).toBe(true);
     });
@@ -81,12 +81,12 @@ describe('buildFlatSessionRows', () => {
         const bot = row({
             id: 'bot-session', lastActivityAt: 200,
             botId: 'bot-1', botUsername: 'assistant',
-            path: '/home/steve/Happy/Bots/assistant',
+            path: '/home/user/Happy/Bots/assistant',
         });
         const rows = buildFlatSessionRows([
             { type: 'bots', sessions: [bot] },
             project('alpha', [{ id: '', name: null, sessions: [row({ id: 'chat', lastActivityAt: 100 })] }]),
-        ], { sortByActivity: true });
+        ]);
         expect(rows.map((r) => r.session.id)).toEqual(['bot-session', 'chat']);
         expect(rows[0]).toMatchObject({ projectName: '@assistant', workspaceName: null });
     });

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 
@@ -86,6 +86,8 @@ const virtualModules: Record<string, string> = {
         });
     `,
     'expo-router': `
+        import React from 'react';
+        export const useFocusEffect = (effect) => React.useEffect(effect, [effect]);
         export const useRouter = () => ({
             push(href) { globalThis.__HAPPYHERD_ROUTE_PUSH__?.(href); },
             navigate(href) { globalThis.__HAPPYHERD_ROUTE_NAVIGATE__?.(href); },
@@ -835,12 +837,13 @@ const virtualModules: Record<string, string> = {
             window.__WORKTREE_CLEANUP_CALLS__ = [...(window.__WORKTREE_CLEANUP_CALLS__ ?? []), args];
         };
     `,
-    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
+    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; }; export const useSessionPressHandlers = (id) => ({onPress: () => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = id; }, onPressIn() {}});`,
     '@/sync/agentSessionPlaces': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentSessionPlaces.ts')}';
         export const collectSessionPlaces = (options) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout
             ? actual.collectSessionPlaces(options) : [];
         export const collectSessionWorkspaces = () => [];
+        export const pairedMachineIds = actual.pairedMachineIds;
     `,
     '@/utils/worktree': `export const createWorktree = async () => ({ success: false, error: 'not used' }); export const listWorktrees = async () => [];`,
     '@/utils/pathUtils': `
@@ -1044,6 +1047,7 @@ const virtualModules: Record<string, string> = {
         export const setAgentDefaultOverride = (...args) => realDefaults ? actual.setAgentDefaultOverride(...args) : args[0];
     `,
     '@/sync/rig': `
+        export { qualifyRigModelKey } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
         export const getRigIdentity = () => null;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
@@ -1173,6 +1177,10 @@ const fixturePlugin: Plugin = {
                 if (existsSync(webPath)) return { path: webPath };
             }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.path.startsWith('.') && args.resolveDir.startsWith(resolve(appRoot, 'sources'))) {
+                const key = '@/' + relative(resolve(appRoot, 'sources'), resolve(args.resolveDir, args.path)).replace(/\.(?:tsx?|jsx?)$/, '');
+                if (key in virtualModules) return { path: key, namespace: 'fixture-stub' };
+            }
             if (args.path === './apiSocket' && args.importer.endsWith('/sync/workspaceLive.ts')) {
                 return { path: '@/sync/apiSocket', namespace: 'fixture-stub' };
             }
@@ -1210,7 +1218,7 @@ const fixturePlugin: Plugin = {
             }
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
-                const path = [sourcePath, `${sourcePath}.ts`, `${sourcePath}.tsx`].find(existsSync);
+                const path = [`${sourcePath}.web.tsx`, `${sourcePath}.web.ts`, sourcePath, `${sourcePath}.ts`, `${sourcePath}.tsx`, `${sourcePath}/index.web.tsx`, `${sourcePath}/index.ts`, `${sourcePath}/index.tsx`].find((path) => existsSync(path) && statSync(path).isFile());
                 if (!path) throw new Error(`missing fixture source: ${args.path}`);
                 return { path };
             }
@@ -1295,6 +1303,7 @@ describe('Side chats browser interaction', () => {
     beforeAll(async () => {
         const bundle = await build({
             entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
+            outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
             bundle: true,
             write: false,
             format: 'iife',
@@ -1309,8 +1318,14 @@ describe('Side chats browser interaction', () => {
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
         });
-        const script = bundle.outputFiles[0].text;
+        const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.text;
+        const css = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
         server = createServer((_request, response) => {
+            if (_request.url === '/fixture.css') {
+                response.setHeader('content-type', 'text/css; charset=utf-8');
+                response.end(css);
+                return;
+            }
             if (_request.url === '/workspace-live-sw.js') {
                 response.setHeader('content-type', 'text/javascript; charset=utf-8');
                 response.setHeader('service-worker-allowed', '/');
@@ -1318,7 +1333,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1430,6 +1445,12 @@ describe('Side chats browser interaction', () => {
             if (!recentBox || !lastRecentBox) throw new Error('Recent path geometry is unavailable');
             expect(lastRecentBox.y).toBeGreaterThanOrEqual(recentBox.y - 1);
             expect(lastRecentBox.y + lastRecentBox.height).toBeLessThanOrEqual(recentBox.y + recentBox.height + 1);
+            // The inner-list gestures are already proved above. Establish a
+            // non-terminal starting position for the independent outer-page
+            // gesture; browser momentum may have reached the outer bottom.
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
+            await expect(page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) > innerHeight)).resolves.toBe(true);
             const scrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
             await swipeUp(page, 385, 780, 240);
             await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBeGreaterThan(scrollBefore);

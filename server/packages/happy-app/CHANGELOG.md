@@ -1,3 +1,8 @@
+# September 17 — Consistent upstream integration
+
+- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.
+- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices.
+
 # September 13 — Upstream integration and responsive changes
 
 - Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.

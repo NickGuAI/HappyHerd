@@ -34,7 +34,7 @@ vi.mock('react-native', async () => {
         },
         Platform: { OS: 'ios' },
         Pressable: host('Pressable'),
-        View: host('View'),
+        View: host('View'), Text: host('Text'),
     };
 });
 
@@ -86,6 +86,7 @@ vi.mock('@/sync/storageTypes', () => ({}));
 vi.mock('@/sync/typesMessage', () => ({}));
 vi.mock('@/components/tools/knownTools', () => ({ knownTools: {} }));
 vi.mock('@/utils/toolDisplay', () => ({ isInteractiveQuestionToolName: () => false }));
+vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/sync/sync', () => ({ sync: { loadOlderMessages: vi.fn() } }));
 vi.mock('@/sync/controlHandoff', () => ({ resolveControlMode: () => 'agent' }));
 vi.mock('@/sync/rig', () => ({ usesControlledSessionUi: () => false }));

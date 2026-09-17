@@ -3,8 +3,9 @@ import { Text, View, ScrollView, Platform, useWindowDimensions } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import { ToolCall, Message } from '@/sync/typesMessage';
 import { CodeView } from '../CodeView';
+import { CommandView } from '../CommandView';
 import { Metadata } from '@/sync/storageTypes';
-import { getToolDisplayTitle, getToolSummaryCategory, isTerminalToolName } from '@/utils/toolDisplay';
+import { getToolDisplayTitle, getToolSummaryCategory, getTerminalToolCommand, isTerminalToolName } from '@/utils/toolDisplay';
 import { toolResultText } from '@/utils/toolResult';
 import { getToolFullViewComponent } from './views/_all';
 import { layout } from '../layout';

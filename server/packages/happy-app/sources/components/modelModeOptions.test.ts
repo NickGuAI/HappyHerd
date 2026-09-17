@@ -653,7 +653,7 @@ describe('modelModeOptions', () => {
         expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
         expect(getDefaultEffortKey('claude')).toBe('max');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
-        expect(getDefaultModelKey('codex')).toBe('gpt-5.6-sol');
+        expect(getDefaultModelKey('codex')).toBe('gpt-6-astra');
         expect(getDefaultEffortKey('codex')).toBe('max');
         expect(getCodexEffortLevels()).toEqual([
             { key: 'low', name: 'low' },

@@ -2492,7 +2492,7 @@ function NewSessionScreen() {
                                 <Ionicons name="cloud-offline-outline" size={14} color={theme.colors.status.disconnected} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.offlineHelpTitle, { color: theme.colors.status.disconnected }]}>
-                                        {agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
+                                        {selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
                                     </Text>
                                     <Text style={[styles.offlineHelpText, { color: theme.colors.textSecondary }]}>
                                         {t('machine.offlineHelp')}
@@ -2709,7 +2709,7 @@ function NewSessionScreen() {
                                 <Ionicons name="cloud-offline-outline" size={14} color={theme.colors.status.disconnected} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.offlineHelpTitle, { color: theme.colors.status.disconnected }]}>
-                                        {agentType === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
+                                        {selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline')}
                                     </Text>
                                     <Text style={[styles.offlineHelpText, { color: theme.colors.textSecondary }]}>
                                         {t('machine.offlineHelp')}

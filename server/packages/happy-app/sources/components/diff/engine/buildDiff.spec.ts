@@ -399,7 +399,13 @@ describe('buildDiffFromPatch', () => {
         expect(rows.some((r) => r.spans.some((s) => s.e !== 0))).toBe(true);
 
         clearDiffCache();
-        const highlighted = buildDiffFromPatch(patch, { syntax: undefined }).files[0];
+        // Syntax now belongs to the asynchronous worker by default; an
+        // undefined option must retain that default, not start sync highlighting.
+        const defaultSyntax = buildDiffFromPatch(patch).files[0];
+        const undefinedSyntax = buildDiffFromPatch(patch, { syntax: undefined }).files[0];
+        expect(undefinedSyntax).toEqual(defaultSyntax);
+        expect(lineRows(undefinedSyntax.rows).every((r) => r.spans.every((s) => s.k === 'plain'))).toBe(true);
+        const highlighted = buildDiffFromPatch(patch, { syntax: true }).files[0];
         expect(lineRows(highlighted.rows).some((r) => r.spans.some((s) => s.k === 'keyword'))).toBe(true);
     });
 

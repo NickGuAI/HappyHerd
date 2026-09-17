@@ -39,10 +39,10 @@ describe('Happy Agent tool wire → rendered message contract', () => {
 
     it.each([
         [{ result: 'hello\nworld' }, 'completed', 'hello\nworld'],
-        [{ result: 'permission denied', isError: true }, 'error', 'permission denied'],
-        [{ isError: true }, 'error', null],
+        [{ result: 'permission denied', error: 'permission denied' }, 'error', 'permission denied'],
+        [{ error: 'permission denied' }, 'error', null],
         [{}, 'completed', null],
-        [{ result: '', isError: false }, 'completed', ''],
+        [{ result: '' }, 'completed', ''],
     ] as const)('preserves title, result, and state: %j', (end, expectedState, expectedResult) => {
         const state = createReducer();
         const start = message('start', {
@@ -55,5 +55,8 @@ describe('Happy Agent tool wire → rendered message contract', () => {
             callId: 'call-1', name: 'CodexBash', title: 'Terminal',
             input: { command: 'echo hello' }, state: expectedState, result: expectedResult,
         });
+        if ('error' in end) {
+            expect(tool?.kind === 'tool-call' && tool.tool.error).toEqual(end.error);
+        }
     });
 });

@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
     messagesLoaded: false,
     params: { id: 'session-id' } as Record<string, string>,
     push: vi.fn(),
+    replace: vi.fn(),
     back: vi.fn(),
     sessionVisible: vi.fn(),
 }));
@@ -25,7 +26,8 @@ vi.mock('react-native', async () => {
             get OS() { return state.platform; },
             select: (values: any) => values[state.platform] ?? values.default,
         },
-        View: host('View'), Text: host('Text'), Pressable: host('Pressable'),
+        StyleSheet: { create: (styles: any) => styles, hairlineWidth: 1 },
+        View: host('View'), Text: host('Text'), TextInput: host('TextInput'), Pressable: host('Pressable'),
         ActivityIndicator: host('ActivityIndicator'), TouchableOpacity: host('TouchableOpacity'), Image: host('Image'),
         Animated: {
             Value: class { constructor(public value: number) {} },
@@ -84,15 +86,18 @@ vi.mock('expo-router', async () => {
         Stack: Object.assign((props: any) => ReactModule.createElement('Stack', props, props.children), {
             Screen: (props: any) => ReactModule.createElement('StackScreen', props),
         }),
-        useRouter: () => ({ push: state.push, back: state.back }),
+        useRouter: () => ({ push: state.push, replace: state.replace, back: state.back }),
         useLocalSearchParams: () => state.params,
     };
 });
 vi.mock('@/sync/storage', () => ({
     useSession: () => state.session,
+    useProjects: () => [],
+    storage: { getState: () => ({ sessions: {} }) },
     useMessage: () => state.message,
     useSessionMessages: () => ({ isLoaded: state.messagesLoaded }),
     useIsDataReady: () => true,
+    useLocalSetting: () => false,
     useSessionGitStatus: () => null,
     useSessionGitStatusFiles: () => null,
 }));
@@ -125,6 +130,12 @@ vi.mock('@/components/ItemList', async () => {
     return { ItemList: (props: any) => ReactModule.createElement('ItemList', props, props.children) };
 });
 vi.mock('@/components/CodeView', () => ({ CodeView: () => null }));
+vi.mock('@react-navigation/native', () => ({
+    useNavigation: () => ({ getState: () => ({ routes: [] }), dispatch: vi.fn() }),
+    CommonActions: { navigate: vi.fn() }, StackActions: { pop: vi.fn() },
+}));
+vi.mock('expo-crypto', () => ({ randomUUID: () => 'fixture-uuid' }));
+vi.mock('@/components/ProviderIcon', () => ({ ProviderIcon: () => null }));
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
 vi.mock('@/modal', () => ({ Modal: { alert: vi.fn() } }));
 vi.mock('@/sync/ops', () => ({ sessionArchive: vi.fn(), sessionKill: vi.fn(), sessionDelete: vi.fn() }));
@@ -162,6 +173,7 @@ afterEach(() => {
     state.messagesLoaded = false;
     state.params = { id: 'session-id' };
     state.push.mockClear();
+    state.replace.mockClear();
     state.back.mockClear();
     state.sessionVisible.mockClear();
 });
@@ -178,41 +190,41 @@ function texts(renderer: ReturnType<typeof create>): string[] {
 }
 
 describe('chat header', () => {
-    it.each(['ios', 'android', 'web'])('shows workspace and counts on the second line on %s', (platform) => {
+    // HappyHerd keeps the folder/title/path header; the approved integration
+    // does not relocate composer branch/count controls into this surface.
+    it.each(['ios', 'android', 'web'])('retains the folder and title hierarchy on %s', (platform) => {
         state.platform = platform;
         const renderer = render(React.createElement(ChatHeaderView, {
-            title: 'Session title', subtitle: 'nice',
-            gitChanges: { insertions: 120, deletions: 34, approximate: false },
+            title: 'Session title', folderName: 'nice',
         }));
-        expect(texts(renderer)).toEqual(['Session title', 'nice', '+120', '-34']);
+        expect(texts(renderer)).toEqual(platform === 'web'
+            ? ['nice', '/', 'Session title'] : ['Session title', 'nice']);
     });
 
-    it('keeps the subtitle even if it matches the session title', () => {
-        expect(texts(render(React.createElement(ChatHeaderView, { title: 'nice', subtitle: 'nice' })))).toEqual(['nice', 'nice']);
+    it('does not duplicate the folder when it equals the title', () => {
+        expect(texts(render(React.createElement(ChatHeaderView, { title: 'nice', folderName: 'nice' })))).toEqual(['nice']);
     });
 
-    it('omits unavailable git information and keeps file overlays visible', () => {
+    it('keeps file-overlay paths visible without inventing git information', () => {
         expect(texts(render(React.createElement(ChatHeaderView, { title: 'Session' })))).toEqual(['Session']);
         expect(texts(render(React.createElement(ChatHeaderView, {
-            title: 'Session', subtitle: 'nice', extraPathSegment: 'src/app.ts',
+            title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         })))).toEqual(['Session', 'nice', '•', 'src/app.ts']);
     });
 
-    it('removes stale counts when the workspace becomes clean', () => {
+    it('removes stale folder and overlay context when navigating back to chat', () => {
         const renderer = render(React.createElement(ChatHeaderView, {
-            title: 'Session', subtitle: 'nice',
-            gitChanges: { insertions: 120, deletions: 0, approximate: true },
+            title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         }));
-        expect(texts(renderer)).toEqual(['Session', 'nice', '≈', '+120']);
-        act(() => renderer.update(React.createElement(ChatHeaderView, {
-            title: 'Session', subtitle: 'nice', gitChanges: null,
-        })));
-        expect(texts(renderer)).toEqual(['Session', 'nice']);
+        expect(texts(renderer)).toEqual(['Session', 'nice', '•', 'src/app.ts']);
+        act(() => renderer.update(React.createElement(ChatHeaderView, { title: 'Session' })));
+        expect(texts(renderer)).toEqual(['Session']);
     });
 });
 
 describe('session details', () => {
-    it('puts Changes and Happy Agent stats first, without the duplicate title/status card', () => {
+    it('puts single-Workspace Changes first without duplicating cached header statistics', () => {
+        state.platform = 'web';
         state.session = {
             id: 'session-id', createdAt: 1, updatedAt: 1, seq: 1,
             metadata: {
@@ -227,13 +239,14 @@ describe('session details', () => {
         const items = renderer.root.findAllByType('Item');
         expect(items[0].props.title).toBe('files.changes');
         expect(items[0].props.subtitle).toBeUndefined();
-        expect(texts(renderer)).toEqual(['5 changed files', '+120', '-34']);
+        expect(items[0].props.rightElement).toBeUndefined();
+        expect(texts(renderer)).toEqual([]);
         expect(items.some((item: any) => item.props.title === 'sessionInfo.connectionStatus')).toBe(true);
         expect(renderer.root.findAllByType('Glass')).toHaveLength(0);
-        expect(renderer.root.findByType('StackScreen').props.options.headerTitleAlign).toBe('center');
-        expectCountTypography(renderer);
+        expect(renderer.root.findByType('StackScreen').props.options.headerTitle).toBe('A long session title that needs the available header width');
         act(() => items[0].props.onPress());
-        expect(state.push).toHaveBeenCalledWith('/session/session-id/changes');
+        expect(state.replace).toHaveBeenCalledWith({ pathname: '/session/[id]', params: { id: 'session-id', openChangesRequestId: 'fixture-uuid' } });
+        expect(state.push).not.toHaveBeenCalled();
     });
 
     it('honors left alignment so the title uses space after the back button', () => {
@@ -267,7 +280,8 @@ describe('session details', () => {
         expect(title.props.numberOfLines).toBe(1);
     });
 
-    it('keeps Changes available for a legacy session without cached statistics', () => {
+    it('keeps Web Workspace Changes available for a legacy session without cached statistics', () => {
+        state.platform = 'web';
         state.session = {
             id: 'session-id', createdAt: 1, updatedAt: 1, seq: 1,
             metadata: { path: '/repo', host: 'machine' },
@@ -278,7 +292,8 @@ describe('session details', () => {
         expect(firstItem.props.rightElement).toBeUndefined();
         expect(firstItem.props.disabled).not.toBe(true);
         act(() => firstItem.props.onPress());
-        expect(state.push).toHaveBeenCalledWith('/session/session-id/changes');
+        expect(state.replace).toHaveBeenCalledWith({ pathname: '/session/[id]', params: { id: 'session-id', openChangesRequestId: 'fixture-uuid' } });
+        expect(state.push).not.toHaveBeenCalled();
     });
 });
 
@@ -306,10 +321,13 @@ describe('shared git-count typography', () => {
         })));
     });
 
-    it('keeps the same font in the chat subtitle', () => {
-        expectCountTypography(render(React.createElement(ChatHeaderView, {
-            title: 'Session', subtitle: 'main', gitChanges: changes,
-        })));
+    it('keeps git counts separate from the retained folder/title header', () => {
+        const renderer = render(React.createElement(ChatHeaderView, {
+            title: 'Session', folderName: 'main',
+        }));
+        expect(texts(renderer)).toEqual(['Session', 'main']);
+        expect(renderer.root.findAllByType(GitLineChanges)).toHaveLength(0);
+        expectCountTypography(render(React.createElement(GitLineChanges, { changes })));
     });
 });
 
@@ -354,7 +372,7 @@ describe('tool-detail navigation', () => {
         const originalGeometry = geometry();
 
         expect(screen.root.findAllByType('ActivityIndicator')).toHaveLength(1);
-        expect(nav.root.findAllByType('Glass')).toHaveLength(1); // Only Back is a glass control, never the title.
+        expect(nav.root.findAllByType('Glass')).toHaveLength(2); // Back plus the retained status slot, never the title.
         expect(originalHeader.props.mobileTitleSurface).toBe('plain');
         expect(nav.root.findAllByType('Pressable')).toHaveLength(1);
         expect(texts(nav)).toEqual(['common.message']);
@@ -369,9 +387,9 @@ describe('tool-detail navigation', () => {
 
             expect(nav.root.findByType((Header as any).type)).toBe(originalHeader);
             expect(geometry()).toEqual(originalGeometry);
-            expect(nav.root.findAllByType('Glass')).toHaveLength(1);
+            expect(nav.root.findAllByType('Glass')).toHaveLength(2);
             expect(nav.root.findAllByType('Pressable')).toHaveLength(1);
-            expect(currentOptions().headerRight).toBeUndefined();
+            expect(currentOptions().headerRight).toEqual(expect.any(Function));
             expect(texts(nav)).toHaveLength(1);
             expect(nav.root.findByType('Text').props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'middle' });
             expect(nav.root.findByType('Text').props.onPress).toBeUndefined();
@@ -383,7 +401,7 @@ describe('tool-detail navigation', () => {
         act(() => nav.update(navElement(currentOptions())));
         expect(texts(nav)).toEqual(['common.message']);
         expect(geometry()).toEqual(originalGeometry);
-        expect(currentOptions().headerRight).toBeUndefined();
+        expect(currentOptions().headerRight).toEqual(expect.any(Function));
         act(() => nav.root.findByType('Pressable').props.onPress());
         expect(state.back).toHaveBeenCalledTimes(1);
     });

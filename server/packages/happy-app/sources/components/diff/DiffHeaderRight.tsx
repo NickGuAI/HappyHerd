@@ -42,6 +42,9 @@ export const DiffHeaderRight = React.memo(function DiffHeaderRight({
                 onPress={() => onIgnoreWhitespaceChange(!ignoreWhitespace)}
                 hitSlop={8}
                 accessibilityLabel={t('diff.ignoreWhitespace')}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: ignoreWhitespace }}
+                aria-checked={ignoreWhitespace}
                 style={({ pressed }) => [
                     styles.whitespaceToggle,
                     {
@@ -82,7 +85,7 @@ const DiffStyleToggle = React.memo(function DiffStyleToggle({ value, onChange }:
                     style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: value === style ? theme.colors.surface : 'transparent' }}
                 >
                     <Text style={{ fontSize: 12, ...Typography.default(value === style ? 'semiBold' : undefined), color: value === style ? theme.colors.text : theme.colors.textSecondary }}>
-                        {style === 'unified' ? 'Unified' : 'Split'}
+                        {style === 'unified' ? t('settingsAppearance.diffStyleOptions.unified') : t('settingsAppearance.diffStyleOptions.split')}
                     </Text>
                 </Pressable>
             ))}

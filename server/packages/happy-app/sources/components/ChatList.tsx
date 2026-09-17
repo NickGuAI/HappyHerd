@@ -453,7 +453,7 @@ const ChatListInternal = React.memo((props: {
         for (const id of watchedTurns.ids) {
             if (displayedUserMessageIds.has(id)) nextWatchedTurnIds.add(id);
         }
-        if (!currentTurnComplete && currentTurnUserMessageId !== null) {
+        if (!collapseCurrentTurn && currentTurnUserMessageId !== null) {
             nextWatchedTurnIds.add(currentTurnUserMessageId);
         }
     }

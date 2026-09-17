@@ -24,7 +24,7 @@ vi.mock('react-native-unistyles', async () => {
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null, Octicons: () => null }));
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/sync/storage', () => ({ useSetting: () => settings.compact, useLocalSetting: () => false }));
+vi.mock('@/sync/storage', () => ({ useSetting: () => settings.compact, useLocalSetting: () => false, useSession: () => null }));
 vi.mock('@/hooks/useElapsedTime', () => ({ useElapsedTime: () => 0 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('../layout', () => ({ layout: { maxWidth: 1200 } }));

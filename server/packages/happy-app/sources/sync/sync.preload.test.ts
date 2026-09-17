@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { messagePlanMode } from './messagePlanMode';
 
 const mocks = vi.hoisted(() => ({
@@ -77,6 +77,7 @@ async function waitForPreload() {
 
 beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal('__DEV__', false);
     mocks.state = {
         sessions: { a: { id: 'a', permissionMode: 'auto', metadata: {} }, b: { id: 'b', permissionMode: 'auto', metadata: {} } },
         sessionMessages: {}, currentViewingSessionId: null,
@@ -208,3 +209,4 @@ describe('chat preload sync integration', () => {
         expect(older).not.toHaveBeenCalled();
     });
 });
+afterEach(() => vi.unstubAllGlobals());

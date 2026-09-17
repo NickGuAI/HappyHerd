@@ -147,7 +147,7 @@ function HappyAgentDiffFiles({ sessionId, git, base, scrollToFile, split, ignore
         };
     }), [git.files, results, expandedContext, ignoreWhitespace]);
     const notices = [
-        ...(git.filesTruncated ? [t('upstreamSync.truncatedFiles', { shown: git.files.length, total: git.changedFiles })] : []),
+        ...(git.filesTruncated ? [t('upstreamSync.truncatedFiles', { shown: String(git.files.length), total: git.changedFiles })] : []),
         ...(!git.countsExact ? [t('upstreamSync.approximateCounts')] : []),
         ...(git.conflicted ? [t('upstreamSync.mergeConflicts')] : []),
     ];

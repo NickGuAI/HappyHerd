@@ -231,8 +231,6 @@ function buildSessionRowData(
             || session.metadata?.host
             || null,
         id: session.id,
-        botId: session.metadata?.bot?.id ?? null,
-        botUsername: session.metadata?.bot?.username ?? null,
         name: getSessionName(session),
         subtitle: getSessionSubtitle(session),
         avatarId: getSessionAvatarId(session),
@@ -403,7 +401,6 @@ function buildSessionListViewData(
     const botSessions: Session[] = [];
     const rigPathSessions: Session[] = [];
     const personalProjectSessions: Session[] = [];
-    const botSessions: Session[] = [];
     const happySessions: Session[] = [];
     const archivedSessions: Session[] = [];
 

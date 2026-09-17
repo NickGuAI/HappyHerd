@@ -3,7 +3,6 @@ import { ToolCall } from '@/sync/typesMessage';
 import {
     formatToolDisplayValue,
     getToolActivityLabel,
-    getToolDisplayTitle,
     getTerminalToolCommand,
     getToolDisplayTitle,
     getToolSummaryCategory,
@@ -228,7 +227,9 @@ describe('terminal tool display helpers', () => {
     it('preserves wire titles and detailed descriptions for unfamiliar tools', () => {
         const call = { ...tool('new_operation', {}), title: 'Inspect release' };
         expect(getToolActivityLabel(call)).toBe('Inspect release');
-        expect(getToolActivityLabel({ ...call, description: 'Checking release 1.2.3' })).toBe('Checking release 1.2.3');
+        // An explicit provider title remains authoritative under the retained wire contract.
+        expect(getToolActivityLabel({ ...call, description: 'Checking release 1.2.3' })).toBe('Inspect release');
+        expect(getToolActivityLabel({ ...call, title: undefined, description: 'Checking release 1.2.3' })).toBe('Checking release 1.2.3');
         expect(getToolActivityLabel({ ...call, description: 'Running new_operation' })).toBe('Inspect release');
     });
 

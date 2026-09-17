@@ -27,7 +27,17 @@ vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
-vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/text', async () => {
+    const { default: en } = await import('@/text/locales/en.json');
+    return { t: (key: string, params: Record<string, string | number> = {}) => {
+        // Keep existing non-feature key assertions, but render the actual
+        // localized upstream-comparison messages rather than mock key names.
+        if (!key.startsWith('upstreamSync.')) return key;
+        const template = key.split('.').reduce<any>((value, part) => value?.[part], en);
+        return typeof template === 'string'
+            ? template.replace(/\{(\w+)\}/g, (_match, name) => String(params[name] ?? '')) : key;
+    } };
+});
 vi.mock('@/sync/ops', () => ({ sessionBash: mocks.bash, sessionReadFile: mocks.legacyRead }));
 vi.mock('@/sync/storage', async () => {
     const ReactModule = await import('react');
