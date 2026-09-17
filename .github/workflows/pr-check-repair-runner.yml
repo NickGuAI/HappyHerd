@@ -8,40 +8,59 @@ permissions:
   actions: read
   pull-requests: read
 jobs:
-  inspect:
+  verify-heads:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: chore/upstream-4b7d763e
-          fetch-depth: 0
-      - name: Read actual failed assertion and matching source
+      - name: Verify exact PR heads and completed checks
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          git rev-parse HEAD
           python3 - <<'PY'
-          import json, pathlib, re, subprocess
-          p=subprocess.run(['gh','run','view','35250128772','--repo','NickGuAI/HappyHerd','--attempt','1','--log-failed'],capture_output=True,text=True)
-          print('FAILED_LOG_READ_STATUS',p.returncode)
-          if p.returncode: print(p.stderr)
-          cleaned=re.sub(r'\x1b\[[0-9;]*m','',p.stdout)
-          lines=cleaned.splitlines()
-          print('\n'.join(lines[-170:]))
-          paths=set(re.findall(r'(sources/[^\s:]+\.(?:test|spec)\.tsx?)',cleaned))
-          for rel in sorted(paths):
-              path=pathlib.Path('server/packages/happy-app')/rel
-              print('LOG_SOURCE',rel,'EXISTS',path.is_file())
-              if not path.is_file(): continue
-              content=path.read_text().splitlines()
-              for match in re.finditer(re.escape(rel)+r':(\d+)',cleaned):
-                  i=int(match.group(1))-1
-                  for j in range(max(0,i-25),min(len(content),i+30)):
-                      print(f'{j+1}: {content[j]}')
-          for name in ['.dev/VERIFY.md','AGENTS.md','server/AGENTS.md']:
-              print('GUIDANCE',name)
-              print(pathlib.Path(name).read_text())
+          import datetime,json,subprocess,time
+          expected={
+            275:'8369f76340de04e1a328762ef71e4081ef3cc1c8',
+            276:'ddef980e18ffd1b632e871a80c06b5787b480ab9',
+            277:'3d3ebe1ca29d6747441a700d1bbb85537293cd3a',
+            278:'f17ac6f64b1d0f4b3b6fb126bd916cb584487585',
+            279:'1bda53df273b7a02b5d2837811c0fba3501287e6',
+            280:'b19b37cd0b375477b4a083cd49f9fb02cf9ae99b',
+          }
+          required={'Clean install','Lint','Typecheck','Unit tests','Production build','Contract suite'}
+          deadline=time.monotonic()+1050
+          previous=None
+          while True:
+            prs=json.loads(subprocess.check_output(['gh','pr','list','--repo','NickGuAI/HappyHerd','--state','open','--limit','100','--json','number,title,url,headRefName,headRefOid,statusCheckRollup'],text=True))
+            assert {p['number'] for p in prs}==set(expected),'Open PR set changed; re-evaluate scope.'
+            result=[]
+            complete=True
+            failed=False
+            for p in sorted(prs,key=lambda x:x['number']):
+              assert p['headRefOid']==expected[p['number']],f"PR {p['number']} head moved; re-evaluate exact head."
+              checks={c.get('name'):c for c in p['statusCheckRollup'] if c.get('name') in required}
+              states={name:checks[name].get('conclusion') or checks[name].get('status') if name in checks else 'MISSING' for name in sorted(required)}
+              complete=complete and all(state=='SUCCESS' for state in states.values())
+              failed=failed or any(state in {'FAILURE','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'} for state in states.values())
+              result.append({'pr':p['number'],'head':p['headRefOid'],'url':p['url'],'required_checks':states,'all_checks':p['statusCheckRollup']})
+            summary=[{k:v for k,v in r.items() if k!='all_checks'} for r in result]
+            encoded=json.dumps(summary,sort_keys=True)
+            if encoded!=previous:
+              print(datetime.datetime.now(datetime.timezone.utc).isoformat(),json.dumps(summary),flush=True)
+              previous=encoded
+            if complete or failed or time.monotonic()>=deadline:
+              snapshot={'verified_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'all_required_pass':complete,'pull_requests':result}
+              with open('pr-check-verification.json','w') as f: json.dump(snapshot,f,indent=2)
+              print('FINAL_VERIFICATION',json.dumps(snapshot),flush=True)
+              if not complete: raise SystemExit(1)
+              break
+            time.sleep(30)
           PY
+      - name: Retain exact-head check evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: happyherd-pr-check-verification
+          path: pr-check-verification.json
+          if-no-files-found: warn
