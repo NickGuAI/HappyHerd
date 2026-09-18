@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { machineRPC, refreshSessions } = vi.hoisted(() => ({
+const { machineRPC, refreshSessions, getState } = vi.hoisted(() => ({
     machineRPC: vi.fn(),
     refreshSessions: vi.fn(),
+    getState: vi.fn(() => ({ sessions: {} })),
 }));
 
 const resource = {
@@ -24,13 +25,46 @@ vi.mock('./sync', () => ({
 // ops.ts imports storage (for sessionSetAgentModes), which transitively pulls
 // in react-native — mock it out, these tests never touch it.
 vi.mock('./storage', () => ({
-    storage: { getState: vi.fn(() => ({ sessions: {} })) },
+    storage: { getState },
 }));
 
 describe('codex fork ops', () => {
     beforeEach(() => {
         machineRPC.mockReset();
         refreshSessions.mockReset();
+        getState.mockReturnValue({ sessions: {} });
+    });
+
+    it.each(['claude', 'codex'] as const)('inherits current permission and Commander for %s forks and duplicates', async (provider) => {
+        const permissionMode = provider === 'claude' ? 'bypassPermissions' : 'yolo';
+        getState.mockReturnValue({ sessions: {
+            'happy-source': {
+                permissionMode,
+                metadata: {
+                    commanderId: 'athena',
+                    permissionMode: 'default',
+                    spawnSettings: { provider, permission: 'default' },
+                },
+            },
+        } });
+        machineRPC.mockImplementation(async (_machineId: string, method: string) => method === 'spawn-happy-session'
+            ? { type: 'success', sessionId: 'happy-child' }
+            : { type: 'success', newClaudeSessionId: 'claude-child', newCodexThreadId: 'codex-child' });
+        const { forkAndSpawn } = await import('./ops');
+        const source = provider === 'claude'
+            ? { kind: provider, sessionId: 'happy-source', machineId: 'machine-1', directory: '/tmp/project', claudeSessionId: 'claude-parent' }
+            : { kind: provider, sessionId: 'happy-source', machineId: 'machine-1', directory: '/tmp/project', codexThreadId: 'codex-parent' };
+
+        for (const options of [{}, { cutAfterUuid: 'user-1', cutAfterItemId: 'user-1' }]) {
+            await expect(forkAndSpawn(source, options)).resolves.toMatchObject({ type: 'success' });
+            expect(machineRPC).toHaveBeenLastCalledWith('machine-1', 'spawn-happy-session', expect.objectContaining({
+                agent: provider,
+                directory: '/tmp/project',
+                permissionMode,
+                commanderId: 'athena',
+                parentSessionId: 'happy-source',
+            }));
+        }
     });
 
     it('passes new-session mode defaults through spawn RPC', async () => {
@@ -60,6 +94,25 @@ describe('codex fork ops', () => {
                 commanderId: 'athena',
             }),
         );
+    });
+
+    it.each([
+        { receipt: { provider: 'claude', permission: 'dontAsk' }, metadataPermission: 'default', expected: 'dontAsk' },
+        { receipt: undefined, metadataPermission: 'acceptEdits', expected: 'acceptEdits' },
+        { receipt: { provider: 'codex', permission: 'yolo' }, metadataPermission: 'acceptEdits', expected: 'acceptEdits' },
+        { receipt: { provider: 'claude', permission: null }, metadataPermission: 'bypassPermissions', expected: undefined },
+    ])('resolves missing local permission from the matching receipt or legacy metadata: $expected', async ({ receipt, metadataPermission, expected }) => {
+        getState.mockReturnValue({ sessions: {
+            parent: { permissionMode: null, metadata: { permissionMode: metadataPermission, spawnSettings: receipt } },
+        } });
+        machineRPC.mockResolvedValueOnce({ type: 'success', newClaudeSessionId: 'child' })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'happy-child' });
+        const { forkAndSpawn } = await import('./ops');
+        await forkAndSpawn({ sessionId: 'parent', machineId: 'machine-1', directory: '/tmp/project', claudeSessionId: 'source' });
+        expect(machineRPC).toHaveBeenLastCalledWith('machine-1', 'spawn-happy-session', expect.objectContaining({
+            permissionMode: expected,
+            commanderId: undefined,
+        }));
     });
 
     it('routes automation CRUD through encrypted machine RPC methods', async () => {

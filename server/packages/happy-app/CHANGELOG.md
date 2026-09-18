@@ -18,6 +18,11 @@
 - Supported ACP plan snapshots reach the conversation, and compact tool display no longer hides their content.
 - Question forms support written answers and retain the original approval controls when a native payload cannot be rendered. Codex native question transport and complete restored-plan coverage remain separate unfinished work.
 
+# September 17 — Forked session settings
+
+- Forking or duplicating a Claude or Codex session now retains the parent session's permission mode and Commander in its original directory.
+- New side chats inherit their parent's Commander and provider permission policy; an explicitly selected child permission mode still takes precedence. Side-chat inheritance requires an updated daemon.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.
