@@ -1,3 +1,8 @@
+# September 17 — System scroll direction
+
+- Web chat scrolling now follows your system's mouse and trackpad scroll direction while keeping the latest messages anchored at the bottom.
+- Horizontal and Shift-wheel gestures no longer get redirected into vertical chat scrolling.
+
 # September 17 — Forked session settings
 
 - Forking or duplicating a Claude or Codex session now retains the parent session's permission mode and Commander in its original directory.

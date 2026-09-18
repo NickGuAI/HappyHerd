@@ -961,20 +961,34 @@ const ChatListInternal = React.memo((props: {
         setOldestRenderedId(all[nextEnd - 1].id);
     }, [messages, props.isLoadingOlder, props.hasMoreOlder]);
 
-    // On web a wheel is the drag gesture: it marks the reader taking over,
-    // since there is no onScrollBeginDrag for wheels. Shift+wheel also swaps
-    // deltaX/deltaY on macOS — restore vertical scrolling.
+    // FlashList flips the web scroll container but does not compensate wheel
+    // input. Undo that coordinate flip, preserving the OS-provided direction.
     React.useEffect(() => {
         if (Platform.OS !== 'web') return;
         const node = listRef.current?.getScrollableNode?.() as HTMLElement | undefined;
         if (!node) return;
         const handler = (e: WheelEvent) => {
+            if (e.defaultPrevented || e.ctrlKey || e.shiftKey || e.deltaY === 0
+                || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+
+            // Let nested editors and other vertical scrollers consume their
+            // own gestures before the chat takes over at their boundary.
+            let target = e.target instanceof Element ? e.target : null;
+            while (target && target !== node) {
+                if (target.scrollHeight > target.clientHeight
+                    && /^(auto|scroll)$/.test(getComputedStyle(target).overflowY)
+                    && (e.deltaY < 0 ? target.scrollTop > 0
+                        : target.scrollTop < target.scrollHeight - target.clientHeight - 1)) return;
+                target = target.parentElement;
+            }
+
             userTookOverRef.current = true;
             releaseExactMessageFocus();
-            if (e.shiftKey && Math.abs(e.deltaX) > 0 && Math.abs(e.deltaY) < 1) {
-                node.scrollTop += e.deltaX;
-                e.preventDefault();
-            }
+            const unit = e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? node.clientHeight
+                : e.deltaMode === WheelEvent.DOM_DELTA_LINE
+                    ? parseFloat(getComputedStyle(node).lineHeight) || 16 : 1;
+            e.preventDefault();
+            node.scrollTop -= e.deltaY * unit;
         };
         node.addEventListener('wheel', handler, { passive: false });
         return () => node.removeEventListener('wheel', handler);
