@@ -356,3 +356,4 @@ CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run 
 UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integration	docs/upstream-sync-4b7d763e.md
 UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happy-app/sources/sync/happyToolProtocol.test.ts
 UPSTREAM_4B7D763E_BROWSER_TIMING	accepted	test(upstream): synchronize browser interaction assertions	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+CHAT_SYSTEM_SCROLL	code-ready	fix(chat): follow system wheel scroll direction	server/packages/happy-app/sources/components/ChatList.browser.test.ts
