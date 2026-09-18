@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Mobile browser layout",
+      "summary": "",
+      "markdown": "- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them."
+    },
+    {
       "title": "September 17 — System scroll direction",
       "summary": "",
       "markdown": "- Web chat scrolling now follows your system's mouse and trackpad scroll direction while keeping the latest messages anchored at the bottom.\n- Horizontal and Shift-wheel gestures no longer get redirected into vertical chat scrolling."
@@ -701,5 +706,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — System scroll direction"
+  "latestTitle": "September 17 — Mobile browser layout"
 }

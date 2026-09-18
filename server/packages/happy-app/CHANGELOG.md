@@ -1,3 +1,7 @@
+# September 17 — Mobile browser layout
+
+- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.
+
 # September 17 — System scroll direction
 
 - Web chat scrolling now follows your system's mouse and trackpad scroll direction while keeping the latest messages anchored at the bottom.

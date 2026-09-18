@@ -1,3 +1,4 @@
+MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
 FORK_PARENT_SETTINGS	accepted	fix(sessions): inherit parent permissions and commander on fork	.dev/evidence/issue-281-fork-inheritance.md
 WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happy-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
