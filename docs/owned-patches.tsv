@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+FORK_PARENT_SETTINGS	accepted	fix(sessions): inherit parent permissions and commander on fork	.dev/evidence/issue-281-fork-inheritance.md
 WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happy-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
 NATIVE_INSTALLER_PROOF	accepted	fix(installer): keep database byte handling in prepared releases	.github/workflows/native-installer-release.yml
 NEW_SESSION_PANEL_UX	accepted	fix(new-session): preserve native sizing and prove route gestures	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

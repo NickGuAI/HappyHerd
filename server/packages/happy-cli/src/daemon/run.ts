@@ -1926,13 +1926,24 @@ export async function startDaemon(): Promise<void> {
         }
         const isCodexParent = provider === 'codex';
         const nativeFork = provider === 'claude' || provider === 'codex';
-        const shouldResolveLaunchSettings = launch !== undefined || (!nativeFork && provider !== 'gemini');
+        const parentReceipt = parent.metadata.spawnSettings?.provider === provider
+          ? parent.metadata.spawnSettings
+          : undefined;
+        // Launch-only providers must inherit their actual process policy, not
+        // an ACP operating mode. Mutable providers use the latest synced mode.
+        const inheritedPermission = provider === 'grok' || provider === 'dsh'
+          ? persistedProviderPermissionMode(parent.metadata, provider)
+          : parent.metadata.permissionMode ?? parentReceipt?.permission ?? undefined;
+        const permission = launch?.permission ?? inheritedPermission;
+        const shouldResolveLaunchSettings = launch !== undefined
+          || permission !== undefined
+          || (!nativeFork && provider !== 'gemini');
         const effectiveLaunchSettings = shouldResolveLaunchSettings
           ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
             provider,
             ...(launch?.model ? { model: launch.model } : {}),
             ...(launch?.effort ? { effort: launch.effort } : {}),
-            ...(launch?.permission ? { permission: launch.permission } : {}),
+            ...(permission ? { permission } : {}),
           })
           : undefined;
         const effectiveLaunch = effectiveLaunchSettings
@@ -2008,6 +2019,7 @@ export async function startDaemon(): Promise<void> {
           },
           createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
             ...options,
+            commanderId: parent.metadata.commanderId,
             ...(effectiveLaunchSettings ? {
               permissionMode: effectiveLaunchSettings.permission ?? undefined,
               effectiveSettings: effectiveLaunchSettings,
