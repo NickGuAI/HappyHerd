@@ -1,3 +1,8 @@
+# September 17 — System scroll direction
+
+- Web chat scrolling now follows your system's mouse and trackpad scroll direction while keeping the latest messages anchored at the bottom.
+- Horizontal and Shift-wheel gestures no longer get redirected into vertical chat scrolling.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.

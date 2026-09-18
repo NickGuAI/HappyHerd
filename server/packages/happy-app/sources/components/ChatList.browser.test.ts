@@ -121,6 +121,66 @@ describe('ChatList production FlashList browser interactions', () => {
         if (server) await new Promise<void>(closed => server.close(() => closed()));
     }, 20000);
 
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
+        const page = await browser.newPage({ viewport });
+        await page.goto(origin + '?focus');
+        const message = page.getByText('Prompt 24', { exact: true });
+        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+        await message.hover();
+        const before = (await message.boundingBox())!.y;
+        await page.mouse.wheel(0, -100);
+        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThan(before + 50);
+        const afterUp = (await message.boundingBox())!.y;
+        await page.mouse.wheel(0, 100);
+        await expect.poll(async () => (await message.boundingBox())?.y).toBeLessThan(afterUp - 50);
+        await page.getByRole('button', { name: 'Jump to latest', exact: true }).click();
+        await expect.poll(async () => {
+            const bounds = await page.getByText('Prompt 149', { exact: true }).boundingBox();
+            return bounds !== null && bounds.y >= 0 && bounds.y < viewport.height;
+        }).toBe(true);
+        await page.close();
+    }, 20000);
+
+    it('preserves zoom, horizontal gestures and nested scrolling, and converts wheel units', async () => {
+        const page = await browser.newPage();
+        await page.goto(origin + '?focus');
+        const message = page.getByText('Prompt 24', { exact: true });
+        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+        const result = await message.evaluate(element => {
+            let node = element.parentElement!;
+            while (!/^(auto|scroll)$/.test(getComputedStyle(node).overflowY)) node = node.parentElement!;
+            const fire = (target: Element, init: WheelEventInit) => {
+                const before = node.scrollTop;
+                const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init });
+                target.dispatchEvent(event);
+                return { canceled: event.defaultPrevented, movement: node.scrollTop - before };
+            };
+            const ignored = [
+                fire(element, { deltaY: 30, ctrlKey: true }),
+                fire(element, { deltaY: 30, shiftKey: true }),
+                fire(element, { deltaX: 80, deltaY: 1 }),
+            ];
+            const nested = document.createElement('div');
+            nested.style.cssText = 'height:40px;overflow-y:auto';
+            nested.innerHTML = '<div style="height:400px">Nested content</div>';
+            element.append(nested);
+            nested.scrollTop = 100;
+            const nestedEvent = fire(nested.firstElementChild!, { deltaY: 30 });
+            nested.remove();
+            const lineUnit = parseFloat(getComputedStyle(node).lineHeight) || 16;
+            const lines = fire(element, { deltaY: 2, deltaMode: WheelEvent.DOM_DELTA_LINE });
+            const pages = fire(element, { deltaY: 0.25, deltaMode: WheelEvent.DOM_DELTA_PAGE });
+            return { ignored, nestedEvent, lines, pages, lineUnit, height: node.clientHeight };
+        });
+        expect(result.ignored).toEqual(Array(3).fill({ canceled: false, movement: 0 }));
+        expect(result.nestedEvent).toEqual({ canceled: false, movement: 0 });
+        expect(result.lines.canceled).toBe(true);
+        expect(result.lines.movement).toBeCloseTo(-2 * result.lineUnit, 0);
+        expect(result.pages.canceled).toBe(true);
+        expect(result.pages.movement).toBeCloseTo(-0.25 * result.height, 0);
+        await page.close();
+    }, 20000);
+
     it.each(['none', 'scaleY(-1)', 'scaleX(-1)'])('keeps the measured list origin stable through scrolling with transform %s', async transform => {
         const page = await browser.newPage();
         await page.goto(origin);
