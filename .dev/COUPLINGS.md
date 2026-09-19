@@ -550,7 +550,15 @@ cannot continue mutating after the caller has already timed out.
 The parent session record owns the machine, working path, provider, and any
 provider-native backend ID; for Codex it also owns the exact resolved state
 home. Native fork helpers and every spawned child use the parent directory and
-provider rather than daemon defaults. If the parent record has a
+provider rather than daemon defaults. Side-chat creation also passes the parent
+Commander and inherits its current permission, or its provider-matching launch
+receipt when no current value exists. Grok and DSH inherit the launch receipt's
+process policy instead of an ACP operating mode. An explicit child permission
+selection takes precedence and is validated by the existing exact-machine
+catalog. The app's ordinary Claude/Codex fork and duplicate flow in
+`sources/sync/ops.ts` reads the latest local parent permission and Commander at
+invocation time and carries both through `spawn-happy-session`.
+If the parent record has a
 preferred named provider account, both processes explicitly activate that
 account. If `providerAccount` is absent, the parent is an unmanaged/native or
 custom Codex home: the daemon preserves its `CODEX_HOME` and existing auth

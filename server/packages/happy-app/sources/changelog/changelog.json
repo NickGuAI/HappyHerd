@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Forked session settings",
+      "summary": "",
+      "markdown": "- Forking or duplicating a Claude or Codex session now retains the parent session's permission mode and Commander in its original directory.\n- New side chats inherit their parent's Commander and provider permission policy; an explicitly selected child permission mode still takes precedence. Side-chat inheritance requires an updated daemon."
+    },
+    {
       "title": "HappyHerd Release - September 19, 2026",
       "summary": "",
       "markdown": "- Named-account transitions keep each account's credentials isolated while preserving native provider sessions, homes, and conversation history.\n- Interrupted queued work remains in its existing session queue and continues through its normal path after an account switch, without duplicating prior prompts or introducing synthetic replay."
@@ -691,5 +696,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "HappyHerd Release - September 19, 2026"
+  "latestTitle": "September 17 — Forked session settings"
 }

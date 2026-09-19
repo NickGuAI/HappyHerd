@@ -1795,6 +1795,19 @@ export async function forkAndSpawn(
     source: ForkSource,
     opts: ForkOptions = {},
 ): Promise<SpawnSessionResult> {
+    // Read at invocation time: the picker may have stayed open while the
+    // Human changed the parent's permission or Commander.
+    const parent = storage.getState().sessions[source.sessionId];
+    const provider = source.kind ?? 'claude';
+    const receipt = parent?.metadata?.spawnSettings?.provider === provider
+        ? parent.metadata.spawnSettings
+        : undefined;
+    const inherited = {
+        permissionMode: parent?.permissionMode
+            ?? (receipt && 'permission' in receipt ? receipt.permission : parent?.metadata?.permissionMode)
+            ?? undefined,
+        commanderId: parent?.metadata?.commanderId ?? undefined,
+    };
     if (source.kind === 'codex') {
         const forkResult = opts.cutAfterItemId
             ? await codexDuplicateThread({
@@ -1814,6 +1827,7 @@ export async function forkAndSpawn(
         }
 
         const spawnResult = await machineSpawnNewSession({
+            ...inherited,
             machineId: source.machineId,
             directory: source.directory,
             agent: 'codex',
@@ -1852,6 +1866,7 @@ export async function forkAndSpawn(
     }
 
     const spawnResult = await machineSpawnNewSession({
+        ...inherited,
         machineId: source.machineId,
         directory: source.directory,
         agent: 'claude',
