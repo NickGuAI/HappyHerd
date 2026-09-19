@@ -401,10 +401,17 @@ describe('daemon session continuity', () => {
     if (daemonRun && rpc?.requestShutdown) {
       const timeoutSpy = vi.spyOn(global, 'setTimeout');
       rpc.requestShutdown();
-      const fallbackTimer = timeoutSpy.mock.calls.findIndex((call) => call[1] === 1_000);
-      await daemonRun;
-      if (fallbackTimer >= 0) {
-        clearTimeout(timeoutSpy.mock.results[fallbackTimer].value as ReturnType<typeof setTimeout>);
+      // Own the timers created synchronously by shutdown instead of guessing
+      // their delay. process.exit is mocked, so its fallback otherwise escapes
+      // this fixture and can fire after the process mock has been restored.
+      const shutdownTimers = timeoutSpy.mock.results
+        .filter((result) => result.type === 'return')
+        .map((result) => result.value as ReturnType<typeof setTimeout>);
+      try {
+        expect(shutdownTimers).toHaveLength(1);
+        await daemonRun;
+      } finally {
+        for (const timer of shutdownTimers) clearTimeout(timer);
       }
     }
     if (originalCodexHome === undefined) {

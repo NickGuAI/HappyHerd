@@ -366,3 +366,4 @@ CLAUDE_ROTATION_INTERRUPTED_TURN	accepted	fix(claude): preserve interrupted turn
 CLAUDE_ROTATION_NOTICE_RETRY	accepted	fix(claude): retry quota notices until daemon acknowledgement	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
 CREDENTIAL_POOL_SESSION_CONTINUITY	accepted	fix(credentials): preserve sessions across quota account swaps	server/packages/happy-cli/src/credentialPool/providerLimitNotice.test.ts
 CREDENTIAL_POOL_RENAME_ACTIVATION	accepted	test(credentials): verify active ownership across account rename	server/packages/happy-cli/src/credentialPool/store.test.ts
+DAEMON_SHUTDOWN_FIXTURE_TIMER	accepted	test(daemon): cancel fixture-owned shutdown fallback timers	server/packages/happy-cli/src/daemon/run.resume.test.ts
