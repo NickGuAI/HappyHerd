@@ -3,6 +3,11 @@
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.
 - Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices.
 
+# September 13 — Automation launch recovery
+
+- Scheduled automations now record launches rejected before a provider process starts as failed, allowing the next scheduled tick to run instead of remaining stuck as active.
+- Uncertain provider starts remain active until reconciled, preserving protection against duplicate execution.
+
 # September 13 — Upstream integration and responsive changes
 
 - Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.
