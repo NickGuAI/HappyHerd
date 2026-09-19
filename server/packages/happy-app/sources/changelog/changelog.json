@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Preserve interrupted Claude requests",
+      "summary": "",
+      "markdown": "- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.\n- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior."
+    },
+    {
       "title": "September 17 — Consistent upstream integration",
       "summary": "",
       "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
@@ -666,5 +671,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Consistent upstream integration"
+  "latestTitle": "September 17 — Preserve interrupted Claude requests"
 }

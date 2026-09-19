@@ -1,3 +1,8 @@
+# September 17 — Preserve interrupted Claude requests
+
+- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.
+- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.

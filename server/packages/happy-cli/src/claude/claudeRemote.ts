@@ -209,10 +209,14 @@ export async function claudeRemote(opts: {
     let lastUsageSignature: string | null = null;
     let lastUsageEmittedAt = 0;
     let pendingApiHardLimit: ProviderHardLimit | null = null;
+    // A failed daemon delivery does not make the interrupted turn complete.
+    // Keep this separate from acknowledgement and from the coalescing buffer.
+    let providerHardLimitObserved = false;
     let providerHardLimitDelivered = false;
     let providerHardLimitFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     let providerHardLimitDelivery: Promise<void> = Promise.resolve();
     const deliverProviderHardLimit = (limit: ProviderHardLimit): Promise<void> => {
+        providerHardLimitObserved = true;
         if (providerHardLimitDelivered) return providerHardLimitDelivery;
         if (providerHardLimitFallbackTimer) {
             clearTimeout(providerHardLimitFallbackTimer);
@@ -343,6 +347,7 @@ export async function claudeRemote(opts: {
             // incident takes precedence and contributes its real reset time.
             const apiHardLimit = classifyClaudeApiHardLimit(message);
             if (apiHardLimit && !providerHardLimitDelivered) {
+                providerHardLimitObserved = true;
                 pendingApiHardLimit = apiHardLimit;
             }
 
@@ -418,9 +423,21 @@ export async function claudeRemote(opts: {
                 updateThinking(false);
                 logger.debug('[claudeRemote] Result received');
 
-                // Fire-and-forget: unavailable for API key / Bedrock / Vertex
-                // sessions and experimental besides, so failures are ignored.
+                // Successful turns do not wait on optional usage telemetry.
+                // A failed turn must classify its usage snapshot before it
+                // can discard the current batch as completed.
                 scheduleUsageFlush();
+                if (message.subtype !== 'success' && !providerHardLimitObserved) {
+                    await usageFlushChain;
+                }
+
+                if (providerHardLimitObserved) {
+                    // onReady completes the persisted queue batch and emits
+                    // "done". Neither that nor claiming another batch is valid
+                    // while the daemon is rotating this interrupted session.
+                    scheduleProviderHardLimitFallback();
+                    continue;
+                }
 
                 // Send completion messages
                 if (isCompactCommand) {
@@ -479,5 +496,15 @@ export async function claudeRemote(opts: {
     } finally {
         await flushProviderHardLimitFallback();
         updateThinking(false);
+        // A provider can close its stream after rejection. Do not let the
+        // launcher's outer loop consume another batch with the same account
+        // before the daemon stops this process. Explicit user abort remains
+        // available through the existing controller; SIGTERM owns rotation.
+        const signal = opts.signal;
+        if (providerHardLimitObserved && signal && !signal.aborted) {
+            await new Promise<void>((resolve) => {
+                signal.addEventListener('abort', () => resolve(), { once: true });
+            });
+        }
     }
 }
