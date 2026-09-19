@@ -7,13 +7,13 @@ permissions:
   contents: read
   pull-requests: read
   checks: read
-  actions: write
+  actions: read
 jobs:
   status:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Approve only reviewed fork revisions and capture current CI
+      - name: Capture exact-head checks and failure evidence without mutations
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -22,29 +22,21 @@ jobs:
           import json, os, pathlib, subprocess, datetime
           repo='NickGuAI/HappyHerd'
           out=pathlib.Path(os.environ['RUNNER_TEMP'])/'pr-review-status';out.mkdir()
-          reviewed={282:'3fb0100122516ef837baaf773cc8e2193df6bdd0',284:'c4f226080bc67ddd92caa4dbadb9e251bb3fa78d',285:'2f9893c9f30f5672b2b262f245ae861bd78221ec'}
-          def api(path, method='GET', raw=False):
-              p=subprocess.run(['gh','api','--method',method,f'repos/{repo}/{path}'],text=True,capture_output=True)
+          def api(path, raw=False):
+              p=subprocess.run(['gh','api',f'repos/{repo}/{path}'],text=True,capture_output=True)
               if p.returncode: raise RuntimeError(p.stderr)
               return p.stdout if raw else json.loads(p.stdout or '{}')
-          report={'as_of':datetime.datetime.now(datetime.timezone.utc).isoformat(),'prs':[],'approvals':[]}
+          report={'as_of':datetime.datetime.now(datetime.timezone.utc).isoformat(),'main':api('branches/main')['commit']['sha'],'open_pr_numbers':[p['number'] for p in api('pulls?state=open&per_page=100')],'prs':[]}
+          required={'Clean install','Lint','Typecheck','Unit tests','Production build','Contract suite'}
           for n in [275,276,278,279,280,282,284,285]:
               p=api(f'pulls/{n}');head=p['head']['sha']
               d=out/str(n);d.mkdir();(d/'pr.json').write_text(json.dumps(p,indent=2))
               runs=api(f'actions/runs?head_sha={head}&event=pull_request&per_page=100')['workflow_runs']
-              if n in reviewed and head==reviewed[n]:
-                  files=api(f'pulls/{n}/files?per_page=100')
-                  assert len(files)<100 and not any(f['filename'].startswith('.github/') for f in files)
-                  for r in runs:
-                      if r['conclusion']=='action_required':
-                          assert r['head_sha']==head and r['event']=='pull_request'
-                          try:
-                              api(f"actions/runs/{r['id']}/approve",method='POST')
-                              report['approvals'].append({'pr':n,'run':r['id'],'result':'approved'})
-                          except RuntimeError as e:
-                              report['approvals'].append({'pr':n,'run':r['id'],'error':str(e)})
               checks=api(f'commits/{head}/check-runs?per_page=100')['check_runs']
-              entry={'number':n,'head':head,'mergeable':p['mergeable'],'merge_state':p['mergeable_state'],'checks':[{'id':c['id'],'name':c['name'],'status':c['status'],'conclusion':c['conclusion'],'url':c['html_url']} for c in checks],'runs':[]}
+              entry={'number':n,'head':head,'state':p['state'],'mergeable':p['mergeable'],'merge_state':p['mergeable_state'],'checks':[{'id':c['id'],'name':c['name'],'status':c['status'],'conclusion':c['conclusion'],'url':c['html_url']} for c in checks],'runs':[],'statuses':api(f'commits/{head}/status')['statuses']}
+              entry['required_pass']=all(any(c['name']==name and c['conclusion']=='success' for c in checks) for name in required)
+              entry['all_checks_complete']=bool(checks) and all(c['status']=='completed' and c['conclusion'] in ['success','skipped','neutral'] for c in checks)
+              (d/'reviews.json').write_text(json.dumps(api(f'pulls/{n}/reviews?per_page=100'),indent=2))
               for r in runs:
                   jobs=api(f"actions/runs/{r['id']}/jobs?per_page=100")['jobs']
                   entry['runs'].append({'id':r['id'],'name':r['name'],'status':r['status'],'conclusion':r['conclusion'],'jobs':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j['conclusion'],'url':j['html_url']} for j in jobs]})
@@ -52,8 +44,8 @@ jobs:
                       if j['conclusion']=='failure':
                           try:(d/f"job-{j['id']}.log").write_text(api(f"actions/jobs/{j['id']}/logs",raw=True))
                           except RuntimeError as e:(d/f"job-{j['id']}-error.txt").write_text(str(e))
-              report['prs'].append(entry);print(json.dumps(entry),flush=True)
-          print(json.dumps(report['approvals']),flush=True)
+              report['prs'].append(entry)
+              print(json.dumps({'number':n,'head':head,'mergeable':p['mergeable'],'required_pass':entry['required_pass'],'all_checks_complete':entry['all_checks_complete'],'pending_or_failed':[(c['name'],c['conclusion'] or c['status']) for c in checks if c['conclusion'] not in ['success','skipped','neutral']]}),flush=True)
           (out/'report.json').write_text(json.dumps(report,indent=2))
           PY
       - uses: actions/upload-artifact@v4
@@ -62,3 +54,4 @@ jobs:
           name: pr-review-status
           path: ${{ runner.temp }}/pr-review-status
           retention-days: 7
+          overwrite: true
