@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { ChildProcess } from 'node:child_process';
 import { chmod, mkdir, readFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import type {
   CredentialLoginFlow,
@@ -25,6 +26,7 @@ import { spawnPtyLoginProcess, type PtyLoginSpawnOptions } from './ptyLoginProce
 
 const LOGIN_TTL_MS = 15 * 60 * 1_000;
 const CLAUDE_STARTUP_TTL_MS = 60 * 1_000;
+const CLAUDE_INPUT_SETTLE_MS = 100;
 const FINISHED_TTL_MS = 5 * 60 * 1_000;
 const TERMINATE_GRACE_MS = 2_000;
 const MAX_ACTIVE_LOGIN_ATTEMPTS = 3;
@@ -250,6 +252,11 @@ export class CredentialLoginManager {
         const capture = (chunk: Buffer | string) => this.capture(attempt, String(chunk));
         child.stdout?.on('data', capture);
         child.stderr?.on('data', capture);
+        child.stdin?.on('error', () => {
+          this.beginFinalization(attempt, () => (
+            this.finishFailure(attempt, 'The provider login did not accept the code.')
+          ));
+        });
         child.once('error', () => {
           this.beginFinalization(attempt, () => (
             this.finishFailure(attempt, 'The provider login could not be started.')
@@ -287,14 +294,29 @@ export class CredentialLoginManager {
     if (!code || code.length > 4_096 || /[\r\n]/.test(code)) {
       throw new Error('Enter the one-time code from the provider.');
     }
-    if (!attempt.child.stdin?.writable) throw new Error('The provider login is no longer accepting a code.');
+    const stdin = attempt.child.stdin;
+    if (!stdin?.writable) throw new Error('The provider login is no longer accepting a code.');
     attempt.public = { ...attempt.public, state: 'starting' };
+    const writeInput = (input: string) => new Promise<void>((resolveWrite, rejectWrite) => {
+      stdin.write(input, (error) => error ? rejectWrite(error) : resolveWrite());
+    });
     try {
-      await new Promise<void>((resolveWrite, rejectWrite) => {
-        attempt.child.stdin!.write(`${code}\r`, (error) => error ? rejectWrite(error) : resolveWrite());
-      });
+      // Ink treats a multi-character input event as a paste, not an Enter key.
+      // The PTY write callback only acknowledges queuing, so let the native
+      // input handler and React state settle before sending a separate Enter.
+      await writeInput(code);
+      await delay(CLAUDE_INPUT_SETTLE_MS);
+      if (attempt.settled) {
+        await attempt.finalization;
+        return safeFlow(attempt);
+      }
+      await writeInput('\r');
     } catch {
-      if (!attempt.settled) attempt.public = { ...attempt.public, state: 'waiting-user' };
+      // A partial write cannot safely be retried in the same input field.
+      // Finish the attempt so the existing Retry action starts a fresh login.
+      await this.beginFinalization(attempt, () => (
+        this.finishFailure(attempt, 'The provider login did not accept the code.')
+      ));
       throw new Error('The provider login did not accept the code.');
     }
     return safeFlow(attempt);
@@ -346,7 +368,10 @@ export class CredentialLoginManager {
       }
       attempt.public = {
         ...attempt.public,
-        state: 'waiting-user',
+        // Accumulated output and Ink redraws contain the original URL even
+        // after submission. Only initial discovery opens the code-entry form;
+        // a repeated URL is not evidence of rejection or a new challenge.
+        state: attempt.public.verificationUrl ? attempt.public.state : 'waiting-user',
         verificationUrl,
         ...(userCode ? { userCode } : {}),
       };
