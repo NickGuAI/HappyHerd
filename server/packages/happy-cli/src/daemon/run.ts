@@ -1270,6 +1270,9 @@ export async function startDaemon(): Promise<void> {
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
+        const grokHome = resumeAgent === 'grok'
+          ? metadata.grokHome?.trim() || undefined
+          : undefined;
         const persistedLaunchPermission = resumeAgent === 'grok' || resumeAgent === 'dsh'
           ? persistedProviderPermissionMode(metadata, resumeAgent)
           : undefined;
@@ -1340,6 +1343,7 @@ export async function startDaemon(): Promise<void> {
             ...agentRuntimeEnvironment,
             ...credentialResolution.env,
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+            ...(grokHome ? { GROK_HOME: grokHome } : {}),
             ...machineSessionSettingsEnvironment(providerResumeSettings ?? grokResumeSettings),
             HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
@@ -1609,7 +1613,7 @@ export async function startDaemon(): Promise<void> {
         incidentId,
       }, incidentId);
     };
-    const onProviderLimited = (notice: ProviderLimitNotice): void => {
+    const onProviderLimited = (notice: ProviderLimitNotice): boolean => {
       if (notice.accountId) {
         const tracked = findTrackedSessionById(notice.sessionId);
         const metadata = tracked?.happySessionMetadataFromLocalWebhook;
@@ -1618,11 +1622,11 @@ export async function startDaemon(): Promise<void> {
           || metadata.providerAccountCredentialVersion !== notice.credentialVersion
         ) {
           logger.debug(`[CREDENTIAL POOL] Ignoring stale ${notice.provider} limit notice for ${notice.sessionId}`);
-          return;
+          return false;
         }
       }
       const key = `${notice.sessionId}:${notice.provider}:${notice.accountId ?? notice.account ?? 'unmanaged'}:${notice.credentialVersion ?? 'legacy'}`;
-      if (providerLimitRotations.has(key)) return;
+      if (providerLimitRotations.has(key)) return true;
       const rotationIncidentId = randomUUID();
       const quotaIncidentId = randomUUID();
       let quotaMessagePosted = false;
@@ -1713,6 +1717,7 @@ export async function startDaemon(): Promise<void> {
         providerLimitRotations.delete(key);
       });
       providerLimitRotations.set(key, handling);
+      return true;
     };
 
     let ensureDefaultAssistant = async (): Promise<DefaultAssistantReceipt> => {

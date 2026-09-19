@@ -1,13 +1,15 @@
-import { chmod, copyFile, mkdir } from 'node:fs/promises';
+import { chmod, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import type { CredentialAccount } from './types';
 import {
   defaultCredentialPoolPaths,
   persistRegisteredCredentialFile,
+  writeCredentialBytes,
   type CredentialPoolPaths,
 } from './store';
+import { activateRuntimeAuthCredential, runtimeAuthOwnershipMatches, withRuntimeAuthLock } from './runtimeAuthOwnership';
 
 type CodexCredentialAccount = Extract<CredentialAccount, { provider: 'codex' }>;
 
@@ -19,14 +21,7 @@ export async function activateCodexCredential(
   account: CodexCredentialAccount,
   runtimeHome: string = codexRuntimeHome(),
 ): Promise<void> {
-  const runtimeAuthFile = join(runtimeHome, 'auth.json');
-  if (resolve(account.credential.path) === resolve(runtimeAuthFile)) {
-    await chmod(runtimeAuthFile, 0o600);
-    return;
-  }
-  await mkdir(runtimeHome, { recursive: true, mode: 0o700 });
-  await copyFile(account.credential.path, runtimeAuthFile);
-  await chmod(runtimeAuthFile, 0o600);
+  await activateRuntimeAuthCredential(account, runtimeHome);
 }
 
 export async function persistActiveCodexCredential(
@@ -37,18 +32,26 @@ export async function persistActiveCodexCredential(
   const rawCredentialVersion = env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION?.trim();
   const credentialVersion = rawCredentialVersion === undefined ? Number.NaN : Number(rawCredentialVersion);
   if (!accountId || !Number.isInteger(credentialVersion) || credentialVersion < 1) return false;
-  const runtimeAuthFile = join(codexRuntimeHome(env), 'auth.json');
-  return persistRegisteredCredentialFile('codex', {
-    accountId,
-    credentialVersion,
-  }, async (accountAuthFile) => {
-    if (resolve(accountAuthFile) === resolve(runtimeAuthFile)) {
-      await chmod(runtimeAuthFile, 0o600);
-      return;
-    }
-    await mkdir(dirname(accountAuthFile), { recursive: true, mode: 0o700 });
-    await chmod(dirname(accountAuthFile), 0o700);
-    await copyFile(runtimeAuthFile, accountAuthFile);
-    await chmod(accountAuthFile, 0o600);
-  }, paths);
+  const runtimeHome = codexRuntimeHome(env);
+  return withRuntimeAuthLock(runtimeHome, async () => {
+    if (!(await runtimeAuthOwnershipMatches('codex', runtimeHome, env))) return false;
+    const runtimeAuthFile = join(runtimeHome, 'auth.json');
+    // Snapshot the source while managed activation is excluded; destination
+    // registration and relogin version are still checked by the pool store.
+    const bytes = await readFile(runtimeAuthFile);
+    await chmod(runtimeAuthFile, 0o600);
+    return persistRegisteredCredentialFile('codex', { accountId, credentialVersion }, async (accountAuthFile) => {
+      if (resolve(accountAuthFile) !== resolve(runtimeAuthFile)) {
+        await writeCredentialBytes(accountAuthFile, bytes);
+      }
+    }, paths);
+  });
+}
+
+export async function codexRuntimeCredentialOwnedByProcess(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  if (env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE !== 'codex') return true;
+  const home = codexRuntimeHome(env);
+  return withRuntimeAuthLock(home, () => runtimeAuthOwnershipMatches('codex', home, env));
 }

@@ -12,7 +12,7 @@ impose that source-state gate.
 | HappyHerd-owned security-feature approval | `.dev/playbooks/security-feature-approval.md` | TickTick `In review` task and explicit owner approval |
 | Verification | `.dev/VERIFY.md`, `.github/workflows/quality-gates.yml`, `.github/workflows/contract-suite.yml` | `scripts/contract-suite.sh` |
 | Provider onboarding and protocol changes | `.dev/playbooks/provider-onboarding.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused provider fixtures; `pnpm --filter @slopus/happy-wire test`; affected `@happyherd/cli` and `happy-app` package checks; live provider smoke when available |
-| Named credential pools and reactive rotation | `server/packages/happy-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `@happyherd/cli` and `happy-app` package checks |
+| Named credential pools and reactive rotation | `.dev/playbooks/credential-pools.md`, `server/packages/happy-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `@happyherd/cli` and `happy-app` package checks |
 | Credentials & Accounts management | `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happy-cli` credential pool and authenticated machine RPC for machine-local provider accounts; `happy-server` `/v1/credentials` for account-wide saved credentials; Happy app Settings page |
 | Owned patch discipline | `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-patch-discipline.sh`, `scripts/list-owned-patches.sh`, `scripts/test-owned-merge-provenance.sh` |
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |

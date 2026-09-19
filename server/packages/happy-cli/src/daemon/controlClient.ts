@@ -147,7 +147,7 @@ export async function stopDaemonSession(sessionId: string): Promise<boolean> {
 
 export async function notifyDaemonProviderLimited(
   notice: ProviderLimitNotice,
-): Promise<{ status?: 'scheduled'; error?: string }> {
+): Promise<{ status?: 'scheduled' | 'ignored'; error?: string }> {
   return daemonPost('/provider-limited', notice);
 }
 

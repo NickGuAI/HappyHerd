@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Reliable quota account switching",
+      "summary": "",
+      "markdown": "- Quota-account switching now carries Claude’s stable account identity and restores Grok’s original state home while retaining existing conversation IDs. Switching credentials does not submit or replay work.\n- Managed Codex and Grok auth-file activation and writeback now check account ownership; stale quota notices remain retryable instead of being acknowledged as scheduled."
+    },
+    {
       "title": "September 17 — Consistent upstream integration",
       "summary": "",
       "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
@@ -666,5 +671,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Consistent upstream integration"
+  "latestTitle": "September 17 — Reliable quota account switching"
 }

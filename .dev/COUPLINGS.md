@@ -170,6 +170,8 @@ values must never survive a Claude ↔ Codex (or any other) switch.
 
 ### Named credential pools and reactive rotation
 
+Read [`playbooks/credential-pools.md`](playbooks/credential-pools.md) before changing account identity, auth-file ownership, or rotation semantics.
+
 ```text
 happyherd connect <provider> --acct <nickname>
   → exact argument validation → provider authentication → credential-pool store
@@ -188,9 +190,20 @@ Rotation is reactive and lazy: there is no background quota polling or UI
 toggle, and cross-account failover requires at least two named accounts for the
 same provider. Quota snapshots are owned by `providerAccount`; partial windows
 merge only within that account. A switch receipt carries provider, old account,
-the resumed webhook's selected account, and a stable incident ID. A failed
-daemon notice stays retryable; no receipt is emitted for ignored notices,
-failed stop or resume, or a wait that returns to the same account.
+the resumed webhook's selected account, and a stable incident ID. The daemon
+returns `scheduled` only when it accepts the exact notice; stale identity/version
+notices return `ignored`, so reporters keep them retryable instead of deduplicating
+them as delivered. No switch receipt is emitted for ignored notices, failed stop
+or resume, or a wait that returns to the same account.
+
+Codex and Grok keep native session state in their retained provider home while
+activating a selected account into that home's `auth.json`. A secret-free
+account-ID/version owner marker is published after atomic auth replacement.
+Managed activation and writeback share the existing file-lock mechanism for the
+runtime slot; writeback snapshots a matching owner’s source before persisting it
+under the account registration lock. Codex connection/reconnect must not launch
+through a runtime home currently claimed by another account. Grok resume restores
+the original recorded `GROK_HOME` just as Codex restores its state home.
 
 The Settings page always presents the three supported providers (Claude,
 Codex, and Grok) and separately labels HappyHerd-managed accounts—which are

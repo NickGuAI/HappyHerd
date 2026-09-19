@@ -7,12 +7,14 @@ const {
     mockWrapForMcpTransport,
     mockSandboxCleanup,
     mockSpawn,
+    mockCodexRuntimeCredentialOwnedByProcess,
 } = vi.hoisted(() => ({
     mockExecSync: vi.fn(),
     mockInitializeSandbox: vi.fn(),
     mockWrapForMcpTransport: vi.fn(),
     mockSandboxCleanup: vi.fn(),
     mockSpawn: vi.fn(),
+    mockCodexRuntimeCredentialOwnedByProcess: vi.fn(),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -27,6 +29,10 @@ vi.mock('cross-spawn', () => ({
 vi.mock('@/sandbox/manager', () => ({
     initializeSandbox: mockInitializeSandbox,
     wrapForMcpTransport: mockWrapForMcpTransport,
+}));
+
+vi.mock('@/credentialPool/codexAuth', () => ({
+    codexRuntimeCredentialOwnedByProcess: mockCodexRuntimeCredentialOwnedByProcess,
 }));
 
 vi.mock('@/ui/logger', () => ({
@@ -125,6 +131,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         mockInitializeSandbox.mockResolvedValue(mockSandboxCleanup);
         mockWrapForMcpTransport.mockResolvedValue({ command: 'sh', args: ['-c', 'wrapped codex app-server'] });
         mockSpawn.mockImplementation(() => createMockProcess());
+        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(true);
     });
 
     afterAll(() => {
@@ -183,6 +190,48 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(options.cwd).toBe('/srv/parent-project');
         expect(options.env).toMatchObject(processEnvironment);
 
+        await client.disconnect();
+    });
+
+    it('retains the native thread after an ownership refusal and later resumes it', async () => {
+        const requests: MockRpcMessage[] = [];
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'thread/resume' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: { thread: { id: msg.params.threadId }, model: 'gpt-test' },
+                    }), 0);
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const processEnvironment = {
+            PATH: process.env.PATH,
+            CODEX_HOME: '/srv/codex-homes/shared',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: '00000000-0000-4000-8000-000000000007',
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '2',
+        };
+        const client = new CodexAppServerClient(undefined, { processEnvironment });
+        await client.connect();
+        await client.resumeThread({ threadId: 'same-native-thread', cwd: '/tmp/native-workspace' });
+        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(false);
+        await expect(client.reconnectAndResumeThread()).resolves.toBe(false);
+        await expect(client.connect()).rejects.toThrow('runtime home owned by another');
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+        expect(client.threadId).toBe('same-native-thread');
+
+        // This is a separately initiated resume after ownership is restored,
+        // not a turn manufactured by credential rotation.
+        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(true);
+        await expect(client.reconnectAndResumeThread()).resolves.toBe(true);
+        expect(mockSpawn).toHaveBeenCalledTimes(2);
+        const resumes = requests.filter((r) => r.method === 'thread/resume');
+        expect(resumes.map((r) => r.params.threadId)).toEqual(['same-native-thread', 'same-native-thread']);
+        expect(requests.some((r) => r.method === 'thread/start' || r.method === 'turn/start')).toBe(false);
+        expect(mockSpawn.mock.calls[1][2].env.CODEX_HOME).toBe(processEnvironment.CODEX_HOME);
         await client.disconnect();
     });
 
