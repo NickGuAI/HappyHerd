@@ -357,3 +357,4 @@ UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integratio
 UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happy-app/sources/sync/happyToolProtocol.test.ts
 UPSTREAM_4B7D763E_BROWSER_TIMING	accepted	test(upstream): synchronize browser interaction assertions	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 CREDENTIAL_POOL_SESSION_CONTINUITY	accepted	fix(credentials): preserve sessions across quota account swaps	server/packages/happy-cli/src/credentialPool/providerLimitNotice.test.ts
+CREDENTIAL_POOL_RENAME_ACTIVATION	accepted	test(credentials): verify active ownership across account rename	server/packages/happy-cli/src/credentialPool/store.test.ts
