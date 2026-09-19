@@ -163,7 +163,7 @@ describe('selectAgentFormCommunication', () => {
 });
 
 describe('canRenderAgentFormInline', () => {
-    it('accepts choice forms and keeps text-only forms on the modal fallback', () => {
+    it('accepts choice and free-text forms supported by the inline renderer', () => {
         expect(canRenderAgentFormInline({
             id: 'choice',
             createdAt: 0,
@@ -172,27 +172,35 @@ describe('canRenderAgentFormInline', () => {
         })).toBe(true);
 
         expect(canRenderAgentFormInline({
+            id: 'text',
+            createdAt: 0,
+            kind: 'form',
+            questions: [question({ options: [], allowCustom: true })],
+        })).toBe(true);
+    });
+
+    it('assigns choice and free-text forms to the transcript before their tool message arrives', () => {
+        expect(shouldUseAgentQuestionFallback({
+            id: 'choice',
+            createdAt: 0,
+            kind: 'form',
+            questions: [question()],
+        })).toBe(false);
+
+        expect(shouldUseAgentQuestionFallback({
             id: 'text',
             createdAt: 0,
             kind: 'form',
             questions: [question({ options: [], allowCustom: true })],
         })).toBe(false);
     });
-
-    it('assigns choice forms to the transcript before their tool message arrives', () => {
-        expect(shouldUseAgentQuestionFallback({
-            id: 'choice',
-            createdAt: 0,
-            kind: 'form',
-            questions: [question()],
-        })).toBe(false);
-
-        expect(shouldUseAgentQuestionFallback({
-            id: 'text',
-            createdAt: 0,
-            kind: 'form',
-            questions: [question({ options: [], allowCustom: true })],
-        })).toBe(true);
+    it('retains fallback ownership for a form with no supported input', () => {
+        const unsupported = {
+            id: 'unanswerable', createdAt: 0, kind: 'form' as const,
+            questions: [question({ options: [], allowCustom: false })],
+        };
+        expect(canRenderAgentFormInline(unsupported)).toBe(false);
+        expect(shouldUseAgentQuestionFallback(unsupported)).toBe(true);
     });
 });
 

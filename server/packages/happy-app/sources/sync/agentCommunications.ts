@@ -124,11 +124,11 @@ export function selectAgentFormCommunication(
     return null;
 }
 
-/** Choice forms can live directly in chat; text-only forms keep the modal fallback. */
+/** Answerable forms can live directly in chat, including free-text questions. */
 export function canRenderAgentFormInline(communication: PendingAgentCommunication): boolean {
     return communication.kind === 'form'
         && communication.questions.length > 0
-        && communication.questions.every(question => question.options.length > 0);
+        && communication.questions.every(question => question.options.length > 0 || question.allowCustom !== false);
 }
 
 /**
