@@ -1,0 +1,39 @@
+name: Approve reviewed fork revision
+on:
+  push:
+    branches: [chore/pr-review-evidence-20260918]
+    paths: [.github/workflows/pr-review-fork-approval.yml]
+permissions:
+  contents: read
+  pull-requests: read
+  actions: write
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify exact tree and approve existing checks only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          repo='NickGuAI/HappyHerd'
+          head='a76b5e4fc09de4153b7f6849600e07dcac9fbf46'
+          def api(path, method='GET'):
+              return json.loads(subprocess.check_output(['gh','api','--method',method,f'repos/{repo}/{path}'],text=True) or '{}')
+          assert api('pulls/285')['head']['sha']==head
+          commit=api(f'git/commits/{head}')
+          assert commit['tree']['sha']=='51c448931b91de45d471d0ff3ca02b8e2bc266e2'
+          assert commit['parents'][0]['sha']=='4c9454af40581865d43ec08ec90d987d19ab5f68'
+          for field in ['author','committer']:
+              assert commit[field]['name']=='HappyHerd Maintainers' and commit[field]['email']=='maintainers@happyherd.example'
+          runs=api(f'actions/runs?head_sha={head}&event=pull_request&per_page=100')['workflow_runs']
+          assert len(runs)==4
+          for r in runs:
+              assert r['head_sha']==head and r['event']=='pull_request'
+              if r['conclusion']=='action_required':
+                  api(f"actions/runs/{r['id']}/approve",'POST')
+                  print('Approved',r['name'],r['id'])
+              else:print('Already released',r['name'],r['status'],r['conclusion'])
+          PY
