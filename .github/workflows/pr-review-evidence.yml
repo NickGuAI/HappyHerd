@@ -23,7 +23,9 @@ jobs:
           repo='NickGuAI/HappyHerd'
           out=pathlib.Path(os.environ['RUNNER_TEMP'])/'pr-review-status';out.mkdir()
           def api(path, raw=False):
-              p=subprocess.run(['gh','api',f'repos/{repo}/{path}'],text=True,capture_output=True)
+              args=['gh','api']
+              if raw: args.append('--allow-escape-sequences')
+              p=subprocess.run([*args,f'repos/{repo}/{path}'],text=True,capture_output=True)
               if p.returncode: raise RuntimeError(p.stderr)
               return p.stdout if raw else json.loads(p.stdout or '{}')
           report={'as_of':datetime.datetime.now(datetime.timezone.utc).isoformat(),'main':api('branches/main')['commit']['sha'],'open_pr_numbers':[p['number'] for p in api('pulls?state=open&per_page=100')],'prs':[]}
