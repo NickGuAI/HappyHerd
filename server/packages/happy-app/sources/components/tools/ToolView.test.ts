@@ -3,8 +3,9 @@ import * as React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ToolCall } from '@/sync/typesMessage';
+import type { AgentFormCommunication } from '@/sync/agentCommunications';
 
-const settings = vi.hoisted(() => ({ compact: false, platform: 'ios', width: 390 }));
+const settings = vi.hoisted(() => ({ compact: false, platform: 'ios', width: 390, communication: null as AgentFormCommunication | null }));
 vi.mock('react-native', async () => {
     const React = await import('react');
     const host = (name: string) => (props: any) => React.createElement(name, props, props.children);
@@ -24,7 +25,11 @@ vi.mock('react-native-unistyles', async () => {
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null, Octicons: () => null }));
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/sync/storage', () => ({ useSetting: () => settings.compact, useLocalSetting: () => false, useSession: () => null }));
+vi.mock('@/sync/storage', () => ({
+    useSetting: () => settings.compact, useLocalSetting: () => false, useSession: () => null,
+    useSessionAgentFormCommunication: (_sessionId: string, toolUseId: string) =>
+        settings.communication?.toolUseId === toolUseId ? settings.communication : null,
+}));
 vi.mock('@/hooks/useElapsedTime', () => ({ useElapsedTime: () => 0 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('../layout', () => ({ layout: { maxWidth: 1200 } }));
@@ -107,6 +112,7 @@ afterEach(() => {
     settings.compact = false;
     settings.platform = 'ios';
     settings.width = 390;
+    settings.communication = null;
 });
 
 describe('tool rendering on mobile and web', () => {
@@ -164,10 +170,44 @@ describe('tool rendering on mobile and web', () => {
         const patch = render(React.createElement(ToolView, { tool: tool('apply_patch'), metadata: null }));
         expect(patch.root.findAllByType('SpecializedView')).toHaveLength(1);
         settings.compact = true;
+        settings.communication = {
+            id: 'form-1', toolUseId: 'question-call', kind: 'form', createdAt: 1, status: 'pending',
+            questions: [{ id: 'choice', header: 'Target', question: 'Choose a target', options: [{ label: 'Main' }], multiSelect: false, allowCustom: false }],
+        };
         for (const name of ['request_user_input', 'file']) {
-            const row = render(React.createElement(ToolView, { tool: tool(name), metadata: null }));
+            const row = render(React.createElement(ToolView, { tool: { ...tool(name), callId: 'question-call' }, metadata: null, sessionId: 's1' }));
             expect(row.root.findAllByType('SpecializedView')).toHaveLength(1);
         }
+    });
+
+    it('does not invent a question form when the matching communication is absent', () => {
+        settings.compact = true;
+        const pending = {
+            ...tool('request_user_input'), callId: 'missing-call',
+            permission: { id: 'p1', status: 'pending' as const },
+        };
+        const row = render(React.createElement(ToolView, { tool: pending, metadata: null, sessionId: 's1' }));
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(0);
+        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
+        expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+    });
+
+    it('leaves an optionless communication with the modal answer owner', () => {
+        settings.compact = true;
+        settings.communication = {
+            id: 'text-form', toolUseId: 'text-call', kind: 'form', createdAt: 1, status: 'pending',
+            questions: [{
+                id: 'text', header: 'Details', question: 'What should change?', options: [],
+                multiSelect: false, allowCustom: true,
+            }],
+        };
+        const row = render(React.createElement(ToolView, {
+            tool: { ...tool('request_user_input', { prompt: 'What should change?' }), callId: 'text-call' },
+            metadata: null,
+            sessionId: 's1',
+        }));
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(0);
+        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
     });
 
     it('uses the wire title in the detail header', () => {

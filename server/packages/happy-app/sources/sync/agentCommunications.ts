@@ -124,7 +124,7 @@ export function selectAgentFormCommunication(
     return null;
 }
 
-/** Choice forms can live directly in chat; text-only forms keep the modal fallback. */
+/** Option-bearing forms can live directly in chat; text-only forms keep the modal fallback. */
 export function canRenderAgentFormInline(communication: PendingAgentCommunication): boolean {
     return communication.kind === 'form'
         && communication.questions.length > 0

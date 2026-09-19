@@ -1,13 +1,11 @@
 import * as React from 'react';
 
-import { sessionAnswerQuestion } from '@/sync/ops';
+import { sessionAnswerQuestion, sessionCancelCommunication } from '@/sync/ops';
 import { useSessionAgentFormCommunication } from '@/sync/storage';
+import { canRenderAgentFormInline } from '@/sync/agentCommunications';
 import type { AgentQuestionAnswer } from '@/sync/storageTypes';
 import { ToolViewProps } from './_all';
-import {
-    InlineQuestionForm,
-    type InlineQuestionAnswers,
-} from './InlineQuestionForm';
+import { InlineQuestionForm, type InlineQuestionAnswers } from './InlineQuestionForm';
 
 /** Inline renderer for Happy/Codex request_user_input communications. */
 export const RequestUserInputView = React.memo<ToolViewProps>(({ tool, sessionId }) => {
@@ -26,31 +24,43 @@ export const RequestUserInputView = React.memo<ToolViewProps>(({ tool, sessionId
     }, [communication]);
 
     const handleSubmit = React.useCallback(async (answers: InlineQuestionAnswers) => {
-        if (!sessionId || !communication || communication.status !== 'pending') return;
-
+        if (!sessionId || !communication || communication.status !== 'pending') {
+            throw new Error('Question is no longer pending');
+        }
         const communicationAnswers: Record<string, AgentQuestionAnswer> = {};
         for (const question of communication.questions) {
             const selected = answers[question.id];
             if (!selected?.length) continue;
+            const labels = new Set(question.options.map(option => option.label));
+            const options = selected.filter(value => labels.has(value));
+            const custom = selected.filter(value => !labels.has(value)).join('\n');
             communicationAnswers[question.id] = {
-                options: question.multiSelect
-                    ? selected
-                    : selected.slice(0, 1),
+                options: question.multiSelect ? options : options.slice(0, 1),
+                ...(custom && question.allowCustom !== false ? { custom } : {}),
             };
         }
         await sessionAnswerQuestion(sessionId, communication.id, communicationAnswers, communication.kind);
     }, [communication, sessionId]);
 
-    if (!communication || communication.questions.some(question => question.options.length === 0)) {
-        return null;
-    }
+    const handleCancel = React.useCallback(async () => {
+        if (!sessionId || !communication || communication.status !== 'pending') {
+            throw new Error('Question is no longer pending');
+        }
+        await sessionCancelCommunication(sessionId, communication.id, communication.kind);
+    }, [communication, sessionId]);
+
+    // Text-only forms retain the modal fallback so an unanchored request cannot
+    // lose its only answer surface.
+    if (!communication || !canRenderAgentFormInline(communication)) return null;
 
     return (
         <InlineQuestionForm
+            key={communication.id}
             questions={communication.questions}
             canInteract={tool.state === 'running' && communication.status === 'pending'}
             submittedAnswers={submittedAnswers}
             onSubmit={handleSubmit}
+            onCancel={handleCancel}
         />
     );
 });

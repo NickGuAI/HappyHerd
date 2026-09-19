@@ -26,7 +26,9 @@ import {
     shouldRenderToolCardHeader,
     shouldUseCompactToolRow,
 } from '@/utils/toolDisplay';
-import { useSession, useSetting } from '@/sync/storage';
+import { useSession, useSetting, useSessionAgentFormCommunication } from '@/sync/storage';
+import { canRenderAgentFormInline } from '@/sync/agentCommunications';
+import { hasPlanBody, readClaudeQuestions } from './views/questionPresentation';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -44,6 +46,12 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const compactToolCalls = useSetting('compactToolCalls');
     const session = useSession(sessionId ?? '');
     const displayState = resolveToolDisplayRuntimeState(tool.state, session?.active);
+    const communication = useSessionAgentFormCommunication(sessionId ?? '', tool.callId ?? '');
+    const hasQuestionForm = tool.name === 'AskUserQuestion' && readClaudeQuestions(tool.input) !== null;
+    const hasSpecializedContent = tool.name === 'AskUserQuestion' ? hasQuestionForm
+        : tool.name === 'request_user_input' ? communication !== null && canRenderAgentFormInline(communication)
+        : tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode' ? hasPlanBody(tool.input)
+        : true;
 
     // For file-editing tools, navigate to file route instead of message detail
     const fileEditTools = ['Edit', 'MultiEdit', 'Write'];
@@ -65,7 +73,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const isPressable = !!(onPress || (sessionId && filePath) || (sessionId && messageId));
 
     const isToolIdentityCompatible = isToolIdentityCompatibleWithFlavor(tool.name, props.metadata?.flavor);
-    let knownTool = isToolIdentityCompatible
+    let knownTool = isToolIdentityCompatible && hasSpecializedContent
         ? knownTools[tool.name as keyof typeof knownTools] as any
         : undefined;
 
@@ -191,16 +199,21 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     const terminalCommand = getTerminalToolCommand(tool);
     const isCompactTerminalTool = terminalCommand !== null;
-    const SpecificToolView = getToolViewComponent(tool.name);
+    // Plans and questions retain content; generic pending tools retain approval input.
+    const SpecificToolView = isToolIdentityCompatible && hasSpecializedContent ? getToolViewComponent(tool.name) : null;
     const needsApprovalInput = tool.permission?.status === 'pending' && SpecificToolView === null;
-    const isCompactActivityTool = !needsApprovalInput && (shouldUseCompactToolRow(tool, compactToolCalls, SpecificToolView !== null)
+    const needsExpandedContent = tool.name === 'TodoWrite'
+        || tool.name === 'AskUserQuestion' || tool.name === 'request_user_input'
+        || tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode';
+    const isCompactActivityTool = !needsExpandedContent && !needsApprovalInput
+        && (shouldUseCompactToolRow(tool, compactToolCalls, SpecificToolView !== null)
         || minimal
         || isCompactTerminalTool);
     const activityLabel = getToolActivityLabel(tool);
     const isInlinePatch = tool.name === 'CodexPatch' || tool.name === 'GeminiPatch' || tool.name === 'apply_patch';
     const renderCardHeader = isCompactActivityTool || shouldRenderToolCardHeader(tool.name, Platform.OS);
     const renderPermissionFooter = () => (
-        tool.permission && sessionId && tool.name !== 'AskUserQuestion'
+        tool.permission && sessionId && !(hasQuestionForm && isToolIdentityCompatible)
             ? <PermissionFooter permission={tool.permission} sessionId={sessionId} toolName={tool.name} toolInput={tool.input} metadata={props.metadata} />
             : null
     );
@@ -269,10 +282,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                     return null;
                 }
 
-                // Try to use a specific tool view component first
-                const SpecificToolView = isToolIdentityCompatible
-                    ? getToolViewComponent(tool.name)
-                    : null;
+                // Only select a specialization that can actually show this payload.
                 if (SpecificToolView) {
                     return (
                         <View style={styles.content}>
@@ -332,8 +342,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 );
             })()}
 
-            {/* Permission footer - always renders when permission exists to maintain consistent height */}
-            {/* AskUserQuestion has its own Submit button UI - no permission footer needed */}
+            {/* Only a usable AskUserQuestion form owns its permission actions. */}
             {!isInlinePatch ? renderPermissionFooter() : null}
         </View>
     );

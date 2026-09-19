@@ -163,12 +163,12 @@ describe('selectAgentFormCommunication', () => {
 });
 
 describe('canRenderAgentFormInline', () => {
-    it('accepts choice forms and keeps text-only forms on the modal fallback', () => {
+    it('keeps inline ownership limited to forms with an option-bearing transcript card', () => {
         expect(canRenderAgentFormInline({
             id: 'choice',
             createdAt: 0,
             kind: 'form',
-            questions: [question()],
+            questions: [question({ allowCustom: true })],
         })).toBe(true);
 
         expect(canRenderAgentFormInline({
@@ -179,20 +179,34 @@ describe('canRenderAgentFormInline', () => {
         })).toBe(false);
     });
 
-    it('assigns choice forms to the transcript before their tool message arrives', () => {
+    it('keeps an unanchored text-only form on the answerable modal fallback', () => {
+        const [communication] = selectPendingCommunications(state({
+            'text-only': {
+                kind: 'form',
+                form: { questions: [question({ options: [], allowCustom: true })] },
+            },
+        }));
+        expect(communication).toMatchObject({ id: 'text-only', kind: 'form' });
+        expect(communication.toolUseId).toBeUndefined();
+        expect(canRenderAgentFormInline(communication)).toBe(false);
+        expect(shouldUseAgentQuestionFallback(communication)).toBe(true);
+    });
+
+    it('assigns an option-bearing form to the transcript before its tool message arrives', () => {
         expect(shouldUseAgentQuestionFallback({
             id: 'choice',
             createdAt: 0,
             kind: 'form',
             questions: [question()],
         })).toBe(false);
-
-        expect(shouldUseAgentQuestionFallback({
-            id: 'text',
-            createdAt: 0,
-            kind: 'form',
-            questions: [question({ options: [], allowCustom: true })],
-        })).toBe(true);
+    });
+    it('retains fallback ownership for a form with no supported input', () => {
+        const unsupported = {
+            id: 'unanswerable', createdAt: 0, kind: 'form' as const,
+            questions: [question({ options: [], allowCustom: false })],
+        };
+        expect(canRenderAgentFormInline(unsupported)).toBe(false);
+        expect(shouldUseAgentQuestionFallback(unsupported)).toBe(true);
     });
 });
 

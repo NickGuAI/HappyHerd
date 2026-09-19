@@ -704,14 +704,17 @@ export function handlePlanUpdate(
   update: SessionUpdate,
   ctx: HandlerContext
 ): HandlerResult {
-  if (!update.plan) {
+  // Stable ACP puts entries directly on the discriminated update; older
+  // transports used a nested plan. Keep both shapes at this adapter boundary.
+  const plan = update.sessionUpdate === 'plan' ? update : update.plan;
+  if (!plan) {
     return { handled: false };
   }
 
   ctx.emit({
     type: 'event',
     name: 'plan',
-    payload: update.plan,
+    payload: plan,
   });
 
   return { handled: true };
