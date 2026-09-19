@@ -1,3 +1,8 @@
+# September 17 — Reliable Claude login code submission
+
+- Submitting a Claude authorization code no longer reopens the code-entry form merely because the terminal redraws its original sign-in link.
+- Code entry and Enter are delivered separately to the native terminal. A broken input stream ends the attempt with a clear failure so Retry can begin a fresh sign-in.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.
