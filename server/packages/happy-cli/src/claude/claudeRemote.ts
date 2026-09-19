@@ -214,22 +214,36 @@ export async function claudeRemote(opts: {
     let providerHardLimitObserved = false;
     let providerHardLimitDelivered = false;
     let providerHardLimitFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let providerHardLimitRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let providerHardLimitDelivery: Promise<void> = Promise.resolve();
     const deliverProviderHardLimit = (limit: ProviderHardLimit): Promise<void> => {
         providerHardLimitObserved = true;
-        if (providerHardLimitDelivered) return providerHardLimitDelivery;
+        if (providerHardLimitDelivered || opts.signal?.aborted) return providerHardLimitDelivery;
         if (providerHardLimitFallbackTimer) {
             clearTimeout(providerHardLimitFallbackTimer);
             providerHardLimitFallbackTimer = null;
         }
         pendingApiHardLimit = null;
         providerHardLimitDelivery = providerHardLimitDelivery.then(async () => {
-            if (providerHardLimitDelivered) return;
+            if (providerHardLimitDelivered || opts.signal?.aborted) return;
+            if (providerHardLimitRetryTimer) {
+                clearTimeout(providerHardLimitRetryTimer);
+                providerHardLimitRetryTimer = null;
+            }
             try {
                 const accepted = await opts.onProviderHardLimit?.(limit);
                 providerHardLimitDelivered = accepted !== false;
             } catch (error) {
                 logger.debug('[claudeRemote] provider hard-limit delivery failed (retry remains available)', error);
+            }
+            // The SDK may close after rejection. Keep delivering this same
+            // notice while the launcher waits for daemon-owned rotation.
+            // This retries notification only; it never resubmits user work.
+            if (!providerHardLimitDelivered && opts.signal && !opts.signal.aborted) {
+                providerHardLimitRetryTimer = setTimeout(() => {
+                    providerHardLimitRetryTimer = null;
+                    void deliverProviderHardLimit(limit);
+                }, 1_000);
             }
         });
         return providerHardLimitDelivery;
@@ -501,10 +515,14 @@ export async function claudeRemote(opts: {
         // before the daemon stops this process. Explicit user abort remains
         // available through the existing controller; SIGTERM owns rotation.
         const signal = opts.signal;
-        if (providerHardLimitObserved && signal && !signal.aborted) {
-            await new Promise<void>((resolve) => {
-                signal.addEventListener('abort', () => resolve(), { once: true });
-            });
+        try {
+            if (providerHardLimitObserved && signal && !signal.aborted) {
+                await new Promise<void>((resolve) => {
+                    signal.addEventListener('abort', () => resolve(), { once: true });
+                });
+            }
+        } finally {
+            if (providerHardLimitRetryTimer) clearTimeout(providerHardLimitRetryTimer);
         }
     }
 }

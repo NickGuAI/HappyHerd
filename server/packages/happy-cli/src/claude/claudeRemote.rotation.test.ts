@@ -90,6 +90,7 @@ describe('Claude account rotation preserves interrupted work', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.unstubAllEnvs();
     });
 
@@ -135,6 +136,54 @@ describe('Claude account rotation preserves interrupted work', () => {
         else turn.onProviderHardLimit.mockRejectedValue(new Error('daemon unavailable'));
         await claudeRemote(turn.options);
         expectInterrupted(turn);
+    });
+
+    it.each(['refused', 'thrown'] as const)('retries a %s notice after the rejected stream closes', async (failure) => {
+        vi.useFakeTimers();
+        sdkStream([rejected]);
+        const turn = queuedTurn();
+        if (failure === 'refused') turn.onProviderHardLimit.mockResolvedValueOnce(false);
+        else turn.onProviderHardLimit.mockRejectedValueOnce(new Error('daemon unavailable'));
+        const controller = new AbortController();
+        let settled = false;
+        const running = claudeRemote({ ...turn.options, signal: controller.signal })
+            .then(() => { settled = true; });
+        try {
+            await vi.waitFor(() => expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(1));
+            expectInterrupted(turn);
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(2);
+            expect(turn.onProviderHardLimit).toHaveBeenLastCalledWith({
+                provider: 'claude', limitedUntil: 2_000_000_000_000,
+            });
+            await vi.advanceTimersByTimeAsync(5_000);
+            expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(2);
+            expect(settled).toBe(false);
+            expectInterrupted(turn);
+        } finally {
+            controller.abort();
+            await running;
+        }
+        expect(settled).toBe(true);
+    });
+
+    it('cancels a pending notice retry when the launcher aborts', async () => {
+        vi.useFakeTimers();
+        sdkStream([rejected]);
+        const turn = queuedTurn();
+        turn.onProviderHardLimit.mockResolvedValue(false);
+        const controller = new AbortController();
+        const running = claudeRemote({ ...turn.options, signal: controller.signal });
+        try {
+            await vi.waitFor(() => expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(1));
+            expectInterrupted(turn);
+        } finally {
+            controller.abort();
+            await running;
+        }
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     it('rehydrates the interrupted request before later work for the replacement account', async () => {
