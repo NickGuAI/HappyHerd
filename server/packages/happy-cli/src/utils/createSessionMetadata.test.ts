@@ -52,6 +52,22 @@ describe('createSessionMetadata', () => {
         expect(claude.metadata.codexHome).toBeUndefined();
     });
 
+    it('records the Grok provider home only for Grok sessions', () => {
+        vi.stubEnv('GROK_HOME', '/tmp/original-grok-home');
+
+        const grok = createSessionMetadata({
+            flavor: 'grok',
+            machineId: 'machine-grok-home',
+        });
+        const claude = createSessionMetadata({
+            flavor: 'claude',
+            machineId: 'machine-claude-grok-home',
+        });
+
+        expect(grok.metadata.grokHome).toBe('/tmp/original-grok-home');
+        expect(claude.metadata.grokHome).toBeUndefined();
+    });
+
     it('sets metadata.sandbox to the config when enabled', () => {
         const sandbox = createSandboxConfig();
         const { metadata } = createSessionMetadata({

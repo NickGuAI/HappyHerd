@@ -1,6 +1,6 @@
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { activateCodexCredential, persistActiveCodexCredential } from './codexAuth';
@@ -41,6 +41,41 @@ describe('Codex account auth switching', () => {
     expect(await readFile(join(runtimeHome, 'auth.json'), 'utf8')).toBe('{"account":"work"}');
   });
 
+  it('does not write another active account credentials back to an older account', async () => {
+    const paths: CredentialPoolPaths = {
+      stateFile: join(root, 'credential-pools.json'),
+      accountsDir: join(root, 'accounts'),
+    };
+    const runtimeHome = join(root, 'runtime-overlap');
+    const accountA = await upsertCredentialAccount({
+      provider: 'codex',
+      name: 'work',
+      credential: { type: 'auth-file', path: join(root, 'accounts', 'work', 'auth.json') },
+    }, { paths, now: 1 });
+    const accountB = await upsertCredentialAccount({
+      provider: 'codex',
+      name: 'personal',
+      credential: { type: 'auth-file', path: join(root, 'accounts', 'personal', 'auth.json') },
+    }, { paths, now: 2 });
+    if (accountA.provider !== 'codex' || accountB.provider !== 'codex') throw new Error('Expected Codex fixtures');
+    await mkdir(dirname(accountA.credential.path), { recursive: true });
+    await mkdir(dirname(accountB.credential.path), { recursive: true });
+    await writeFile(accountA.credential.path, '{"account":"work"}');
+    await writeFile(accountB.credential.path, '{"account":"personal"}');
+
+    await activateCodexCredential(accountA, runtimeHome);
+    const envA = { CODEX_HOME: runtimeHome, ...credentialAccountEnvironment(accountA) };
+    await activateCodexCredential(accountB, runtimeHome);
+    const envB = { CODEX_HOME: runtimeHome, ...credentialAccountEnvironment(accountB) };
+
+    await expect(persistActiveCodexCredential(envA, paths)).resolves.toBe(false);
+    expect(await readFile(accountA.credential.path, 'utf8')).toBe('{"account":"work"}');
+
+    await writeFile(join(runtimeHome, 'auth.json'), '{"account":"personal-refreshed"}');
+    await expect(persistActiveCodexCredential(envB, paths)).resolves.toBe(true);
+    expect(await readFile(accountB.credential.path, 'utf8')).toBe('{"account":"personal-refreshed"}');
+  });
+
   it('copies refreshed runtime credentials back to the named account', async () => {
     const accountAuthFile = join(root, 'accounts', 'work', 'auth.json');
     const runtimeHome = join(root, 'runtime');
@@ -53,7 +88,10 @@ describe('Codex account auth switching', () => {
       name: 'work',
       credential: { type: 'auth-file', path: accountAuthFile },
     }, { paths, now: 1 });
-    await mkdir(runtimeHome, { recursive: true });
+    if (account.provider !== 'codex') throw new Error('Expected Codex fixture');
+    await mkdir(dirname(accountAuthFile), { recursive: true });
+    await writeFile(accountAuthFile, '{"account":"original"}');
+    await activateCodexCredential(account, runtimeHome);
     await writeFile(join(runtimeHome, 'auth.json'), '{"account":"refreshed"}');
     await chmod(join(runtimeHome, 'auth.json'), 0o664);
 

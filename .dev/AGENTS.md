@@ -15,6 +15,7 @@ of truth.
 | Find the maintained operational document or executable owner | [`SOP_INDEX.md`](SOP_INDEX.md) |
 | Classify and obtain approval for a HappyHerd-owned security feature | [`playbooks/security-feature-approval.md`](playbooks/security-feature-approval.md) |
 | Add or change a provider | [`playbooks/provider-onboarding.md`](playbooks/provider-onboarding.md) |
+| Change named credential pools or quota rotation | [`playbooks/credential-pools.md`](playbooks/credential-pools.md) |
 | Deliver through protected `main` | [`playbooks/development-lifecycle.md`](playbooks/development-lifecycle.md) |
 | Activate a combined server and daemon update | [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md) |
 | Delegate or operate side chats | [`playbooks/side-chat-lifecycle.md`](playbooks/side-chat-lifecycle.md) |

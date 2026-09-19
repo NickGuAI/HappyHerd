@@ -123,8 +123,19 @@ describe('named credential files from connect through provider launch', () => {
     expect((await stat(join(stableRuntimeHome, 'auth.json'))).mode & 0o777).toBe(0o600);
     expect((await stat(accountPath('work'))).mode & 0o777).toBe(0o600);
 
-    await activate('personal', 'login-2');
+    const personalEnvironment = await activate('personal', 'login-2');
     expect(JSON.parse(await readFile(join(stableRuntimeHome, 'auth.json'), 'utf8'))).toEqual({ account: 'login-2' });
+    await expect(persistActiveGrokCredential(workEnvironment, paths)).resolves.toBe(false);
+    expect(JSON.parse(await readFile(accountPath('work'), 'utf8'))).toEqual({
+      account: 'work',
+      accessToken: 'refreshed',
+    });
+    writeFileSync(join(stableRuntimeHome, 'auth.json'), JSON.stringify({ account: 'personal', accessToken: 'fresh' }));
+    await expect(persistActiveGrokCredential(personalEnvironment, paths)).resolves.toBe(true);
+    expect(JSON.parse(await readFile(accountPath('personal'), 'utf8'))).toEqual({
+      account: 'personal',
+      accessToken: 'fresh',
+    });
     await activate('work', 'work');
     expect(JSON.parse(await readFile(join(stableRuntimeHome, 'auth.json'), 'utf8'))).toEqual({
       account: 'work',

@@ -1,3 +1,8 @@
+# HappyHerd Release - September 19, 2026
+
+- Named-account switches now preserve native provider session IDs, home directories, and conversation history without replaying previous prompts.
+- Managed Codex utilizes native ephemeral app-server authentication with registered account ID/version guards, and managed Grok adopts version-bound authentication files via `GROK_AUTH_PATH` while preserving `GROK_HOME`.
+
 # September 17 — Preserve interrupted Claude requests
 
 - Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.

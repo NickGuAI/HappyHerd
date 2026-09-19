@@ -297,6 +297,8 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
         delete process.env.HAPPYHERD_PROVIDER_ACCOUNT;
         delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION;
 
         mockReadSettings.mockResolvedValue({
             machineId: 'machine-1',
@@ -334,6 +336,8 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
         delete process.env.HAPPYHERD_PROVIDER_ACCOUNT;
         delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION;
         await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
             rm(directory, { recursive: true, force: true })
         )));
@@ -371,6 +375,24 @@ describe('runClaude remote JSONL scanner', () => {
             },
         });
 
+        await harness.finish();
+    });
+
+    it('publishes stable credential-pool identity in Claude session metadata', async () => {
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT = 'account-b';
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE = 'claude';
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID = '00000000-0000-4000-8000-000000000006';
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION = '4';
+
+        const harness = await startRemoteRunClaudeHarness();
+
+        expect(harness.api.getOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+            metadata: expect.objectContaining({
+                providerAccount: 'account-b',
+                providerAccountId: '00000000-0000-4000-8000-000000000006',
+                providerAccountCredentialVersion: 4,
+            }),
+        }));
         await harness.finish();
     });
 

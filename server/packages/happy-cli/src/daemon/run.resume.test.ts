@@ -245,7 +245,8 @@ vi.mock('@/daemon/happyTerminalBoot', () => ({
   startHappyTerminalDaemon: vi.fn(),
 }));
 
-vi.mock('@/credentialPool/store', () => ({
+vi.mock('@/credentialPool/store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/credentialPool/store')>(),
   resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
 }));
 
@@ -306,7 +307,7 @@ type CapturedControlHandlers = {
     metadata: Metadata,
     encryption?: SessionEncryptionData,
   ) => void;
-  onProviderLimited: (notice: ProviderLimitNotice) => void;
+  onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
@@ -1285,6 +1286,7 @@ describe('daemon session continuity', () => {
       flavor: 'grok',
       acpSessionId: 'grok-provider-session',
       acpCapabilities: { loadSession: true, prompt: { image: true } },
+      grokHome: '/srv/grok/original-home',
       spawnSettings: {
         provider: 'grok',
         model: 'grok-build',
@@ -1330,7 +1332,8 @@ describe('daemon session continuity', () => {
     control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
 
     await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
-    const [args] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[]];
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(spawnOptions.env.GROK_HOME).toBe('/srv/grok/original-home');
     expect(args).toEqual([
       'grok',
       '--started-by', 'daemon',
@@ -1598,6 +1601,8 @@ describe('daemon session continuity', () => {
       flavor: 'claude',
       claudeSessionId: '44444444-4444-4444-8444-444444444444',
       providerAccount: 'personal 旧',
+      providerAccountId: '00000000-0000-4000-8000-000000000008',
+      providerAccountCredentialVersion: 3,
       host: 'test-host',
       hostPid: 7331,
       machineId: 'machine-1',
@@ -1612,13 +1617,23 @@ describe('daemon session continuity', () => {
     const control = mocks.controlHandlers as CapturedControlHandlers;
     control.onHappySessionWebhook(sessionId, metadata, encryption);
 
-    control.onProviderLimited({
+    const notice: ProviderLimitNotice = {
       sessionId,
       provider: 'claude',
       account: 'personal 旧',
+      accountId: metadata.providerAccountId,
+      credentialVersion: metadata.providerAccountCredentialVersion,
       limitedUntil: 12_345,
-    });
+    };
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 2 })).toBe(false);
+    expect(control.onProviderLimited({
+      ...notice, accountId: '00000000-0000-4000-8000-000000000009',
+    })).toBe(false);
+    expect(mocks.rotateProviderSessionAfterLimit).not.toHaveBeenCalled();
+    expect(control.onProviderLimited(notice)).toBe(true);
+    expect(control.onProviderLimited(notice)).toBe(true);
     await vi.waitFor(() => expect(mocks.rotationDependencies).toBeDefined());
+    expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce();
     expect(mocks.postSessionEvent).not.toHaveBeenCalled();
 
     await mocks.rotationDependencies!.onAccountSwitched!({

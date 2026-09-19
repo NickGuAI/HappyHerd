@@ -347,6 +347,7 @@ describe('handleResumeCommand', () => {
             flavor: 'grok',
             codexThreadId: undefined,
             acpSessionId: 'grok-provider-session',
+            grokHome: '/srv/grok/original-home',
             spawnSettings: {
                 provider: 'grok',
                 model: 'grok-build',
@@ -361,7 +362,11 @@ describe('handleResumeCommand', () => {
         expect(mocks.mockDetectAgentCapabilities).toHaveBeenCalledOnce();
         expect(spawnHappyCLI).toHaveBeenCalledWith(
             ['grok', '--resume', 'grok-provider-session', '--permission-mode', 'dontAsk'],
-            expect.objectContaining({ cwd: '/tmp/repo', stdio: 'inherit' }),
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                stdio: 'inherit',
+                env: expect.objectContaining({ GROK_HOME: '/srv/grok/original-home' }),
+            }),
         );
     });
 

@@ -364,3 +364,4 @@ NATIVE_QUESTION_TEXT_FALLBACK	accepted	fix(questions): preserve text-only fallba
 CLAUDE_LOGIN_SUBMISSION	accepted	fix(credentials): preserve Claude login submission state	server/packages/happy-cli/src/credentialPool/loginManager.submission.test.ts
 CLAUDE_ROTATION_INTERRUPTED_TURN	accepted	fix(claude): preserve interrupted turns during account rotation	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
 CLAUDE_ROTATION_NOTICE_RETRY	accepted	fix(claude): retry quota notices until daemon acknowledgement	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
+CREDENTIAL_POOL_SESSION_CONTINUITY	accepted	fix(credentials): preserve sessions across quota account swaps	server/packages/happy-cli/src/credentialPool/providerLimitNotice.test.ts

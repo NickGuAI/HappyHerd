@@ -384,6 +384,7 @@ export type Metadata = {
     prompt: { image: boolean },
   },
   codexHome?: string, // CODEX_HOME used to create codexThreadId
+  grokHome?: string, // GROK_HOME used to create and resume Grok ACP sessions
   /** Named local credential-pool account used by this provider process. */
   providerAccount?: string,
   providerAccountId?: string,
