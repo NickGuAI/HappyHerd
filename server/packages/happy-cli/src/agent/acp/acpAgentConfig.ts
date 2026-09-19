@@ -15,8 +15,9 @@ const GROK_CHILD_ENV_KEYS = [
   'HOME', 'USERPROFILE', 'PATH', 'Path', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM',
   // Windows process essentials.
   'COMSPEC', 'ComSpec', 'SYSTEMROOT', 'SystemRoot', 'WINDIR', 'APPDATA', 'LOCALAPPDATA',
-  // Grok's local-home override and direct API authentication input.
-  'GROK_HOME', 'XAI_API_KEY',
+  // Grok's local-home override, version-bound native auth file, and direct
+  // API authentication input.
+  'GROK_HOME', 'GROK_AUTH_PATH', 'XAI_API_KEY',
 ] as const;
 
 /** Give Grok only its process essentials and documented authentication inputs. */

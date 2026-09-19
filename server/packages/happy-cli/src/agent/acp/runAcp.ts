@@ -1560,6 +1560,8 @@ export async function runAcp(opts: {
     }
 
     backend.offMessage?.(onBackendMessage);
+    await backend.dispose();
+
     if (opts.agentName === 'grok') {
       try {
         await persistActiveGrokCredential();
@@ -1567,7 +1569,6 @@ export async function runAcp(opts: {
         logger.debug('[grok] Failed to persist named account credentials during cleanup', error);
       }
     }
-    await backend.dispose();
 
     try {
       happyServer.stop();

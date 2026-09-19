@@ -181,6 +181,7 @@ describe('sanitizeGrokChildEnvironment', () => {
       PATH: '/usr/bin',
       XAI_API_KEY: 'xai-secret',
       GROK_HOME: '/home/user/.grok-work',
+      GROK_AUTH_PATH: '/private/grok-account/runtime-v1/auth.json',
       USER_PROJECT_TOKEN: 'user-value',
       AWS_SECRET_ACCESS_KEY: 'aws-secret',
       GH_TOKEN: 'github-secret',
@@ -195,6 +196,7 @@ describe('sanitizeGrokChildEnvironment', () => {
       PATH: '/usr/bin',
       XAI_API_KEY: 'xai-secret',
       GROK_HOME: '/home/user/.grok-work',
+      GROK_AUTH_PATH: '/private/grok-account/runtime-v1/auth.json',
     });
   });
 });
