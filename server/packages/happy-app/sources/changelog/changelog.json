@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Plan snapshots and answerable question forms",
+      "summary": "",
+      "markdown": "- Supported ACP plan snapshots reach the conversation, and compact tool display no longer hides their content.\n- Question forms support written answers and retain the original approval controls when a native payload cannot be rendered. Codex native question transport and complete restored-plan coverage remain separate unfinished work."
+    },
+    {
       "title": "September 17 — Consistent upstream integration",
       "summary": "",
       "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
@@ -666,5 +671,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Consistent upstream integration"
+  "latestTitle": "September 17 — Plan snapshots and answerable question forms"
 }

@@ -1,64 +1,57 @@
 import * as React from 'react';
 
-import { sessionAllow } from '@/sync/ops';
+import { sessionAllow, sessionDeny } from '@/sync/ops';
+import { useSession } from '@/sync/storage';
 import { ToolViewProps } from './_all';
-import {
-    InlineQuestionForm,
-    type InlineQuestion,
-    type InlineQuestionAnswers,
-} from './InlineQuestionForm';
-
-interface AskUserQuestionInput {
-    questions?: Array<{
-        question: string;
-        header: string;
-        options: Array<{ label: string; description?: string }>;
-        multiSelect?: boolean;
-    }>;
-}
+import { InlineQuestionForm, type InlineQuestionAnswers } from './InlineQuestionForm';
+import { readClaudeAnswers, readClaudeQuestions } from './questionPresentation';
 
 export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId }) => {
-    const input = tool.input as AskUserQuestionInput | undefined;
-    const questions = React.useMemo<InlineQuestion[]>(() => (
-        (input?.questions ?? []).map((question, index) => ({
-            ...question,
-            id: `question-${index}`,
-            required: true,
-        }))
-    ), [input?.questions]);
+    const session = useSession(sessionId ?? '');
+    const questions = React.useMemo(() => readClaudeQuestions(tool.input), [tool.input]);
+    const permissionId = tool.permission?.id;
+    const canInteract = Boolean(sessionId && permissionId
+        && tool.state === 'running' && tool.permission?.status === 'pending');
+    const completedArguments = permissionId
+        ? session?.agentState?.completedRequests?.[permissionId]?.arguments
+        : undefined;
+    const submittedAnswers = React.useMemo(() => {
+        if (!questions) return undefined;
+        if (tool.permission?.status === 'denied' || tool.permission?.status === 'canceled') return {};
+        // The native permission receipt keeps answers across reloads. Do not
+        // overwrite a successful local submission with an empty completed form.
+        return readClaudeAnswers(questions, completedArguments, tool.result, tool.input) ?? undefined;
+    }, [questions, completedArguments, tool.result, tool.input, tool.permission?.status]);
 
     const handleSubmit = React.useCallback(async (answers: InlineQuestionAnswers) => {
-        if (!sessionId || !tool.permission?.id) return;
-
+        if (!sessionId || !permissionId || !canInteract || !questions) {
+            throw new Error('Question is no longer pending');
+        }
         const providerAnswers: Record<string, string> = {};
-        questions.forEach((question, index) => {
-            const originalQuestion = input?.questions?.[index];
+        for (const question of questions) {
             const selected = answers[question.id];
-            if (originalQuestion && selected?.length) {
-                providerAnswers[originalQuestion.question] = selected.join(', ');
-            }
-        });
+            if (selected?.length) providerAnswers[question.question] = selected.join(', ');
+        }
+        // Claude expects the exact original question text as each answer key.
+        // Its callback merges these answers into the original tool input.
+        await sessionAllow(sessionId, permissionId, undefined, undefined, 'approved', { answers: providerAnswers });
+    }, [questions, sessionId, permissionId, canInteract]);
 
-        // Claude resolves AskUserQuestion through its permission callback and
-        // expects the chosen values merged into the tool input.
-        await sessionAllow(
-            sessionId,
-            tool.permission.id,
-            undefined,
-            undefined,
-            'approved',
-            { answers: providerAnswers },
-        );
-    }, [input?.questions, questions, sessionId, tool.permission?.id]);
+    const handleCancel = React.useCallback(async () => {
+        if (!sessionId || !permissionId || !canInteract) throw new Error('Question is no longer pending');
+        await sessionDeny(sessionId, permissionId, undefined, undefined, 'denied');
+    }, [sessionId, permissionId, canInteract]);
 
-    if (questions.length === 0) return null;
+    if (!questions) return null; // ToolView selects the generic fallback instead.
 
     return (
         <InlineQuestionForm
+            key={tool.callId ?? permissionId}
             questions={questions}
-            canInteract={tool.state === 'running'}
-            submittedAnswers={tool.state === 'completed' ? {} : undefined}
+            canInteract={canInteract}
+            submittedAnswers={submittedAnswers}
             onSubmit={handleSubmit}
+            onCancel={handleCancel}
         />
     );
 });

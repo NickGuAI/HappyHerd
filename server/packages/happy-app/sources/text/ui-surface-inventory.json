@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "7b590792fa2ce9f5d7340133790563dbfbb095a757dc2a01b263769fa0a9b903",
+  "sourceFingerprint": "82b7c975448f4e85ca546a31d35efb06f20dc4b90f32395bed83470992e4eb01",
   "routeCount": 40,
   "surfaceCount": 277,
   "hardcodedCopyCount": 0,
@@ -5411,6 +5411,10 @@
         "InlineQuestionForm"
       ],
       "translationKeys": [
+        "agentQuestion.submitFailed",
+        "common.cancel",
+        "tools.askUserQuestion.other",
+        "tools.askUserQuestion.otherPlaceholder",
         "tools.askUserQuestion.submit"
       ],
       "states": [],

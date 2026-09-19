@@ -47,6 +47,7 @@ const virtualModules: Record<string, string> = {
             : { messages: [agent('final', 'Completed response', 5), tool('last-tool', 'Inspect second file'), agent('progress', 'Checking the source', 3), tool('first-tool', 'Inspect first file'), user(0)], hasMoreOlder: false, isLoadingOlder: false };
         window.__prepend = () => { snapshot = { ...snapshot, messages: [user(150), ...snapshot.messages] }; listeners.forEach(fn => fn()); };
         export const useSession = () => session;
+        export const useSessionAgentFormCommunication = () => null;
         export const useSessionMessages = () => React.useSyncExternalStore(fn => { listeners.add(fn); return () => listeners.delete(fn); }, () => snapshot);
         export const useSetting = key => key === 'groupToolCalls' || key === 'compactToolCalls';
         export const useLocalSetting = () => false;

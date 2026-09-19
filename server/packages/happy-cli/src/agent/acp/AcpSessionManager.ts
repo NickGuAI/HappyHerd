@@ -1,6 +1,7 @@
 import { createId } from '@paralleldrive/cuid2';
 import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope } from '@slopus/happy-wire';
 import type { AgentMessage } from '@/agent/core';
+import { readPlanEntries } from '@/sessionProtocol/planEntries';
 
 function turnOptions(turnId: string | null, time: number): CreateEnvelopeOptions {
   return turnId ? { turn: turnId, time } : { time };
@@ -91,6 +92,25 @@ export class AcpSessionManager {
   }
 
   mapMessage(msg: AgentMessage): SessionEnvelope[] {
+    if (msg.type === 'event' && msg.name === 'plan') {
+      const todos = readPlanEntries(msg.payload);
+      if (todos === null || !this.currentTurnId) return [];
+      // ACP plans are full replacements, including an empty plan. Reuse the
+      // existing TodoWrite transcript and latest-todos reducer, not a new store.
+      const flushed = this.flush();
+      const call = createId();
+      return [
+        ...flushed,
+        createEnvelope('agent', {
+          t: 'tool-call-start', call, name: 'TodoWrite',
+          title: 'Plan', description: 'Plan', args: { todos },
+        }, turnOptions(this.currentTurnId, this.nextTime())),
+        createEnvelope('agent', {
+          t: 'tool-call-end', call, result: { newTodos: todos },
+        }, turnOptions(this.currentTurnId, this.nextTime())),
+      ];
+    }
+
     if (msg.type === 'event' && msg.name === 'thinking') {
       const { text, streaming } = parseThinkingPayload(msg.payload);
       if (!text) {
