@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Preserve interrupted Claude requests",
+      "summary": "",
+      "markdown": "- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.\n- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior."
+    },
+    {
       "title": "September 17 — Reliable Claude login code submission",
       "summary": "",
       "markdown": "- Submitting a Claude authorization code no longer reopens the code-entry form merely because the terminal redraws its original sign-in link.\n- Code entry and Enter are delivered separately to the native terminal. A broken input stream ends the attempt with a clear failure so Retry can begin a fresh sign-in."
@@ -681,5 +686,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Reliable Claude login code submission"
+  "latestTitle": "September 17 — Preserve interrupted Claude requests"
 }
