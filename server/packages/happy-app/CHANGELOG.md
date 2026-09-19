@@ -1,3 +1,8 @@
+# September 17 — Reliable Claude login code submission
+
+- Submitting a Claude authorization code no longer reopens the code-entry form merely because the terminal redraws its original sign-in link.
+- Code entry and Enter are delivered separately to the native terminal. A broken input stream ends the attempt with a clear failure so Retry can begin a fresh sign-in.
+
 # September 17 — Plan snapshots and answerable question forms
 
 - Supported ACP plan snapshots reach the conversation, and compact tool display no longer hides their content.
