@@ -57,7 +57,10 @@ describe('managed credential activation', () => {
     for (const key of directKeys) expect(env[key]).toBeUndefined();
     expect(env[unrelatedKey]).toBe('keep-unrelated');
     if (provider === 'claude') expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe('managed-token');
-    if (provider === 'codex') expect(await readFile(join(env.CODEX_HOME!, 'auth.json'), 'utf8')).toContain('managed');
+    if (provider === 'codex') {
+      await expect(readFile(join(env.CODEX_HOME!, 'auth.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile(provider, 'managed', paths));
+    }
     if (provider === 'grok') expect(await readFile(join(env.GROK_HOME!, 'auth.json'), 'utf8')).toContain('managed');
   });
 

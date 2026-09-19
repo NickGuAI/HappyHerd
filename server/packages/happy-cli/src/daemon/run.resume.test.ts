@@ -2253,7 +2253,7 @@ describe('daemon session continuity', () => {
     expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
   });
 
-  it('activates the parent Codex account before forking from a stale credential home', async () => {
+  it('preserves a stale native Codex home while forking with the registered account path', async () => {
     mocks.authoritativeActive = true;
     const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-auth-'));
     temporaryDirectories.push(testRoot);
@@ -2408,7 +2408,8 @@ describe('daemon session continuity', () => {
         HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
       }),
     );
-    expect(authAtFork).toBe(selectedAccountAuth);
+    expect(authAtFork).toBe('{"account":"stale"}');
+    expect(await readFile(accountAuthFile, 'utf8')).toBe(selectedAccountAuth);
     expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],

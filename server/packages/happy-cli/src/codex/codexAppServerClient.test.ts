@@ -7,14 +7,16 @@ const {
     mockWrapForMcpTransport,
     mockSandboxCleanup,
     mockSpawn,
-    mockCodexRuntimeCredentialOwnedByProcess,
+    mockLoadManagedCodexAuth,
+    mockRefreshManagedCodexAuth,
 } = vi.hoisted(() => ({
     mockExecSync: vi.fn(),
     mockInitializeSandbox: vi.fn(),
     mockWrapForMcpTransport: vi.fn(),
     mockSandboxCleanup: vi.fn(),
     mockSpawn: vi.fn(),
-    mockCodexRuntimeCredentialOwnedByProcess: vi.fn(),
+    mockLoadManagedCodexAuth: vi.fn(),
+    mockRefreshManagedCodexAuth: vi.fn(),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -32,7 +34,8 @@ vi.mock('@/sandbox/manager', () => ({
 }));
 
 vi.mock('@/credentialPool/codexAuth', () => ({
-    codexRuntimeCredentialOwnedByProcess: mockCodexRuntimeCredentialOwnedByProcess,
+    loadManagedCodexAuth: mockLoadManagedCodexAuth,
+    refreshManagedCodexAuth: mockRefreshManagedCodexAuth,
 }));
 
 vi.mock('@/ui/logger', () => ({
@@ -62,6 +65,7 @@ function pushJsonLine(stdout: NodeJS.ReadableStream & { push: (chunk: string) =>
 function createMockProcess(opts?: {
     pid?: number;
     initializeDelayMs?: number;
+    onWrite?: (msg: MockRpcMessage) => void;
     onRequest?: (msg: MockRpcMessage, stdout: NodeJS.ReadableStream & { push: (chunk: string) => void }) => void;
 }) {
     const { Readable, Writable } = require('stream');
@@ -87,6 +91,7 @@ function createMockProcess(opts?: {
                     pushJsonLine(stdout, { id: msg.id, result: { userAgent: 'test' } });
                 }, initializeDelayMs);
             }
+            opts?.onWrite?.(msg);
             opts?.onRequest?.(msg, stdout);
         } catch {}
         return origWrite(data, ...args);
@@ -131,7 +136,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         mockInitializeSandbox.mockResolvedValue(mockSandboxCleanup);
         mockWrapForMcpTransport.mockResolvedValue({ command: 'sh', args: ['-c', 'wrapped codex app-server'] });
         mockSpawn.mockImplementation(() => createMockProcess());
-        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(true);
+        mockLoadManagedCodexAuth.mockResolvedValue(null);
     });
 
     afterAll(() => {
@@ -193,7 +198,217 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
-    it('retains the native thread after an ownership refusal and later resumes it', async () => {
+    it('logs managed API-key credentials into the native ephemeral store', async () => {
+        const requests: MockRpcMessage[] = [];
+        mockLoadManagedCodexAuth.mockResolvedValue({
+            kind: 'api-key',
+            accountId: '00000000-0000-4000-8000-000000000011',
+            credentialVersion: 1,
+            sourcePath: '/srv/accounts/work/auth.json',
+            apiKey: 'sk-fixture-api-key',
+        });
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { type: 'apiKey' } });
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, {
+            processEnvironment: {
+                CODEX_HOME: '/srv/codex-home',
+                HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+                HAPPYHERD_PROVIDER_ACCOUNT_ID: '00000000-0000-4000-8000-000000000011',
+                HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '1',
+                HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/srv/accounts/work/auth.json',
+            },
+        });
+
+        await client.connect();
+        const args = mockSpawn.mock.calls[0][1] as string[];
+        expect(args).toContain('cli_auth_credentials_store="ephemeral"');
+        expect(requests.find((request) => request.method === 'account/login/start')?.params).toEqual({
+            type: 'apiKey',
+            apiKey: 'sk-fixture-api-key',
+        });
+        await client.disconnect();
+    });
+
+    it('disposes a native process when managed login fails and permits a later reconnect', async () => {
+        const failedProcess = createMockProcess({
+            pid: 4321,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, {
+                        id: msg.id,
+                        error: { code: -32000, message: 'synthetic login failure' },
+                    });
+                }
+            },
+        });
+        const successfulProcess = createMockProcess({
+            pid: 4322,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { type: 'apiKey' } });
+                }
+            },
+        });
+        mockLoadManagedCodexAuth.mockResolvedValue({
+            kind: 'api-key',
+            accountId: '00000000-0000-4000-8000-000000000013',
+            credentialVersion: 1,
+            sourcePath: '/srv/accounts/work/auth.json',
+            apiKey: 'sk-fixture-api-key',
+        });
+        mockSpawn
+            .mockImplementationOnce(() => failedProcess)
+            .mockImplementationOnce(() => successfulProcess);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        await expect(client.connect()).rejects.toThrow('Managed Codex authentication failed.');
+        expect(failedProcess.kill).toHaveBeenCalledWith('SIGTERM');
+        expect((client as any).process).toBeNull();
+
+        await expect(client.connect()).resolves.toBeUndefined();
+        expect(mockSpawn).toHaveBeenCalledTimes(2);
+        await client.disconnect();
+    });
+
+    it('handles native ChatGPT refresh callbacks without exposing token contents', async () => {
+        const requests: MockRpcMessage[] = [];
+        const writes: MockRpcMessage[] = [];
+        const managedAuth = {
+            kind: 'chatgpt' as const,
+            accountId: '00000000-0000-4000-8000-000000000012',
+            credentialVersion: 3,
+            sourcePath: '/srv/accounts/work/auth.json',
+            accessToken: 'access-fixture',
+            refreshToken: 'refresh-fixture',
+            chatgptAccountId: 'chatgpt-fixture',
+        };
+        mockLoadManagedCodexAuth.mockResolvedValue(managedAuth);
+        mockRefreshManagedCodexAuth.mockResolvedValue({
+            ...managedAuth,
+            accessToken: 'refreshed-fixture',
+        });
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onWrite: (msg) => writes.push(msg),
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { type: 'chatgptAuthTokens' } });
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, {
+            processEnvironment: {
+                CODEX_HOME: '/srv/codex-home',
+                HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+                HAPPYHERD_PROVIDER_ACCOUNT_ID: managedAuth.accountId,
+                HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: String(managedAuth.credentialVersion),
+                HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: managedAuth.sourcePath,
+            },
+        });
+
+        await client.connect();
+        const login = requests.find((request) => request.method === 'account/login/start');
+        expect(login?.params).toMatchObject({
+            type: 'chatgptAuthTokens',
+            accessToken: 'access-fixture',
+            chatgptAccountId: 'chatgpt-fixture',
+        });
+        pushJsonLine((mockSpawn.mock.results[0].value as any).stdout, {
+            id: 777,
+            method: 'account/chatgptAuthTokens/refresh',
+            params: { previousAccountId: 'chatgpt-fixture' },
+        });
+        await waitFor(() => mockRefreshManagedCodexAuth.mock.calls.length === 1);
+        expect(mockRefreshManagedCodexAuth).toHaveBeenCalledWith(
+            managedAuth,
+            { previousAccountId: 'chatgpt-fixture' },
+        );
+        await waitFor(() => writes.some((write) => write.id === 777 && write.result));
+        const response = writes.find((write) => write.id === 777);
+        expect(response?.result).toEqual({
+            accessToken: 'refreshed-fixture',
+            chatgptAccountId: 'chatgpt-fixture',
+        });
+        expect(JSON.stringify(writes)).not.toContain('refresh-fixture');
+        await client.disconnect();
+    });
+
+    it('drops a late refresh result from a disconnected native generation', async () => {
+        const managedAuth = {
+            kind: 'chatgpt' as const,
+            accountId: '00000000-0000-4000-8000-000000000014',
+            credentialVersion: 1,
+            sourcePath: '/srv/accounts/work/auth.json',
+            accessToken: 'access-before-reconnect',
+            refreshToken: 'refresh-fixture',
+            chatgptAccountId: 'chatgpt-fixture',
+        };
+        let resolveRefresh!: (value: typeof managedAuth) => void;
+        mockLoadManagedCodexAuth.mockResolvedValue(managedAuth);
+        mockRefreshManagedCodexAuth.mockImplementation(() => new Promise((resolve) => {
+            resolveRefresh = resolve as (value: typeof managedAuth) => void;
+        }));
+        const firstWrites: MockRpcMessage[] = [];
+        const secondWrites: MockRpcMessage[] = [];
+        const firstProcess = createMockProcess({
+            pid: 4401,
+            onWrite: (msg) => firstWrites.push(msg),
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { type: 'chatgptAuthTokens' } });
+                }
+                if (msg.method === 'thread/resume' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { thread: { id: msg.params.threadId } } });
+                }
+            },
+        });
+        const secondProcess = createMockProcess({
+            pid: 4402,
+            onWrite: (msg) => secondWrites.push(msg),
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'account/login/start' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { type: 'chatgptAuthTokens' } });
+                }
+                if (msg.method === 'thread/resume' && msg.id != null) {
+                    pushJsonLine(stdout, { id: msg.id, result: { thread: { id: msg.params.threadId } } });
+                }
+            },
+        });
+        mockSpawn
+            .mockImplementationOnce(() => firstProcess)
+            .mockImplementationOnce(() => secondProcess);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        await client.connect();
+        await client.resumeThread({ threadId: 'thread-before-reconnect' });
+        pushJsonLine(firstProcess.stdout, {
+            id: 778,
+            method: 'account/chatgptAuthTokens/refresh',
+            params: { previousAccountId: 'chatgpt-fixture' },
+        });
+        await waitFor(() => typeof resolveRefresh === 'function');
+
+        await expect(client.reconnectAndResumeThread()).resolves.toBe(true);
+        resolveRefresh({ ...managedAuth, accessToken: 'late-access-token' });
+        await new Promise((resolve) => setTimeout(resolve, 25));
+
+        expect(secondWrites.some((write) => write.id === 778)).toBe(false);
+        expect((client as any).managedAuth.accessToken).toBe('access-before-reconnect');
+        expect(firstWrites.some((write) => write.id === 778)).toBe(false);
+        await client.disconnect();
+    });
+
+    it('retains the native thread across reconnect without shared-home ownership checks', async () => {
         const requests: MockRpcMessage[] = [];
         mockSpawn.mockImplementation(() => createMockProcess({
             onRequest: (msg, stdout) => {
@@ -217,15 +432,6 @@ describe('CodexAppServerClient sandbox integration', () => {
         const client = new CodexAppServerClient(undefined, { processEnvironment });
         await client.connect();
         await client.resumeThread({ threadId: 'same-native-thread', cwd: '/tmp/native-workspace' });
-        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(false);
-        await expect(client.reconnectAndResumeThread()).resolves.toBe(false);
-        await expect(client.connect()).rejects.toThrow('runtime home owned by another');
-        expect(mockSpawn).toHaveBeenCalledTimes(1);
-        expect(client.threadId).toBe('same-native-thread');
-
-        // This is a separately initiated resume after ownership is restored,
-        // not a turn manufactured by credential rotation.
-        mockCodexRuntimeCredentialOwnedByProcess.mockResolvedValue(true);
         await expect(client.reconnectAndResumeThread()).resolves.toBe(true);
         expect(mockSpawn).toHaveBeenCalledTimes(2);
         const resumes = requests.filter((r) => r.method === 'thread/resume');

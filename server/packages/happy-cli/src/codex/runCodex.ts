@@ -90,7 +90,6 @@ import {
 import { buildHappyHerdAgentMcpServerConfig, readHappyHerdAgentSessionEnvironment } from './agentMcpConfig';
 import { classifyCodexHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
-import { persistActiveCodexCredential } from '@/credentialPool/codexAuth';
 import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
 import {
     codexUsageIncrement,
@@ -795,12 +794,6 @@ export async function runCodex(opts: {
             } catch (e) {
                 logger.debug('[Codex] Error disconnecting Codex during termination', e);
             }
-            try {
-                await persistActiveCodexCredential();
-            } catch (e) {
-                logger.debug('[Codex] Error persisting named account credentials during termination', e);
-            }
-
             // Stop Happy MCP server
             happyServer?.stop();
 
@@ -1021,11 +1014,6 @@ export async function runCodex(opts: {
         const hardLimit = classifyCodexHardLimit(msg);
         if (hardLimit) {
             void (async () => {
-                try {
-                    await persistActiveCodexCredential();
-                } catch (error) {
-                    logger.debug('[Codex] Failed to persist named account credentials before rotation', error);
-                }
                 await reportProviderHardLimitOnce({
                     sessionId: session.sessionId,
                     ...hardLimit,
@@ -1603,11 +1591,6 @@ export async function runCodex(opts: {
                 automationCaughtFailure = error instanceof Error ? error.message : String(error);
                 heartbeatFailure = automationCaughtFailure;
             } finally {
-                try {
-                    await persistActiveCodexCredential();
-                } catch (error) {
-                    logger.debug('[Codex] Failed to persist refreshed named account credentials', error);
-                }
                 // Reset permission handler, reasoning processor, and diff processor
                 permissionHandler.reset();
                 reasoningProcessor.abort();  // Use abort to properly finish any in-progress tool calls
@@ -1672,11 +1655,6 @@ export async function runCodex(opts: {
         logger.debug('[codex]: client.disconnect begin');
         await client.disconnect();
         logger.debug('[codex]: client.disconnect done');
-        try {
-            await persistActiveCodexCredential();
-        } catch (error) {
-            logger.debug('[codex]: Failed to persist named account credentials during cleanup', error);
-        }
         // Stop Happy MCP server
         logger.debug('[codex]: happyServer.stop');
         happyServer?.stop();

@@ -16,7 +16,6 @@ vi.mock('./connect/authenticateCodex', () => ({ authenticateCodex: mocks.authent
 
 import { sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
 import { activateCredentialAccount } from '@/credentialPool/activate';
-import { persistActiveCodexCredential } from '@/credentialPool/codexAuth';
 import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
 import {
   credentialAccountEnvironment,
@@ -167,10 +166,6 @@ describe('named credential files from connect through provider launch', () => {
       (candidate) => candidate.provider === 'codex' && candidate.name === 'work',
     );
     if (!first || first.provider !== 'codex') throw new Error('missing first Codex account');
-    const oldRuntimeHome = join(root, 'old-codex-runtime');
-    mkdirSync(oldRuntimeHome, { recursive: true });
-    writeFileSync(join(oldRuntimeHome, 'auth.json'), '{"tokens":{"access_token":"stale"}}');
-    const oldEnvironment = { CODEX_HOME: oldRuntimeHome, ...credentialAccountEnvironment(first) };
     const assertMutationAllowed = vi.fn(async () => undefined);
 
     mocks.authenticateCodex.mockResolvedValueOnce({
@@ -191,7 +186,6 @@ describe('named credential files from connect through provider launch', () => {
     expect(assertMutationAllowed).toHaveBeenCalledWith({ provider: 'codex', name: 'work' });
     expect(current.id).toBe(first.id);
     expect(current.credentialVersion).toBe(first.credentialVersion + 1);
-    await expect(persistActiveCodexCredential(oldEnvironment, paths)).resolves.toBe(false);
     expect(await readFile(current.credential.path, 'utf8')).toContain('new-access-token');
   });
 });

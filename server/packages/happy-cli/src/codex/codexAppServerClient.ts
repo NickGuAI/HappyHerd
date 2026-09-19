@@ -55,7 +55,11 @@ import type { SandboxConfig } from '@/persistence';
 import { initializeSandbox, wrapForMcpTransport } from '@/sandbox/manager';
 import packageJson from '../../package.json';
 import { buildHappyHerdAgentCodexAppServerArgs } from './agentCodexPolicy';
-import { codexRuntimeCredentialOwnedByProcess } from '@/credentialPool/codexAuth';
+import {
+    loadManagedCodexAuth,
+    refreshManagedCodexAuth,
+    type ManagedCodexAuth,
+} from '@/credentialPool/codexAuth';
 
 const PROACTIVE_MULTI_AGENT_MODE_CONFIG =
     'features.multi_agent_v2.multi_agent_mode_hint_text="Proactive multi-agent delegation is active. Any earlier instruction requiring an explicit user request before spawning sub-agents no longer applies. Use sub-agents when parallel work would materially improve speed or quality. This mode remains active until a later multi-agent mode developer message changes it."';
@@ -265,6 +269,7 @@ export class CodexAppServerClient {
     private readonly requireSandbox: boolean;
     private readonly workingDirectory?: string;
     private readonly processEnvironment?: NodeJS.ProcessEnv;
+    private managedAuth: ManagedCodexAuth | null = null;
     private sandboxCleanup: (() => Promise<void>) | null = null;
     public sandboxEnabled = false;
 
@@ -806,9 +811,8 @@ export class CodexAppServerClient {
             );
         }
 
-        if (!(await codexRuntimeCredentialOwnedByProcess(this.processEnvironment ?? process.env))) {
-            throw new Error('Cannot connect Codex through a runtime home owned by another credential-pool account');
-        }
+        const processEnvironment = this.processEnvironment ?? process.env;
+        this.managedAuth = await loadManagedCodexAuth(processEnvironment);
 
         let command = 'codex';
         const appServerArgs = [
@@ -820,6 +824,7 @@ export class CodexAppServerClient {
             'stdio://',
             '-c',
             'project_doc_max_bytes=0',
+            ...(this.managedAuth ? ['-c', 'cli_auth_credentials_store="ephemeral"'] : []),
             // Codex 0.146 derives explicit-request-only delegation from every
             // effort below ultra, including max. HappyHerd sessions use
             // proactive delegation independently of reasoning effort.
@@ -931,6 +936,32 @@ export class CodexAppServerClient {
         };
         await this.request('initialize', initParams);
         this.notify('initialized');
+        if (this.managedAuth) {
+            try {
+                if (this.managedAuth.kind === 'api-key') {
+                    await this.request('account/login/start', {
+                        type: 'apiKey',
+                        apiKey: this.managedAuth.apiKey,
+                    });
+                } else {
+                    await this.request('account/login/start', {
+                        type: 'chatgptAuthTokens',
+                        accessToken: this.managedAuth.accessToken,
+                        chatgptAccountId: this.managedAuth.chatgptAccountId,
+                        ...(this.managedAuth.chatgptPlanType
+                            ? { chatgptPlanType: this.managedAuth.chatgptPlanType }
+                            : {}),
+                    });
+                }
+            } catch {
+                // Initialization can succeed before managed login fails. The
+                // discovery callers await connect() before their finally block,
+                // so dispose this newly spawned generation here rather than
+                // leaking a native app-server on every failed login.
+                await this.disconnectInternal();
+                throw new Error('Managed Codex authentication failed.');
+            }
+        }
         this.connected = true;
         logger.debug('[CodexAppServer] Connected and initialized');
     }
@@ -1220,11 +1251,6 @@ export class CodexAppServerClient {
     async reconnectAndResumeThread(): Promise<boolean> {
         const threadId = this._threadId;
         await this.disconnectInternal({ preserveThreadState: !!threadId });
-        const processEnvironment = this.processEnvironment ?? process.env;
-        if (!(await codexRuntimeCredentialOwnedByProcess(processEnvironment))) {
-            logger.warn('[CodexAppServer] Refusing reconnect because the shared CODEX_HOME is owned by another credential-pool account');
-            return false;
-        }
         await this.connect();
 
         if (!threadId) {
@@ -1627,6 +1653,17 @@ export class CodexAppServerClient {
         logger.debug(`[CodexAppServer] → response (id=${id})`);
     }
 
+    private respondError(id: number, message: string): void {
+        if (!this.process?.stdin?.writable) return;
+        const msg: JsonRpcResponse = {
+            jsonrpc: '2.0',
+            id,
+            error: { code: -32000, message },
+        };
+        this.process.stdin.write(JSON.stringify(msg) + '\n');
+        logger.debug(`[CodexAppServer] → error response (id=${id})`);
+    }
+
     private handleLine(line: string, sourceEpoch: number = this.processEpoch): void {
         if (sourceEpoch !== this.processEpoch) {
             return;
@@ -1667,7 +1704,7 @@ export class CodexAppServerClient {
 
         // Server → client request (approvals)
         if (msg.id != null && msg.method) {
-            this.handleServerRequest(msg.id, msg.method, msg.params).catch((err) => {
+            this.handleServerRequest(msg.id, msg.method, msg.params, sourceEpoch).catch((err) => {
                 logger.debug('[CodexAppServer] Error handling server request:', err);
             });
             return;
@@ -1758,7 +1795,48 @@ export class CodexAppServerClient {
         };
     }
 
-    private async handleServerRequest(id: number, method: string, params: any): Promise<void> {
+    private async handleServerRequest(
+        id: number,
+        method: string,
+        params: any,
+        sourceEpoch: number = this.processEpoch,
+    ): Promise<void> {
+        if (method === 'account/chatgptAuthTokens/refresh') {
+            const sourceProcess = this.process;
+            const isCurrentGeneration = (): boolean => (
+                sourceProcess !== null
+                && this.process === sourceProcess
+                && this.processEpoch === sourceEpoch
+            );
+            if (!this.managedAuth || this.managedAuth.kind !== 'chatgpt') {
+                if (isCurrentGeneration()) {
+                    this.respondError(id, 'Managed Codex authentication refresh is unavailable.');
+                }
+                return;
+            }
+            try {
+                const refreshed = await refreshManagedCodexAuth(this.managedAuth, {
+                    previousAccountId: stringOrNull(params?.previousAccountId),
+                });
+                if (!isCurrentGeneration()) return;
+                if (refreshed.kind !== 'chatgpt') {
+                    this.respondError(id, 'Managed Codex authentication refresh failed.');
+                    return;
+                }
+                this.managedAuth = refreshed;
+                this.respond(id, {
+                    accessToken: refreshed.accessToken,
+                    chatgptAccountId: refreshed.chatgptAccountId,
+                    ...(refreshed.chatgptPlanType ? { chatgptPlanType: refreshed.chatgptPlanType } : {}),
+                });
+            } catch {
+                if (isCurrentGeneration()) {
+                    this.respondError(id, 'Managed Codex authentication refresh failed.');
+                }
+            }
+            return;
+        }
+
         if (method === 'mcpServer/elicitation/request') {
             const threadId = stringOrNull(params?.threadId) ?? this._threadId;
             const turnId = stringOrNull(params?.turnId);

@@ -7,6 +7,26 @@ const probeMocks = vi.hoisted(() => ({
     rm: vi.fn(async () => undefined),
 }));
 
+const codexMocks = vi.hoisted(() => ({
+    options: null as { processEnvironment?: NodeJS.ProcessEnv } | null,
+}));
+
+vi.mock('@/codex/codexAppServerClient', () => ({
+    CodexAppServerClient: class {
+        constructor(_sandboxConfig?: unknown, options: { processEnvironment?: NodeJS.ProcessEnv } = {}) {
+            codexMocks.options = options;
+        }
+
+        async connect() {}
+
+        async listModels() {
+            return [];
+        }
+
+        async disconnect() {}
+    },
+}));
+
 // All catalog payloads in this suite are fixtures. Version/help probing must
 // not invoke whichever native provider happens to be installed on the host.
 vi.mock('cross-spawn', () => {
@@ -257,6 +277,30 @@ describe('agent capability discovery', () => {
         expect(capabilities.codex.permissionModes).toContainEqual(
             expect.objectContaining({ code: 'yolo', isDefault: true }),
         );
+    });
+
+    it('passes an explicit private environment only to Codex model discovery', async () => {
+        const processEnvironment = {
+            PATH: '/usr/bin',
+            CODEX_HOME: '/tmp/codex-home',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: '00000000-0000-4000-8000-000000000022',
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '3',
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/tmp/accounts/work/auth.json',
+        };
+        codexMocks.options = null;
+
+        await detectAgentCapabilities({
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 1,
+        }, { codexProcessEnvironment: processEnvironment });
+
+        expect(codexMocks.options).toEqual({ processEnvironment });
     });
 
     it('uses only app-server-compatible effort fallbacks when live Codex discovery is unavailable', async () => {

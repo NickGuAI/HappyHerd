@@ -94,7 +94,6 @@ import {
 } from './sideChatLifecycle';
 import { sampleHostResourceUsage } from './hostResourceUsage';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
-import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import {
@@ -1994,17 +1993,6 @@ export async function startDaemon(): Promise<void> {
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
           })
           : undefined;
-        if (
-          codexForkEnvironment
-          && codexCredentialResolution?.selection.type === 'available'
-          && codexCredentialResolution.selection.account.provider === 'codex'
-        ) {
-          await activateCodexCredential(
-            codexCredentialResolution.selection.account,
-            codexRuntimeHome(codexForkEnvironment),
-          );
-        }
-
         const freshProviderContext = brief !== null && !nativeFork
           ? buildBoundedVisibleSideChatContext(await api.readRecentSessionMessages(parent))
           : undefined;

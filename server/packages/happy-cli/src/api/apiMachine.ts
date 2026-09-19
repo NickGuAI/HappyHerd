@@ -50,6 +50,11 @@ import {
 import { listCommanders } from '@/agentContext/commanderContext';
 import type { HappyHerdAutomationService } from '@/automations/service';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
+import { buildSessionChildEnvironment } from '@/daemon/sessionEnvironment';
+import {
+    credentialAccountEnvironment,
+    readCredentialPoolState,
+} from '@/credentialPool/store';
 import { normalizeSideChatDelegationBrief } from '@/commands/sideChat';
 import type {
     SideChatDelegationBrief,
@@ -59,6 +64,28 @@ import type {
 import type { CredentialAccountManager } from '@/credentialPool/manager';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function currentCodexDiscoveryEnvironment(): Promise<NodeJS.ProcessEnv | undefined> {
+    let state: Awaited<ReturnType<typeof readCredentialPoolState>>;
+    try {
+        state = await readCredentialPoolState();
+    } catch (error) {
+        logger.debug('[API MACHINE] Failed to read the current Codex account for discovery:', error);
+        return undefined;
+    }
+
+    const currentName = state.current.codex;
+    if (!currentName) return undefined;
+    const account = state.accounts.find((candidate) => (
+        candidate.provider === 'codex' && candidate.name === currentName
+    ));
+    if (!account || account.provider !== 'codex') return undefined;
+
+    return buildSessionChildEnvironment(
+        process.env,
+        credentialAccountEnvironment(account),
+    );
+}
 
 interface ServerToDaemonEvents {
     update: (data: Update) => void;
@@ -801,7 +828,13 @@ export class ApiMachineClient {
 
         this.capabilitiesRefreshInFlight = (async () => {
             const availability = detectCLIAvailability();
-            const discovery = await detectAgentCapabilities(availability);
+            const codexProcessEnvironment = availability.codex
+                ? await currentCodexDiscoveryEnvironment()
+                : undefined;
+            const discovery = await detectAgentCapabilities(
+                availability,
+                codexProcessEnvironment ? { codexProcessEnvironment } : undefined,
+            );
             const capabilities = discovery.capabilities;
             const fingerprint = capabilityFingerprint(capabilities);
             this.lastCapabilitiesRefreshAt = Date.now();
