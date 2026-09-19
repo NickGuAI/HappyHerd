@@ -357,3 +357,4 @@ UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integratio
 UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happy-app/sources/sync/happyToolProtocol.test.ts
 UPSTREAM_4B7D763E_BROWSER_TIMING	accepted	test(upstream): synchronize browser interaction assertions	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 NATIVE_PLAN_QUESTION_FALLBACK	accepted	fix(plans): restore ACP snapshots and question form fallbacks	server/packages/happy-cli/src/agent/acp/AcpSessionManager.plan.test.ts
+NATIVE_PLAN_QUESTION_RENDER_FIXTURE	accepted	test(plans): align tool rendering fixtures with communication state	server/packages/happy-app/sources/components/tools/ToolView.test.ts
