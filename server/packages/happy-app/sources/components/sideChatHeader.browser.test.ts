@@ -1308,7 +1308,7 @@ describe('Side chats browser interaction', () => {
             write: false,
             format: 'iife',
             platform: 'browser',
-            sourcemap: 'inline',
+            sourcemap: 'external',
             define: {
                 __DEV__: 'false',
                 'process.env.EXPO_OS': '"web"',
@@ -1320,7 +1320,23 @@ describe('Side chats browser interaction', () => {
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.text;
         const css = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
+        const sourceMap = bundle.outputFiles.find((file) => file.path.endsWith('.js.map'))!.text;
+        // Keep the same executable fixture and debugging map, without embedding
+        // a base64 source map in every navigation's HTML parser input. Prepare
+        // these responses once rather than escaping the whole bundle per request.
+        const executable = script + '\n//# sourceMappingURL=/fixture.js.map';
+        const html = '<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;</script><script src="/fixture.js"></script>';
         server = createServer((_request, response) => {
+            if (_request.url === '/fixture.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.end(executable);
+                return;
+            }
+            if (_request.url === '/fixture.js.map') {
+                response.setHeader('content-type', 'application/json; charset=utf-8');
+                response.end(sourceMap);
+                return;
+            }
             if (_request.url === '/fixture.css') {
                 response.setHeader('content-type', 'text/css; charset=utf-8');
                 response.end(css);
@@ -1333,7 +1349,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(html);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
