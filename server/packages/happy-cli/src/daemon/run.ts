@@ -532,7 +532,19 @@ export async function startDaemon(): Promise<void> {
         }
         : options);
 
-      const contextBundle = await prepareCommanderContext(options.commanderId, options.directory);
+      let providerLaunchAttempted = false;
+      let contextBundle: Awaited<ReturnType<typeof prepareCommanderContext>>;
+      try {
+        contextBundle = await prepareCommanderContext(options.commanderId, options.directory);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.debug('[DAEMON RUN] Failed to prepare session context:', error);
+        return {
+          type: 'error',
+          errorMessage: `Failed to spawn session: ${errorMessage}`,
+          retrySafe: true,
+        };
+      }
       // Commander workspace is the picker's default, not authority to replace
       // the directory the user actually selected for this session. Keeping the
       // spawn cwd and the closest project guide on the same requested path
@@ -784,6 +796,7 @@ export async function startDaemon(): Promise<void> {
             }
           }
 
+          providerLaunchAttempted = true;
           const tmuxResult = await tmux.spawnInTmux([sanitizedTmuxCommand], {
             sessionName: tmuxSessionName,
             windowName: windowName,
@@ -887,10 +900,12 @@ export async function startDaemon(): Promise<void> {
 
           // TODO: In future, sessionId could be used with --resume to continue existing sessions
           // For now, we ignore it - each spawn creates a new session
+          const childEnvironment = buildSessionChildEnvironment(ambientEnvironment, extraEnv);
+          providerLaunchAttempted = true;
           return spawnTrackedHappyProcess({
             args,
             cwd: directory,
-            env: buildSessionChildEnvironment(ambientEnvironment, extraEnv),
+            env: childEnvironment,
             directoryCreated,
             message: directoryCreated ? `The path '${directory}' did not exist. We created a new folder and spawned a new session there.` : undefined,
             automation: options.automation
@@ -910,7 +925,8 @@ export async function startDaemon(): Promise<void> {
         logger.debug('[DAEMON RUN] Failed to spawn session:', error);
         return {
           type: 'error',
-          errorMessage: `Failed to spawn session: ${errorMessage}`
+          errorMessage: `Failed to spawn session: ${errorMessage}`,
+          ...(providerLaunchAttempted ? {} : { retrySafe: true }),
         };
       }
     };

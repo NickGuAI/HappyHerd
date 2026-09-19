@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
   spawnHappyCLI: vi.fn(),
   isTmuxAvailable: vi.fn(async () => false),
   spawnInTmux: vi.fn(),
+  listCommanders: vi.fn(async () => ({
+    commanders: [] as Array<{ id: string; name: string; workspace: string }>,
+  })),
+  prepareCommanderContext: vi.fn(async () => ({ commander: null })),
+  prepareAutomationBootstrap: vi.fn(async () => ({})),
   resolveCredentials: vi.fn<typeof resolveCredentialAccountEnvironment>(),
   schedule: vi.fn((_expression: string, _tick: () => void, _options: unknown) => ({
     destroy: vi.fn(async () => undefined),
@@ -87,12 +92,12 @@ vi.mock('@/capabilities/agentCapabilities', () => ({ buildBaselineAgentCapabilit
 vi.mock('@/resume/localHappyAgentAuth', () => ({ detectResumeSupport: vi.fn(() => ({})) }));
 vi.mock('@/agentContext/commanderContext', () => ({
   agentContextRoot: () => process.env.HAPPY_HOME_DIR!,
-  listCommanders: vi.fn(async () => ({ commanders: [] })),
+  listCommanders: mocks.listCommanders,
   contextEnvironment: vi.fn(() => ({})),
-  prepareCommanderContext: vi.fn(async () => ({ commander: null })),
+  prepareCommanderContext: mocks.prepareCommanderContext,
 }));
 vi.mock('@/automations/sessionBootstrap', () => ({
-  prepareAutomationBootstrap: vi.fn(async () => ({})),
+  prepareAutomationBootstrap: mocks.prepareAutomationBootstrap,
   automationBootstrapEnvironment: vi.fn(() => ({})),
 }));
 vi.mock('@/daemon/processStatus', () => ({ hasProviderProcessExited: vi.fn(() => false) }));
@@ -118,6 +123,11 @@ beforeEach(async () => {
   await mkdir(process.env.HAPPY_HOME_DIR!, { recursive: true });
   await writeFile(join(process.env.HAPPY_HOME_DIR!, 'AGENTS.md'), '# Test');
   mocks.isTmuxAvailable.mockResolvedValue(false);
+  mocks.listCommanders.mockResolvedValue({
+    commanders: [{ id: 'test-commander', name: 'Test Commander', workspace: root }],
+  });
+  mocks.prepareCommanderContext.mockResolvedValue({ commander: null });
+  mocks.prepareAutomationBootstrap.mockResolvedValue({});
   mocks.resolveCredentials.mockResolvedValue({ selection: { type: 'unconfigured' }, env: {} });
   mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, on: vi.fn(), kill: vi.fn() });
   vi.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
@@ -151,6 +161,56 @@ function limitAllAccounts() {
   mocks.resolveCredentials.mockResolvedValue({
     selection: { type: 'all-limited', limitedUntil: Date.parse('2026-09-15T00:00:00Z') },
     env: {},
+  });
+}
+
+async function expectScheduledPreparationFailureThenRecovery({
+  name,
+  commanderId,
+  rejectPreparation,
+  errorMessage,
+}: {
+  name: string;
+  commanderId: string | null;
+  rejectPreparation: () => void;
+  errorMessage: string;
+}) {
+  const service = mocks.handlers!.automations;
+  const automation = await service.create({
+    name, kind: 'scheduled', instruction: 'Review the task list.',
+    schedule: '* * * * *', timezone: 'UTC', workspace: root,
+    rail: 'codex', commanderId, status: 'active', maxRetries: 0,
+  });
+  const tick = mocks.schedule.mock.calls.at(-1)![1];
+
+  rejectPreparation();
+  tick();
+  await vi.waitFor(async () => {
+    const { runs } = await service.history(automation.id);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({
+      status: 'failed', sessionId: null, finishedAt: expect.any(String),
+      message: expect.stringContaining(errorMessage),
+    });
+  });
+  expect(await service.listActiveRuns()).toEqual([]);
+  expectNoSpawn();
+
+  tick();
+  await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+  const recoveredSessionId = `${name.toLowerCase().replaceAll(' ', '-')}-recovered`;
+  mocks.handlers!.onHappySessionWebhook(recoveredSessionId, {
+    path: root, host: 'test-host', hostPid: 4321,
+    homeDir: root, happyHomeDir: process.env.HAPPY_HOME_DIR!, happyLibDir: root, happyToolsDir: root,
+  });
+  await vi.waitFor(async () => {
+    const { runs } = await service.history(automation.id);
+    expect(runs).toHaveLength(2);
+    expect(runs.filter((run) => run.status === 'failed')).toHaveLength(1);
+    expect(runs.find((run) => run.status === 'started')).toMatchObject({
+      source: 'schedule', sessionId: recoveredSessionId, finishedAt: null,
+    });
+    expect(runs.some((run) => run.status === 'skipped')).toBe(false);
   });
 }
 
@@ -225,6 +285,28 @@ describe('daemon pre-spawn rejection evidence', () => {
     expect(result).toMatchObject({ type: 'error', errorMessage: expect.stringContaining('Session webhook timeout') });
     expect(result).not.toHaveProperty('retrySafe');
     expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+  });
+
+  it('finalizes thrown Commander preparation and starts on the next scheduled tick', async () => {
+    await expectScheduledPreparationFailureThenRecovery({
+      name: 'Commander recovery',
+      commanderId: 'test-commander',
+      rejectPreparation: () => {
+        mocks.prepareCommanderContext.mockRejectedValueOnce(new Error('Commander was removed'));
+      },
+      errorMessage: 'Commander was removed',
+    });
+  });
+
+  it('finalizes thrown automation bootstrap preparation and starts on the next scheduled tick', async () => {
+    await expectScheduledPreparationFailureThenRecovery({
+      name: 'Bootstrap recovery',
+      commanderId: null,
+      rejectPreparation: () => {
+        mocks.prepareAutomationBootstrap.mockRejectedValueOnce(new Error('Bootstrap preparation failed'));
+      },
+      errorMessage: 'Bootstrap preparation failed',
+    });
   });
 
   it('records terminal failures on consecutive scheduled ticks and starts after quota recovers', async () => {
