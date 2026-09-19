@@ -27,6 +27,7 @@ import {
     shouldUseCompactToolRow,
 } from '@/utils/toolDisplay';
 import { useSession, useSetting, useSessionAgentFormCommunication } from '@/sync/storage';
+import { canRenderAgentFormInline } from '@/sync/agentCommunications';
 import { hasPlanBody, readClaudeQuestions } from './views/questionPresentation';
 
 interface ToolViewProps {
@@ -48,7 +49,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const communication = useSessionAgentFormCommunication(sessionId ?? '', tool.callId ?? '');
     const hasQuestionForm = tool.name === 'AskUserQuestion' && readClaudeQuestions(tool.input) !== null;
     const hasSpecializedContent = tool.name === 'AskUserQuestion' ? hasQuestionForm
-        : tool.name === 'request_user_input' ? communication !== null
+        : tool.name === 'request_user_input' ? communication !== null && canRenderAgentFormInline(communication)
         : tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode' ? hasPlanBody(tool.input)
         : true;
 

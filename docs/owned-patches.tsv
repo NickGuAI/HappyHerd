@@ -360,3 +360,4 @@ AUTOMATION_PRESPAWN_REJECTION	accepted	fix(automations): finalize proven pre-spa
 AUTOMATION_PRESPAWN_PREPARATION	accepted	fix(automations): classify preparation failures before launch	server/packages/happy-cli/src/daemon/run.preSpawn.test.ts
 NATIVE_PLAN_QUESTION_FALLBACK	accepted	fix(plans): restore ACP snapshots and question form fallbacks	server/packages/happy-cli/src/agent/acp/AcpSessionManager.plan.test.ts
 NATIVE_PLAN_QUESTION_RENDER_FIXTURE	accepted	test(plans): align tool rendering fixtures with communication state	server/packages/happy-app/sources/components/tools/ToolView.test.ts
+NATIVE_QUESTION_TEXT_FALLBACK	accepted	fix(questions): preserve text-only fallback ownership	server/packages/happy-app/sources/sync/agentCommunications.spec.ts

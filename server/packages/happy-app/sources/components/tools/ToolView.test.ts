@@ -192,6 +192,24 @@ describe('tool rendering on mobile and web', () => {
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
     });
 
+    it('leaves an optionless communication with the modal answer owner', () => {
+        settings.compact = true;
+        settings.communication = {
+            id: 'text-form', toolUseId: 'text-call', kind: 'form', createdAt: 1, status: 'pending',
+            questions: [{
+                id: 'text', header: 'Details', question: 'What should change?', options: [],
+                multiSelect: false, allowCustom: true,
+            }],
+        };
+        const row = render(React.createElement(ToolView, {
+            tool: { ...tool('request_user_input', { prompt: 'What should change?' }), callId: 'text-call' },
+            metadata: null,
+            sessionId: 's1',
+        }));
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(0);
+        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
+    });
+
     it('uses the wire title in the detail header', () => {
         const header = render(React.createElement(ToolHeader, { tool: { ...tool('future_tool'), title: 'Check release' } }));
         expect(JSON.stringify(header.toJSON())).toContain('Check release');

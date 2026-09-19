@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { sessionAnswerQuestion, sessionCancelCommunication } from '@/sync/ops';
 import { useSessionAgentFormCommunication } from '@/sync/storage';
+import { canRenderAgentFormInline } from '@/sync/agentCommunications';
 import type { AgentQuestionAnswer } from '@/sync/storageTypes';
 import { ToolViewProps } from './_all';
 import { InlineQuestionForm, type InlineQuestionAnswers } from './InlineQuestionForm';
@@ -48,8 +49,9 @@ export const RequestUserInputView = React.memo<ToolViewProps>(({ tool, sessionId
         await sessionCancelCommunication(sessionId, communication.id, communication.kind);
     }, [communication, sessionId]);
 
-    // ToolView preserves the generic payload until a form can actually own it.
-    if (!communication) return null;
+    // Text-only forms retain the modal fallback so an unanchored request cannot
+    // lose its only answer surface.
+    if (!communication || !canRenderAgentFormInline(communication)) return null;
 
     return (
         <InlineQuestionForm
