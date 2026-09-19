@@ -370,3 +370,4 @@ DAEMON_SHUTDOWN_FIXTURE_TIMER	accepted	test(daemon): cancel fixture-owned shutdo
 GROK_NATIVE_AUTH	accepted	fix(grok): isolate native auth by credential version	server/packages/happy-cli/src/credentialPool/grokAuth.test.ts
 CODEX_NATIVE_AUTH	code-ready	fix(credentials): bind Codex app-server auth to registered accounts	server/packages/happy-cli/src/credentialPool/codexAuth.ts
 PR280_NATIVE_AUTH_INTEGRATION	code-ready	fix(credentials): wire version-bound Grok auth activation	server/packages/happy-cli/src/credentialPool/activate.ts
+PR280_CHANGELOG_REGEN	code-ready	docs(release): regenerate PR280 changelog artifacts	server/packages/happy-app/sources/changelog/changelog.json
