@@ -1,3 +1,8 @@
+# September 17 — Forked session settings
+
+- Forking or duplicating a Claude or Codex session now retains the parent session's permission mode and Commander in its original directory.
+- New side chats inherit their parent's Commander and provider permission policy; an explicitly selected child permission mode still takes precedence. Side-chat inheritance requires an updated daemon.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.

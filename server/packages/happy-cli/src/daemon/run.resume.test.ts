@@ -400,7 +400,7 @@ describe('daemon session continuity', () => {
     if (daemonRun && rpc?.requestShutdown) {
       const timeoutSpy = vi.spyOn(global, 'setTimeout');
       rpc.requestShutdown();
-      const fallbackTimer = timeoutSpy.mock.calls.findIndex((call) => call[1] === 1_000);
+      const fallbackTimer = timeoutSpy.mock.calls.findIndex((call) => call[1] === 10_000);
       await daemonRun;
       if (fallbackTimer >= 0) {
         clearTimeout(timeoutSpy.mock.results[fallbackTimer].value as ReturnType<typeof setTimeout>);
@@ -1842,6 +1842,54 @@ describe('daemon session continuity', () => {
   );
 
   it.each([
+    ['claude', 'bypassPermissions'],
+    ['codex', 'yolo'],
+    ['grok', 'dontAsk'],
+    ['dsh', 'danger-full-access'],
+    ['agy', 'default'],
+  ] as const)('inherits the parent directory, permission and Commander for %s side chats', async (provider, permission) => {
+    const launchOnly = provider === 'grok' || provider === 'dsh';
+    const parentMetadata: Metadata = {
+      path: process.cwd(), flavor: provider, machineId: 'machine-1',
+      host: 'test-host', homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd', happyLibDir: '/srv/happy', happyToolsDir: '/srv/happy/tools',
+      claudeSessionId: 'claude-parent', codexThreadId: 'codex-parent',
+      commanderId: 'athena',
+      permissionMode: launchOnly ? 'default' : permission,
+      spawnSettings: { provider, model: null, effort: null, permission: launchOnly ? permission : 'default' },
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', active: false, metadata: parentMetadata,
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 5660, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[], { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    const settings = spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON
+      ? JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON)
+      : undefined;
+    control.onHappySessionWebhook('child', {
+      ...parentMetadata, hostPid: 5660, parentSessionId: 'parent', isSideChat: true,
+      spawnSettings: settings,
+    }, {
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'child' });
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(prepareCommanderContext).toHaveBeenCalledWith('athena', parentMetadata.path);
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
+    expect(settings).toMatchObject({ provider, permission });
+  });
+
+  it.each([
     ['gemini', undefined],
     ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],
     ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
@@ -2183,6 +2231,8 @@ describe('daemon session continuity', () => {
       path: process.cwd(), flavor: provider, host: 'test-host', hostPid: 9876,
       machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
       happyLibDir: '/srv/happy', happyToolsDir: '/srv/happy/tools',
+      permissionMode: 'default',
+      spawnSettings: { provider, model, effort, permission: 'default' },
       ...(provider === 'claude' ? { claudeSessionId: '11111111-1111-4111-8111-111111111111' } : {}),
       ...(provider === 'codex' ? { codexThreadId: 'thread-parent' } : {}),
     };
