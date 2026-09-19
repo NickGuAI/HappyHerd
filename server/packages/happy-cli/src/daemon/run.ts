@@ -580,7 +580,8 @@ export async function startDaemon(): Promise<void> {
           logger.debug(`[DAEMON RUN] Directory creation failed: ${errorMessage}`);
           return {
             type: 'error',
-            errorMessage
+            errorMessage,
+            retrySafe: true,
           };
         }
       }
@@ -605,6 +606,7 @@ export async function startDaemon(): Promise<void> {
           return {
             type: 'error',
             errorMessage: `All ${credentialProvider} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+            retrySafe: true,
           };
         }
         Object.assign(authEnv, credentialResolution.env);
@@ -708,7 +710,8 @@ export async function startDaemon(): Promise<void> {
           logger.warn(`[DAEMON RUN] ${errorMessage}`);
           return {
             type: 'error',
-            errorMessage
+            errorMessage,
+            retrySafe: true,
           };
         }
 
@@ -746,6 +749,7 @@ export async function startDaemon(): Promise<void> {
             return {
               type: 'error',
               errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`,
+              retrySafe: true,
             };
           }
           const resumeId = agent === 'claude'
@@ -862,6 +866,7 @@ export async function startDaemon(): Promise<void> {
             return {
               type: 'error',
               errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`,
+              retrySafe: true,
             };
           }
           const args = [
