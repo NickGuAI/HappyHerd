@@ -31,7 +31,11 @@ export async function activateCredentialAccount(
   }
   Object.assign(targetEnv, env);
   if (provider === 'grok' && selection.type === 'available' && selection.account.provider === 'grok') {
-    await activateGrokCredential(selection.account, grokRuntimeHome(targetEnv));
+    targetEnv.GROK_AUTH_PATH = await activateGrokCredential(
+      selection.account,
+      grokRuntimeHome(targetEnv),
+      dependencies.paths,
+    );
   }
   return selection;
 }

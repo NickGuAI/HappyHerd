@@ -61,7 +61,13 @@ describe('managed credential activation', () => {
       await expect(readFile(join(env.CODEX_HOME!, 'auth.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
       expect(env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile(provider, 'managed', paths));
     }
-    if (provider === 'grok') expect(await readFile(join(env.GROK_HOME!, 'auth.json'), 'utf8')).toContain('managed');
+    if (provider === 'grok') {
+      expect(env.GROK_AUTH_PATH).toContain(join(paths.accountsDir, 'grok'));
+      expect(env.GROK_AUTH_PATH).toContain('/.happyherd-runtime-auth/');
+      expect(env.GROK_AUTH_PATH).toMatch(/\/v1\/auth\.json$/);
+      expect(await readFile(env.GROK_AUTH_PATH!, 'utf8')).toContain('managed');
+      await expect(readFile(join(env.GROK_HOME!, 'auth.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    }
   });
 
   it('preserves ambient provider auth when no managed account exists', async () => {

@@ -369,3 +369,4 @@ CREDENTIAL_POOL_RENAME_ACTIVATION	accepted	test(credentials): verify active owne
 DAEMON_SHUTDOWN_FIXTURE_TIMER	accepted	test(daemon): cancel fixture-owned shutdown fallback timers	server/packages/happy-cli/src/daemon/run.resume.test.ts
 GROK_NATIVE_AUTH	accepted	fix(grok): isolate native auth by credential version	server/packages/happy-cli/src/credentialPool/grokAuth.test.ts
 CODEX_NATIVE_AUTH	code-ready	fix(credentials): bind Codex app-server auth to registered accounts	server/packages/happy-cli/src/credentialPool/codexAuth.ts
+PR280_NATIVE_AUTH_INTEGRATION	code-ready	fix(credentials): wire version-bound Grok auth activation	server/packages/happy-cli/src/credentialPool/activate.ts

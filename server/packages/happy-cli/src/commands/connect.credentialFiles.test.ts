@@ -93,6 +93,9 @@ describe('named credential files from connect through provider launch', () => {
       const childEnvironment = sanitizeGrokChildEnvironment(launchEnvironment);
 
       expect(childEnvironment.GROK_HOME).toBe(stableRuntimeHome);
+      expect(childEnvironment.GROK_AUTH_PATH).toBe(launchEnvironment.GROK_AUTH_PATH);
+      expect(launchEnvironment.GROK_AUTH_PATH).toContain('/.happyherd-runtime-auth/');
+      expect(launchEnvironment.GROK_AUTH_PATH).toMatch(/\/v1\/auth\.json$/);
       expect(launchEnvironment.HAPPYHERD_GROK_ACCOUNT_AUTH_FILE).toBe(accountAuthPath);
       expect(JSON.parse(await readFile(accountAuthPath, 'utf8'))).toMatchObject({
         account: expectedAccount,
@@ -102,44 +105,48 @@ describe('named credential files from connect through provider launch', () => {
       expect((await stat(join(paths.accountsDir, 'grok'))).mode & 0o777).toBe(0o700);
       expect((await stat(accountHomePath)).mode & 0o777).toBe(0o700);
       expect((await stat(accountAuthPath)).mode & 0o777).toBe(0o600);
-      expect((await stat(stableRuntimeHome)).mode & 0o777).toBe(0o700);
-      expect((await stat(join(stableRuntimeHome, 'auth.json'))).mode & 0o777).toBe(0o600);
+      expect((await stat(launchEnvironment.GROK_AUTH_PATH!)).mode & 0o777).toBe(0o600);
+      await expect(readFile(join(stableRuntimeHome, 'auth.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
       return launchEnvironment;
     };
 
     const workEnvironment = await activate('work', 'login-1');
-    expect(JSON.parse(await readFile(join(stableRuntimeHome, 'auth.json'), 'utf8'))).toEqual({ account: 'login-1' });
+    const workRuntimeAuthPath = workEnvironment.GROK_AUTH_PATH!;
+    expect(JSON.parse(await readFile(workRuntimeAuthPath, 'utf8'))).toEqual({ account: 'login-1' });
     writeFileSync(
-      join(stableRuntimeHome, 'auth.json'),
+      workRuntimeAuthPath,
       JSON.stringify({ account: 'work', accessToken: 'refreshed' }),
     );
-    chmodSync(join(stableRuntimeHome, 'auth.json'), 0o664);
+    chmodSync(workRuntimeAuthPath, 0o664);
     await expect(persistActiveGrokCredential(workEnvironment, paths)).resolves.toBe(true);
     expect(JSON.parse(await readFile(accountPath('work'), 'utf8'))).toEqual({
       account: 'work',
       accessToken: 'refreshed',
     });
-    expect((await stat(join(stableRuntimeHome, 'auth.json'))).mode & 0o777).toBe(0o600);
+    expect((await stat(workRuntimeAuthPath)).mode & 0o777).toBe(0o600);
     expect((await stat(accountPath('work'))).mode & 0o777).toBe(0o600);
 
     const personalEnvironment = await activate('personal', 'login-2');
-    expect(JSON.parse(await readFile(join(stableRuntimeHome, 'auth.json'), 'utf8'))).toEqual({ account: 'login-2' });
-    await expect(persistActiveGrokCredential(workEnvironment, paths)).resolves.toBe(false);
+    expect(personalEnvironment.GROK_AUTH_PATH).not.toBe(workRuntimeAuthPath);
+    expect(JSON.parse(await readFile(personalEnvironment.GROK_AUTH_PATH!, 'utf8'))).toEqual({ account: 'login-2' });
+    await expect(persistActiveGrokCredential(workEnvironment, paths)).resolves.toBe(true);
     expect(JSON.parse(await readFile(accountPath('work'), 'utf8'))).toEqual({
       account: 'work',
       accessToken: 'refreshed',
     });
-    writeFileSync(join(stableRuntimeHome, 'auth.json'), JSON.stringify({ account: 'personal', accessToken: 'fresh' }));
+    writeFileSync(personalEnvironment.GROK_AUTH_PATH!, JSON.stringify({ account: 'personal', accessToken: 'fresh' }));
     await expect(persistActiveGrokCredential(personalEnvironment, paths)).resolves.toBe(true);
     expect(JSON.parse(await readFile(accountPath('personal'), 'utf8'))).toEqual({
       account: 'personal',
       accessToken: 'fresh',
     });
-    await activate('work', 'work');
-    expect(JSON.parse(await readFile(join(stableRuntimeHome, 'auth.json'), 'utf8'))).toEqual({
+    const resumedWorkEnvironment = await activate('work', 'work');
+    expect(resumedWorkEnvironment.GROK_AUTH_PATH).toBe(workRuntimeAuthPath);
+    expect(JSON.parse(await readFile(workRuntimeAuthPath, 'utf8'))).toEqual({
       account: 'work',
       accessToken: 'refreshed',
     });
+    await expect(readFile(join(stableRuntimeHome, 'auth.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
     expect(JSON.parse(await readFile(sessionFile, 'utf8'))).toEqual({ session: 'same-provider-session' });
   });
 
