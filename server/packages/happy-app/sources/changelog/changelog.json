@@ -6,6 +6,11 @@
       "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
     },
     {
+      "title": "September 13 — Automation launch recovery",
+      "summary": "",
+      "markdown": "- Scheduled automations now record launches rejected before a provider process starts as failed, allowing the next scheduled tick to run instead of remaining stuck as active.\n- Uncertain provider starts remain active until reconciled, preserving protection against duplicate execution."
+    },
+    {
       "title": "September 13 — Upstream integration and responsive changes",
       "summary": "",
       "markdown": "- Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.\n- Native chat presses prepare messages without taking focus; watched tool groups stay expanded until the conversation is left or the app is backgrounded.\n- Diff and terminal syntax preparation runs off the rendering thread, with shared file presentation and stable detail headers.\n- Happy Agent model choices put Astra first; explicit saved choices are retained. Offline launch guidance distinguishes Happy Agent from HappyHerd CLI, and daemon health checks allow five seconds.\n- Codium remains available. The experimental expo-tailcat module is included as a standalone package; this update does not enable tunnels, publish a package, or activate a native release pipeline."
