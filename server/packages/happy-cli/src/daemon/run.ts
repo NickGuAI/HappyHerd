@@ -1933,6 +1933,10 @@ export async function startDaemon(): Promise<void> {
         throw new Error(`Side chats must be created on the parent session's owning machine: ${detail}`);
       }
 
+      // The reconnect snapshot retains local identity and encryption, but
+      // Commander and mutable permission selections can change on the server.
+      parent = (await api.inspectSessionAuthoritative(parent)).session;
+
       const existing = inFlightLocalSideChats.get(parent.id);
       if (existing) {
         const briefMatches = existing.brief === null || brief === null

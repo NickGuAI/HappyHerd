@@ -1912,6 +1912,68 @@ describe('daemon session continuity', () => {
   });
 
   it.each([
+    ['reassigned Commander', 'new-commander'],
+    ['detached Commander', undefined],
+  ] as const)('uses the current parent permission and %s for a side chat', async (_label, commanderId) => {
+    const staleMetadata: Metadata = {
+      path: process.cwd(), flavor: 'codex', machineId: 'machine-1',
+      host: 'test-host', homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd', happyLibDir: '/srv/happy', happyToolsDir: '/srv/happy/tools',
+      codexThreadId: 'parent-thread', commanderId: 'old-commander', permissionMode: 'yolo',
+    };
+    const currentMetadata: Metadata = { ...staleMetadata, commanderId, permissionMode: 'default' };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', metadata: staleMetadata,
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.inspectSessionAuthoritative.mockImplementationOnce(async (session: any) => ({
+      session: { ...session, metadata: currentMetadata, metadataVersion: 2 }, active: true,
+    }));
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 5661, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    const [args, options] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[], { env: NodeJS.ProcessEnv },
+    ];
+    const settings = JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!);
+    control.onHappySessionWebhook('current-parent-child', {
+      ...currentMetadata, hostPid: 5661, parentSessionId: 'parent', isSideChat: true,
+      spawnSettings: settings,
+    }, {
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'current-parent-child' });
+    expect(prepareCommanderContext).toHaveBeenCalledWith(commanderId, staleMetadata.path);
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', 'default']));
+    expect(settings.permission).toBe('default');
+  });
+
+  it('does not fork with stale inheritance when current parent metadata is unavailable', async () => {
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', metadata: {
+        path: process.cwd(), flavor: 'codex', machineId: 'machine-1',
+        codexThreadId: 'parent-thread', commanderId: 'old-commander', permissionMode: 'yolo',
+      },
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.inspectSessionAuthoritative.mockRejectedValueOnce(new Error('current parent unavailable'));
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    await expect(control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null }))
+      .resolves.toMatchObject({ success: false });
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+    expect(prepareCommanderContext).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ['gemini', undefined],
     ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],
     ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
