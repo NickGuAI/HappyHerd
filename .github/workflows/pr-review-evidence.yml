@@ -30,7 +30,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GIT_EDITOR: 'true'
-        run: python3 .dev/review/prepare_branches.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          source = Path('.dev/review/prepare_branches.py').read_text()
+          old = "duplicate='        const SpecificToolView = isToolIdentityCompatible && hasSpecializedContent ? getToolViewComponent(tool.name) : null;\\n'"
+          new = "duplicate='                const SpecificToolView = isToolIdentityCompatible && hasSpecializedContent\\n                    ? getToolViewComponent(tool.name)\\n                    : null;\\n'"
+          assert source.count(old) == 1
+          source = source.replace(old, new)
+          source = source.replace("stage=f'chore/pr-review-staging-20260918-{n}'", "stage=f'chore/pr-review-staging-" + os.environ['GITHUB_RUN_ID'] + "-{n}'")
+          exec(compile(source, '.dev/review/prepare_branches.py', 'exec'))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
