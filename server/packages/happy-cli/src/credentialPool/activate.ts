@@ -1,6 +1,5 @@
 import { resolveCredentialAccountEnvironment, type CredentialPoolPaths } from './store';
 import type { CredentialPoolSelection, CredentialProvider } from './types';
-import { activateCodexCredential, codexRuntimeHome } from './codexAuth';
 import { activateGrokCredential, grokRuntimeHome } from './grokAuth';
 import { managedProviderDirectAuthKeys } from '@/daemon/sessionEnvironment';
 
@@ -31,10 +30,12 @@ export async function activateCredentialAccount(
     for (const key of managedProviderDirectAuthKeys(provider)) delete targetEnv[key];
   }
   Object.assign(targetEnv, env);
-  if (provider === 'codex' && selection.type === 'available' && selection.account.provider === 'codex') {
-    await activateCodexCredential(selection.account, codexRuntimeHome(targetEnv));
-  } else if (provider === 'grok' && selection.type === 'available' && selection.account.provider === 'grok') {
-    await activateGrokCredential(selection.account, grokRuntimeHome(targetEnv));
+  if (provider === 'grok' && selection.type === 'available' && selection.account.provider === 'grok') {
+    targetEnv.GROK_AUTH_PATH = await activateGrokCredential(
+      selection.account,
+      grokRuntimeHome(targetEnv),
+      dependencies.paths,
+    );
   }
   return selection;
 }

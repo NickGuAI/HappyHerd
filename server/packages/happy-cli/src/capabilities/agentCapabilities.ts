@@ -831,8 +831,8 @@ export function buildBaselineAgentCapabilities(availability: CLIAvailability): C
     return result;
 }
 
-async function readCodexModels(): Promise<ModelListEntry[]> {
-    const client = new CodexAppServerClient();
+async function readCodexModels(processEnvironment?: NodeJS.ProcessEnv): Promise<ModelListEntry[]> {
+    const client = new CodexAppServerClient(undefined, { processEnvironment });
     await client.connect();
     try {
         return await client.listModels();
@@ -845,6 +845,7 @@ export async function detectAgentCapabilities(
     availability: CLIAvailability,
     opts?: {
         loadCodexModels?: () => Promise<ModelListEntry[]>;
+        codexProcessEnvironment?: NodeJS.ProcessEnv;
         loadGrokInitialize?: () => Promise<InitializeResponse>;
         loadGrokHelp?: () => string | null;
         loadDshProbe?: () => Promise<DshAcpProbeResult>;
@@ -858,7 +859,10 @@ export async function detectAgentCapabilities(
 
     if (availability.codex && catalogs.codex) {
         try {
-            const models = await (opts?.loadCodexModels ?? readCodexModels)();
+            const models = await (
+                opts?.loadCodexModels
+                ?? (() => readCodexModels(opts?.codexProcessEnvironment))
+            )();
             const mappedModels = mapCodexModels(models);
             if (mappedModels.length > 0) {
                 const effortLevels = uniqueOptions(mappedModels.flatMap((model) => (

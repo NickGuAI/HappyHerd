@@ -245,7 +245,8 @@ vi.mock('@/daemon/happyTerminalBoot', () => ({
   startHappyTerminalDaemon: vi.fn(),
 }));
 
-vi.mock('@/credentialPool/store', () => ({
+vi.mock('@/credentialPool/store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/credentialPool/store')>(),
   resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
 }));
 
@@ -306,7 +307,7 @@ type CapturedControlHandlers = {
     metadata: Metadata,
     encryption?: SessionEncryptionData,
   ) => void;
-  onProviderLimited: (notice: ProviderLimitNotice) => void;
+  onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
@@ -400,10 +401,17 @@ describe('daemon session continuity', () => {
     if (daemonRun && rpc?.requestShutdown) {
       const timeoutSpy = vi.spyOn(global, 'setTimeout');
       rpc.requestShutdown();
-      const fallbackTimer = timeoutSpy.mock.calls.findIndex((call) => call[1] === 1_000);
-      await daemonRun;
-      if (fallbackTimer >= 0) {
-        clearTimeout(timeoutSpy.mock.results[fallbackTimer].value as ReturnType<typeof setTimeout>);
+      // Own the timers created synchronously by shutdown instead of guessing
+      // their delay. process.exit is mocked, so its fallback otherwise escapes
+      // this fixture and can fire after the process mock has been restored.
+      const shutdownTimers = timeoutSpy.mock.results
+        .filter((result) => result.type === 'return')
+        .map((result) => result.value as ReturnType<typeof setTimeout>);
+      try {
+        expect(shutdownTimers).toHaveLength(1);
+        await daemonRun;
+      } finally {
+        for (const timer of shutdownTimers) clearTimeout(timer);
       }
     }
     if (originalCodexHome === undefined) {
@@ -1285,6 +1293,7 @@ describe('daemon session continuity', () => {
       flavor: 'grok',
       acpSessionId: 'grok-provider-session',
       acpCapabilities: { loadSession: true, prompt: { image: true } },
+      grokHome: '/srv/grok/original-home',
       spawnSettings: {
         provider: 'grok',
         model: 'grok-build',
@@ -1330,7 +1339,8 @@ describe('daemon session continuity', () => {
     control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
 
     await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
-    const [args] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[]];
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(spawnOptions.env.GROK_HOME).toBe('/srv/grok/original-home');
     expect(args).toEqual([
       'grok',
       '--started-by', 'daemon',
@@ -1598,6 +1608,8 @@ describe('daemon session continuity', () => {
       flavor: 'claude',
       claudeSessionId: '44444444-4444-4444-8444-444444444444',
       providerAccount: 'personal 旧',
+      providerAccountId: '00000000-0000-4000-8000-000000000008',
+      providerAccountCredentialVersion: 3,
       host: 'test-host',
       hostPid: 7331,
       machineId: 'machine-1',
@@ -1612,13 +1624,23 @@ describe('daemon session continuity', () => {
     const control = mocks.controlHandlers as CapturedControlHandlers;
     control.onHappySessionWebhook(sessionId, metadata, encryption);
 
-    control.onProviderLimited({
+    const notice: ProviderLimitNotice = {
       sessionId,
       provider: 'claude',
       account: 'personal 旧',
+      accountId: metadata.providerAccountId,
+      credentialVersion: metadata.providerAccountCredentialVersion,
       limitedUntil: 12_345,
-    });
+    };
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 2 })).toBe(false);
+    expect(control.onProviderLimited({
+      ...notice, accountId: '00000000-0000-4000-8000-000000000009',
+    })).toBe(false);
+    expect(mocks.rotateProviderSessionAfterLimit).not.toHaveBeenCalled();
+    expect(control.onProviderLimited(notice)).toBe(true);
+    expect(control.onProviderLimited(notice)).toBe(true);
     await vi.waitFor(() => expect(mocks.rotationDependencies).toBeDefined());
+    expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce();
     expect(mocks.postSessionEvent).not.toHaveBeenCalled();
 
     await mocks.rotationDependencies!.onAccountSwitched!({
@@ -2231,7 +2253,7 @@ describe('daemon session continuity', () => {
     expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
   });
 
-  it('activates the parent Codex account before forking from a stale credential home', async () => {
+  it('preserves a stale native Codex home while forking with the registered account path', async () => {
     mocks.authoritativeActive = true;
     const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-auth-'));
     temporaryDirectories.push(testRoot);
@@ -2386,7 +2408,8 @@ describe('daemon session continuity', () => {
         HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
       }),
     );
-    expect(authAtFork).toBe(selectedAccountAuth);
+    expect(authAtFork).toBe('{"account":"stale"}');
+    expect(await readFile(accountAuthFile, 'utf8')).toBe(selectedAccountAuth);
     expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],

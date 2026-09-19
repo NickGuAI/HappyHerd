@@ -5,8 +5,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { persistActiveCodexCredential } from './codexAuth';
-
 import {
   accountHome,
   accountAuthFile,
@@ -261,6 +259,8 @@ describe('credential pool storage and selection', () => {
       provider: 'codex', name: 'work', credential: { type: 'auth-file', path: authFile },
     }, { paths, now: 1 });
 
+    if (account.provider !== 'codex') throw new Error('Expected Codex fixture');
+
     const renamed = await renameCredentialAccount('codex', 'work', 'personal', paths);
 
     expect(renamed).toMatchObject({ provider: 'codex', name: 'personal' });
@@ -268,19 +268,9 @@ describe('credential pool storage and selection', () => {
     expect((await readCredentialPoolState(paths)).current.codex).toBe('personal');
     expect(await readFile(authFile, 'utf8')).toContain('kept');
 
-    const runtimeHome = join(root, 'running-codex');
-    await mkdir(runtimeHome, { recursive: true });
-    await writeFile(join(runtimeHome, 'auth.json'), '{"secret":"refreshed"}', { mode: 0o600 });
-    const launchEnvironment = {
-      CODEX_HOME: runtimeHome,
-      HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: authFile,
-      ...credentialAccountEnvironment(account),
-    };
-    await expect(persistActiveCodexCredential(launchEnvironment, paths)).resolves.toBe(true);
-
     const stored = (await readCredentialPoolState(paths)).accounts[0];
     expect(stored).toMatchObject({ name: 'personal', credential: { path: authFile } });
-    expect(await readFile(authFile, 'utf8')).toContain('refreshed');
+    expect(await readFile(authFile, 'utf8')).toContain('kept');
     await removeCredentialAccount('codex', 'personal', paths);
     await expect(readFile(authFile, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
@@ -292,11 +282,6 @@ describe('credential pool storage and selection', () => {
       authFile: Buffer.from('{"tokens":{"access_token":"first"}}'),
     }, { paths, now: 1, target: { type: 'new' } });
     if (first.provider !== 'codex') throw new Error('expected Codex account');
-    const runtimeHome = join(root, 'running-codex-versioned');
-    await mkdir(runtimeHome, { recursive: true });
-    await writeFile(join(runtimeHome, 'auth.json'), '{"tokens":{"access_token":"stale-refresh"}}');
-    const oldEnvironment = { CODEX_HOME: runtimeHome, ...credentialAccountEnvironment(first) };
-
     const relogged = await commitCredentialLogin({
       provider: 'codex',
       name: 'work',
@@ -307,7 +292,6 @@ describe('credential pool storage and selection', () => {
       target: { type: 'existing', id: first.id, credentialVersion: first.credentialVersion },
     });
     expect(relogged.credentialVersion).toBe(first.credentialVersion + 1);
-    await expect(persistActiveCodexCredential(oldEnvironment, paths)).resolves.toBe(false);
     expect(await readFile(relogged.provider === 'codex' ? relogged.credential.path : '', 'utf8'))
       .toContain('fresh-login');
 
@@ -315,10 +299,6 @@ describe('credential pool storage and selection', () => {
       id: relogged.id,
       credentialVersion: relogged.credentialVersion,
     });
-    await expect(persistActiveCodexCredential({
-      CODEX_HOME: runtimeHome,
-      ...credentialAccountEnvironment(relogged),
-    }, paths)).resolves.toBe(false);
     await expect(stat(relogged.provider === 'codex' ? dirname(relogged.credential.path) : ''))
       .rejects.toMatchObject({ code: 'ENOENT' });
   });

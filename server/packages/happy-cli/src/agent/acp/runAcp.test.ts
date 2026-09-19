@@ -628,6 +628,7 @@ describe('runAcp', () => {
 
   it('passes the stable Grok runtime home to the child while retaining the provider session id', async () => {
     vi.stubEnv('GROK_HOME', '/runtime/grok');
+    vi.stubEnv('GROK_AUTH_PATH', '/private/grok-account/runtime-v1/auth.json');
 
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
@@ -640,12 +641,13 @@ describe('runAcp', () => {
     await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
     expect(mocks.backendState.constructorArgs.processEnv).toMatchObject({
       GROK_HOME: '/runtime/grok',
+      GROK_AUTH_PATH: '/private/grok-account/runtime-v1/auth.json',
     });
     expect(mocks.backendState.constructorArgs.resumeSessionId).toBe('grok-provider-session');
 
     await mocks.getKillHandler()!();
     await runPromise;
-    expect(mocks.lifecycleEvents).toEqual(['persist', 'dispose']);
+    expect(mocks.lifecycleEvents).toEqual(['dispose', 'persist']);
   });
 
   it('persists ACP session/resume separately from legacy session/load', async () => {
@@ -689,7 +691,7 @@ describe('runAcp', () => {
     await runPromise;
   });
 
-  it('persists refreshed Grok auth before reporting a hard limit and again during cleanup', async () => {
+  it('persists refreshed Grok auth before reporting a hard limit and after native shutdown', async () => {
     mocks.backendState.promptError = Object.assign(new Error('rate limit exceeded'), { status: 429 });
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
@@ -713,7 +715,7 @@ describe('runAcp', () => {
       sessionId: 'session-1',
       provider: 'grok',
     }));
-    expect(mocks.lifecycleEvents).toEqual(['persist', 'report', 'persist', 'dispose']);
+    expect(mocks.lifecycleEvents).toEqual(['persist', 'report', 'dispose', 'persist']);
   });
 
   it('reports a dsh quota failure without invoking Grok credential persistence', async () => {

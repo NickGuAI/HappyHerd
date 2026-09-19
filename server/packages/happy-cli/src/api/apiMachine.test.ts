@@ -7,11 +7,15 @@ const {
     mockShouldReconnect,
     mockDetectCLIAvailability,
     mockDetectAgentCapabilities,
+    mockReadCredentialPoolState,
+    mockCredentialAccountEnvironment,
 } = vi.hoisted(() => ({
     mockIo: vi.fn(),
     mockShouldReconnect: vi.fn(() => true),
     mockDetectCLIAvailability: vi.fn(),
     mockDetectAgentCapabilities: vi.fn(),
+    mockReadCredentialPoolState: vi.fn(),
+    mockCredentialAccountEnvironment: vi.fn(),
 }));
 
 vi.mock('socket.io-client', () => ({
@@ -54,6 +58,11 @@ vi.mock('@/utils/detectCLI', () => ({
 vi.mock('@/capabilities/agentCapabilities', () => ({
     detectAgentCapabilities: mockDetectAgentCapabilities,
     capabilityFingerprint: (capabilities: unknown) => JSON.stringify(capabilities),
+}));
+
+vi.mock('@/credentialPool/store', () => ({
+    readCredentialPoolState: mockReadCredentialPoolState,
+    credentialAccountEnvironment: mockCredentialAccountEnvironment,
 }));
 
 vi.mock('@/resume/localHappyAgentAuth', () => ({
@@ -113,6 +122,18 @@ describe('ApiMachineClient socket reconnection', () => {
             detectedAt: 1,
         });
         mockDetectAgentCapabilities.mockResolvedValue({ capabilities: {} });
+        mockReadCredentialPoolState.mockResolvedValue({
+            schemaVersion: 2,
+            current: {},
+            accounts: [],
+        });
+        mockCredentialAccountEnvironment.mockImplementation((account: any) => ({
+            HAPPYHERD_PROVIDER_ACCOUNT: account.name,
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: account.provider,
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: String(account.credentialVersion),
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+        }));
         socketHandlers = {};
         mockSocket = {
             connected: false,
@@ -374,6 +395,91 @@ describe('ApiMachineClient socket reconnection', () => {
         expect(machine.metadata?.agentCapabilities?.grok).toBeUndefined();
         expect(machine.metadata?.agentCapabilities?.dsh).toBeUndefined();
         expect(machine.metadata?.agentCapabilities?.codex.models[0]?.code).toBe('gpt-fresh-codex');
+        client.shutdown();
+    });
+
+    it('binds discovery to the current Codex account without rotating or clearing its limit', async () => {
+        const availability = {
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 3,
+        };
+        const account = {
+            provider: 'codex' as const,
+            name: 'work',
+            id: '00000000-0000-4000-8000-000000000021',
+            credentialVersion: 7,
+            createdAt: 1,
+            updatedAt: 2,
+            limitedUntil: 1,
+            credential: { type: 'auth-file' as const, path: '/tmp/codex-work/auth.json' },
+        };
+        const state = {
+            schemaVersion: 2 as const,
+            current: { codex: 'work' },
+            accounts: [account],
+        };
+        const originalState = JSON.stringify(state);
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockReadCredentialPoolState.mockResolvedValueOnce(state);
+        mockCredentialAccountEnvironment.mockReturnValueOnce({
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: String(account.credentialVersion),
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+        });
+        mockDetectAgentCapabilities.mockResolvedValueOnce({ capabilities: {} });
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        vi.spyOn(client, 'updateMachineMetadata').mockResolvedValue();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(mockReadCredentialPoolState).toHaveBeenCalledTimes(1);
+        expect(mockCredentialAccountEnvironment).toHaveBeenCalledWith(account);
+        expect(mockDetectAgentCapabilities).toHaveBeenCalledWith(
+            availability,
+            expect.objectContaining({
+                codexProcessEnvironment: expect.objectContaining({
+                    HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+                    HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '7',
+                    HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+                    PATH: process.env.PATH,
+                }),
+            }),
+        );
+        expect(JSON.stringify(state)).toBe(originalState);
+        client.shutdown();
+    });
+
+    it('keeps unmanaged discovery on the ambient environment without a current account', async () => {
+        const availability = {
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 4,
+        };
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockReadCredentialPoolState.mockResolvedValueOnce({
+            schemaVersion: 2,
+            current: {},
+            accounts: [],
+        });
+        mockDetectAgentCapabilities.mockResolvedValueOnce({ capabilities: {} });
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        vi.spyOn(client, 'updateMachineMetadata').mockResolvedValue();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(mockCredentialAccountEnvironment).not.toHaveBeenCalled();
+        expect(mockDetectAgentCapabilities).toHaveBeenCalledWith(availability, undefined);
         client.shutdown();
     });
 });

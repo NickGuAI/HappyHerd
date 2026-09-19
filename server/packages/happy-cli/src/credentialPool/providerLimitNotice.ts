@@ -10,7 +10,9 @@ export type ProviderLimitNotice = {
   limitedUntil: number;
 };
 
-const reported = new Set<string>();
+// Keep the actual receipt in flight: a concurrent caller must not infer
+// acceptance merely because another caller has started reporting.
+const reported = new Map<string, Promise<boolean>>();
 
 export async function reportProviderHardLimitOnce(
   input: ProviderLimitNotice,
@@ -28,22 +30,25 @@ export async function reportProviderHardLimitOnce(
       ? Number(rawCredentialVersion)
       : undefined);
   const key = `${input.sessionId}:${input.provider}:${accountId ?? account ?? 'unmanaged'}:${credentialVersion ?? 'legacy'}`;
-  if (reported.has(key)) return true;
-  reported.add(key);
-  try {
-    const result = await notifyDaemonProviderLimited({
-      ...input,
-      ...(account ? { account } : {}),
-      ...(accountId ? { accountId } : {}),
-      ...(credentialVersion !== undefined ? { credentialVersion } : {}),
-    });
-    if (!result?.error) return true;
-    reported.delete(key);
-    return false;
-  } catch {
-    reported.delete(key);
-    return false;
-  }
+  const existing = reported.get(key);
+  if (existing) return existing;
+  const delivery = (async (): Promise<boolean> => {
+    try {
+      const result = await notifyDaemonProviderLimited({
+        ...input,
+        ...(account ? { account } : {}),
+        ...(accountId ? { accountId } : {}),
+        ...(credentialVersion !== undefined ? { credentialVersion } : {}),
+      });
+      return !result?.error && result?.status === 'scheduled';
+    } catch {
+      return false;
+    }
+  })();
+  reported.set(key, delivery);
+  const accepted = await delivery;
+  if (!accepted && reported.get(key) === delivery) reported.delete(key);
+  return accepted;
 }
 
 export function resetProviderLimitNoticeForTests(): void {

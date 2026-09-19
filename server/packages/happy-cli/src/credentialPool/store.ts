@@ -75,7 +75,7 @@ async function withCredentialPoolFileLock<T>(
   }
 }
 
-async function serializeCredentialPoolState<T>(
+export async function serializeCredentialPoolState<T>(
   paths: CredentialPoolPaths,
   operation: () => Promise<T>,
 ): Promise<T> {
@@ -237,7 +237,7 @@ export async function upsertCredentialAccount(
   });
 }
 
-async function writeCredentialBytes(path: string, bytes: Buffer): Promise<void> {
+export async function writeCredentialBytes(path: string, bytes: Buffer): Promise<void> {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   await chmod(dirname(path), 0o700);
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;

@@ -76,7 +76,7 @@ export function startDaemonControlServer({
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
-  onProviderLimited: (notice: ProviderLimitNotice) => void;
+  onProviderLimited: (notice: ProviderLimitNotice) => boolean;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
@@ -180,12 +180,11 @@ export function startDaemonControlServer({
           limitedUntil: z.number().int().positive(),
         }),
         response: {
-          200: z.object({ status: z.literal('scheduled') }),
+          200: z.object({ status: z.enum(['scheduled', 'ignored']) }),
         },
       },
     }, async (request) => {
-      onProviderLimited(request.body);
-      return { status: 'scheduled' as const };
+      return { status: onProviderLimited(request.body) ? 'scheduled' as const : 'ignored' as const };
     });
 
     // List all tracked sessions

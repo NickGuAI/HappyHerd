@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "HappyHerd Release - September 19, 2026",
+      "summary": "",
+      "markdown": "- Named-account transitions keep each account's credentials isolated while preserving native provider sessions, homes, and conversation history.\n- Interrupted queued work remains in its existing session queue and continues through its normal path after an account switch, without duplicating prior prompts or introducing synthetic replay."
+    },
+    {
       "title": "September 17 — Preserve interrupted Claude requests",
       "summary": "",
       "markdown": "- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.\n- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior."
@@ -686,5 +691,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Preserve interrupted Claude requests"
+  "latestTitle": "HappyHerd Release - September 19, 2026"
 }
