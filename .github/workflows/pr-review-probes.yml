@@ -1,0 +1,62 @@
+name: PR review counterexample
+on:
+  push:
+    branches: [chore/pr-review-evidence-20260918]
+    paths: [.github/workflows/pr-review-probes.yml]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  native-writer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select exact reviewed source and copy isolated probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/NickGuAI/HappyHerd/pulls/280 --jq .head.sha)" = bee3bcd5c16557cbb537d74efb0c863a6036dd9f
+          cp .dev/review/native-writer-probe.test.ts "$RUNNER_TEMP/probe.test.ts"
+          git fetch origin bee3bcd5c16557cbb537d74efb0c863a6036dd9f
+          git checkout --detach bee3bcd5c16557cbb537d74efb0c863a6036dd9f
+          cp "$RUNNER_TEMP/probe.test.ts" server/packages/happy-cli/src/credentialPool/prReviewNativeWriter.test.ts
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - name: Install frozen dependencies
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: Capture expected failing safety assertions
+        working-directory: server
+        run: |
+          set +e
+          pnpm --filter @happyherd/cli exec vitest run --project unit src/credentialPool/prReviewNativeWriter.test.ts --reporter=json --outputFile="$RUNNER_TEMP/probe-results.json" > "$RUNNER_TEMP/probe.log" 2>&1
+          result=$?
+          set -e
+          test "$result" -ne 0
+          python3 - <<'PY'
+          import json, os, pathlib
+          r=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'probe-results.json').read_text())
+          assert r['numTotalTests']==2 and r['numFailedTests']==2, r
+          failures=[t for s in r['testResults'] for t in s['assertionResults'] if t['status']=='failed']
+          assert len(failures)==2 and all('a-refreshed-by-native' in '\n'.join(t['failureMessages']) for t in failures)
+          print('COUNTEREXAMPLE CONFIRMED: both real persistence functions copied native A fixture bytes into account B. These are expected failing regression assertions, not a passing implementation.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-280-native-writer-counterexample
+          path: |
+            ${{ runner.temp }}/probe.test.ts
+            ${{ runner.temp }}/probe-results.json
+            ${{ runner.temp }}/probe.log
+          retention-days: 7
