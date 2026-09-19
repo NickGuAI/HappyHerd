@@ -1,3 +1,8 @@
+# September 17 — Preserve interrupted Claude requests
+
+- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.
+- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior.
+
 # September 17 — Reliable Claude login code submission
 
 - Submitting a Claude authorization code no longer reopens the code-entry form merely because the terminal redraws its original sign-in link.
