@@ -1,3 +1,7 @@
+# September 17 — Mobile browser layout
+
+- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.
+
 # September 17 — Consistent upstream integration
 
 - Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.

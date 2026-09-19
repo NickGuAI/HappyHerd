@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 17 — Mobile browser layout",
+      "summary": "",
+      "markdown": "- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them."
+    },
+    {
       "title": "September 17 — Consistent upstream integration",
       "summary": "",
       "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
@@ -671,5 +676,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Consistent upstream integration"
+  "latestTitle": "September 17 — Mobile browser layout"
 }
