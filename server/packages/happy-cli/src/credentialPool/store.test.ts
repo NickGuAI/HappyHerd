@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { persistActiveCodexCredential } from './codexAuth';
+import { activateCodexCredential, persistActiveCodexCredential } from './codexAuth';
 
 import {
   accountHome,
@@ -261,6 +261,10 @@ describe('credential pool storage and selection', () => {
       provider: 'codex', name: 'work', credential: { type: 'auth-file', path: authFile },
     }, { paths, now: 1 });
 
+    if (account.provider !== 'codex') throw new Error('Expected Codex fixture');
+    const runtimeHome = join(root, 'running-codex');
+    await activateCodexCredential(account, runtimeHome);
+
     const renamed = await renameCredentialAccount('codex', 'work', 'personal', paths);
 
     expect(renamed).toMatchObject({ provider: 'codex', name: 'personal' });
@@ -268,8 +272,6 @@ describe('credential pool storage and selection', () => {
     expect((await readCredentialPoolState(paths)).current.codex).toBe('personal');
     expect(await readFile(authFile, 'utf8')).toContain('kept');
 
-    const runtimeHome = join(root, 'running-codex');
-    await mkdir(runtimeHome, { recursive: true });
     await writeFile(join(runtimeHome, 'auth.json'), '{"secret":"refreshed"}', { mode: 0o600 });
     const launchEnvironment = {
       CODEX_HOME: runtimeHome,

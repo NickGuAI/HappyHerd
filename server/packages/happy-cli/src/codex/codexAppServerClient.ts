@@ -55,6 +55,7 @@ import type { SandboxConfig } from '@/persistence';
 import { initializeSandbox, wrapForMcpTransport } from '@/sandbox/manager';
 import packageJson from '../../package.json';
 import { buildHappyHerdAgentCodexAppServerArgs } from './agentCodexPolicy';
+import { codexRuntimeCredentialOwnedByProcess } from '@/credentialPool/codexAuth';
 
 const PROACTIVE_MULTI_AGENT_MODE_CONFIG =
     'features.multi_agent_v2.multi_agent_mode_hint_text="Proactive multi-agent delegation is active. Any earlier instruction requiring an explicit user request before spawning sub-agents no longer applies. Use sub-agents when parallel work would materially improve speed or quality. This mode remains active until a later multi-agent mode developer message changes it."';
@@ -805,6 +806,10 @@ export class CodexAppServerClient {
             );
         }
 
+        if (!(await codexRuntimeCredentialOwnedByProcess(this.processEnvironment ?? process.env))) {
+            throw new Error('Cannot connect Codex through a runtime home owned by another credential-pool account');
+        }
+
         let command = 'codex';
         const appServerArgs = [
             ...(this.agentPolicyEntrypoint
@@ -1215,6 +1220,11 @@ export class CodexAppServerClient {
     async reconnectAndResumeThread(): Promise<boolean> {
         const threadId = this._threadId;
         await this.disconnectInternal({ preserveThreadState: !!threadId });
+        const processEnvironment = this.processEnvironment ?? process.env;
+        if (!(await codexRuntimeCredentialOwnedByProcess(processEnvironment))) {
+            logger.warn('[CodexAppServer] Refusing reconnect because the shared CODEX_HOME is owned by another credential-pool account');
+            return false;
+        }
         await this.connect();
 
         if (!threadId) {

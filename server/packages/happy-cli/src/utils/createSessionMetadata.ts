@@ -142,6 +142,9 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.flavor === 'codex'
             ? { codexHome: resolve(process.env.CODEX_HOME?.trim() || resolve(os.homedir(), '.codex')) }
             : {}),
+        ...(opts.flavor === 'grok'
+            ? { grokHome: resolve(process.env.GROK_HOME?.trim() || resolve(os.homedir(), '.grok')) }
+            : {}),
         ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT
             ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
             : {}),

@@ -102,6 +102,65 @@ describe('provider hard-limit daemon notices', () => {
     expect(notifyDaemonProviderLimited).toHaveBeenCalledTimes(2);
   });
 
+  it('retries a notice when the daemon ignores it as stale', async () => {
+    const notice = {
+      sessionId: 'codex-stale-session',
+      provider: 'codex' as const,
+      account: 'work',
+      accountId: '00000000-0000-4000-8000-000000000004',
+      credentialVersion: 1,
+      limitedUntil: 9012,
+    };
+    vi.mocked(notifyDaemonProviderLimited)
+      .mockResolvedValueOnce({ status: 'ignored' })
+      .mockResolvedValueOnce({ status: 'scheduled' });
+
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(false);
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(true);
+    expect(notifyDaemonProviderLimited).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['scheduled', 'ignored'] as const)(
+    'shares the actual %s receipt with concurrent duplicate callers', async (status) => {
+      let acknowledge!: (receipt: { status: 'scheduled' | 'ignored' }) => void;
+      vi.mocked(notifyDaemonProviderLimited).mockReturnValueOnce(new Promise((resolve) => {
+        acknowledge = resolve;
+      }));
+      const notice = { sessionId: 'concurrent', provider: 'grok' as const, limitedUntil: 1234 };
+      const first = reportProviderHardLimitOnce(notice);
+      let secondSettled = false;
+      const second = reportProviderHardLimitOnce(notice).then((accepted) => {
+        secondSettled = true;
+        return accepted;
+      });
+      await Promise.resolve();
+      expect(secondSettled).toBe(false);
+      expect(notifyDaemonProviderLimited).toHaveBeenCalledOnce();
+      acknowledge({ status });
+      await expect(Promise.all([first, second])).resolves.toEqual([
+        status === 'scheduled', status === 'scheduled',
+      ]);
+      await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(true);
+      expect(notifyDaemonProviderLimited).toHaveBeenCalledTimes(status === 'scheduled' ? 1 : 2);
+    },
+  );
+
+  it.each([{}, { error: 'delivery failed' }])('does not acknowledge an invalid receipt %j', async (receipt) => {
+    vi.mocked(notifyDaemonProviderLimited).mockResolvedValueOnce(receipt);
+    const notice = { sessionId: 'invalid-receipt', provider: 'codex' as const, limitedUntil: 1234 };
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(false);
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(true);
+    expect(notifyDaemonProviderLimited).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps transport exceptions retryable', async () => {
+    vi.mocked(notifyDaemonProviderLimited).mockRejectedValueOnce(new Error('disconnected'));
+    const notice = { sessionId: 'transport-failure', provider: 'claude' as const, limitedUntil: 1234 };
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(false);
+    await expect(reportProviderHardLimitOnce(notice)).resolves.toBe(true);
+    expect(notifyDaemonProviderLimited).toHaveBeenCalledTimes(2);
+  });
+
   it('treats an accepted duplicate as already delivered without posting twice', async () => {
     const notice = {
       sessionId: 'claude-session',

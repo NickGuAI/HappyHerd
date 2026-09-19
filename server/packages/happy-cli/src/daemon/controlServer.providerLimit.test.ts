@@ -11,7 +11,7 @@ describe('provider-limit daemon control route', () => {
   });
 
   it('accepts dsh quota notices without a credential-pool account', async () => {
-    const onProviderLimited = vi.fn();
+    const onProviderLimited = vi.fn(() => true);
     const server = await startDaemonControlServer({
       getChildren: () => [],
       stopSession: () => false,
@@ -41,6 +41,38 @@ describe('provider-limit daemon control route', () => {
       provider: 'dsh',
       limitedUntil: 1234,
     });
+  });
+
+  it('reports ignored when the daemon rejects a stale provider-limit notice', async () => {
+    const onProviderLimited = vi.fn(() => false);
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: () => false,
+      spawnSession: vi.fn(),
+      sideChat: vi.fn(),
+      requestShutdown: vi.fn(),
+      onHappySessionWebhook: vi.fn(),
+      onProviderLimited,
+      automations: {} as any,
+    });
+    stop = server.stop;
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/provider-limited`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'codex-session',
+        provider: 'codex',
+        account: 'work',
+        accountId: '00000000-0000-4000-8000-000000000005',
+        credentialVersion: 1,
+        limitedUntil: 1234,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: 'ignored' });
+    expect(onProviderLimited).toHaveBeenCalledOnce();
   });
 
   it('delegates credential mutation checks and returns a bounded rejection', async () => {

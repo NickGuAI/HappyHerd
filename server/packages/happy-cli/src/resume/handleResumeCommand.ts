@@ -140,9 +140,13 @@ async function buildReconnectEnv(
 ): Promise<NodeJS.ProcessEnv> {
     const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
     const codexHome = await resolveCodexHomeForResume(session.metadata);
+    const grokHome = session.metadata.flavor === 'grok'
+        ? session.metadata.grokHome?.trim() || undefined
+        : undefined;
     return buildSessionChildEnvironment(process.env, {
         ...contextEnvironment(contextBundle),
         ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+        ...(grokHome ? { GROK_HOME: grokHome } : {}),
         ...machineSessionSettingsEnvironment(settings),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),

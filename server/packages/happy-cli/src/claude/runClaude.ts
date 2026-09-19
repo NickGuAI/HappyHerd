@@ -175,6 +175,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const forkedFromMessageId = process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
     const isSideChat = process.env.HAPPY_SIDE_CHAT === '1';
     const providerAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
+    const providerAccountId = process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID?.trim() || undefined;
+    const rawProviderAccountCredentialVersion = process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION?.trim();
+    const providerAccountCredentialVersion = rawProviderAccountCredentialVersion === undefined
+        ? Number.NaN
+        : Number(rawProviderAccountCredentialVersion);
 
     let metadata: Metadata = {
         path: workingDirectory,
@@ -195,6 +200,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         flavor: 'claude',
         ...(providerAccount
             ? { providerAccount }
+            : {}),
+        ...(providerAccountId
+            && Number.isInteger(providerAccountCredentialVersion)
+            && providerAccountCredentialVersion > 0
+            ? { providerAccountId, providerAccountCredentialVersion }
             : {}),
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions: null,
