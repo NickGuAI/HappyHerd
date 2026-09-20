@@ -122,6 +122,9 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage({ viewport });
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
+        // Loading the document does not mean FlashList has mounted this row.
+        // Keep mount readiness separate from the unchanged scroll-position assertion.
+        await message.waitFor({ state: 'visible', timeout: 5000 });
         await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         await message.hover();
         const before = (await message.boundingBox())!.y;
@@ -142,6 +145,9 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage();
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
+        // Loading the document does not mean FlashList has mounted this row.
+        // Keep mount readiness separate from the unchanged scroll-position assertion.
+        await message.waitFor({ state: 'visible', timeout: 5000 });
         await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         const result = await message.evaluate(element => {
             let node = element.parentElement!;

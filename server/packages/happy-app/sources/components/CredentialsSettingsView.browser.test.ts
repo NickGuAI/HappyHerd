@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -11,8 +11,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 // Match shipped font metrics before visibility and responsive-layout assertions.
 const fixtureFontNames = ['SpaceGrotesk-Regular', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'];
+const fixtureFonts = new Map(fixtureFontNames.map((name) => [
+    `/fonts/${name}.ttf`,
+    readFileSync(resolve(appRoot, 'sources/assets/fonts', `${name}.ttf`)),
+]));
 const fixtureFontFaces = fixtureFontNames.map((name) => (
-    `@font-face{font-family:"${name}";src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, 'sources/assets/fonts', `${name}.ttf`)).toString('base64')}) format('truetype');}`
+    `@font-face{font-family:"${name}";src:url('/fonts/${name}.ttf') format('truetype');}`
 )).join('');
 
 const virtualModules: Record<string, string> = {
@@ -574,11 +578,12 @@ describe('CredentialsSettingsView browser journeys', () => {
                 loader: 'tsx',
                 resolveDir: appRoot,
             },
+            outfile: resolve(appRoot, 'fixture-output/credentials-settings.js'),
             bundle: true,
             write: false,
             format: 'iife',
             platform: 'browser',
-            sourcemap: 'inline',
+            sourcemap: 'linked',
             define: {
                 __DEV__: 'false',
                 'process.env.EXPO_OS': '"web"',
@@ -587,11 +592,35 @@ describe('CredentialsSettingsView browser journeys', () => {
             jsx: 'automatic',
             plugins: [fixturePlugin],
         });
-        const script = bundle.outputFiles[0].text;
+        // Serve executable code separately from debug maps and reuse response
+        // bytes, so every isolated page need not parse a multi-megabyte document.
+        const script = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.contents);
+        const scriptMap = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js.map'))!.contents);
+        const documents = [false, true].map((dark) => Buffer.from(`<style>${fixtureFontFaces}html,body{min-height:100%;margin:0;background:${dark ? '#181818' : '#f5f5f5'};color:${dark ? '#f5f5f5' : '#111'};font-family:system-ui}header{height:56px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;border-bottom:1px solid ${dark ? '#383838' : '#ddd'}}#root{min-height:calc(100% - 57px)}</style><header>Credentials &amp; Accounts</header><main id="root"></main><script>globalThis.__DARK__=${dark};globalThis.global=globalThis;</script><script src="/credentials-settings.js"></script>`));
         server = createServer((request, response) => {
+            if (request.url === '/credentials-settings.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.end(script);
+                return;
+            }
+            if (request.url === '/credentials-settings.js.map') {
+                response.setHeader('content-type', 'application/json; charset=utf-8');
+                response.end(scriptMap);
+                return;
+            }
+            const font = fixtureFonts.get(request.url ?? '');
+            if (font) {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(font);
+                return;
+            }
+            if (request.url === '/favicon.ico') {
+                response.writeHead(204).end();
+                return;
+            }
             const dark = request.url?.includes('theme=dark');
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>${fixtureFontFaces}html,body{min-height:100%;margin:0;background:${dark ? '#181818' : '#f5f5f5'};color:${dark ? '#f5f5f5' : '#111'};font-family:system-ui}header{height:56px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;border-bottom:1px solid ${dark ? '#383838' : '#ddd'}}#root{min-height:calc(100% - 57px)}</style><header>Credentials &amp; Accounts</header><main id="root"></main><script>globalThis.__DARK__=${Boolean(dark)};globalThis.global=globalThis;${script}</script>`);
+            response.end(documents[dark ? 1 : 0]);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -778,23 +807,37 @@ describe('CredentialsSettingsView browser journeys', () => {
         await page.close();
     });
 
-    it('keeps a long-list save error beside the editable draft on mobile', async () => {
-        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-        await page.goto(`${origin}/?scenario=long-credential-name-conflict`);
-        await page.getByRole('button', { name: 'Add Credential', exact: true }).click();
-        await page.getByLabel('Name', { exact: true }).fill('Preserved mobile draft');
-        await page.getByLabel('Secret', { exact: true }).fill('draft-secret');
-        await page.getByRole('button', { name: 'Save', exact: true }).click();
+    describe('with the long credential list loaded', () => {
+        let page: Page;
 
-        const error = page.getByText('A saved credential with this name already exists', { exact: true });
-        await error.waitFor();
-        expect(await error.evaluate((element) => {
-            const box = element.getBoundingClientRect();
-            return box.top < window.innerHeight && box.bottom > 0;
-        })).toBe(true);
-        await expect(page.getByLabel('Name', { exact: true }).inputValue()).resolves.toBe('Preserved mobile draft');
-        await expect(page.getByLabel('Name', { exact: true }).isEditable()).resolves.toBe(true);
-        await page.close();
+        // This journey starts at a loaded list. Bound browser initialization
+        // separately from the unchanged five-second interaction test.
+        beforeEach(async () => {
+            page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+            await page.goto(`${origin}/?scenario=long-credential-name-conflict`);
+            await page.getByRole('button', { name: 'Add Credential', exact: true }).waitFor();
+            await page.getByRole('button', { name: /Saved credential 200/ }).waitFor();
+        }, 5_000);
+
+        afterEach(async () => {
+            await page?.close();
+        }, 5_000);
+
+        it('keeps a long-list save error beside the editable draft on mobile', async () => {
+            await page.getByRole('button', { name: 'Add Credential', exact: true }).click();
+            await page.getByLabel('Name', { exact: true }).fill('Preserved mobile draft');
+            await page.getByLabel('Secret', { exact: true }).fill('draft-secret');
+            await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+            const error = page.getByText('A saved credential with this name already exists', { exact: true });
+            await error.waitFor();
+            expect(await error.evaluate((element) => {
+                const box = element.getBoundingClientRect();
+                return box.top < window.innerHeight && box.bottom > 0;
+            })).toBe(true);
+            await expect(page.getByLabel('Name', { exact: true }).inputValue()).resolves.toBe('Preserved mobile draft');
+            await expect(page.getByLabel('Name', { exact: true }).isEditable()).resolves.toBe(true);
+        });
     });
 
     it.each([
