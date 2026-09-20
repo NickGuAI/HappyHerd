@@ -1282,7 +1282,7 @@ describe('Side chats browser interaction', () => {
             write: false,
             format: 'iife',
             platform: 'browser',
-            sourcemap: 'inline',
+            sourcemap: 'linked',
             define: {
                 __DEV__: 'false',
                 'process.env.EXPO_OS': '"web"',
@@ -1292,9 +1292,27 @@ describe('Side chats browser interaction', () => {
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
         });
-        const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.text;
-        const css = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
+        // Keep debug maps available without transferring/parsing them as part
+        // of every document. Reuse response bytes across the isolated pages.
+        const script = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.contents);
+        const scriptMap = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js.map'))!.contents);
+        const cssFile = bundle.outputFiles.find((file) => file.path.endsWith('.css'));
+        const css = cssFile ? Buffer.from(cssFile.contents) : Buffer.alloc(0);
+        const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
+        const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
+        const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;</script><script src="/side-chat.js"></script>');
         server = createServer((_request, response) => {
+            if (_request.url === '/side-chat.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.end(script);
+                return;
+            }
+            if (_request.url === '/side-chat.js.map' || (_request.url === '/side-chat.css.map' && cssMap)) {
+                response.setHeader('content-type', 'application/json; charset=utf-8');
+                response.end(_request.url === '/side-chat.js.map' ? scriptMap : cssMap);
+                return;
+            }
             if (_request.url === '/fixture.css') {
                 response.setHeader('content-type', 'text/css; charset=utf-8');
                 response.end(css);
@@ -1303,11 +1321,11 @@ describe('Side chats browser interaction', () => {
             if (_request.url === '/workspace-live-sw.js') {
                 response.setHeader('content-type', 'text/javascript; charset=utf-8');
                 response.setHeader('service-worker-allowed', '/');
-                response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
+                response.end(serviceWorker);
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(html);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -2164,60 +2182,63 @@ describe('Side chats browser interaction', () => {
         ['parent', 390, 844], ['child-newest', 390, 844],
     ] as const)('deletes files and folders through the actual %s Workspace host at width %s', async (owner, width, height) => {
         const page = await browser.newPage({ viewport: { width, height } });
-        page.setDefaultTimeout(5_000);
-        const errors: string[] = [];
-        page.on('pageerror', (error) => errors.push(error.message));
-        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceDelete: true }; });
-        await page.goto(origin);
-        const foreground = page.getByTestId('foreground-session');
-        const child = owner === 'child-newest';
-        if (child) await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
-        const actions = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true });
-        await (child ? actions.last() : actions.first()).click();
-        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
-        const workspace = foreground.getByTestId('desktop-file-workspace');
-        const machineId = child ? 'machine-newest' : 'machine-1';
-        const directory = child ? '/work/child-newest' : '/work/project';
-        const evidence = process.env.HAPPYHERD_WORKSPACE_DELETE_EVIDENCE_DIR;
-        const capture = async (phase: string) => {
-            if (!evidence) return;
-            mkdirSync(evidence, { recursive: true });
-            await page.screenshot({ path: resolve(evidence, `${owner}-${width}-${phase}.png`), fullPage: true });
-        };
-        await workspace.getByLabel('Upload', { exact: true }).waitFor({ state: 'visible' });
-        await capture('initial');
-        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
-        const modal = page.getByRole('dialog');
-        await modal.getByText('Delete folder?', { exact: true }).waitFor({ state: 'visible' });
-        await expect(modal.getByText('Delete folder?', { exact: true }).isVisible()).resolves.toBe(true);
-        await expect(modal.getByText(`Are you sure you want to permanently remove ${directory}/reports and all its contents? This action cannot be undone.`, { exact: true }).isVisible()).resolves.toBe(true);
-        await expect.poll(() => modal.getByText('Delete folder?', { exact: true }).evaluate((element) => {
-            for (let current: Element | null = element; current; current = current.parentElement) {
-                if (Number(getComputedStyle(current).opacity) < 0.99) return false;
-            }
-            return true;
-        })).toBe(true);
-        await capture('confirmation');
-        await modal.getByText('Cancel', { exact: true }).click();
-        await modal.waitFor({ state: 'detached' });
-        expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__ ?? [])).toEqual([]);
-        await expect(workspace.getByRole('button', { name: 'Delete reports', exact: true }).isVisible()).resolves.toBe(true);
+        try {
+            page.setDefaultTimeout(5_000);
+            const errors: string[] = [];
+            page.on('pageerror', (error) => errors.push(error.message));
+            await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceDelete: true }; });
+            await page.goto(origin);
+            const foreground = page.getByTestId('foreground-session');
+            const child = owner === 'child-newest';
+            if (child) await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+            const actions = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true });
+            await (child ? actions.last() : actions.first()).click();
+            await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+            const workspace = foreground.getByTestId('desktop-file-workspace');
+            const machineId = child ? 'machine-newest' : 'machine-1';
+            const directory = child ? '/work/child-newest' : '/work/project';
+            const evidence = process.env.HAPPYHERD_WORKSPACE_DELETE_EVIDENCE_DIR;
+            const capture = async (phase: string) => {
+                if (!evidence) return;
+                mkdirSync(evidence, { recursive: true });
+                await page.screenshot({ path: resolve(evidence, `${owner}-${width}-${phase}.png`), fullPage: true });
+            };
+            await workspace.getByLabel('Upload', { exact: true }).waitFor({ state: 'visible' });
+            await capture('initial');
+            await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
+            const modal = page.getByRole('dialog');
+            await modal.getByText('Delete folder?', { exact: true }).waitFor({ state: 'visible' });
+            await expect(modal.getByText('Delete folder?', { exact: true }).isVisible()).resolves.toBe(true);
+            await expect(modal.getByText(`Are you sure you want to permanently remove ${directory}/reports and all its contents? This action cannot be undone.`, { exact: true }).isVisible()).resolves.toBe(true);
+            await expect.poll(() => modal.getByText('Delete folder?', { exact: true }).evaluate((element) => {
+                for (let current: Element | null = element; current; current = current.parentElement) {
+                    if (Number(getComputedStyle(current).opacity) < 0.99) return false;
+                }
+                return true;
+            })).toBe(true);
+            await capture('confirmation');
+            await modal.getByText('Cancel', { exact: true }).click();
+            await modal.waitFor({ state: 'detached' });
+            expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__ ?? [])).toEqual([]);
+            await expect(workspace.getByRole('button', { name: 'Delete reports', exact: true }).isVisible()).resolves.toBe(true);
 
-        await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).click();
-        await modal.getByText('Delete', { exact: true }).click();
-        await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).waitFor({ state: 'detached' });
-        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
-        await modal.getByText('Delete', { exact: true }).click();
-        await workspace.getByRole('button', { name: 'Delete reports', exact: true }).waitFor({ state: 'detached' });
-        expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__)).toEqual([
-            { machineId, path: `${directory}/notes.md` },
-            { machineId, path: `${directory}/reports`, recursive: true },
-        ]);
-        await expect(workspace.getByLabel('Upload', { exact: true }).isVisible()).resolves.toBe(true);
-        await expect(workspace.getByLabel('New folder', { exact: true }).isVisible()).resolves.toBe(true);
-        await capture('deleted');
-        expect(errors).toEqual([]);
-        await page.close();
+            await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).click();
+            await modal.getByText('Delete', { exact: true }).click();
+            await workspace.getByRole('button', { name: 'Delete notes.md', exact: true }).waitFor({ state: 'detached' });
+            await workspace.getByRole('button', { name: 'Delete reports', exact: true }).click();
+            await modal.getByText('Delete', { exact: true }).click();
+            await workspace.getByRole('button', { name: 'Delete reports', exact: true }).waitFor({ state: 'detached' });
+            expect(await page.evaluate(() => (window as any).__MACHINE_DELETE_CALLS__)).toEqual([
+                { machineId, path: `${directory}/notes.md` },
+                { machineId, path: `${directory}/reports`, recursive: true },
+            ]);
+            await expect(workspace.getByLabel('Upload', { exact: true }).isVisible()).resolves.toBe(true);
+            await expect(workspace.getByLabel('New folder', { exact: true }).isVisible()).resolves.toBe(true);
+            await capture('deleted');
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
     }, 20_000);
 
     it('keeps Main and Side chat reviews separate for the same machine and file', async () => {
