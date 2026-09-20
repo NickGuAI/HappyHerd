@@ -137,7 +137,7 @@ export default function AgentDefaultsSettingsScreen() {
                 <Item
                     title={config.title}
                     detail={detail}
-                    icon={<Ionicons name={config.icon} size={29} color="#5856D6" />}
+                    icon={<Ionicons name={config.icon} size={29} color={theme.colors.textLink} />}
                     onPress={() => setExpanded(isExpanded ? null : { agent, field: config.field })}
                 />
                 {isExpanded && (
@@ -181,7 +181,7 @@ export default function AgentDefaultsSettingsScreen() {
                 <Item
                     title={t("uiCopy.clearOverrides")}
                     subtitle={t("uiCopy.returnEveryAgentToCodeDefaults")}
-                    icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="refresh-outline" size={29} color={theme.colors.warning} />}
                     onPress={() => setAgentDefaultOverrides({})}
                     disabled={Object.keys(agentDefaultOverrides).length === 0}
                     showChevron={false}
@@ -199,7 +199,7 @@ export default function AgentDefaultsSettingsScreen() {
                         ? `${selectedMachine.id} · ${selectedMachineStatus}`
                         : t('workspace.noMachines')}
                     subtitleLines={0}
-                    icon={<Ionicons name="desktop-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textLink} />}
                     onPress={sortedMachines.length > 0
                         ? () => {
                             setMachinePickerExpanded((value) => !value);

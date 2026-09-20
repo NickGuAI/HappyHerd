@@ -329,12 +329,12 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfaceHighest,
     },
     sendButtonActive: {
-        backgroundColor: theme.dark ? '#F5F5F5' : theme.colors.button.primary.background,
+        backgroundColor: theme.colors.button.primary.background,
     },
     primaryActionFlash: {
         ...StyleSheet.absoluteFillObject,
         borderRadius: MOBILE_PRIMARY_ACTION_GEOMETRY.borderRadius,
-        backgroundColor: theme.dark ? '#4A4A4E' : '#FFFFFF',
+        backgroundColor: theme.colors.surfaceHigh,
     },
     modalRoot: {
         flex: 1,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 0,
     },
     focusBackdropDim: {
-        backgroundColor: theme.dark ? 'rgba(0, 0, 0, 0.88)' : 'rgba(255, 255, 255, 0.88)',
+        backgroundColor: theme.colors.glass.backgroundStrong,
     },
     focusDock: {
         position: 'absolute',
@@ -380,7 +380,7 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         gap: 12,
         paddingHorizontal: 6,
-        borderRadius: 12,
+        borderRadius: 6,
     },
     // One fixed square per icon, with the glyph centred inside it. The square is
     // what the row lays out against, so the label after it starts at the same x
@@ -474,7 +474,7 @@ const styles = StyleSheet.create((theme) => ({
     settingsSurface: {
         width: '100%',
         maxHeight: 270,
-        borderRadius: 24,
+        borderRadius: 6,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.glass.border,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create((theme) => ({
     backButton: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -524,7 +524,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 12,
         paddingHorizontal: 8,
         paddingVertical: 8,
-        borderRadius: 14,
+        borderRadius: 6,
     },
     optionPressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
@@ -1083,7 +1083,7 @@ export const HomeDock = React.memo(({
         canCancel: !!onSubmitCancel,
     });
     const primaryActionFilled = primaryAction === 'send' || primaryAction === 'stop';
-    const primaryActionIconColor = theme.dark ? '#111111' : theme.colors.button.primary.tint;
+    const primaryActionIconColor = theme.colors.button.primary.tint;
     const composerShakerRef = React.useRef<ShakeInstance>(null);
     // Anything refused points at the way out: the hint and the Stop button both
     // flash, so the answer to "this is blocked" is "here is the thing that
@@ -1809,7 +1809,7 @@ export const HomeDock = React.memo(({
                                 name="arrow-up"
                                 size={16}
                                 color={canSubmit
-                                    ? theme.dark ? '#111111' : theme.colors.button.primary.tint
+                                    ? theme.colors.button.primary.tint
                                     : theme.colors.textSecondary}
                             />
                         )}

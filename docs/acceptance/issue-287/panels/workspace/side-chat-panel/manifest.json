@@ -1,0 +1,134 @@
+[
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "side-chat-panel-empty-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "side-chat-panel-empty-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "side-chat-panel-empty-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "side-chat-panel-empty-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  }
+]

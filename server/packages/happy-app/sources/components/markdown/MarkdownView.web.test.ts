@@ -12,29 +12,13 @@ const mocks = vi.hoisted(() => ({
     resolveImage: vi.fn(),
 }));
 
+vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.clipboard }));
-vi.mock('react-native-unistyles', () => ({
-    useUnistyles: () => ({
-        theme: {
-            dark: false,
-            colors: {
-                text: '#000000',
-                textSecondary: '#49454f',
-                divider: '#eaeaea',
-                surface: '#ffffff',
-                surfaceHigh: '#f8f8f8',
-                surfaceHighest: '#f0f0f0',
-                syntaxKeyword: '#1d4ed8',
-                syntaxString: '#059669',
-                syntaxComment: '#6b7280',
-                syntaxNumber: '#0891b2',
-                syntaxFunction: '#9333ea',
-                syntaxDefault: '#374151',
-            },
-        },
-    }),
-}));
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme: theme } = await import('@/theme');
+    return { useUnistyles: () => ({ theme }) };
+});
 vi.mock('@/-session/workspaceLinkNavigation', () => ({ useWorkspaceLinkPress: () => mocks.openWorkspace }));
 vi.mock('./MermaidRenderer', async () => {
     const ReactModule = await import('react');

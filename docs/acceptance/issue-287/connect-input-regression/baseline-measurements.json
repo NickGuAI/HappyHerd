@@ -1,0 +1,552 @@
+[
+  {
+    "variant": "current",
+    "width": 390,
+    "input": {
+      "x": 103,
+      "y": 194.5,
+      "width": 224,
+      "height": 39,
+      "right": 327,
+      "bottom": 233.5
+    },
+    "row": {
+      "x": 103,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 287,
+      "bottom": 235
+    },
+    "card": {
+      "x": 90,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 300,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 335,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 375,
+      "bottom": 235
+    },
+    "inputFont": "JetBrainsMono-Regular",
+    "inputSize": "16px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 107,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 283,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "current",
+    "width": 1440,
+    "input": {
+      "x": 628,
+      "y": 194.5,
+      "width": 224,
+      "height": 39,
+      "right": 852,
+      "bottom": 233.5
+    },
+    "row": {
+      "x": 628,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 812,
+      "bottom": 235
+    },
+    "card": {
+      "x": 615,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 825,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 860,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 900,
+      "bottom": 235
+    },
+    "inputFont": "JetBrainsMono-Regular",
+    "inputSize": "16px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 632,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 808,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "baseline",
+    "width": 390,
+    "input": {
+      "x": 102,
+      "y": 192.5,
+      "width": 150,
+      "height": 33,
+      "right": 252,
+      "bottom": 225.5
+    },
+    "row": {
+      "x": 102,
+      "y": 188,
+      "width": 186,
+      "height": 42,
+      "right": 288,
+      "bottom": 230
+    },
+    "card": {
+      "x": 90,
+      "y": 138,
+      "width": 210,
+      "height": 104,
+      "right": 300,
+      "bottom": 242
+    },
+    "confirm": {
+      "x": 260,
+      "y": 188,
+      "width": 40,
+      "height": 42,
+      "right": 300,
+      "bottom": 230
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 107,
+      "y": 43,
+      "width": 176,
+      "height": 25,
+      "right": 283,
+      "bottom": 68
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 217,
+    "titleNaturalWidth": 216.69883728027344,
+    "titleFont": "IBMPlexSans-SemiBold",
+    "titleFontSize": "21px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "baseline",
+    "width": 1440,
+    "input": {
+      "x": 627,
+      "y": 192.5,
+      "width": 150,
+      "height": 33,
+      "right": 777,
+      "bottom": 225.5
+    },
+    "row": {
+      "x": 627,
+      "y": 188,
+      "width": 186,
+      "height": 42,
+      "right": 813,
+      "bottom": 230
+    },
+    "card": {
+      "x": 615,
+      "y": 138,
+      "width": 210,
+      "height": 104,
+      "right": 825,
+      "bottom": 242
+    },
+    "confirm": {
+      "x": 785,
+      "y": 188,
+      "width": 40,
+      "height": 42,
+      "right": 825,
+      "bottom": 230
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 632,
+      "y": 43,
+      "width": 176,
+      "height": 25,
+      "right": 808,
+      "bottom": 68
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 217,
+    "titleNaturalWidth": 216.69883728027344,
+    "titleFont": "IBMPlexSans-SemiBold",
+    "titleFontSize": "21px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input12sans",
+    "width": 390,
+    "input": {
+      "x": 103,
+      "y": 197.5,
+      "width": 150,
+      "height": 33,
+      "right": 253,
+      "bottom": 230.5
+    },
+    "row": {
+      "x": 103,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 287,
+      "bottom": 235
+    },
+    "card": {
+      "x": 90,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 300,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 261,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 301,
+      "bottom": 235
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 107,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 283,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input12sans",
+    "width": 1440,
+    "input": {
+      "x": 628,
+      "y": 197.5,
+      "width": 150,
+      "height": 33,
+      "right": 778,
+      "bottom": 230.5
+    },
+    "row": {
+      "x": 628,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 812,
+      "bottom": 235
+    },
+    "card": {
+      "x": 615,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 825,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 786,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 826,
+      "bottom": 235
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 632,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 808,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input16sans",
+    "width": 390,
+    "input": {
+      "x": 103,
+      "y": 196,
+      "width": 193,
+      "height": 36,
+      "right": 296,
+      "bottom": 232
+    },
+    "row": {
+      "x": 103,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 287,
+      "bottom": 235
+    },
+    "card": {
+      "x": 90,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 300,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 304,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 344,
+      "bottom": 235
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "16px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 107,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 283,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input16sans",
+    "width": 1440,
+    "input": {
+      "x": 628,
+      "y": 196,
+      "width": 193,
+      "height": 36,
+      "right": 821,
+      "bottom": 232
+    },
+    "row": {
+      "x": 628,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 812,
+      "bottom": 235
+    },
+    "card": {
+      "x": 615,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 825,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 829,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 869,
+      "bottom": 235
+    },
+    "inputFont": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "inputSize": "16px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 632,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 808,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input12mono",
+    "width": 390,
+    "input": {
+      "x": 103,
+      "y": 197,
+      "width": 167,
+      "height": 34,
+      "right": 270,
+      "bottom": 231
+    },
+    "row": {
+      "x": 103,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 287,
+      "bottom": 235
+    },
+    "card": {
+      "x": 90,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 300,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 278,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 318,
+      "bottom": 235
+    },
+    "inputFont": "JetBrainsMono-Regular",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 107,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 283,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  },
+  {
+    "variant": "input12mono",
+    "width": 1440,
+    "input": {
+      "x": 628,
+      "y": 197,
+      "width": 167,
+      "height": 34,
+      "right": 795,
+      "bottom": 231
+    },
+    "row": {
+      "x": 628,
+      "y": 193,
+      "width": 184,
+      "height": 42,
+      "right": 812,
+      "bottom": 235
+    },
+    "card": {
+      "x": 615,
+      "y": 140,
+      "width": 210,
+      "height": 108,
+      "right": 825,
+      "bottom": 248
+    },
+    "confirm": {
+      "x": 803,
+      "y": 193,
+      "width": 40,
+      "height": 42,
+      "right": 843,
+      "bottom": 235
+    },
+    "inputFont": "JetBrainsMono-Regular",
+    "inputSize": "12px",
+    "inputMinWidth": "auto",
+    "inputFlexShrink": "1",
+    "title": {
+      "x": 632,
+      "y": 44.5,
+      "width": 176,
+      "height": 22,
+      "right": 808,
+      "bottom": 66.5
+    },
+    "titleClientWidth": 176,
+    "titleScrollWidth": 181,
+    "titleNaturalWidth": 181.20281982421875,
+    "titleFont": "SpaceGrotesk-SemiBold",
+    "titleFontSize": "17px",
+    "titleTextOverflow": "ellipsis",
+    "fontsLoaded": true
+  }
+]

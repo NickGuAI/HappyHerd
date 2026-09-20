@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
 import { Pressable, View, Text } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -272,7 +273,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     movePath: {
         fontSize: 12,
-        fontFamily: 'monospace',
+        fontFamily: Typography.mono().fontFamily,
         paddingHorizontal: 12,
         paddingBottom: 9,
     },

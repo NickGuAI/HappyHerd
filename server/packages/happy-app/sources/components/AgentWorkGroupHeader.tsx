@@ -1,5 +1,6 @@
+import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { Text, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { AgentWorkGroupItem, formatWorkDuration } from '@/hooks/useGroupedMessages';

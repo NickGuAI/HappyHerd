@@ -119,66 +119,31 @@ function stringifyNotificationPayload(value: unknown): string {
     }
 }
 
+// Static faces are built from the exact self-hosted KILV sources. One font map
+// is shared by native, browser and Tauri so the typography cannot drift.
+const appFonts = {
+    'SpaceGrotesk-Regular': require('@/assets/fonts/SpaceGrotesk-Regular.ttf'),
+    'SpaceGrotesk-Medium': require('@/assets/fonts/SpaceGrotesk-Medium.ttf'),
+    'SpaceGrotesk-SemiBold': require('@/assets/fonts/SpaceGrotesk-SemiBold.ttf'),
+    'JetBrainsMono-Regular': require('@/assets/fonts/JetBrainsMono-Regular.ttf'),
+    'JetBrainsMono-SemiBold': require('@/assets/fonts/JetBrainsMono-SemiBold.ttf'),
+    ...FontAwesome.font,
+};
+
 async function loadFonts() {
     await lock.inLock(async () => {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
-        // Check if running in Tauri
         const isTauri = Platform.OS === 'web' &&
             typeof window !== 'undefined' &&
             (window as any).__TAURI_INTERNALS__ !== undefined;
 
         if (!isTauri) {
-            // Normal font loading for non-Tauri environments (native and regular web)
-            await Fonts.loadAsync({
-                // Keep existing font
-                SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
-
-                // IBM Plex Sans family
-                'IBMPlexSans-Regular': require('@/assets/fonts/IBMPlexSans-Regular.ttf'),
-                'IBMPlexSans-Italic': require('@/assets/fonts/IBMPlexSans-Italic.ttf'),
-                'IBMPlexSans-SemiBold': require('@/assets/fonts/IBMPlexSans-SemiBold.ttf'),
-
-                // IBM Plex Mono family  
-                'IBMPlexMono-Regular': require('@/assets/fonts/IBMPlexMono-Regular.ttf'),
-                'IBMPlexMono-Italic': require('@/assets/fonts/IBMPlexMono-Italic.ttf'),
-                'IBMPlexMono-SemiBold': require('@/assets/fonts/IBMPlexMono-SemiBold.ttf'),
-
-                // Bricolage Grotesque  
-                'BricolageGrotesque-Bold': require('@/assets/fonts/BricolageGrotesque-Bold.ttf'),
-
-                ...FontAwesome.font,
-            });
+            await Fonts.loadAsync(appFonts);
         } else {
-            // For Tauri, skip Font Face Observer as fonts are loaded via CSS
-            console.log('Do not wait for fonts to load');
-            (async () => {
-                try {
-                    await Fonts.loadAsync({
-                        // Keep existing font
-                        SpaceMono: require('@/assets/fonts/SpaceMono-Regular.ttf'),
-
-                        // IBM Plex Sans family
-                        'IBMPlexSans-Regular': require('@/assets/fonts/IBMPlexSans-Regular.ttf'),
-                        'IBMPlexSans-Italic': require('@/assets/fonts/IBMPlexSans-Italic.ttf'),
-                        'IBMPlexSans-SemiBold': require('@/assets/fonts/IBMPlexSans-SemiBold.ttf'),
-
-                        // IBM Plex Mono family  
-                        'IBMPlexMono-Regular': require('@/assets/fonts/IBMPlexMono-Regular.ttf'),
-                        'IBMPlexMono-Italic': require('@/assets/fonts/IBMPlexMono-Italic.ttf'),
-                        'IBMPlexMono-SemiBold': require('@/assets/fonts/IBMPlexMono-SemiBold.ttf'),
-
-                        // Bricolage Grotesque  
-                        'BricolageGrotesque-Bold': require('@/assets/fonts/BricolageGrotesque-Bold.ttf'),
-
-                        ...FontAwesome.font,
-                    });
-                } catch (e) {
-                    // Ignore
-                }
-            })();
+            // Preserve the existing Tauri startup boundary: do not block the
+            // shell on Font Face Observer in its custom-protocol webview.
+            void Fonts.loadAsync(appFonts).catch(() => {});
         }
     });
 }
@@ -227,24 +192,18 @@ export default function RootLayout() {
     const { theme } = useUnistyles();
     const preferredLanguage = useSetting('preferredLanguage');
     const activeLanguage = setCurrentLanguage(preferredLanguage);
-    const navigationTheme = React.useMemo(() => {
-        if (theme.dark) {
-            return {
-                ...DarkTheme,
-                colors: {
-                    ...DarkTheme.colors,
-                    background: theme.colors.groupped.background,
-                }
-            }
-        }
-        return {
-            ...DefaultTheme,
-            colors: {
-                ...DefaultTheme.colors,
-                background: theme.colors.groupped.background,
-            }
-        };
-    }, [theme.dark]);
+    const navigationTheme = React.useMemo(() => ({
+        ...(theme.dark ? DarkTheme : DefaultTheme),
+        colors: {
+            ...(theme.dark ? DarkTheme.colors : DefaultTheme.colors),
+            primary: theme.colors.textLink,
+            background: theme.colors.groupped.background,
+            card: theme.colors.surface,
+            text: theme.colors.text,
+            border: theme.colors.kilv.rimLine,
+            notification: theme.colors.warningCritical,
+        },
+    }), [theme]);
 
     //
     // Init sequence

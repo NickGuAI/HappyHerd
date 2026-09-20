@@ -90,7 +90,7 @@ const styles = StyleSheet.create((theme) => ({
         top: -4,
         right: -8,
         backgroundColor: theme.colors.status.error,
-        borderRadius: 8,
+        borderRadius: 4,
         minWidth: 16,
         height: 16,
         paddingHorizontal: 4,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create((theme) => ({
         maxWidth: 320,
         width: '68%',
         alignSelf: 'center',
-        borderRadius: BAR_HEIGHT / 2,
+        borderRadius: 6,
         shadowColor: theme.colors.glass.shadow,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 1,
@@ -123,13 +123,13 @@ const styles = StyleSheet.create((theme) => ({
     },
     nativeShell: {
         height: BAR_HEIGHT,
-        borderRadius: BAR_HEIGHT / 2,
+        borderRadius: 6,
         overflow: 'visible',
         position: 'relative',
     },
     nativeBaseSurface: {
         ...StyleSheet.absoluteFillObject,
-        borderRadius: BAR_HEIGHT / 2,
+        borderRadius: 6,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.glass.border,
         overflow: 'hidden',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     nativeBaseShade: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: theme.dark ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.08)',
+        backgroundColor: theme.colors.glass.backgroundSubtle,
     },
     gestureLayer: {
         position: 'relative',
@@ -181,11 +181,11 @@ const styles = StyleSheet.create((theme) => ({
         ...Typography.default('semiBold'),
     },
     labelActive: {
-        color: theme.dark ? '#FFFFFF' : theme.colors.text,
+        color: theme.colors.text,
         ...Typography.default('semiBold'),
     },
     labelInactive: {
-        color: theme.dark ? 'rgba(255,255,255,0.58)' : theme.colors.textSecondary,
+        color: theme.colors.textSecondary,
     },
     lensPosition: {
         position: 'absolute',
@@ -200,14 +200,14 @@ const styles = StyleSheet.create((theme) => ({
         left: 0,
         height: BAR_HEIGHT - (REST_INDICATOR_INSET * 2),
         zIndex: 1,
-        borderRadius: (BAR_HEIGHT - (REST_INDICATOR_INSET * 2)) / 2,
-        backgroundColor: theme.dark ? 'rgba(255,255,255,0.105)' : theme.colors.glass.backgroundSubtle,
+        borderRadius: 4,
+        backgroundColor: theme.colors.surfaceSelected,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.dark ? 'rgba(255,255,255,0.10)' : theme.colors.glass.border,
+        borderColor: theme.colors.kilv.rimLine,
     },
     lensShadow: {
         flex: 1,
-        borderRadius: LENS_HEIGHT / 2,
+        borderRadius: 4,
         shadowColor: theme.colors.glass.shadow,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 1,
@@ -216,13 +216,13 @@ const styles = StyleSheet.create((theme) => ({
     },
     lensSurface: {
         flex: 1,
-        borderRadius: LENS_HEIGHT / 2,
+        borderRadius: 4,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.dark ? 'rgba(255,255,255,0.32)' : theme.colors.glass.border,
+        borderColor: theme.colors.kilv.rimLine,
         overflow: 'hidden',
         backgroundColor: Platform.select({
             ios: 'transparent',
-            android: theme.dark ? 'rgba(31,31,35,0.58)' : theme.colors.glass.backgroundStrong,
+            android: theme.colors.glass.backgroundStrong,
             default: theme.colors.glass.backgroundStrong,
         }),
     },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create((theme) => ({
         right: -2,
         zIndex: 2,
         backgroundColor: theme.colors.status.error,
-        borderRadius: 8,
+        borderRadius: 4,
         minWidth: 16,
         height: 16,
         paddingHorizontal: 4,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
     },
     badgeText: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
         fontSize: 10,
         ...Typography.default('semiBold'),
     },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create((theme) => ({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: theme.dark ? '#FFFFFF' : theme.colors.text,
+        backgroundColor: theme.colors.text,
     },
 }));
 
@@ -296,8 +296,8 @@ const NativeTabItem = React.memo(function NativeTabItem({
         onPress(index);
     }, [index, onPress]);
 
-    const activeTint = theme.dark ? '#FFFFFF' : theme.colors.text;
-    const inactiveTint = theme.dark ? 'rgba(255,255,255,0.62)' : theme.colors.textSecondary;
+    const activeTint = theme.colors.text;
+    const inactiveTint = theme.colors.textSecondary;
     const inactiveIconAnimatedStyle = useAnimatedStyle(() => {
         const activation = Math.max(0, 1 - Math.abs(visualPosition.value - index));
         return { opacity: 1 - activation };

@@ -1,6 +1,8 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
 import { ToolViewProps } from './_all';
-import { Text, View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { knownTools } from '../../tools/knownTools';
 import { Ionicons } from '@expo/vector-icons';
 import { ToolCall } from '@/sync/typesMessage';
@@ -51,7 +53,7 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
             fontSize: 14,
             fontWeight: '500',
             color: theme.colors.textSecondary,
-            fontFamily: 'monospace',
+            fontFamily: Typography.mono().fontFamily,
             flex: 1,
         },
         statusContainer: {

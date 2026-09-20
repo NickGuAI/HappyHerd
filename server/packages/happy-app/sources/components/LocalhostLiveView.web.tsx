@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
 import {
     registerWorkspaceLiveView,
@@ -165,7 +166,7 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
                     overflow: 'hidden',
                     padding: '7px 10px',
                     borderBottom: '1px solid rgba(127,127,127,.24)',
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontFamily: Typography.mono().fontFamily,
                     fontSize: 12,
                     lineHeight: '18px',
                     textOverflow: 'ellipsis',

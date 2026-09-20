@@ -65,7 +65,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     bodyContainer: {
         minHeight: 200,
         padding: Platform.select({ web: 0, default: 16 }),
-        borderRadius: Platform.select({ web: 0, default: 20 }),
+        borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }),
         overflow: 'hidden',
         backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surface }),
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),

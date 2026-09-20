@@ -15,14 +15,14 @@ vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/sync/sync', () => ({ sync: { sendMessage: mocks.sendMessage } }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
-vi.mock('react-native-unistyles', () => {
-    const colors = new Proxy({ button: { primary: { background: '#00f', tint: '#fff' } } }, { get: (target, key) => Reflect.get(target, key) ?? '#000' });
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     return {
-        StyleSheet: { create: (styles: any) => styles, hairlineWidth: 1 },
-        useUnistyles: () => ({ theme: { colors } }),
+        StyleSheet: { create: (styles: any) => typeof styles === 'function' ? styles(lightTheme) : styles, hairlineWidth: 1 },
+        useUnistyles: () => ({ theme: lightTheme }),
     };
 });
 

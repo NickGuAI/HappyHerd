@@ -1,6 +1,7 @@
+import { Text } from '@/components/StyledText';
 import { Ionicons } from '@expo/vector-icons';
 import * as React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import type { QueuedMessageProjectionItem, SessionQueueProjection } from '@/sync/queueProjection';

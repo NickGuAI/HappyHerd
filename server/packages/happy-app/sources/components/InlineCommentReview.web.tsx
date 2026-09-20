@@ -93,10 +93,10 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
     };
 
     const isInline = props.anchor?.line !== undefined;
-    const seamColor = theme.dark ? '#b4b85c' : '#6f7424';
-    const glowColor = theme.dark ? '#f3c969' : '#b7791f';
-    const cardBackground = theme.dark ? '#211e18' : '#fffaf0';
-    const cardBorder = theme.dark ? '#514a35' : '#ded2b4';
+    const seamColor = theme.colors.kilv.olive;
+    const glowColor = theme.colors.kilv.accent;
+    const cardBackground = theme.colors.surface;
+    const cardBorder = theme.colors.kilv.rimLine;
 
     return (
         <View
@@ -116,7 +116,7 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                     backgroundColor: isInline ? cardBackground : theme.colors.surface,
                     borderColor: isInline ? cardBorder : theme.colors.divider,
                 },
-                isInline && ({ boxShadow: theme.dark ? '0 12px 30px rgba(0,0,0,.28)' : '0 10px 24px rgba(80,65,35,.14)' } as any),
+                isInline && ({ boxShadow: theme.kilv.shadow } as any),
             ]}>
                 {isInline ? <View style={[styles.threadFace, styles.threadFaceTop, { backgroundColor: glowColor }]} /> : null}
                 {visibleComments.map((comment) => (
@@ -275,7 +275,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                     testID="inline-comment-review-bar"
                     style={[
                         styles.reviewBar,
-                        { backgroundColor: theme.dark ? 'rgba(20,20,18,.92)' : 'rgba(255,255,255,.90)', borderColor: theme.colors.divider },
+                        { backgroundColor: theme.colors.glass.background, borderColor: theme.colors.divider },
                         { backdropFilter: 'blur(16px)' } as any,
                     ]}
                 >
@@ -290,7 +290,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
     );
 }
 
-const styles = StyleSheet.create(() => ({
+const styles = StyleSheet.create((theme) => ({
     reviewHost: { position: 'relative', zIndex: 4, flexShrink: 0 },
     dockedHost: { position: 'relative', zIndex: 4, flexShrink: 0 },
     thread: { flexDirection: 'row', minWidth: 0 },
@@ -298,7 +298,7 @@ const styles = StyleSheet.create(() => ({
     seamColumn: { position: 'relative', width: 26, flexShrink: 0, alignItems: 'center' },
     seam: { position: 'absolute', top: -7, bottom: -7, width: 3, borderRadius: 2 },
     seamDot: { position: 'absolute', top: 16, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-    threadCard: { position: 'relative', flex: 1, minWidth: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 12, gap: 10, overflow: 'hidden' },
+    threadCard: { position: 'relative', flex: 1, minWidth: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, padding: 12, gap: 10, overflow: 'hidden' },
     threadFace: { position: 'absolute', left: 14, right: 14, height: 1, opacity: 0.42 },
     threadFaceTop: { top: 0 },
     threadFaceBottom: { bottom: 0 },
@@ -307,14 +307,14 @@ const styles = StyleSheet.create(() => ({
     commentText: { ...Typography.default(), flex: 1, fontSize: 16, lineHeight: 22 },
     editColumn: { flex: 1, minWidth: 0, gap: 6 },
     composeRow: { gap: 7 },
-    anchor: { ...Typography.default('semiBold'), fontSize: 16, lineHeight: 22 },
-    input: { minHeight: 52, maxHeight: 148, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, lineHeight: 22 },
+    anchor: { ...Typography.mono('semiBold'), fontSize: 16, lineHeight: 22 },
+    input: { ...Typography.default(), minHeight: 52, maxHeight: 148, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, lineHeight: 22 },
     actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 2 },
     action: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 9, paddingVertical: 7 },
     actionText: { ...Typography.default('semiBold'), fontSize: 16, lineHeight: 22 },
     reviewBar: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
     reviewCount: { ...Typography.default('semiBold'), flexGrow: 1, fontSize: 16, lineHeight: 22 },
     reviewError: { ...Typography.default(), fontSize: 16, lineHeight: 22 },
-    send: { minHeight: 40, justifyContent: 'center', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
+    send: { minHeight: 40, justifyContent: 'center', borderRadius: theme.borderRadius.md, paddingHorizontal: 14, paddingVertical: 8 },
     sendText: { ...Typography.default('semiBold'), fontSize: 16, lineHeight: 22 },
 }));

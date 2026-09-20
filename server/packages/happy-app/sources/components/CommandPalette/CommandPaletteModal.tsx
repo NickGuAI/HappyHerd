@@ -1,10 +1,10 @@
+import { StyleSheet } from 'react-native-unistyles';
 import React, { useEffect, useRef } from 'react';
 import {
     View,
     Modal,
     TouchableWithoutFeedback,
     Animated,
-    StyleSheet,
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
@@ -83,12 +83,12 @@ export function CommandPaletteModal({
             animationType="none"
             onRequestClose={handleClose}
         >
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <TouchableWithoutFeedback onPress={handleBackdropPress}>
-                    <Animated.View 
+                    <Animated.View
                         style={[
                             Platform.OS === 'web' ? styles.backdrop : styles.nativeBackdrop,
                             {
@@ -102,7 +102,7 @@ export function CommandPaletteModal({
                         {Platform.OS !== 'web' && <View pointerEvents="none" style={styles.backdropScrim} />}
                     </Animated.View>
                 </TouchableWithoutFeedback>
-                
+
                 <Animated.View
                     style={[
                         styles.content,
@@ -112,7 +112,7 @@ export function CommandPaletteModal({
                         }
                     ]}
                 >
-                    {Platform.OS !== 'web' && <LocalBlurHalo borderRadius={24} expansion={18} blurIntensity={38} />}
+                    {Platform.OS !== 'web' && <LocalBlurHalo borderRadius={6} expansion={18} blurIntensity={38} />}
                     {children}
                 </Animated.View>
             </KeyboardAvoidingView>
@@ -120,7 +120,7 @@ export function CommandPaletteModal({
     );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
     container: {
         flex: 1,
         justifyContent: 'flex-start',
@@ -134,18 +134,18 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(15, 15, 15, 0.75)',
+        backgroundColor: theme.colors.kilv.scrimStrong,
     },
     nativeBackdrop: {
         ...StyleSheet.absoluteFillObject,
     },
     backdropScrim: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.14)',
+        backgroundColor: theme.colors.kilv.scrim,
     },
     content: {
         zIndex: 1,
         width: '90%',
         maxWidth: 800, // Increased from 640
     }
-});
+}));

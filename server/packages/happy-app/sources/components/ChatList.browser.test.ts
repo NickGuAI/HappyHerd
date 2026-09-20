@@ -14,16 +14,8 @@ const visualStatePollOptions = { timeout: 5_000 };
 const virtualModules: Record<string, string> = {
     'react-native': `export * from 'react-native-web'; export const TurboModuleRegistry = { get: () => null };`,
     'react-native-unistyles': `
-        const colors = {
-            text: '#111', textSecondary: '#666', textLink: '#06c', divider: '#ddd', surface: '#fff',
-            surfaceHigh: '#eee', surfaceHighest: '#eee', success: '#080', warning: '#a70', input: { text: '#111' },
-            shadow: { color: '#000', opacity: 0.1 }, header: { tint: '#111' },
-            groupped: { background: '#fff' },
-            box: { error: { background: '#fee', border: '#c00', text: '#900' }, warning: { background: '#ffd', text: '#770' } },
-            terminal: { background: '#111', prompt: '#0f0', command: '#fff', stdout: '#ddd', stderr: '#f80', error: '#f88', emptyOutput: '#bbb' },
-        };
-        const theme = { dark: false, colors };
-        export const StyleSheet = { create: factory => typeof factory === 'function' ? factory(theme) : factory };
+        import { lightTheme as theme } from '@/theme';
+        export const StyleSheet = { create: factory => typeof factory === 'function' ? factory(theme) : factory, hairlineWidth: 1 };
         export const useUnistyles = () => ({ theme });
     `,
     '@expo/vector-icons': `
@@ -130,6 +122,9 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage({ viewport });
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
+        // Loading the document does not mean FlashList has mounted this row.
+        // Keep mount readiness separate from the unchanged scroll-position assertion.
+        await message.waitFor({ state: 'visible', timeout: 5000 });
         await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         await message.hover();
         const before = (await message.boundingBox())!.y;
@@ -150,6 +145,9 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage();
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
+        // Loading the document does not mean FlashList has mounted this row.
+        // Keep mount readiness separate from the unchanged scroll-position assertion.
+        await message.waitFor({ state: 'visible', timeout: 5000 });
         await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         const result = await message.evaluate(element => {
             let node = element.parentElement!;

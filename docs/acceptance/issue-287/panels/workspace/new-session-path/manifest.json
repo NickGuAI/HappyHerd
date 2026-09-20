@@ -1,0 +1,138 @@
+[
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session-path-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session-path-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": -172,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\nProject\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-06\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session-path-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session-path-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": -172,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\nProject\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-06\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  }
+]

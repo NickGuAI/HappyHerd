@@ -606,7 +606,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         ]}
                     >
                         {isSaving ? (
-                            <ActivityIndicator size="small" color="white" />
+                            <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
                         ) : (
                             <Text style={[
                                 hasChanges ? styles.actionButtonText : styles.actionButtonTextSecondary,
@@ -1153,7 +1153,7 @@ const styles = StyleSheet.create((theme) => ({
     actionButtonText: {
         fontSize: 13,
         fontWeight: '600',
-        color: 'white',
+        color: theme.colors.button.primary.tint,
         ...Typography.default('semiBold'),
     },
     actionButtonTextSecondary: {

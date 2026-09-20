@@ -1,0 +1,126 @@
+[
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automations-list-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automations-list-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automations-list-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automations-list-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  }
+]

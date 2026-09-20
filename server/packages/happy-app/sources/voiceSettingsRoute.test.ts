@@ -29,6 +29,10 @@ vi.mock('react-native', async () => {
         ActivityIndicator: (props: any) => ReactModule.createElement('ActivityIndicator', props),
     };
 });
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
+    return { useUnistyles: () => ({ theme: lightTheme }) };
+});
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };

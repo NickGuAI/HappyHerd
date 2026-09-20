@@ -1,5 +1,6 @@
+import { StyleSheet } from 'react-native-unistyles';
 import React, { useRef, useEffect } from 'react';
-import { View, ScrollView, Text, StyleSheet, Platform } from 'react-native';
+import { View, ScrollView, Text, Platform } from 'react-native';
 import { Command, CommandCategory } from './types';
 import { CommandPaletteItem } from './CommandPaletteItem';
 import { Typography } from '@/constants/Typography';
@@ -12,15 +13,15 @@ interface CommandPaletteResultsProps {
     onSelectionChange: (index: number) => void;
 }
 
-export function CommandPaletteResults({ 
-    categories, 
-    selectedIndex, 
-    onSelectCommand, 
-    onSelectionChange 
+export function CommandPaletteResults({
+    categories,
+    selectedIndex,
+    onSelectCommand,
+    onSelectionChange
 }: CommandPaletteResultsProps) {
     const scrollViewRef = useRef<ScrollView>(null);
     const itemRefs = useRef<{ [key: number]: View | null }>({});
-    
+
     // Flatten commands for index tracking
     const allCommands = React.useMemo(() => {
         return categories.flatMap(cat => cat.commands);
@@ -53,7 +54,7 @@ export function CommandPaletteResults({
     let currentIndex = 0;
 
     return (
-        <ScrollView 
+        <ScrollView
             ref={scrollViewRef}
             style={styles.container}
             showsVerticalScrollIndicator={false}
@@ -61,13 +62,13 @@ export function CommandPaletteResults({
         >
             {categories.map(category => {
                 if (category.commands.length === 0) return null;
-                
+
                 const categoryStartIndex = currentIndex;
                 const categoryCommands = category.commands.map((command, idx) => {
                     const commandIndex = categoryStartIndex + idx;
                     const isSelected = commandIndex === selectedIndex;
                     currentIndex++;
-                    
+
                     return (
                         <View
                             key={command.id}
@@ -98,7 +99,7 @@ export function CommandPaletteResults({
     );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
     container: {
         // Use viewport-based height for better proportions
         ...(Platform.OS === 'web' ? {
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 15,
-        color: '#999',
+        color: theme.colors.textSecondary,
         letterSpacing: -0.2,
     },
     categoryTitle: {
@@ -122,9 +123,9 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingBottom: 8,
         fontSize: 12,
-        color: '#999',
+        color: theme.colors.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 0.8,
         fontWeight: '600',
     },
-});
+}));

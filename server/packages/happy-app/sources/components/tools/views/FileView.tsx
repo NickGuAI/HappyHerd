@@ -1,3 +1,4 @@
+import { Text } from '@/components/StyledText';
 /**
  * View for 'file' tool calls (image attachments sent by user).
  * Downloads and decrypts the encrypted blob via apiAttachments + sessionBlobKey,
@@ -8,7 +9,7 @@
  * ratio is used until the actual image lands and contentFit shows it.
  */
 import * as React from 'react';
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -151,7 +152,7 @@ const styles = StyleSheet.create(() => ({
         right: 4,
         width: 24,
         height: 24,
-        borderRadius: 12,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -159,10 +160,10 @@ const styles = StyleSheet.create(() => ({
         fontSize: 13,
         fontWeight: '500',
     },
-    previewModal: { backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' },
+    previewModal: { backgroundColor: '#000', borderRadius: 6, overflow: 'hidden' },
     previewClose: {
         position: 'absolute', top: 8, right: 8, zIndex: 1,
-        width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff',
+        width: 36, height: 36, borderRadius: 6, backgroundColor: '#fff',
         alignItems: 'center', justifyContent: 'center',
     },
     previewScroll: { flex: 1 },

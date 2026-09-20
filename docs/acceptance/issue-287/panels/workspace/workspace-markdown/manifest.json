@@ -1,0 +1,138 @@
+[
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-markdown-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-markdown-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\ndemo.md\nPreview\nEdit\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-markdown-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-markdown-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\ndemo.md\nPreview\nEdit\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  }
+]

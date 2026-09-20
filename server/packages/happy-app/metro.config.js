@@ -10,15 +10,21 @@ const config = getDefaultConfig(__dirname, {
 // Source: https://shopify.github.io/react-native-skia/docs/getting-started/installation/
 config.resolver.assetExts.push('wasm');
 
+const defaultBlockList = config.resolver.blockList;
+const appRouteRootPattern = path.join(__dirname, 'sources', 'app')
+  .split(path.sep)
+  .map(segment => segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join(String.raw`[/\\]`);
+
 // Exclude Tauri Rust build artifacts from Metro's file watcher.
 // Cargo writes/deletes transient files in src-tauri/target/debug/deps during
 // `tauri dev`, which crashes Metro's fallback watcher on Windows with ENOENT.
+// Co-located route tests are Node/Vitest modules, not Expo routes. Remove them
+// from Metro's file map before require.context traverses their dependencies.
 config.resolver.blockList = [
-  ...[].concat(config.resolver.blockList ?? []),
+  ...(Array.isArray(defaultBlockList) ? defaultBlockList : defaultBlockList ? [defaultBlockList] : []),
   /[/\\]src-tauri[/\\]target[/\\].*/,
-  // Expo Router discovers every source file under app/, including colocated
-  // tests. Their Node/Vitest imports cannot be shipped in native bundles.
-  /\.(?:test|spec)\.[cm]?[jt]sx?$/,
+  new RegExp(String.raw`^${appRouteRootPattern}[/\\].*\.(?:test|spec)\.[jt]sx?$`),
   /[/\\]__tests__[/\\]/,
 ];
 

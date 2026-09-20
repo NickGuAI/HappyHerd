@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { OutgoingMessageQueue } from './OutgoingMessageQueue';
 
@@ -19,8 +19,9 @@ describe('OutgoingMessageQueue', () => {
 
         queue.enqueue({ type: 'assistant', id: 'image' });
         queue.enqueue({ type: 'assistant', id: 'later-text' });
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        expect(order).toEqual(['image-start']);
+        await vi.waitFor(() => {
+            expect(order).toEqual(['image-start']);
+        });
 
         releaseImage();
         await queue.flush();

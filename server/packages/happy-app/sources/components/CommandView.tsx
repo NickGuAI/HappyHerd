@@ -1,7 +1,7 @@
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
 import { Text, View, StyleSheet, Platform, type TextStyle } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
-import { darkTheme } from '@/theme';
 import { SyntaxText } from './SyntaxText';
 
 import { t } from '@/text';
@@ -54,42 +54,42 @@ export const CommandView = React.memo<CommandViewProps>(({
             flexWrap: 'wrap',
         },
         promptText: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 14,
             lineHeight: 20,
             color: theme.colors.terminal.prompt,
             fontWeight: '600',
         },
         commandText: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 14,
             color: theme.colors.terminal.command,
             lineHeight: 20,
             flex: 1,
         },
         stdout: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 13,
             color: theme.colors.terminal.stdout,
             lineHeight: 18,
             marginTop: 8,
         },
         stderr: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 13,
             color: theme.colors.terminal.stderr,
             lineHeight: 18,
             marginTop: 8,
         },
         error: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 13,
             color: theme.colors.terminal.error,
             lineHeight: 18,
             marginTop: 8,
         },
         emptyOutput: {
-            fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+            fontFamily: Typography.mono().fontFamily,
             fontSize: 13,
             color: theme.colors.terminal.emptyOutput,
             lineHeight: 18,
@@ -98,10 +98,10 @@ export const CommandView = React.memo<CommandViewProps>(({
         },
     }), [theme]);
 
-    // The terminal surface stays dark in both themes. Plain runs inherit the
-    // command/stdout/stderr color; classified tokens use the dark diff palette.
+    // Plain and classified runs share the current theme: paper wells in
+    // Warm Sun and black wells in Backlit, with readable syntax in each.
     const terminalText = (code: string, style: TextStyle, language: string | null) => syntaxHighlighting && language ? (
-        <SyntaxText code={code} language={language} style={style} colors={darkTheme.colors.diff.syntax} />
+        <SyntaxText code={code} language={language} style={style} colors={theme.colors.diff.syntax} />
     ) : <Text style={style} selectable={syntaxHighlighting}>{code}</Text>;
 
     return (

@@ -1,9 +1,10 @@
+import { Text } from '@/components/StyledText';
 import { Stack } from 'expo-router';
 import 'react-native-reanimated';
 import * as React from 'react';
 import { Typography } from '@/constants/Typography';
 import { createHeader, createPlainHeader } from '@/components/navigation/Header';
-import { Platform, TouchableOpacity, Text, View, Image } from 'react-native';
+import { Platform, TouchableOpacity, View, Image } from 'react-native';
 import { isRunningOnMac } from '@/utils/platform';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';

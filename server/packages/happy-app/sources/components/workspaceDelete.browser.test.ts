@@ -13,7 +13,7 @@ const browserErrors: string[] = [];
 
 beforeAll(async () => {
     const virtual: Record<string, string> = {
-        'react-native-unistyles': `const colors = { text:'#111', textSecondary:'#666', textLink:'#06c', textDestructive:'#c00', divider:'#ddd', surface:'#fff', surfaceSelected:'#eee', success:'#080', warning:'#a60', groupped:{background:'#fafafa'}, input:{background:'#f5f5f5'}, button:{primary:{background:'#111',tint:'#fff'}}, glass:{overlay:'#fff',backgroundStrong:'#fff',border:'#ddd',overlayTint:'#fff'}, shadow:{color:'#000'} }; const theme={colors}; export const StyleSheet={hairlineWidth:1, create: factory => typeof factory==='function'?factory(theme):factory}; export const useUnistyles=()=>({theme});`,
+        'react-native-unistyles': `import {lightTheme as theme} from './sources/theme'; export const StyleSheet={hairlineWidth:1, create: factory => typeof factory==='function'?factory(theme):factory}; export const useUnistyles=()=>({theme});`,
         '@expo/vector-icons': `import React from 'react'; import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json'; import font from '@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'; export const Ionicons=({name,size,color})=>React.createElement(React.Fragment,null,React.createElement('style',null,'@font-face{font-family:TestIonicons;src:url('+font+')}'),React.createElement('span',{'aria-hidden':true,style:{fontFamily:'TestIonicons',fontSize:size,lineHeight:1,color}},String.fromCodePoint(glyphs[name])));`,
         'expo-router': `export const Stack={Screen:()=>null}; export const useRouter=()=>({back(){window.fixture.backCount++},push(){}}); export const useLocalSearchParams=()=>({});`,
         'react-native-safe-area-context': `export const useSafeAreaInsets=()=>({top:0,right:0,bottom:0,left:0});`,
@@ -23,7 +23,6 @@ beforeAll(async () => {
         '@/components/MobileGlass': `import React from 'react';import {View} from 'react-native';export const MobileGlassSurface=({children,style})=>React.createElement(View,{style},children);`,
         '@/components/FileIcon': `import React from 'react';export const FileIcon=()=>React.createElement('span',{'aria-hidden':true},'▤');`,
         '@/components/StyledText': `export {Text} from 'react-native';`,
-        '@/constants/Typography': `export const Typography={default:()=>({fontFamily:'sans-serif',fontSize:16}),mono:()=>({fontFamily:'monospace',fontSize:16})};`,
         '@/components/layout': `export const layout={maxWidth:1200};`,
         '@/components/FileViewPanel': `import React from 'react'; export function FileContentPanel({filePath,onDirtyChange,onHeaderRightSlotChange}) { const [value,setValue]=React.useState('Neutral file'); React.useEffect(()=>{setValue('Neutral file');onDirtyChange(false);return()=>{onDirtyChange(false);onHeaderRightSlotChange(null)}},[filePath]);return React.createElement('div',{'data-testid':'file-content','data-path':filePath},React.createElement('textarea',{'aria-label':'File contents',value,onChange:event=>{setValue(event.target.value);onDirtyChange(true)}})); }`,
         '@/components/WorkspaceLinkViewer': `export const WorkspaceLinkViewer=()=>null;`,
@@ -65,7 +64,9 @@ beforeAll(async () => {
     });
     server = createServer((request, response) => {
         response.setHeader('Content-Type', request.url === '/app.js' ? 'text/javascript' : 'text/html');
-        response.end(request.url === '/app.js' ? bundle.outputFiles[0].contents : '<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#root{margin:0;width:100%;height:100%;font:16px sans-serif}#root{display:flex}</style><div id="root"></div><script src="/app.js"></script>');
+        // Expo provides this alias; RN Web uses global.cancelAnimationFrame
+        // when a confirmation closes before its entrance animation finishes.
+        response.end(request.url === '/app.js' ? bundle.outputFiles[0].contents : '<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#root{margin:0;width:100%;height:100%;font:16px sans-serif}#root{display:flex}</style><div id="root"></div><script>globalThis.global=globalThis;</script><script src="/app.js"></script>');
     });
     await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
     const address = server.address();

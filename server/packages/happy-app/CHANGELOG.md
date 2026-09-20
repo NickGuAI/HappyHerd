@@ -1,3 +1,7 @@
+# September 20 — HappyHerd header title
+
+- The signed-out landing and home header now show HappyHerd instead of Happy.
+
 # September 20 — Codex context meter
 
 - The context meter now stays tied to the main Codex session while subagents are working.
@@ -13,6 +17,20 @@
 - Native iOS users can choose Create Commander in New Session and start the same guided onboarding while retaining their selected machine, provider, and session settings.
 - Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.
 - iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project.
+
+# September 19 — Terminal pairing layout
+
+- Pasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.
+
+# September 19 — Native build reliability
+
+- Native app builds no longer treat development tests as screens, avoiding failures caused by test-only Node.js dependencies.
+
+# September 19 — KILV interface
+
+- Light and dark themes now use warm paper, lifted slate panels, amber actions, and consistent borders across navigation, settings, sessions, and Workspace.
+- Space Grotesk and JetBrains Mono make interface text, code, paths, and status easier to distinguish.
+- The welcome screen uses KILV artwork, while chat replies and choices share a warm dark surface. Mobile input text stays at least 16px, and existing session, account, and automation behavior is preserved.
 
 # September 17 — Mobile browser layout
 

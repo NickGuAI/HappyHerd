@@ -21,16 +21,8 @@ const virtualModules: Record<string, string> = {
         };
     `,
     'react-native-unistyles': `
-        const theme = {
-            colors: {
-                divider: '#ddd', surface: '#fff', surfacePressedOverlay: '#eee', surfaceRipple: '#eee',
-                text: '#111', textLink: '#06c', textSecondary: '#666', textDestructive: '#c22',
-                glass: { divider: '#ddd' },
-                groupped: { background: '#f5f5f5', chevron: '#777', sectionTitle: '#666' },
-                shadow: { color: '#000', opacity: 0.1 },
-                status: { connected: '#0a0', disconnected: '#a00' },
-            },
-        };
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = globalThis.__SETTINGS_THEME__ === 'dark' ? darkTheme : lightTheme;
         export const StyleSheet = {
             create: (factory) => typeof factory === 'function' ? factory(theme, {}) : factory,
             hairlineWidth: 1,
@@ -67,7 +59,7 @@ const virtualModules: Record<string, string> = {
     '@/components/Avatar': `import { View } from 'react-native'; export const Avatar = View;`,
     '@/components/StyledText': `import { Text as NativeText } from 'react-native'; export const Text = NativeText;`,
     '@/components/layout': `export const layout = { maxWidth: 800 };`,
-    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
+    '@/constants/Typography': `export const Typography = { default: () => ({}), mono: () => ({}) };`,
     '@/constants/product': `
         export const PRODUCT = {
             displayName: 'HappyHerd',
@@ -192,8 +184,9 @@ describe('Settings policy links browser interaction', () => {
         const script = bundle.outputFiles[0].text;
         server = createServer((request, response) => {
             const platform = request.url?.includes('platform=ios') ? 'ios' : 'web';
+            const theme = request.url?.includes('theme=dark') ? 'dark' : 'light';
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.__SETTINGS_PLATFORM__=${JSON.stringify(platform)};globalThis.global=globalThis;${script}</script>`);
+            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.__SETTINGS_THEME__=${JSON.stringify(theme)};globalThis.__SETTINGS_PLATFORM__=${JSON.stringify(platform)};globalThis.global=globalThis;${script}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -213,9 +206,11 @@ describe('Settings policy links browser interaction', () => {
     }, 30_000);
 
     it.each([
-        ['Web Desktop', { width: 1440, height: 900 }],
-        ['Web Mobile', { width: 390, height: 844 }],
-    ] as const)('renders no About footer and opens the configured Web destinations on %s', async (_surface, viewport) => {
+        ['Web Desktop Light', { width: 1440, height: 900 }, 'light'],
+        ['Web Desktop Dark', { width: 1440, height: 900 }, 'dark'],
+        ['Web Mobile Light', { width: 390, height: 844 }, 'light'],
+        ['Web Mobile Dark', { width: 390, height: 844 }, 'dark'],
+    ] as const)('renders no About footer and opens the configured Web destinations on %s', async (_surface, viewport, theme) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -231,7 +226,7 @@ describe('Settings policy links browser interaction', () => {
                 return null;
             }) as typeof window.open;
         });
-        await page.goto(origin);
+        await page.goto(`${origin}?theme=${theme}`);
 
         await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
         const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');

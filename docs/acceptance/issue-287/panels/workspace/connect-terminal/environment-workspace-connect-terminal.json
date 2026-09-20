@@ -1,0 +1,40 @@
+{
+  "evidenceType": "component-fixture",
+  "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+  "sourceInputs": [
+    "sources/constants/Typography.ts",
+    "sources/components/StyledText.tsx",
+    "sources/theme.ts",
+    "sources/components/RoundButton.tsx",
+    "sources/text/locales/en.json",
+    "sources/text/locales/cn.json",
+    "sources/text/locales/de.json",
+    "sources/text/_all.ts",
+    "sources/text/index.ts",
+    "sources/components/ConnectButton.tsx"
+  ],
+  "mockedModules": [
+    "react-native",
+    "react-native-unistyles",
+    "expo-image",
+    "expo-router",
+    "@/sync/storage",
+    "@/sync/machineChoices",
+    "@/hooks/useVisibleSessionListViewData",
+    "@/components/SessionsList",
+    "@/hooks/useConnectTerminal",
+    "@/hooks/useOfflineMachineTroubleshooting",
+    "@/modal",
+    "@/text",
+    "@/track",
+    "expo-localization",
+    "@/sync/persistence",
+    "expo-font"
+  ],
+  "visualAdapters": [
+    "React Native Web",
+    "Unistyles style/theme evaluation",
+    "Expo font loader with repository font files",
+    "Expo Image rendered by React Native Web Image"
+  ]
+}

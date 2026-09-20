@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/sync/apiSocket', () => ({ apiSocket: { machineRPC: vi.fn() } }));
+vi.mock('react-native', () => ({ Platform: { OS: 'web', select: (values: Record<string, unknown>) => values.web ?? values.default } }));
 vi.mock('@/sync/workspaceLive', async (importOriginal) => ({
     ...await importOriginal<typeof import('@/sync/workspaceLive')>(),
     registerWorkspaceLiveView: mocks.registerWorkspaceLiveView,

@@ -12,3 +12,4 @@ logs/
 *.local
 
 /server/packages/happy-app/public/pdfjs/
+/server/packages/happy-app/dist-ci/

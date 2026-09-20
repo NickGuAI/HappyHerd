@@ -35,7 +35,7 @@ const sessionListText = t as (key: string) => string;
  * meant to contrast against exactly the backdrop this variant removes.
  */
 export function flatListBackgroundColor(theme: Theme): string {
-    return theme.dark ? theme.colors.groupped.background : '#FFFFFF';
+    return theme.colors.surface;
 }
 
 /**
@@ -237,7 +237,7 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
 
     const renderRightActions = () => (
         <Pressable style={styles.swipeAction} onPress={handleArchive} disabled={archiving}>
-            <Ionicons name="archive-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="archive-outline" size={20} color={styles.swipeActionText.color} />
             <Text style={styles.swipeActionText} numberOfLines={2}>
                 {t('sessionInfo.archiveSession')}
             </Text>
@@ -411,7 +411,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     swipeActionText: {
         marginTop: 4,
         fontSize: 12,
-        color: '#FFFFFF',
+        color: theme.colors.permissionButton.deny.text,
         textAlign: 'center',
         ...Typography.default('semiBold'),
     },

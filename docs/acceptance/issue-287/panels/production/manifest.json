@@ -1,0 +1,522 @@
+[
+  {
+    "panelId": "landing",
+    "label": "Signed-out landing",
+    "sourcePaths": [
+      "app/(app)/index.tsx",
+      "app/(app)/_layout.tsx",
+      "app/_layout.tsx",
+      "app/+html.tsx",
+      "components/navigation/Header.tsx",
+      "components/RoundButton.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "default",
+    "filename": "landing-default-light-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Home route",
+    "route": "/",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+  },
+  {
+    "panelId": "restore-key",
+    "label": "Restore with Secret Key",
+    "sourcePaths": [
+      "app/(app)/restore/manual.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "draft",
+    "filename": "restore-key-draft-light-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Restore with Secret Key",
+    "route": "/restore/manual",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Restore with Secret Key\nEnter your secret key to restore access to your account.\nRestore Account"
+  },
+  {
+    "panelId": "restore-device",
+    "label": "Link a mobile device",
+    "sourcePaths": [
+      "app/(app)/restore/index.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "offline",
+    "filename": "restore-device-offline-light-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Login with mobile app",
+    "route": "/restore",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Link New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+  },
+  {
+    "panelId": "server-config",
+    "label": "Server configuration",
+    "sourcePaths": [
+      "app/(app)/server.tsx",
+      "components/ItemGroup.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "draft",
+    "filename": "server-config-draft-light-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /server",
+    "route": "/server",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "Server change was not submitted."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Server Configuration\nCUSTOM SERVER URL\nReset to Default\nSave\nCurrently using custom server\nThis is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers."
+  },
+  {
+    "panelId": "changelog",
+    "label": "Changelog with KILV release entry",
+    "sourcePaths": [
+      "app/(app)/changelog.tsx",
+      "changelog/changelog.json",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "latest-entries",
+    "filename": "changelog-latest-entries-light-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /changelog",
+    "route": "/changelog",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "What's New\nSeptember 19 — Terminal pairing layout\nPasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.\nSeptember 19 — Native build reliability\nNative app builds"
+  },
+  {
+    "panelId": "landing",
+    "label": "Signed-out landing",
+    "sourcePaths": [
+      "app/(app)/index.tsx",
+      "app/(app)/_layout.tsx",
+      "app/_layout.tsx",
+      "app/+html.tsx",
+      "components/navigation/Header.tsx",
+      "components/RoundButton.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "default",
+    "filename": "landing-default-light-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Home route",
+    "route": "/",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+  },
+  {
+    "panelId": "restore-key",
+    "label": "Restore with Secret Key",
+    "sourcePaths": [
+      "app/(app)/restore/manual.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "draft",
+    "filename": "restore-key-draft-light-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Restore with Secret Key",
+    "route": "/restore/manual",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nRestore with Secret Key\nEnter your secret key to restore access to your account.\nRestore Account"
+  },
+  {
+    "panelId": "restore-device",
+    "label": "Link a mobile device",
+    "sourcePaths": [
+      "app/(app)/restore/index.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "offline",
+    "filename": "restore-device-offline-light-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Login with mobile app",
+    "route": "/restore",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nLink New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+  },
+  {
+    "panelId": "server-config",
+    "label": "Server configuration",
+    "sourcePaths": [
+      "app/(app)/server.tsx",
+      "components/ItemGroup.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "draft",
+    "filename": "server-config-draft-light-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /server",
+    "route": "/server",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "Server change was not submitted."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nServer Configuration\nCUSTOM SERVER URL\nReset to Default\nSave\nCurrently using custom server\nThis is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers."
+  },
+  {
+    "panelId": "changelog",
+    "label": "Changelog with KILV release entry",
+    "sourcePaths": [
+      "app/(app)/changelog.tsx",
+      "changelog/changelog.json",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "latest-entries",
+    "filename": "changelog-latest-entries-light-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /changelog",
+    "route": "/changelog",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nWhat's New\nSeptember 19 — Terminal pairing layout\nPasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.\nSeptember 19 — Native build reliability\nNative app buil"
+  },
+  {
+    "panelId": "landing",
+    "label": "Signed-out landing",
+    "sourcePaths": [
+      "app/(app)/index.tsx",
+      "app/(app)/_layout.tsx",
+      "app/_layout.tsx",
+      "app/+html.tsx",
+      "components/navigation/Header.tsx",
+      "components/RoundButton.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "default",
+    "filename": "landing-default-dark-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Home route",
+    "route": "/",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+  },
+  {
+    "panelId": "restore-key",
+    "label": "Restore with Secret Key",
+    "sourcePaths": [
+      "app/(app)/restore/manual.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "draft",
+    "filename": "restore-key-draft-dark-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Restore with Secret Key",
+    "route": "/restore/manual",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Restore with Secret Key\nEnter your secret key to restore access to your account.\nRestore Account"
+  },
+  {
+    "panelId": "restore-device",
+    "label": "Link a mobile device",
+    "sourcePaths": [
+      "app/(app)/restore/index.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "offline",
+    "filename": "restore-device-offline-dark-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Login with mobile app",
+    "route": "/restore",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Link New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+  },
+  {
+    "panelId": "server-config",
+    "label": "Server configuration",
+    "sourcePaths": [
+      "app/(app)/server.tsx",
+      "components/ItemGroup.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "draft",
+    "filename": "server-config-draft-dark-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /server",
+    "route": "/server",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "Server change was not submitted."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Server Configuration\nCUSTOM SERVER URL\nReset to Default\nSave\nCurrently using custom server\nThis is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers."
+  },
+  {
+    "panelId": "changelog",
+    "label": "Changelog with KILV release entry",
+    "sourcePaths": [
+      "app/(app)/changelog.tsx",
+      "changelog/changelog.json",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": "latest-entries",
+    "filename": "changelog-latest-entries-dark-1440.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /changelog",
+    "route": "/changelog",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "What's New\nSeptember 19 — Terminal pairing layout\nPasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.\nSeptember 19 — Native build reliability\nNative app builds"
+  },
+  {
+    "panelId": "landing",
+    "label": "Signed-out landing",
+    "sourcePaths": [
+      "app/(app)/index.tsx",
+      "app/(app)/_layout.tsx",
+      "app/_layout.tsx",
+      "app/+html.tsx",
+      "components/navigation/Header.tsx",
+      "components/RoundButton.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "default",
+    "filename": "landing-default-dark-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Home route",
+    "route": "/",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+  },
+  {
+    "panelId": "restore-key",
+    "label": "Restore with Secret Key",
+    "sourcePaths": [
+      "app/(app)/restore/manual.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "draft",
+    "filename": "restore-key-draft-dark-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Restore with Secret Key",
+    "route": "/restore/manual",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nRestore with Secret Key\nEnter your secret key to restore access to your account.\nRestore Account"
+  },
+  {
+    "panelId": "restore-device",
+    "label": "Link a mobile device",
+    "sourcePaths": [
+      "app/(app)/restore/index.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "offline",
+    "filename": "restore-device-offline-dark-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Visible Home > Login with mobile app",
+    "route": "/restore",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nLink New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+  },
+  {
+    "panelId": "server-config",
+    "label": "Server configuration",
+    "sourcePaths": [
+      "app/(app)/server.tsx",
+      "components/ItemGroup.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "draft",
+    "filename": "server-config-draft-dark-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /server",
+    "route": "/server",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence.",
+      "Server change was not submitted."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nServer Configuration\nCUSTOM SERVER URL\nReset to Default\nSave\nCurrently using custom server\nThis is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers."
+  },
+  {
+    "panelId": "changelog",
+    "label": "Changelog with KILV release entry",
+    "sourcePaths": [
+      "app/(app)/changelog.tsx",
+      "changelog/changelog.json",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": "latest-entries",
+    "filename": "changelog-latest-entries-dark-390.png",
+    "evidenceType": "production-export",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "artifactIndexSha256": "610ebdf9a1bf87cd8c678bc98e365f995bebfdff54d18239e88b19671a5d6280",
+    "entry": "Direct production route /changelog",
+    "route": "/changelog",
+    "limitations": [
+      "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
+    ],
+    "pageErrors": [],
+    "textExcerpt": "\nWhat's New\nSeptember 19 — Terminal pairing layout\nPasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.\nSeptember 19 — Native build reliability\nNative app buil"
+  }
+]

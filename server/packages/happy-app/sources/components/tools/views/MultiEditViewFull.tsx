@@ -1,5 +1,8 @@
+import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
+import { Typography } from '@/constants/Typography';
 import { ToolCall } from '@/sync/typesMessage';
 import { Metadata } from '@/sync/storageTypes';
 import { knownTools } from '@/components/tools/knownTools';
@@ -52,7 +55,7 @@ export const MultiEditViewFull = React.memo<MultiEditViewFullProps>(({ tool, met
     );
 });
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
     editHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -61,23 +64,23 @@ const styles = StyleSheet.create({
     editNumber: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#5856D6',
+        color: theme.colors.textLink,
     },
     replaceAllBadge: {
-        backgroundColor: '#5856D6',
+        backgroundColor: theme.colors.button.primary.background,
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: 6,
         marginLeft: 8,
     },
     replaceAllText: {
         fontSize: 12,
-        color: '#fff',
+        color: theme.colors.button.primary.tint,
         fontWeight: '600',
     },
     separator: {
         height: 1,
-        backgroundColor: '#E5E5EA',
+        backgroundColor: theme.colors.divider,
         marginVertical: 16,
     },
-});
+}));

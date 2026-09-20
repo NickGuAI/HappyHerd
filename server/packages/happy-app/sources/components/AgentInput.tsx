@@ -180,14 +180,16 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     unifiedPanel: {
         backgroundColor: theme.colors.input.background,
-        borderRadius: Platform.select({ default: 16, android: 20 }),
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: 6,
         overflow: 'hidden',
         paddingVertical: 2,
         paddingBottom: 8,
         paddingHorizontal: 8,
     },
     unifiedPanelShadow: {
-        borderRadius: 24,
+        borderRadius: 6,
         shadowColor: theme.colors.shadow.color,
         shadowOffset: { width: 0, height: theme.dark ? 6 : 2 },
         shadowOpacity: theme.dark ? 0.22 : 0.08,
@@ -289,7 +291,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     mobileActionsTrigger: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -475,7 +477,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: Platform.select({ default: 16, android: 20 }),
+        borderRadius: 6,
         paddingHorizontal: 8,
         paddingVertical: 6,
         justifyContent: 'center',
@@ -490,7 +492,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     sendButton: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: 6,
         justifyContent: 'center',
         alignItems: 'center',
         flexShrink: 0,
@@ -501,10 +503,10 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         backgroundColor: theme.colors.surfaceHighest,
     },
     mobilePrimaryButtonInactive: {
-        backgroundColor: theme.dark ? '#3A3A3C' : '#D1D1D6',
+        backgroundColor: theme.colors.button.primary.disabled,
     },
     mobileStopButton: {
-        backgroundColor: theme.dark ? '#F5F5F5' : theme.colors.button.primary.background,
+        backgroundColor: theme.colors.button.primary.background,
     },
     sendButtonActive: {
         backgroundColor: theme.colors.button.primary.background,
@@ -827,7 +829,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
     return (
         <View style={{
             backgroundColor: theme.colors.surfacePressed,
-            borderRadius: 12,
+            borderRadius: 6,
             padding: 8,
             marginBottom: 8,
             gap: 4,
@@ -842,7 +844,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
                     style={(s) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
-                        borderRadius: Platform.select({ default: 16, android: 20 }),
+                        borderRadius: 6,
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         height: 32,
@@ -871,7 +873,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
                     style={(s) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
-                        borderRadius: Platform.select({ default: 16, android: 20 }),
+                        borderRadius: 6,
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         height: 32,
@@ -1687,7 +1689,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={(p) => ({
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
+                                        borderRadius: 6,
                                         paddingHorizontal: 8,
                                         paddingVertical: 6,
                                         justifyContent: 'center',
@@ -1712,7 +1714,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 style={(p) => ({
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    borderRadius: Platform.select({ default: 16, android: 20 }),
+                                    borderRadius: 6,
                                     paddingHorizontal: 10,
                                     paddingVertical: 6,
                                     justifyContent: 'center',
@@ -1747,7 +1749,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={(p) => ({
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        borderRadius: Platform.select({ default: 16, android: 20 }),
+                                        borderRadius: 6,
                                         paddingHorizontal: 8,
                                         paddingVertical: 6,
                                         justifyContent: 'center',
@@ -1805,7 +1807,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 style={(p) => ({
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    borderRadius: Platform.select({ default: 16, android: 20 }),
+                                    borderRadius: 6,
                                     paddingHorizontal: 8,
                                     paddingVertical: 6,
                                     justifyContent: 'center',
@@ -2186,7 +2188,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                         paddingHorizontal: 16,
                                                         paddingVertical: 8,
                                                         marginHorizontal: 8,
-                                                        borderRadius: 14,
+                                                        borderRadius: 6,
                                                         backgroundColor: pressed
                                                             ? theme.colors.surfacePressedOverlay
                                                             : isSelected
@@ -2271,7 +2273,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                             paddingHorizontal: 16,
                                                             paddingVertical: 8,
                                                             marginHorizontal: 8,
-                                                            borderRadius: 14,
+                                                            borderRadius: 6,
                                                             backgroundColor: pressed
                                                                 ? theme.colors.surfacePressedOverlay
                                                                 : isSelected
@@ -2367,7 +2369,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                                     paddingHorizontal: 16,
                                                                     paddingVertical: 8,
                                                                     marginHorizontal: 8,
-                                                                    borderRadius: 14,
+                                                                    borderRadius: 6,
                                                                     backgroundColor: pressed
                                                                         ? theme.colors.surfacePressedOverlay
                                                                         : isSelected
@@ -2691,13 +2693,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         {isAborting ? (
                                             <ActivityIndicator
                                                 size="small"
-                                                color={theme.dark ? '#000000' : '#FFFFFF'}
+                                                color={theme.colors.button.primary.tint}
                                             />
                                         ) : (
                                             <Octicons
                                                 name="stop"
                                                 size={16}
-                                                color={theme.dark ? '#000000' : '#FFFFFF'}
+                                                color={theme.colors.button.primary.tint}
                                             />
                                         )}
                                     </BubblePressable>
@@ -2814,7 +2816,7 @@ function VoiceDictationControls({
             flexShrink: 0,
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
-            borderRadius: 16,
+            borderRadius: 6,
         };
     const accessibilityLabel = control.action === 'finish'
         ? t('happyHerd.composer.finishVoice')

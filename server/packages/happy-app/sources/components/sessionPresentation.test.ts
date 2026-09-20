@@ -41,10 +41,13 @@ vi.mock('react-native-reanimated', () => ({}));
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 52, useIsTablet: () => state.tablet }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 800, headerMaxWidth: 800 } }));
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         dark: false,
         colors: {
+            ...lightTheme.colors,
             text: 'text', textSecondary: 'secondary', surface: 'surface', divider: 'divider',
             gitAddedText: 'green', gitRemovedText: 'red',
             header: { tint: 'tint', background: 'background' },
@@ -306,7 +309,7 @@ function expectCountTypography(renderer: ReturnType<typeof create>) {
     expect(counts.length).toBeGreaterThan(0);
     for (const count of counts) {
         expect(flattenStyle(count.props.style)).toMatchObject({
-            fontFamily: 'IBMPlexSans-Regular', fontSize: 11, fontWeight: '600',
+            fontFamily: 'SpaceGrotesk-Regular', fontSize: 11, fontWeight: '600',
         });
     }
 }

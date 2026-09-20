@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Text, View, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useHeaderHeight } from '@/utils/responsive';
@@ -9,7 +9,6 @@ import { MainView } from './MainView';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { Ionicons } from '@expo/vector-icons';
-import { Typography } from '@/constants/Typography';
 import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
@@ -18,9 +17,9 @@ const stylesheet = StyleSheet.create((theme) => ({
     container: {
         flex: 1,
         borderStyle: 'solid',
-        backgroundColor: theme.colors.groupped.background,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
     },
     topControls: {
         marginHorizontal: 16,
@@ -45,18 +44,15 @@ const stylesheet = StyleSheet.create((theme) => ({
         height: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 10,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
         backgroundColor: theme.colors.surface,
     },
     archiveButtonActive: {
         backgroundColor: theme.colors.surfaceSelected,
     },
     archiveButtonPressed: {
-        backgroundColor: theme.colors.surfacePressed,
-    },
-    shortcutTargetActive: {
         backgroundColor: theme.colors.surfacePressed,
     },
     settingsRow: {
@@ -67,15 +63,6 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: theme.colors.divider,
         gap: 10,
-    },
-    settingsText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: theme.colors.text,
-        ...Typography.default(),
-    },
-    shortcutBadgeInline: {
-        marginLeft: 'auto',
     },
 }));
 
@@ -166,17 +153,15 @@ export const SidebarView = React.memo(() => {
             <MainView variant="sidebar" />
 
             {/* Settings at bottom */}
-            <Pressable
-                onPress={() => router.push('/settings')}
-                style={[
-                    styles.settingsRow,
-                    shortcutHintsVisible && styles.shortcutTargetActive,
-                ]}
-            >
-                <Ionicons name="settings-outline" size={18} color={stylesheet.settingsText.color} />
-                <Text style={styles.settingsText}>{t('settings.title')}</Text>
-                <ShortcutHintBadge shortcutKey="," style={styles.shortcutBadgeInline} />
-            </Pressable>
+            <View style={styles.settingsRow}>
+                <SidebarNavigationButton
+                    icon="settings-outline"
+                    label={t('settings.title')}
+                    onPress={() => router.push('/settings')}
+                    highlighted={shortcutHintsVisible}
+                    trailing={<ShortcutHintBadge shortcutKey="," />}
+                />
+            </View>
         </View>
     );
 });

@@ -41,7 +41,7 @@ const styles = StyleSheet.create((theme) => ({
     addFriendButton: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: theme.borderRadius.xl,
         backgroundColor: Platform.select({ web: theme.colors.surface, default: theme.colors.glass.backgroundStrong }),
         alignItems: 'center',
         justifyContent: 'center',

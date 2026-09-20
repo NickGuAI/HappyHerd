@@ -1,0 +1,130 @@
+[
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-onboarding-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-onboarding-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-onboarding-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-onboarding-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  }
+]

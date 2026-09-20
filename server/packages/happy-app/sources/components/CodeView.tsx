@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
 import { Text, View, Platform } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
@@ -25,7 +26,7 @@ const styles = StyleSheet.create((theme) => ({
         padding: 12,
     },
     codeText: {
-        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+        fontFamily: Typography.mono().fontFamily,
         fontSize: 12,
         color: theme.colors.text,
         lineHeight: 18,

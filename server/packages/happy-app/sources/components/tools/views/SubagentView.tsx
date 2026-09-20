@@ -1,5 +1,7 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
@@ -171,7 +173,7 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
         color: theme.colors.textSecondary,
         fontSize: 13,
-        fontFamily: 'monospace',
+        fontFamily: Typography.mono().fontFamily,
     },
     empty: {
         color: theme.colors.textSecondary,

@@ -1,5 +1,6 @@
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
-import { View, TextInput, StyleSheet, Platform } from 'react-native';
+import { View, TextInput, Platform } from 'react-native';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 
@@ -11,10 +12,12 @@ interface CommandPaletteInputProps {
 }
 
 export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef }: CommandPaletteInputProps) {
+    const { theme } = useUnistyles();
+    const [focused, setFocused] = React.useState(false);
     const handleKeyDown = React.useCallback((e: any) => {
         if (Platform.OS === 'web' && onKeyPress) {
             const key = e.nativeEvent.key;
-            
+
             // Handle navigation keys
             if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(key)) {
                 e.preventDefault();
@@ -25,14 +28,16 @@ export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef 
     }, [onKeyPress]);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, focused && { borderBottomColor: theme.colors.kilv.accent }]}>
             <TextInput
                 ref={inputRef}
                 style={[styles.input, Typography.default()]}
                 value={value}
                 onChangeText={onChangeText}
                 placeholder={t('commandPalette.placeholder')}
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.input.placeholder}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
                 autoFocus
                 autoCorrect={false}
                 autoCapitalize="none"
@@ -44,17 +49,17 @@ export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef 
     );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
     container: {
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0, 0, 0, 0.06)',
-        backgroundColor: '#FAFAFA',
+        borderBottomColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.colors.kilv.bgSunken,
     },
     input: {
-        paddingHorizontal: 32,
+        paddingHorizontal: 24,
         paddingVertical: 24,
-        fontSize: 20,
-        color: '#000',
+        fontSize: 18,
+        color: theme.colors.text,
         letterSpacing: -0.3,
         // Remove outline on web
         ...(Platform.OS === 'web' ? {
@@ -62,4 +67,4 @@ const styles = StyleSheet.create({
             outlineWidth: 0,
         } as any : {}),
     },
-});
+}));

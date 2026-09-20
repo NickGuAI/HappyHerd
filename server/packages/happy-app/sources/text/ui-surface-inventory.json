@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a3f5e7c891c2ecbdc7953270a61806b361b53927217232161147d120200f88f5",
+  "sourceFingerprint": "08f9f35b52a22f6d1fdd9f643361b232225480f50d2992573726354030168900",
   "routeCount": 41,
   "surfaceCount": 279,
   "hardcodedCopyCount": 0,
@@ -6015,7 +6015,10 @@
       "exports": [
         "WebAlertModal"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.cancel",
+        "common.ok"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -6026,7 +6029,10 @@
       "exports": [
         "WebPromptModal"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.cancel",
+        "common.ok"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

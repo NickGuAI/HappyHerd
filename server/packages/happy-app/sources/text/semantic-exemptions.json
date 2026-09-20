@@ -24,7 +24,7 @@
     { "key": "agentInput.codexModel.gpt5Low", "locales": ["cn"], "reason": "Provider model-and-effort label; it is passed through without translation." },
     { "key": "agentInput.codexModel.gpt5Medium", "locales": ["cn"], "reason": "Provider model-and-effort label; it is passed through without translation." },
     { "key": "agentInput.codexModel.gpt5High", "locales": ["cn"], "reason": "Provider model-and-effort label; it is passed through without translation." },
-    { "key": "sidebar.sessionsTitle", "locales": ["cn", "de"], "reason": "Happy is the upstream product label shown as a proper name." },
+    { "key": "sidebar.sessionsTitle", "locales": ["cn", "de"], "reason": "HappyHerd is the product name shown as a proper name." },
     { "key": "settingsAccount.github", "locales": ["cn", "de"], "reason": "GitHub is a proper product name and must remain byte-faithful." },
     { "key": "settingsAccount.server", "locales": ["de"], "reason": "Server is the conventional German technical noun with identical spelling." },
     { "key": "changelog.version", "locales": ["de"], "reason": "Version is the conventional German noun and the version value is raw data." },

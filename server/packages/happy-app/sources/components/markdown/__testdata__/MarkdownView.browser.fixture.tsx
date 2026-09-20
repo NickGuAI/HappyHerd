@@ -6,6 +6,7 @@ import { MarkdownView } from '../MarkdownView.web';
 import { InlineCommentThread } from '../../InlineCommentReview.web';
 import type { InlineCommentAnchor } from '../../InlineCommentReview';
 import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
+import { Typography } from '@/constants/Typography';
 
 const FIRST_OPTION = '把 Speaker 2 改成 Maria';
 const SECOND_OPTION = '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字';
@@ -132,8 +133,22 @@ function MarkdownFixture() {
 }
 
 const params = new URLSearchParams(window.location.search);
+const emphasisText = 'Important agent emphasis: verify before proceeding';
 createRoot(document.getElementById('root')!).render(
-    params.has('images') ? (
+    params.has('typography') ? (
+        <main id="typography">
+            <MarkdownView markdown={[
+                emphasisText,
+                `**${emphasisText}**`,
+                `## ${emphasisText}`,
+                `*${emphasisText}*`,
+                `| ${emphasisText} |\n| --- |\n| Plain cell |`,
+                `\`${emphasisText}\``,
+                `**\`${emphasisText}\`**`,
+            ].join('\n\n')} />
+            <div id="incidental-weight" style={{ ...Typography.default(), fontWeight: 600 }}>{emphasisText}</div>
+        </main>
+    ) : params.has('images') ? (
         <main style={{ maxWidth: 800, margin: 'auto' }}>
             <MarkdownView
                 markdown={'Before image\n\n![Neutral diagram](images/neutral.svg)\n\nAfter image'}

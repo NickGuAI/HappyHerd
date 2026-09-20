@@ -38,10 +38,10 @@ const stylesheet = StyleSheet.create((theme) => ({
     textInput: {
         backgroundColor: Platform.select({ web: theme.colors.input.background, default: theme.colors.glass.backgroundSubtle }),
         padding: 12,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         marginBottom: 8,
         ...Typography.mono(),
-        fontSize: 14,
+        fontSize: 16,
         color: theme.colors.input.text,
     },
     textInputValidating: {

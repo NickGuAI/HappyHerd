@@ -1,0 +1,134 @@
+[
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  }
+]

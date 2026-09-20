@@ -33,6 +33,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('expo-document-picker', () => ({ getDocumentAsync: mocks.pick }));
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
+    return { useUnistyles: () => ({ theme: lightTheme }) };
+});
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };

@@ -1,3 +1,4 @@
+import { Text } from '@/components/StyledText';
 import { useIsFocused } from '@react-navigation/native';
 import { useSessionVisibility } from '@/hooks/useSessionVisibility';
 import { AgentContentView } from '@/components/AgentContentView';
@@ -87,7 +88,7 @@ import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
 import { useMemo } from 'react';
-import { ActivityIndicator, LayoutChangeEvent, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, LayoutChangeEvent, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';

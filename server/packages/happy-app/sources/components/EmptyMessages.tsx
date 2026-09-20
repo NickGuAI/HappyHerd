@@ -29,7 +29,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         textAlign: 'center',
         marginBottom: 40,
-        ...Typography.default('regular'),
+        ...Typography.mono(),
     },
     noMessagesText: {
         fontSize: 20,

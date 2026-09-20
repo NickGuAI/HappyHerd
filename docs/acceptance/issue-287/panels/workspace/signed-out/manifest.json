@@ -1,0 +1,130 @@
+[
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "signed-out-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "signed-out-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "signed-out-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "signed-out-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  }
+]

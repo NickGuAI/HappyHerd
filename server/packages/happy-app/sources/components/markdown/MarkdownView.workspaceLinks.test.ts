@@ -12,6 +12,7 @@ const onePixelPng = Buffer.from(
 );
 
 const mocks = vi.hoisted(() => ({
+    dark: false,
     renderedText: [] as any[],
     resolveWorkspaceLink: vi.fn(() => ({
         pathname: '/workspace' as const,
@@ -81,24 +82,15 @@ vi.mock('react-native-gesture-handler', () => ({
     },
     GestureDetector: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('react-native-unistyles', () => {
-    const colors = new Proxy({
-        groupped: { background: '#eee' },
-        surface: '#fff',
-        surfaceHigh: 'surface-high',
-        surfaceHighest: 'surface-highest',
-        divider: 'divider',
-        text: 'text',
-        textLink: 'text-link',
-        textSecondary: 'text-secondary',
-        textDestructive: 'text-destructive',
-        success: 'success',
-    }, { get: (target, key) => Reflect.get(target, key) ?? '#000' });
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme, darkTheme } = await import('@/theme');
+    const theme = () => mocks.dark ? darkTheme : lightTheme;
     return {
         StyleSheet: {
-            create: (factory: any) => factory({ colors, dark: false }),
+            create: (factory: any) => new Proxy({}, { get: (_target, key) => factory(theme())[key] }),
             hairlineWidth: 1,
         },
+        useUnistyles: () => ({ theme: theme() }),
     };
 });
 vi.mock('../StyledText', async () => {
@@ -110,12 +102,7 @@ vi.mock('../StyledText', async () => {
         },
     };
 });
-vi.mock('@/constants/Typography', () => ({
-    Typography: {
-        default: () => ({ fontFamily: 'IBMPlexSans-Regular' }),
-        mono: () => ({ fontFamily: 'IBMPlexMono-Regular' }),
-    },
-}));
+
 vi.mock('../SimpleSyntaxHighlighter', async () => {
     const ReactModule = await import('react');
     return { SimpleSyntaxHighlighter: (props: any) => ReactModule.createElement('SimpleSyntaxHighlighter', props) };
@@ -142,12 +129,15 @@ vi.mock('@/utils/markdownWorkspaceLink', () => ({
 vi.mock('@/-session/workspaceLinkNavigation', () => ({ useWorkspaceLinkPress: () => null }));
 
 import { MarkdownView } from './MarkdownView';
+import { lightTheme, darkTheme } from '@/theme';
+import { FontFamilies } from '@/constants/Typography';
 
 function findText(text: string) {
     return mocks.renderedText.find((props) => props.children === text);
 }
 
 beforeEach(() => {
+    mocks.dark = false;
     mocks.renderedText.length = 0;
     mocks.resolveWorkspaceImage.mockClear();
     mocks.resolveWorkspaceLink.mockClear();
@@ -217,8 +207,8 @@ describe('MarkdownView workspace-link opt-in', () => {
         expect(findText('•')).toBeUndefined();
         const optionText = findText('把 Speaker 2 改成 Maria');
         expect(optionText?.style).toMatchObject({
-            color: 'text',
-            fontFamily: 'IBMPlexSans-Regular',
+            color: lightTheme.colors.kilv.islandInk,
+            fontFamily: FontFamilies.default.regular,
             fontSize: 16,
             lineHeight: 24,
         });
@@ -239,8 +229,8 @@ describe('MarkdownView workspace-link opt-in', () => {
         });
         expect(chip?.props.style({ pressed: false })).toEqual(expect.arrayContaining([
             expect.objectContaining({
-                backgroundColor: 'surface-highest',
-                borderRadius: 12,
+                backgroundColor: lightTheme.colors.kilv.islandTop,
+                borderRadius: 6,
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 overflow: 'hidden',
@@ -601,6 +591,76 @@ describe('MarkdownView workspace-link opt-in', () => {
                 url: 'https://example.com/chart.png',
             },
         }));
+        act(() => renderer.unmount());
+    });
+});
+
+
+function flattenNativeStyle(style: any): Record<string, any> {
+    return Object.assign({}, ...(Array.isArray(style) ? style : [style]).filter(Boolean).map((entry: any) => (
+        Array.isArray(entry) ? flattenNativeStyle(entry) : entry
+    )));
+}
+
+// Resolve the actual rendered ancestor chain, including nested Text inheritance
+// and the separate backgrounds on inline-code and table cells.
+function renderedPaint(node: any) {
+    const ancestors: any[] = [];
+    for (let current = node; current; current = current.parent) ancestors.unshift(current);
+    const paint: Record<string, any> = {};
+    for (const ancestor of ancestors) {
+        const style = flattenNativeStyle(ancestor.props.style);
+        if (style.backgroundColor && style.backgroundColor !== 'transparent') paint.background = style.backgroundColor;
+        if (style.color) paint.foreground = style.color;
+    }
+    return paint;
+}
+
+function readableContrast(foreground: string, background: string) {
+    const parse = (color: string): number[] => color.startsWith('#')
+        ? [1, 3, 5].map((position) => parseInt(color.slice(position, position + 2), 16) / 255).concat(1)
+        : color.match(/[\d.]+/g)!.map((value, index) => Number(value) / (index < 3 ? 255 : 1));
+    const fg = parse(foreground);
+    const bg = parse(background);
+    const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => sum
+        + [0.2126, 0.7152, 0.0722][index] * (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4), 0);
+    const first = luminance(fg.slice(0, 3).map((value, index) => value * fg[3] + bg[index] * (1 - fg[3])));
+    const second = luminance(bg);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
+
+describe('native Markdown reply island rendering', () => {
+    it.each([false, true])('keeps nested content readable and links operable through tone changes (dark=%s)', (dark) => {
+        mocks.dark = dark;
+        const theme = dark ? darkTheme : lightTheme;
+        const markdown = [
+            '# Heading', '', 'Body 中文', '', '**Bold** and *Italic*', '',
+            '- List entry', '', '[Open docs](https://example.com/docs?mode=one)', '',
+            '| Column | Link |', '| --- | --- |', '| Value | [Table link](https://example.com/table) |', '',
+            'Inline `x = 1`', '', '> Quoted text',
+        ].join('\n');
+        const render = (tone?: 'island') => React.createElement('IslandHost', {
+            style: { backgroundColor: tone ? theme.colors.kilv.islandTop : theme.colors.surface },
+        }, React.createElement(MarkdownView, { markdown, tone }));
+        let renderer!: ReactTestRenderer;
+        act(() => { renderer = create(render()); });
+        for (const tone of ['island', undefined] as const) {
+            act(() => renderer.update(render(tone)));
+            const leaves = renderer.root.findAll((node: any) => node.type === 'span'
+                && node.children.length > 0 && node.children.every((child: any) => typeof child === 'string'));
+            const labels = leaves.map((node: any) => node.children.join(''));
+            expect(labels).toEqual(expect.arrayContaining(['Heading', 'Body 中文', 'Bold', 'Italic', '•', 'List entry', 'Open docs', 'Column', 'Value', 'Table link', 'x = 1', 'Quoted text']));
+            for (const leaf of leaves) {
+                const paint = renderedPaint(leaf);
+                expect(paint.foreground, leaf.children.join('')).toBeDefined();
+                expect(readableContrast(paint.foreground, paint.background), `${leaf.children.join('')} (${tone ?? 'normal'})`).toBeGreaterThanOrEqual(4.5);
+            }
+            const link = renderer.root.findAll((node: any) => node.props.accessibilityRole === 'link'
+                && node.props.children === 'Open docs')[0];
+            expect(link.props.selectable).toBe(true);
+            act(() => link.props.onPress());
+            expect(mocks.openExternalUrl).toHaveBeenLastCalledWith('https://example.com/docs?mode=one');
+        }
         act(() => renderer.unmount());
     });
 });

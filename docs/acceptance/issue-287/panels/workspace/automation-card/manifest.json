@@ -1,0 +1,126 @@
+[
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-card-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-card-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-card-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-card-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  }
+]

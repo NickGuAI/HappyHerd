@@ -49,7 +49,7 @@ export const AccountKeyPanel = React.memo(({
                 <Ionicons
                     name={copiedRecently ? 'checkmark-circle' : 'copy-outline'}
                     size={18}
-                    color={copiedRecently ? '#34C759' : theme.colors.textSecondary}
+                    color={copiedRecently ? theme.colors.success : theme.colors.textSecondary}
                 />
             </View>
             <Text selectable style={styles.key}>
@@ -67,7 +67,7 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surface,
         paddingHorizontal: 16,
         paddingVertical: 14,
-        borderRadius: Platform.select({ web: 16, default: 14 }),
+        borderRadius: theme.borderRadius.xl,
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
         borderColor: theme.colors.divider,
     },

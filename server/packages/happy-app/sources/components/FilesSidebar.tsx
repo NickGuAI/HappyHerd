@@ -731,7 +731,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 6,
         paddingHorizontal: 8,
         paddingVertical: 5,
-        borderRadius: 7,
+        borderRadius: 4,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'transparent',
         flexShrink: 1,
@@ -776,7 +776,7 @@ const styles = StyleSheet.create((theme) => ({
     iconButton: {
         width: 26,
         height: 26,
-        borderRadius: 7,
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -793,7 +793,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 10,
         paddingHorizontal: 14,
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: 6,
         backgroundColor: theme.colors.surface,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.divider,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     menuSurface: {
         padding: 4,
-        borderRadius: 10,
+        borderRadius: 6,
         overflow: 'hidden',
         backgroundColor: Platform.select({
             web: theme.colors.surface,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     webMenuCard: {
         padding: 4,
-        borderRadius: 10,
+        borderRadius: 6,
         backgroundColor: theme.colors.surface,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.divider,
@@ -997,7 +997,7 @@ const styles = StyleSheet.create((theme) => ({
     emptyIconWrap: {
         width: 64,
         height: 64,
-        borderRadius: 32,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: theme.colors.surface,
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create((theme) => ({
         marginBottom: 12,
     },
     emptyIcon: {
-        color: '#34C759',
+        color: theme.colors.success,
     },
     emptyTitle: {
         fontSize: 15,
