@@ -6,7 +6,7 @@ both directions work: user selections reach the exact provider, and raw
 provider behavior reaches a meaningful app presentation.
 
 Live source, provider documentation or executable output, the closest
-`AGENTS.md`, and the owning TickTick task remain authoritative. If the change
+`AGENTS.md`, and the owning GitHub issue remain authoritative. If the change
 introduces or expands a HappyHerd-owned security mechanism, stop at read-only
 investigation and follow the security-feature approval gate in
 [`security-feature-approval.md`](security-feature-approval.md) before selecting

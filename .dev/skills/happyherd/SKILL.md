@@ -65,8 +65,10 @@ happyherd automation history <automation-id> --json
 
 ## Coordinate delegated delivery
 
-Use this protocol only when the user puts a TickTick task in scope for
-multi-agent delivery:
+Use this protocol only when the user puts a named work item in scope for
+multi-agent delivery. Prefer the GitHub issue. Use TickTick and
+`workspace-manage-tasks` only when the user named that tracker and it is
+available; missing private tooling is not a stop.
 
 1. The parent session remains the orchestrator and integration owner. Read the
    exact task and its current comments once, define acceptance, then split only
@@ -81,8 +83,9 @@ multi-agent delivery:
    launch, or `happyherd resume <happy-session-id>` for an existing session.
    Do not call it a HappyHerd worker until its actual session ID or application
    link is available; record that identity in the handoff.
-4. Use the `workspace-manage-tasks` Skill to add one concise dispatch comment and one final
-   handoff comment per lane, then read each comment back. Comments are receipts,
+4. Record one concise dispatch comment and one final handoff comment per lane
+   on the owning GitHub issue (or on TickTick only when that tracker is in
+   scope and available), then read each comment back. Comments are receipts,
    not a queue: do not poll them, automate them, or create a second registry.
 5. The parent joins the delegated work, reviews the resulting artifacts,
    integrates them, and runs final verification. A worker does not merge,
@@ -99,7 +102,7 @@ Lifecycle commands include list, status, stop, close, and reopen; inspect
 
 If the supported HappyHerd launch or resume surface is unavailable, the one
 fallback is a provider-native subagent. State that fallback and the unavailable
-surface in the TickTick handoff. Do not use `happy-agent`, start an untracked
+surface in the handoff. Do not use `happy-agent`, start an untracked
 top-level provider process, or fabricate a session, ID, or link.
 
 ## Boundaries
@@ -133,7 +136,8 @@ The operation is complete only when all applicable conditions hold:
   a successful exit without authoritative read-back is not reported as done.
 - For delegated delivery, every lane has one owner and non-overlapping scope,
   every claimed HappyHerd worker has an actual session ID or application link,
-  and every dispatch or handoff comment was read back from TickTick.
+  and every dispatch or handoff comment was read back from the owning GitHub
+  issue or the tracker the user named.
 - The parent reviewed and integrated delegated artifacts and ran the final
   checks before reporting the owning task ready for completion.
 

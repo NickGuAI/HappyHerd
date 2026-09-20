@@ -198,8 +198,9 @@ workflow, a successful Contract workflow, and both the merged head and merge
 commit as ancestors of `origin/main`. This proves the feature permanent and
 permits cleanup of its exact PR head. Upstream readiness is intentionally not a
 GitHub status check: the machine-local `happyherd-upstream-merge-proposal`
-automation evaluates that independent concern and proposes review through
-TickTick only when upstream advances.
+automation evaluates that independent concern and proposes review through the
+operator's configured tracker only when upstream advances. That local proposal
+is not a team gate and does not block GitHub collaboration.
 
 ## Evidence to retain in the PR or handoff
 

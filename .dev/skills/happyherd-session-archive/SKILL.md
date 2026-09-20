@@ -58,7 +58,7 @@ sub-agent chatter, and system reminders are already filtered out.
 
 Search the archive whenever a request refers to prior work, decisions,
 corrections, or conversations ("we already did", "last time", "as I told
-you"), asks about Nick's preferences or judgment, or needs the exact wording
+you"), asks about the user's preferences or judgment, or needs the exact wording
 of earlier feedback.
 
 ### 1. Lexical first — named things

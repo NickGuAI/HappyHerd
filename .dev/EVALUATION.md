@@ -133,6 +133,26 @@ Refresh the affected `.dev/` entries when any of these change:
 Review the concrete source again before changing the map. Do not preserve a
 stale statement for compatibility with this context.
 
+## Focused refresh — 2026-09-20: public collaboration gates
+
+- **Evidence inputs:** agents pausing ordinary and security-adjacent work when
+  TickTick, Kaizen, or a private session-archive overlay was unavailable;
+  `.dev/playbooks/security-feature-approval.md`; `.dev/AGENTS.md`;
+  `.dev/playbooks/development-lifecycle.md`; and root `AGENTS.md`, which already
+  records security approval on the owning GitHub issue and pull request.
+- **Disproven contract:** a dedicated TickTick list named exactly `In review`
+  plus Nick-named approval, recorded only in that private task, is not a
+  collaboration gate. Missing private config is not missing approval.
+- **Replacement contract:** every feature owns a GitHub issue. HappyHerd-owned
+  security features still need explicit maintainer approval copied onto that
+  issue and the pull request. Optional operator trackers may be used when the
+  user names them and they are available; they never block branching.
+- **Historical note:** earlier focused refreshes that describe TickTick `In
+  review` and Nick-named approval document the prior local workflow. They are
+  not current procedure.
+- **Checks selected:** exact diff review of the live `.dev` playbooks, skills,
+  and agent guides in this refresh; no runtime mechanism was added.
+
 ## Focused refresh — 2026-08-31: workspace consolidation
 
 - **Evidence inputs:** task `6a951e3e8f0869c1518e18b0`; `AGENTS.md`; the

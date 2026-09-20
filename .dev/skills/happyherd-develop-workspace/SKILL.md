@@ -231,8 +231,9 @@ with `.dev/` or `docs/`.
      UI inventory when a route or UI-owning module changes.
    - This skill (and any other skill whose guidance the change disproves).
    - `docs/owned-patches.tsv` for any commit touching outside `.dev/`.
-6. Keep one owning TickTick task; write task state only through the
-   `workspace-manage-tasks` surface and read every write back.
+6. Keep one owning GitHub issue. Optional private trackers are not a gate;
+   never pause delivery because TickTick or `workspace-manage-tasks` is
+   unavailable.
 
 ## Validation steps
 

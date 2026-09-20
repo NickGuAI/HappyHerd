@@ -3,12 +3,12 @@
 This is the standard lifecycle for an ordinary HappyHerd-owned change.
 
 ```text
-owning TickTick task → feature branch → PR checks → merge commit
+owning GitHub issue → feature branch → PR checks → merge commit
        │                                      └─ main push: Quality + Contract suite
        │                                                    + ancestry → exact cleanup
-       └──────────── concise real-transition comments ───────────────────────────────┘
+       └──────────── concise real-transition comments on the issue ──────────────────┘
 
-Happy upstream → happyherd-upstream-merge-proposal → deduplicated TickTick proposal
+Happy upstream → happyherd-upstream-merge-proposal → optional operator-tracker proposal
                          └─ unchanged SHA → no write
 ```
 
@@ -17,9 +17,10 @@ their own SOPs in `.dev/SOP_INDEX.md`.
 
 ## 1. Confirm the owning task, then branch from current main
 
-Before starting, every feature must have an owning TickTick task with the
+Before starting, every feature must have an owning GitHub issue with the
 intended scope stated concisely. Do not start adjacent changes that the owner
-did not place in that task.
+did not place in that issue. Private operator trackers are optional and must
+not block branching.
 
 For any HappyHerd-owned security feature, apply the
 [security-feature approval gate](security-feature-approval.md) before selecting
@@ -47,9 +48,9 @@ a feature branch.
 4. For every user-visible change, update the product changelog and regenerate
    its JSON.
 5. Stage only reviewed paths; do not use broad staging in a dirty checkout.
-6. Keep the owning TickTick task current with concise comments at real
+6. Keep the owning GitHub issue current with concise comments at real
    progress, decision, blocker, PR, and merge transitions. Do not log routine
-   command chatter.
+   command chatter. Do not require TickTick or other private tooling.
 
 Every ordinary owned commit must be single-parent and have a unique
 conventional subject. Add a matching ledger row in the same commit unless every
@@ -95,7 +96,7 @@ gh pr create --draft --base main --head "$FEATURE_BRANCH"
 
 The PR description records the intended outcome, user-visible or invariant
 proof, exact checks run, and any bounded gap. A security-feature PR also records
-the dedicated TickTick task and recorded approval evidence; reviewers stop the
+the dedicated GitHub issue and recorded maintainer approval; reviewers stop the
 PR if either is missing or the implementation exceeds that approval. An
 upstream exemption also records the source path and upstream commit or
 range-diff that proves the behavior is unchanged. When local evidence is
@@ -116,7 +117,7 @@ gh pr merge "$PR_NUMBER" --merge
 
 Do not pass `--delete-branch`. The PR head is a recovery pointer until the
 ordinary feature-permanence proof succeeds. Record the PR and merge transitions
-in the owning TickTick task.
+on the owning GitHub issue.
 
 ## 4. Capture exact merge evidence
 

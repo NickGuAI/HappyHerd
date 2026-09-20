@@ -7,14 +7,20 @@ problem and anticipated mechanism.
 Before selecting implementation details, branching, implementation, or
 delegation:
 
-1. Create a dedicated TickTick task in the list named exactly `In review`.
-2. Obtain Nick's explicit approval.
-3. Record the approval's exact text or linked evidence in that task.
+1. Open or reuse a dedicated GitHub issue that names the security change.
+2. Obtain explicit approval from a repository maintainer.
+3. Record the approval's exact text, or a link to it, on that issue. Repeat
+   the same evidence on the pull request when one exists.
 
-Task creation, list placement, or silence is not approval. Approval outside
-TickTick counts only after its exact text or linked evidence is recorded in the
-task. If approval or classification is unclear, treat the change as a security
-feature and stop.
+A GitHub issue, label, or silence is not approval. Chat, TickTick, email, or a
+private archive counts only after its exact text or linked evidence is copied
+onto the public issue. If approval or classification is unclear, treat the
+change as a security feature and stop.
+
+Missing TickTick, Kaizen, session-archive overlays, or other private operator
+tooling is not a blocker, not missing approval, and not a reason to refuse a
+branch. Those tools are optional local conveniences. The collaboration record
+is the GitHub issue and pull request.
 
 ## What enters the gate
 
@@ -32,7 +38,7 @@ The gate applies to any HappyHerd-owned mechanism that introduces or expands:
 
 The label used for the change does not alter this classification.
 
-The task must state:
+The issue must state:
 
 - the user problem;
 - why unchanged upstream Happy behavior is insufficient;
