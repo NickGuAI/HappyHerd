@@ -38,7 +38,7 @@ function sdkStream(events: unknown[], usage?: () => Promise<unknown>): void {
     } as any);
 }
 
-function queuedTurn() {
+function queuedTurn(queueFollowUp = true) {
     const queue = new MessageQueue2<EnhancedMode>(() => 'default');
     queue.push('Finish the original task', mode, undefined, 'original-request');
     let first = true;
@@ -48,7 +48,7 @@ function queuedTurn() {
         const batch = await queue.waitForMessagesAndGetAsString();
         if (!batch) throw new Error('Missing test batch');
         queue.markBatchStarted(batch.queueMessageIds);
-        queue.push('Later follow-up', mode, undefined, 'later-request');
+        if (queueFollowUp) queue.push('Later follow-up', mode, undefined, 'later-request');
         return { message: batch.message, mode: batch.mode };
     });
     const onReady = vi.fn(() => queue.completeCurrentBatch());
@@ -226,6 +226,54 @@ describe('Claude account rotation preserves interrupted work', () => {
             await running;
         }
         expect(settled).toBe(true);
+    });
+
+    it.each([
+        ['typed rejection with result', [rejected, apiLimit, failedResult]],
+        ['typed rejection followed by stream close', [rejected]],
+        ['synthetic rejection with result', [apiLimit, failedResult]],
+        ['trailing typed reset', [apiLimit, failedResult, rejected]],
+    ])('releases unmanaged auth after %s and processes only a later Human turn', async (_name, events) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(2_000_000_000_000 - 60_000);
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT', '');
+        sdkStream(events);
+        const turn = queuedTurn(false);
+        const controller = new AbortController();
+        let outcome: unknown;
+        const running = claudeRemote({ ...turn.options, signal: controller.signal })
+            .then((result) => { outcome = result; });
+        try {
+            await vi.advanceTimersByTimeAsync(10 * 60_000);
+            expect(outcome).toBe('quota-exhausted');
+            expect(controller.signal.aborted).toBe(false);
+            expect(turn.onReady).not.toHaveBeenCalled();
+            expect(turn.nextMessage).toHaveBeenCalledTimes(1);
+            expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(1);
+            for (const event of events) expect(turn.options.onMessage).toHaveBeenCalledWith(event);
+            expect(query).toHaveBeenCalledTimes(1);
+
+            // The launcher retires the failed batch, never replaying its prompt.
+            turn.queue.completeCurrentBatch();
+            turn.queue.push('Later follow-up', mode, undefined, 'later-request');
+            sdkStream([{ type: 'result', subtype: 'success' }]);
+            const nextMessage = vi.fn(async () => {
+                const batch = await turn.queue.waitForMessagesAndGetAsString();
+                if (batch) turn.queue.markBatchStarted(batch.queueMessageIds);
+                return batch;
+            });
+            turn.queue.close();
+            await claudeRemote({ ...turn.options, nextMessage, signal: controller.signal });
+            const prompt = vi.mocked(query).mock.calls[1][0].prompt as AsyncIterable<any>;
+            const sent = await prompt[Symbol.asyncIterator]().next();
+            expect(sent.value.message.content).toBe('Later follow-up');
+            expect(turn.onReady).toHaveBeenCalledTimes(1);
+            expect(turn.queue.getQueueState().currentMessageIds).toEqual([]);
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            controller.abort();
+            await running;
+        }
     });
 
     it.each([

@@ -69,7 +69,7 @@ import type { EnhancedMode } from './loop';
 import { claudeRemoteLauncher } from './claudeRemoteLauncher';
 
 describe('claudeRemoteLauncher heartbeat receipt', () => {
-    it('persists a failed terminal receipt for a Claude error result', async () => {
+    it.each([false, true])('persists a failed terminal receipt for a Claude error result (quota exhaustion: %s)', async (quotaExhausted) => {
         let agentState: AgentState = {};
         const receiptStates: AgentState[] = [];
         const sendProviderUsageReport = vi.fn(async (
@@ -132,8 +132,10 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
                     },
                 },
             });
-            await options.onReady();
+            if (!quotaExhausted) await options.onReady();
             queue.close();
+            if (quotaExhausted) return 'quota-exhausted';
+            return;
         });
         const onProviderResult = vi.fn();
 
@@ -166,6 +168,8 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             status: 'failed',
             message: 'maximum turns reached',
         });
+        expect(client.closeClaudeSessionTurn).toHaveBeenCalledWith(quotaExhausted ? 'failed' : 'completed');
+        expect(queue.getQueueState().currentMessageIds).toEqual([]);
         expect(sendProviderUsageReport.mock.calls[0][0]).toMatchObject({
             provider: 'claude',
             tokensAvailable: false,

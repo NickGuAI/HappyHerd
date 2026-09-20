@@ -396,6 +396,11 @@ export async function claudeRemoteLauncher(
             await persistHeartbeatDeliveryReceipt(session.client, marker, status, message);
             activeHeartbeat = null;
         };
+        const finishQuotaFailure = async () => {
+            await finishHeartbeat('failed', heartbeatProviderResult?.message ?? 'Claude quota exhausted.');
+            session.client.closeClaudeSessionTurn('failed');
+            session.queue.completeCurrentBatch();
+        };
 
         // Track session ID to detect when it actually changes
         // This prevents context loss when mode changes (permission mode, model, etc.)
@@ -588,6 +593,10 @@ export async function claudeRemoteLauncher(
                     },
                     signal: abortController.signal,
                 });
+
+                if (remoteResult === 'quota-exhausted') {
+                    await finishQuotaFailure();
+                }
 
                 if (session.queue.isClosed()) {
                     exitReason = 'exit';
