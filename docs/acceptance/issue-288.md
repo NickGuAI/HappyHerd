@@ -227,3 +227,32 @@ A request to rerun only the failed job was rejected by GitHub because the
 current account lacks the repository permission required to rerun Actions.
 No unrelated source was changed to force a green result. Subsequent evidence
 commits must still be judged on their own required check results.
+
+## CI synchronization repair
+
+The operator subsequently requested repair of all PR CI failures. On
+`a10043c0`, Unit tests passed; Contract suite failed only in
+`CredentialsSettingsView.browser.test.ts` while checking Rename immediately
+after removing the machine that owned a deferred login. That assertion now
+polls the rendered enabled state before releasing the old RPC. This preserves
+the requirement that the new machine becomes usable independently of the old
+request. The focused baseline cases passed in 12 local repetitions, so the
+exact CI scheduling failure was not reproduced locally.
+
+The previous ChatList failure also had a test synchronization cause: Vitest's
+unconfigured polling deadline is one second, independent of the enclosing
+20-second test deadline. Sampling the unchanged production fixture in an
+independent Chrome process under eightfold CPU throttling observed the focus
+message at `y = -73` after 997ms, `y = -5` after 1097ms, and `y = 4` after 1195ms,
+without a page error. Normal samples completed in approximately 690ms. This
+proves that correct focus scrolling can exceed the old polling deadline; it
+does not claim to reproduce the exact prior CI scheduling timeline.
+
+The ChatList visual polls now explicitly allow five seconds. All original
+viewport bounds, wheel-direction movement thresholds, and Jump to latest
+assertions remain intact. No fixed sleep, whole-test retry, skipped test, CI
+gate removal, or production behavior change was introduced.
+
+Local Node 20/pnpm 10.11.0 checks passed after the changes: Credentials browser
+suite **55/55**, ChatList browser suite **12/12**, and the full i18n/UI inventory
+check. Final remote CI results are recorded in the PR after publication.

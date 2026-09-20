@@ -1494,7 +1494,9 @@ describe('CredentialsSettingsView browser journeys', () => {
         });
         await page.getByText('laptop-only', { exact: true }).waitFor();
         await page.getByRole('button', { name: /laptop-only/ }).click();
-        await expect(page.getByRole('button', { name: 'Rename', exact: true }).isDisabled()).resolves.toBe(false);
+        // Machine removal schedules selection and busy-state cleanup in React.
+        // Wait for the rendered control while the old RPC is still pending.
+        await expect.poll(() => page.getByRole('button', { name: 'Rename', exact: true }).isDisabled()).toBe(false);
 
         await page.evaluate((release) => (window as any).__FIXTURE_STATE__[release](), releaseName);
         if (kind === 'login') {

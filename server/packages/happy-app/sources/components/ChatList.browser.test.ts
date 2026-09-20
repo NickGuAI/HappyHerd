@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright-core';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// FlashList measures and animates after mount. Vitest's default poll timeout
+// is one second, independently of the enclosing browser test timeout.
+const visualStatePollOptions = { timeout: 5_000 };
+
 const virtualModules: Record<string, string> = {
     'react-native': `export * from 'react-native-web'; export const TurboModuleRegistry = { get: () => null };`,
     'react-native-unistyles': `
@@ -126,19 +130,19 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage({ viewport });
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
-        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         await message.hover();
         const before = (await message.boundingBox())!.y;
         await page.mouse.wheel(0, -100);
-        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThan(before + 50);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThan(before + 50);
         const afterUp = (await message.boundingBox())!.y;
         await page.mouse.wheel(0, 100);
-        await expect.poll(async () => (await message.boundingBox())?.y).toBeLessThan(afterUp - 50);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeLessThan(afterUp - 50);
         await page.getByRole('button', { name: 'Jump to latest', exact: true }).click();
         await expect.poll(async () => {
             const bounds = await page.getByText('Prompt 149', { exact: true }).boundingBox();
             return bounds !== null && bounds.y >= 0 && bounds.y < viewport.height;
-        }).toBe(true);
+        }, visualStatePollOptions).toBe(true);
         await page.close();
     }, 20000);
 
@@ -146,7 +150,7 @@ describe('ChatList production FlashList browser interactions', () => {
         const page = await browser.newPage();
         await page.goto(origin + '?focus');
         const message = page.getByText('Prompt 24', { exact: true });
-        await expect.poll(async () => (await message.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         const result = await message.evaluate(element => {
             let node = element.parentElement!;
             while (!/^(auto|scroll)$/.test(getComputedStyle(node).overflowY)) node = node.parentElement!;
@@ -257,14 +261,14 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.goto(origin + '?focus');
         await page.getByRole('button', { name: 'Jump to latest', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
         await page.getByText('Prompt 24', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-        await expect.poll(async () => { const box = await page.getByText('Prompt 24', { exact: true }).boundingBox(); return box !== null && box.y >= 0 && box.y < viewport.height; }).toBe(true);
+        await expect.poll(async () => { const box = await page.getByText('Prompt 24', { exact: true }).boundingBox(); return box !== null && box.y >= 0 && box.y < viewport.height; }, visualStatePollOptions).toBe(true);
         const focusBounds = await page.getByText('Prompt 24', { exact: true }).boundingBox();
         expect(focusBounds!.y).toBeGreaterThanOrEqual(0);
         expect(focusBounds!.y).toBeLessThan(viewport.height);
         await page.evaluate(() => (window as any).__prepend());
         await page.getByRole('button', { name: 'Jump to latest', exact: true }).click();
         await page.getByText('Prompt 150', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-        await expect.poll(async () => { const box = await page.getByText('Prompt 150', { exact: true }).boundingBox(); return box !== null && box.y >= 0 && box.y < viewport.height; }).toBe(true);
+        await expect.poll(async () => { const box = await page.getByText('Prompt 150', { exact: true }).boundingBox(); return box !== null && box.y >= 0 && box.y < viewport.height; }, visualStatePollOptions).toBe(true);
         const latest = await page.getByText('Prompt 150', { exact: true }).boundingBox();
         expect(latest!.y).toBeGreaterThanOrEqual(0);
         expect(latest!.y).toBeLessThan(viewport.height);
