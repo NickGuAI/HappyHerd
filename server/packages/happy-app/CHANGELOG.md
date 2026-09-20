@@ -1,3 +1,8 @@
+# September 20 — Managed account login refresh
+
+- Successful provider logins now refresh managed account rows immediately and close the add-account form, including when submitting a verification code completes the login.
+- Logging in again refreshes the account's credential version so subsequent account changes work without reloading Settings.
+
 # September 20 — HappyHerd header title
 
 - The signed-out landing and home header now show HappyHerd instead of Happy.

@@ -188,8 +188,22 @@ const virtualModules: Record<string, string> = {
         const safeAccounts = (machineId) => (
             state().accountsByMachine?.[machineId] ?? state().accounts
         ).map((item) => ({ ...item }));
+        const succeedLogin = (target) => {
+            const existing = state().accounts.find((item) => item.id === target.id);
+            if (existing) existing.credentialVersion += 1;
+            else state().accounts.push({
+                id: '44444444-4444-4444-8444-444444444444', credentialVersion: 1,
+                provider: target.provider, name: target.name, status: 'stored', current: true,
+                limitedUntil: null, createdAt: Date.now(), updatedAt: Date.now(),
+            });
+            return { ...target, id: 'flow-1', state: 'succeeded', requiresCodeEntry: false, expiresAt: Date.now() + 60000 };
+        };
         export const listManagedCredentialAccounts = async (machineId) => {
             state().calls.push(['account-list', machineId]);
+            if (state().failAccountRefresh && state().accounts.some((item) => item.name === 'new-work')) {
+                state().failAccountRefresh = false;
+                throw new Error('Account refresh unavailable');
+            }
             if (state().scenario === 'error') throw new Error('Machine request failed');
             return safeAccounts(machineId);
         };
@@ -252,6 +266,7 @@ const virtualModules: Record<string, string> = {
             state().loginPolls = 0;
             state().lastLoginProvider = target.provider;
             state().lastLoginName = target.name;
+            if (state().scenario === 'success-start') return succeedLogin(target);
             if (state().scenario === 'stale-account-relogin' && !state().staleReloginRaised) {
                 state().staleReloginRaised = true;
                 state().accounts = state().accounts.map((item) => (
@@ -285,6 +300,10 @@ const virtualModules: Record<string, string> = {
         };
         export const getManagedCredentialLogin = async (_machineId, _id) => {
             state().loginPolls += 1;
+            if (state().deferPoll) {
+                await new Promise((resolve) => { state().releasePoll = resolve; });
+                state().pollResolved = true;
+            }
             if (state().scenario === 'poll-retry' && state().loginPolls === 1) {
                 throw new Error('Temporary status failure');
             }
@@ -297,7 +316,7 @@ const virtualModules: Record<string, string> = {
                     error: 'Provider denied the login.', expiresAt: Date.now() + 60000,
                 };
             }
-            if (state().loginPolls < 2) return {
+            if (state().loginPolls < 2 || state().scenario === 'success-submit') return {
                 id: 'flow-1', provider: state().lastLoginProvider ?? 'grok', name: state().lastLoginName ?? 'added',
                 state: 'waiting-user',
                 verificationUrl: state().lastLoginProvider === 'claude'
@@ -310,6 +329,7 @@ const virtualModules: Record<string, string> = {
             };
             const call = [...state().calls].reverse().find((entry) => entry[0] === 'login-start');
             const target = call[2];
+            if (state().scenario === 'success-poll') return succeedLogin(target);
             if (!state().accounts.some((item) => item.provider === target.provider && item.name === target.name)) {
                 state().accounts.push({
                     id: '44444444-4444-4444-8444-444444444444', credentialVersion: 1,
@@ -324,6 +344,7 @@ const virtualModules: Record<string, string> = {
             if (state().scenario === 'deferred-submit') await state().submitGate;
             const call = [...state().calls].reverse().find((entry) => entry[0] === 'login-start');
             const target = call?.[2] ?? { provider: 'claude', name: 'added' };
+            if (state().scenario === 'success-submit') return succeedLogin(target);
             return { id, ...target, state: 'starting', requiresCodeEntry: true, expiresAt: Date.now() + 60000 };
         };
         export const cancelManagedCredentialLogin = async (machineId, id) => {
@@ -791,6 +812,108 @@ describe('CredentialsSettingsView browser journeys', () => {
             await page.close();
         },
     );
+
+    describe.each(['start', 'submit', 'poll'] as const)('successful login from %s', (source) => {
+        it.each([
+            ['desktop', { width: 1440, height: 900 }],
+            ['mobile', { width: 390, height: 844 }],
+        ] as const)('refreshes the saved row and closes the add form on %s', async (_label, viewport) => {
+            const page = await browser.newPage({ viewport });
+            const errors = recordErrors(page);
+            await page.clock.install();
+            await page.goto(`${origin}/?scenario=success-${source}`);
+            await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
+            await page.getByLabel('Nickname', { exact: true }).fill('new-work');
+            await page.getByRole('button', { name: 'Log In', exact: true }).click();
+            if (source === 'submit') {
+                await page.getByLabel('Verification Code', { exact: true }).fill('mock-code');
+                await page.getByRole('button', { name: 'Submit Code', exact: true }).click();
+            } else if (source === 'poll') {
+                await page.getByText('Waiting for provider login', { exact: true }).waitFor();
+                await page.clock.runFor(3_100);
+            }
+            await page.getByText('Account saved', { exact: true }).waitFor();
+            await page.getByText('new-work', { exact: true }).waitFor({ timeout: 2_000 });
+            expect(await page.getByLabel('Nickname', { exact: true }).count()).toBe(0);
+            expect(await page.getByLabel('Verification Code', { exact: true }).count()).toBe(0);
+            const result = await page.evaluate(() => {
+                const state = (window as any).__FIXTURE_STATE__;
+                return { lists: state.calls.filter((call: unknown[]) => call[0] === 'account-list').length, polls: state.loginPolls };
+            });
+            expect(result.lists).toBe(2);
+            expect(result.polls).toBe(source === 'poll' ? 2 : 0);
+            expect(errors).toEqual([]);
+            await page.close();
+        }, 10_000);
+
+        it('uses the refreshed credential version for a mutation after relogin', async () => {
+            const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+            await page.clock.install();
+            await page.goto(`${origin}/?scenario=success-${source}`);
+            await page.getByText('work', { exact: true }).click();
+            await page.getByRole('button', { name: 'Log In Again', exact: true }).click();
+            if (source === 'submit') {
+                await page.getByLabel('Verification Code', { exact: true }).fill('mock-code');
+                await page.getByRole('button', { name: 'Submit Code', exact: true }).click();
+            } else if (source === 'poll') {
+                await page.getByText('Waiting for provider login', { exact: true }).waitFor();
+                await page.clock.runFor(3_100);
+            }
+            await page.getByText('Account saved', { exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Rename', exact: true }).click();
+            await page.getByLabel('Nickname', { exact: true }).fill('renamed-work');
+            await page.getByRole('button', { name: 'Save', exact: true }).click();
+            await page.getByText('renamed-work', { exact: true }).waitFor({ timeout: 2_000 });
+            const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+            expect(calls.find((call: unknown[]) => call[0] === 'account-rename')?.[2]).toMatchObject({
+                id: '11111111-1111-4111-8111-111111111111', expectedCredentialVersion: 2,
+            });
+            await page.close();
+        }, 10_000);
+    });
+
+    it('ignores an in-flight pending poll after code submission succeeds', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.clock.install();
+        await page.goto(`${origin}/?scenario=success-submit`);
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
+        await page.getByLabel('Nickname', { exact: true }).fill('new-work');
+        await page.evaluate(() => { (window as any).__FIXTURE_STATE__.deferPoll = true; });
+        await page.getByRole('button', { name: 'Log In', exact: true }).click();
+        await page.getByLabel('Verification Code', { exact: true }).waitFor();
+        await page.clock.runFor(1_600);
+        await page.waitForFunction(() => Boolean((window as any).__FIXTURE_STATE__.releasePoll));
+        await page.getByLabel('Verification Code', { exact: true }).fill('mock-code');
+        await page.getByRole('button', { name: 'Submit Code', exact: true }).click();
+        await page.getByText('new-work', { exact: true }).waitFor();
+        await page.evaluate(() => (window as any).__FIXTURE_STATE__.releasePoll());
+        await page.waitForFunction(() => (window as any).__FIXTURE_STATE__.pollResolved);
+        await page.clock.runFor(3_100);
+        expect(await page.getByText('Account saved', { exact: true }).count()).toBe(1);
+        expect(await page.getByLabel('Verification Code', { exact: true }).count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__FIXTURE_STATE__.loginPolls)).toBe(1);
+        await page.close();
+    }, 10_000);
+
+    it('offers retry if refreshing accounts after code success fails', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.clock.install();
+        await page.goto(`${origin}/?scenario=success-submit`);
+        await page.getByRole('button', { name: 'Add another Claude account', exact: true }).click();
+        await page.getByLabel('Nickname', { exact: true }).fill('new-work');
+        await page.evaluate(() => { (window as any).__FIXTURE_STATE__.failAccountRefresh = true; });
+        await page.getByRole('button', { name: 'Log In', exact: true }).click();
+        await page.getByLabel('Verification Code', { exact: true }).fill('mock-code');
+        await page.getByRole('button', { name: 'Submit Code', exact: true }).click();
+        await page.getByRole('button', { name: /Account refresh unavailable/ }).click();
+        await page.getByText('new-work', { exact: true }).waitFor();
+        expect(await page.getByText('Account saved', { exact: true }).count()).toBe(1);
+        expect(await page.getByLabel('Nickname', { exact: true }).count()).toBe(0);
+        const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(calls.filter((call: unknown[]) => call[0] === 'login-start')).toHaveLength(1);
+        expect(calls.filter((call: unknown[]) => call[0] === 'account-list')).toHaveLength(3);
+        await page.close();
+    });
 
     it('reveals only on demand and clears plaintext when the row collapses', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });

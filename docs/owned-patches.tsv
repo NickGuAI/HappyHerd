@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+MANAGED_LOGIN_REFRESH	accepted	fix(app): refresh managed accounts after every login success	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
 KILV_CHILD_WORKSPACE_HYDRATION	accepted	test(app): await side-chat workspace path hydration	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 KILV_GOLDEN_PIXEL_EVIDENCE	accepted	test(app): restore golden gate after one-pixel CI proof	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN_PIXEL_PROBE	accepted	test(app): exercise one-pixel failure through PR CI	scripts/kilv-golden.mjs
