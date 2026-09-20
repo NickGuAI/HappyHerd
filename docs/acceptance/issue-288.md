@@ -120,15 +120,15 @@ version control.
 - Record the required security-owner review and approved owning task. The
   implementation's two-minute lifetime and retry semantics remain reviewable
   choices, not previously approved design facts.
-- Complete authenticated Web desktop/mobile and native Mac journeys on two
-  actual machines. The computer-control surface could not attach to Chrome or
-  the QA native window (`Browser is not available` / `cgWindowNotFound`).
-- Start an ordinary session on the selected target, execute a harmless identity
-  command, browse a known file, and prove browser refresh plus native app reopen
-  on those real hosts. Resolve the disposable provider session timeout first.
-- Complete required PR checks, including the app typecheck issue above and the
-  full repository contract suite. No merge, deployment, service update, release
-  or issue closure is part of this evidence.
+- Complete the native Mac journey and repeat authenticated acceptance on two
+  physical machines. The real Chrome checks below use one physical host and
+  responsive emulation, not a second host or a native mobile app.
+- Verify native app reopen on the real target hosts. Browser refresh and an
+  ordinary provider session now pass in the disposable environment below.
+- Complete required checks on the final PR head. The implementation commit
+  passed all six required checks; the later evidence-only commit encountered
+  the unrelated chat-layout test failure documented below. No merge, deployment,
+  service update, release or issue closure is part of this evidence.
 
 ## Follow-up: real Chrome interaction
 
@@ -162,18 +162,68 @@ device-pixel ratio 2.
 | Incomplete eight-digit input | [Mobile input error](issue-288/real-chrome-mobile-invalid.png) |
 | Expired daemon code | [Mobile expired-code error](issue-288/real-chrome-mobile-expired.png) |
 
-The final **Connect** click was rejected by the computer-control tool's automatic
-approval review because it classified pairing confirmation as requiring the
-missing dedicated security approval. It was not performed through another
-interface. Explicit permission for that concrete disposable-environment test
-was requested and remained pending. Subsequent attempts to reacquire the Chrome
-window returned `cgWindowNotFound`. Accordingly, successful final confirmation,
-post-confirmation selection persistence and the ordinary-session journey are
-still unproven in the real browser; the native Mac and two-physical-host gaps
-also remain.
+The initial final **Connect** click was rejected by automatic approval review.
+The operator then explicitly authorized that concrete disposable-environment
+Connect test and unlocked the Mac. After restoring native Chrome window control,
+the test proceeded through the normal UI; no alternative interface bypassed the
+rejected action. This permission does not establish the separate recorded
+security-owner design approval described above.
 
-The previous ordinary-session webhook timeout was separately traced to the
-test daemon's PATH selecting a local Codex wrapper whose platform executable
-was absent. The new QA daemon was started with the existing functional global
-Codex executable first in PATH. No provider turn was run in this follow-up, so
-this diagnosis does not replace the missing ordinary-session acceptance.
+With a fresh code, **Check code → Connect** displayed the verified target and
+selected its existing machine. A full page reload retained **online · Selected
+for new sessions**, and New Session defaulted to that target. Immediately after
+Connect, credential/settings hashes, machine IDs and encryption-key records,
+and session IDs exactly matched the pre-confirmation snapshot. Creating the
+ordinary session below subsequently added its expected session record.
+
+The ordinary Codex session completed through Chrome's New Session UI using a
+dedicated test folder. `pwd` returned
+`/Users/bot/Projects/happyherd-issue-288/.artifacts/issue-288/chrome-target` and
+`hostname` returned `mini.local`, both with exit code zero. The daemon received
+the session webhook and the provider emitted `task_complete` with status
+`completed`. In the same session's **Workspace**, opening
+`issue-288-marker.txt` displayed the expected text:
+`Issue 288 real Chrome target file verification`. No file was edited.
+The earlier webhook timeout is therefore resolved in this QA environment after
+selecting the existing functional global Codex executable in the daemon PATH.
+
+Additional real Chrome captures use 1440×900 and 390×844 CSS-pixel viewports,
+again at device-pixel ratio 2:
+
+| Real Chrome check | Screenshot |
+| --- | --- |
+| Desktop selection retained after reload | [Desktop selection](issue-288/real-chrome-desktop-selected.png) |
+| Mobile layout with retained selection | [Mobile selection](issue-288/real-chrome-mobile-selected.png) |
+| Ordinary provider session with command output | [Desktop session](issue-288/real-chrome-desktop-session.png) |
+| Known file opened in the same target's Workspace | [Desktop Workspace](issue-288/real-chrome-desktop-workspace.png) |
+
+These checks complete the disposable single-host Chrome core journey. They do
+not establish two-physical-host or native Mac acceptance. Raw logs, test keys
+and before/after snapshots remain in ignored local artifacts.
+
+The session page's Console also showed `Invalid ephemeral update received`.
+The browser payload was not retained. Matching QA logs and unchanged source
+strongly suggest the existing Codex usage mismatch: the provider sent only
+`cost.total`, the server forwarded it unchanged, and the app schema requires
+`cost.input` and `cost.output`. This is an inference, not a directly captured
+browser payload diagnosis. Pairing uses machine-RPC acknowledgements rather
+than ephemeral events. The observed pairing, selection, session and file-read
+results above succeeded; this unrelated usage-path issue was not changed.
+
+## CI follow-up
+
+Implementation commit `e23962c2082809776c16f812d714cd374e3fddb2` passed all six
+required checks: Clean install, Lint, Typecheck, Unit tests, Production build,
+and Contract suite. The evidence-only commit `59be467a` passed every required
+check except Unit tests. Its failure was in unchanged
+`ChatList.browser.test.ts:129`: before the wheel action, `Prompt 24` remained
+at bounding-box `y = -21` while the assertion expected a nonnegative position.
+The same test passed in the prior run with identical source blobs, Node version
+and runner image. The new pairing browser tests (7/7) and pairing logic tests
+(23/23) passed in the failed run. This is evidence of a non-deterministic
+unrelated layout failure, not proof of its underlying cause.
+
+A request to rerun only the failed job was rejected by GitHub because the
+current account lacks the repository permission required to rerun Actions.
+No unrelated source was changed to force a green result. Subsequent evidence
+commits must still be judged on their own required check results.
