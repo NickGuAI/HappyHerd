@@ -141,7 +141,10 @@ export async function createCapture({ group, entrySource, entryFile, virtualModu
   if(!outputs.has('/'+group+'.css'))outputs.set('/'+group+'.css',new Uint8Array());
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const origin='http://127.0.0.1:'+server.address().port;
-  const browser=await chromium.launch({...(process.env.HAPPYHERD_BROWSER_EXECUTABLE?{executablePath:process.env.HAPPYHERD_BROWSER_EXECUTABLE}:{channel:'chrome'}),headless:true,args:process.platform==='linux'?['--no-sandbox']:[]});
+  // Partial rerasterization rounds translucent curved edges differently from
+  // a full tile. Golden captures need the same paint path after font loading.
+  const args=[...(process.platform==='linux'?['--no-sandbox']:[]),...(process.env.KILV_GOLDEN?['--disable-partial-raster']:[])];
+  const browser=await chromium.launch({...(process.env.HAPPYHERD_BROWSER_EXECUTABLE?{executablePath:process.env.HAPPYHERD_BROWSER_EXECUTABLE}:{channel:'chrome'}),headless:true,args});
   async function open({theme='light',viewport={width:1440,height:900},params={},init}={}){
     const page=await browser.newPage({viewport,deviceScaleFactor:1,colorScheme:theme});
     errors.set(page,[]);page.on('pageerror',error=>errors.get(page).push(error.message));

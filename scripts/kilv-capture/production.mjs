@@ -27,7 +27,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise((done,reject)=>{server.once('error',reject);server.listen(process.env.KILV_GOLDEN ? 4177 : 0,'127.0.0.1',done);});
 origin='http://127.0.0.1:'+server.address().port;
-const browser=await chromium.launch({...(process.env.HAPPYHERD_BROWSER_EXECUTABLE?{executablePath:process.env.HAPPYHERD_BROWSER_EXECUTABLE}:{channel:'chrome'}),headless:true});
+const browser=await chromium.launch({...(process.env.HAPPYHERD_BROWSER_EXECUTABLE?{executablePath:process.env.HAPPYHERD_BROWSER_EXECUTABLE}:{channel:'chrome'}),headless:true,args:process.env.KILV_GOLDEN?['--disable-partial-raster']:[]});
 const manifest=[];
 try{
  for(const theme of ['light','dark'])for(const viewport of [{width:1440,height:900},{width:390,height:844}]){

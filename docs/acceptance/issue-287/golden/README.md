@@ -13,6 +13,13 @@ The browser is lockfile-pinned Playwright Chromium on the GitHub Ubuntu 24.04 ru
 Fonts come from the repository. Carets and animations are disabled at capture;
 comparison includes antialiasing and permits **zero changed pixels**. Geometry
 and colors are evaluated through screenshots, without CSS pixel/hex assertions.
+Golden browser launches use `--disable-partial-raster` for both production and
+component captures. Repainting only part of a cached tile can round translucent
+switch edges differently from a full repaint, despite unchanged DOM geometry
+and colors. Full-tile rasterization keeps that paint path consistent; see
+[Chromium's rendering flags](https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md#rendering--gpu).
+It does not mask pixels or relax comparison. Historical review captures retain
+their existing browser configuration.
 The isolated production host uses port 4177 because its address is visible in
 the header. Capture waits for the real offline error dialog before dismissing
 it and moves the pointer away from controls. The changelog's animated WebP is
