@@ -29,7 +29,7 @@ export type ConnectCommandDependencies = {
 
 /**
  * Handle connect subcommand
- * 
+ *
  * Implements connect subcommands for storing AI vendor API keys:
  * - connect codex: Store OpenAI API key in HappyHerd cloud
  * - connect claude: Store Anthropic API key in HappyHerd cloud
@@ -107,7 +107,7 @@ ${chalk.bold('Examples:')}
   happyherd connect gemini
   happyherd connect status
 
-${chalk.bold('Notes:')} 
+${chalk.bold('Notes:')}
   • You must be authenticated with HappyHerd first (run 'happyherd auth login')
   • API keys are encrypted and stored securely in HappyHerd cloud
   • You can manage your stored keys at app.happy.engineering
@@ -454,10 +454,10 @@ async function handleConnectVendor(vendor: 'codex' | 'claude' | 'gemini', displa
         const geminiAuthTokens = await authenticateGemini();
         await api.registerVendorToken('gemini', { oauth: geminiAuthTokens });
         console.log('✅ Gemini token registered with server');
-        
+
         // Also update local Gemini config to keep tokens in sync
         updateLocalGeminiCredentials(geminiAuthTokens);
-        
+
         process.exit(0);
     } else {
         throw new Error(`Unsupported vendor: ${vendor}`);
@@ -491,22 +491,22 @@ async function handleConnectStatus(): Promise<void> {
     for (const vendor of vendors) {
         try {
             const token = await api.getVendorToken(vendor.key);
-            
+
             if (token?.oauth) {
                 // Try to extract user info from id_token (JWT)
                 let userInfo = '';
-                
+
                 if (token.oauth.id_token) {
                     const payload = decodeJwtPayload(token.oauth.id_token);
                     if (payload?.email) {
                         userInfo = chalk.gray(` (${payload.email})`);
                     }
                 }
-                
+
                 // Check if token might be expired
                 const expiresAt = token.oauth.expires_at || (token.oauth.expires_in ? Date.now() + token.oauth.expires_in * 1000 : null);
                 const isExpired = expiresAt && expiresAt < Date.now();
-                
+
                 if (isExpired) {
                     console.log(`  ${chalk.yellow('⚠️')}  ${vendor.display}: ${chalk.yellow('expired')}${userInfo}`);
                 } else {
@@ -541,12 +541,12 @@ function updateLocalGeminiCredentials(tokens: {
     try {
         const geminiDir = join(homedir(), '.gemini');
         const credentialsPath = join(geminiDir, 'oauth_creds.json');
-        
+
         // Create directory if it doesn't exist
         if (!existsSync(geminiDir)) {
             mkdirSync(geminiDir, { recursive: true });
         }
-        
+
         // Write credentials in the format Gemini CLI expects
         const credentials = {
             access_token: tokens.access_token,
@@ -556,7 +556,7 @@ function updateLocalGeminiCredentials(tokens: {
             ...(tokens.id_token && { id_token: tokens.id_token }),
             ...(tokens.expires_in && { expires_in: tokens.expires_in }),
         };
-        
+
         writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
         console.log(chalk.gray(`  Updated local credentials: ${credentialsPath}`));
     } catch (error) {

@@ -219,7 +219,7 @@ export function startDaemonControlServer({
     }, async () => {
       const children = getChildren();
       logger.debug(`[CONTROL SERVER] Listing ${children.length} sessions`);
-      return { 
+      return {
         children: children
           .filter(child => child.happySessionId !== undefined)
           .map(child => ({
@@ -349,19 +349,19 @@ export function startDaemonControlServer({
             sessionId: result.sessionId,
             approvedNewDirectoryCreation: true
           };
-        
+
         case 'requestToApproveDirectoryCreation':
           reply.code(409); // Conflict - user input needed
-          return { 
+          return {
             success: false,
             requiresUserApproval: true,
             actionRequired: 'CREATE_DIRECTORY',
             directory: result.directory
           };
-        
+
         case 'error':
           reply.code(500);
-          return { 
+          return {
             success: false,
             error: result.errorMessage
           };
