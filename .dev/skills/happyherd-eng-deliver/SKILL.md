@@ -1,6 +1,6 @@
 ---
 name: happyherd-eng-deliver
-description: "Deliver exactly one existing HappyHerd TickTick task from its current approved contract to verified, review-ready pull requests in only the repositories it requires. Use when the user supplies one exact task and explicitly asks for implementation or delivery; not for investigation-only work, task batches, an unspecified task, or automatic merge, deployment, restart, or task completion."
+description: "Deliver exactly one existing HappyHerd GitHub issue from its current approved contract to verified, review-ready pull requests in only the repositories it requires. Use when the user supplies one exact issue and explicitly asks for implementation or delivery; not for investigation-only work, issue batches, an unspecified issue, or automatic merge, deployment, restart, or issue closure."
 ---
 
 # HappyHerd Engineering Delivery
@@ -8,30 +8,30 @@ description: "Deliver exactly one existing HappyHerd TickTick task from its curr
 ## Goal
 
 Deliver the smallest complete change for exactly one existing HappyHerd
-TickTick task, ending by default with a verified task handoff and one pushed,
-review-ready pull request per repository the task actually requires.
+GitHub issue, ending by default with a verified issue handoff and one pushed,
+review-ready pull request per repository the issue actually requires.
 
 ## Establish the one-task contract
 
-Require one exact existing task ID or URL and a current instruction to
-implement or deliver it. If the task is missing, ambiguous, or one of several
-candidates, stop and ask for the owner; never choose silently. Do not create a
-sibling, replacement, follow-up, or umbrella task.
+Require one exact existing GitHub issue number or URL and a current instruction
+to implement or deliver it. If the issue is missing, ambiguous, or one of
+several candidates, stop and ask for the owner; never choose silently. Do not
+create a sibling, replacement, follow-up, or umbrella issue.
 
-Use the `workspace-manage-tasks` skill to read the task through its owning project. Retain the
-complete raw task and comment response as the baseline. After a write, compare
-every unchanged user-controlled field, including project, parent,
-section/column, title, content, status, checklist, priority, dates, timezone,
-all-day state, tags, recurrence, reminders, ordering, and children; exclude
-only identified server-maintained fields such as etags and timestamps. Derive
-scope from the latest owner instruction, recorded corrections, and observable
-acceptance. A request to deliver the task grants implementation authority for
-that established boundary, not authority to merge, deploy, restart, clean up a
-branch, close the task, or expand the scope.
+Read the issue with `gh issue view`. Derive scope from the latest owner
+instruction, recorded corrections, and observable acceptance. A request to
+deliver the issue grants implementation authority for that established
+boundary, not authority to merge, deploy, restart, clean up a branch, close
+the issue, or expand the scope.
+
+If the user also named a TickTick task and `workspace-manage-tasks` is
+available, that tracker may be updated as an optional convenience. Missing
+TickTick, Kaizen, or private archive config is not a stop.
 
 If HappyHerd injected `happyherd-user-safeguard`, honor its approval gate. Also
 apply the repository's separate security-feature gate when relevant. Do not
 treat either gate as routine approval for an effect outside its stated scope.
+Do not invent a TickTick `In review` requirement.
 
 ## Prepare from current ground truth
 
@@ -56,9 +56,9 @@ Use the HappyHerd-owned sources routed by `.dev/AGENTS.md`:
 
 - If cause, repair boundary, or acceptance is not established, run
   `happyherd-eng-investigate` as a bounded read-only phase. Accept its
-  no-write investigation receipt; require a TickTick mutation receipt only
-  when that exact update is separately authorized. Its stop ends the embedded
-  investigation phase, not the already-authorized outer delivery. Continue
+  no-write investigation receipt; require an issue or tracker mutation receipt
+  only when that exact update is separately authorized. Its stop ends the
+  embedded investigation phase, not the already-authorized outer delivery. Continue
   only when the established repair boundary remains inside the existing
   authority; do not ask for a redundant routine approval.
 - Run `happyherd-eng-descope` when the task contains unsupported mechanisms,
@@ -91,15 +91,13 @@ all artifacts, and makes the final decisions.
    subject to `docs/owned-patches.tsv`. The `.dev`-only exemption must remain
    genuinely `.dev`-only.
 
-When work is delegated, use the `workspace-manage-tasks` skill for one bounded dispatch and
-one schema-compliant handoff receipt per delegated lane. Each receipt keeps its
-own lane, session identity, status, commit, and verification fields. Do not add
+When work is delegated, record one bounded dispatch and one handoff receipt per
+delegated lane on the owning GitHub issue. Each receipt keeps its own lane,
+session identity, status, commit, and verification fields. Do not add
 coordination comments for a single-agent delivery. When the current instruction
 separately authorizes a task-content handoff, append or replace only the clearly
 owned handoff section. Otherwise return repository results in the final
-response. Read every authorized write back against the complete baseline,
-preserve every unrelated task field, and do not use comments as a progress log,
-queue, or command channel.
+response. Do not use comments as a progress log, queue, or command channel.
 
 ## Review and publish one exact head
 
@@ -123,28 +121,25 @@ authority to perform it.
 
 ## Stop boundary
 
-By default, stop with the review-ready pull requests and the owning TickTick
-task open. Merge, deployment, installation, restart, branch cleanup, task
-closure, and task completion require separate current authority. Never report
-those effects as complete from source, test, build, PR, or process-presence
-evidence.
+By default, stop with the review-ready pull requests and the owning GitHub
+issue open. Merge, deployment, installation, restart, branch cleanup, and
+issue closure require separate current authority. Never report those effects as
+complete from source, test, build, PR, or process-presence evidence.
 
 ## Acceptance and output
 
-The delivery is complete only when exactly one task owns one verified final
+The delivery is complete only when exactly one issue owns one verified final
 head and exactly one review-ready PR in every repository containing task-owned
 changes, every required local check passes or has a named external prerequisite,
-exact-head review has no unresolved actionable finding, sign-off has classified
-all changed lanes, and every authorized TickTick write has been read back
-without task metadata drift.
+exact-head review has no unresolved actionable finding, and sign-off has
+classified all changed lanes.
 
 Return:
 
-1. **Task contract** — task/project/parent IDs, title, outcomes, and authority.
+1. **Task contract** — GitHub issue URL, title, outcomes, and authority.
 2. **Change** — violated invariant, repair, files, and relevant skills used.
 3. **Evidence** — focused checks, affected-surface proof, and exact-head review.
-4. **Delivery receipts** — each repository's commit, branch, and PR; the task
-   metadata read-back plus every authorized comment read-back.
+4. **Delivery receipts** — each repository's commit, branch, and PR.
 5. **Sign-off** — each exact head's lane decisions and aggregate activation
    status.
 6. **Remaining effects** — every unperformed merge, deployment, installation,

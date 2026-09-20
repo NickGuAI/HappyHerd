@@ -30,7 +30,7 @@ live source remain authoritative.
 - Never commit account keys, provider credentials, master secrets, runtime
   databases, logs, or CLI homes.
 - Each roadmap item lands as a topical commit and must carry acceptance
-  evidence before its TickTick checklist item is completed.
+  evidence before the owning GitHub issue is closed.
 - Local reconnect-record age alone must never invalidate a session across
   service updates or daemon restarts. Actual resume depends on retained server,
   provider, and recovery state; when available, preserve the Happy ID, original

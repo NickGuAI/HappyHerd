@@ -35,26 +35,30 @@ skill or skills required by the current evidence.
 | Implement, repair, or verify the one Human-facing Workspace file surface | [`happyherd-develop-workspace`](skills/happyherd-develop-workspace/SKILL.md) |
 | Remove unsupported or over-designed task scope | [`happyherd-eng-descope`](skills/happyherd-eng-descope/SKILL.md) |
 | Establish cause and track one investigation without implementing | [`happyherd-eng-investigate`](skills/happyherd-eng-investigate/SKILL.md) |
-| Implement and deliver exactly one existing TickTick task | [`happyherd-eng-deliver`](skills/happyherd-eng-deliver/SKILL.md) |
+| Implement and deliver exactly one existing GitHub issue | [`happyherd-eng-deliver`](skills/happyherd-eng-deliver/SKILL.md) |
 | Verify one delivered revision and decide which activation, if any, is required | [`happyherd-eng-signoff`](skills/happyherd-eng-signoff/SKILL.md) |
 | Merge one explicitly approved upstream SHA without squashing | [`happyherd-sync-upstream`](skills/happyherd-sync-upstream/SKILL.md) |
 | Add, change, test, or diagnose a provider vertical slice | [`happyherd-update-provider`](skills/happyherd-update-provider/SKILL.md) |
 | Gate a safeguarded Human turn when HappyHerd injects the skill | [`happyherd-user-safeguard`](skills/happyherd-user-safeguard/SKILL.md) |
 | Maintain or migrate one Commander's L2/L3 memory from evidence | [`commander-memory-cleanup`](skills/commander-memory-cleanup/SKILL.md) |
 
-`workspace-manage-tasks`, `systemops-establish-ground-truth`,
-`engineering-review`, `engineering-verify-change`, and `marketing-review-ux`
-are shared dependencies, not HappyHerd-owned skill sources.
+`systemops-establish-ground-truth`, `engineering-review`,
+`engineering-verify-change`, and `marketing-review-ux` are shared dependencies,
+not HappyHerd-owned skill sources. TickTick and `workspace-manage-tasks` are
+optional operator conveniences; use them only when the user names that tracker
+and it is available.
 
 ## Non-negotiable gates
 
-- Keep one owning TickTick task for each feature. Use the `workspace-manage-tasks` skill for
-  writes, preserve fields outside the requested mutation, and read every write
-  back through the owning project.
-- Apply the existing dedicated `In review` approval gate before implementing a
-  HappyHerd-owned security feature. Follow
+- Keep one owning GitHub issue for each feature. Private operator trackers
+  (TickTick, Kaizen, local archives) are optional and never a collaboration
+  gate.
+- Apply the security-feature approval gate before implementing a HappyHerd-owned
+  security feature. Follow
   [`playbooks/security-feature-approval.md`](playbooks/security-feature-approval.md)
-  for the classification, required task evidence, approval, and exemptions.
+  for the classification, GitHub issue evidence, maintainer approval, and
+  exemptions. Do not pause work because TickTick or other private tooling is
+  missing.
 - Keep automation behavior, schema, cadence, lifecycle, and UI unchanged unless
   the owner explicitly scopes them.
 - Route provider and Human-facing work through the dedicated skills above;
@@ -67,8 +71,8 @@ are shared dependencies, not HappyHerd-owned skill sources.
 - A commit changing anything outside `.dev/` needs its exact conventional
   subject in `docs/owned-patches.tsv`. A user-visible change also updates the
   product changelog and regenerated JSON.
-- Merge, deployment, installation, restart, branch cleanup, and TickTick
-  completion are separate effects. Perform only those covered by current
+- Merge, deployment, installation, restart, branch cleanup, and GitHub issue
+  closure are separate effects. Perform only those covered by current
   authority.
 
 ## Refresh this map

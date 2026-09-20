@@ -1,6 +1,6 @@
 ---
 name: happyherd-eng-descope
-description: "Reduce an over-detailed or over-designed HappyHerd engineering plan, checklist, or TickTick task to the smallest complete set of owner-required outcomes. Use when proposed scope contains unsolicited mechanisms, mock details, delivery bookkeeping, hardening, compatibility paths, or adjacent work, and before an investigation plan is persisted or approved for implementation."
+description: "Reduce an over-detailed or over-designed HappyHerd engineering plan, checklist, or GitHub issue to the smallest complete set of owner-required outcomes. Use when proposed scope contains unsolicited mechanisms, mock details, delivery bookkeeping, hardening, compatibility paths, or adjacent work, and before an investigation plan is persisted or approved for implementation."
 ---
 
 # HappyHerd Engineering Descope
@@ -70,22 +70,17 @@ wording, but never merge separate explicit asks merely to shorten the plan.
 Count the actual Markdown `- [ ]` lines mechanically and report the result as
 `Checklist count: N`; never estimate it from headings or prose.
 
-## Update TickTick only when authorized
+## Update a tracker only when authorized
 
-Use the `workspace-manage-tasks` skill for every task read or write.
+Prefer the GitHub issue. Use `workspace-manage-tasks` only when the user named
+a TickTick task and that skill is available.
 
-A direct request to run this skill on one exact TickTick task authorizes only
+A direct request to run this skill on one exact issue or task authorizes only
 the scoped content rewrite and authoritative read-back. A task that is merely
 mentioned as context does not authorize mutation.
 
-Before a write, capture the task ID, project, parent, title, content, status,
-priority, dates, timezone, tags, and children. Change only the explicitly
-scoped field, preserve unrelated manual content and every other field, and do
-not modify child tasks. After the write, read the task through its owning
-project and compare every changed and preserved field.
-
 When no write is authorized, return the proposed replacement without mutating
-TickTick.
+any tracker. Missing TickTick is not a stop.
 
 ## Acceptance criteria
 
@@ -98,7 +93,7 @@ TickTick.
 - Applicable verification or delivery gates remain available in a separate
   compact section without inflating the product checklist.
 - The printed checklist count equals the actual number of `- [ ]` lines.
-- An authorized TickTick mutation is verified against its pre-write baseline;
+- An authorized tracker mutation is verified against its pre-write baseline;
   otherwise no external state changes.
 
 ## Resources and boundaries
@@ -106,7 +101,7 @@ TickTick.
 This skill compares an authoritative request with a candidate plan. It does not
 perform a new root-cause investigation or invent missing evidence.
 
-Remain read-only except for the one authorized TickTick content update. Never
+Remain read-only except for the one authorized tracker content update. Never
 create tasks, comments, branches, commits, pull requests, source changes,
 deployments, restarts, or follow-up work. Never close or complete a task.
 
@@ -121,5 +116,5 @@ Return:
 3. **Final task plan** — outcome, observable checklist, and an optional compact
    supporting-verification section.
 4. **Checklist count** — the mechanically verified total.
-5. **TickTick receipt** — when mutated, the exact task/project/parent, changed
-   field, preserved baseline fields, and read-back result.
+5. **Tracker receipt** — when mutated, the GitHub issue URL or named tracker
+   identity, changed field, and read-back result.

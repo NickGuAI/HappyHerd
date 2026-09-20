@@ -1,6 +1,6 @@
 ---
 name: happyherd-eng-investigate
-description: "Investigate a HappyHerd engineering bug, UX problem, provider issue, or runtime behavior from current authoritative evidence and create or update one concise TickTick task. Use when the requested outcome is investigation and tracking rather than implementation; route through the relevant HappyHerd skills and always run happyherd-eng-descope before persistence."
+description: "Investigate a HappyHerd engineering bug, UX problem, provider issue, or runtime behavior from current authoritative evidence and create or update one concise GitHub issue. Use when the requested outcome is investigation and tracking rather than implementation; route through the relevant HappyHerd skills and always run happyherd-eng-descope before persistence."
 ---
 
 # HappyHerd Engineering Investigation
@@ -8,40 +8,43 @@ description: "Investigate a HappyHerd engineering bug, UX problem, provider issu
 ## Goal
 
 Establish the current cause and smallest repair boundary for one HappyHerd
-problem, then persist one evidence-backed, descoped TickTick task when the
+problem, then persist one evidence-backed, descoped GitHub issue when the
 current instruction explicitly requests tracking.
 
 ## Honor the investigation boundary
 
 Invoking this skill authorizes the read-only investigation. When the current
-instruction explicitly requests TickTick tracking, that same instruction also
-authorizes the scoped create or update and requires no second approval. Without
-that explicit tracking request, remain read-only. If a new task is requested
-but its existing TickTick project cannot be selected unambiguously, ask only
-for that project choice.
+instruction explicitly requests tracking, that same instruction also authorizes
+the scoped create or update and requires no second approval. Without that
+explicit tracking request, remain read-only. Prefer the GitHub issue. If a new
+issue is requested but the repository is ambiguous, ask only for that choice.
 
-A supplied TickTick URL is the owning task only when the current instruction
-explicitly requests a tracking mutation; otherwise it remains read-only
-evidence. Never replace a supplied owner with a new task. When tracking is
-authorized and no task was supplied, use the `workspace-manage-tasks` skill to inspect the
-selected project for a matching open task before creating exactly one task.
-Never create a list, tag, sibling task, or follow-up task automatically.
+A supplied GitHub issue URL is the owning task only when the current
+instruction explicitly requests a tracking mutation; otherwise it remains
+read-only evidence. Never replace a supplied owner with a new issue. When
+tracking is authorized and no issue was supplied, inspect open issues for a
+match before creating exactly one issue. Never create a project board, label
+set, sibling issue, or follow-up issue automatically.
 
-When tracking is authorized, stop after the verified task write; otherwise stop
-after the read-only investigation report. Investigation and tracking never
+TickTick and `workspace-manage-tasks` are optional and only when the user named
+that tracker and it is available. Missing private config is not a stop and is
+not missing approval.
+
+When tracking is authorized, stop after the verified issue write; otherwise
+stop after the read-only investigation report. Investigation and tracking never
 authorize source changes or delivery. A later `stop` or `wait` instruction
 halts the workflow immediately before further reads or writes. A later
-`investigate only` instruction removes TickTick write authority unless that
-same latest instruction explicitly retains the requested mutation.
+`investigate only` instruction removes write authority unless that same latest
+instruction explicitly retains the requested mutation.
 
 ## Establish current ground truth
 
 Perform these ordered gates because each later result depends on the earlier
 state:
 
-1. When a task or tracking project is in scope, use the `workspace-manage-tasks` skill to resolve the
-   supplied owner or establish the selected project and capture the current
-   task baseline. Do not write yet.
+1. When an issue is in scope, read it with `gh issue view` and capture the
+   current baseline. Do not write yet. Skip this step when no issue was
+   supplied. Never block on TickTick.
 2. Establish repository ground truth before making source claims — branch,
    upstream sync, and working-tree status. Resolve the exact HappyHerd
    repository and checkout, compare it with current remote `main`, and inspect
@@ -72,8 +75,7 @@ Select only the domain skills required by the evidence:
   check selection and documentation without running servers, writing evidence,
   or executing delivery.
 
-Do not invoke a GitHub-issue or implementation workflow merely because one
-exists. Preserve the requested TickTick-only tracking boundary.
+Do not open a pull request or implement merely because an issue exists.
 
 For Human-facing work, keep the Human UI journey distinct from the Main Agent
 CLI journey. State the visible entry, real gesture, visible outcome, and
@@ -101,15 +103,16 @@ Run `engineering-review` once on the evidence-backed draft. Then invoke
 `happyherd-eng-descope` in proposal-only mode as the mandatory final semantic
 gate; this investigation owns any single persistence step. The descoped result,
 not the earlier draft or review suggestions, is the only content eligible for
-an authorized TickTick write.
+an authorized issue write.
 
-## Persist through TickTick
+## Persist through GitHub
 
-When explicit tracking authority exists, use the `workspace-manage-tasks` skill for the write
-and authoritative read-back. Without it, return the proposed task content and
-state that TickTick was not mutated. Keep the task concise. When creating a
-task, give it a short problem- or outcome-based title rather than an
-implementation-method title.
+When explicit tracking authority exists, write with `gh issue create` or
+`gh issue comment` and read the result back. Without it, return the proposed
+issue content and state that no tracker was mutated. Keep the issue concise.
+When creating an issue, give it a short problem- or outcome-based title rather
+than an implementation-method title. Missing TickTick is not a reason to skip
+this GitHub write.
 
 ```markdown
 ## Outcome
@@ -133,16 +136,12 @@ implementation-method title.
 
 Omit empty optional sections rather than writing placeholders.
 
-When updating an existing task, preserve unrelated manual text and replace
+When updating an existing issue, preserve unrelated manual text and replace
 only a clearly owned prior investigation section; otherwise append the concise
 section. Preserve its title unless the user explicitly requested a title
-change. Leave the task open
-and preserve its project, parent, priority, dates, timezone, tags, children,
-and all other unmodified fields.
+change. Leave the issue open.
 
-Read the result through the owning project and verify the exact task ID,
-project, parent, title, content, status, checklist count, and preserved baseline
-fields. If the write or read-back disagrees, report the raw discrepancy and do
+If the write or read-back disagrees, report the raw discrepancy and do
 not claim completion.
 
 ## Acceptance criteria
@@ -153,13 +152,12 @@ not claim completion.
 - Only evidence-relevant domain skills ran; their procedures were composed,
   not copied or replaced.
 - `engineering-review` ran on the draft and `happyherd-eng-descope` produced
-  the final task content.
+  the final issue content.
 - With explicit tracking authority, exactly one existing or newly created
-  TickTick task contains the concise outcome, investigation, repair boundary,
-  observable checklist, and gaps; without it, no task is mutated.
-- An authorized write is read back and matches every changed field while
-  preserving every field outside scope; a read-only run explicitly reports
-  that no read-back occurred.
+  GitHub issue contains the concise outcome, investigation, repair boundary,
+  observable checklist, and gaps; without it, no issue is mutated.
+- An authorized write is read back; a read-only run explicitly reports that
+  no write occurred.
 - The handoff accurately distinguishes completed investigation from completed
   task tracking and says that implementation has not started.
 
@@ -168,10 +166,10 @@ not claim completion.
 Never edit source or `.dev`, create or switch branches, commit, push, open a
 pull request, implement, deploy, restart, merge, close, or complete work. Do
 not dispatch implementation workers. Do not expose credentials, raw private
-transcripts, or machine-owned runtime files in the task.
+transcripts, or machine-owned runtime files in the issue.
 
-If implementation is requested, return the verified task when tracking was
-authorized or the proposed task content when it was not, then disclose the
+If implementation is requested, return the verified issue when tracking was
+authorized or the proposed issue content when it was not, then disclose the
 separate implementation approval gate rather than crossing it.
 
 ## Output
@@ -182,9 +180,8 @@ Return:
 2. **Investigation** — problem, evidence, root cause or alternatives,
    confidence, smallest repair boundary, and material gaps.
 3. **Skill routing** — only the domain skills actually used and why.
-4. **TickTick receipt** — with tracking authority, task/project/parent IDs,
-   create or update result, checklist count, preserved fields, and read-back
-   evidence; otherwise `TickTick not mutated; no read-back performed.`
+4. **Tracker receipt** — with tracking authority, the GitHub issue URL and
+   read-back evidence; otherwise `No tracker mutated; no read-back performed.`
 5. **Boundary** — use `Investigation and task tracking complete;
    implementation not started.` only after a verified write. Otherwise use
-   `Investigation complete; TickTick not mutated; implementation not started.`
+   `Investigation complete; tracker not mutated; implementation not started.`

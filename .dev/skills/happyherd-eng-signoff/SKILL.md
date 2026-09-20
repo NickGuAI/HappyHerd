@@ -14,7 +14,7 @@ which effects are complete, required, authorized, deferred, or unnecessary.
 
 Establish before acting:
 
-- the owning TickTick task or explicit owner contract;
+- the owning GitHub issue or explicit owner contract;
 - the exact branch, commit, or pull request and its comparison base;
 - the complete changed-path set and affected supported callers;
 - whether the revision is uncommitted, committed, pushed, merged, installed,
@@ -26,8 +26,9 @@ Establish before acting:
 Start at `.dev/AGENTS.md`. Use `.dev/VERIFY.md` to select checks and
 `engineering-review` to review the exact final head against the task contract.
 Use `engineering-verify-change` when changed-surface verification needs its execution or
-evidence procedure. A TickTick write is out of scope unless explicitly
-requested; when authorized, use the `workspace-manage-tasks` skill and read the write back.
+evidence procedure. A tracker write is out of scope unless explicitly
+requested. Prefer the GitHub issue. Use `workspace-manage-tasks` only when the
+user named TickTick and that skill is available.
 
 ## Keep proof planes separate
 
