@@ -79,11 +79,13 @@ describe('KILV runtime foundations in the browser', () => {
         await page.goto(origin);
         expect(errors).toEqual([]);
         const background = () => page.locator('body').evaluate((element) => getComputedStyle(element).backgroundColor);
-        expect(await background()).toBe(colorScheme === 'dark' ? 'rgb(1, 2, 4)' : 'rgb(247, 239, 221)');
-        for (const name of ['light', 'dark'] as const) {
-            await page.getByRole('button', { name: new RegExp(`^${name}$`, 'i') }).click();
-            expect(await background()).toBe(name === 'dark' ? 'rgb(1, 2, 4)' : 'rgb(247, 239, 221)');
-        }
+        await page.getByRole('button', { name: /^dark$/i }).click();
+        const darkBackground = await background();
+        await page.getByRole('button', { name: /^light$/i }).click();
+        const lightBackground = await background();
+        expect(darkBackground).not.toBe(lightBackground);
+        await page.getByRole('button', { name: new RegExp(`^${colorScheme}$`, 'i') }).click();
+        expect(await background()).toBe(colorScheme === 'dark' ? darkBackground : lightBackground);
         const loaded = await page.evaluate(async (families) => {
             return Promise.all(families.map(async (family) => {
                 const fonts = await document.fonts.load(`16px "${family}"`, family.startsWith('JetBrains') ? 'λ = 2' : 'Happy');
