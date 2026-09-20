@@ -1,6 +1,8 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import { parseCallbackUrl, generatePKCE, generateState, PKCECodes, ClaudeAuthTokens } from '@/utils/oauth';
 import * as React from 'react';
-import { ActivityIndicator, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, TouchableOpacity, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, {
     useSharedValue,
@@ -19,7 +21,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     webview: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0)',
+        backgroundColor: 'transparent',
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -56,11 +58,11 @@ const styles = StyleSheet.create((theme) => ({
     retryButton: {
         paddingHorizontal: 20,
         paddingVertical: 10,
-        backgroundColor: '#007AFF',
-        borderRadius: 8,
+        backgroundColor: theme.colors.button.primary.background,
+        borderRadius: theme.borderRadius.md,
     },
     retryButtonText: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -84,22 +86,22 @@ const styles = StyleSheet.create((theme) => ({
         marginBottom: 24,
     },
     terminalContainer: {
-        backgroundColor: '#1e1e1e',
-        borderRadius: 8,
+        backgroundColor: theme.colors.surfaceHigh,
+        borderRadius: theme.borderRadius.md,
         padding: 16,
         minWidth: 280,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: theme.colors.divider,
     },
     terminalPrompt: {
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        ...Typography.mono(),
         fontSize: 14,
-        color: '#00ff00',
+        color: theme.colors.textLink,
     },
     terminalCommand: {
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        ...Typography.mono(),
         fontSize: 14,
-        color: '#ffffff',
+        color: theme.colors.text,
     },
 }));
 

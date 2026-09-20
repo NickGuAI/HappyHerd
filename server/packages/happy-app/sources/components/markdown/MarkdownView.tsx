@@ -89,6 +89,7 @@ function optionItemsFromList(node: MdNode): string[] | null {
 }
 
 export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
+    const foreground = props.tone === 'island' ? styles.islandText : undefined;
     const root = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
     const markdownCopyV2 = useLocalSetting('markdownCopyV2');
     const selectable = !(markdownCopyV2 || props.externalCopyHandler);
@@ -164,7 +165,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                             key={key}
                             accessibilityRole={target ? 'link' : undefined}
                             selectable={selectable}
-                            style={target ? styles.link : undefined}
+                            style={[target ? styles.link : undefined, foreground]}
                             onPress={target ? () => openTarget(target) : undefined}
                         >{label}</Text>
                     );
@@ -172,7 +173,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 default: return renderInline(node.children, key);
             }
         })
-    ), [openTarget, props.onOptionPress, resolveTarget, selectable]);
+    ), [foreground, openTarget, props.onOptionPress, resolveTarget, selectable]);
 
     const renderBlock = React.useCallback((node: MdNode, index: number): React.ReactNode => {
         const key = `block:${index}`;
@@ -185,7 +186,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     const external = normalizeExternalMarkdownLink(url);
                     const reference = external || inlineSource ? null : resolveImage(url, image.alt ?? '');
                     if (!external && !inlineSource && !reference) {
-                        return <Text key={imageKey} selectable={selectable} style={[styles.text, blockTextAlignment]}>{`![${image.alt ?? ''}](${url})`}</Text>;
+                        return <Text key={imageKey} selectable={selectable} style={[styles.text, blockTextAlignment, foreground]}>{`![${image.alt ?? ''}](${url})`}</Text>;
                     }
                     return (
                         <NativeMarkdownImage
@@ -203,18 +204,18 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                         <View key={key} style={styles.mixedParagraph}>
                             {node.children.map((child, childIndex) => child.type === 'image'
                                 ? renderImage(child, `${key}:image:${childIndex}`)
-                                : <Text key={`${key}:text:${childIndex}`} selectable={selectable} style={[styles.text, blockTextAlignment]}>{renderInline([child], `${key}:${childIndex}`)}</Text>)}
+                                : <Text key={`${key}:text:${childIndex}`} selectable={selectable} style={[styles.text, blockTextAlignment, foreground]}>{renderInline([child], `${key}:${childIndex}`)}</Text>)}
                         </View>
                     );
                 }
-                return <Text key={key} selectable={selectable} style={[styles.text, blockTextAlignment]}>{renderInline(node.children, key)}</Text>;
+                return <Text key={key} selectable={selectable} style={[styles.text, blockTextAlignment, foreground]}>{renderInline(node.children, key)}</Text>;
             }
             case 'heading': {
                 const headingStyle = node.depth === 1 ? styles.heading1 : node.depth === 2 ? styles.heading2 : styles.heading;
-                return <Text key={key} selectable={selectable} style={[headingStyle, blockTextAlignment]}>{renderInline(node.children, key)}</Text>;
+                return <Text key={key} selectable={selectable} style={[headingStyle, blockTextAlignment, foreground]}>{renderInline(node.children, key)}</Text>;
             }
             case 'thematicBreak': return <View key={key} style={styles.rule} />;
-            case 'blockquote': return <View key={key} style={styles.quote}>{node.children?.map(renderBlock)}</View>;
+            case 'blockquote': return <View key={key} style={[styles.quote, props.tone === 'island' && styles.islandQuote]}>{node.children?.map(renderBlock)}</View>;
             case 'code': return node.lang === 'mermaid'
                 ? <MermaidRenderer key={key} content={node.value ?? ''} />
                 : <NativeCodeBlock key={key} code={node.value ?? ''} language={node.lang ?? null} selectable={selectable} />;
@@ -247,10 +248,10 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                                         : '•';
                             return (
                                 <View key={`${key}:${itemIndex}`} style={styles.listRow} accessibilityRole={item.checked == null ? undefined : 'checkbox'} accessibilityState={item.checked == null ? undefined : { checked: item.checked, disabled: true }}>
-                                    <Text style={styles.listMarker}>{marker}</Text>
+                                    <Text style={[styles.listMarker, foreground]}>{marker}</Text>
                                     <View style={styles.listItemBody}>
                                         {item.children?.map((child, childIndex) => child.type === 'paragraph'
-                                            ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={[styles.listText, blockTextAlignment]}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
+                                            ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={[styles.listText, blockTextAlignment, foreground]}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
                                             : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
                                     </View>
                                 </View>
@@ -259,11 +260,11 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     </View>
                 );
             }
-            case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} />;
+            case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} island={props.tone === 'island'} />;
             case 'html': return null;
             default: return node.children?.map(renderBlock) ?? null;
         }
-    }, [blockTextAlignment, openTarget, props.inlineImages, renderInline, resolveImage, selectable]);
+    }, [blockTextAlignment, foreground, openTarget, props.tone, props.inlineImages, renderInline, resolveImage, selectable]);
 
     const content = <View style={styles.root}>{root.children?.map(renderBlock)}</View>;
     if (props.externalCopyHandler || !markdownCopyV2 || Platform.OS === 'web') return content;
@@ -368,16 +369,17 @@ function renderHighlightedNodes(nodes: HastNode[]): React.ReactNode {
 
 function NativeTable(props: {
     node: MdNode;
+    island?: boolean;
     selectable: boolean;
     renderInline: (nodes: MdNode[] | undefined, keyPrefix: string) => React.ReactNode;
 }) {
     return (
-        <HorizontalScrollView style={styles.table}>
+        <HorizontalScrollView style={[styles.table, props.island && styles.islandSurface]}>
             <View>
                 {props.node.children?.map((row, rowIndex) => (
                     <View key={rowIndex} style={styles.tableRow}>
                         {row.children?.map((cell, cellIndex) => (
-                            <Text key={cellIndex} selectable={props.selectable} style={[styles.tableCell, rowIndex === 0 && styles.tableHeader]}>
+                            <Text key={cellIndex} selectable={props.selectable} style={[styles.tableCell, rowIndex === 0 && styles.tableHeader, props.island && styles.islandSurface, props.island && styles.islandText]}>
                                 {props.renderInline(cell.children, `table:${rowIndex}:${cellIndex}`)}
                             </Text>
                         ))}
@@ -437,12 +439,12 @@ function NativeMarkdownImage(props: {
         retryToken,
     ]);
 
-    if (state.status === 'loading') return <View style={styles.imageFailure}><ActivityIndicator /></View>;
+    if (state.status === 'loading') return <View style={styles.imageFailure}><ActivityIndicator color={styles.link.color} /></View>;
     if (state.status === 'failed' || !state.url) {
         return (
             <View accessibilityRole="alert" style={styles.imageFailure}>
-                <Ionicons name="image-outline" size={24} />
-                <Text>{t('markdown.imageLoadFailed')}</Text>
+                <Ionicons name="image-outline" size={24} color={styles.text.color} />
+                <Text style={styles.text}>{t('markdown.imageLoadFailed')}</Text>
                 <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={() => setRetryToken((value) => value + 1)}>
                     <Text style={styles.link}>{t('common.retry')}</Text>
                 </Pressable>
@@ -494,20 +496,23 @@ function MarkdownImagePreviewModal(props: { url: string; alt: string; onClose: (
 
 const styles = StyleSheet.create((theme) => ({
     root: { width: '100%' },
+    islandText: { color: theme.colors.kilv.islandInk },
+    islandSurface: { backgroundColor: theme.colors.kilv.islandTop },
     text: { ...Typography.default(), color: theme.colors.text, fontSize: 16, lineHeight: 25, marginVertical: 7 },
     mixedParagraph: { width: '100%' },
     bold: { ...Typography.default('semiBold'), fontWeight: '700' },
     italic: { fontStyle: 'italic' },
     strike: { textDecorationLine: 'line-through' },
-    inlineCode: { ...Typography.mono(), backgroundColor: theme.colors.surfaceHigh },
+    inlineCode: { ...Typography.mono(), color: theme.colors.text, backgroundColor: theme.colors.surfaceHigh },
     link: { color: theme.colors.textLink, textDecorationLine: 'underline' },
     option: { color: theme.colors.text, backgroundColor: theme.colors.surfaceHigh },
     heading: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 17, lineHeight: 25, marginTop: 12, marginBottom: 5 },
     heading1: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 24, lineHeight: 30, marginTop: 14, marginBottom: 7 },
     heading2: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 20, lineHeight: 27, marginTop: 13, marginBottom: 6 },
     quote: { borderLeftWidth: 3, borderLeftColor: theme.colors.divider, backgroundColor: theme.colors.surfaceHigh, paddingHorizontal: 12, marginVertical: 8 },
+    islandQuote: { backgroundColor: 'transparent', borderLeftColor: theme.colors.kilv.islandBorder },
     rule: { height: 1, backgroundColor: theme.colors.divider, marginVertical: 8 },
-    codeBlock: { backgroundColor: theme.colors.surfaceHighest, borderRadius: 8, marginVertical: 8, position: 'relative' },
+    codeBlock: { backgroundColor: theme.colors.surfaceHighest, borderRadius: 6, marginVertical: 8, position: 'relative' },
     codeContent: { padding: 16 },
     codeLanguage: { ...Typography.mono(), color: theme.colors.textSecondary, fontSize: 12, paddingHorizontal: 16, paddingTop: 8 },
     codeCopyButton: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, backgroundColor: theme.colors.surface },
@@ -522,34 +527,36 @@ const styles = StyleSheet.create((theme) => ({
     listItemBody: { flex: 1 },
     listMarker: { ...Typography.default(), color: theme.colors.textSecondary, width: 28, lineHeight: 24 },
     listText: { ...Typography.default(), color: theme.colors.text, flex: 1, lineHeight: 24 },
-    table: { borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 8, marginVertical: 8 },
+    table: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 6, marginVertical: 8 },
     tableRow: { flexDirection: 'row' },
     tableCell: { ...Typography.default(), color: theme.colors.text, minWidth: 120, padding: 8, borderRightWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.divider },
     tableHeader: { ...Typography.default('semiBold'), backgroundColor: theme.colors.surfaceHigh },
-    imageFrame: { width: '100%', maxWidth: 520, borderRadius: 12, overflow: 'hidden', marginVertical: 8 },
-    imageFailure: { minHeight: 120, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20 },
-    modal: { backgroundColor: theme.colors.surface, borderRadius: 14, overflow: 'hidden' },
-    modalClose: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceHighest },
+    imageFrame: { width: '100%', maxWidth: 520, borderRadius: 6, overflow: 'hidden', marginVertical: 8 },
+    imageFailure: { backgroundColor: theme.colors.surface, minHeight: 120, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 6, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20 },
+    modal: { backgroundColor: theme.colors.surface, borderRadius: 6, overflow: 'hidden' },
+    modalClose: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceHighest },
     modalContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
     optionsContainer: { flexDirection: 'column', gap: 8, marginVertical: 8 },
-    optionPressable: { borderRadius: Platform.select({ web: 8, default: 18 }) },
+    optionPressable: { borderRadius: 6 },
     optionItem: {
-        backgroundColor: Platform.select({ web: theme.colors.surfaceHighest, default: theme.colors.surface }),
-        borderRadius: Platform.select({ web: 8, default: 18 }),
+        backgroundColor: theme.colors.kilv.islandTop,
+        borderRadius: 6,
         paddingHorizontal: 16,
         paddingVertical: Platform.select({ web: 12, default: 14 }),
         borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
         borderColor: theme.colors.divider,
         overflow: 'hidden',
     },
-    optionText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.text },
+    optionText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.kilv.islandInk },
     optionButton: {
-        backgroundColor: theme.colors.surfaceHighest,
-        borderRadius: 12,
+        backgroundColor: theme.colors.kilv.islandTop,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.islandBorder,
+        borderRadius: 6,
         paddingHorizontal: 12,
         paddingVertical: 8,
         overflow: 'hidden',
     },
     optionButtonPressed: { opacity: 0.7 },
-    optionButtonText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.text },
+    optionButtonText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.kilv.islandInk },
 }));

@@ -75,7 +75,7 @@ export const ShimmerView = React.memo<ShimmerViewProps>(({
                 }
             >
                 {/* Base background */}
-                <View style={[StyleSheet.absoluteFillObject, styles.background]} />
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: shimmerColors[0] }]} />
 
                 {/* Animated shimmer */}
                 <AnimatedLinearGradient
@@ -96,9 +96,6 @@ const styles = StyleSheet.create({
     maskContainer: {
         flex: 1,
         backgroundColor: 'transparent',
-    },
-    background: {
-        backgroundColor: '#E0E0E0',
     },
     hiddenChildren: {
         opacity: 0,

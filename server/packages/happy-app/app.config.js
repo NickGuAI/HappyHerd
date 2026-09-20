@@ -107,7 +107,7 @@ export default {
             adaptiveIcon: {
                 foregroundImage: "./sources/assets/images/icon-adaptive.png",
                 monochromeImage: "./sources/assets/images/icon-monochrome.png",
-                backgroundColor: "#F7F5EF"
+                backgroundColor: "#F7EFDD"
             },
             permissions: [
                 "android.permission.RECORD_AUDIO",
@@ -203,17 +203,17 @@ export default {
                 'expo-splash-screen',
                 {
                     ios: {
-                        backgroundColor: "#F2F2F7",
+                        backgroundColor: "#F7EFDD",
                         dark: {
-                            backgroundColor: "#000000",
+                            backgroundColor: "#010204",
                         }
                     },
                     android: {
                         image: "./sources/assets/images/splash-android-light.png",
-                        backgroundColor: "#F5F5F5",
+                        backgroundColor: "#F7EFDD",
                         dark: {
                             image: "./sources/assets/images/splash-android-dark.png",
-                            backgroundColor: "#000000",
+                            backgroundColor: "#010204",
                         }
                     }
                 }

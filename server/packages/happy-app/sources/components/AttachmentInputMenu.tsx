@@ -231,7 +231,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     surface: {
         overflow: 'hidden',
-        borderRadius: 18,
+        borderRadius: 6,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.glass.border,
         shadowColor: theme.colors.glass.shadow,
@@ -300,6 +300,6 @@ const styles = StyleSheet.create((theme) => ({
         paddingBottom: 8,
     },
     nativeSheet: {
-        borderRadius: 22,
+        borderRadius: 6,
     },
 }));

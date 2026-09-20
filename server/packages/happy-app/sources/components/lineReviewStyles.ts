@@ -1,5 +1,8 @@
+import { darkTheme, lightTheme } from '@/theme';
+
 /** Shared visual values for rendered Markdown and Pierre's native review gutter. */
 export function lineReviewVariables(dark: boolean, numberColor: string) {
+    const colors = (dark ? darkTheme : lightTheme).colors;
     return {
         '--hh-review-number-width': '40px',
         '--hh-review-button-size': '20px',
@@ -7,8 +10,8 @@ export function lineReviewVariables(dark: boolean, numberColor: string) {
         '--hh-review-content-gap': '4px',
         '--hh-review-gutter-width': 'calc(var(--hh-review-number-width) + var(--hh-review-gutter-gap) + var(--hh-review-button-size) + var(--hh-review-content-gap))',
         '--hh-review-number-color': numberColor,
-        '--hh-review-accent': dark ? '#d29922' : '#9a6700',
-        '--hh-review-accent-text': dark ? '#0d1117' : '#ffffff',
-        '--hh-review-highlight': dark ? 'rgba(210,153,34,.16)' : 'rgba(154,103,0,.12)',
+        '--hh-review-accent': colors.textLink,
+        '--hh-review-accent-text': colors.button.primary.tint,
+        '--hh-review-highlight': colors.surfacePressedOverlay,
     };
 }

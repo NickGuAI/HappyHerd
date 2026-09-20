@@ -59,9 +59,12 @@ vi.mock('expo-router', async () => {
     };
 });
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             text: '#111111',
             textSecondary: '#666666',
             surface: '#ffffff',
@@ -119,7 +122,7 @@ vi.mock('@/sync/storage', () => ({
     useAllMachines: () => testState.machines,
 }));
 
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/hooks/useNavigateToSession', () => ({ useNavigateToSession: () => vi.fn() }));
 vi.mock('@/utils/automationProfiling', () => ({
     automationProfileStart: testState.profileStart,

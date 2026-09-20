@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ActivityIndicator, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { View, ActivityIndicator, NativeScrollEvent, NativeSyntheticEvent, Platform } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { SessionsList } from './SessionsList';
 import { EmptyMainScreen } from './EmptyMainScreen';
@@ -82,6 +82,7 @@ export const SessionsListWrapper = React.memo(({
                         <EmptyMainScreen
                             hasArchivedSessions={hasArchivedSessions}
                             onShowArchived={() => setHideArchivedSessions(false)}
+                            bottomContentInset={Platform.OS === 'web' ? 0 : bottomContentInset}
                         />
                     </View>
                 </View>

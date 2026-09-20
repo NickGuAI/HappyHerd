@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React, { useState, useEffect } from 'react';
 import { Platform, View, ActivityIndicator, ScrollView, Pressable } from 'react-native';
 import { Text } from '@/components/StyledText';
@@ -22,7 +23,7 @@ const styles = StyleSheet.create((theme) => ({
         padding: Platform.select({ web: 16, default: 8 }),
         margin: Platform.select({ web: 0, default: 16 }),
         gap: 8,
-        borderRadius: Platform.select({ web: 0, default: 20 }),
+        borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }),
         overflow: Platform.select({ web: 'visible', default: 'hidden' }),
         backgroundColor: theme.colors.surface,
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -32,12 +33,12 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
         paddingVertical: 8,
         paddingHorizontal: 12,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         backgroundColor: Platform.select({ web: theme.colors.surface, default: theme.colors.surfaceHigh }),
         alignItems: 'center',
     },
     periodButtonActive: {
-        backgroundColor: Platform.select({ web: '#007AFF', default: theme.colors.radio.active }),
+        backgroundColor: Platform.select({ web: theme.colors.textLink, default: theme.colors.radio.active }),
     },
     periodText: {
         fontSize: 14,
@@ -45,13 +46,13 @@ const styles = StyleSheet.create((theme) => ({
         fontWeight: '500',
     },
     periodTextActive: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
     },
     statsContainer: {
         padding: 16,
         backgroundColor: theme.colors.surface,
         margin: 16,
-        borderRadius: Platform.select({ web: 12, default: 20 }),
+        borderRadius: theme.borderRadius.xl,
         gap: 12,
         overflow: Platform.select({ web: 'visible', default: 'hidden' }),
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -67,6 +68,7 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.text,
     },
     statValue: {
+        ...Typography.mono(),
         fontSize: 20,
         fontWeight: '700',
         color: theme.colors.text,
@@ -74,7 +76,7 @@ const styles = StyleSheet.create((theme) => ({
     chartSection: {
         marginTop: 16,
         marginHorizontal: Platform.select({ web: 0, default: 16 }),
-        borderRadius: Platform.select({ web: 0, default: 20 }),
+        borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }),
         overflow: Platform.select({ web: 'visible', default: 'hidden' }),
         backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surface }),
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -112,11 +114,11 @@ const styles = StyleSheet.create((theme) => ({
     metricButton: {
         paddingVertical: 6,
         paddingHorizontal: 16,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.md,
         backgroundColor: Platform.select({ web: theme.colors.divider, default: theme.colors.surfaceHigh }),
     },
     metricButtonActive: {
-        backgroundColor: Platform.select({ web: '#007AFF', default: theme.colors.radio.active }),
+        backgroundColor: Platform.select({ web: theme.colors.textLink, default: theme.colors.radio.active }),
     },
     metricText: {
         fontSize: 14,
@@ -124,7 +126,7 @@ const styles = StyleSheet.create((theme) => ({
         fontWeight: '500',
     },
     metricTextActive: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
     },
     coverageList: {
         padding: 16,
@@ -204,7 +206,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={theme.colors.textLink} />
             </View>
         );
     }
@@ -325,7 +327,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
                                 label={provider}
                                 value={tokens}
                                 maxValue={maxProviderTokens}
-                                color="#007AFF"
+                                color={theme.colors.textLink}
                             />
                         ))}
                     </View>

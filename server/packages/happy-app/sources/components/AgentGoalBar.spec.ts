@@ -7,6 +7,7 @@ vi.mock('@expo/vector-icons', () => ({
 }));
 
 vi.mock('react-native', () => ({
+    Platform: { OS: 'ios', select: (values: Record<string, unknown>) => values.ios ?? values.default },
     ActivityIndicator: (props: Record<string, unknown>) => React.createElement('ActivityIndicator', props),
     Pressable: ({ children, ...props }: Record<string, any>) => React.createElement('Pressable', props, children),
     Text: ({ children, ...props }: Record<string, any>) => React.createElement('Text', props, children),

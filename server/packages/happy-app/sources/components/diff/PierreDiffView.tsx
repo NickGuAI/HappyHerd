@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Platform, Text, View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { DiffView } from '@/components/diff/DiffView';
+import { darkTheme, lightTheme } from '@/theme';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { lineReviewVariables } from '@/components/lineReviewStyles';
@@ -113,8 +114,9 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
     const themeName: 'dark' | 'light' = props.theme ?? (theme.dark ? 'dark' : 'light');
     const diffsTheme = themeName === 'dark' ? 'github-dark-default' : 'github-light-default';
     const bundle = usePierreBundle();
-    const seamColor = themeName === 'dark' ? '#b4b85c' : '#6f7424';
-    const glowColor = themeName === 'dark' ? '#f3c969' : '#b7791f';
+    const palette = (themeName === 'dark' ? darkTheme : lightTheme).colors.kilv;
+    const seamColor = palette.olive;
+    const glowColor = palette.accent;
 
     if (!bundle) return <DiffSkeleton />;
 

@@ -62,16 +62,16 @@ const styles = StyleSheet.create((theme) => ({
         width: '100%',
     },
     sessionCardFirst: {
-        borderTopLeftRadius: Platform.select({ web: 12, default: 18 }),
-        borderTopRightRadius: Platform.select({ web: 12, default: 18 }),
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
     },
     sessionCardLast: {
-        borderBottomLeftRadius: Platform.select({ web: 12, default: 18 }),
-        borderBottomRightRadius: Platform.select({ web: 12, default: 18 }),
+        borderBottomLeftRadius: theme.borderRadius.xl,
+        borderBottomRightRadius: theme.borderRadius.xl,
         marginBottom: 12,
     },
     sessionCardSingle: {
-        borderRadius: Platform.select({ web: 12, default: 18 }),
+        borderRadius: theme.borderRadius.xl,
         marginBottom: 12,
     },
     sessionContent: {

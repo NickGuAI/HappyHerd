@@ -11,6 +11,10 @@ const settingReads = vi.hoisted(() => [] as string[]);
 const setUserSafeguardEnabled = vi.hoisted(() => vi.fn());
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
+    return { useUnistyles: () => ({ theme: lightTheme }) };
+});
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };

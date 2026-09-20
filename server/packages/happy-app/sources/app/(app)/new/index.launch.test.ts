@@ -96,9 +96,12 @@ vi.mock('expo-router', () => ({
     useNavigation: () => ({ setOptions: vi.fn() }),
     useRouter: () => ({ back: mocks.routerBack }),
 }));
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             text: 'text',
             textSecondary: 'text-secondary',
             divider: 'divider',
@@ -155,7 +158,7 @@ vi.mock('@/utils/newSessionSidebarLayout', async (importOriginal) => ({
     NEW_SESSION_PANEL_ROW_FONT_SIZE: 16,
     getNewSessionSidebarLayout: () => ({ showSidebar: false, sidebarWidth: 0 }),
 }));
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 1200 } }));
 vi.mock('@/components/MultiTextInput', async () => {
     const ReactModule = await import('react');

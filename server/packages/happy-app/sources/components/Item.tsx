@@ -67,6 +67,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     centerContent: {
         flex: 1,
+        minWidth: 0,
         justifyContent: 'center',
     },
     title: {
@@ -98,14 +99,19 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         marginLeft: 8,
     },
     detail: {
-        ...Typography.default('regular'),
+        ...Typography.mono(),
         color: theme.colors.textSecondary,
-        fontSize: 17,
+        fontSize: 14,
         letterSpacing: -0.41,
     },
     divider: {
-        height: Platform.select({ ios: 0.33, default: 0 }),
-        backgroundColor: Platform.select({ web: theme.colors.divider, default: theme.colors.glass.divider }),
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: theme.colors.divider,
+    },
+    selected: {
+        backgroundColor: theme.colors.surfaceSelected,
+        borderLeftWidth: 2,
+        borderLeftColor: theme.colors.kilv.accent,
     },
     pressablePressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
@@ -311,9 +317,10 @@ export const Item = React.memo<ItemProps>((props) => {
                         backgroundColor: 'transparent',
                         opacity: disabled ? 0.5 : 1
                     },
+                    selected && styles.selected,
                     pressableStyle
                 ]}
-                pressedStyle={isIOS && !isWeb ? styles.pressablePressed : undefined}
+                pressedStyle={styles.pressablePressed}
                 android_ripple={(isAndroid || isWeb) ? {
                     color: theme.colors.surfaceRipple,
                     borderless: false,
@@ -325,5 +332,5 @@ export const Item = React.memo<ItemProps>((props) => {
         );
     }
 
-    return <View style={[{ opacity: disabled ? 0.5 : 1 }, pressableStyle]}>{content}</View>;
+    return <View style={[{ opacity: disabled ? 0.5 : 1 }, selected && styles.selected, pressableStyle]}>{content}</View>;
 });

@@ -18,10 +18,13 @@ vi.mock('react-native', async () => {
         View: host('View'),
     };
 });
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         dark: false,
         colors: {
+            ...lightTheme.colors,
             agentEventText: 'event-text',
             divider: 'divider',
             input: { text: 'input-text' },

@@ -19,10 +19,7 @@ const virtualModules: Record<string, string> = {
         export const useAnimatedValue = (value) => React.useRef(new Animated.Value(value)).current;
     `,
     'react-native-unistyles': `
-        const theme = { colors: {
-            text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#fff', surfaceHigh: '#eee',
-            radio: { active: '#007aff' }, status: { error: '#c22' },
-        }};
+        import { lightTheme as theme } from '@/theme';
         export const StyleSheet = {
             hairlineWidth: 1,
             create: (factory) => typeof factory === 'function' ? factory(theme) : factory,

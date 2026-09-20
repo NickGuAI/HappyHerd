@@ -20,9 +20,12 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             text: '#111111',
             textSecondary: '#666666',
             textLink: '#2baccc',
@@ -50,7 +53,7 @@ vi.mock('@/components/markdown/MarkdownView', async () => {
     return { MarkdownView: (props: any) => ReactModule.createElement('MarkdownView', props) };
 });
 
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/text', () => ({
     t: (key: string, values?: Record<string, unknown>) => (
         values?.id ? `${key}:${values.id}` : key

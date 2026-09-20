@@ -97,7 +97,7 @@ export default function UserProfileScreen() {
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={theme.colors.textLink} />
             </View>
         );
     }
@@ -119,7 +119,7 @@ export default function UserProfileScreen() {
             case 'friend':
                 return [{
                     title: t('friends.removeFriend'),
-                    icon: <Ionicons name="person-remove-outline" size={29} color="#FF3B30" />,
+                    icon: <Ionicons name="person-remove-outline" size={29} color={theme.colors.textDestructive} />,
                     onPress: handleRemoveFriend,
                     loading: removingFriend,
                 }];
@@ -128,13 +128,13 @@ export default function UserProfileScreen() {
                 return [
                     {
                         title: t('friends.acceptRequest'),
-                        icon: <Ionicons name="checkmark-circle-outline" size={29} color="#34C759" />,
+                        icon: <Ionicons name="checkmark-circle-outline" size={29} color={theme.colors.success} />,
                         onPress: addFriend,
                         loading: addingFriend,
                     },
                     {
                         title: t('friends.denyRequest'),
-                        icon: <Ionicons name="close-circle-outline" size={29} color="#FF3B30" />,
+                        icon: <Ionicons name="close-circle-outline" size={29} color={theme.colors.textDestructive} />,
                         onPress: handleRemoveFriend,
                         loading: removingFriend,
                     }
@@ -143,7 +143,7 @@ export default function UserProfileScreen() {
                 // User has sent a friend request
                 return [{
                     title: t('friends.cancelRequest'),
-                    icon: <Ionicons name="close-outline" size={29} color="#FF9500" />,
+                    icon: <Ionicons name="close-outline" size={29} color={theme.colors.warning} />,
                     onPress: handleRemoveFriend,
                     loading: removingFriend,
                 }];
@@ -152,7 +152,7 @@ export default function UserProfileScreen() {
             default:
                 return [{
                     title: t('friends.requestFriendship'),
-                    icon: <Ionicons name="person-add-outline" size={29} color="#007AFF" />,
+                    icon: <Ionicons name="person-add-outline" size={29} color={theme.colors.textLink} />,
                     onPress: addFriend,
                     loading: addingFriend,
                 }];
@@ -187,7 +187,7 @@ export default function UserProfileScreen() {
                     {/* Friend Status Badge */}
                     {userProfile.status === 'friend' && (
                         <View style={styles.statusBadge}>
-                            <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                            <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
                             <Text style={styles.statusText}>{t('friends.alreadyFriends')}</Text>
                         </View>
                     )}
@@ -275,7 +275,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingVertical: 32,
         backgroundColor: theme.colors.surface,
         marginTop: 16,
-        borderRadius: Platform.select({ web: 12, default: 22 }),
+        borderRadius: theme.borderRadius.xl,
         marginHorizontal: 16,
         overflow: 'hidden',
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -302,15 +302,15 @@ const styles = StyleSheet.create((theme) => ({
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(52, 199, 89, 0.1)',
+        backgroundColor: theme.colors.surfaceHighest,
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.xl,
         marginTop: 8,
     },
     statusText: {
         fontSize: 13,
-        color: '#34C759',
+        color: theme.colors.success,
         marginLeft: 4,
         fontWeight: '500',
     },

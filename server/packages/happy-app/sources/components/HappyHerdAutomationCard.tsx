@@ -58,7 +58,7 @@ export function HappyHerdAutomationCard({
                     <View
                         style={[
                             styles.statusDot,
-                            { backgroundColor: presentation.active ? '#34C759' : theme.colors.textSecondary },
+                            { backgroundColor: presentation.active ? theme.colors.success : theme.colors.textSecondary },
                         ]}
                     />
                     <Text style={styles.sectionTitle} numberOfLines={2}>{presentation.name}</Text>
@@ -159,10 +159,10 @@ export function HappyHerdAutomationCard({
     );
 }
 
-const styles = StyleSheet.create(() => ({
+const styles = StyleSheet.create((theme) => ({
     card: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 14,
+        borderRadius: theme.borderRadius.xl,
         overflow: 'hidden',
     },
     summary: {
@@ -193,17 +193,17 @@ const styles = StyleSheet.create(() => ({
     detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     badge: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 999,
+        borderRadius: theme.borderRadius.xl,
         paddingHorizontal: 9,
         paddingVertical: 4,
         fontSize: 12,
     },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
     tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+    action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 10, paddingVertical: 7 },
     history: { marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
     historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    historyLink: { borderRadius: 8, paddingVertical: 4, paddingHorizontal: 6, marginHorizontal: -6 },
+    historyLink: { borderRadius: theme.borderRadius.md, paddingVertical: 4, paddingHorizontal: 6, marginHorizontal: -6 },
     historyLinkPressed: { opacity: 0.7 },
     historyStatus: { width: 62, ...Typography.default('semiBold') },
 }));

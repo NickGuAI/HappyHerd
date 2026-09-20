@@ -346,7 +346,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
             onPress={handleArchive}
             disabled={archivingSession}
         >
-            <Ionicons name="archive-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="archive-outline" size={20} color={styles.swipeActionText.color} />
             <Text style={styles.swipeActionText} numberOfLines={2}>
                 {t('sessionInfo.archiveSession')}
             </Text>
@@ -456,7 +456,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surface,
         marginBottom: 8,
         marginHorizontal: Platform.select({ ios: 16, default: 12 }),
-        borderRadius: Platform.select({ web: 16, default: 18 }),
+        borderRadius: 6,
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
         borderColor: theme.colors.divider,
         overflow: 'hidden',
@@ -540,7 +540,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     swipeActionText: {
         marginTop: 4,
         fontSize: 12,
-        color: '#FFFFFF',
+        color: theme.colors.permissionButton.deny.text,
         textAlign: 'center',
         ...Typography.default('semiBold'),
     },

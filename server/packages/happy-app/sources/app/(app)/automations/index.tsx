@@ -219,7 +219,7 @@ function MachineChoice({
         >
             <View style={[
                 styles.statusDot,
-                { backgroundColor: isMachineOnline(machine) ? '#34C759' : theme.colors.textSecondary },
+                { backgroundColor: isMachineOnline(machine) ? theme.colors.success : theme.colors.textSecondary },
             ]} />
             <Text style={selected ? { color: theme.colors.surface } : undefined} numberOfLines={1}>
                 {happyHerdAutomationMachineName(machine)}
@@ -960,7 +960,7 @@ export default function AutomationsScreen() {
                                                 styles.statusDot,
                                                 {
                                                     backgroundColor: automation.status === 'active'
-                                                        ? '#34C759'
+                                                        ? theme.colors.success
                                                         : theme.colors.textSecondary,
                                                 },
                                             ]}
@@ -1019,38 +1019,38 @@ const styles = StyleSheet.create((theme) => ({
     hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     heroCopy: { flex: 1, gap: 6 },
     subtitle: { fontSize: 15, lineHeight: 21, maxWidth: 680 },
-    primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
+    primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: theme.borderRadius.md },
     buttonDisabled: { opacity: 0.45 },
     buttonText: { ...Typography.default('semiBold') },
     choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    machineChoice: { maxWidth: 280, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+    machineChoice: { maxWidth: 280, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 12, paddingVertical: 9 },
     statusDot: { width: 8, height: 8, borderRadius: 4 },
-    notice: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 12, lineHeight: 19 },
-    form: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 16, gap: 12 },
+    notice: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, padding: 12, lineHeight: 19 },
+    form: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, padding: 16, gap: 12 },
     sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     sectionTitle: { fontSize: 17, ...Typography.default('semiBold') },
     field: { gap: 6 },
     label: { fontSize: 13, color: theme.colors.textSecondary, ...Typography.default('semiBold') },
-    input: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, ...Typography.default() },
+    input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, ...Typography.default() },
     inputDisabled: { opacity: 0.55 },
     multiline: { minHeight: 112, textAlignVertical: 'top' },
     twoColumns: { flexDirection: 'row', gap: 12 },
-    choice: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.divider, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
+    choice: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.divider, borderRadius: theme.borderRadius.xl, paddingHorizontal: 11, paddingVertical: 7 },
     choiceText: { fontSize: 13 },
     saveButton: { alignSelf: 'flex-start', minWidth: 160 },
     list: { gap: 16 },
     filterChips: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    filterChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+    filterChip: { borderRadius: theme.borderRadius.xl, paddingHorizontal: 12, paddingVertical: 8 },
     filterChipText: { fontSize: 14 },
-    search: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, paddingHorizontal: 14, fontSize: 15, ...Typography.default() },
+    search: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 14, fontSize: 16, ...Typography.default() },
     machineBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
     count: { flexShrink: 0, fontSize: 12 },
-    automationList: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, overflow: 'hidden' },
+    automationList: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
     automationRow: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderLeftWidth: 3, borderLeftColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 10 },
     rowPressed: { opacity: 0.72 },
     rowCopy: { minWidth: 0, flex: 1 },
     rowTitle: { fontSize: 16, ...Typography.default('semiBold') },
     rowMeta: { marginTop: 3, fontSize: 13 },
     rowState: { fontSize: 12 },
-    empty: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 28, alignItems: 'center', gap: 8 },
+    empty: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, padding: 28, alignItems: 'center', gap: 8 },
 }));

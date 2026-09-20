@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a3f5e7c891c2ecbdc7953270a61806b361b53927217232161147d120200f88f5",
-  "routeCount": 41,
-  "surfaceCount": 279,
+  "sourceFingerprint": "ca56ac600482737edf797bb463cca08594871614e4eaa8ba3cf05bf152c0fafe",
+  "routeCount": 40,
+  "surfaceCount": 277,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -765,12 +765,6 @@
       "states": []
     },
     {
-      "path": "/settings/connections",
-      "owner": "sources/app/(app)/settings/connections.tsx",
-      "translationKeys": [],
-      "states": []
-    },
-    {
       "path": "/settings/credentials",
       "owner": "sources/app/(app)/settings/credentials.tsx",
       "translationKeys": [],
@@ -1139,7 +1133,6 @@
         "common.files",
         "common.home",
         "common.message",
-        "devicePairing.title",
         "friends.addFriend",
         "machine.back",
         "navigation.connectTerminal",
@@ -2042,17 +2035,6 @@
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/app/(app)/settings/connections.tsx",
-      "kind": "route",
-      "route": "/settings/connections",
-      "exports": [
-        "ConnectionsSettingsScreen"
-      ],
-      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3041,64 +3023,6 @@
         "uiCopy.happyTerminal"
       ],
       "states": [],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/ConnectionsSettingsView.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "ConnectionsSettingsView"
-      ],
-      "translationKeys": [
-        "common.cancel",
-        "devicePairing.account",
-        "devicePairing.activeServer",
-        "devicePairing.addDevice",
-        "devicePairing.cancelled",
-        "devicePairing.checkCode",
-        "devicePairing.checking",
-        "devicePairing.codeLabel",
-        "devicePairing.codePlaceholder",
-        "devicePairing.collision",
-        "devicePairing.confirmIdentity",
-        "devicePairing.connect",
-        "devicePairing.connected",
-        "devicePairing.connectedDetail",
-        "devicePairing.connecting",
-        "devicePairing.description",
-        "devicePairing.devices",
-        "devicePairing.devicesFooter",
-        "devicePairing.enterAnotherCode",
-        "devicePairing.expired",
-        "devicePairing.host",
-        "devicePairing.identityMismatch",
-        "devicePairing.instructions",
-        "devicePairing.invalid",
-        "devicePairing.machineId",
-        "devicePairing.needsUpdate",
-        "devicePairing.network",
-        "devicePairing.newSession",
-        "devicePairing.noDevices",
-        "devicePairing.notFound",
-        "devicePairing.openDevice",
-        "devicePairing.refresh",
-        "devicePairing.retryConnect",
-        "devicePairing.scope",
-        "devicePairing.selected",
-        "devicePairing.server",
-        "devicePairing.serverChanged",
-        "devicePairing.title",
-        "devicePairing.unavailable",
-        "devicePairing.used",
-        "status.offline",
-        "status.online",
-        "workspace.title"
-      ],
-      "states": [
-        "offline",
-        "unavailable"
-      ],
       "hardcodedCopy": []
     },
     {
@@ -4880,8 +4804,6 @@
         "common.runtime",
         "common.version",
         "connect.enterUrlManually",
-        "devicePairing.settingsSubtitle",
-        "devicePairing.title",
         "modals.authenticateTerminal",
         "modals.developerMode",
         "modals.developerModeDisabled",
@@ -6015,7 +5937,10 @@
       "exports": [
         "WebAlertModal"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.cancel",
+        "common.ok"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -6026,7 +5951,10 @@
       "exports": [
         "WebPromptModal"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.cancel",
+        "common.ok"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

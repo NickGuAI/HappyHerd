@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/StyledText';
@@ -39,6 +40,7 @@ const styles = StyleSheet.create((theme) => ({
         fontWeight: '600',
     },
     value: {
+        ...Typography.mono(),
         fontSize: 14,
         color: theme.colors.textSecondary,
         fontWeight: '600',
@@ -69,7 +71,7 @@ export const UsageBar: React.FC<UsageBarProps> = ({
 }) => {
     const { theme } = useUnistyles();
     const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
-    const fillColor = color || '#007AFF';
+    const fillColor = color || theme.colors.textLink;
     
     const displayValue = showPercentage 
         ? `${percentage.toFixed(1)}%`

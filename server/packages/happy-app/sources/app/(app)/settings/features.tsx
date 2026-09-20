@@ -1,3 +1,4 @@
+import { useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -8,6 +9,7 @@ import { t } from '@/text';
 import { CommanderAvatarSettings } from '@/components/CommanderAvatarSettings';
 
 export default function FeaturesSettingsScreen() {
+    const { theme } = useUnistyles();
     const [experiments, setExperiments] = useSettingMutable('experiments');
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
@@ -26,7 +28,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('workspace.title')}
                     subtitle={t('workspace.featureSubtitle')}
-                    icon={<Ionicons name="folder-open-outline" size={29} color="#34C759" />}
+                    icon={<Ionicons name="folder-open-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={machineWorkspace}
@@ -45,7 +47,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('settingsFeatures.experimentalFeatures')}
                     subtitle={experiments ? t('settingsFeatures.experimentalFeaturesEnabled') : t('settingsFeatures.experimentalFeaturesDisabled')}
-                    icon={<Ionicons name="flask-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="flask-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={experiments}
@@ -57,7 +59,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('settingsFeatures.markdownCopyV2')}
                     subtitle={t('settingsFeatures.markdownCopyV2Subtitle')}
-                    icon={<Ionicons name="text-outline" size={29} color="#34C759" />}
+                    icon={<Ionicons name="text-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={markdownCopyV2}
@@ -69,7 +71,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('settingsFeatures.hideInactiveSessions')}
                     subtitle={t('settingsFeatures.hideInactiveSessionsSubtitle')}
-                    icon={<Ionicons name="eye-off-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="eye-off-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={hideInactiveSessions}
@@ -81,7 +83,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('settingsFeatures.imageUpload')}
                     subtitle={t('settingsFeatures.imageUploadSubtitle')}
-                    icon={<Ionicons name="image-outline" size={29} color="#FF2D55" />}
+                    icon={<Ionicons name="image-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={expImageUpload}
@@ -93,7 +95,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('happyHerd.features.commanderProfilePictures')}
                     subtitle={t('happyHerd.features.commanderProfilePicturesSubtitle')}
-                    icon={<Ionicons name="people-circle-outline" size={29} color="#007AFF" />}
+                    icon={<Ionicons name="people-circle-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={(
                         <Switch
                             value={commanderProfilePictures}
@@ -106,7 +108,7 @@ export default function FeaturesSettingsScreen() {
                     title={t('happyHerd.features.userSafeguard')}
                     subtitle={t('happyHerd.features.userSafeguardSubtitle')}
                     subtitleLines={0}
-                    icon={<Ionicons name="shield-checkmark-outline" size={29} color="#34C759" />}
+                    icon={<Ionicons name="shield-checkmark-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={(
                         <Switch
                             value={userSafeguardEnabled}

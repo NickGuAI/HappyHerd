@@ -13,12 +13,7 @@ const appRoot = resolve(here, '../..');
 // composer, and feedback serialization. Only RPC and platform state are mocked.
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
-        const colors = new Proxy({
-            text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#fff',
-            surfaceHigh: '#f3f3f3', input: { background: '#eee' },
-            button: { primary: { background: '#111', tint: '#fff' } },
-        }, { get: (target, key) => target[key] ?? '#111' });
-        const theme = { dark: false, colors };
+        import { lightTheme as theme } from '@/theme';
         export const StyleSheet = {
             hairlineWidth: 1,
             create: (factory) => typeof factory === 'function' ? factory(theme) : factory,
@@ -47,7 +42,6 @@ const virtualModules: Record<string, string> = {
     'expo-router': `export const useRouter = () => ({ push() {} });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/utils/responsive': `export { useDeviceType } from '${resolve(appRoot, 'sources/utils/responsive.ts')}'; export const useHeaderHeight = () => 64; export const getDeviceType = () => window.innerWidth < 500 ? 'phone' : 'desktop';`,
-    '@/constants/Typography': `export const Typography = { default: () => ({}), mono: () => ({}) };`,
     '@/components/FileIcon': `
         import React from 'react';
         export const FileIcon = () => React.createElement('span', { 'data-file-icon': true }, '+');

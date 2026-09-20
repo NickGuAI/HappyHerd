@@ -14,6 +14,12 @@
 - Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.
 - iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project.
 
+# September 19 — KILV interface
+
+- Light and dark themes now use warm paper, lifted slate panels, amber actions, and consistent borders across navigation, settings, sessions, and Workspace.
+- Space Grotesk and JetBrains Mono make interface text, code, paths, and status easier to distinguish.
+- The welcome screen uses KILV artwork, while chat replies and choices share a warm dark surface. Mobile input text stays at least 16px, and existing session, account, and automation behavior is preserved.
+
 # September 17 — Mobile browser layout
 
 - Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.

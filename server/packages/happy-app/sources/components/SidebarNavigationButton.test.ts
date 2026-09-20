@@ -19,6 +19,8 @@ vi.mock('react-native-unistyles', () => ({
         hairlineWidth: 1,
         create: (factory: any) => factory({
             colors: {
+                kilv: { rimLine: 'rim', accent: 'accent' },
+                surfaceSelected: 'selected',
                 divider: 'divider',
                 surface: 'surface',
                 surfacePressed: 'pressed',
@@ -65,5 +67,7 @@ describe('SidebarNavigationButton', () => {
             paddingHorizontal: 14,
         });
         expect(resolvedStyle).not.toHaveProperty('flex');
+        expect(pressable.props.accessibilityLabel).toBe('Workspace');
+        expect(pressable.props.accessibilityRole).toBe('button');
     });
 });

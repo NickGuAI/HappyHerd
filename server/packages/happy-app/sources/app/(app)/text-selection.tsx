@@ -132,7 +132,7 @@ const styles = StyleSheet.create((theme) => ({
     textGlass: {
         flex: 1,
         margin: Platform.select({ web: 0, default: 16 }),
-        borderRadius: Platform.select({ web: 0, default: 22 }),
+        borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }),
         overflow: 'hidden',
         backgroundColor: Platform.select({ web: theme.colors.surface, android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -143,8 +143,8 @@ const styles = StyleSheet.create((theme) => ({
     },
     textInput: {
         ...Typography.mono(),
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 16,
+        lineHeight: 24,
         color: theme.colors.text,
         minHeight: 200,
         textAlignVertical: 'top',
@@ -156,6 +156,6 @@ const styles = StyleSheet.create((theme) => ({
     copyButton: {
         padding: 8,
         marginRight: 8,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
     },
 }));

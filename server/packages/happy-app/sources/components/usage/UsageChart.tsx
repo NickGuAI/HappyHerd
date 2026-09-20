@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Text } from '@/components/StyledText';
@@ -33,12 +34,14 @@ const styles = StyleSheet.create((theme) => ({
         minHeight: 2,
     },
     barValue: {
+        ...Typography.mono(),
         fontSize: 10,
         color: theme.colors.textSecondary,
         marginBottom: 4,
         fontWeight: '600',
     },
     barLabel: {
+        ...Typography.mono(),
         position: 'absolute',
         bottom: -24,
         fontSize: 10,
@@ -143,8 +146,8 @@ export const UsageChart: React.FC<UsageChartProps> = ({
                                         {
                                             height: Math.max(barHeight, 2),
                                             backgroundColor: metric === 'cost' 
-                                                ? '#FF9500' 
-                                                : '#007AFF',
+                                                ? theme.colors.warning
+                                                : theme.colors.textLink,
                                         }
                                     ]}
                                 />

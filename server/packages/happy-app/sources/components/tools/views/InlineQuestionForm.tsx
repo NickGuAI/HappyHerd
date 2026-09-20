@@ -1,5 +1,6 @@
+import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -171,7 +172,7 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                                                     styles.checkboxOuter,
                                                     isSelected && styles.checkboxOuterSelected,
                                                 ]}>
-                                                    {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                                                    {isSelected && <Ionicons name="checkmark" size={14} color={theme.colors.button.primary.tint} />}
                                                 </View>
                                             ) : (
                                                 <View style={[
@@ -306,11 +307,11 @@ const styles = StyleSheet.create((theme) => ({
     },
     optionButtonDisabled: { opacity: 0.6 },
     radioOuter: {
-        width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+        width: 20, height: 20, borderRadius: 6, borderWidth: 2,
         borderColor: theme.colors.textSecondary, alignItems: 'center', justifyContent: 'center', marginTop: 2,
     },
     radioOuterSelected: { borderColor: theme.colors.radio.active },
-    radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.radio.dot },
+    radioInner: { width: 10, height: 10, borderRadius: 4, backgroundColor: theme.colors.radio.dot },
     checkboxOuter: {
         width: 20, height: 20, borderRadius: 4, borderWidth: 2,
         borderColor: theme.colors.textSecondary, alignItems: 'center', justifyContent: 'center', marginTop: 2,

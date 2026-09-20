@@ -20,18 +20,8 @@ const octiconsGlyphMapPath = resolve(
 
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
-        const dark = new URLSearchParams(window.location.search).get('theme') === 'dark';
-        const colors = new Proxy({
-            text: dark ? '#f5f2e8' : '#111', textSecondary: dark ? '#b8b2a4' : '#666', textDestructive: dark ? '#ff8178' : '#c00', textLink: dark ? '#f3c969' : '#06c',
-            divider: dark ? '#4b463d' : '#ddd', surface: dark ? '#161512' : '#fff', surfaceHigh: dark ? '#27241e' : '#f3f3f3', warning: '#a60',
-            groupped: { background: dark ? '#0f0f0d' : '#f5f5f5' }, input: { background: dark ? '#27241e' : '#eee' },
-            header: { background: dark ? '#161512' : '#fff', tint: dark ? '#f5f2e8' : '#111' },
-            button: { primary: { background: dark ? '#f3c969' : '#111', tint: dark ? '#17140c' : '#fff' } },
-            success: '#0a0', surfaceSelected: dark ? '#302d26' : '#eee',
-            glass: { overlay: dark ? '#161512' : '#fff', overlayTint: dark ? '#f5f2e8' : '#fff', backgroundStrong: dark ? '#161512' : '#fff', border: dark ? '#4b463d' : '#ddd' },
-            shadow: { color: '#000', opacity: 0.2 },
-        }, { get: (target, key) => target[key] ?? (dark ? '#f5f2e8' : '#111') });
-        const theme = { dark, colors };
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -244,7 +234,6 @@ const virtualModules: Record<string, string> = {
         import { Text as NativeText } from 'react-native';
         export const Text = (props) => React.createElement(NativeText, props, props.children);
     `,
-    '@/constants/Typography': `export const Typography = { default: () => ({}), mono: () => ({}) };`,
     '@/components/FileIcon': `
         import React from 'react';
         export const FileIcon = () => React.createElement('span', { 'data-file-icon': 'true' }, '▧');
@@ -1232,7 +1221,7 @@ describe('Desktop workspace browser interaction', () => {
         expect(affordance.width).toBe(20);
         expect(affordance.height).toBe(20);
         expect(affordance.sourceOrder).toBe(true);
-        expect(affordance.backgroundColor).toBe(expectedTheme === 'dark' ? 'rgb(210, 153, 34)' : 'rgb(154, 103, 0)');
+        expect(affordance.backgroundColor).toBe(expectedTheme === 'dark' ? 'rgb(240, 220, 176)' : 'rgb(110, 82, 34)');
         expect(affordance.borderTopWidth).toBe('0px');
         const geometry = await reviewGutterGeometry(headingLineNumber, headingGutter, heading);
         expect(geometry.numberGap).toBe(2);
@@ -1285,7 +1274,7 @@ describe('Desktop workspace browser interaction', () => {
             await expect(thread.getByText(feedback, { exact: true }).count()).resolves.toBe(1);
             await expect(thread.getByTestId(`inline-comment-seam:line:${line}`).count()).resolves.toBe(1);
             const cardBackground = await thread.locator(':scope > div').nth(1).evaluate((element) => getComputedStyle(element).backgroundColor);
-            expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(33, 30, 24)' : 'rgb(255, 250, 240)');
+            expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(21, 27, 40)' : 'rgb(255, 249, 236)');
         }
 
         const firstThread = markdownPanel.getByTestId('inline-comment-thread:line:3');
@@ -1566,7 +1555,7 @@ describe('Desktop workspace browser interaction', () => {
                 await expect(thread.getByText(feedback, { exact: true }).count()).resolves.toBe(1);
                 await expect(thread.getByTestId(`inline-comment-seam:line:${line}`).count()).resolves.toBe(1);
                 const cardBackground = await thread.locator(':scope > div').nth(1).evaluate((element) => getComputedStyle(element).backgroundColor);
-                expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(33, 30, 24)' : 'rgb(255, 250, 240)');
+                expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(21, 27, 40)' : 'rgb(255, 249, 236)');
             } else {
                 await sourcePanel.getByTestId(`inline-comment-composer:line:${line}`).getByRole('button', { name: 'Cancel' }).click();
             }

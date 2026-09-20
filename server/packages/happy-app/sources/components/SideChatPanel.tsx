@@ -413,7 +413,7 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         gap: 6,
         paddingHorizontal: 8,
-        borderRadius: 9,
+        borderRadius: 4,
     },
     accessButtonText: {
         color: theme.colors.text,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create((theme) => ({
     accessCountBadge: {
         minWidth: 18,
         height: 18,
-        borderRadius: 9,
+        borderRadius: 4,
         paddingHorizontal: 5,
         alignItems: 'center',
         justifyContent: 'center',
@@ -474,7 +474,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 5,
         paddingHorizontal: 8,
         paddingVertical: 5,
-        borderRadius: 7,
+        borderRadius: 4,
     },
     newTabText: {
         color: theme.colors.textSecondary,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingLeft: 8,
         paddingRight: 5,
         paddingVertical: 5,
-        borderRadius: 7,
+        borderRadius: 4,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'transparent',
         maxWidth: 140,
@@ -527,7 +527,7 @@ const styles = StyleSheet.create((theme) => ({
     toolbarButton: {
         width: 30,
         height: 30,
-        borderRadius: 7,
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -535,7 +535,7 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
     },
     modalContainer: {
-        borderRadius: Platform.select({ web: 12, default: 0 }),
+        borderRadius: Platform.select({ web: 6, default: 0 }),
         overflow: 'hidden',
     },
     modalHeader: {
@@ -587,7 +587,7 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         gap: 7,
         paddingHorizontal: 14,
-        borderRadius: 9,
+        borderRadius: 4,
         backgroundColor: theme.colors.button.primary.background,
     },
     primaryButtonText: {

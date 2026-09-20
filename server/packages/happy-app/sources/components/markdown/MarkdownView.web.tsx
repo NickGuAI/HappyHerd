@@ -10,6 +10,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUnistyles } from 'react-native-unistyles';
+import { darkTheme } from '@/theme';
+import { Typography } from '@/constants/Typography';
 
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
 import { MermaidRenderer } from './MermaidRenderer';
@@ -495,20 +497,30 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
 
 
 
+    const palette = props.tone === 'island' ? darkTheme.colors : theme.colors;
     const themeVariables = {
-        ...lineReviewVariables(theme.dark, theme.colors.textSecondary),
-        '--hh-markdown-text': theme.colors.text,
-        '--hh-markdown-text-secondary': theme.colors.textSecondary,
-        '--hh-markdown-divider': theme.colors.divider,
-        '--hh-markdown-surface': theme.colors.surface,
-        '--hh-markdown-surface-high': theme.colors.surfaceHigh,
-        '--hh-markdown-surface-highest': theme.colors.surfaceHighest,
-        '--hh-markdown-syntax-keyword': theme.colors.syntaxKeyword,
-        '--hh-markdown-syntax-string': theme.colors.syntaxString,
-        '--hh-markdown-syntax-comment': theme.colors.syntaxComment,
-        '--hh-markdown-syntax-number': theme.colors.syntaxNumber,
-        '--hh-markdown-syntax-function': theme.colors.syntaxFunction,
-        '--hh-markdown-syntax-default': theme.colors.syntaxDefault,
+        ...lineReviewVariables(theme.dark, palette.textSecondary),
+        '--hh-markdown-text': palette.text,
+        '--hh-markdown-text-secondary': palette.textSecondary,
+        '--hh-markdown-divider': palette.divider,
+        '--hh-markdown-surface': palette.surface,
+        '--hh-markdown-surface-high': palette.surfaceHigh,
+        '--hh-markdown-surface-highest': palette.surfaceHighest,
+        '--hh-markdown-syntax-keyword': palette.syntaxKeyword,
+        '--hh-markdown-syntax-string': palette.syntaxString,
+        '--hh-markdown-syntax-comment': palette.syntaxComment,
+        '--hh-markdown-syntax-number': palette.syntaxNumber,
+        '--hh-markdown-syntax-function': palette.syntaxFunction,
+        '--hh-markdown-syntax-default': palette.syntaxDefault,
+        '--hh-markdown-font-ui': Typography.default().fontFamily,
+        '--hh-markdown-font-ui-bold': Typography.default('semiBold').fontFamily,
+        '--hh-markdown-font-mono': Typography.mono().fontFamily,
+        '--hh-markdown-font-mono-bold': Typography.mono('semiBold').fontFamily,
+        '--hh-markdown-island-top': theme.colors.kilv.islandTop,
+        '--hh-markdown-island-bottom': theme.colors.kilv.islandBottom,
+        '--hh-markdown-island-ink': theme.colors.kilv.islandInk,
+        '--hh-markdown-island-border': theme.colors.kilv.islandBorder,
+        '--hh-markdown-accent': palette.textLink,
     } as React.CSSProperties;
 
     // Reveal the rendered unit that corresponds to a requested source line. The
@@ -550,7 +562,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     return (
         <div
             ref={rootRef}
-            className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
+            className={`hh-markdown-root${theme.dark || props.tone === 'island' ? ' hh-markdown-dark' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
@@ -566,10 +578,11 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
 });
 
 const MARKDOWN_CSS = `
-.hh-markdown-root { color: inherit; width: 100%; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+.hh-markdown-root { color: var(--hh-markdown-text); font-family: var(--hh-markdown-font-ui); width: 100%; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
 .hh-markdown-root > :first-child { margin-top: 0; }
 .hh-markdown-root > :last-child { margin-bottom: 0; }
 .hh-markdown-root h1,.hh-markdown-root h2,.hh-markdown-root h3,.hh-markdown-root h4,.hh-markdown-root h5,.hh-markdown-root h6 { line-height: 1.25; margin: 1em 0 .45em; }
+.hh-markdown-root h1,.hh-markdown-root h2,.hh-markdown-root h3,.hh-markdown-root h4,.hh-markdown-root h5,.hh-markdown-root h6,.hh-markdown-root strong,.hh-markdown-root b,.hh-markdown-root th { font-family: var(--hh-markdown-font-ui-bold); font-weight: 400; }
 .hh-markdown-root p,.hh-markdown-root ul,.hh-markdown-root ol,.hh-markdown-root blockquote,.hh-markdown-root pre { margin: .65em 0; }
 .hh-markdown-root ul,.hh-markdown-root ol { padding-inline-start: 40px; }
 .hh-markdown-root a { color: inherit; text-decoration: underline; cursor: pointer; }
@@ -577,21 +590,24 @@ const MARKDOWN_CSS = `
 .hh-markdown-table-review { margin: .65em 0; }
 .hh-markdown-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
 .hh-markdown-table-wrap > table { border-collapse: collapse; display: table; width: max-content; min-width: 100%; max-width: none; margin: 0; overflow: visible; table-layout: auto; }
-.hh-markdown-root th,.hh-markdown-root td { min-width: 8rem; border: 1px solid rgba(127,127,127,.35); padding: .45em .7em; text-align: left; overflow-wrap: break-word; word-break: normal; }
-.hh-markdown-root pre { background: rgba(127,127,127,.12); border-radius: 8px; overflow-x: auto; padding: 16px; }
-.hh-markdown-root code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.hh-markdown-root th,.hh-markdown-root td { min-width: 8rem; border: 1px solid var(--hh-markdown-divider); padding: .45em .7em; text-align: left; overflow-wrap: break-word; word-break: normal; }
+.hh-markdown-root pre { background: var(--hh-markdown-surface-high); border: 1px solid var(--hh-markdown-divider); border-radius: 6px; overflow-x: auto; padding: 16px; }
+.hh-markdown-root code { font-family: var(--hh-markdown-font-mono), monospace; }
+.hh-markdown-root strong code,.hh-markdown-root b code,.hh-markdown-root code strong,.hh-markdown-root code b { font-family: var(--hh-markdown-font-mono-bold), monospace; font-weight: 400; }
 .hh-markdown-root button { font-size: inherit; }
-.hh-markdown-root img { display: block; max-width: min(100%, 720px); height: auto; border-radius: 10px; }
+.hh-markdown-root img { display: block; max-width: min(100%, 720px); height: auto; border-radius: 6px; }
 .hh-markdown-image-button { border: 0; padding: 0; background: transparent; cursor: pointer; }
-.hh-markdown-image-failure { display: flex; min-height: 120px; max-width: 520px; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(127,127,127,.35); border-radius: 10px; }
+.hh-markdown-image-failure { display: flex; min-height: 120px; max-width: 520px; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--hh-markdown-divider); border-radius: 6px; }
 .hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 32px)); height: min(900px, calc(100vh - 80px)); padding: 16px; }
 .hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; font-size: 16px; }
 .hh-markdown-image-modal > img { width: 100%; height: 100%; object-fit: contain; }
 .hh-markdown-options { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 8px 0; }
 .hh-markdown-root > .hh-markdown-options { margin: 8px 0; }
-.hh-markdown-option { appearance: none; display: block; box-sizing: border-box; width: 100%; overflow: hidden; border: 0; border-radius: 12px; padding: 8px 12px; background: var(--hh-markdown-surface-highest); color: var(--hh-markdown-text); font-family: IBMPlexSans-Regular; font-size: 16px; font-weight: 400; line-height: 24px; text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.hh-markdown-option { appearance: none; display: block; box-sizing: border-box; width: 100%; overflow: hidden; border: 1px solid var(--hh-markdown-island-border); border-radius: 6px; padding: 12px 16px; background: linear-gradient(180deg, var(--hh-markdown-island-top), var(--hh-markdown-island-bottom)); color: var(--hh-markdown-island-ink); font-family: var(--hh-markdown-font-ui); font-size: 16px; font-weight: 400; line-height: 24px; text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.hh-markdown-option:hover { border-color: var(--hh-markdown-accent); }
+.hh-markdown-option:focus-visible { outline: 2px solid var(--hh-markdown-accent); outline-offset: 2px; }
 .hh-markdown-option:active { opacity: .7; }
-.hh-markdown-option-item { box-sizing: border-box; width: 100%; overflow: hidden; border: 1px solid var(--hh-markdown-divider); border-radius: 8px; padding: 12px 16px; background: var(--hh-markdown-surface-highest); color: var(--hh-markdown-text); font-family: IBMPlexSans-Regular; font-size: 16px; font-weight: 400; line-height: 24px; overflow-wrap: anywhere; }
+.hh-markdown-option-item { box-sizing: border-box; width: 100%; overflow: hidden; border: 1px solid var(--hh-markdown-divider); border-radius: 6px; padding: 12px 16px; background: linear-gradient(180deg, var(--hh-markdown-island-top), var(--hh-markdown-island-bottom)); color: var(--hh-markdown-island-ink); font-family: var(--hh-markdown-font-ui); font-size: 16px; font-weight: 400; line-height: 24px; overflow-wrap: anywhere; }
 .hh-markdown-root.hh-markdown-dark { color: var(--hh-markdown-text); }
 .hh-markdown-root.hh-markdown-dark h1,.hh-markdown-root.hh-markdown-dark h2,.hh-markdown-root.hh-markdown-dark h3,.hh-markdown-root.hh-markdown-dark h4,.hh-markdown-root.hh-markdown-dark h5,.hh-markdown-root.hh-markdown-dark h6,.hh-markdown-root.hh-markdown-dark p,.hh-markdown-root.hh-markdown-dark ul,.hh-markdown-root.hh-markdown-dark ol,.hh-markdown-root.hh-markdown-dark li { color: var(--hh-markdown-text); }
 .hh-markdown-root.hh-markdown-dark a { color: var(--hh-markdown-text); }
@@ -609,21 +625,21 @@ const MARKDOWN_CSS = `
 .hh-markdown-root.hh-markdown-dark .hljs-title,.hh-markdown-root.hh-markdown-dark .hljs-section,.hh-markdown-root.hh-markdown-dark .hljs-function { color: var(--hh-markdown-syntax-function); }
 .hh-markdown-root.hh-markdown-dark .hljs-variable,.hh-markdown-root.hh-markdown-dark .hljs-attr,.hh-markdown-root.hh-markdown-dark .hljs-params,.hh-markdown-root.hh-markdown-dark .hljs-punctuation { color: var(--hh-markdown-syntax-default); }
 .hh-markdown-root pre { position: relative; }
-.hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
+.hh-markdown-code-copy { background: var(--hh-markdown-surface); color: var(--hh-markdown-text); border: 1px solid var(--hh-markdown-divider); border-radius: 4px; padding: 4px 8px; position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
 .hh-markdown-review-root { box-sizing: border-box; padding-inline-start: var(--hh-review-gutter-width); }
 .hh-markdown-review-line { position: relative; }
 .hh-markdown-inline-comment { box-sizing: border-box; width: 100%; margin: .3em 0 .8em; }
 .hh-markdown-review-reveal,.hh-markdown-review-root .hh-markdown-review-line:hover { background: var(--hh-review-highlight); }
-.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-1 * var(--hh-review-gutter-width) - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: var(--hh-review-number-width) var(--hh-review-button-size); gap: var(--hh-review-gutter-gap); align-items: center; height: var(--hh-review-button-size); font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 13px; font-variant-numeric: tabular-nums; line-height: 20px; }
+.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-1 * var(--hh-review-gutter-width) - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: var(--hh-review-number-width) var(--hh-review-button-size); gap: var(--hh-review-gutter-gap); align-items: center; height: var(--hh-review-button-size); font-family: var(--hh-markdown-font-mono), monospace; font-size: 13px; font-variant-numeric: tabular-nums; line-height: 20px; }
 .hh-markdown-source-line { overflow: hidden; color: var(--hh-review-number-color); text-align: end; text-overflow: clip; user-select: none; white-space: nowrap; }
 .hh-markdown-comment-gutter { appearance: none; display: flex; align-items: center; justify-content: center; width: var(--hh-review-button-size); height: var(--hh-review-button-size); border: 0; border-radius: 4px; padding: 0; background: var(--hh-review-accent); color: var(--hh-review-accent-text); font: inherit; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
 .hh-markdown-review-line:hover > .hh-markdown-review-gutter .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }
 .hh-markdown-comment-gutter:focus-visible { outline: 2px solid var(--hh-review-accent); outline-offset: 2px; }
 @media (max-width: 700px) { .hh-markdown-review-gutter { font-size: 16px; } }
 @media (hover: none), (pointer: coarse) { .hh-markdown-comment-gutter { opacity: 1; } }
-.hljs-comment,.hljs-quote { color: #6a737d; }
-.hljs-keyword,.hljs-selector-tag,.hljs-literal { color: #d73a49; }
-.hljs-string,.hljs-doctag { color: #032f62; }
-.hljs-title,.hljs-section,.hljs-function { color: #6f42c1; }
+.hljs-comment,.hljs-quote { color: var(--hh-markdown-syntax-comment); }
+.hljs-keyword,.hljs-selector-tag,.hljs-literal { color: var(--hh-markdown-syntax-keyword); }
+.hljs-string,.hljs-doctag { color: var(--hh-markdown-syntax-string); }
+.hljs-title,.hljs-section,.hljs-function { color: var(--hh-markdown-syntax-function); }
 `;

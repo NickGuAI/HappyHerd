@@ -1,5 +1,6 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import '../unistyles';
+import { darkTheme, lightTheme } from '../theme';
 
 // This file is web-only and used to configure the root HTML for every
 // web page during static rendering.
@@ -30,10 +31,10 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
 const responsiveBackground = `
 body {
-  background-color: #fff;
+  background-color: var(--colors-kilv-bg, ${lightTheme.colors.groupped.background});
 }
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #000;
+    background-color: var(--colors-kilv-bg, ${darkTheme.colors.groupped.background});
   }
 }`;

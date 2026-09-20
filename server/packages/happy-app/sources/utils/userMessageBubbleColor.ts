@@ -1,3 +1,5 @@
+import { darkTheme, lightTheme } from '@/theme';
+
 export const USER_MESSAGE_BUBBLE_COLORS = ['gray', 'blue', 'green', 'purple', 'rose', 'sand'] as const;
 
 export type UserMessageBubbleColor = typeof USER_MESSAGE_BUBBLE_COLORS[number];
@@ -14,7 +16,7 @@ export type UserMessageBubbleGlassPalette = {
     tint: string;
 };
 
-// gray matches the pre-picker bubble (theme userMessageBackground #2C2C2E dark)
+// The default follows the app palette; explicit user color choices remain available.
 export const DEFAULT_USER_MESSAGE_BUBBLE_COLOR: UserMessageBubbleColor = 'gray';
 
 const lightPalettes: Record<UserMessageBubbleColor, UserMessageBubblePalette> = {
@@ -43,11 +45,11 @@ const lightPalettes: Record<UserMessageBubbleColor, UserMessageBubblePalette> = 
         border: '#D9C292',
         indicator: '#B28B3D',
     },
-    // Exactly the pre-picker bubble: theme.colors.userMessageBackground (light)
+    // KILV warm-paper well.
     gray: {
-        background: '#f0eee6',
-        border: '#f0eee6',
-        indicator: '#8E8E93',
+        background: lightTheme.colors.userMessageBackground,
+        border: lightTheme.colors.divider,
+        indicator: lightTheme.colors.kilv.steel,
     },
 };
 
@@ -77,11 +79,11 @@ const darkPalettes: Record<UserMessageBubbleColor, UserMessageBubblePalette> = {
         border: '#8D7A55',
         indicator: '#E8C878',
     },
-    // Exactly the pre-picker bubble: theme.colors.userMessageBackground (dark)
+    // KILV lifted slate pane.
     gray: {
-        background: '#2C2C2E',
-        border: '#2C2C2E',
-        indicator: '#8E8E93',
+        background: darkTheme.colors.userMessageBackground,
+        border: darkTheme.colors.divider,
+        indicator: darkTheme.colors.kilv.rim,
     },
 };
 

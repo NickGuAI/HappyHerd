@@ -18,7 +18,7 @@ export interface AgentInputLayout {
  * geometry must stay identical.
  */
 export const MOBILE_COMPOSER_METRICS = {
-    shellRadius: 30,
+    shellRadius: 6,
     shellInset: 10,
     shellPaddingTop: 8,
     shellPaddingBottom: 8,
@@ -94,16 +94,15 @@ export interface MobileCollapsedComposerGeometry {
 }
 
 /**
- * Places collapsed-composer text at the tangent where the capsule's rounded
- * end meets its straight edge, rather than halfway through the rounded end.
+ * Retains the collapsed-composer text inset independently of the KILV pane corners.
  */
 export function resolveMobileCollapsedComposerGeometry(
     shellHeight = 56,
     contentPaddingHorizontal = 7,
     inputPaddingRight = 4,
 ): MobileCollapsedComposerGeometry {
-    const shellRadius = shellHeight / 2;
-    const inputPaddingLeft = shellRadius - contentPaddingHorizontal;
+    const shellRadius = 6;
+    const inputPaddingLeft = shellHeight / 2 - contentPaddingHorizontal;
 
     return {
         shellHeight,
@@ -150,7 +149,7 @@ export function resolveMobileComposerMenuGeometry(
             },
             content: {
                 height: MOBILE_COMPOSER_METRICS.secondaryActionHeight,
-                borderRadius: MOBILE_COMPOSER_METRICS.secondaryActionHeight / 2,
+                borderRadius: 4,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -174,7 +173,7 @@ export function resolveMobileComposerMenuGeometry(
             content: {
                 minWidth: 0,
                 height: MOBILE_COMPOSER_METRICS.secondaryActionHeight,
-                borderRadius: MOBILE_COMPOSER_METRICS.secondaryActionHeight / 2,
+                borderRadius: 4,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
@@ -194,7 +193,7 @@ export function resolveMobileComposerMenuGeometry(
         content: {
             minWidth: 0,
             height: MOBILE_COMPOSER_METRICS.secondaryActionHeight,
-            borderRadius: MOBILE_COMPOSER_METRICS.secondaryActionHeight / 2,
+            borderRadius: 4,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'flex-start',

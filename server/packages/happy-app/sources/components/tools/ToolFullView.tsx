@@ -1,5 +1,7 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
-import { Text, View, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ToolCall, Message } from '@/sync/typesMessage';
 import { CodeView } from '../CodeView';
@@ -10,7 +12,7 @@ import { toolResultText } from '@/utils/toolResult';
 import { getToolFullViewComponent } from './views/_all';
 import { layout } from '../layout';
 import { useLocalSetting } from '@/sync/storage';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { formatToolDisplayValue } from '@/utils/toolDisplay';
 import { ToolError } from './ToolError';
@@ -26,6 +28,7 @@ interface ToolFullViewProps {
 }
 
 export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFile }: ToolFullViewProps) {
+    const { theme } = useUnistyles();
     // Check if there's a specialized content view for this tool
     const SpecializedFullView = getToolFullViewComponent(tool.name);
     const screenWidth = useWindowDimensions().width;
@@ -61,7 +64,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {(tool.description || tool.title) && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="information-circle" size={20} color="#5856D6" />
+                                <Ionicons name="information-circle" size={20} color={theme.colors.textLink} />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.description')}</Text>
                             </View>
                             <Text style={styles.description}>{tool.description || getToolDisplayTitle(tool)}</Text>
@@ -71,7 +74,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {tool.input && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="log-in" size={20} color="#5856D6" />
+                                <Ionicons name="log-in" size={20} color={theme.colors.textLink} />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.inputParams')}</Text>
                             </View>
                             <CodeView code={JSON.stringify(tool.input, null, 2)} />
@@ -82,7 +85,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {tool.state === 'completed' && tool.result !== undefined && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="log-out" size={20} color="#34C759" />
+                                <Ionicons name="log-out" size={20} color={theme.colors.success} />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
                             </View>
                             <CodeView
@@ -95,7 +98,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {tool.state === 'error' && renderedError !== undefined && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                                <Ionicons name="close-circle" size={20} color={theme.colors.textDestructive} />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.error')}</Text>
                             </View>
                             <View style={styles.errorContainer}>
@@ -107,7 +110,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {tool.state === 'error' && tool.error !== undefined && tool.result !== undefined && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="log-out" size={20} color="#5856D6" />
+                                <Ionicons name="log-out" size={20} color={theme.colors.textLink} />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
                             </View>
                             <CodeView code={formatToolDisplayValue(tool.result)} />
@@ -118,7 +121,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                     {tool.state === 'completed' && tool.result === undefined && (
                         <View style={styles.section}>
                             <View style={styles.emptyOutputContainer}>
-                                <Ionicons name="checkmark-circle-outline" size={48} color="#34C759" />
+                                <Ionicons name="checkmark-circle-outline" size={48} color={theme.colors.success} />
                                 <Text style={styles.emptyOutputText}>{t('tools.fullView.completed')}</Text>
                                 <Text style={styles.emptyOutputSubtext}>{t('tools.fullView.noOutput')}</Text>
                             </View>
@@ -144,7 +147,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFi
                 {devModeEnabled && (
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="code-slash" size={20} color="#FF9500" />
+                            <Ionicons name="code-slash" size={20} color={theme.colors.warning} />
                             <Text style={styles.sectionTitle}>{t('tools.fullView.rawJsonDevMode')}</Text>
                         </View>
                         <CodeView 
@@ -215,7 +218,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     toolId: {
         fontSize: 12,
-        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+        fontFamily: Typography.mono().fontFamily,
         color: theme.colors.textSecondary,
     },
     errorContainer: {

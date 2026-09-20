@@ -1,3 +1,4 @@
+import { useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/StyledText';
@@ -32,6 +33,7 @@ function formatVoiceTime(totalSeconds: number): string {
 }
 
 export default React.memo(function VoiceSettingsScreen() {
+    const { theme } = useUnistyles();
     const router = useRouter();
     const auth = useAuth();
     const [voiceAssistantLanguage] = useSettingMutable('voiceAssistantLanguage');
@@ -217,7 +219,7 @@ export default React.memo(function VoiceSettingsScreen() {
                     subtitle={transcriptionKeyStatus?.configured
                         ? `•••••••• · ${transcriptionKeyStatus.source === 'user' ? t('uiCopy.configuredForAccount') : t('uiCopy.providedByDeployment')}`
                         : t('settingsVoice.customAgentIdNotSet')}
-                    icon={<Ionicons name="key-outline" size={29} color="#10A37F" />}
+                    icon={<Ionicons name="key-outline" size={29} color={theme.colors.textLink} />}
                     detail={transcriptionKeyStatus?.configured ? t('uiCopy.configured') : undefined}
                     loading={transcriptionKeyLoading || transcriptionKeyAction}
                     disabled={transcriptionKeyLoading || transcriptionKeyAction}
@@ -227,7 +229,7 @@ export default React.memo(function VoiceSettingsScreen() {
                     <Item
                         title={t("uiCopy.testOpenaiApiKey")}
                         subtitle={t("uiCopy.verifyAccessWithoutRecordingAudio")}
-                        icon={<Ionicons name="checkmark-circle-outline" size={29} color="#34C759" />}
+                        icon={<Ionicons name="checkmark-circle-outline" size={29} color={theme.colors.success} />}
                         disabled={transcriptionKeyAction}
                         onPress={handleTestTranscriptionKey}
                     />
@@ -236,7 +238,7 @@ export default React.memo(function VoiceSettingsScreen() {
                     <Item
                         title={t("uiCopy.removeOpenaiApiKey_18glmc")}
                         subtitle={t("uiCopy.deleteTheAccountSpecificTranscriptionKey")}
-                        icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
+                        icon={<Ionicons name="trash-outline" size={29} color={theme.colors.textDestructive} />}
                         destructive
                         disabled={transcriptionKeyAction}
                         onPress={handleRemoveTranscriptionKey}
@@ -259,18 +261,18 @@ export default React.memo(function VoiceSettingsScreen() {
                             label={t('settingsVoice.usageLabel')}
                             value={usage.usedSeconds}
                             maxValue={usage.limitSeconds}
-                            color={usage.usedSeconds >= usage.limitSeconds ? '#FF3B30' : '#007AFF'}
+                            color={usage.usedSeconds >= usage.limitSeconds ? theme.colors.textDestructive : theme.colors.textLink}
                         />
-                        <Text style={{ fontSize: 13, color: '#8E8E93', marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 4 }}>
                             {formatVoiceTime(usage.usedSeconds)} / {formatVoiceTime(usage.limitSeconds)}
                         </Text>
                         <UsageBar
                             label={t('settingsVoice.conversationsLabel')}
                             value={usage.conversationCount}
                             maxValue={usage.conversationLimit}
-                            color={usage.conversationCount >= usage.conversationLimit ? '#FF3B30' : '#007AFF'}
+                            color={usage.conversationCount >= usage.conversationLimit ? theme.colors.textDestructive : theme.colors.textLink}
                         />
-                        <Text style={{ fontSize: 13, color: '#8E8E93', marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 4 }}>
                             {usage.conversationCount} / {usage.conversationLimit}
                         </Text>
                     </View>
@@ -286,14 +288,14 @@ export default React.memo(function VoiceSettingsScreen() {
                         title={t("uiCopy.voiceExperimentOverride")}
                         subtitle={t("uiCopy.simpleLocalOverrideForTheVoiceUpsellFlag")}
                         detail={developerOverrideLabel}
-                        icon={<Ionicons name="options-outline" size={29} color="#007AFF" />}
+                        icon={<Ionicons name="options-outline" size={29} color={theme.colors.textLink} />}
                         onPress={handleVoiceExperimentOverride}
                     />
                     <Item
                         title={t("uiCopy.voiceExperimentStatus")}
                         subtitle={developerExperimentSubtitle}
                         subtitleLines={0}
-                        icon={<Ionicons name="flask-outline" size={29} color="#5856D6" />}
+                        icon={<Ionicons name="flask-outline" size={29} color={theme.colors.textLink} />}
                         showChevron={false}
                         copy={developerExperimentSubtitle}
                     />
@@ -301,7 +303,7 @@ export default React.memo(function VoiceSettingsScreen() {
                         title={t("uiCopy.resetVoiceCounters")}
                         subtitle={developerCountersSubtitle}
                         subtitleLines={0}
-                        icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}
+                        icon={<Ionicons name="refresh-outline" size={29} color={theme.colors.warning} />}
                         onPress={handleResetVoiceCounters}
                     />
                 </ItemGroup>
@@ -315,7 +317,7 @@ export default React.memo(function VoiceSettingsScreen() {
                 <Item
                     title={t('settingsVoice.preferredLanguage')}
                     subtitle={t('settingsVoice.preferredLanguageSubtitle')}
-                    icon={<Ionicons name="language-outline" size={29} color="#007AFF" />}
+                    icon={<Ionicons name="language-outline" size={29} color={theme.colors.textLink} />}
                     detail={getLanguageDisplayName(currentLanguage)}
                     onPress={() => router.push('/settings/voice/language')}
                 />
@@ -329,13 +331,13 @@ export default React.memo(function VoiceSettingsScreen() {
                 <Item
                     title={t('settingsVoice.customAgentId')}
                     subtitle={voiceCustomAgentId ?? t('settingsVoice.customAgentIdNotSet')}
-                    icon={<Ionicons name="key-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="key-outline" size={29} color={theme.colors.warning} />}
                     onPress={handleCustomAgentId}
                 />
                 <Item
                     title={t('settingsVoice.bypassToken')}
                     subtitle={t('settingsVoice.bypassTokenSubtitle')}
-                    icon={<Ionicons name="flash-outline" size={29} color="#FF3B30" />}
+                    icon={<Ionicons name="flash-outline" size={29} color={theme.colors.textDestructive} />}
                     rightElement={
                         <Switch
                             value={voiceBypassToken}

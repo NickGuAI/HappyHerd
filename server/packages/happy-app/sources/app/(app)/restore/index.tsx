@@ -53,9 +53,9 @@ const stylesheet = StyleSheet.create((theme) => ({
     textInput: {
         backgroundColor: Platform.select({ web: theme.colors.input.background, default: theme.colors.glass.backgroundSubtle }),
         padding: 16,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         marginBottom: 24,
-        fontFamily: 'IBMPlexMono-Regular',
+        ...Typography.mono(),
         fontSize: 14,
         minHeight: 120,
         textAlignVertical: 'top',
@@ -145,7 +145,7 @@ export default function Restore() {
                     </Text>
                 </View>
                 {!authReady && (
-                    <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={68} style={{ width: 200, height: 200, backgroundColor: Platform.select({ web: theme.colors.surface, android: theme.colors.glass.backgroundStrong, default: 'transparent' }), alignItems: 'center', justifyContent: 'center', borderRadius: Platform.select({ web: 0, default: 24 }), overflow: 'hidden', borderWidth: Platform.OS === 'web' ? 0 : 0.5, borderColor: theme.colors.glass.border }}>
+                    <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={68} style={{ width: 200, height: 200, backgroundColor: Platform.select({ web: theme.colors.surface, android: theme.colors.glass.backgroundStrong, default: 'transparent' }), alignItems: 'center', justifyContent: 'center', borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }), overflow: 'hidden', borderWidth: Platform.OS === 'web' ? 0 : 0.5, borderColor: theme.colors.glass.border }}>
                         <ActivityIndicator size="small" color={theme.colors.text} />
                     </MobileGlassSurface>
                 )}

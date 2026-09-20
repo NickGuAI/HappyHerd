@@ -90,18 +90,16 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
                         style={[
                             styles.pillGlass,
                             Platform.OS !== 'ios' && { backgroundColor: theme.colors.surfaceHighest },
-                            theme.dark
-                                ? { borderColor: 'rgba(255, 255, 255, 0.18)' }
-                                : { borderColor: '#FFFFFF' },
+                            { borderColor: theme.colors.glass.border, shadowColor: theme.colors.shadow.color },
                         ]}
                     >
                         <View style={styles.pillContent}>
                             <View style={styles.micSlot}>
                                 <ShimmerView
-                                    shimmerColors={['rgba(255, 255, 255, 0.45)', '#FFFFFF', 'rgba(255, 255, 255, 0.45)']}
+                                    shimmerColors={[theme.colors.textSecondary, theme.colors.text, theme.colors.textSecondary]}
                                     duration={1800}
                                 >
-                                    <Ionicons name="mic" size={24} color="#FFFFFF" />
+                                    <Ionicons name="mic" size={24} color={theme.colors.text} />
                                 </ShimmerView>
                             </View>
 
@@ -204,7 +202,6 @@ const styles = StyleSheet.create({
         borderRadius: MOBILE_GLASS_CONTROL_RADIUS,
         overflow: 'hidden',
         borderWidth: Platform.select({ ios: 1, default: 0 }),
-        shadowColor: '#000000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: Platform.select({ ios: 0.06, default: 0 }),
         shadowRadius: 20,
@@ -232,7 +229,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         fontWeight: '600',
         fontVariant: ['tabular-nums'],
-        ...Typography.default('semiBold'),
+        ...Typography.mono('semiBold'),
     },
     endControl: {
         height: MOBILE_GLASS_CONTROL_SIZE,

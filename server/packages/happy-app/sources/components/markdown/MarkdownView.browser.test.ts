@@ -1,34 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../../..');
+const fontFaces = ['SpaceGrotesk-Regular', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'];
 
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
-        const light = {
-            dark: false,
-            colors: {
-                text: '#000000', textSecondary: '#49454f', divider: '#eaeaea',
-                surface: '#ffffff', surfaceHigh: '#f8f8f8', surfaceHighest: '#f0f0f0',
-                syntaxKeyword: '#1d4ed8', syntaxString: '#059669', syntaxComment: '#6b7280',
-                syntaxNumber: '#0891b2', syntaxFunction: '#9333ea', syntaxDefault: '#374151',
-            },
-        };
-        const dark = {
-            dark: true,
-            colors: {
-                text: '#ffffff', textSecondary: '#cac4d0', divider: '#292929',
-                surface: '#212121', surfaceHigh: '#171717', surfaceHighest: '#292929',
-                syntaxKeyword: '#569cd6', syntaxString: '#ce9178', syntaxComment: '#6a9955',
-                syntaxNumber: '#b5cea8', syntaxFunction: '#dcdcaa', syntaxDefault: '#d4d4d4',
-            },
-        };
+        import { lightTheme as light, darkTheme as dark } from '@/theme';
         export const useUnistyles = () => ({
             theme: new URLSearchParams(window.location.search).get('theme') === 'dark' ? dark : light,
         });
@@ -52,7 +36,6 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/sync': `export const sync = { sendMessage: async () => ({ id: 'fixture-receipt' }) };`,
     '@/components/StyledText': `export { Text } from 'react-native';`,
-    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
     '@/sync/ops': `
         window.__MARKDOWN_IMAGE_READS__ = [];
         export const machineReadFileWithinRoot = async (...args) => {
@@ -118,9 +101,17 @@ describe('MarkdownView browser theme and option parity', () => {
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
-        server = createServer((_request, response) => {
+        const fonts = fontFaces.map((face) => `@font-face {font-family:'${face}';src:url('/${face}.ttf') format('truetype');}`).join('\n');
+        const themeCss = readFileSync(resolve(appRoot, 'sources/theme.css'), 'utf8');
+        server = createServer((request, response) => {
+            const font = fontFaces.find((face) => request.url === `/${face}.ttf`);
+            if (font) {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(appRoot, 'sources/assets/fonts', `${font}.ttf`)));
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>' + script + '</script>');
+            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>' + fonts + '\n' + themeCss + '\nhtml,body,#root{margin:0;min-height:100%}*{box-sizing:border-box}</style><main id="root"></main><script>' + script + '</script>');
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -133,6 +124,45 @@ describe('MarkdownView browser theme and option parity', () => {
             args: process.platform === 'linux' ? ['--no-sandbox'] : [],
         });
     }, 30_000);
+
+    it('visibly preserves Markdown emphasis and incidental weights with the shipped fonts', async () => {
+        const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+        const errors = recordPageErrors(page);
+        await page.goto(`${origin}/?typography`);
+        await page.locator('#typography strong').first().waitFor();
+        const loaded = await page.evaluate(async (families) => Promise.all(families.map(async (family) => {
+            const faces = await document.fonts.load(`24px "${family}"`);
+            return faces.length > 0 && faces.every((face) => face.status === 'loaded');
+        })), fontFaces);
+        expect(loaded).toEqual(fontFaces.map(() => true));
+
+        // Normalize size and geometry only; font family/weight/style come from
+        // the real Markdown component and app CSS. Equal PNGs mean emphasis
+        // was silently lost even if computed font-weight still says "bold".
+        const selectors = [
+            '#typography .hh-markdown-root > p:first-of-type',
+            '#typography strong:not(:has(code))',
+            '#typography h2',
+            '#typography em',
+            '#typography th',
+            '#incidental-weight',
+            '#typography p > code',
+            '#typography strong > code',
+        ];
+        const captures: Buffer[] = [];
+        for (const selector of selectors) {
+            const sample = page.locator(selector);
+            await sample.evaluate((element) => {
+                (element as HTMLElement).style.cssText += ';display:block;position:fixed;left:0;top:0;width:800px;height:40px;box-sizing:border-box;padding:0;margin:0;border:0;font-size:24px;line-height:40px;color:black;background:white;z-index:9999';
+            });
+            captures.push(await sample.screenshot());
+            await sample.evaluate((element) => { (element as HTMLElement).style.visibility = 'hidden'; });
+        }
+        for (const emphasized of captures.slice(1, 6)) expect(emphasized.equals(captures[0])).toBe(false);
+        expect(captures[7].equals(captures[6])).toBe(false);
+        expect(errors).toEqual([]);
+        await page.close();
+    });
 
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
@@ -179,7 +209,8 @@ describe('MarkdownView browser theme and option parity', () => {
         expect(await input.inputValue()).toBe('Keep this draft');
         await thread.getByRole('button', { name: 'files.pinComment', exact: true }).click();
         await thread.getByRole('button', { name: 'files.editFile', exact: true }).click();
-        await input.press('End');
+        // On macOS End scrolls the page; Command+Right moves the text caret.
+        await input.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
         await page.keyboard.type(' edited');
         const editing = await input.elementHandle();
         await page.evaluate(() => window.__REFRESH_MARKDOWN_REVIEW__?.());
@@ -273,7 +304,7 @@ describe('MarkdownView browser theme and option parity', () => {
             alignItems: 'center',
             justifyContent: 'center',
         });
-        expect(gutterLayout.backgroundColor).toBe('rgb(210, 153, 34)');
+        expect(gutterLayout.backgroundColor).toBe('rgb(240, 220, 176)');
 
         const alignedReviewLines = [
             root.locator('h2[data-source-line="3"]'),
@@ -309,7 +340,7 @@ describe('MarkdownView browser theme and option parity', () => {
             const chip = getComputedStyle(element);
             const container = getComputedStyle(element.parentElement!);
             return {
-                background: chip.backgroundColor,
+                background: chip.backgroundImage,
                 color: chip.color,
                 radius: chip.borderRadius,
                 padding: [chip.paddingTop, chip.paddingRight, chip.paddingBottom, chip.paddingLeft],
@@ -324,11 +355,11 @@ describe('MarkdownView browser theme and option parity', () => {
             };
         });
         expect(chipLayout).toMatchObject({
-            background: 'rgb(41, 41, 41)',
-            color: 'rgb(255, 255, 255)',
-            radius: '12px',
-            padding: ['8px', '12px', '8px', '12px'],
-            fontFamily: 'IBMPlexSans-Regular',
+            background: 'linear-gradient(rgb(36, 27, 14), rgb(26, 19, 9))',
+            color: 'rgb(251, 244, 228)',
+            radius: '6px',
+            padding: ['12px', '16px', '12px', '16px'],
+            fontFamily: 'SpaceGrotesk-Regular',
             fontSize: '16px',
             lineHeight: '24px',
             textAlign: 'left',
@@ -362,21 +393,21 @@ describe('MarkdownView browser theme and option parity', () => {
             };
         });
         expect(colors).toEqual({
-            body: 'rgb(255, 255, 255)',
-            heading: 'rgb(255, 255, 255)',
-            list: 'rgb(255, 255, 255)',
-            link: 'rgb(255, 255, 255)',
-            quoteColor: 'rgb(202, 196, 208)',
-            quoteBackground: 'rgb(23, 23, 23)',
-            quoteBorder: 'rgb(41, 41, 41)',
-            inlineCodeColor: 'rgb(255, 255, 255)',
-            inlineCodeBackground: 'rgb(23, 23, 23)',
-            fencedBackground: 'rgb(41, 41, 41)',
-            fencedText: 'rgb(255, 255, 255)',
-            syntaxKeyword: 'rgb(86, 156, 214)',
-            tableText: 'rgb(255, 255, 255)',
-            tableBorder: 'rgb(41, 41, 41)',
-            tableHeaderBackground: 'rgb(23, 23, 23)',
+            body: 'rgb(247, 244, 236)',
+            heading: 'rgb(247, 244, 236)',
+            list: 'rgb(247, 244, 236)',
+            link: 'rgb(247, 244, 236)',
+            quoteColor: 'rgba(247, 244, 236, 0.88)',
+            quoteBackground: 'rgb(21, 27, 40)',
+            quoteBorder: 'rgba(247, 244, 236, 0.24)',
+            inlineCodeColor: 'rgb(247, 244, 236)',
+            inlineCodeBackground: 'rgb(21, 27, 40)',
+            fencedBackground: 'rgb(27, 34, 49)',
+            fencedText: 'rgb(247, 244, 236)',
+            syntaxKeyword: 'rgb(240, 220, 176)',
+            tableText: 'rgb(247, 244, 236)',
+            tableBorder: 'rgba(247, 244, 236, 0.24)',
+            tableHeaderBackground: 'rgb(21, 27, 40)',
         });
 
         if (viewport.hasTouch) {
@@ -394,7 +425,7 @@ describe('MarkdownView browser theme and option parity', () => {
         await context.close();
     }, 15_000);
 
-    it('leaves the established light Markdown palette intact while restoring chip styling', async () => {
+    it('renders warm paper Markdown and warm island options', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(`${origin}/?theme=light`);
@@ -417,16 +448,16 @@ describe('MarkdownView browser theme and option parity', () => {
             };
         });
         expect(colors).toEqual({
-            body: 'rgb(0, 0, 0)',
-            heading: 'rgb(0, 0, 0)',
-            list: 'rgb(0, 0, 0)',
-            link: 'rgb(0, 0, 0)',
+            body: 'rgb(20, 16, 10)',
+            heading: 'rgb(20, 16, 10)',
+            list: 'rgb(20, 16, 10)',
+            link: 'rgb(20, 16, 10)',
             quoteBackground: 'rgba(0, 0, 0, 0)',
             quoteOpacity: '0.85',
             inlineCodeBackground: 'rgba(0, 0, 0, 0)',
-            fencedBackground: 'rgba(127, 127, 127, 0.12)',
-            optionBackground: 'rgb(240, 240, 240)',
-            optionColor: 'rgb(0, 0, 0)',
+            fencedBackground: 'rgb(255, 249, 236)',
+            optionBackground: 'rgba(0, 0, 0, 0)',
+            optionColor: 'rgb(251, 244, 228)',
         });
         expect(pageErrors).toEqual([]);
         await page.close();
