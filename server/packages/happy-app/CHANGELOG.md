@@ -1,3 +1,7 @@
+# September 20 — Grok terminal account login
+
+- Connecting a named Grok account from the terminal now preserves existing credentials when `GROK_AUTH_PATH` is set and registers and selects the newly signed-in account under its requested nickname.
+
 # September 20 — Grok account login
 
 - Managed Grok login now accepts the native scoped OAuth credential format and preserves its refresh metadata, while retaining support for legacy login credentials.

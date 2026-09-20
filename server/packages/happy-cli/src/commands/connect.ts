@@ -396,10 +396,13 @@ async function handleConnectNamedAccount(
         await chmod(pendingRoot, 0o700);
         const home = await mkdtemp(join(pendingRoot, 'terminal-'));
         try {
+            const env: NodeJS.ProcessEnv = { ...process.env, GROK_HOME: home };
+            // Native Grok prioritizes this override over GROK_HOME, even during login.
+            delete env.GROK_AUTH_PATH;
             const result = spawn.sync('grok', ['login'], {
                 stdio: 'inherit',
                 windowsHide: true,
-                env: { ...process.env, GROK_HOME: home },
+                env,
             });
             if (result.error) throw result.error;
             if (result.status !== 0) throw new Error(`grok login exited with status ${result.status ?? 'unknown'}`);
