@@ -61,6 +61,7 @@ export type NewConversationResponse = {
     thread: {
         id: ThreadId;
         path: string;
+        turns?: ThreadTurn[];
         [key: string]: unknown;
     };
     model: string;
@@ -342,14 +343,14 @@ export type EventMsg = { type: string } & Record<string, unknown>;
 
 export type JsonRpcRequest = {
     jsonrpc?: "2.0";
-    id?: number;
+    id?: number | string;
     method: string;
     params?: unknown;
 };
 
 export type JsonRpcResponse = {
     jsonrpc?: "2.0";
-    id: number;
+    id: number | string;
     result?: unknown;
     error?: { code: number; message: string; data?: unknown };
 };

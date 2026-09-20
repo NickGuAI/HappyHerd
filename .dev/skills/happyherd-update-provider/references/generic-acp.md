@@ -45,6 +45,14 @@ generic restore mechanism.
 - Exercise resume only for a provider whose advertised and implemented
   contract supports it.
 
+## Plan replay (#295)
+
+Standard `sessionUpdate: plan` snapshots retain #276's full-replacement and
+explicit-empty semantics. `runAcp` opens an explicit plan replay window around
+`backend.startSession`, allowing `AcpSessionManager` to persist snapshots emitted
+by native load/resume before a prompt turn exists. This adds no provider history
+capability or ACP question protocol. See the [interaction playbook](../../../playbooks/native-plan-question-interactions.md).
+
 ## Known gaps
 
 Generic ACP has no Human new-session UI entry. Models, efforts, permission

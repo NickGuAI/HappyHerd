@@ -192,7 +192,7 @@ describe('tool rendering on mobile and web', () => {
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
     });
 
-    it('leaves an optionless communication with the modal answer owner', () => {
+    it('renders an anchored optionless communication inline', () => {
         settings.compact = true;
         settings.communication = {
             id: 'text-form', toolUseId: 'text-call', kind: 'form', createdAt: 1, status: 'pending',
@@ -206,8 +206,8 @@ describe('tool rendering on mobile and web', () => {
             metadata: null,
             sessionId: 's1',
         }));
-        expect(row.root.findAllByType('SpecializedView')).toHaveLength(0);
-        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(1);
+        expect(row.root.findAllByType('CodeView')).toHaveLength(0);
     });
 
     it('uses the wire title in the detail header', () => {

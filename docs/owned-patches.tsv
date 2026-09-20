@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NATIVE_PLAN_QUESTION_RECOVERY	accepted	feat(providers): persist native plans and question answers	.dev/evidence/issue-295-native-interactions.md
 MANAGED_LOGIN_CHANGELOG_GOLDENS	accepted	test(app): refresh managed login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 MANAGED_LOGIN_REFRESH	accepted	fix(app): refresh managed accounts after every login success	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
 GROK_TERMINAL_LOGIN_GOLDENS	accepted	test(app): refresh Grok terminal login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png

@@ -61,6 +61,14 @@ CLI help value that the audited SDK does not support.
   exact-machine handling for `dontAsk`.
 - Cover both local native CLI and remote SDK launch paths.
 
+## Question answer receipts (#295)
+
+`permissionHandler.ts` persists successful AskUserQuestion `updatedInput` in
+`completedRequests[id].arguments`, preserving exact native question-text keys.
+The existing AskUserQuestionView reads that receipt after reload/reconnect.
+The RPC waits for receipt persistence; denial does not store unaccepted answers.
+See the [native interaction playbook](../../../playbooks/native-plan-question-interactions.md).
+
 ## Known gaps
 
 The 2026-08-30 audit did not complete a live authenticated smoke for every

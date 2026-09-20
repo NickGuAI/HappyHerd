@@ -1,5 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SandboxConfig } from '@/persistence';
+import type { AgentState } from '@/api/types';
+import { registerCodexUserInput } from './userInput';
+import nativeQuestion from './fixtures/native-question.json';
+import { mapCodexMcpMessageToSessionEnvelopes, mapCodexThreadToSessionEnvelopes } from './utils/sessionProtocolMapper';
 
 const {
     mockExecSync,
@@ -51,7 +55,7 @@ vi.mock('../package.json', () => ({
 }));
 
 type MockRpcMessage = {
-    id?: number;
+    id?: number | string;
     method?: string;
     params?: any;
     result?: any;
@@ -141,6 +145,149 @@ describe('CodexAppServerClient sandbox integration', () => {
 
     afterAll(() => {
         process.env.RUST_LOG = originalRustLog;
+    });
+
+    function questionSession() {
+        let state: AgentState = {};
+        const handlers = new Map<string, (reply: any) => Promise<any>>();
+        return {
+            get state() { return state; },
+            reply: (value: unknown) => handlers.get('communication')!(value),
+            session: {
+                rpcHandlerManager: { registerHandler: (name: string, handler: (reply: any) => Promise<any>) => { handlers.set(name, handler); } },
+                updateAgentState: async (updater: (state: AgentState) => AgentState) => { state = updater(state); },
+                sendSessionProtocolMessage: vi.fn(),
+            },
+        };
+    }
+
+    it('routes native string and numeric root requests once, retaining selected/custom answers and cancellation', async () => {
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const writes: MockRpcMessage[] = [];
+        const proc = createMockProcess({ onWrite: msg => writes.push(msg) });
+        mockSpawn.mockReturnValue(proc);
+        const client = new CodexAppServerClient();
+        const host = questionSession();
+        registerCodexUserInput(client, host.session);
+        await client.connect();
+        pushJsonLine(proc.stdout, nativeQuestion);
+        pushJsonLine(proc.stdout, nativeQuestion);
+        await waitFor(() => Object.keys(host.state.communications ?? {}).length === 1);
+        const id = Object.keys(host.state.communications!)[0];
+        expect(host.state.communications![id].toolUseId).toBe(id);
+        expect(host.session.sendSessionProtocolMessage).toHaveBeenCalledTimes(1);
+        const answers = { storage: { options: ['Project'] }, details: { options: [], custom: 'Include regressions' } };
+        await host.reply({ id, kind: 'form', status: 'answered', answers });
+        await expect(host.reply({ id, kind: 'form', status: 'cancelled' })).rejects.toThrow('no longer pending');
+        expect(writes.filter(msg => msg.id === nativeQuestion.id)).toEqual([{
+            jsonrpc: '2.0', id: nativeQuestion.id,
+            result: { answers: { storage: { answers: ['Project'] }, details: { answers: ['Include regressions'] } } },
+        }]);
+        expect(JSON.parse(JSON.stringify(host.state)).completedCommunications[id]).toMatchObject({ status: 'answered', answers });
+        pushJsonLine(proc.stdout, { ...nativeQuestion, id: 7 });
+        await waitFor(() => Object.keys(host.state.communications ?? {}).length === 1);
+        const second = Object.keys(host.state.communications!)[0];
+        expect(second).not.toBe(id);
+        await host.reply({ id: second, kind: 'form', status: 'cancelled' });
+        expect(writes.filter(msg => msg.id === 7)).toEqual([{ jsonrpc: '2.0', id: 7, result: { answers: {} } }]);
+        await client.disconnect();
+    });
+
+    it.each(['resolved', 'interrupt', 'exit', 'disconnect', 'completed', 'item-completed', 'clear-thread'] as const)('retires %s questions and rejects late replies after native ID reuse', async reason => {
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const writes: MockRpcMessage[] = [];
+        const proc = createMockProcess({ onWrite: msg => writes.push(msg) });
+        mockSpawn.mockReturnValue(proc);
+        const client = new CodexAppServerClient();
+        const host = questionSession();
+        registerCodexUserInput(client, host.session);
+        await client.connect();
+        pushJsonLine(proc.stdout, nativeQuestion);
+        await waitFor(() => Object.keys(host.state.communications ?? {}).length === 1);
+        const oldId = Object.keys(host.state.communications!)[0];
+        pushJsonLine(proc.stdout, { method: 'serverRequest/resolved', params: { threadId: 'unrelated-child', requestId: nativeQuestion.id } });
+        await new Promise(resolve => setTimeout(resolve, 5));
+        expect(host.state.communications![oldId]).toBeDefined();
+        if (reason === 'resolved') pushJsonLine(proc.stdout, { method: 'serverRequest/resolved', params: { threadId: 'root-thread', requestId: nativeQuestion.id } });
+        if (reason === 'interrupt') await client.interruptTurn();
+        if (reason === 'exit') proc.emit('exit', 1, null);
+        if (reason === 'disconnect') await client.disconnect();
+        if (reason === 'completed') pushJsonLine(proc.stdout, { method: 'turn/completed', params: { threadId: 'root-thread', turn: { id: 'root-turn', status: 'interrupted' } } });
+        if (reason === 'item-completed') pushJsonLine(proc.stdout, { method: 'item/completed', params: { threadId: 'root-thread', turnId: 'root-turn', item: { id: 'question-item', type: 'dynamicToolCall' } } });
+        if (reason === 'clear-thread') client.clearThreadState();
+        await waitFor(() => !Object.keys(host.state.communications ?? {}).length);
+        expect(host.state.completedCommunications![oldId].status).toBe('cancelled');
+        await client.disconnect();
+        const next = createMockProcess({ onWrite: msg => writes.push(msg) });
+        mockSpawn.mockReturnValue(next);
+        await client.connect();
+        pushJsonLine(next.stdout, nativeQuestion);
+        await waitFor(() => Object.keys(host.state.communications ?? {}).length === 1);
+        await expect(host.reply({ id: oldId, kind: 'form', status: 'cancelled' })).rejects.toThrow('no longer pending');
+        expect(writes.filter(msg => msg.id === nativeQuestion.id)).toEqual([]);
+        const newId = Object.keys(host.state.communications!)[0];
+        await host.reply({ id: newId, kind: 'form', status: 'cancelled' });
+        expect(writes.filter(msg => msg.id === nativeQuestion.id)).toHaveLength(1);
+        await client.disconnect();
+    });
+
+    it('preserves malformed input as a generic tool with only cancellation, without approval routing', async () => {
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const proc = createMockProcess();
+        mockSpawn.mockReturnValue(proc);
+        const client = new CodexAppServerClient();
+        const approval = vi.fn();
+        client.setApprovalHandler(approval);
+        const host = questionSession();
+        registerCodexUserInput(client, host.session);
+        await client.connect();
+        pushJsonLine(proc.stdout, { ...nativeQuestion, params: { ...nativeQuestion.params, questions: [{ question: 'unsupported' }] } });
+        await waitFor(() => Object.keys(host.state.communications ?? {}).length === 1);
+        const id = Object.keys(host.state.communications!)[0];
+        expect(host.state.communications![id].kind).toBe('codex-unsupported-input');
+        await expect(host.reply({ id, kind: 'codex-unsupported-input', status: 'answered', answers: {} })).rejects.toThrow('Unsupported');
+        await host.reply({ id, kind: 'codex-unsupported-input', status: 'cancelled' });
+        expect(approval).not.toHaveBeenCalled();
+        await client.disconnect();
+    });
+
+    it('maps raw plan replacement/clear/deltas and native history to stable visible envelopes', async () => {
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const proc = createMockProcess({ onRequest: (msg, stdout) => {
+            if (msg.method === 'thread/resume') pushJsonLine(stdout, { id: msg.id, result: {
+                thread: { id: 'root-thread', turns: [{ id: 'root-turn', completedAt: 12, items: [{ id: 'p1', type: 'plan', text: 'Final plan' }] }] }, model: 'model',
+            } });
+        } });
+        mockSpawn.mockReturnValue(proc);
+        const client = new CodexAppServerClient();
+        const events: Record<string, unknown>[] = [];
+        client.setEventHandler(msg => events.push(msg));
+        await client.connect();
+        await client.resumeThread({ threadId: 'root-thread' });
+        const restored = mapCodexMcpMessageToSessionEnvelopes(events[0], { currentTurnId: null }).envelopes;
+        const history = mapCodexThreadToSessionEnvelopes({ turns: [{ id: 'root-turn', completedAt: 12, items: [{ id: 'p1', type: 'plan', text: 'Final plan' }] }] });
+        const identityAndContent = (envelope: typeof restored[number]) => ({ id: envelope.id, turn: envelope.turn, ev: envelope.ev });
+        expect(restored.map(identityAndContent)).toEqual(history.filter(e => e.ev.t === 'tool-call-start' || e.ev.t === 'tool-call-end').map(identityAndContent));
+        expect(restored[0].time).toBeGreaterThan(12_000);
+        const params = { threadId: 'root-thread', turnId: 'new-turn', plan: [{ step: 'Verify', status: 'inProgress' }] };
+        pushJsonLine(proc.stdout, { method: 'turn/plan/updated', params });
+        pushJsonLine(proc.stdout, { method: 'turn/plan/updated', params });
+        pushJsonLine(proc.stdout, { method: 'turn/plan/updated', params: { ...params, plan: null } });
+        pushJsonLine(proc.stdout, { method: 'turn/plan/updated', params: { ...params, plan: [] } });
+        pushJsonLine(proc.stdout, { method: 'turn/plan/updated', params: { ...params, threadId: 'child' } });
+        pushJsonLine(proc.stdout, { method: 'item/plan/delta', params: { ...params, itemId: 'p2', delta: 'Live ' } });
+        pushJsonLine(proc.stdout, { method: 'item/plan/delta', params: { ...params, itemId: 'p2', delta: 'plan' } });
+        pushJsonLine(proc.stdout, { method: 'item/completed', params: { ...params, item: { id: 'p2', type: 'plan', text: 'Live plan' } } });
+        await waitFor(() => events.length === 7);
+        const snapshots = events.slice(1, 4).flatMap(event => mapCodexMcpMessageToSessionEnvelopes(event, { currentTurnId: 'new-turn' }).envelopes);
+        expect(snapshots[1].ev).toMatchObject({ result: { newTodos: [{ content: 'Verify', status: 'in_progress' }] } });
+        expect(snapshots[2].ev).toMatchObject({ name: 'CodexPlan', args: { payload: { plan: null } } });
+        expect(snapshots[5].ev).toMatchObject({ result: { newTodos: [] } });
+        const bodies = events.slice(4).flatMap(event => mapCodexMcpMessageToSessionEnvelopes(event, { currentTurnId: 'new-turn' }).envelopes);
+        expect(bodies.map(e => e.ev.t)).toEqual(['tool-call-start', 'tool-call-start', 'tool-call-start', 'tool-call-end']);
+        expect(new Set(bodies.map(e => 'call' in e.ev ? e.ev.call : '')).size).toBe(1);
+        expect(bodies[1].ev).toMatchObject({ args: { plan: 'Live plan' } });
+        await client.disconnect();
     });
 
     it('reports goal action support for Codex versions with goal action requests', async () => {

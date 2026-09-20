@@ -1,3 +1,9 @@
+# September 20 — Native plans and recoverable answers
+
+- Codex questions now offer one inline form for choices and written answers, with cancellation and protection against answering an interrupted or replaced request.
+- Native Codex plans stay visible while streaming and when restoring provider history. Codex and ACP plan snapshots replace the current list, including explicit empty clears; ACP history replay retains plans when the provider supplies them.
+- Claude question answers now remain visible after reconnecting or reloading. Unsupported question payloads retain their generic content and supported cancellation controls.
+
 # September 20 — Managed account login refresh
 
 - Successful provider logins now refresh managed account rows immediately and close the add-account form, including when submitting a verification code completes the login.

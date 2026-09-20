@@ -254,6 +254,7 @@ vi.mock('./codexAppServerClient', () => ({
         sandboxEnabled = false;
         threadId: string | null = null;
 
+        setUserInputHandler = vi.fn();
         setApprovalHandler = vi.fn((handler: (params: Record<string, unknown>) => Promise<string>) => {
             mocks.setApprovalHandler(handler);
         });

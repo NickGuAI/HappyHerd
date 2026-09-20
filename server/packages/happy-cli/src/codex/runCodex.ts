@@ -60,6 +60,7 @@ import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
 import { buildCodexThreadBackfillEnvelopes } from './utils/threadImageBackfill';
+import { registerCodexUserInput } from './userInput';
 import { extractCodexAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import {
     buildCodexDeveloperInstructions,
@@ -961,6 +962,8 @@ export async function runCodex(opts: {
 
         return { ok: true };
     });
+
+    registerCodexUserInput(client, session);
 
     // Approval handler: routes server → client approval requests to our permission handler
     client.setApprovalHandler(async (params) => {

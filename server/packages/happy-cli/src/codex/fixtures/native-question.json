@@ -1,0 +1,30 @@
+{
+    "id": "root-request-7",
+    "method": "item/tool/requestUserInput",
+    "params": {
+        "threadId": "root-thread",
+        "turnId": "root-turn",
+        "itemId": "question-item",
+        "questions": [
+            {
+                "id": "storage",
+                "header": "Storage",
+                "question": "Where should the result be saved?",
+                "isOther": true,
+                "isSecret": false,
+                "options": [
+                    { "label": "Project", "description": "Keep it with this project" },
+                    { "label": "Workspace", "description": "Share it across projects" }
+                ]
+            },
+            {
+                "id": "details",
+                "header": "Details",
+                "question": "What should the result contain?",
+                "isOther": true,
+                "isSecret": false,
+                "options": null
+            }
+        ]
+    }
+}

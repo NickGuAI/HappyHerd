@@ -163,9 +163,10 @@ describe('selectAgentFormCommunication', () => {
 });
 
 describe('canRenderAgentFormInline', () => {
-    it('keeps inline ownership limited to forms with an option-bearing transcript card', () => {
+    it('assigns anchored choice and text-only forms to one inline owner', () => {
         expect(canRenderAgentFormInline({
             id: 'choice',
+            toolUseId: 'choice-call',
             createdAt: 0,
             kind: 'form',
             questions: [question({ allowCustom: true })],
@@ -173,10 +174,11 @@ describe('canRenderAgentFormInline', () => {
 
         expect(canRenderAgentFormInline({
             id: 'text',
+            toolUseId: 'text-call',
             createdAt: 0,
             kind: 'form',
             questions: [question({ options: [], allowCustom: true })],
-        })).toBe(false);
+        })).toBe(true);
     });
 
     it('keeps an unanchored text-only form on the answerable modal fallback', () => {
@@ -192,13 +194,13 @@ describe('canRenderAgentFormInline', () => {
         expect(shouldUseAgentQuestionFallback(communication)).toBe(true);
     });
 
-    it('assigns an option-bearing form to the transcript before its tool message arrives', () => {
+    it('keeps unanchored option-bearing forms on the modal fallback', () => {
         expect(shouldUseAgentQuestionFallback({
             id: 'choice',
             createdAt: 0,
             kind: 'form',
             questions: [question()],
-        })).toBe(false);
+        })).toBe(true);
     });
     it('retains fallback ownership for a form with no supported input', () => {
         const unsupported = {
