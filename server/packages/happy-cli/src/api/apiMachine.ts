@@ -1,3 +1,5 @@
+import { DevicePairingCheckRequestSchema, DevicePairingConfirmRequestSchema } from '@slopus/happy-wire';
+import type { DevicePairingService } from '@/daemon/devicePairing';
 /**
  * WebSocket client for machine/daemon communication with Happy server
  * Similar to ApiSessionClient but for machine-scoped connections
@@ -161,6 +163,7 @@ type MachineRpcHandlers = {
     automations?: HappyHerdAutomationService;
     sideChat?: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
     credentialAccounts?: CredentialAccountManager;
+    devicePairing?: DevicePairingService;
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
@@ -269,8 +272,20 @@ export class ApiMachineClient {
         automations,
         sideChat,
         credentialAccounts,
+        devicePairing,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
+
+        if (devicePairing) {
+            this.rpcHandlerManager.registerHandler('happyherd-device-pairing-check', async (params: unknown) => (
+                devicePairing.check(DevicePairingCheckRequestSchema.parse(params).code)
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-device-pairing-confirm', async (params: unknown) => {
+                const { code, requestId } = DevicePairingConfirmRequestSchema.parse(params);
+                return devicePairing.confirm(code, requestId);
+            });
+            this.rpcHandlerManager.registerHandler('happyherd-device-pairing-identity', async () => devicePairing.getIdentity());
+        }
 
         if (credentialAccounts) {
             this.rpcHandlerManager.registerHandler('happyherd-credential-accounts-list', async () => (
@@ -706,6 +721,7 @@ export class ApiMachineClient {
                     supportsFileDelete: true,
                     supportsDirectoryDelete: true,
                     credentialManagementProtocolVersion: 1,
+                    devicePairingProtocolVersion: 1,
                 };
             }).catch((error) => {
                 logger.debug('[API MACHINE] Failed to advertise machine capabilities:', error);

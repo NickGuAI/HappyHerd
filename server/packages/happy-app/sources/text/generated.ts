@@ -170,6 +170,46 @@ export type TranslationKey =
     | "connectButton.authenticate"
     | "connectButton.authenticateWithUrlPaste"
     | "connectButton.pasteAuthUrl"
+    | "devicePairing.account"
+    | "devicePairing.activeServer"
+    | "devicePairing.addDevice"
+    | "devicePairing.cancelled"
+    | "devicePairing.checkCode"
+    | "devicePairing.checking"
+    | "devicePairing.codeLabel"
+    | "devicePairing.codePlaceholder"
+    | "devicePairing.collision"
+    | "devicePairing.confirmIdentity"
+    | "devicePairing.connect"
+    | "devicePairing.connected"
+    | "devicePairing.connectedDetail"
+    | "devicePairing.connecting"
+    | "devicePairing.description"
+    | "devicePairing.devices"
+    | "devicePairing.devicesFooter"
+    | "devicePairing.enterAnotherCode"
+    | "devicePairing.expired"
+    | "devicePairing.host"
+    | "devicePairing.identityMismatch"
+    | "devicePairing.instructions"
+    | "devicePairing.invalid"
+    | "devicePairing.machineId"
+    | "devicePairing.needsUpdate"
+    | "devicePairing.network"
+    | "devicePairing.newSession"
+    | "devicePairing.noDevices"
+    | "devicePairing.notFound"
+    | "devicePairing.openDevice"
+    | "devicePairing.refresh"
+    | "devicePairing.retryConnect"
+    | "devicePairing.scope"
+    | "devicePairing.selected"
+    | "devicePairing.server"
+    | "devicePairing.serverChanged"
+    | "devicePairing.settingsSubtitle"
+    | "devicePairing.title"
+    | "devicePairing.unavailable"
+    | "devicePairing.used"
     | "diff.binaryFile"
     | "diff.ignoreWhitespace"
     | "diff.imageAfter"
@@ -1553,6 +1593,12 @@ export interface TranslationParamsByKey {
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };
     "components.sessionStatusBar.limitResets": { time: string };
+    "devicePairing.account": { account: string };
+    "devicePairing.activeServer": { server: string };
+    "devicePairing.connectedDetail": { host: string };
+    "devicePairing.host": { host: string };
+    "devicePairing.machineId": { machineId: string };
+    "devicePairing.server": { server: string };
     "diff.showMoreLines": { count: number };
     "diff.tapToExpand": { count: number };
     "diff.unchangedLines": { count: number };

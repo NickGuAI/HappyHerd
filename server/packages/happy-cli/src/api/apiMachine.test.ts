@@ -249,6 +249,7 @@ describe('ApiMachineClient socket reconnection', () => {
         };
         expect(machine.metadata?.supportsFileDelete).toBeUndefined();
         expect(machine.metadata?.supportsDirectoryDelete).toBeUndefined();
+        expect(machine.metadata?.devicePairingProtocolVersion).toBeUndefined();
         mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
             if (event === 'machine-update-metadata') {
                 return {
@@ -271,6 +272,7 @@ describe('ApiMachineClient socket reconnection', () => {
         await vi.waitFor(() => {
             expect(machine.metadata?.supportsFileDelete).toBe(true);
             expect(machine.metadata?.supportsDirectoryDelete).toBe(true);
+            expect(machine.metadata?.devicePairingProtocolVersion).toBe(1);
         });
         expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
             'machine-update-metadata',

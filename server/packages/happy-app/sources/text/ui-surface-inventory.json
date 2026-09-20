@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "b413f9f3f1bd97fe1a9165e918fe6638ff8481ae6d59d492a024e2936af2d15b",
-  "routeCount": 40,
-  "surfaceCount": 277,
+  "sourceFingerprint": "961dd1b54b88d2919a9d4495033347dcdc8c41319d1b3e4624c0a35d8076963a",
+  "routeCount": 41,
+  "surfaceCount": 279,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -765,6 +765,12 @@
       "states": []
     },
     {
+      "path": "/settings/connections",
+      "owner": "sources/app/(app)/settings/connections.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
       "path": "/settings/credentials",
       "owner": "sources/app/(app)/settings/credentials.tsx",
       "translationKeys": [],
@@ -1133,6 +1139,7 @@
         "common.files",
         "common.home",
         "common.message",
+        "devicePairing.title",
         "friends.addFriend",
         "machine.back",
         "navigation.connectTerminal",
@@ -2035,6 +2042,17 @@
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/connections.tsx",
+      "kind": "route",
+      "route": "/settings/connections",
+      "exports": [
+        "ConnectionsSettingsScreen"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3023,6 +3041,64 @@
         "uiCopy.happyTerminal"
       ],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ConnectionsSettingsView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ConnectionsSettingsView"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "devicePairing.account",
+        "devicePairing.activeServer",
+        "devicePairing.addDevice",
+        "devicePairing.cancelled",
+        "devicePairing.checkCode",
+        "devicePairing.checking",
+        "devicePairing.codeLabel",
+        "devicePairing.codePlaceholder",
+        "devicePairing.collision",
+        "devicePairing.confirmIdentity",
+        "devicePairing.connect",
+        "devicePairing.connected",
+        "devicePairing.connectedDetail",
+        "devicePairing.connecting",
+        "devicePairing.description",
+        "devicePairing.devices",
+        "devicePairing.devicesFooter",
+        "devicePairing.enterAnotherCode",
+        "devicePairing.expired",
+        "devicePairing.host",
+        "devicePairing.identityMismatch",
+        "devicePairing.instructions",
+        "devicePairing.invalid",
+        "devicePairing.machineId",
+        "devicePairing.needsUpdate",
+        "devicePairing.network",
+        "devicePairing.newSession",
+        "devicePairing.noDevices",
+        "devicePairing.notFound",
+        "devicePairing.openDevice",
+        "devicePairing.refresh",
+        "devicePairing.retryConnect",
+        "devicePairing.scope",
+        "devicePairing.selected",
+        "devicePairing.server",
+        "devicePairing.serverChanged",
+        "devicePairing.title",
+        "devicePairing.unavailable",
+        "devicePairing.used",
+        "status.offline",
+        "status.online",
+        "workspace.title"
+      ],
+      "states": [
+        "offline",
+        "unavailable"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -4804,6 +4880,8 @@
         "common.runtime",
         "common.version",
         "connect.enterUrlManually",
+        "devicePairing.settingsSubtitle",
+        "devicePairing.title",
         "modals.authenticateTerminal",
         "modals.developerMode",
         "modals.developerModeDisabled",

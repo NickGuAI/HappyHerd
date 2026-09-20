@@ -178,6 +178,7 @@ export const MachineMetadataSchema = z.object({
   machineSessionProtocolVersion: z.number().int().positive().optional(),
   // Optional for metadata published before credential management shipped.
   credentialManagementProtocolVersion: z.number().int().positive().optional(),
+  devicePairingProtocolVersion: z.number().int().positive().optional(),
   homeDir: z.string(),
   happyHomeDir: z.string(),
   happyLibDir: z.string(),

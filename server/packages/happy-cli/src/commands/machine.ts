@@ -37,7 +37,7 @@ import {
   type SideChatLifecycleReceipt,
   type SideChatLifecycleRequest,
 } from './sideChat';
-import { ensureDaemonAssistant, manageDaemonSideChat, spawnLocalDaemonSession } from '@/daemon/controlClient';
+import { createDaemonDevicePairing, cancelDaemonDevicePairing, ensureDaemonAssistant, manageDaemonSideChat, spawnLocalDaemonSession } from '@/daemon/controlClient';
 import { handleLocalSessionInspectCommand, handleLocalSessionSendCommand, type LocalSessionCommandDependencies } from './localSession';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
@@ -68,6 +68,8 @@ export type MachineCommandDependencies = {
   ensureLocalAssistant?: typeof ensureDaemonAssistant;
   createLocalSession?: typeof spawnLocalDaemonSession;
   localSession?: LocalSessionCommandDependencies;
+  createDevicePairing?: typeof createDaemonDevicePairing;
+  cancelDevicePairing?: typeof cancelDaemonDevicePairing;
 };
 
 type AccountControlConfig = {
@@ -101,6 +103,8 @@ function machineHelp(): string {
 
 Usage:
   happyherd machine list [--json]
+  happyherd machine pair [--json]
+  happyherd machine pair cancel [--json]
   happyherd machine auth <login|status|logout>
 
 Selectors accepted by "happyherd session create" are an exact machine ID or an
@@ -607,6 +611,29 @@ export async function handleMachineCommand(
   }
   if (action === 'auth') {
     await handleMachineAuthCommand(rest, dependencies);
+    return;
+  }
+  if (action === 'pair') {
+    if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
+      outputFor(dependencies)(`${machineHelp()}\n\nPair displays a two-minute code for this running daemon. In the Happy app,\nopen Connections -> Add device while signed in to the same account and server.\nThe code identifies the existing machine and does not sign in or grant access.\nRun pair again to replace the code, or pair cancel to cancel it.`);
+      return;
+    }
+    const cancel = rest[0] === 'cancel';
+    const flags = parseFlags(cancel ? rest.slice(1) : rest, new Set(), new Set(['json']));
+    if (cancel) {
+      const receipt = await (dependencies?.cancelDevicePairing ?? cancelDaemonDevicePairing)();
+      outputFor(dependencies)(flags.json === true ? JSON.stringify(receipt) : `Device pairing: ${receipt.status}`);
+      return;
+    }
+    const receipt = await (dependencies?.createDevicePairing ?? createDaemonDevicePairing)();
+    if (flags.json === true) outputFor(dependencies)(JSON.stringify(receipt));
+    else {
+      outputFor(dependencies)(`Device pairing code: ${receipt.code.slice(0, 4)}-${receipt.code.slice(4)}`);
+      outputFor(dependencies)(`Machine: ${receipt.host} (${receipt.machineId})`);
+      outputFor(dependencies)(`Server: ${receipt.serverUrl}`);
+      outputFor(dependencies)(`Expires: ${new Date(receipt.expiresAt).toISOString()}`);
+      outputFor(dependencies)('Enter this code in Connections -> Add device using the same Happy account and server.');
+    }
     return;
   }
   if (action !== 'list') throw new Error(`Unknown machine command: ${action}`);

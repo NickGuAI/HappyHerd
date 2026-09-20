@@ -292,6 +292,15 @@ export const SettingsView = React.memo(function SettingsView({
                 />
             </ItemGroup>
 
+            <ItemGroup>
+                <Item
+                    title={t('devicePairing.title')}
+                    subtitle={t('devicePairing.settingsSubtitle')}
+                    icon={<Ionicons name="link-outline" size={29} color={theme.colors.textLink} />}
+                    onPress={() => router.push('/settings/connections' as any)}
+                />
+            </ItemGroup>
+
             <ItemGroup title={t('settings.connectedAccounts')}>
                 <Item
                     title={t("uiCopy.claudeCode_rfuptw")}
