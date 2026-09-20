@@ -19,12 +19,13 @@ and colors are evaluated through screenshots, without CSS pixel/hex assertions.
 Push the intended source to the PR branch, then from `server/` run:
 
 ```sh
-pnpm --filter happy-app golden:update feat/issue-287-kilv-ui
+pnpm --filter happy-app golden:update
 ```
 
-This one command dispatches the existing quality workflow in explicit regenerate
-mode, waits for its exact-SHA run, and downloads its baseline artifact. Requires
-authenticated `gh` with Actions permission. Review the changed PNGs, add the exact
+This one command waits for the existing PR quality workflow on local HEAD and
+downloads its complete capture artifact, including from a comparison that failed
+against outdated/missing baselines. Requires authenticated `gh` with read-only
+Actions access. Review the changed PNGs, add the exact
 conventional commit subject to `docs/owned-patches.tsv`, and make one owned commit.
 The command does not commit/push and does not change the 380 historical review PNGs.
 Regeneration is intentionally done in CI's Linux browser environment, avoiding

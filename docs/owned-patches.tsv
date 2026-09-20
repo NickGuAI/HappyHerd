@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+KILV_GOLDEN_REGEN	accepted	test(app): regenerate golden baselines from exact PR artifacts	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN	accepted	test(app): add bounded KILV golden-image CI	docs/acceptance/issue-287/golden/README.md
 CODEX_CONTEXT_METER	accepted	fix(codex): keep parent context meter scoped to root usage	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
 FORK_PARENT_SETTINGS	accepted	fix(sessions): inherit parent permissions and commander on fork	.dev/evidence/issue-281-fork-inheritance.md
