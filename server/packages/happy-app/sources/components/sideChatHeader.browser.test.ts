@@ -2166,7 +2166,7 @@ describe('Side chats browser interaction', () => {
         await foreground.getByText('Workspace', { exact: true }).click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(workspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
+        await expect.poll(() => workspace.getByPlaceholder('Path').inputValue(), { timeout: 3_000 }).toBe('/work/project');
         await expect(workspace.getByText('Upload', { exact: true }).isVisible()).resolves.toBe(true);
         await workspace.getByText('machine-file.md', { exact: true }).click();
         await foreground.getByRole('tab', { name: 'Open file machine-file.md' }).waitFor({ state: 'visible', timeout: 3_000 });
