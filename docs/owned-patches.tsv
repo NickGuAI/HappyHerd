@@ -400,3 +400,4 @@ ISSUE_287_UI_INVENTORY_LEDGER	code-ready	chore(app): record rebased UI inventory
 ISSUE_287_DROP_FREEZE_GATES	code-ready	test(app): drop frozen layout census and pixel locks	server/packages/happy-app/sources/theme.test.ts
 ISSUE_287_HEADER_TITLE	code-ready	fix(app): show HappyHerd as the header title	server/packages/happy-app/sources/text/locales/en.json
 ISSUE_287_HEADER_GOLDENS	code-ready	test(app): regenerate goldens after HappyHerd header title	docs/acceptance/issue-287/golden/README.md
+ISSUE_287_APPEARANCE_GOLDEN	code-ready	test(app): refresh appearance mobile-light golden	docs/acceptance/issue-287/golden/routes-appearance-populated-light-390.png
