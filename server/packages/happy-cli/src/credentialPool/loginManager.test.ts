@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readCredentialPoolState, upsertCredentialAccount, type CredentialPoolPaths } from './store';
 import { CredentialLoginManager } from './loginManager';
 import { spawnPtyLoginProcess } from './ptyLoginProcess';
+import { activateGrokCredential } from './grokAuth';
 
 const CLAUDE_AUTH_URL = 'https://claude.com/cai/oauth/authorize?client_id=fixture&code=true&response_type=code&redirect_uri=https%3A%2F%2Fexample.test%2Fcallback&scope=user%3Ainference&code_challenge=fixture&code_challenge_method=S256&state=fixture';
 
@@ -367,7 +368,11 @@ describe('credential provider login manager', () => {
     expect(commitLogin).toHaveBeenCalledTimes(1);
   });
 
-  it('accepts the installed Grok device-auth credential shape', async () => {
+  it.each([
+    'https://accounts.x.ai/sign-in',
+    'https://auth.x.ai::fixture-client',
+    'https://auth.x.ai::another-client',
+  ])('commits and activates the Grok credential scope %s without rewriting it', async (scope) => {
     const child = fakeChild();
     let stagedHome = '';
     const manager = new CredentialLoginManager({
@@ -378,14 +383,78 @@ describe('credential provider login manager', () => {
       }) as any,
     });
     const started = await manager.start('grok', 'work');
-    await writeFile(
-      join(stagedHome, 'auth.json'),
-      JSON.stringify({ 'https://accounts.x.ai/sign-in': { key: 'private-grok-key' } }),
-    );
+    const bytes = JSON.stringify({ [scope]: {
+      key: 'fake-grok-key',
+      auth_mode: 'oidc',
+      refresh_token: 'fake-refresh',
+      create_time: '2026-09-20T00:00:00Z',
+      user_id: 'fixture-user',
+      oidc_issuer: 'https://auth.x.ai',
+      oidc_client_id: scope.split('::')[1],
+    } }, null, 2);
+    await writeFile(join(stagedHome, 'auth.json'), bytes);
     child.exitCode = 0;
     child.emit('close', 0);
     await vi.waitFor(() => expect(manager.status(started.id).state).toBe('succeeded'));
-    expect(JSON.stringify(manager.status(started.id))).not.toContain('private-grok-key');
+    const state = await readCredentialPoolState(paths);
+    expect(state.current.grok).toBe('work');
+    expect(state.accounts).toHaveLength(1);
+    const account = state.accounts[0];
+    expect(account).toMatchObject({ provider: 'grok', name: 'work', credentialVersion: 1 });
+    if (account.provider !== 'grok') throw new Error('expected Grok account');
+    expect(await readFile(account.credential.path, 'utf8')).toBe(bytes);
+    expect((await stat(account.credential.path)).mode & 0o777).toBe(0o600);
+    const runtimeAuth = await activateGrokCredential(account, join(root, 'runtime'), paths);
+    expect(await readFile(runtimeAuth, 'utf8')).toBe(bytes);
+    expect(JSON.stringify(manager.status(started.id))).not.toContain('fake-grok-key');
+    expect(JSON.stringify(manager.status(started.id))).not.toContain('fake-refresh');
+    await expect(stat(stagedHome)).rejects.toMatchObject({ code: 'ENOENT' });
+    await manager.dispose();
+  });
+
+  it.each([
+    ['invalid JSON', '{'],
+    ['null root', 'null'],
+    ['array root', '[]'],
+    ['empty root', '{}'],
+    ...[
+      ['null scope', null],
+      ['array scope', [{ key: 'fake-key' }]],
+      ['string scope', 'fake-key'],
+      ['missing key', { auth_mode: 'oidc', refresh_token: 'fake-refresh' }],
+      ['empty key', { key: '' }],
+      ['blank key', { key: '   ' }],
+      ['numeric key', { key: 42 }],
+      ['object key', { key: {} }],
+    ].map(([name, value]) => [name, JSON.stringify({ 'https://auth.x.ai::fixture-client': value })]),
+    ...[
+      'https://auth.x.ai',
+      'https://auth.x.ai::',
+      'https://auth.x.ai::   ',
+      'https://auth.x.ai.evil.test::fixture-client',
+      'https://unrelated.test::fixture-client',
+    ].map((scope) => [scope, JSON.stringify({ [scope]: { key: 'fake-key' } })]),
+  ])('rejects malformed Grok auth (%s) without registering an account', async (_name, bytes) => {
+    const child = fakeChild();
+    let stagedHome = '';
+    const manager = new CredentialLoginManager({
+      paths,
+      spawn: vi.fn((_command, _args, options) => {
+        stagedHome = options.env.GROK_HOME;
+        return child;
+      }) as any,
+    });
+    const started = await manager.start('grok', 'invalid');
+    await writeFile(join(stagedHome, 'auth.json'), bytes as string);
+    child.exitCode = 0;
+    child.emit('close', 0);
+    await vi.waitFor(() => expect(manager.status(started.id)).toMatchObject({
+      state: 'failed',
+      error: 'The provider login completed without a usable credential.',
+    }));
+    expect((await readCredentialPoolState(paths)).accounts).toEqual([]);
+    await expect(stat(stagedHome)).rejects.toMatchObject({ code: 'ENOENT' });
+    await manager.dispose();
   });
 
   it('drains a login that is still preparing and never spawns after disposal starts', async () => {

@@ -48,6 +48,16 @@ The audited binary advertised `default`, `acceptEdits`, `auto`, `dontAsk`,
 - Prove active transition and resume receipts without conflating permission
   policy with ACP operating mode.
 
+## Managed login credential format
+
+Verified 2026-09-20 against native source at
+[`4247f661`](https://github.com/xai-org/grok-build/blob/4247f661689354b831191f11eeeac8424993fe3d/crates/codegen/xai-grok-login/src/config.rs):
+the default OAuth scope is `https://auth.x.ai::<client-id>`; the pre-OIDC
+relay scope is `https://accounts.x.ai/sign-in`. The scoped record carries a
+`key` and optional refresh metadata. HappyHerd login validation recognizes
+both scopes and commits the original file bytes. Fake-provider completion
+tests prove registration and activation; they do not prove live OAuth or refresh.
+
 ## Known gaps
 
 A live transition plus daemon-restart smoke was not completed during the

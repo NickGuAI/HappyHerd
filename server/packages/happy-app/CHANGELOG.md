@@ -1,3 +1,7 @@
+# September 20 — Grok account login
+
+- Managed Grok login now accepts the native scoped OAuth credential format and preserves its refresh metadata, while retaining support for legacy login credentials.
+
 # September 20 — Resume with the saved provider account
 
 - Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.

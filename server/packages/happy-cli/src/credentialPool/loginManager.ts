@@ -144,10 +144,12 @@ function validProviderAuth(provider: 'codex' | 'grok', value: unknown): boolean 
     )) return true;
   }
   if (provider === 'grok') {
-    const scoped = record['https://accounts.x.ai/sign-in'];
-    if (scoped && typeof scoped === 'object' && !Array.isArray(scoped)) {
+    // Native OAuth scopes include the client ID; retain the legacy relay scope.
+    for (const [scope, scoped] of Object.entries(record)) {
+      if (scope !== 'https://accounts.x.ai/sign-in' && !/^https:\/\/auth\.x\.ai::\S+$/.test(scope)) continue;
+      if (!scoped || typeof scoped !== 'object' || Array.isArray(scoped)) continue;
       const key = (scoped as Record<string, unknown>).key;
-      if (typeof key === 'string' && key !== '') return true;
+      if (typeof key === 'string' && key.trim() !== '') return true;
     }
   }
   const keys = provider === 'codex'
