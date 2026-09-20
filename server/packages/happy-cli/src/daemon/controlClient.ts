@@ -3,6 +3,10 @@
  * Used by CLI commands to interact with running daemon
  */
 
+import {
+  DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema,
+  type DevicePairingCreateResponse, type DevicePairingCancelResponse,
+} from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
@@ -164,6 +168,18 @@ export async function assertDaemonCredentialAccountMutationAllowed(
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {
   const result = await daemonPost('/spawn-session', { directory, sessionId });
   return result;
+}
+
+export async function createDaemonDevicePairing(): Promise<DevicePairingCreateResponse> {
+  const result = await daemonPost('/device-pairing/create');
+  if (result?.error) throw new Error(result.error);
+  return DevicePairingCreateResponseSchema.parse(result);
+}
+
+export async function cancelDaemonDevicePairing(): Promise<DevicePairingCancelResponse> {
+  const result = await daemonPost('/device-pairing/cancel');
+  if (result?.error) throw new Error(result.error);
+  return DevicePairingCancelResponseSchema.parse(result);
 }
 
 export async function ensureDaemonAssistant(): Promise<DefaultAssistantReceipt> {

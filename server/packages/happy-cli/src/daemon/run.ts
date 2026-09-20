@@ -31,6 +31,7 @@ import type { PersistedSession } from '@/persistence';
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, listDaemonSessions, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
+import { DevicePairingService } from './devicePairing';
 import type { LocalSessionCreationRequest, LocalSessionCreationReceipt } from './controlServer';
 import type { LocalSessionSendRequest, LocalSessionSendReceipt, LocalSessionInspectRequest, LocalSessionInspectReceipt } from './localSessionClient';
 import { statSync } from 'fs';
@@ -236,6 +237,7 @@ export const initialMachineMetadata: MachineMetadata = {
   supportsFileDelete: true,
   supportsDirectoryDelete: true,
   credentialManagementProtocolVersion: 1,
+  devicePairingProtocolVersion: 1,
 };
 
 export async function startDaemon(): Promise<void> {
@@ -1759,9 +1761,12 @@ export async function startDaemon(): Promise<void> {
       throw new Error('HappyHerd daemon is still starting; retry credential account management.');
     };
 
+    let devicePairing: DevicePairingService | undefined;
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
+      devicePairing: () => devicePairing,
       stopSession,
       spawnSession,
       sideChat: (request) => manageLocalSideChat(request),
@@ -1823,6 +1828,10 @@ export async function startDaemon(): Promise<void> {
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
+    devicePairing = new DevicePairingService(
+      { machineId: machine.id, host: machine.metadata.host },
+      configuration.serverUrl,
+    );
     const activeCredentialAccounts = new CredentialAccountManager({
       isLegacyAccountInUse: (target) => [...pidToTrackedSession.values()].some((session) => {
         if (hasProviderProcessExited(session.pid)) return false;
@@ -1901,6 +1910,7 @@ export async function startDaemon(): Promise<void> {
       automations,
       sideChat: (request) => manageLocalSideChat(request),
       credentialAccounts: activeCredentialAccounts,
+      devicePairing,
     });
 
     const localSessionFromPersistence = (sessionId: string): Session => {

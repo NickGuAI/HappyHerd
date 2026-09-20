@@ -80,6 +80,11 @@ class ApiSocket {
     // Connection Management
     //
 
+    /** The endpoint actually used by encrypted RPC, which can differ from a newly saved preference. */
+    getActiveEndpoint(): string | null {
+        return this.config?.endpoint ?? null;
+    }
+
     connect() {
         if (!this.config || this.socket) {
             return;

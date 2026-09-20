@@ -186,6 +186,12 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="settings/connections"
+                options={{
+                    headerTitle: t('devicePairing.title'),
+                }}
+            />
+            <Stack.Screen
                 name="settings/credentials"
                 options={{
                     headerTitle: t('settingsCredentials.title'),

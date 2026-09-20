@@ -2,6 +2,12 @@
 
 - The context meter now stays tied to the main Codex session while subagents are working.
 
+# September 19 — Device codes for existing account machines
+
+- Open Settings → Connections to identify a running target daemon with an eight-digit device code, confirm its identity, and use the existing machine for sessions and files.
+- Codes require the same account and server and do not change machine ownership, credentials, encryption, or existing sessions. Generate a code with `happyherd machine pair` on an updated, already running daemon.
+- Connection status reflects daemon verification, with recovery for unavailable targets and invalid, expired, cancelled, or used codes.
+
 # September 17 — Mobile browser layout
 
 - Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.

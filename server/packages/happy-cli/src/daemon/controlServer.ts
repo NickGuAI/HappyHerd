@@ -3,6 +3,8 @@
  * Provides endpoints for listing sessions, stopping sessions, and daemon shutdown
  */
 
+import { DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema } from '@slopus/happy-wire';
+import type { DevicePairingService } from './devicePairing';
 import fastify, { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -71,7 +73,9 @@ export function startDaemonControlServer({
   sendLocalMessage,
   inspectLocalSession,
   assertCredentialAccountMutationAllowed,
+  devicePairing,
 }: {
+  devicePairing?: () => DevicePairingService | undefined;
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
@@ -95,6 +99,18 @@ export function startDaemonControlServer({
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     const typed = app.withTypeProvider<ZodTypeProvider>();
+
+    typed.post('/device-pairing/create', { schema: { body: z.object({}).strict() } }, async (_request, reply) => {
+      const pairing = devicePairing?.();
+      if (!pairing) return reply.code(503).send({ error: 'Device pairing is unavailable; wait for this daemon to finish starting' });
+      return DevicePairingCreateResponseSchema.parse(pairing.create());
+    });
+
+    typed.post('/device-pairing/cancel', { schema: { body: z.object({}).strict() } }, async (_request, reply) => {
+      const pairing = devicePairing?.();
+      if (!pairing) return reply.code(503).send({ error: 'Device pairing is unavailable; wait for this daemon to finish starting' });
+      return DevicePairingCancelResponseSchema.parse(pairing.cancel());
+    });
 
     typed.post('/ensure-assistant', async (_request, reply) => {
       if (!ensureDefaultAssistant) return reply.code(503).send({ error: 'Default Assistant setup is unavailable' });
