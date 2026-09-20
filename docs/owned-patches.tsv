@@ -390,3 +390,4 @@ ISSUE_287_PANEL_SCREENSHOTS	code-ready	test(app): attach KILV panel review scree
 ISSUE_287_CI_FIXTURES	code-ready	test(app): stabilize browser fixture setup in CI	docs/acceptance/issue-287/ci-stability.md
 ISSUE_287_UI_INVENTORY	code-ready	chore(app): regenerate UI inventory after main rebase	server/packages/happy-app/sources/text/ui-surface-inventory.json
 ISSUE_287_UI_INVENTORY_LEDGER	code-ready	chore(app): record rebased UI inventory in the patch ledger	docs/owned-patches.tsv
+ISSUE_287_DROP_FREEZE_GATES	code-ready	test(app): drop frozen layout census and pixel locks	server/packages/happy-app/sources/theme.test.ts

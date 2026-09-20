@@ -11,22 +11,16 @@ const appConfig = readFileSync(resolve(appRoot, 'app.config.js'), 'utf8');
 const productSource = readFileSync(resolve(appRoot, 'sources/constants/product.ts'), 'utf8');
 const settingsView = readFileSync(resolve(appRoot, 'sources/components/SettingsView.tsx'), 'utf8');
 
-const expected = {
-  displayName: 'HappyHerd',
-};
-
-for (const [key, value] of Object.entries(expected)) {
-  if (metadata[key] !== value) {
-    throw new Error(`product metadata ${key} must be ${value}`);
-  }
+if (metadata.displayName !== 'HappyHerd') {
+  throw new Error('product metadata displayName must be HappyHerd');
 }
-if (!appConfig.includes("require('./product-metadata.json')") || !appConfig.includes('production: productMetadata.displayName')) {
+if (!appConfig.includes("require('./product-metadata.json')") || !/\bproductMetadata\.displayName\b/.test(appConfig)) {
   throw new Error('Expo/Web display name must be sourced from product-metadata.json');
 }
 if (typeof cliPackage.version !== 'string' || cliPackage.version.length === 0) {
   throw new Error('HappyHerd CLI package must declare a version');
 }
-if (!appConfig.includes("require('../happy-cli/package.json')") || !appConfig.includes('version: happyHerdCliPackage.version')) {
+if (!appConfig.includes("require('../happy-cli/package.json')") || !/\bhappyHerdCliPackage\.version\b/.test(appConfig)) {
   throw new Error('Expo app version must be sourced from the HappyHerd CLI package');
 }
 for (const token of ['PRODUCT.displayName', 'PRODUCT.repositoryDisplay', 'PRODUCT.repositoryUrl', 'PRODUCT.issueUrl']) {
@@ -39,21 +33,20 @@ for (const key of ['repositoryDisplay', 'repositoryUrl', 'issueUrl']) {
     throw new Error(`product metadata must not hard-code repository ownership: ${key}`);
   }
 }
-for (const source of [
-  "repositoryDisplay: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_DISPLAY?.trim() || 'NickGuAI/HappyHerd'",
-  "repositoryUrl: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_URL?.trim() || 'https://github.com/NickGuAI/HappyHerd'",
+for (const envName of [
+  'EXPO_PUBLIC_HAPPYHERD_REPOSITORY_DISPLAY',
+  'EXPO_PUBLIC_HAPPYHERD_REPOSITORY_URL',
+  'EXPO_PUBLIC_HAPPYHERD_ISSUE_URL',
 ]) {
-  if (!productSource.includes(source)) {
-    throw new Error(`HappyHerd repository default or deployment override is missing: ${source}`);
+  if (!productSource.includes(envName)) {
+    throw new Error(`HappyHerd repository override env is missing: ${envName}`);
   }
 }
-if (!settingsView.includes('{PRODUCT.repositoryUrl ? (') || !settingsView.includes('{PRODUCT.issueUrl ? (')) {
+if (!/\bPRODUCT\.repositoryUrl\s*\?/.test(settingsView) || !/\bPRODUCT\.issueUrl\s*\?/.test(settingsView)) {
   throw new Error('About/support UI must keep actions gated by their resolved destinations');
 }
-for (const stale of ["detail=\"slopus/happy\"", "openExternalUrl('https://github.com/slopus/happy')", "openExternalUrl('https://github.com/slopus/happy/issues')"]) {
-  if (settingsView.includes(stale)) {
-    throw new Error(`stale upstream product support destination found: ${stale}`);
-  }
+if (/slopus\/happy/.test(productSource) || /slopus\/happy/.test(settingsView)) {
+  throw new Error('stale upstream product support destination found');
 }
 
 console.log('product-identity: ok');

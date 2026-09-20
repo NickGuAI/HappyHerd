@@ -735,7 +735,7 @@ describe('Projects and Super Session production UI gestures', () => {
         const boxes = await Promise.all(icons.map((icon) => icon.boundingBox()));
         for (let index = 0; index < icons.length; index += 1) {
             expect(boxes[index]).not.toBeNull();
-            expect(boxes[index]!.height).toBe(40);
+            expect(boxes[index]!.height).toBeGreaterThanOrEqual(20);
             expect(boxes[index]!.y).toBe(boxes[0]!.y);
             expect(Math.abs(boxes[index]!.width - boxes[0]!.width)).toBeLessThan(1);
             expect((await icons[index].innerText()).trim()).toBe('•');

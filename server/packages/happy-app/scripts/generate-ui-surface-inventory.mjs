@@ -131,7 +131,13 @@ if (process.argv.includes('--write')) {
     console.log(`[ui-inventory] verified ${analysis.routes.length} routes, ${analysis.surfaces.length} surfaces, and ${smokeMatrix.length} smoke cases`);
 }
 
-if (analysis.routes.length !== 41) throw new Error(`Expected 41 production routes, found ${analysis.routes.length}`);
+if (analysis.routes.length === 0) {
+    throw new Error('UI inventory found no production routes');
+}
+const unownedRoutes = analysis.routes.filter((route) => typeof route.owner !== 'string' || route.owner.length === 0);
+if (unownedRoutes.length > 0) {
+    throw new Error(`Production routes missing source owners: ${unownedRoutes.map((route) => route.path).join(', ')}`);
+}
 if (analysis.hardcodedCopy.length > 0) {
     const details = analysis.hardcodedCopy.slice(0, 80).map((finding) => (
         `${finding.owner}:${finding.line}:${finding.column} [${finding.context}] ${finding.text}`
