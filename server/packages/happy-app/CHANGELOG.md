@@ -14,6 +14,10 @@
 - Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.
 - iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project.
 
+# September 19 — Terminal pairing layout
+
+- Pasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text.
+
 # September 19 — Native build reliability
 
 - Native app builds no longer treat development tests as screens, avoiding failures caused by test-only Node.js dependencies.

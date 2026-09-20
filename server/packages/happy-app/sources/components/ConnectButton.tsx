@@ -85,6 +85,7 @@ export const ConnectButton = React.memo(() => {
                         <TextInput
                             style={{
                                 flex: 1,
+                                minWidth: 0,
                                 backgroundColor: theme.colors.input.background,
                                 color: theme.colors.input.text,
                                 ...Typography.mono(),
