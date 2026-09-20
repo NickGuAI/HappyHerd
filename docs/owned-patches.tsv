@@ -378,3 +378,4 @@ PR280_RELEASE_COPY	code-ready	docs(release): clarify queued session continuity	s
 SIDE_CHAT_CURRENT_INHERITANCE	accepted	fix(sessions): refresh parent settings before side-chat creation	server/packages/happy-cli/src/daemon/run.resume.test.ts
 CHAT_SYSTEM_SCROLL	code-ready	fix(chat): follow system wheel scroll direction	server/packages/happy-app/sources/components/ChatList.browser.test.ts
 DEVICE_CODE_PAIRING	code-ready	feat(connections): pair existing account devices with a code	docs/acceptance/issue-288.md
+DEVICE_CODE_PAIRING_CHROME	code-ready	docs(pairing): record real Chrome verification	docs/acceptance/issue-288.md

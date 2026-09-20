@@ -129,3 +129,51 @@ version control.
 - Complete required PR checks, including the app typecheck issue above and the
   full repository contract suite. No merge, deployment, service update, release
   or issue closure is part of this evidence.
+
+## Follow-up: real Chrome interaction
+
+On the operator's follow-up request, native computer control successfully
+attached to a real Chrome window. The production Web export was served with
+runtime configuration explicitly targeting the disposable local API. A new
+throwaway account and separate QA daemon home were used; no production account
+or operational daemon was changed.
+
+The rendered application was exercised through Chrome's visible controls:
+
+- Restored the local test account through the normal account-key screen.
+- Opened Settings, found Connections, and verified that the existing target
+  daemon was online before any device-code confirmation.
+- Generated a code using the target CLI, pasted its grouped form, and clicked
+  the read-only **Check code** action. The returned hostname and exact machine
+  ID matched the CLI receipt in the identity-confirmation screen.
+- Opened a separate tab at the Connections route and observed the same account
+  machine online, without adding a duplicate record.
+- Used Chrome's responsive viewport at **390×844 CSS pixels** to verify the
+  actual production page's input layout and recoverable errors for an incomplete
+  code and the real daemon's expired code.
+
+These screenshots were downloaded using Chrome DevTools' visible **Capture
+screenshot** command; they are real application captures with a local server
+and daemon, not the earlier mocked component fixtures. Chrome captured at
+device-pixel ratio 2.
+
+| Real Chrome check | Screenshot |
+| --- | --- |
+| Incomplete eight-digit input | [Mobile input error](issue-288/real-chrome-mobile-invalid.png) |
+| Expired daemon code | [Mobile expired-code error](issue-288/real-chrome-mobile-expired.png) |
+
+The final **Connect** click was rejected by the computer-control tool's automatic
+approval review because it classified pairing confirmation as requiring the
+missing dedicated security approval. It was not performed through another
+interface. Explicit permission for that concrete disposable-environment test
+was requested and remained pending. Subsequent attempts to reacquire the Chrome
+window returned `cgWindowNotFound`. Accordingly, successful final confirmation,
+post-confirmation selection persistence and the ordinary-session journey are
+still unproven in the real browser; the native Mac and two-physical-host gaps
+also remain.
+
+The previous ordinary-session webhook timeout was separately traced to the
+test daemon's PATH selecting a local Codex wrapper whose platform executable
+was absent. The new QA daemon was started with the existing functional global
+Codex executable first in PATH. No provider turn was run in this follow-up, so
+this diagnosis does not replace the missing ordinary-session acceptance.
