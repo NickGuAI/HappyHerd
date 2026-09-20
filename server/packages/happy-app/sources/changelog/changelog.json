@@ -16,6 +16,11 @@
       "markdown": "- Native iOS users can choose Create Commander in New Session and start the same guided onboarding while retaining their selected machine, provider, and session settings.\n- Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.\n- iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project."
     },
     {
+      "title": "September 19 — Native build reliability",
+      "summary": "",
+      "markdown": "- Native app builds no longer treat development tests as screens, avoiding failures caused by test-only Node.js dependencies."
+    },
+    {
       "title": "September 19 — KILV interface",
       "summary": "",
       "markdown": "- Light and dark themes now use warm paper, lifted slate panels, amber actions, and consistent borders across navigation, settings, sessions, and Workspace.\n- Space Grotesk and JetBrains Mono make interface text, code, paths, and status easier to distinguish.\n- The welcome screen uses KILV artwork, while chat replies and choices share a warm dark surface. Mobile input text stays at least 16px, and existing session, account, and automation behavior is preserved."

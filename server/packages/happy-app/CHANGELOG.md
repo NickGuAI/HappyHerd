@@ -14,6 +14,10 @@
 - Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.
 - iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project.
 
+# September 19 — Native build reliability
+
+- Native app builds no longer treat development tests as screens, avoiding failures caused by test-only Node.js dependencies.
+
 # September 19 — KILV interface
 
 - Light and dark themes now use warm paper, lifted slate panels, amber actions, and consistent borders across navigation, settings, sessions, and Workspace.
