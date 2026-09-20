@@ -1,0 +1,138 @@
+[
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "session-workspace-groups-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-workspace-groups-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "session-workspace-groups-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-workspace-groups-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  }
+]

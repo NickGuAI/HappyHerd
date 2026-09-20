@@ -1,0 +1,126 @@
+[
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "inline-comment-review-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inline-comment-review-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "inline-comment-review-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inline-comment-review-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  }
+]

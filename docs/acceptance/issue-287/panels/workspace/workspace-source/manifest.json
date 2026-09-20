@@ -1,0 +1,138 @@
+[
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-source-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedba",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-source-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nreview.ts\nPreview\nEdit\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-source-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedba",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-source-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nreview.ts\nPreview\nEdit\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  }
+]

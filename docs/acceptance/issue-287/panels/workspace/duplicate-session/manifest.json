@@ -1,0 +1,130 @@
+[
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "duplicate-session-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "duplicate-session-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "duplicate-session-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "duplicate-session-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "evidenceType": "component-fixture",
+  "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+  "sourceInputs": [
+    "sources/constants/Typography.ts",
+    "sources/theme.ts",
+    "sources/components/CodeEditor.web.tsx"
+  ],
+  "mockedModules": [
+    "@/text",
+    "expo-localization",
+    "@/sync/persistence",
+    "react-native",
+    "react-native-unistyles",
+    "expo-font",
+    "expo-image"
+  ],
+  "visualAdapters": [
+    "React Native Web",
+    "Unistyles style/theme evaluation",
+    "Expo font loader with repository font files",
+    "Expo Image rendered by React Native Web Image"
+  ]
+}

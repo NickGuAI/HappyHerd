@@ -1,0 +1,138 @@
+[
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "git-status-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "git-status-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "git-status-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "git-status-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  }
+]
