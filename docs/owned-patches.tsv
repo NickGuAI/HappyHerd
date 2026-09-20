@@ -388,3 +388,4 @@ ISSUE_287_NATIVE_ROUTE_TESTS	code-ready	fix(app): exclude tests from Expo route 
 ISSUE_287_BROWSER_FIXTURE	code-ready	test(app): serve side-chat fixture assets separately	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 ISSUE_287_CONNECT_INPUT	code-ready	fix(app): keep terminal pairing input inside its card	server/packages/happy-app/sources/components/ConnectButton.tsx
 ISSUE_287_PANEL_SCREENSHOTS	code-ready	test(app): attach KILV panel review screenshots	docs/issue-287-panel-screenshots.md
+ISSUE_287_CI_FIXTURES	code-ready	test(app): stabilize browser fixture setup in CI	docs/acceptance/issue-287/ci-stability.md
