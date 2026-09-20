@@ -1,3 +1,7 @@
+# September 20 — Codex context meter
+
+- The context meter now stays tied to the main Codex session while subagents are working.
+
 # September 17 — Mobile browser layout
 
 - Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.

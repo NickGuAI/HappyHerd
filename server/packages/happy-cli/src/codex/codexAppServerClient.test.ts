@@ -2797,7 +2797,7 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         await client.disconnect();
     });
-    it('preserves thread and turn identity on token usage updates', async () => {
+    it('preserves thread and turn identity and scopes child token usage updates', async () => {
         const proc = createMockProcess();
         mockSpawn.mockImplementation(() => proc);
 
@@ -2807,6 +2807,19 @@ describe('CodexAppServerClient sandbox integration', () => {
         client.setEventHandler((event) => events.push(event as Record<string, unknown>));
 
         await client.connect();
+        (client as unknown as { _threadId: string | null })._threadId = 'thread-root';
+        pushJsonLine(proc.stdout, {
+            method: 'thread/tokenUsage/updated',
+            params: {
+                threadId: 'thread-root',
+                turnId: 'turn-root',
+                tokenUsage: {
+                    total: { totalTokens: 10_010, inputTokens: 10_000, outputTokens: 10 },
+                    last: { totalTokens: 10_010, inputTokens: 10_000, outputTokens: 10 },
+                    modelContextWindow: 258_400,
+                },
+            },
+        });
         pushJsonLine(proc.stdout, {
             method: 'thread/tokenUsage/updated',
             params: {
@@ -2819,14 +2832,28 @@ describe('CodexAppServerClient sandbox integration', () => {
                 },
             },
         });
-        await waitFor(() => events.length === 1);
+        await waitFor(() => events.length === 2);
 
         expect(events[0]).toEqual(expect.objectContaining({
+            type: 'token_count',
+            thread_id: 'thread-root',
+            threadId: 'thread-root',
+            turn_id: 'turn-root',
+            turnId: 'turn-root',
+            total: expect.objectContaining({ totalTokens: 10_010 }),
+        }));
+        expect(events[0]).not.toEqual(expect.objectContaining({
+            agent_thread_id: expect.any(String),
+            agentThreadId: expect.any(String),
+        }));
+        expect(events[1]).toEqual(expect.objectContaining({
             type: 'token_count',
             thread_id: 'thread-child',
             threadId: 'thread-child',
             turn_id: 'turn-child',
             turnId: 'turn-child',
+            agent_thread_id: 'thread-child',
+            agentThreadId: 'thread-child',
             total: expect.objectContaining({ totalTokens: 1_100 }),
             last: expect.objectContaining({ totalTokens: 100 }),
         }));

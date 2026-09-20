@@ -740,6 +740,53 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         });
         expect(result.envelopes[0].turn).toBeUndefined();
     });
+
+    it('does not map child token usage into the parent context meter', () => {
+        const root = mapCodexMcpMessageToSessionEnvelopes(
+            {
+                type: 'token_count',
+                total: {
+                    totalTokens: 10_010,
+                    inputTokens: 10_000,
+                    outputTokens: 10,
+                },
+                last: {
+                    totalTokens: 10_010,
+                    inputTokens: 10_000,
+                    outputTokens: 10,
+                },
+                modelContextWindow: 258_400,
+            },
+            { currentTurnId: 'turn-root' },
+        );
+        const child = mapCodexMcpMessageToSessionEnvelopes(
+            {
+                type: 'token_count',
+                agent_thread_id: 'provider-child-thread',
+                agentThreadId: 'provider-child-thread',
+                total: {
+                    totalTokens: 75_010,
+                    inputTokens: 75_000,
+                    outputTokens: 10,
+                },
+                last: {
+                    totalTokens: 75_010,
+                    inputTokens: 75_000,
+                    outputTokens: 10,
+                },
+                modelContextWindow: 200_000,
+            },
+            { currentTurnId: 'turn-root' },
+        );
+
+        expect(root.envelopes).toHaveLength(1);
+        expect(root.envelopes[0].usage).toMatchObject({
+            input_tokens: 10_000,
+            output_tokens: 10,
+            context_window: 258_400,
+        });
+        expect(child.envelopes).toEqual([]);
+    });
 });
 
 describe('mapCodexProcessorMessageToSessionEnvelopes', () => {

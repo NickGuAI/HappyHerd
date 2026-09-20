@@ -1264,6 +1264,8 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
 
     if (type === 'token_count') {
         const usage = pickTokenUsage(message);
+        const isChildThreadUsage = typeof message.agent_thread_id === 'string'
+            || typeof message.agentThreadId === 'string';
         return {
             currentTurnId: state.currentTurnId,
             lastTurnId,
@@ -1276,7 +1278,10 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
             collabReceiverThreadIdsByCall,
             collabTurnIdsByCall,
             collabToolByCall,
-            envelopes: usage
+            // Provider usage accounting runs independently in runCodex for
+            // every native thread. Only root-thread usage belongs in the
+            // parent context meter's session envelope.
+            envelopes: usage && !isChildThreadUsage
                 // Deliberately NO turn id: app versions without the
                 // usage-only-service filter render any agent service envelope
                 // that has a turn as a chat row — one blank bubble per
