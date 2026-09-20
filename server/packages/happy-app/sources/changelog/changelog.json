@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 20 — Codex context meter",
+      "summary": "",
+      "markdown": "- The context meter now stays tied to the main Codex session while subagents are working."
+    },
+    {
       "title": "September 17 — Mobile browser layout",
       "summary": "",
       "markdown": "- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them."
@@ -706,5 +711,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 17 — Mobile browser layout"
+  "latestTitle": "September 20 — Codex context meter"
 }

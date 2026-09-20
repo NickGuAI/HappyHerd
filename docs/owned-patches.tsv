@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+CODEX_CONTEXT_METER	accepted	fix(codex): keep parent context meter scoped to root usage	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
 FORK_PARENT_SETTINGS	accepted	fix(sessions): inherit parent permissions and commander on fork	.dev/evidence/issue-281-fork-inheritance.md
 WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happy-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
 NATIVE_INSTALLER_PROOF	accepted	fix(installer): keep database byte handling in prepared releases	.github/workflows/native-installer-release.yml

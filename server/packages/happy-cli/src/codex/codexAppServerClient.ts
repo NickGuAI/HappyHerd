@@ -564,6 +564,7 @@ export class CodexAppServerClient {
                     ...tokenUsage,
                     ...(threadId ? { thread_id: threadId, threadId } : {}),
                     ...(turnId ? { turn_id: turnId, turnId } : {}),
+                    ...this.childThreadScope(params),
                 });
             }
             return true;
