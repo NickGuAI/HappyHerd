@@ -15,26 +15,26 @@ Happy is a pnpm monorepo. Everything uses pnpm workspaces — do not use `npm` o
 
 ```bash
 pnpm install                       # installs deps for every package
-pnpm --filter @happyherd/cli cli:install    # builds happy-cli + links it as the global `happyherd` binary
+pnpm --filter @happyherd/cli cli:install    # builds happyherd-cli + links it as the global `happyherd` binary
 ```
 
 `cli:install` replaces `happyherd` on your PATH with a symlink to
-`packages/happy-cli/`. The daemon is restarted as part of the script. It uses
+`packages/happyherd-cli/`. The daemon is restarted as part of the script. It uses
 `~/.happyherd/`, the same home as production.
 
 To undo: `npm unlink -g @happyherd/cli && npm install -g @happyherd/cli@latest`.
 
 ## Packages
 
-    packages/happy-cli     # the `happyherd` CLI and daemon, published as @happyherd/cli
+    packages/happyherd-cli     # the `happyherd` CLI and daemon, published as @happyherd/cli
     packages/happy-server  # Node + Prisma server, deployed via TeamCity
     packages/happy-app     # Expo app: iOS, Android, web, Tauri desktop
     packages/happy-agent   # agent runtime
     packages/happy-wire    # shared Zod schemas + wire types
 
-## happy-cli
+## happyherd-cli
 
-    packages/happy-cli
+    packages/happyherd-cli
     scripts in package.json:
       typecheck      # tsc --noEmit
       build          # rm -rf dist && tsc --noEmit && pkgroll
@@ -163,7 +163,7 @@ togglable from the dev settings screen).
 
 - **Hoisted deps:** pnpm hoists node_modules to the repo root. `packages/*/node_modules/` is mostly empty. Node's resolution walks up, so imports work transparently.
 - **Workspace deps:** `"@slopus/happy-wire": "workspace:*"` resolves to `packages/happy-wire/` — edits are picked up live.
-- **`$npm_execpath`:** legacy; happy-cli uses `pnpm` literally. Windows cmd.exe doesn't expand `$VAR`.
+- **`$npm_execpath`:** legacy; happyherd-cli uses `pnpm` literally. Windows cmd.exe doesn't expand `$VAR`.
 - **Build before tests:** tests spawn the built CLI binary (for daemon integration), so `pnpm test` runs `build` first. Do not remove.
 
 ## Releasing
@@ -181,6 +181,6 @@ Do not publish by hand. Use `/release` — it handles npm publish, git tags, Git
 ## Rules
 
 - Never use `npm install` or `yarn install` — only pnpm.
-- Never add a `dev` / `cli` tsx-based script back to happy-cli. The build step is not optional — daemon spawns the built binary and would desync.
+- Never add a `dev` / `cli` tsx-based script back to happyherd-cli. The build step is not optional — daemon spawns the built binary and would desync.
 - Never bring back `release-it`. Releases go through `/release`.
 - Never introduce `~/.happy-dev` as a default. It exists as an opt-in via `HAPPY_HOME_DIR`, nothing more.

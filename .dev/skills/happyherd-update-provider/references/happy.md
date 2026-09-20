@@ -5,7 +5,7 @@ metadata and behavior because its provider and mode catalogs are dynamic.
 
 ## Execution boundary
 
-Happy is a native machine/provider boundary, not a `happy-cli` child process.
+Happy is a native machine/provider boundary, not a `happyherd-cli` child process.
 The wire contract lives in
 `server/packages/happy-wire/src/rigMetadata.ts`; the app consumes it through
 `server/packages/happy-app/sources/sync/rigSessionCreation.ts` and

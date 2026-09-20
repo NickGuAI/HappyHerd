@@ -26,7 +26,7 @@ class CommanderMemoryCleanupContractTests(unittest.TestCase):
             with self.subTest(retired=retired):
                 self.assertNotIn(retired, self.text)
 
-        for current in ("HAPPY_HOME_DIR", "`bin/happy.mjs`"):
+        for current in ("HAPPY_HOME_DIR", "`bin/happyherd.mjs`"):
             with self.subTest(current=current):
                 self.assertIn(current, self.text)
         self.assertRegex(self.text, r"one public command is\s+`happyherd`")

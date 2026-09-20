@@ -21,7 +21,7 @@ done
 [[ -f "$deployment_helper" ]] || fail 'locked deployment helper is missing'
 
 # The retired #98 security distribution stack stays deleted. The new release
-# carries only the ordinary Happy CLI, self-host server, and their runtime.
+# carries only the ordinary HappyHerd CLI, self-host server, and their runtime.
 deleted_paths=(
   .github/workflows/public-launcher-release.yml
   installers/install.sh.template
@@ -39,7 +39,6 @@ deleted_paths=(
   scripts/test-macos-uninstall-recovery.mjs
   scripts/verify-public-launcher-release.mjs
   scripts/write-public-asset-fragment.mjs
-  server/packages/happyherd-cli
 )
 for path in "${deleted_paths[@]}"; do
   [[ ! -e "$root/$path" ]] || fail "obsolete HappyHerd-only path remains: $path"
@@ -110,7 +109,7 @@ case "$host_target" in
   *) fail "unsupported contract platform: $host_target" ;;
 esac
 
-grep -Fq 'Preserved normal Happy state' "$uninstaller"
+grep -Fq 'Preserved normal HappyHerd state' "$uninstaller"
 # shellcheck disable=SC2016
 if grep -Fq 'rm -rf -- "$HOME/.happyherd"' "$uninstaller"; then
   fail 'user uninstaller must not remove normal ~/.happyherd state'
@@ -143,14 +142,14 @@ printf '{"name":"happy-server-self-host"}\n' \
   > "$asset_root/runtime/node_modules/happy-server-self-host/package.json"
 printf '<!doctype html><title>HappyHerd</title>\n' \
   > "$asset_root/runtime/node_modules/happy-server-self-host/webapp/index.html"
-cat > "$asset_root/runtime/bin/happy.mjs" <<'JS'
+cat > "$asset_root/runtime/bin/happyherd.mjs" <<'JS'
 #!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);
 if (process.env.HAPPYHERD_TEST_LOG) fs.appendFileSync(process.env.HAPPYHERD_TEST_LOG, `${args.join(' ')}\n`);
 if (args[0] === 'server') setInterval(() => {}, 1000);
 JS
-chmod 755 "$asset_root/runtime/bin/happy.mjs"
+chmod 755 "$asset_root/runtime/bin/happyherd.mjs"
 cp "$uninstaller" "$asset_root/uninstall.sh"
 cp "$legacy_cleanup" "$asset_root/cleanup-legacy.sh"
 chmod 755 "$asset_root/uninstall.sh" "$asset_root/cleanup-legacy.sh"
@@ -239,7 +238,7 @@ grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/download/happyherd-v1.
 
 HAPPYHERD_TEST_LOG="$test_log" \
   "$home/.local/share/happyherd/node/bin/node" \
-  "$home/.local/share/happyherd/runtime/bin/happy.mjs" \
+  "$home/.local/share/happyherd/runtime/bin/happyherd.mjs" \
   server --host 127.0.0.1 --port 3005 --no-persist &
 managed_test_pid=$!
 printf '%s\n' "$managed_test_pid" > "$home/.happyherd/server.pid"
@@ -285,7 +284,7 @@ grep -Fxq 'daemon stop' "$test_log"
 
 # A wrapper written by the previous source-building installer is a managed
 # upgrade target even when its old runtime is no longer available.
-legacy_source_entry="$home/.local/share/happyherd/runtime/bin/happy.mjs"
+legacy_source_entry="$home/.local/share/happyherd/runtime/bin/happyherd.mjs"
 cat > "$home/.local/bin/happyherd" <<EOF
 #!/bin/sh
 # HappyHerd managed command

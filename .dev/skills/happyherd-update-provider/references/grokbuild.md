@@ -6,11 +6,11 @@ behavior before relying on these volatile facts.
 
 ## Execution boundary
 
-- `server/packages/happy-cli/src/capabilities/agentCapabilities.ts` parses
+- `server/packages/happyherd-cli/src/capabilities/agentCapabilities.ts` parses
   permission modes from the installed CLI help.
-- `server/packages/happy-cli/src/agent/acp/acpAgentConfig.ts` includes the
+- `server/packages/happyherd-cli/src/agent/acp/acpAgentConfig.ts` includes the
   selected native code as `--permission-mode <code>` before `agent stdio`.
-- `server/packages/happy-cli/src/agent/acp/runAcp.ts` owns the ACP session and
+- `server/packages/happyherd-cli/src/agent/acp/runAcp.ts` owns the ACP session and
   permission callback policy.
 - Launch permission is separate from the ACP plan/build operating mode.
 - Terminal named-account login stages a fresh `GROK_HOME` and removes inherited

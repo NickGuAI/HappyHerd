@@ -55,7 +55,7 @@ trap cleanup EXIT
 (cd "$ROOT/server" && run_build "${PNPM[@]}" --ignore-scripts --filter @happyherd/cli --fail-if-no-match \
     deploy --legacy --prod "$stage")
 node "$stage/scripts/unpack-tools.cjs"
-[[ -x "$stage/bin/happy.mjs" && -x "$stage/tools/unpacked/rg" ]] || \
+[[ -x "$stage/bin/happyherd.mjs" && -x "$stage/tools/unpacked/rg" ]] || \
     die 'deployed Happy CLI is missing its executable or bundled ripgrep'
 
 remove_exact_legacy_happy_link "$LEGACY_HAPPY_LINK" "$TARGET"
@@ -63,6 +63,6 @@ remove_exact_legacy_happy_link "$LEGACY_HAPPY_LINK" "$TARGET"
 rm -rf "$TARGET"
 mv "$stage" "$TARGET"
 trap - EXIT
-ln -sfn "$TARGET/bin/happy.mjs" "$HAPPYHERD_LINK"
+ln -sfn "$TARGET/bin/happyherd.mjs" "$HAPPYHERD_LINK"
 
 printf 'HappyHerd CLI installed independently at %s\n' "$TARGET"

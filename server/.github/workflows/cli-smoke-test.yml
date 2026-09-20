@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'packages/happy-cli/**'
+      - 'packages/happyherd-cli/**'
       - 'packages/happy-server/**'
       - 'packages/happy-server-self-host/**'
       - 'packages/happy-wire/**'
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'packages/happy-cli/**'
+      - 'packages/happyherd-cli/**'
       - 'packages/happy-server/**'
       - 'packages/happy-server-self-host/**'
       - 'packages/happy-wire/**'
@@ -64,13 +64,13 @@ jobs:
     - name: Pack packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match pack --pack-destination packages/happy-wire
-        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happy-cli
+        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happyherd-cli
         pnpm --filter happy-server-self-host --fail-if-no-match pack --pack-destination packages/happy-server-self-host
 
     - name: Install packed packages globally
       run: |
         WIRE_PACKAGE_FILE=$(ls packages/happy-wire/*.tgz)
-        HAPPY_PACKAGE_FILE=$(ls packages/happy-cli/*.tgz)
+        HAPPY_PACKAGE_FILE=$(ls packages/happyherd-cli/*.tgz)
         SERVER_PACKAGE_FILE=$(ls packages/happy-server-self-host/*.tgz)
         npm install -g --prefix "$RUNNER_TEMP/happyherd-cli-prefix" \
           "./$WIRE_PACKAGE_FILE" "./$SERVER_PACKAGE_FILE" "./$HAPPY_PACKAGE_FILE"
@@ -164,7 +164,7 @@ jobs:
     - name: Pack packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match pack --pack-destination packages/happy-wire
-        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happy-cli
+        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happyherd-cli
 
     - name: Install packed package globally
       shell: cmd

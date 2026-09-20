@@ -60,7 +60,7 @@ grep -Fq "runuser -u \"\$BUILD_USER\"" "$ROOT/scripts/install-host-cli.sh" || \
     fail 'root CLI installation can contaminate the checkout with root-owned build output'
 grep -Fq "HAPPYHERD_LINK=\"\${2:-/usr/local/bin/happyherd}\"" "$ROOT/scripts/install-host-cli.sh" || \
     fail 'host CLI install does not expose the happyherd command'
-grep -Fq "ln -sfn \"\$TARGET/bin/happy.mjs\" \"\$HAPPYHERD_LINK\"" "$ROOT/scripts/install-host-cli.sh" || \
+grep -Fq "ln -sfn \"\$TARGET/bin/happyherd.mjs\" \"\$HAPPYHERD_LINK\"" "$ROOT/scripts/install-host-cli.sh" || \
     fail 'host happyherd command does not point directly to the CLI entry'
 grep -Fq -- '--filter @happyherd/cli --fail-if-no-match build' "$ROOT/scripts/install-host-cli.sh" || \
     fail 'host installer does not build the public CLI package'

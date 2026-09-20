@@ -176,10 +176,11 @@ stop_managed_server() {
     return 0
   fi
   process_command=$(ps -p "$server_pid" -o command= 2>/dev/null || true)
-  expected_entry="$runtime_root/bin/happy.mjs server"
+  expected_entry="$runtime_root/bin/happyherd.mjs server"
   legacy_expected_entry="$runtime_root/node_modules/happy/bin/happy.mjs server"
+  previous_expected_entry="$runtime_root/bin/happy.mjs server"
   case "$process_command" in
-    *"$expected_entry"*|*"$legacy_expected_entry"*) ;;
+    *"$expected_entry"*|*"$legacy_expected_entry"*|*"$previous_expected_entry"*) ;;
     *) rm -f -- "$managed_server_pid"; return 0 ;;
   esac
   kill "$server_pid"
@@ -225,7 +226,7 @@ staged_node="$asset_root/node/bin/node"
 staged_runtime="$asset_root/runtime"
 [ -x "$staged_node" ] || { echo 'error: prepared release has no Node runtime' >&2; exit 1; }
 [ -f "$asset_root/node/LICENSE" ] || { echo 'error: prepared release has no Node license' >&2; exit 1; }
-[ -f "$staged_runtime/bin/happy.mjs" ] || { echo 'error: prepared release has no HappyHerd command' >&2; exit 1; }
+[ -f "$staged_runtime/bin/happyherd.mjs" ] || { echo 'error: prepared release has no HappyHerd command' >&2; exit 1; }
 [ -x "$staged_runtime/tools/unpacked/rg" ] || { echo 'error: prepared release has no platform tools' >&2; exit 1; }
 [ -f "$staged_runtime/node_modules/happy-server-self-host/package.json" ] || {
   echo 'error: prepared release has no self-host server' >&2
@@ -237,7 +238,7 @@ staged_runtime="$asset_root/runtime"
 }
 [ -f "$asset_root/uninstall.sh" ] || { echo 'error: prepared release has no uninstaller' >&2; exit 1; }
 [ -f "$asset_root/cleanup-legacy.sh" ] || { echo 'error: prepared release has no legacy cleanup' >&2; exit 1; }
-"$staged_node" "$staged_runtime/bin/happy.mjs" --version >/dev/null
+"$staged_node" "$staged_runtime/bin/happyherd.mjs" --version >/dev/null
 
 if is_managed_command "$bin_root/happyherd"; then
   "$bin_root/happyherd" daemon stop >/dev/null 2>&1 || true
@@ -253,7 +254,7 @@ mv "$asset_root/node" "$node_root"
 PATH="$node_root/bin:$PATH"
 export PATH
 
-happyherd_entry="$runtime_root/bin/happy.mjs"
+happyherd_entry="$runtime_root/bin/happyherd.mjs"
 node_bin="$node_root/bin/node"
 install_command() {
   command_path="$1"

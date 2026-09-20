@@ -47,7 +47,7 @@ Current session wire payload shape (decrypted message body):
 
 ## Migration in this repository
 
-### CLI (`packages/happy-cli`)
+### CLI (`packages/happyherd-cli`)
 
 - Session protocol imports now reference `@slopus/happy-wire` directly.
 - `src/sessionProtocol/types.ts` now re-exports from `@slopus/happy-wire` as compatibility shim.

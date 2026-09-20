@@ -1,0 +1,862 @@
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { HappyHerdAutomationService, runHappyHerdExecCommand } from './service';
+import type { HappyHerdAutomationStore } from './store';
+import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
+import type { Session } from '@/api/types';
+
+let root: string;
+let service: HappyHerdAutomationService | null = null;
+const originalEnvironment: Record<string, string | undefined> = {};
+const TEST_ENV_KEYS = [
+  'HAPPYHERD_HOME_DIR',
+] as const;
+
+beforeAll(() => {
+  for (const key of TEST_ENV_KEYS) originalEnvironment[key] = process.env[key];
+});
+
+afterAll(() => {
+  for (const key of TEST_ENV_KEYS) {
+    const value = originalEnvironment[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
+
+beforeEach(async () => {
+  root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-service-'));
+  process.env.HAPPYHERD_HOME_DIR = path.join(root, '.happyherd');
+  await mkdir(process.env.HAPPYHERD_HOME_DIR, { recursive: true });
+  await writeFile(path.join(process.env.HAPPYHERD_HOME_DIR, 'AGENTS.md'), '# Test');
+  await mkdir(path.join(root, 'workspace'), { recursive: true });
+});
+
+afterEach(async () => {
+  try {
+    await service?.stop();
+  } finally {
+    service = null;
+    vi.restoreAllMocks();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+function input() {
+  return {
+    name: 'Daily check',
+    kind: 'scheduled' as const,
+    instruction: 'Review the task list.',
+    schedule: '0 8 * * *',
+    timezone: 'UTC',
+    workspace: path.join(root, 'workspace'),
+    rail: 'codex' as const,
+    commanderId: null,
+    status: 'paused' as const,
+    maxRetries: 0,
+  };
+}
+
+function execInput() {
+  return {
+    name: 'Data sink',
+    kind: 'scheduled' as const,
+    schedule: '0 */2 * * *',
+    timezone: 'UTC',
+    workspace: path.join(root, 'workspace'),
+    rail: 'exec' as const,
+    executable: '/opt/happyherd/bin/data-sink',
+    arguments: [] as string[],
+    status: 'paused' as const,
+  };
+}
+
+function heartbeatTarget(agentState: Session['agentState'] = {
+  messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+}): Session {
+  return {
+    id: 'session-heartbeat',
+    seq: 1,
+    encryptionKey: new Uint8Array(32),
+    encryptionVariant: 'legacy',
+    metadata: {
+      path: path.join(root, 'workspace'),
+      host: 'test-host',
+      homeDir: root,
+      happyHomeDir: path.join(root, '.happyherd'),
+      happyLibDir: path.join(root, '.happyherd', 'lib'),
+      happyToolsDir: path.join(root, '.happyherd', 'tools'),
+      machineId: 'machine-one',
+      flavor: 'codex',
+      codexThreadId: 'thread-one',
+      commanderId: 'commander-one',
+      commanderName: 'Athena',
+      commanderPath: '/context/COMMANDER.md',
+      commanderAgentContextPath: '/context/commander',
+      globalAgentContextPath: '/context/global',
+      projectGuidancePath: '/workspace/AGENTS.md',
+    },
+    metadataVersion: 1,
+    agentState,
+    agentStateVersion: 1,
+  };
+}
+
+describe('HappyHerdAutomationService', () => {
+  it('passes command arguments literally without shell interpolation', async () => {
+    const script = path.join(root, 'capture-arguments.mjs');
+    const output = path.join(root, 'captured.json');
+    await writeFile(script, [
+      "import { writeFileSync } from 'node:fs';",
+      'writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)));',
+    ].join('\n'));
+
+    const result = await runHappyHerdExecCommand({
+      executable: process.execPath,
+      arguments: [script, output, '$(not-a-command)', '; still-one-argument'],
+      workspace: root,
+    });
+
+    expect(result).toMatchObject({ exitCode: 0, signal: null, stderr: '' });
+    expect(JSON.parse(await readFile(output, 'utf8'))).toEqual([
+      '$(not-a-command)',
+      '; still-one-argument',
+    ]);
+  });
+
+  it('delivers one exact queued turn and anchors cadence only to the provider receipt', async () => {
+    let target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    const resumeTarget = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget,
+    });
+    const configured = await service.controlHeartbeat({
+      action: 'set',
+      targetSessionId: target.session.id,
+      intervalSeconds: 2_700,
+      instruction: 'Check the deployment.',
+    });
+    const heartbeat = configured.heartbeat!;
+    const dueAt = '2026-08-25T00:00:00.000Z';
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: dueAt });
+
+    await (service as any).reconcileHeartbeats(new Date(dueAt));
+    const [persisted] = (await service.history(heartbeat.id)).runs;
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(target.session, expect.objectContaining({
+      localId: persisted.id,
+      automationId: heartbeat.id,
+      displayText: expect.stringContaining('every 45m'),
+      text: expect.stringContaining('Recurring instruction:\nCheck the deployment.'),
+    }));
+    expect(postMessage.mock.calls[0][1].text).toContain('- Commander definition: /context/COMMANDER.md');
+    expect(resumeTarget).not.toHaveBeenCalled();
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [persisted.id], currentMessageIds: [] },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect((await service.controlHeartbeat({ action: 'status', targetSessionId: target.session.id })).deliveryState).toBe('queued');
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [persisted.id] },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0].status).toBe('running');
+
+    const firedAt = '2026-08-25T00:01:05.000Z';
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [persisted.id] },
+        heartbeatDelivery: {
+          schemaVersion: 1,
+          automationId: heartbeat.id,
+          occurrenceId: persisted.id,
+          status: 'started',
+          startedAt: firedAt,
+          finishedAt: null,
+          message: null,
+        },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:30.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'started', startedAt: firedAt });
+    expect((await service.list()).automations[0]).toMatchObject({ nextDueAt: '2026-08-25T00:46:05.000Z' });
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+        heartbeatDelivery: {
+          schemaVersion: 1,
+          automationId: heartbeat.id,
+          occurrenceId: persisted.id,
+          status: 'completed',
+          startedAt: firedAt,
+          finishedAt: '2026-08-25T00:02:00.000Z',
+          message: null,
+        },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:30.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'completed' });
+  });
+
+  it.each(['due', 'pending', 'current'] as const)('exact-resumes a stopped target with a %s ID once and waits for runtime readiness', async (queueState) => {
+    let target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    const resumeTarget = vi.fn().mockResolvedValue({ type: 'success', sessionId: target.session.id });
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget,
+    });
+    const heartbeat = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: null,
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+    if (queueState === 'due') target = { ...target, running: false };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    const run = (await service.history(heartbeat.id)).runs[0];
+    target = {
+      running: false,
+      session: heartbeatTarget({
+        messageQueue: queueState === 'pending'
+          ? { pendingMessageIds: [run.id], currentMessageIds: [] }
+          : queueState === 'current'
+            ? { pendingMessageIds: [], currentMessageIds: [run.id] }
+            : { pendingMessageIds: [], currentMessageIds: [] },
+      }),
+    };
+
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:30.000Z'));
+    expect(resumeTarget).toHaveBeenCalledTimes(1);
+    expect(resumeTarget).toHaveBeenCalledWith(target.session.id, { replayQueueMessageId: run.id });
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'running' });
+    expect((await service.list()).automations[0]).toMatchObject({ status: 'active' });
+
+    target = { running: true, session: heartbeatTarget(null) };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:00.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:30.000Z'));
+    expect(resumeTarget).toHaveBeenCalledTimes(1);
+    expect((await service.controlHeartbeat({ action: 'status', targetSessionId: target.session.id })).deliveryState)
+      .toBe('waiting-daemon');
+
+    target = { running: true, session: heartbeatTarget() };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:03:00.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(queueState === 'due' ? 1 : 2);
+    expect(postMessage.mock.calls.at(-1)?.[1].localId).toBe(run.id);
+    if (queueState !== 'due') {
+      expect(postMessage.mock.calls[0][1].text).toBe(postMessage.mock.calls[1][1].text);
+    }
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'running' });
+    expect((await service.list()).automations[0]).toMatchObject({ status: 'active' });
+  });
+
+  it('allows one same-ID persistence retry and then records a material failure', async () => {
+    const target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget: vi.fn(),
+    });
+    const heartbeat = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: null,
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    await expect(service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 120, instruction: 'Changed.',
+    })).rejects.toThrow('current occurrence is in progress');
+    expect((await service.list()).automations[0]).toMatchObject({
+      id: heartbeat.id,
+      intervalSeconds: 60,
+      instruction: heartbeat.instruction,
+    });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(postMessage.mock.calls[0][1].localId).toBe(postMessage.mock.calls[1][1].localId);
+    expect(postMessage.mock.calls[0][1].text).toBe(postMessage.mock.calls[1][1].text);
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'failed' });
+  });
+
+  it('serializes control before delivery and replaces only an unaccepted due occurrence', async () => {
+    const target = { session: heartbeatTarget(null), running: true };
+    const postMessage = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget: vi.fn(),
+    });
+    const first = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: 'Old.',
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(first.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    expect((await service.history(first.id)).runs).toHaveLength(1);
+
+    const replaced = await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 120, instruction: 'New.',
+    });
+    expect((await service.history(first.id)).runs).toHaveLength(0);
+    expect(replaced.heartbeat).toMatchObject({ id: first.id, intervalSeconds: 120, instruction: 'New.' });
+    await service.controlHeartbeat({ action: 'pause', targetSessionId: target.session.id });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:03:00.000Z'));
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it('creates, pauses, resumes, and deletes durable definitions', async () => {
+    service = new HappyHerdAutomationService('machine-one', vi.fn());
+    await service.start();
+    const created = await service.create(input());
+    expect((await service.list()).automations[0]?.status).toBe('paused');
+    await service.resume(created.id);
+    expect((await service.list()).automations[0]?.status).toBe('active');
+    await service.pause(created.id);
+    await service.delete(created.id);
+    expect((await service.list()).automations).toHaveLength(0);
+  });
+
+  it('runs now through the same daemon session adapter and records history', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const run = await service.runNow(created.id);
+    expect(run).toMatchObject({ status: 'started', sessionId: 'session-one', finishedAt: null });
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
+      machineId: 'machine-one',
+      directory: path.join(root, 'workspace'),
+      agent: 'codex',
+      effortLevel: 'max',
+      automation: expect.objectContaining({
+        id: created.id,
+        runId: run.id,
+        kind: 'scheduled',
+        instruction: 'Review the task list.',
+      }),
+    }));
+    expect((await service.history(created.id)).runs[0]).toMatchObject({ status: 'started' });
+  });
+
+  it('runs fixed commands to completed or failed history without spawning an agent session', async () => {
+    const spawnSession = vi.fn();
+    const execCommand = vi.fn()
+      .mockResolvedValueOnce({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false })
+      .mockResolvedValueOnce({ exitCode: 2, signal: null, stderr: 'collector failed', stderrTruncated: false });
+    service = new HappyHerdAutomationService(
+      'machine-one',
+      spawnSession,
+      undefined,
+      undefined,
+      execCommand,
+    );
+    await service.start();
+    const created = await service.create(execInput());
+
+    expect((await service.list()).automations).toContainEqual(expect.objectContaining({
+      id: created.id,
+      rail: 'exec',
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+    }));
+    const acceptedCompleted = await service.runNow(created.id);
+    expect(acceptedCompleted).toMatchObject({
+      status: 'running',
+      execution: 'exec',
+      sessionId: null,
+      finishedAt: null,
+    });
+    await vi.waitFor(async () => {
+      expect((await service!.history(created.id)).runs[0]).toMatchObject({
+        id: acceptedCompleted.id,
+        status: 'completed',
+        message: 'Command exited with code 0.',
+      });
+    });
+    const completed = (await service.history(created.id)).runs[0];
+
+    const acceptedFailed = await service.runNow(created.id);
+    expect(acceptedFailed).toMatchObject({
+      status: 'running',
+      execution: 'exec',
+      sessionId: null,
+      finishedAt: null,
+    });
+    await vi.waitFor(async () => {
+      expect((await service!.history(created.id)).runs[0]).toMatchObject({
+        id: acceptedFailed.id,
+        status: 'failed',
+        message: 'Command exited with code 2. Command stderr: collector failed',
+      });
+    });
+    const failed = (await service.history(created.id)).runs[0];
+    expect(execCommand).toHaveBeenCalledTimes(2);
+    expect(execCommand).toHaveBeenCalledWith({
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+      workspace: path.join(root, 'workspace'),
+    });
+    expect(spawnSession).not.toHaveBeenCalled();
+    expect((await service.history(created.id)).runs).toEqual([failed, completed]);
+  });
+
+  it.each([
+    ['exec', 'manual'], ['exec', 'schedule'],
+    ['agent', 'manual'], ['agent', 'schedule'],
+  ] as const)('admits %s after %s terminal history is visible without releasing the next admission', async (execution, source) => {
+    const success = { exitCode: 0, signal: null, stderr: '', stderrTruncated: false };
+    let finishNextWork!: () => void;
+    const workGate = new Promise<void>((resolve) => { finishNextWork = resolve; });
+    const execCommand = vi.fn().mockResolvedValueOnce(success).mockImplementationOnce(async () => {
+      await workGate;
+      return success;
+    });
+    const spawnSession = vi.fn()
+      .mockResolvedValueOnce({ type: 'error', retrySafe: true, errorMessage: 'Quota exhausted before spawn' })
+      .mockImplementationOnce(async () => {
+        await workGate;
+        return { type: 'success', sessionId: 'next-session' };
+      });
+    service = new HappyHerdAutomationService('machine-one', spawnSession, undefined, undefined, execCommand);
+    const created = await service.create(execution === 'exec' ? execInput() : input());
+    const internals = service as unknown as {
+      store: HappyHerdAutomationStore;
+      execute: (id: string, source: 'manual' | 'schedule', scheduledFor: Date) => Promise<HappyHerdAutomationRun>;
+    };
+    const launch = () => source === 'manual'
+      ? service!.runNow(created.id)
+      : internals.execute(created.id, source, new Date());
+    let releaseCompletion!: () => void;
+    const completionGate = new Promise<void>((resolve) => { releaseCompletion = resolve; });
+    let terminalPublished!: () => void;
+    const published = new Promise<void>((resolve) => { terminalPublished = resolve; });
+    const appendRun = internals.store.appendRun.bind(internals.store);
+    const terminalStatus = execution === 'exec' ? 'completed' : 'failed';
+    let holdFirstCompletion = true;
+    vi.spyOn(internals.store, 'appendRun').mockImplementation(async (run) => {
+      await appendRun(run);
+      if (run.status === terminalStatus && holdFirstCompletion) {
+        holdFirstCompletion = false;
+        terminalPublished();
+        // Atomic history is visible before the publishing caller resumes.
+        await completionGate;
+      }
+    });
+    let releaseAdmission!: () => void;
+    const admissionGate = new Promise<void>((resolve) => { releaseAdmission = resolve; });
+    const first = launch();
+    let next: Promise<HappyHerdAutomationRun> | undefined;
+    try {
+      await published;
+      expect((await service.history(created.id)).runs[0].status).toBe(terminalStatus);
+      expect(await service.listActiveRuns()).toEqual([]);
+      const activeRun = internals.store.activeRun.bind(internals.store);
+      const admission = vi.spyOn(internals.store, 'activeRun').mockImplementationOnce(async (id) => {
+        await admissionGate;
+        return activeRun(id);
+      });
+      next = launch();
+      await vi.waitFor(() => expect(admission).toHaveBeenCalledOnce());
+      releaseCompletion();
+      await first;
+      await new Promise((resolve) => setImmediate(resolve));
+      // The older completion cannot unlock a successor awaiting its durable row.
+      expect((await launch()).status).toBe('skipped');
+      expect(admission).toHaveBeenCalledOnce();
+      releaseAdmission();
+      const runner = execution === 'exec' ? execCommand : spawnSession;
+      await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(2));
+      expect((await launch()).status).toBe('skipped');
+      expect(runner).toHaveBeenCalledTimes(2);
+      finishNextWork();
+      const accepted = await next;
+      expect(accepted.status).toBe(execution === 'agent' ? 'started' : source === 'manual' ? 'running' : 'completed');
+      if (execution === 'exec') {
+        await vi.waitFor(async () => {
+          expect((await service!.history(created.id)).runs.find((run) => run.id === accepted.id)?.status).toBe('completed');
+        });
+      }
+    } finally {
+      releaseCompletion();
+      releaseAdmission();
+      finishNextWork();
+      await Promise.all([first, next]);
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  });
+
+  it('acknowledges a manual exec run while a command remains active beyond the RPC budget', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const startedAt = new Date('2026-08-31T17:00:00.000Z');
+      vi.setSystemTime(startedAt);
+      let finishCommand!: (result: {
+        exitCode: number;
+        signal: null;
+        stderr: string;
+        stderrTruncated: boolean;
+      }) => void;
+      const execCommand = vi.fn(() => new Promise<{
+        exitCode: number;
+        signal: null;
+        stderr: string;
+        stderrTruncated: boolean;
+      }>((resolve) => { finishCommand = resolve; }));
+      const spawnSession = vi.fn();
+      service = new HappyHerdAutomationService(
+        'machine-one',
+        spawnSession,
+        undefined,
+        undefined,
+        execCommand,
+      );
+      const created = await service.create(execInput());
+
+      const accepted = await service.runNow(created.id);
+      expect(accepted).toMatchObject({
+        status: 'running',
+        execution: 'exec',
+        sessionId: null,
+        finishedAt: null,
+      });
+      expect((await service.history(created.id)).runs[0]).toEqual(accepted);
+      expect(spawnSession).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date(startedAt.getTime() + 30_001));
+      expect((await service.history(created.id)).runs[0]).toMatchObject({
+        id: accepted.id,
+        status: 'running',
+      });
+
+      finishCommand({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false });
+      await vi.waitFor(async () => {
+        expect((await service!.history(created.id)).runs[0]).toMatchObject({
+          id: accepted.id,
+          status: 'completed',
+          execution: 'exec',
+          sessionId: null,
+          message: 'Command exited with code 0.',
+        });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['claude', 'bypassPermissions'],
+    ['codex', 'yolo'],
+  ] as const)('spawns %s automations with an explicit unattended permission policy', async (rail, permissionMode) => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: `${rail}-session` });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), rail });
+
+    await service.runNow(created.id);
+
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
+      agent: rail,
+      permissionMode,
+    }));
+  });
+
+  it('does not execute missed runs automatically after downtime', async () => {
+    const spawn = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), schedule: '* * * * *', status: 'active' });
+    await service.stop();
+    service = null;
+    const statePath = path.join(root, '.happyherd', 'agentcontext', 'automations', 'happyherd', 'scheduler-state.json');
+    await writeFile(statePath, JSON.stringify({
+      schemaVersion: 1,
+      lastSeenAt: new Date(Date.now() - 120_000).toISOString(),
+    }));
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    expect(spawn).not.toHaveBeenCalled();
+    expect((await service.history(created.id)).runs[0]?.status).toBe('missed');
+  });
+
+  it('records a skipped run instead of overlapping one automation', async () => {
+    let release!: (result: { type: 'success'; sessionId: string }) => void;
+    const spawn = vi.fn(() => new Promise<{ type: 'success'; sessionId: string }>((resolve) => { release = resolve; }));
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const first = service.runNow(created.id);
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1));
+    const overlapping = await service.runNow(created.id);
+    expect(overlapping.status).toBe('skipped');
+    release({ type: 'success', sessionId: 'session-one' });
+    await expect(first).resolves.toMatchObject({ status: 'started', finishedAt: null });
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'skipped' });
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps ambiguous thrown spawn failures active for process reconciliation', async () => {
+    const spawn = vi.fn().mockRejectedValue(new Error('provider unavailable'));
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const run = await service.runNow(created.id);
+    expect(run).toMatchObject({ status: 'running', finishedAt: null });
+    expect(run.message).toContain('provider unavailable');
+    expect((await service.history(created.id)).runs[0]).toMatchObject({ status: 'running' });
+    await expect(service.confirmRunDidNotStart({
+      automationId: created.id,
+      runId: run.id,
+      message: 'Process reconciliation confirmed that no provider exists.',
+    })).resolves.toMatchObject({ status: 'failed', sessionId: null });
+    const recycled = await service.runNow(created.id);
+    expect(recycled.id).not.toBe(run.id);
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns the terminal row when OS exit is confirmed before the spawn webhook', async () => {
+    let spawnCount = 0;
+    const spawn = vi.fn(async (options: { automation: { id: string; runId: string } }) => {
+      spawnCount += 1;
+      if (spawnCount === 1) {
+        await service!.confirmRunDidNotStart({
+          automationId: options.automation.id,
+          runId: options.automation.runId,
+          message: 'OS confirmed provider exit before webhook.',
+        });
+        return { type: 'error' as const, errorMessage: 'provider exited before webhook' };
+      }
+      return { type: 'success' as const, sessionId: 'recycled-session' };
+    });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const failed = await service.runNow(created.id);
+    expect(failed).toMatchObject({ status: 'failed', sessionId: null });
+    const recycled = await service.runNow(created.id);
+    expect(recycled).toMatchObject({ status: 'started', sessionId: 'recycled-session' });
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('binds an exact late webhook to a running spawn and restores normal lifecycle', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'error', errorMessage: 'webhook timeout' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const running = await service.runNow(created.id);
+    const started = await service.confirmRunStarted({
+      automationId: created.id,
+      runId: running.id,
+      sessionId: 'late-session',
+    });
+    expect(started).toMatchObject({
+      status: 'started',
+      sessionId: 'late-session',
+      finishedAt: null,
+    });
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'skipped' });
+    await expect(service.confirmRunStarted({
+      automationId: created.id,
+      runId: running.id,
+      sessionId: 'wrong-session',
+    })).rejects.toThrow(/cannot bind/);
+  });
+
+  it('retries only failures that prove no provider process was started', async () => {
+    const spawn = vi.fn()
+      .mockResolvedValueOnce({ type: 'error', errorMessage: 'no pid', retrySafe: true })
+      .mockResolvedValueOnce({ type: 'success', sessionId: 'session-two' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), maxRetries: 1 });
+    const run = await service.runNow(created.id);
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(run).toMatchObject({ status: 'started', attempt: 2, sessionId: 'session-two' });
+  });
+
+  it('closes a retry-safe spawn failure when no provider process exists', async () => {
+    const spawn = vi.fn().mockResolvedValue({
+      type: 'error',
+      errorMessage: 'provider executable missing',
+      retrySafe: true,
+    });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const run = await service.runNow(created.id);
+    expect(run).toMatchObject({ status: 'failed', attempt: 1, sessionId: null });
+    expect(run.finishedAt).not.toBeNull();
+  });
+
+  it('never retries ambiguous failures that may already have started a session', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'error', errorMessage: 'webhook timeout' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), maxRetries: 3 });
+    const run = await service.runNow(created.id);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(run).toMatchObject({ status: 'running', attempt: 1, finishedAt: null });
+    expect(run.message).toContain('webhook timeout');
+  });
+
+  it('closes a started run only through a matching termination confirmation', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create(input());
+    const started = await service.runNow(created.id);
+    await expect(service.confirmRunTermination({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'another-session',
+      status: 'completed',
+    })).rejects.toThrow(/another session/);
+    const completed = await service.confirmRunTermination({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'session-one',
+      status: 'completed',
+      message: 'Root turn and child tasks completed.',
+    });
+    expect(completed).toMatchObject({ status: 'completed', sessionId: 'session-one' });
+    expect(completed.finishedAt).not.toBeNull();
+    await expect(service.confirmRunTermination({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'session-one',
+      status: 'completed',
+    })).resolves.toEqual(completed);
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'started' });
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses persisted nonterminal history as the overlap and delete authority after restart', async () => {
+    const firstSpawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    service = new HappyHerdAutomationService('machine-one', firstSpawn);
+    await service.start();
+    const created = await service.create(input());
+    await service.runNow(created.id);
+    await service.stop();
+    service = null;
+
+    const replacementSpawn = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', replacementSpawn);
+    await service.start();
+    await expect(service.listActiveRuns()).resolves.toEqual([
+      expect.objectContaining({ automationId: created.id, sessionId: 'session-one', status: 'started' }),
+    ]);
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'skipped' });
+    await expect(service.pause(created.id)).resolves.toMatchObject({ status: 'paused' });
+    await expect(service.delete(created.id)).rejects.toThrow(/currently running/);
+    expect(replacementSpawn).not.toHaveBeenCalled();
+  });
+
+  it('stops only the exact tracked run and waits for confirmed provider exit', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    const stopExactTrackedRun = vi.fn(() => true);
+    service = new HappyHerdAutomationService('machine-one', spawn, undefined, {
+      hasExactTrackedRun: vi.fn(() => true),
+      stopExactTrackedRun,
+    });
+    await service.start();
+    const created = await service.create(input());
+    const started = await service.runNow(created.id);
+
+    await expect(service.stopRun({
+      automationId: created.id,
+      runId: started.id,
+    })).resolves.toMatchObject({ status: 'started', sessionId: 'session-one' });
+    expect(stopExactTrackedRun).toHaveBeenCalledWith(started);
+    expect((await service.history(created.id)).runs[0]).toMatchObject({
+      status: 'started',
+      finishedAt: null,
+    });
+
+    await service.confirmRunTermination({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'session-one',
+      status: 'failed',
+      message: 'Operator stopped the exact tracked run.',
+    });
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'started' });
+  });
+
+  it('abandons only an explicitly confirmed orphan and preserves its history', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'legacy-session' });
+    let tracked = true;
+    service = new HappyHerdAutomationService('machine-one', spawn, undefined, {
+      hasExactTrackedRun: vi.fn(() => tracked),
+      stopExactTrackedRun: vi.fn(() => false),
+    });
+    await service.start();
+    const created = await service.create(input());
+    const started = await service.runNow(created.id);
+
+    await expect(service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'legacy-session',
+      confirmation: 'ABANDON',
+    })).rejects.toThrow(/still tracked/);
+
+    tracked = false;
+    await expect(service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'wrong-session',
+      confirmation: 'ABANDON',
+    })).rejects.toThrow(/session confirmation/);
+
+    const abandoned = await service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'legacy-session',
+      confirmation: 'ABANDON',
+    });
+    expect(abandoned).toMatchObject({
+      id: started.id,
+      status: 'failed',
+      sessionId: 'legacy-session',
+      message: expect.stringContaining('explicitly abandoned'),
+    });
+    expect((await service.history(created.id)).runs).toContainEqual(abandoned);
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'started' });
+  });
+
+  it('enforces the selected Commander workspace', async () => {
+    const commanderRoot = path.join(root, '.happyherd', 'commanders', 'athena');
+    await mkdir(path.join(commanderRoot, 'agentcontext'), { recursive: true });
+    await writeFile(path.join(commanderRoot, 'COMMANDER.md'), `---\nidentity_and_scope:\n  name: Athena\n  commander_id: athena\n  workspace: ${path.join(root, 'workspace')}\n---\n`);
+    service = new HappyHerdAutomationService('machine-one', vi.fn());
+    await service.start();
+    await expect(service.create({
+      ...input(),
+      commanderId: 'athena',
+      workspace: path.join(root, 'other-workspace'),
+    })).rejects.toThrow(/bound to workspace/);
+    await expect(service.create({
+      ...input(),
+      commanderId: 'athena',
+    })).resolves.toMatchObject({ commanderId: 'athena' });
+  });
+});

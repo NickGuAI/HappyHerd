@@ -1,15 +1,15 @@
 # happy-agent CLI Tool
 
 ## Overview
-A new standalone CLI tool (`happy-agent`) in `packages/happy-agent` that acts as a dedicated client for controlling Happy Coder agents remotely. Unlike `happy-cli` which both runs and controls agents, `happy-agent` only controls them — listing machines, spawning sessions on a machine, creating sessions, sending messages, reading history, monitoring state, and stopping sessions.
+A new standalone CLI tool (`happy-agent`) in `packages/happy-agent` that acts as a dedicated client for controlling Happy Coder agents remotely. Unlike `happyherd-cli` which both runs and controls agents, `happy-agent` only controls them — listing machines, spawning sessions on a machine, creating sessions, sending messages, reading history, monitoring state, and stopping sessions.
 
-This is a completely separate client from `happy-cli`. It has its own authentication flow (account auth via QR code, same as device linking in the mobile app), its own credential storage (`~/.happy/agent.key`), and is written from scratch with no code sharing.
+This is a completely separate client from `happyherd-cli`. It has its own authentication flow (account auth via QR code, same as device linking in the mobile app), its own credential storage (`~/.happy/agent.key`), and is written from scratch with no code sharing.
 
 ## Context
-- **Existing system**: Monorepo with `happy-cli` (agent runtime + control), `happy-server` (Fastify + PostgreSQL + Redis), `happy-app` (React Native mobile)
+- **Existing system**: Monorepo with `happyherd-cli` (agent runtime + control), `happy-server` (Fastify + PostgreSQL + Redis), `happy-app` (React Native mobile)
 - **Server API**: REST endpoints at `https://api.cluster-fluster.com` + Socket.IO at `/v1/updates`
 - **Authentication**: Uses account auth flow (`/v1/auth/account/request` + `/v1/auth/account/response`) — generates ephemeral keypair, displays QR code (`happy:///account?[base64url-publicKey]`), user scans with existing Happy mobile app to approve, receives encrypted account secret
-- **Credential storage**: `~/.happy/agent.key` (separate from happy-cli's `~/.happy/access.key`)
+- **Credential storage**: `~/.happy/agent.key` (separate from happyherd-cli's `~/.happy/access.key`)
 - **Encryption**: AES-256-GCM (dataKey) for all new sessions. The master content keypair is derived deterministically from the account secret via `deriveKey(secret, 'Happy EnCoder', ['content'])` → seed → `crypto_box_seed_keypair(seed)`. Per-session random keys are encrypted with the master public key and stored on the server.
 - **Session protocol**: HTTP POST to create sessions, Socket.IO for real-time messages/state updates
 - **Agent state**: `AgentState.controlledByUser` indicates if agent is actively processing; `requests` field tracks pending tool calls
@@ -37,7 +37,7 @@ This is a completely separate client from `happy-cli`. It has its own authentica
 ### Task 1: Package scaffolding and build setup
 - [x] Create `packages/happy-agent/` directory with `package.json` (name: `happy-agent`, type: module, bin: `./bin/happy-agent.mjs`)
 - [x] Create `tsconfig.json` with strict mode, path aliases (`@/` → `src/`), ESM output
-- [x] Create `bin/happy-agent.mjs` entry point wrapper (mirrors happy-cli pattern: spawns node with `--no-warnings`)
+- [x] Create `bin/happy-agent.mjs` entry point wrapper (mirrors happyherd-cli pattern: spawns node with `--no-warnings`)
 - [x] Create `src/index.ts` as main entry point with argument parsing shell
 - [x] Add package to root `package.json` workspaces
 - [x] Add dependencies: `axios`, `socket.io-client`, `tweetnacl`, `zod`, `chalk`, `commander`, `qrcode-terminal`
@@ -177,7 +177,7 @@ This is a completely separate client from `happy-cli`. It has its own authentica
 - [x] Verify `--json` flag works on all applicable commands
 - [x] Verify error handling: no credentials, server unreachable, invalid session ID
 - [x] Verify interop: session created by happy-agent is visible and controllable from mobile app
-- [x] Verify interop: session created by happy-cli can be listed and history read by happy-agent
+- [x] Verify interop: session created by happyherd-cli can be listed and history read by happy-agent
 - [x] Run full test suite (unit tests)
 - [x] Run linter — all issues must be fixed
 
@@ -300,7 +300,7 @@ Test vectors:
 2. Encrypt per-session key with master publicKey via `libsodiumEncryptForPublicKey` → store as `dataEncryptionKey` on server
 3. Encrypt/decrypt all session data (metadata, messages, agentState) with AES-256-GCM using the per-session key
 
-**For existing sessions (created by happy-cli or other clients):**
+**For existing sessions (created by happyherd-cli or other clients):**
 1. If session has `dataEncryptionKey`: strip version byte `[0]`, `decryptBoxBundle(encrypted, contentKeyPair.secretKey)` → per-session AES key, use AES-256-GCM
 2. If session has no `dataEncryptionKey`: use `secret` directly as key with legacy TweetNaCl secretbox
 
@@ -328,7 +328,7 @@ Agent is considered idle when ALL of these are true:
 - Test full auth flow: run `happy-agent auth login`, scan QR with Happy app, verify credentials saved
 - Test with real server: create session, send message, verify it appears in mobile app
 - Test `wait` command with a running agent session
-- Test `history` command for sessions created by both `happy-agent` and `happy-cli`
+- Test `history` command for sessions created by both `happy-agent` and `happyherd-cli`
 - Test cross-client interop: messages from happy-agent readable by mobile app and vice versa
 
 **Distribution:**

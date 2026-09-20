@@ -80,10 +80,10 @@ cannot silently become interactive. GrokBuild permission remains launch-only:
 its receipt governs the running process unless the dedicated validated
 transition RPC restarts that exact process and returns a matching receipt.
 
-For GrokBuild specifically, `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`
+For GrokBuild specifically, `server/packages/happyherd-cli/src/capabilities/agentCapabilities.ts`
 discovers permission modes from `grok --help`,
-`server/packages/happy-cli/src/agent/acp/acpAgentConfig.ts` applies them at
-process launch, and `server/packages/happy-cli/src/agent/acp/runAcp.ts` keeps
+`server/packages/happyherd-cli/src/agent/acp/acpAgentConfig.ts` applies them at
+process launch, and `server/packages/happyherd-cli/src/agent/acp/runAcp.ts` keeps
 them separate from ACP plan/build selection.
 
 When a permission mode change is requested, the daemon must validate the selection and restart only the tracked Grok process using the corresponding Grok launch policy flag rather than modifying the ACP operating mode. Ensure the shared composer only updates the visible mode after the resumed provider returns a matching launch receipt while retaining transcript, path, identity, and queued messages.
@@ -98,7 +98,7 @@ Audit together:
 
 - `server/packages/happy-wire/src/messageMeta.ts`;
 - `server/packages/happy-app/sources/sync/typesMessageMeta.ts`;
-- `server/packages/happy-cli/src/api/types.ts` and `apiSession.ts`;
+- `server/packages/happyherd-cli/src/api/types.ts` and `apiSession.ts`;
 - capability validation, daemon spawn, and the provider adapter.
 
 Add a fixture with a valid provider-native mode that is not a Claude or Codex

@@ -39,7 +39,7 @@ happyherd commander create --manifest /absolute/file.json
 ```
 * **Manifest Fields:** `id`, `name`, `workspace`, `role`, and `commanderMarkdown`.
 * **Alignment:** The markdown YAML `identity_and_scope` properties (`commander_id`, `name`, `workspace`, `role`) must match the manifest values exactly.
-* **Schema Reference:** Refer to [commander.ts](../server/packages/happy-cli/src/commands/commander.ts) for the owning schema.
+* **Schema Reference:** Refer to [commander.ts](../server/packages/happyherd-cli/src/commands/commander.ts) for the owning schema.
 
 ### Session Delegation
 

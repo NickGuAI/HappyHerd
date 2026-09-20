@@ -1,6 +1,6 @@
 const { execFileSync } = require('node:child_process');
 const productMetadata = require('./product-metadata.json');
-const happyHerdCliPackage = require('../happy-cli/package.json');
+const happyHerdCliPackage = require('../happyherd-cli/package.json');
 
 const variant = process.env.APP_ENV || 'development';
 const bundleIdBase = process.env.HAPPY_APP_BUNDLE_ID || 'app.happyherd.client';

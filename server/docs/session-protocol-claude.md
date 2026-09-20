@@ -10,15 +10,15 @@ This document explains how Claude launcher paths emit the unified session protoc
 
 ## Key Components
 
-- `packages/happy-cli/src/api/apiSession.ts`
+- `packages/happyherd-cli/src/api/apiSession.ts`
   - `sendClaudeSessionMessage(...)` maps Claude records into session envelopes and sends them.
   - `closeClaudeSessionTurn(status)` emits `turn-end` with `completed|failed|cancelled`.
-- `packages/happy-cli/src/claude/utils/sessionProtocolMapper.ts`
+- `packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.ts`
   - Claude RawJSONLines -> session-protocol envelopes.
   - Maintains `currentTurnId` state.
-- `packages/happy-cli/src/claude/utils/sessionScanner.ts`
+- `packages/happyherd-cli/src/claude/utils/sessionScanner.ts`
   - Local-mode file scanner with message de-duplication.
-- `packages/happy-cli/src/claude/utils/OutgoingMessageQueue.ts`
+- `packages/happyherd-cli/src/claude/utils/OutgoingMessageQueue.ts`
   - Remote-mode ordered outgoing queue.
 
 ## Local Launcher Flow
@@ -50,7 +50,7 @@ sequenceDiagram
 - Non-zero launcher exit/error: `turn-end(status="failed")`
 
 Implemented in:
-- `packages/happy-cli/src/claude/claudeLocalLauncher.ts`
+- `packages/happyherd-cli/src/claude/claudeLocalLauncher.ts`
 
 ## Remote Launcher Flow
 
@@ -83,7 +83,7 @@ sequenceDiagram
 - On launcher error: `turn-end(status="failed")`
 
 Implemented in:
-- `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`
+- `packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts`
 
 ## Mapping Rules (Claude -> Session Protocol)
 
@@ -263,8 +263,8 @@ Sidechain logic spans three layers:
 - For interrupted tools on restart/abort, it generates sidechain-aware tool results with optional `parent_tool_use_id`.
 
 Relevant files:
-- `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`
-- `packages/happy-cli/src/claude/utils/sdkToLogConverter.ts`
+- `packages/happyherd-cli/src/claude/claudeRemoteLauncher.ts`
+- `packages/happyherd-cli/src/claude/utils/sdkToLogConverter.ts`
 
 #### Local launcher
 
@@ -273,8 +273,8 @@ Relevant files:
 - `sendClaudeSessionMessage()` applies the same mapper as remote.
 
 Relevant files:
-- `packages/happy-cli/src/claude/claudeLocalLauncher.ts`
-- `packages/happy-cli/src/claude/utils/sessionScanner.ts`
+- `packages/happyherd-cli/src/claude/claudeLocalLauncher.ts`
+- `packages/happyherd-cli/src/claude/utils/sessionScanner.ts`
 
 ### 2) How sidechains become session protocol (CLI-owned orphan handling)
 
@@ -323,7 +323,7 @@ flowchart LR
 ```
 
 Relevant file:
-- `packages/happy-cli/src/claude/utils/sessionProtocolMapper.ts`
+- `packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.ts`
 
 ### 3) How app links sidechain messages to Task tool calls
 

@@ -23,7 +23,7 @@ The strongest documentation in this repository is about runtime behavior, not op
 
 There are also package-level agent instruction files:
 
-- [`../../packages/happy-cli/CLAUDE.md`](../../packages/happy-cli/CLAUDE.md)
+- [`../../packages/happyherd-cli/CLAUDE.md`](../../packages/happyherd-cli/CLAUDE.md)
 - [`../../packages/happy-app/CLAUDE.md`](../../packages/happy-app/CLAUDE.md)
 - [`../../packages/happy-server/CLAUDE.md`](../../packages/happy-server/CLAUDE.md)
 

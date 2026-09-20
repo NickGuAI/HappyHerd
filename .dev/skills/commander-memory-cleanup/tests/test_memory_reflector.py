@@ -696,7 +696,7 @@ class DiscoveryAndCommandTests(unittest.TestCase):
         ), mock.patch.object(memory_reflector.Path, "home", return_value=Path("/home/test")):
             self.assertEqual(
                 memory_reflector.default_happy_command(),
-                ["node", "/home/test/App/apps/happyherd/server/packages/happy-cli/bin/happy.mjs"],
+                ["node", "/home/test/App/apps/happyherd/server/packages/happyherd-cli/bin/happyherd.mjs"],
             )
 
     def test_roster_comes_from_supported_happy_cli_and_is_sorted(self) -> None:

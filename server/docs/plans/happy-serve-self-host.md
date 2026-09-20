@@ -34,7 +34,7 @@ That's it. No daemon flags, no `--serve` flag on `daemon start`. Two commands, b
 
 ### 2. Single settings field: `settings.serverUrl`
 
-Add to `Settings` in `packages/happy-cli/src/persistence.ts:37`:
+Add to `Settings` in `packages/happyherd-cli/src/persistence.ts:37`:
 
 ```ts
 interface Settings {
@@ -58,7 +58,7 @@ Rationale: self-host users explicitly opted in. Silent fallback to the public se
 
 ### 4. URL precedence (one line of new logic)
 
-`packages/happy-cli/src/configuration.ts:32` becomes:
+`packages/happyherd-cli/src/configuration.ts:32` becomes:
 
 ```ts
 this.serverUrl =
@@ -97,7 +97,7 @@ Because the daemon reads `configuration.serverUrl` like every other entry point,
 ## Disabling analytics (defense in depth)
 
 ### State of the world today
-- **happy-cli, happy-agent, happy-server: no analytics at all** (verified — see Audit reference below).
+- **happyherd-cli, happy-agent, happy-server: no analytics at all** (verified — see Audit reference below).
 - **happy-app (web + mobile): PostHog only**, already gated: `tracking = config.postHogKey ? new PostHog(...) : null` (`packages/happy-app/sources/track/tracking.ts:4`). Every call site is `tracking?.capture(...)`, so absence of the key already short-circuits everything.
 
 ### Three-layer kill switch
@@ -190,7 +190,7 @@ PGlite gets the wasm path passed explicitly so bundling doesn't break the lookup
 
 ### New files
 
-**`packages/happy-cli/src/commands/server.ts`** (~80 LOC)
+**`packages/happyherd-cli/src/commands/server.ts`** (~80 LOC)
 ```
 happy server                      start server, write URL, block
 happy server --port N             custom port
@@ -200,9 +200,9 @@ happy server --no-persist         start server but don't touch settings (test mo
 ```
 Flow: parse args → `updateSettings({ serverUrl })` (unless `--no-persist`) → `migrate(...)` → `startServer(...)` → log URL → await server close on SIGINT/SIGTERM.
 
-**`packages/happy-cli/scripts/build-server-assets.mjs`** (~50 LOC, build-time)
+**`packages/happyherd-cli/scripts/build-server-assets.mjs`** (~50 LOC, build-time)
 - `pnpm --filter @slopus/happy-app build:web`
-- Copy webapp dist, pglite wasm, server migrations → `packages/happy-cli/server-assets/`
+- Copy webapp dist, pglite wasm, server migrations → `packages/happyherd-cli/server-assets/`
 
 **`packages/happy-server/sources/index.ts`** (NEW, ~40 LOC)
 Export from refactored `standalone.ts`:
@@ -217,18 +217,18 @@ When `staticDir` set, register `@fastify/static` on `/*` with an `onSend` hook t
 
 ### Modified files
 
-**`packages/happy-cli/package.json`**
+**`packages/happyherd-cli/package.json`**
 - Dep: `"@slopus/happy-server": "workspace:*"` (only — fastify-static and pglite come transitively)
 - `files`: add `"server-assets"`
 - `build`: run `build-server-assets.mjs` before `pkgroll`
 
-**`packages/happy-cli/src/index.ts`**
+**`packages/happyherd-cli/src/index.ts`**
 - One new subcommand branch for `server` (~10 LOC)
 
-**`packages/happy-cli/src/persistence.ts`**
+**`packages/happyherd-cli/src/persistence.ts`**
 - Add `serverUrl?: string` to `Settings` (~2 LOC)
 
-**`packages/happy-cli/src/configuration.ts`**
+**`packages/happyherd-cli/src/configuration.ts`**
 - Add `settings.serverUrl` to URL precedence (~3 LOC, but needs sync settings read at bootstrap)
 
 **`packages/happy-server/package.json`**
@@ -326,7 +326,7 @@ Only `happy-app` has PostHog (`packages/happy-app/sources/track/tracking.ts:4`),
 
 ### Hardcoded `happy.engineering` URLs (cosmetic)
 - `happy-app/sources/components/SettingsView.tsx:396` — privacy link
-- `happy-cli/src/ui/doctor.ts:225`, `src/claude/utils/systemPrompt.ts:20-23`, `src/commands/connect.ts:74` — docs / attribution
+- `happyherd-cli/src/ui/doctor.ts:225`, `src/claude/utils/systemPrompt.ts:20-23`, `src/commands/connect.ts:74` — docs / attribution
 - `happy-server/sources/app/api/routes/connectRoutes.ts` — GitHub OAuth redirect
 - `happy-app/app.config.js:46,77` + iOS/Android manifests — universal link domain
 

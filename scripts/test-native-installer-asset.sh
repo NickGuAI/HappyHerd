@@ -132,7 +132,7 @@ IFS= read -r server_pid < "$test_home/.happyherd/server.pid"
 [[ "$server_pid" =~ ^[0-9]+$ ]]
 kill -0 "$server_pid"
 process_command="$(ps -p "$server_pid" -o command=)"
-[[ "$process_command" == *"--no-warnings --no-deprecation $test_home/.local/share/happyherd/runtime/bin/happy.mjs server "* ]]
+[[ "$process_command" == *"--no-warnings --no-deprecation $test_home/.local/share/happyherd/runtime/bin/happyherd.mjs server "* ]]
 curl -fsS http://127.0.0.1:3005/health >/dev/null
 curl -fsS http://127.0.0.1:3005/ >/dev/null
 [[ -f "$test_home/.happyherd/server.pid" ]]

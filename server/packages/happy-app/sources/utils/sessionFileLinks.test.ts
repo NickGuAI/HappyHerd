@@ -11,14 +11,14 @@ describe('sessionFileLinks', () => {
     const sessionRoot = '/Users/kirilldubovitskiy/projects/happy';
 
     it('parses absolute file refs with line numbers', () => {
-        const result = parseSessionFileLink('/Users/kirilldubovitskiy/projects/happy/packages/happy-cli/src/codex/runCodex.ts:594', {
+        const result = parseSessionFileLink('/Users/kirilldubovitskiy/projects/happy/packages/happyherd-cli/src/codex/runCodex.ts:594', {
             sessionRoot,
         });
 
         expect(result).toEqual({
-            path: '/Users/kirilldubovitskiy/projects/happy/packages/happy-cli/src/codex/runCodex.ts',
-            absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happy-cli/src/codex/runCodex.ts',
-            relativePath: 'packages/happy-cli/src/codex/runCodex.ts',
+            path: '/Users/kirilldubovitskiy/projects/happy/packages/happyherd-cli/src/codex/runCodex.ts',
+            absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happyherd-cli/src/codex/runCodex.ts',
+            relativePath: 'packages/happyherd-cli/src/codex/runCodex.ts',
             withinSessionRoot: true,
             line: 594,
             column: null,
@@ -26,14 +26,14 @@ describe('sessionFileLinks', () => {
     });
 
     it('parses relative file refs with line and column numbers', () => {
-        const result = parseSessionFileLink('packages/happy-cli/src/codex/runCodex.ts:594:2', {
+        const result = parseSessionFileLink('packages/happyherd-cli/src/codex/runCodex.ts:594:2', {
             sessionRoot,
         });
 
         expect(result).toEqual({
-            path: 'packages/happy-cli/src/codex/runCodex.ts',
-            absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happy-cli/src/codex/runCodex.ts',
-            relativePath: 'packages/happy-cli/src/codex/runCodex.ts',
+            path: 'packages/happyherd-cli/src/codex/runCodex.ts',
+            absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happyherd-cli/src/codex/runCodex.ts',
+            relativePath: 'packages/happyherd-cli/src/codex/runCodex.ts',
             withinSessionRoot: true,
             line: 594,
             column: 2,
@@ -305,16 +305,16 @@ describe('sessionFileLinks', () => {
     });
 
     it('splits bare text into plain and linked segments', () => {
-        const result = splitSessionFileText('Open packages/happy-cli/src/codex/runCodex.ts:594 please.', sessionRoot);
+        const result = splitSessionFileText('Open packages/happyherd-cli/src/codex/runCodex.ts:594 please.', sessionRoot);
 
         expect(result).toEqual([
             { text: 'Open ', link: null },
             {
-                text: 'packages/happy-cli/src/codex/runCodex.ts:594',
+                text: 'packages/happyherd-cli/src/codex/runCodex.ts:594',
                 link: {
-                    path: 'packages/happy-cli/src/codex/runCodex.ts',
-                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happy-cli/src/codex/runCodex.ts',
-                    relativePath: 'packages/happy-cli/src/codex/runCodex.ts',
+                    path: 'packages/happyherd-cli/src/codex/runCodex.ts',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/packages/happyherd-cli/src/codex/runCodex.ts',
+                    relativePath: 'packages/happyherd-cli/src/codex/runCodex.ts',
                     withinSessionRoot: true,
                     line: 594,
                     column: null,

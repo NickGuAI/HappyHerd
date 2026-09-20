@@ -9,7 +9,7 @@
  *
  * Note that a session driven from the user's own terminal never reaches this
  * check at all: the CLI only emits session pushes from its remote launcher
- * (see packages/happy-cli/src/claude/loop.ts), so "user is at the keyboard"
+ * (see packages/happyherd-cli/src/claude/loop.ts), so "user is at the keyboard"
  * is handled structurally rather than guessed at here.
  *
  * State lives on `socket.data.appState` — set by the `app-state` socket

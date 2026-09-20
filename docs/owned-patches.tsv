@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+CLI_FULL_RENAME	accepted	refactor(cli): complete happyherd naming and preserve migration contracts	docs/cli-renaming.md
 COMMANDER_FIRST_MOCK	accepted	docs(mock): prototype Commander-first mode for issue 300	docs/mocks/commander-first/README.md
 NATIVE_INTERACTION_CHANGELOG_GOLDENS	accepted	test(app): refresh issue 295 changelog golden images	.dev/evidence/issue-295-native-interactions.md
 NATIVE_PLAN_QUESTION_RECOVERY	accepted	feat(providers): persist native plans and question answers	.dev/evidence/issue-295-native-interactions.md
@@ -25,32 +26,32 @@ KILV_GOLDEN_PIXEL_PROBE	accepted	test(app): exercise one-pixel failure through P
 KILV_GOLDEN_BASELINES	accepted	test(app): commit Linux golden baselines and await workspace hydration	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN_REGEN	accepted	test(app): regenerate golden baselines from exact PR artifacts	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN	accepted	test(app): add bounded KILV golden-image CI	docs/acceptance/issue-287/golden/README.md
-CODEX_CONTEXT_METER	accepted	fix(codex): keep parent context meter scoped to root usage	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
+CODEX_CONTEXT_METER	accepted	fix(codex): keep parent context meter scoped to root usage	server/packages/happyherd-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
 FORK_PARENT_SETTINGS	accepted	fix(sessions): inherit parent permissions and commander on fork	.dev/evidence/issue-281-fork-inheritance.md
-WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happy-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
+WORKSPACE_DIRECTORY_DELETE	accepted	feat(workspace): support explicit recursive directory deletion	server/packages/happyherd-cli/src/modules/common/registerCommonHandlers.deleteFile.test.ts
 NATIVE_INSTALLER_PROOF	accepted	fix(installer): keep database byte handling in prepared releases	.github/workflows/native-installer-release.yml
 NEW_SESSION_PANEL_UX	accepted	fix(new-session): preserve native sizing and prove route gestures	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 NEW_SESSION_PANEL_UX	accepted	fix: improve new session panel size and folder navigation	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
-SIDE_CHAT_PERMISSION	accepted	fix(side-chat): propagate explicit permission and confirmed settings	server/packages/happy-cli/src/daemon/run.resume.test.ts
-PROVIDER_QUOTA_EXHAUSTION	accepted	fix(providers): surface exhausted quota	server/packages/happy-cli/src/daemon/run.resume.test.ts
-SIDE_CHAT_LAUNCH_SETTINGS	accepted	feat(side-chat): accept explicit model and effort	server/packages/happy-cli/src/daemon/run.resume.test.ts
-SIDE_CHAT_RESOURCE_USAGE	accepted	feat(side-chat): report host resources on create	server/packages/happy-cli/src/daemon/hostResourceUsage.test.ts
-USER_SAFEGUARD	accepted	feat(safeguard): add opt-in artifact approval gate	server/packages/happy-cli/src/userSafeguard/userSafeguard.test.ts
+SIDE_CHAT_PERMISSION	accepted	fix(side-chat): propagate explicit permission and confirmed settings	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+PROVIDER_QUOTA_EXHAUSTION	accepted	fix(providers): surface exhausted quota	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+SIDE_CHAT_LAUNCH_SETTINGS	accepted	feat(side-chat): accept explicit model and effort	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+SIDE_CHAT_RESOURCE_USAGE	accepted	feat(side-chat): report host resources on create	server/packages/happyherd-cli/src/daemon/hostResourceUsage.test.ts
+USER_SAFEGUARD	accepted	feat(safeguard): add opt-in artifact approval gate	server/packages/happyherd-cli/src/userSafeguard/userSafeguard.test.ts
 USER_SAFEGUARD	accepted	fix(safeguard): show full mobile description	server/packages/happy-app/sources/app/(app)/settings/features.test.ts
-GROK_INLINE_IMAGES	accepted	fix(grok): support inline images and encrypted attachments	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): preserve session continuity across restarts	server/packages/happy-cli/src/persistence.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): preserve exact Codex home on resume	server/packages/happy-cli/src/resume/codexHome.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): honor persisted Codex resume state	server/packages/happy-cli/src/daemon/run.resume.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): recover historical resume state	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): use legacy access key for recovery	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): backfill historical resumes before launch	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
-SESSION_CONTINUITY	accepted	revert(sessions): keep terminal resume local-only	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): restore legacy terminal resume fallback	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): narrow historical recovery scope	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): remove redundant continuity checks	server/packages/happy-cli/src/daemon/run.resume.test.ts
-SESSION_CONTINUITY	accepted	fix(sessions): deliver archived next turns on resume	server/packages/happy-cli/src/daemon/run.resume.test.ts
-AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happy-cli/src/daemon/run.automation.test.ts
-AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+GROK_INLINE_IMAGES	accepted	fix(grok): support inline images and encrypted attachments	server/packages/happyherd-cli/src/agent/acp/runAcp.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): preserve session continuity across restarts	server/packages/happyherd-cli/src/persistence.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): preserve exact Codex home on resume	server/packages/happyherd-cli/src/resume/codexHome.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): honor persisted Codex resume state	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): recover historical resume state	server/packages/happyherd-cli/src/resume/resolveHappyHerdSession.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): use legacy access key for recovery	server/packages/happyherd-cli/src/resume/resolveHappyHerdSession.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): backfill historical resumes before launch	server/packages/happyherd-cli/src/resume/handleResumeCommand.test.ts
+SESSION_CONTINUITY	accepted	revert(sessions): keep terminal resume local-only	server/packages/happyherd-cli/src/resume/handleResumeCommand.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): restore legacy terminal resume fallback	server/packages/happyherd-cli/src/resume/handleResumeCommand.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): narrow historical recovery scope	server/packages/happyherd-cli/src/resume/resolveHappyHerdSession.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): remove redundant continuity checks	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): deliver archived next turns on resume	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happyherd-cli/src/daemon/run.automation.test.ts
+AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happyherd-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): scan owned commit identities	scripts/test-public-boundary.mjs
 EXAMPLE_SCOPE	accepted	fix(example): remove obsolete role language	examples/pmai-happyherd-agent/README.md
@@ -59,7 +60,7 @@ PUBLIC_BOUNDARY	accepted	fix(public-boundary): cover identity aliases	scripts/te
 AGENT_LINK_CONTRACT	accepted	fix(agent): add generic Discord account linking	server/packages/happyherd-agent/src/bridge.test.ts
 AGENT_LINK_CONTRACT	accepted	fix(agent): make link settlement retry safe	server/packages/happyherd-agent/src/bridge.test.ts
 AGENT_LINK_CONTRACT	accepted	fix(agent): fail closed on malformed link commands	server/packages/happyherd-agent/src/bridge.test.ts
-RUNTIME_CONTRACT	accepted	fix(runtime): restore session lifecycle contracts	server/packages/happy-cli/src/daemon/run.automation.test.ts
+RUNTIME_CONTRACT	accepted	fix(runtime): restore session lifecycle contracts	server/packages/happyherd-cli/src/daemon/run.automation.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): canonicalize signed GitHub squash	scripts/test-public-boundary.mjs
 ISSUER_ONBOARDING	accepted	feat(launcher): add generic governed local runtime	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): make native matrix deterministic	scripts/test-public-launcher-release-contract.sh
@@ -91,15 +92,15 @@ PUBLIC_RELEASE	accepted	fix(release): probe staged Windows Python	scripts/test-p
 PUBLIC_RELEASE	accepted	fix(release): use the isolated service station	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): capture Windows uninstall receipts	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): publish annotated tag notes compatibly	scripts/test-public-launcher-release-contract.sh
-CODEX_TURN_RECOVERY	accepted	fix(codex): recover stale active turns	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
+CODEX_TURN_RECOVERY	accepted	fix(codex): recover stale active turns	server/packages/happyherd-cli/src/codex/codexAppServerClient.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): pin legacy committer normalization	scripts/test-public-boundary.mjs
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): accept signed PR merges	scripts/test-public-boundary.mjs
 DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/AGENTS.md
 COMMUNITY_SURFACE	accepted	docs(project): publish community contracts	scripts/verify-community-contract.mjs
-COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages/happyherd-cli/src/agentContext/commanderContext.test.ts
 COMMANDER_AVATAR	accepted	fix(app): display uploaded Commander avatars	server/packages/happy-server/sources/app/api/socket.test.ts
 AUTOMATION_PROJECTS	accepted	feat(automations): organize schedules by tags	server/packages/happy-wire/src/automation.test.ts
-MESSAGE_QUEUE_VIEW	accepted	feat(chat): show queued messages separately	server/packages/happy-cli/src/utils/MessageQueue2.test.ts
+MESSAGE_QUEUE_VIEW	accepted	feat(chat): show queued messages separately	server/packages/happyherd-cli/src/utils/MessageQueue2.test.ts
 WORKSPACE_CONTEXT	accepted	feat(workspace): complete file and folder context	server/packages/happy-wire/src/workspaceUpload.test.ts
 RELEASE_IMAGE	accepted	fix(release): scope server image dependency installation	scripts/test-component-deployment-contract.sh
 COMPONENT_DEPLOYMENT	accepted	refactor(release): restore component-native deployment	scripts/test-component-deployment-contract.sh
@@ -137,65 +138,65 @@ EXACT_DAEMON_ROUTING	accepted	fix(app): inject model catalog translations	server
 UI_SURFACE_INVENTORY	accepted	chore(app): refresh UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
 UPSTREAM_SYNC_REVIEW	accepted	fix(sync): close exact-head review gaps	docs/upstream-sync-2026-08-24.md
 UPSTREAM_SYNC_NATIVE_PROPOSAL	accepted	chore(upstream): replace GitHub sync automation	scripts/test-upstream-proposal-ownership.sh
-AUTOMATION_NO_TIMEOUT	accepted	feat: support unbounded automation runs	server/packages/happy-cli/src/daemon/run.automation.test.ts
+AUTOMATION_NO_TIMEOUT	accepted	feat: support unbounded automation runs	server/packages/happyherd-cli/src/daemon/run.automation.test.ts
 SESSION_UI_STATE	accepted	fix(app): prevent machine blink and show archive progress	server/packages/happy-app/sources/sync/machinePresence.test.ts
 AUTOMATIONS_PROFILING	accepted	feat(metrics): profile automations page latency	docs/automations-profiling.md
-SESSION_HEARTBEAT	accepted	feat(automations): support resumable session heartbeats	server/packages/happy-cli/src/automations/service.test.ts
-AUTOMATION_NO_TIMEOUT	accepted	fix(automations): remove run deadlines (6a8db5ad)	server/packages/happy-cli/src/codex/runCodex.automation.test.ts
-PUBLIC_LAUNCHER_CONTRACT	accepted	feat(cli): forward native Happy commands	server/packages/happy-cli/package.json
-PUBLIC_LAUNCHER_CONTRACT	accepted	fix(cli): retain governed version precedence	server/packages/happy-cli/package.json
-AUTOMATION_NO_TIMEOUT	accepted	fix(automations): preserve legacy timed-out history	server/packages/happy-cli/src/automations/store.test.ts
+SESSION_HEARTBEAT	accepted	feat(automations): support resumable session heartbeats	server/packages/happyherd-cli/src/automations/service.test.ts
+AUTOMATION_NO_TIMEOUT	accepted	fix(automations): remove run deadlines (6a8db5ad)	server/packages/happyherd-cli/src/codex/runCodex.automation.test.ts
+PUBLIC_LAUNCHER_CONTRACT	accepted	feat(cli): forward native Happy commands	server/packages/happyherd-cli/package.json
+PUBLIC_LAUNCHER_CONTRACT	accepted	fix(cli): retain governed version precedence	server/packages/happyherd-cli/package.json
+AUTOMATION_NO_TIMEOUT	accepted	fix(automations): preserve legacy timed-out history	server/packages/happyherd-cli/src/automations/store.test.ts
 AUTOMATIONS_PROFILING	accepted	fix(metrics): bound external label values	server/packages/happy-server/sources/app/monitoring/metrics2.test.ts
-RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/packages/happy-cli/src/agent/acp/acpAgentConfig.test.ts
+RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/packages/happyherd-cli/src/agent/acp/acpAgentConfig.test.ts
 PUBLIC_RELEASE	accepted	docs(release): record AgentWork delivery	server/packages/happy-app/CHANGELOG.md
 SESSION_UI_STATE	accepted	test(app): stabilize session info archive coverage	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
-RUNTIME_CONTRACT	accepted	fix(grok): isolate capability probe failures	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
-SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semantics	server/packages/happy-cli/src/automations/service.test.ts
+RUNTIME_CONTRACT	accepted	fix(grok): isolate capability probe failures	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
+SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semantics	server/packages/happyherd-cli/src/automations/service.test.ts
 UI_SURFACE_INVENTORY	accepted	chore(app): refresh heartbeat UI inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
-RUNTIME_CONTRACT	accepted	feat(grok): expose native launch permission modes	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+RUNTIME_CONTRACT	accepted	feat(grok): expose native launch permission modes	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
 AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recording	server/packages/happy-server-self-host/scripts/build-runtime.cjs
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): clean HappyHerd Docker artifacts	scripts/test-component-deployment-contract.sh
-RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support	server/packages/happy-cli/src/index.ts
-TEST_TEMP_CLEANUP	accepted	test(cli): remove temporary test homes	server/packages/happy-cli/src/automations/sessionBootstrap.test.ts
+RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support	server/packages/happyherd-cli/src/index.ts
+TEST_TEMP_CLEANUP	accepted	test(cli): remove temporary test homes	server/packages/happyherd-cli/src/automations/sessionBootstrap.test.ts
 DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles	.dev/AGENTS.md
 DEVELOPMENT_CONTEXT	accepted	docs(agents): explain generic development context loading	AGENTS.md
 COMMANDER_PICKER_SCROLL	accepted	fix(app): keep commander picker scrollable	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 VOICE_UPGRADE_PROMPT_REMOVAL	accepted	chore(app): remove voice upgrade prompt	server/packages/happy-app/sources/voiceSettingsRoute.test.ts
 WORKSPACE_LINKS	accepted	fix(app): render linked workspace images	server/packages/happy-app/sources/utils/markdownWorkspaceImage.test.ts
 PROVIDER_DEFAULTS	accepted	fix(app): cover all provider defaults	server/packages/happy-app/sources/sync/agentDefaults.test.ts
-CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happy-cli/src/commands/machine.test.ts
-SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happy-cli/src/commands/sideChat.test.ts
-SIDE_CHAT_LIFECYCLE	accepted	feat(cli): complete side-chat lifecycle	server/packages/happy-cli/src/daemon/sideChatLifecycle.test.ts
-MULTIAGENT_DELEGATION	accepted	feat(cli): deliver bounded side-chat delegation briefs	server/packages/happy-cli/src/commands/sideChat.test.ts
+CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happyherd-cli/src/commands/machine.test.ts
+SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happyherd-cli/src/commands/sideChat.test.ts
+SIDE_CHAT_LIFECYCLE	accepted	feat(cli): complete side-chat lifecycle	server/packages/happyherd-cli/src/daemon/sideChatLifecycle.test.ts
+MULTIAGENT_DELEGATION	accepted	feat(cli): deliver bounded side-chat delegation briefs	server/packages/happyherd-cli/src/commands/sideChat.test.ts
 POST_UPDATE_RESTART	accepted	docs(dev): document post-update restart order	.dev/playbooks/post-update-restart.md
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
-SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts
+SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happyherd-cli/src/commands/machine.test.ts
 SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md
 SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/playbooks/security-feature-approval.md
 DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml
-AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts
-SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
-AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happy-cli/src/sessionProtocol/providerOutputImages.test.ts
+AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happyherd-cli/src/automations/unattendedPolicy.test.ts
+SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happyherd-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
+AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happyherd-cli/src/sessionProtocol/providerOutputImages.test.ts
 COMMANDER_AVATAR_GATE	accepted	fix(app): gate commander profile image loading	server/packages/happy-app/sources/components/SessionStatusAvatar.test.ts
-PROVIDER_CONFORMANCE	accepted	fix(acp): preserve permission and tool contracts	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
-PROVIDER_RESUME_POLICY	accepted	fix(grok): preserve permission policy on resume	server/packages/happy-cli/src/daemon/run.resume.test.ts
-PROVIDER_RESUME_AUTHORITY	accepted	fix(grok): make persisted resume policy authoritative	server/packages/happy-cli/src/daemon/run.resume.test.ts
-LATE_CHILD_IMAGE_OWNERSHIP	accepted	fix(media): preserve late child image ownership	server/packages/happy-cli/src/claude/utils/sessionProtocolMapper.test.ts
+PROVIDER_CONFORMANCE	accepted	fix(acp): preserve permission and tool contracts	server/packages/happyherd-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+PROVIDER_RESUME_POLICY	accepted	fix(grok): preserve permission policy on resume	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+PROVIDER_RESUME_AUTHORITY	accepted	fix(grok): make persisted resume policy authoritative	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+LATE_CHILD_IMAGE_OWNERSHIP	accepted	fix(media): preserve late child image ownership	server/packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.test.ts
 BLOB_TEST_TIMEOUT	accepted	test(app): stabilize large blob encryption coverage	server/packages/happy-app/sources/encryption/blob.test.ts
-ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happyherd-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 APP_TOOL_REPLAY_ORDER	accepted	fix(app): make tool replay order-independent	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
-ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happyherd-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by sequence	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
-PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happy-cli/src/daemon/run.resume.test.ts
+PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 APP_TOOL_PAGED_RESULT	accepted	fix(app): reconcile paged tool results	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool result	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
-BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happy-cli/package.json
+BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happyherd-cli/package.json
 UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx
 SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
-GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happy-cli/src/daemon/run.resume.test.ts
-CREDENTIAL_POOL	accepted	feat(cli): add reactive credential account rotation	server/packages/happy-cli/src/credentialPool/rotation.test.ts
-CREDENTIAL_POOL	accepted	fix(credentials): complete native credential pool follow-ups	server/packages/happy-cli/src/credentialPool/rotation.test.ts
+GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+CREDENTIAL_POOL	accepted	feat(cli): add reactive credential account rotation	server/packages/happyherd-cli/src/credentialPool/rotation.test.ts
+CREDENTIAL_POOL	accepted	fix(credentials): complete native credential pool follow-ups	server/packages/happyherd-cli/src/credentialPool/rotation.test.ts
 OPENAI_SESSION_DICTATION	accepted	fix(app): restore OpenAI composer dictation (#171)	server/packages/happy-app/sources/-session/SessionView.tsx
 HUMAN_SIDE_CHAT_CREATION	accepted	fix(side-chats): restore Human creation flow (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human creation (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
@@ -216,7 +217,7 @@ MOBILE_SESSION_BACK	accepted	fix(app): make mobile session back deterministic (#
 MOBILE_SESSION_BACK_DESKTOP	accepted	fix(app): preserve desktop session back semantics (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_RESPONSIVE	accepted	fix(app): align mobile back with responsive layout (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_INVENTORY	accepted	chore(app): refresh mobile back UI inventory (#180)	server/packages/happy-app/sources/text/ui-surface-inventory.json
-PROVIDER_PERMISSION_CONTRACT	accepted	fix(providers): preserve permission contracts	server/packages/happy-cli/src/claude/utils/permissionHandler.test.ts
+PROVIDER_PERMISSION_CONTRACT	accepted	fix(providers): preserve permission contracts	server/packages/happyherd-cli/src/claude/utils/permissionHandler.test.ts
 AGENTWORK_177_ADAPTER	accepted	chore(integration): prepare file editor merge adapter (#177)	docs/owned-patches.tsv
 AGENTWORK_179_ADAPTER	accepted	chore(integration): prepare dictation merge adapter (#179)	docs/owned-patches.tsv
 AGENTWORK_181_ADAPTER	accepted	chore(integration): prepare desktop workspace merge adapter (#181)	docs/owned-patches.tsv
@@ -234,11 +235,11 @@ SERVER_IMAGE_CLEANUP_TIMEOUT	accepted	fix(deploy): tolerate builder cleanup time
 RESPONSIVE_WORKSPACE_ACCESS	accepted	fix(app): expose responsive workspace controls	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 RESPONSIVE_WORKSPACE_SESSION_CONTEXT	accepted	fix(app): bind responsive workspaces to active sessions	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_IMAGE_RECOVERY	accepted	fix(app): recover inline workspace images	server/packages/happy-app/sources/components/markdown/MarkdownView.workspaceLinks.test.ts
-COMMANDER_SESSION_CLI	accepted	feat(commanders): reassign sessions from the CLI	server/packages/happy-cli/src/commands/machine.test.ts
+COMMANDER_SESSION_CLI	accepted	feat(commanders): reassign sessions from the CLI	server/packages/happyherd-cli/src/commands/machine.test.ts
 PROVIDER_CONTINUATION_MOCK	accepted	docs(mock): explain cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
 PROVIDER_CONTINUATION_MOCK_V2	accepted	docs(mock): simplify cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
 PROVIDER_CONTINUATION	accepted	feat(sessions): continue across Claude and Codex	server/packages/happy-app/sources/utils/providerContinuation.test.ts
-AUTOMATION_EXEC	accepted	feat(automations): add direct exec rail	server/packages/happy-cli/src/automations/service.test.ts
+AUTOMATION_EXEC	accepted	feat(automations): add direct exec rail	server/packages/happyherd-cli/src/automations/service.test.ts
 CLI_PUBLIC_COMMAND	accepted	chore: migrate CLI to public @happyherd/cli package and happyherd command	scripts/verify-cli-public-command.mjs
 CLI_PUBLIC_COMMAND	accepted	fix: build happy-agent before CLI typecheck, pack smoke, and install	scripts/verify-cli-public-command.mjs
 CLI_PUBLIC_COMMAND	accepted	fix: build @slopus/happy-wire then happy-agent before cli and assert order	scripts/verify-cli-public-command.mjs
@@ -258,14 +259,14 @@ WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context ide
 DEVELOPMENT_SKILL_CATALOG	accepted	docs(dev): consolidate HappyHerd skills	.dev/AGENTS.md
 INTERACTIVE_HTML_PREVIEW	accepted	feat(workspace): add interactive HTML preview mode	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 COLLAPSED_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): clear collapsed navigation title	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
-CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happy-cli/src/daemon/run.resume.test.ts
-CODEX_SIDE_CHAT_CREDENTIAL_ACTIVATION	accepted	fix(side-chats): activate inherited Codex credentials	server/packages/happy-cli/src/daemon/run.resume.test.ts
+CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+CODEX_SIDE_CHAT_CREDENTIAL_ACTIVATION	accepted	fix(side-chats): activate inherited Codex credentials	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ZEN_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): reserve Zen navigation toggle lane	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
-CODEX_SIDE_CHAT_UNMANAGED_HOME	accepted	fix(side-chats): preserve unmanaged Codex homes	server/packages/happy-cli/src/daemon/run.resume.test.ts
+CODEX_SIDE_CHAT_UNMANAGED_HOME	accepted	fix(side-chats): preserve unmanaged Codex homes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 HISTORICAL_EMPTY_CI_TRIGGER	accepted	fix(ci): recognize historical empty CI trigger	scripts/test-owned-merge-provenance.sh
-DSH_PROVIDER	accepted	feat(dsh): add first-class ACP sessions	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
+DSH_PROVIDER	accepted	feat(dsh): add first-class ACP sessions	server/packages/happyherd-cli/src/agent/acp/runAcp.test.ts
 DSH_PROVIDER	accepted	fix(dsh): name HomeDock prompt correctly	server/packages/happy-app/sources/components/HomeDock.source.test.ts
-DSH_PROVIDER	accepted	feat(dsh): expose launch permission presets	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+DSH_PROVIDER	accepted	feat(dsh): expose launch permission presets	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
 FILE_VIEWER_CONVERGENCE	accepted	feat(files): converge viewer links comments and canvas	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WEB_STARTUP_LATENCY	accepted	fix(web): restore startup and compress initial assets	server/packages/happy-app/scripts/smoke-production-web.mjs
 FILE_VIEWER_CONVERGENCE	accepted	fix(files): make source lines directly commentable	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
@@ -294,8 +295,8 @@ SETTINGS_ABOUT_DESCRIPTION_REMOVAL	accepted	fix(settings): remove About descript
 SETTINGS_VERSION	accepted	fix(settings): show HappyHerd version	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 SETTINGS_REPOSITORY	accepted	fix(settings): point GitHub row to HappyHerd	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
-ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happy-cli/src/commands/sideChat.ts
-ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts
+ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happyherd-cli/src/commands/sideChat.ts
+ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happyherd-cli/src/api/api.test.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	chore(side-chat): register recent message cursor patch	docs/owned-patches.tsv
 DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts
 DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
@@ -309,7 +310,7 @@ WORKSPACE_LOCALHOST	accepted	fix(workspace): bound live localhost execution	serv
 WORKSPACE_LOCALHOST	accepted	fix(workspace): preserve selected-machine live review	server/packages/happy-app/public/workspace-live-sw.js
 WORKSPACE_LOCALHOST	accepted	chore(app): refresh workspace live inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 WORKSPACE_LOCALHOST	accepted	fix(workspace): retain live tabs and double limits	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
-DSH_ACP_RESUME	accepted	fix(dsh): resume persisted ACP sessions	server/packages/happy-cli/src/agent/acp/AcpBackend.ts
+DSH_ACP_RESUME	accepted	fix(dsh): resume persisted ACP sessions	server/packages/happyherd-cli/src/agent/acp/AcpBackend.ts
 WORKSPACE_INLINE_REVIEW	accepted	feat(workspace): anchor inline review threads	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 MARKDOWN_DSH_MOBILE_UX	accepted	fix(app): align markdown gutters and DSH mobile attachments	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 MARKDOWN_DSH_MOBILE_UX	accepted	fix(markdown): share one review gutter across lists	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
@@ -330,8 +331,8 @@ WORKSPACE_MOBILE_LAYOUT	accepted	fix(workspace): align compact previews and use 
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record reviewed September sync	docs/upstream-sync-2026-09-06.md
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(changelog): clarify CLI version reporting	server/packages/happy-app/sources/changelog/changelog.json
 CODEX_MODEL_CATALOG	accepted	fix(app): restore GPT-6 Astra atop the Codex model picker	server/packages/happy-app/sources/components/modelModeOptions.test.ts
-CODEX_MODEL_CATALOG	accepted	fix(daemon): include GPT-6 Astra in the Codex fallback catalog	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
-SESSION_ARCHIVE	accepted	feat(context): session archive skill and bundle v4 retrieval section	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+CODEX_MODEL_CATALOG	accepted	fix(daemon): include GPT-6 Astra in the Codex fallback catalog	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
+SESSION_ARCHIVE	accepted	feat(context): session archive skill and bundle v4 retrieval section	server/packages/happyherd-cli/src/agentContext/commanderContext.test.ts
 SESSION_ARCHIVE	accepted	fix(skill): move session-archive machine parameters to a private overlay	.dev/skills/happyherd-session-archive/SKILL.md
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): open chat localhost links in Workspace	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_LOCALHOST_LINKS	accepted	fix(workspace): restore IPv6 chat links and verify side chat drafts	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
@@ -367,11 +368,11 @@ NATIVE_INSTALLER_PRISMA	accepted	fix(server): select the prepared platform Prism
 NATIVE_INSTALLER_PRISMA	accepted	test(installer): run packaged engine contract with native assets	scripts/test-native-installer-asset.sh
 NATIVE_INSTALLER_PTY	accepted	test(installer): supply a real pipe to macOS auth PTY	scripts/test-native-installer-auth.mjs
 DEFAULT_ASSISTANT_SESSION	accepted	feat(server): retain one default Assistant session per account	server/packages/happy-server/sources/app/api/routes/sessionRoutes.defaultAssistant.spec.ts
-DEFAULT_ASSISTANT_BOOTSTRAP	accepted	feat(assistant): initialize the persistent default session through the daemon	server/packages/happy-cli/src/daemon/defaultAssistant.test.ts
-DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): require live registration before reusing a provider process	server/packages/happy-cli/src/daemon/run.resume.test.ts
-DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): name new default sessions after their Commander	server/packages/happy-cli/src/daemon/run.resume.test.ts
-LOCAL_COMMANDER_TASK_DELIVERY	accepted	feat(sessions): send tasks and inspect local Commander sessions	server/packages/happy-cli/src/daemon/run.resume.test.ts
-DEFAULT_ASSISTANT_LOCAL_CLI	accepted	feat(assistant): expose default setup and local delegation commands	server/packages/happy-cli/src/commands/machine.defaultAssistant.test.ts
+DEFAULT_ASSISTANT_BOOTSTRAP	accepted	feat(assistant): initialize the persistent default session through the daemon	server/packages/happyherd-cli/src/daemon/defaultAssistant.test.ts
+DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): require live registration before reusing a provider process	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): name new default sessions after their Commander	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+LOCAL_COMMANDER_TASK_DELIVERY	accepted	feat(sessions): send tasks and inspect local Commander sessions	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+DEFAULT_ASSISTANT_LOCAL_CLI	accepted	feat(assistant): expose default setup and local delegation commands	server/packages/happyherd-cli/src/commands/machine.defaultAssistant.test.ts
 CHAT_IMAGE_STABILITY	accepted	fix(markdown): retain loaded images across session updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	fix(workspace): fit mobile PDF pages and support zoom gestures	server/packages/happy-app/sources/utils/pdfPageLayout.test.ts
 MOBILE_PDF_FIT_PAGE	accepted	test(workspace): retain responsive helpers in browser fixtures	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
@@ -380,27 +381,27 @@ WORKSPACE_ITEM_DELETION	accepted	feat(workspace): reconcile deleted items across
 WORKSPACE_DELETE_BUILD	accepted	fix(workspace): separate delete controls and isolate browser fixtures	server/packages/happy-app/sources/components/workspaceDelete.browser.test.ts
 WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names during pending navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 CREDENTIAL_MANAGER	accepted	feat(credentials): add account and credential management	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
-CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run Claude login in a PTY	server/packages/happy-cli/src/credentialPool/loginManager.test.ts
+CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run Claude login in a PTY	server/packages/happyherd-cli/src/credentialPool/loginManager.test.ts
 UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integration	docs/upstream-sync-4b7d763e.md
 UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happy-app/sources/sync/happyToolProtocol.test.ts
 UPSTREAM_4B7D763E_BROWSER_TIMING	accepted	test(upstream): synchronize browser interaction assertions	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
-AUTOMATION_PRESPAWN_REJECTION	accepted	fix(automations): finalize proven pre-spawn launch rejections	server/packages/happy-cli/src/daemon/run.preSpawn.test.ts
-AUTOMATION_PRESPAWN_PREPARATION	accepted	fix(automations): classify preparation failures before launch	server/packages/happy-cli/src/daemon/run.preSpawn.test.ts
-NATIVE_PLAN_QUESTION_FALLBACK	accepted	fix(plans): restore ACP snapshots and question form fallbacks	server/packages/happy-cli/src/agent/acp/AcpSessionManager.plan.test.ts
+AUTOMATION_PRESPAWN_REJECTION	accepted	fix(automations): finalize proven pre-spawn launch rejections	server/packages/happyherd-cli/src/daemon/run.preSpawn.test.ts
+AUTOMATION_PRESPAWN_PREPARATION	accepted	fix(automations): classify preparation failures before launch	server/packages/happyherd-cli/src/daemon/run.preSpawn.test.ts
+NATIVE_PLAN_QUESTION_FALLBACK	accepted	fix(plans): restore ACP snapshots and question form fallbacks	server/packages/happyherd-cli/src/agent/acp/AcpSessionManager.plan.test.ts
 NATIVE_PLAN_QUESTION_RENDER_FIXTURE	accepted	test(plans): align tool rendering fixtures with communication state	server/packages/happy-app/sources/components/tools/ToolView.test.ts
 NATIVE_QUESTION_TEXT_FALLBACK	accepted	fix(questions): preserve text-only fallback ownership	server/packages/happy-app/sources/sync/agentCommunications.spec.ts
-CLAUDE_LOGIN_SUBMISSION	accepted	fix(credentials): preserve Claude login submission state	server/packages/happy-cli/src/credentialPool/loginManager.submission.test.ts
-CLAUDE_ROTATION_INTERRUPTED_TURN	accepted	fix(claude): preserve interrupted turns during account rotation	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
-CLAUDE_ROTATION_NOTICE_RETRY	accepted	fix(claude): retry quota notices until daemon acknowledgement	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
-CREDENTIAL_POOL_SESSION_CONTINUITY	accepted	fix(credentials): preserve sessions across quota account swaps	server/packages/happy-cli/src/credentialPool/providerLimitNotice.test.ts
-CREDENTIAL_POOL_RENAME_ACTIVATION	accepted	test(credentials): verify active ownership across account rename	server/packages/happy-cli/src/credentialPool/store.test.ts
-DAEMON_SHUTDOWN_FIXTURE_TIMER	accepted	test(daemon): cancel fixture-owned shutdown fallback timers	server/packages/happy-cli/src/daemon/run.resume.test.ts
-GROK_NATIVE_AUTH	accepted	fix(grok): isolate native auth by credential version	server/packages/happy-cli/src/credentialPool/grokAuth.test.ts
-CODEX_NATIVE_AUTH	code-ready	fix(credentials): bind Codex app-server auth to registered accounts	server/packages/happy-cli/src/credentialPool/codexAuth.ts
-PR280_NATIVE_AUTH_INTEGRATION	code-ready	fix(credentials): wire version-bound Grok auth activation	server/packages/happy-cli/src/credentialPool/activate.ts
+CLAUDE_LOGIN_SUBMISSION	accepted	fix(credentials): preserve Claude login submission state	server/packages/happyherd-cli/src/credentialPool/loginManager.submission.test.ts
+CLAUDE_ROTATION_INTERRUPTED_TURN	accepted	fix(claude): preserve interrupted turns during account rotation	server/packages/happyherd-cli/src/claude/claudeRemote.rotation.test.ts
+CLAUDE_ROTATION_NOTICE_RETRY	accepted	fix(claude): retry quota notices until daemon acknowledgement	server/packages/happyherd-cli/src/claude/claudeRemote.rotation.test.ts
+CREDENTIAL_POOL_SESSION_CONTINUITY	accepted	fix(credentials): preserve sessions across quota account swaps	server/packages/happyherd-cli/src/credentialPool/providerLimitNotice.test.ts
+CREDENTIAL_POOL_RENAME_ACTIVATION	accepted	test(credentials): verify active ownership across account rename	server/packages/happyherd-cli/src/credentialPool/store.test.ts
+DAEMON_SHUTDOWN_FIXTURE_TIMER	accepted	test(daemon): cancel fixture-owned shutdown fallback timers	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+GROK_NATIVE_AUTH	accepted	fix(grok): isolate native auth by credential version	server/packages/happyherd-cli/src/credentialPool/grokAuth.test.ts
+CODEX_NATIVE_AUTH	code-ready	fix(credentials): bind Codex app-server auth to registered accounts	server/packages/happyherd-cli/src/credentialPool/codexAuth.ts
+PR280_NATIVE_AUTH_INTEGRATION	code-ready	fix(credentials): wire version-bound Grok auth activation	server/packages/happyherd-cli/src/credentialPool/activate.ts
 PR280_CHANGELOG_REGEN	code-ready	docs(release): regenerate PR280 changelog artifacts	server/packages/happy-app/sources/changelog/changelog.json
 PR280_RELEASE_COPY	code-ready	docs(release): clarify queued session continuity	server/packages/happy-app/CHANGELOG.md
-SIDE_CHAT_CURRENT_INHERITANCE	accepted	fix(sessions): refresh parent settings before side-chat creation	server/packages/happy-cli/src/daemon/run.resume.test.ts
+SIDE_CHAT_CURRENT_INHERITANCE	accepted	fix(sessions): refresh parent settings before side-chat creation	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 CHAT_SYSTEM_SCROLL	code-ready	fix(chat): follow system wheel scroll direction	server/packages/happy-app/sources/components/ChatList.browser.test.ts
 DEVICE_CODE_PAIRING	code-ready	feat(connections): pair existing account devices with a code	docs/acceptance/issue-288.md
 DEVICE_CODE_PAIRING_CHROME	code-ready	docs(pairing): record real Chrome verification	docs/acceptance/issue-288.md
@@ -420,7 +421,7 @@ ISSUE_287_DROP_FREEZE_GATES	code-ready	test(app): drop frozen layout census and 
 ISSUE_287_HEADER_TITLE	code-ready	fix(app): show HappyHerd as the header title	server/packages/happy-app/sources/text/locales/en.json
 ISSUE_287_HEADER_GOLDENS	code-ready	test(app): regenerate goldens after HappyHerd header title	docs/acceptance/issue-287/golden/README.md
 ISSUE_287_APPEARANCE_GOLDEN	code-ready	test(app): refresh appearance mobile-light golden	docs/acceptance/issue-287/golden/routes-appearance-populated-light-390.png
-ISSUE_287_QUEUE_WAIT	code-ready	test(cli): wait for outgoing queue image-start	server/packages/happy-cli/src/claude/utils/OutgoingMessageQueue.test.ts
+ISSUE_287_QUEUE_WAIT	code-ready	test(cli): wait for outgoing queue image-start	server/packages/happyherd-cli/src/claude/utils/OutgoingMessageQueue.test.ts
 ISSUE_287_GOLDEN_RASTER	code-ready	test(app): stabilize golden screenshot rasterization	docs/acceptance/issue-287/golden/README.md
 ISSUE_287_GOLDEN_FULL_RASTER	code-ready	test(app): refresh full-raster appearance golden	docs/acceptance/issue-287/golden/routes-appearance-populated-dark-390.png
 AUTOMATION_ADMISSION_GOLDENS	accepted	test(app): refresh automation recovery changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

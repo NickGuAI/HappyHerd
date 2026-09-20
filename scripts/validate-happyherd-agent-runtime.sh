@@ -277,7 +277,7 @@ NODE
 unset HAPPYHERD_AGENT_VALIDATION_SETTINGS HAPPYHERD_AGENT_VALIDATION_MACHINE_ID HAPPYHERD_AGENT_VALIDATION_WORKSPACE
 
 [[ -f "$AGENT_INSTALL_ROOT/dist/index.mjs" ]] || die 'installed bridge package is missing'
-[[ -x "$DAEMON_ROOT/bin/happy.mjs" ]] || die 'installed Happy CLI is missing'
+[[ -x "$DAEMON_ROOT/bin/happyherd.mjs" ]] || die 'installed Happy CLI is missing'
 [[ -x "$DAEMON_ROOT/bin/happyherd-agent-codex-policy.mjs" ]] || die 'agent Codex policy hook is missing'
 
 daemon_state="$AGENT_ROOT/happy-home/daemon.state.json"

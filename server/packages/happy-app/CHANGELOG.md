@@ -1,3 +1,8 @@
+# September 20 — HappyHerd CLI naming
+
+- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.
+- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed.
+
 # September 20 — Native plans and recoverable answers
 
 - Codex questions now offer one inline form for choices and written answers, with cancellation and protection against answering an interrupted or replaced request.
@@ -521,7 +526,7 @@ HappyHerd brings in the approved upstream project and conversation improvements 
 - Remote session creation requires a target-machine absolute path, keeps directory creation opt-in, and validates provider, model, effort, and permission choices again on the target daemon immediately before launch; providers without a mode catalog can still launch with their defaults.
 - New daemons advertise target-confirmed session protocol support; the CLI rejects older targets before sending a spawn request, while retained legacy callers remain compatible with their original settings-free receipts.
 - Success receipts report the target-confirmed effective settings after the new session persists them, rather than echoing the caller's requested overrides.
-- Session creation is explicitly limited to native Happy CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.
+- Session creation is explicitly limited to native HappyHerd CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.
 - `happyherd` exposes the maintained commands through its unchanged native-command passthrough, including stable JSON receipts for automation.
 
 # August 26 — Agent Defaults cover every supported provider
@@ -649,7 +654,7 @@ The Automations page now follows the Project → Machine → Automation hierarch
 HappyHerd operators can now update the component that changed without rebuilding or synchronizing the whole product.
 
 - The self-host server and bundled Web UI publish ordinary GHCR tags and deploy with one command plus a `/health` check.
-- The Happy CLI and host daemon install independently and retain Happy's native detached daemon lifecycle; server restarts do not own or interrupt Claude Code or Codex provider processes.
+- The HappyHerd CLI and host daemon install independently and retain Happy's native detached daemon lifecycle; server restarts do not own or interrupt Claude Code or Codex provider processes.
 - Mobile, governed-agent, and public-launcher releases remain independent lanes and run only when their own source changes.
 - Cross-host SHA locks, digest-only activation, generated release trees and receipts, deterministic all-component archives, and automatic rollback have been removed; an operator can redeploy any older server tag manually.
 

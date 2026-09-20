@@ -16,12 +16,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY scripts ./scripts
 COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-server packages/happy-server-self-host packages/happy-cli packages/happy-agent packages/happy-wire
+RUN mkdir -p packages/happy-app packages/happy-server packages/happy-server-self-host packages/happyherd-cli packages/happy-agent packages/happy-wire
 
 COPY packages/happy-app/package.json packages/happy-app/
 COPY packages/happy-server/package.json packages/happy-server/
 COPY packages/happy-server-self-host/package.json packages/happy-server-self-host/
-COPY packages/happy-cli/package.json packages/happy-cli/
+COPY packages/happyherd-cli/package.json packages/happyherd-cli/
 # pnpm packs injected workspace dependencies during this filtered install, so
 # their lifecycle builds need the same source inputs that invalidate this layer.
 COPY packages/happy-agent packages/happy-agent
@@ -32,8 +32,8 @@ COPY packages/happy-app/patches packages/happy-app/patches
 COPY packages/happy-app/scripts/setup-pdfjs-web.mjs packages/happy-app/scripts/setup-pdfjs-web.mjs
 COPY packages/happy-server/prisma packages/happy-server/prisma
 COPY packages/happy-server-self-host/scripts packages/happy-server-self-host/scripts
-COPY packages/happy-cli/scripts packages/happy-cli/scripts
-COPY packages/happy-cli/tools packages/happy-cli/tools
+COPY packages/happyherd-cli/scripts packages/happyherd-cli/scripts
+COPY packages/happyherd-cli/tools packages/happyherd-cli/tools
 
 RUN SKIP_HAPPY_WIRE_BUILD=1 pnpm \
     --filter happy-server-self-host... \
@@ -60,7 +60,7 @@ ENV EXPO_PUBLIC_HAPPYHERD_ISSUE_URL=$HAPPYHERD_ISSUE_URL
 ENV EXPO_PUBLIC_HAPPYHERD_SUPPORT_URL=$HAPPYHERD_SUPPORT_URL
 
 COPY packages/happy-app ./packages/happy-app
-COPY packages/happy-cli ./packages/happy-cli
+COPY packages/happyherd-cli ./packages/happyherd-cli
 COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-server ./packages/happy-server
 COPY packages/happy-server-self-host ./packages/happy-server-self-host

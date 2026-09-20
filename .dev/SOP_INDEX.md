@@ -12,14 +12,16 @@ impose that source-state gate.
 | HappyHerd-owned security-feature approval | `.dev/playbooks/security-feature-approval.md` | GitHub issue and explicit maintainer approval recorded on the issue and PR |
 | Verification | `.dev/VERIFY.md`, `.github/workflows/quality-gates.yml`, `.github/workflows/contract-suite.yml` | `scripts/contract-suite.sh` |
 | Provider onboarding and protocol changes | `.dev/playbooks/provider-onboarding.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused provider fixtures; `pnpm --filter @slopus/happy-wire test`; affected `@happyherd/cli` and `happy-app` package checks; live provider smoke when available |
-| Named credential pools and reactive rotation | `.dev/playbooks/credential-pools.md`, `server/packages/happy-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `@happyherd/cli` and `happy-app` package checks |
-| Credentials & Accounts management | `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happy-cli` credential pool and authenticated machine RPC for machine-local provider accounts; `happy-server` `/v1/credentials` for account-wide saved credentials; Happy app Settings page |
+| Named credential pools and reactive rotation | `.dev/playbooks/credential-pools.md`, `server/packages/happyherd-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `@happyherd/cli` and `happy-app` package checks |
+| Credentials & Accounts management | `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happyherd-cli` credential pool and authenticated machine RPC for machine-local provider accounts; `happy-server` `/v1/credentials` for account-wide saved credentials; Happy app Settings page |
 | Owned patch discipline | `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-patch-discipline.sh`, `scripts/list-owned-patches.sh`, `scripts/test-owned-merge-provenance.sh` |
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |
 | Upstream merge proposal | `docs/upstream-sync-rehearsal.md` | native `happyherd automation`, `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |
 | End-user native install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/{test-native-installer-asset,test-public-launcher-release-contract}.sh`, `.github/workflows/native-installer-release.yml` |
 | Native macOS DMG and iOS app | `docs/native-app-builds.md` | Happy app Expo/EAS and Tauri configuration; `tauri:build:production`, Expo prebuild, Xcode archive/export, standard Apple signing and notarization |
-| CLI command reference | `server/packages/happy-cli/README.md` | `happyherd --help` |
+| CLI command reference | `server/packages/happyherd-cli/README.md` | `happyherd --help` |
+| CLI naming, migration and #307 ownership | `docs/cli-renaming.md` | `scripts/rename-cli.mjs`, `scripts/cli-rename-scope.json` |
+| Preserve CLI naming after upstream sync | `docs/cli-upstream-sync.md` | scoped rename regression, lineage and provenance checks |
 | Side-chat delegation, lifecycle, and recovery | `.dev/playbooks/side-chat-lifecycle.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happyherd session side-chat` brief and lifecycle commands |
 | Unified Workspace | `.dev/playbooks/file-workspaces.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `SessionView`, `DesktopFileWorkspace`, `MachineWorkspaceBrowser`, and the rendered browser fixtures |
 | Troubleshooting and diagnostics | CLI README, `docs/runtime-isolation.md` | native `happyherd doctor`, `scripts/health-happyherd-agent.sh` |

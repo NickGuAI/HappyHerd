@@ -8,13 +8,13 @@ facts.
 ## Execution boundary
 
 - Capability discovery is owned by
-  `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`.
+  `server/packages/happyherd-cli/src/capabilities/agentCapabilities.ts`.
 - Claude launch and live control are owned under
-  `server/packages/happy-cli/src/claude/`.
+  `server/packages/happyherd-cli/src/claude/`.
 - SDK option construction is owned by
-  `server/packages/happy-cli/src/claude/sdk/query.ts`.
+  `server/packages/happyherd-cli/src/claude/sdk/query.ts`.
 - Permission callbacks are classified by
-  `server/packages/happy-cli/src/claude/utils/permissionHandler.ts`.
+  `server/packages/happyherd-cli/src/claude/utils/permissionHandler.ts`.
 
 ## Capability and permission contract
 

@@ -26,22 +26,22 @@
 - Modify `packages/happy-app/sources/text/translations/pt.ts`: replace Claude-only subtitle with neutral supported-agent wording.
 - Modify `packages/happy-app/sources/text/translations/zh-Hans.ts`: replace Claude-only subtitle with neutral supported-agent wording.
 - Modify `packages/happy-app/sources/text/translations/zh-Hant.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-cli/src/codex/codexClearCommand.ts`: carry attachments when queueing normal Codex messages and isolated `/clear` messages.
-- Modify `packages/happy-cli/src/codex/codexClearCommand.test.ts`: prove attachments are forwarded into queue calls.
-- Modify `packages/happy-cli/src/codex/codexAppServerTypes.ts`: align image input items with generated Codex 0.137 wire shape by allowing optional `detail`.
-- Modify `packages/happy-cli/src/codex/codexAppServerClient.ts`: allow callers to pass extra `InputItem`s and omit empty text items for image-only turns.
-- Modify `packages/happy-cli/src/codex/codexAppServerClient.test.ts`: assert text-only input stays unchanged and image-only input is sent without `text: ""`.
-- Create `packages/happy-cli/src/codex/utils/imageInput.ts`: detect supported image bytes, write generated cache files, and build Codex `localImage` input items.
-- Create `packages/happy-cli/src/codex/utils/imageInput.test.ts`: cover byte detection, generated names, unsupported formats, and cache root selection.
-- Create `packages/happy-cli/src/codex/utils/attachmentEvents.ts`: convert Happy `file` events into decrypted `PendingAttachment` promises for Codex.
-- Create `packages/happy-cli/src/codex/utils/attachmentEvents.test.ts`: cover successful download/decrypt and failure isolation.
-- Modify `packages/happy-cli/src/api/apiSession.ts`: expose a generic encrypted local image upload helper that can tag envelopes with `claudeUuid` or `codexItemId`.
-- Modify `packages/happy-cli/src/api/apiSession.test.ts`: preserve Claude transcript image upload coverage and add Codex-tagged local image upload coverage.
-- Modify `packages/happy-cli/src/codex/utils/sessionProtocolMapper.ts`: extract pure per-turn/per-item mapping helpers without adding upload or filesystem side effects.
-- Modify `packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts`: keep existing mapping behavior stable after extraction.
-- Create `packages/happy-cli/src/codex/utils/threadImageBackfill.ts`: build ordered Codex fork-backfill envelopes, inserting uploaded local image file envelopes before the matching user text envelope.
-- Create `packages/happy-cli/src/codex/utils/threadImageBackfill.test.ts`: cover image-before-text ordering, image-only user items, missing paths, and URL-image skip behavior.
-- Modify `packages/happy-cli/src/codex/runCodex.ts`: register file-event handling, drain attachments per message, prepare Codex image input items, handle image-only turns, and use ordered image backfill for Codex fork sessions.
+- Modify `packages/happyherd-cli/src/codex/codexClearCommand.ts`: carry attachments when queueing normal Codex messages and isolated `/clear` messages.
+- Modify `packages/happyherd-cli/src/codex/codexClearCommand.test.ts`: prove attachments are forwarded into queue calls.
+- Modify `packages/happyherd-cli/src/codex/codexAppServerTypes.ts`: align image input items with generated Codex 0.137 wire shape by allowing optional `detail`.
+- Modify `packages/happyherd-cli/src/codex/codexAppServerClient.ts`: allow callers to pass extra `InputItem`s and omit empty text items for image-only turns.
+- Modify `packages/happyherd-cli/src/codex/codexAppServerClient.test.ts`: assert text-only input stays unchanged and image-only input is sent without `text: ""`.
+- Create `packages/happyherd-cli/src/codex/utils/imageInput.ts`: detect supported image bytes, write generated cache files, and build Codex `localImage` input items.
+- Create `packages/happyherd-cli/src/codex/utils/imageInput.test.ts`: cover byte detection, generated names, unsupported formats, and cache root selection.
+- Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.ts`: convert Happy `file` events into decrypted `PendingAttachment` promises for Codex.
+- Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.test.ts`: cover successful download/decrypt and failure isolation.
+- Modify `packages/happyherd-cli/src/api/apiSession.ts`: expose a generic encrypted local image upload helper that can tag envelopes with `claudeUuid` or `codexItemId`.
+- Modify `packages/happyherd-cli/src/api/apiSession.test.ts`: preserve Claude transcript image upload coverage and add Codex-tagged local image upload coverage.
+- Modify `packages/happyherd-cli/src/codex/utils/sessionProtocolMapper.ts`: extract pure per-turn/per-item mapping helpers without adding upload or filesystem side effects.
+- Modify `packages/happyherd-cli/src/codex/__tests__/sessionProtocolMapper.test.ts`: keep existing mapping behavior stable after extraction.
+- Create `packages/happyherd-cli/src/codex/utils/threadImageBackfill.ts`: build ordered Codex fork-backfill envelopes, inserting uploaded local image file envelopes before the matching user text envelope.
+- Create `packages/happyherd-cli/src/codex/utils/threadImageBackfill.test.ts`: cover image-before-text ordering, image-only user items, missing paths, and URL-image skip behavior.
+- Modify `packages/happyherd-cli/src/codex/runCodex.ts`: register file-event handling, drain attachments per message, prepare Codex image input items, handle image-only turns, and use ordered image backfill for Codex fork sessions.
 
 ### Task 1: App Attachment Support Gate
 
@@ -324,12 +324,12 @@ git commit -m "feat(app): enable image attachments for codex"
 ### Task 2: Preserve Attachments Through Codex Queueing
 
 **Files:**
-- Modify: `packages/happy-cli/src/codex/codexClearCommand.ts`
-- Modify: `packages/happy-cli/src/codex/codexClearCommand.test.ts`
+- Modify: `packages/happyherd-cli/src/codex/codexClearCommand.ts`
+- Modify: `packages/happyherd-cli/src/codex/codexClearCommand.test.ts`
 
 - [ ] **Step 1: Write failing queue attachment tests**
 
-Append these tests to `packages/happy-cli/src/codex/codexClearCommand.test.ts`:
+Append these tests to `packages/happyherd-cli/src/codex/codexClearCommand.test.ts`:
 
 ```ts
     it('passes attachments to normal queued messages', () => {
@@ -386,14 +386,14 @@ Append these tests to `packages/happy-cli/src/codex/codexClearCommand.test.ts`:
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/codexClearCommand.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/codexClearCommand.test.ts
 ```
 
 Expected: FAIL because `enqueueCodexUserText` does not accept or forward `attachments`.
 
 - [ ] **Step 3: Update `enqueueCodexUserText`**
 
-Replace `packages/happy-cli/src/codex/codexClearCommand.ts` with:
+Replace `packages/happyherd-cli/src/codex/codexClearCommand.ts` with:
 
 ```ts
 import { parseSpecialCommand } from '@/parsers/specialCommands';
@@ -429,7 +429,7 @@ export function enqueueCodexUserText<T>(opts: {
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/codexClearCommand.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/codexClearCommand.test.ts
 ```
 
 Expected: PASS.
@@ -439,21 +439,21 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-cli/src/codex/codexClearCommand.ts \
-  packages/happy-cli/src/codex/codexClearCommand.test.ts
+git add packages/happyherd-cli/src/codex/codexClearCommand.ts \
+  packages/happyherd-cli/src/codex/codexClearCommand.test.ts
 git commit -m "feat(cli): preserve codex queued attachments"
 ```
 
 ### Task 3: Allow Codex App-Server Image Input Items
 
 **Files:**
-- Modify: `packages/happy-cli/src/codex/codexAppServerTypes.ts`
-- Modify: `packages/happy-cli/src/codex/codexAppServerClient.ts`
-- Modify: `packages/happy-cli/src/codex/codexAppServerClient.test.ts`
+- Modify: `packages/happyherd-cli/src/codex/codexAppServerTypes.ts`
+- Modify: `packages/happyherd-cli/src/codex/codexAppServerClient.ts`
+- Modify: `packages/happyherd-cli/src/codex/codexAppServerClient.test.ts`
 
 - [ ] **Step 1: Write failing app-server input tests**
 
-Append this test case inside `describe('CodexAppServerClient sandbox integration', ...)` in `packages/happy-cli/src/codex/codexAppServerClient.test.ts`:
+Append this test case inside `describe('CodexAppServerClient sandbox integration', ...)` in `packages/happyherd-cli/src/codex/codexAppServerClient.test.ts`:
 
 ```ts
     it('sends extra localImage input items and omits empty text for image-only turns', async () => {
@@ -594,14 +594,14 @@ Append this test case inside `describe('CodexAppServerClient sandbox integration
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/codexAppServerClient.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/codexAppServerClient.test.ts
 ```
 
 Expected: FAIL because `sendTurnAndWait` options do not accept `extraInputItems`.
 
 - [ ] **Step 3: Update Codex input item types**
 
-In `packages/happy-cli/src/codex/codexAppServerTypes.ts`, replace the `InputItem` definition with:
+In `packages/happyherd-cli/src/codex/codexAppServerTypes.ts`, replace the `InputItem` definition with:
 
 ```ts
 export type ImageDetail = "auto" | "low" | "high";
@@ -614,7 +614,7 @@ export type InputItem =
 
 - [ ] **Step 4: Update `sendTurn` and `sendTurnAndWait` options**
 
-In `packages/happy-cli/src/codex/codexAppServerClient.ts`, add `extraInputItems?: InputItem[]` to both option objects:
+In `packages/happyherd-cli/src/codex/codexAppServerClient.ts`, add `extraInputItems?: InputItem[]` to both option objects:
 
 ```ts
     async sendTurn(prompt: string, opts?: {
@@ -663,7 +663,7 @@ This already forwards `extraInputItems` once the option type is widened. Do not 
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/codexAppServerClient.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/codexAppServerClient.test.ts
 ```
 
 Expected: PASS.
@@ -673,21 +673,21 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-cli/src/codex/codexAppServerTypes.ts \
-  packages/happy-cli/src/codex/codexAppServerClient.ts \
-  packages/happy-cli/src/codex/codexAppServerClient.test.ts
+git add packages/happyherd-cli/src/codex/codexAppServerTypes.ts \
+  packages/happyherd-cli/src/codex/codexAppServerClient.ts \
+  packages/happyherd-cli/src/codex/codexAppServerClient.test.ts
 git commit -m "feat(cli): send codex image input items"
 ```
 
 ### Task 4: Build Codex Local Image Cache Helper
 
 **Files:**
-- Create: `packages/happy-cli/src/codex/utils/imageInput.ts`
-- Create: `packages/happy-cli/src/codex/utils/imageInput.test.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/imageInput.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/imageInput.test.ts`
 
 - [ ] **Step 1: Write failing image input helper tests**
 
-Create `packages/happy-cli/src/codex/utils/imageInput.test.ts`:
+Create `packages/happyherd-cli/src/codex/utils/imageInput.test.ts`:
 
 ```ts
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -839,14 +839,14 @@ describe('resolveCodexImageCacheDir', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/utils/imageInput.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/utils/imageInput.test.ts
 ```
 
 Expected: FAIL because `imageInput.ts` does not exist.
 
 - [ ] **Step 3: Add the image input helper**
 
-Create `packages/happy-cli/src/codex/utils/imageInput.ts`:
+Create `packages/happyherd-cli/src/codex/utils/imageInput.ts`:
 
 ```ts
 import { randomUUID } from 'node:crypto';
@@ -971,7 +971,7 @@ export async function prepareCodexImageInputItems(
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/utils/imageInput.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/utils/imageInput.test.ts
 ```
 
 Expected: PASS.
@@ -981,21 +981,21 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-cli/src/codex/utils/imageInput.ts \
-  packages/happy-cli/src/codex/utils/imageInput.test.ts
+git add packages/happyherd-cli/src/codex/utils/imageInput.ts \
+  packages/happyherd-cli/src/codex/utils/imageInput.test.ts
 git commit -m "feat(cli): prepare codex local image inputs"
 ```
 
 ### Task 5: Convert Codex File Events Into Queue Attachments
 
 **Files:**
-- Create: `packages/happy-cli/src/codex/utils/attachmentEvents.ts`
-- Create: `packages/happy-cli/src/codex/utils/attachmentEvents.test.ts`
-- Modify: `packages/happy-cli/src/codex/runCodex.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/attachmentEvents.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/attachmentEvents.test.ts`
+- Modify: `packages/happyherd-cli/src/codex/runCodex.ts`
 
 - [ ] **Step 1: Write failing attachment event tests**
 
-Create `packages/happy-cli/src/codex/utils/attachmentEvents.test.ts`:
+Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -1078,14 +1078,14 @@ describe('downloadCodexFileEventAttachment', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/utils/attachmentEvents.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/utils/attachmentEvents.test.ts
 ```
 
 Expected: FAIL because `attachmentEvents.ts` does not exist.
 
 - [ ] **Step 3: Add the attachment event helper**
 
-Create `packages/happy-cli/src/codex/utils/attachmentEvents.ts`:
+Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.ts`:
 
 ```ts
 import type { ApiSessionClient } from '@/api/apiSession';
@@ -1120,7 +1120,7 @@ export async function downloadCodexFileEventAttachment(
 
 - [ ] **Step 4: Register Codex file-event handling in `runCodex.ts`**
 
-In `packages/happy-cli/src/codex/runCodex.ts`, add imports:
+In `packages/happyherd-cli/src/codex/runCodex.ts`, add imports:
 
 ```ts
 import type { PendingAttachment } from '@/utils/MessageQueue2';
@@ -1168,7 +1168,7 @@ Update the `pending` and `message` loop types:
 
 - [ ] **Step 5: Convert queued attachments before `sendTurnAndWait`**
 
-In the main Codex loop in `packages/happy-cli/src/codex/runCodex.ts`, before `buildCodexTurnPrompt`, add:
+In the main Codex loop in `packages/happyherd-cli/src/codex/runCodex.ts`, before `buildCodexTurnPrompt`, add:
 
 ```ts
                 const imageInputs = await prepareCodexImageInputItems(message.attachments, {
@@ -1215,8 +1215,8 @@ Change user message display so image-only messages do not render an empty row:
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/utils/attachmentEvents.test.ts src/codex/codexClearCommand.test.ts
-pnpm --dir packages/happy-cli typecheck
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/utils/attachmentEvents.test.ts src/codex/codexClearCommand.test.ts
+pnpm --dir packages/happyherd-cli typecheck
 ```
 
 Expected: PASS.
@@ -1226,21 +1226,21 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-cli/src/codex/utils/attachmentEvents.ts \
-  packages/happy-cli/src/codex/utils/attachmentEvents.test.ts \
-  packages/happy-cli/src/codex/runCodex.ts
+git add packages/happyherd-cli/src/codex/utils/attachmentEvents.ts \
+  packages/happyherd-cli/src/codex/utils/attachmentEvents.test.ts \
+  packages/happyherd-cli/src/codex/runCodex.ts
 git commit -m "feat(cli): deliver app images to codex"
 ```
 
 ### Task 6: Generalize Local Image Upload Envelopes
 
 **Files:**
-- Modify: `packages/happy-cli/src/api/apiSession.ts`
-- Modify: `packages/happy-cli/src/api/apiSession.test.ts`
+- Modify: `packages/happyherd-cli/src/api/apiSession.ts`
+- Modify: `packages/happyherd-cli/src/api/apiSession.test.ts`
 
 - [ ] **Step 1: Write failing Codex local image upload test**
 
-Append this test to `packages/happy-cli/src/api/apiSession.test.ts` near the existing Claude transcript image upload test:
+Append this test to `packages/happyherd-cli/src/api/apiSession.test.ts` near the existing Claude transcript image upload test:
 
 ```ts
     it('uploads local Codex image files with codex item ids', async () => {
@@ -1306,14 +1306,14 @@ Append this test to `packages/happy-cli/src/api/apiSession.test.ts` near the exi
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/api/apiSession.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/api/apiSession.test.ts
 ```
 
 Expected: FAIL because `uploadLocalImageAttachmentEnvelope` is not public.
 
 - [ ] **Step 3: Generalize the upload helper**
 
-In `packages/happy-cli/src/api/apiSession.ts`, rename `LocalTranscriptImageAttachment` to an exported type:
+In `packages/happyherd-cli/src/api/apiSession.ts`, rename `LocalTranscriptImageAttachment` to an exported type:
 
 ```ts
 export type LocalImageAttachment = {
@@ -1361,7 +1361,7 @@ In `sendClaudeSessionMessageFromLocalTranscript`, replace the old private helper
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/api/apiSession.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/api/apiSession.test.ts
 ```
 
 Expected: PASS, including the existing Claude image upload test.
@@ -1371,23 +1371,23 @@ Expected: PASS, including the existing Claude image upload test.
 Run:
 
 ```bash
-git add packages/happy-cli/src/api/apiSession.ts \
-  packages/happy-cli/src/api/apiSession.test.ts
+git add packages/happyherd-cli/src/api/apiSession.ts \
+  packages/happyherd-cli/src/api/apiSession.test.ts
 git commit -m "feat(cli): upload local codex image history"
 ```
 
 ### Task 7: Add Ordered Codex Fork Image Backfill
 
 **Files:**
-- Modify: `packages/happy-cli/src/codex/utils/sessionProtocolMapper.ts`
-- Modify: `packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts`
-- Create: `packages/happy-cli/src/codex/utils/threadImageBackfill.ts`
-- Create: `packages/happy-cli/src/codex/utils/threadImageBackfill.test.ts`
-- Modify: `packages/happy-cli/src/codex/runCodex.ts`
+- Modify: `packages/happyherd-cli/src/codex/utils/sessionProtocolMapper.ts`
+- Modify: `packages/happyherd-cli/src/codex/__tests__/sessionProtocolMapper.test.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/threadImageBackfill.ts`
+- Create: `packages/happyherd-cli/src/codex/utils/threadImageBackfill.test.ts`
+- Modify: `packages/happyherd-cli/src/codex/runCodex.ts`
 
 - [ ] **Step 1: Extract pure item mapping without behavior change**
 
-In `packages/happy-cli/src/codex/utils/sessionProtocolMapper.ts`, extract the body of each `switch (item.type)` branch in `mapCodexThreadToSessionEnvelopes` into:
+In `packages/happyherd-cli/src/codex/utils/sessionProtocolMapper.ts`, extract the body of each `switch (item.type)` branch in `mapCodexThreadToSessionEnvelopes` into:
 
 ```ts
 export function mapCodexThreadItemToSessionEnvelopes(
@@ -1497,14 +1497,14 @@ Then simplify the original loop:
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/__tests__/sessionProtocolMapper.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/__tests__/sessionProtocolMapper.test.ts
 ```
 
 Expected: PASS with no assertion changes. The extracted helper must preserve the existing branch-specific narrowing from the original `switch (item.type)` implementation.
 
 - [ ] **Step 3: Write failing thread image backfill tests**
 
-Create `packages/happy-cli/src/codex/utils/threadImageBackfill.test.ts`:
+Create `packages/happyherd-cli/src/codex/utils/threadImageBackfill.test.ts`:
 
 ```ts
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -1666,14 +1666,14 @@ describe('buildCodexThreadBackfillEnvelopes', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/utils/threadImageBackfill.test.ts
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/utils/threadImageBackfill.test.ts
 ```
 
 Expected: FAIL because `threadImageBackfill.ts` does not exist.
 
 - [ ] **Step 5: Add ordered thread image backfill helper**
 
-Create `packages/happy-cli/src/codex/utils/threadImageBackfill.ts`:
+Create `packages/happyherd-cli/src/codex/utils/threadImageBackfill.ts`:
 
 ```ts
 import { readFile } from 'node:fs/promises';
@@ -1788,7 +1788,7 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
 
 - [ ] **Step 6: Use ordered backfill in `runCodex.ts`**
 
-In `packages/happy-cli/src/codex/runCodex.ts`, add:
+In `packages/happyherd-cli/src/codex/runCodex.ts`, add:
 
 ```ts
 import { buildCodexThreadBackfillEnvelopes } from './utils/threadImageBackfill';
@@ -1818,8 +1818,8 @@ Remove `mapCodexThreadToSessionEnvelopes` from the `runCodex.ts` import list if 
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit src/codex/__tests__/sessionProtocolMapper.test.ts src/codex/utils/threadImageBackfill.test.ts src/api/apiSession.test.ts
-pnpm --dir packages/happy-cli typecheck
+pnpm --dir packages/happyherd-cli exec vitest run --project unit src/codex/__tests__/sessionProtocolMapper.test.ts src/codex/utils/threadImageBackfill.test.ts src/api/apiSession.test.ts
+pnpm --dir packages/happyherd-cli typecheck
 ```
 
 Expected: PASS.
@@ -1829,11 +1829,11 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-cli/src/codex/utils/sessionProtocolMapper.ts \
-  packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts \
-  packages/happy-cli/src/codex/utils/threadImageBackfill.ts \
-  packages/happy-cli/src/codex/utils/threadImageBackfill.test.ts \
-  packages/happy-cli/src/codex/runCodex.ts
+git add packages/happyherd-cli/src/codex/utils/sessionProtocolMapper.ts \
+  packages/happyherd-cli/src/codex/__tests__/sessionProtocolMapper.test.ts \
+  packages/happyherd-cli/src/codex/utils/threadImageBackfill.ts \
+  packages/happyherd-cli/src/codex/utils/threadImageBackfill.test.ts \
+  packages/happyherd-cli/src/codex/runCodex.ts
 git commit -m "feat(cli): backfill codex image history"
 ```
 
@@ -1858,7 +1858,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli exec vitest run --project unit \
+pnpm --dir packages/happyherd-cli exec vitest run --project unit \
   src/codex/codexClearCommand.test.ts \
   src/codex/codexAppServerClient.test.ts \
   src/codex/utils/imageInput.test.ts \
@@ -1866,7 +1866,7 @@ pnpm --dir packages/happy-cli exec vitest run --project unit \
   src/codex/utils/threadImageBackfill.test.ts \
   src/codex/__tests__/sessionProtocolMapper.test.ts \
   src/api/apiSession.test.ts
-pnpm --dir packages/happy-cli typecheck
+pnpm --dir packages/happyherd-cli typecheck
 ```
 
 Expected: PASS.
@@ -1876,7 +1876,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-cli test
+pnpm --dir packages/happyherd-cli test
 ```
 
 Expected: PASS. This command builds the CLI and runs the unit Vitest project.
@@ -1901,7 +1901,7 @@ pnpm --filter happy-server standalone:dev
 ```
 
 ```bash
-pnpm --filter happy cli:install
+pnpm --filter happyherd cli:install
 HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy daemon stop
 HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy daemon start
 HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy auth
@@ -1941,7 +1941,7 @@ Expected:
 If Task 8 revealed fixes, commit them:
 
 ```bash
-git add packages/happy-app packages/happy-cli
+git add packages/happy-app packages/happyherd-cli
 git commit -m "test: verify codex image attachments"
 ```
 

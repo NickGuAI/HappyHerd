@@ -193,7 +193,7 @@ I am NOT writing code yet — these are sketches for the next
 conversation.
 
 1. **Re-register on every reconnect** (client side, daemon)
-    - Already done by happy-cli for fresh connects but the
+    - Already done by happyherd-cli for fresh connects but the
       *reconnect* path may not hit register again. Verify
       `rpcRegistry` re-fires on `socket.connect` after disconnect.
     - Cheap, doesn't fix in-flight calls but stops bug #3 from

@@ -8,7 +8,7 @@ Layer 1 is direct integration with the real agent.
 
 Source of truth:
 
-- `packages/happy-cli/agents.md`
+- `packages/happyherd-cli/agents.md`
 
 ## Layer 2
 

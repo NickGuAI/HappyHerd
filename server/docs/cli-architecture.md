@@ -1,12 +1,12 @@
 # CLI Architecture
 
-This document describes the Happy CLI (`packages/happy-cli`) and its daemon. The CLI is both an interactive tool and a background session manager that keeps machine state in sync with the server.
+This document describes the HappyHerd CLI (`packages/happyherd-cli`) and its daemon. The CLI is both an interactive tool and a background session manager that keeps machine state in sync with the server.
 
 ## System overview
 
 ```mermaid
 graph TB
-    subgraph "Happy CLI"
+    subgraph "HappyHerd CLI"
         Entry[src/index.ts]
         API[API Client]
         Daemon[Daemon Process]
@@ -14,7 +14,7 @@ graph TB
         Persist[Persistence]
     end
 
-    subgraph "~/.happy"
+    subgraph "~/.happyherd"
         Settings[settings.json]
         AccessKey[access.key]
         DaemonState[daemon.state.json]
@@ -42,7 +42,7 @@ graph TB
 - **Entry point:** `src/index.ts` parses subcommands and routes execution.
 - **API client:** `src/api` handles HTTP + Socket.IO, encryption, and RPC.
 - **Daemon:** `src/daemon` runs in the background, spawns sessions, and maintains machine state.
-- **Persistence/config:** `src/persistence.ts` + `src/configuration.ts` manage local state in `~/.happy`.
+- **Persistence/config:** `src/persistence.ts` + `src/configuration.ts` manage local state in `~/.happyherd`.
 - **Agents:** `src/claude`, `src/codex`, `src/gemini` provide provider-specific runners.
 
 ## CLI entry flow
@@ -80,7 +80,7 @@ flowchart TD
 
 ```mermaid
 graph LR
-    subgraph "~/.happy"
+    subgraph "~/.happyherd"
         direction TB
         settings["settings.json<br/><i>profile, onboarding</i>"]
         access["access.key<br/><i>encryption keys</i>"]
@@ -90,26 +90,26 @@ graph LR
 
     subgraph "Environment Overrides"
         direction TB
-        E1[HAPPY_HOME_DIR]
-        E2[HAPPY_SERVER_URL]
-        E3[HAPPY_WEBAPP_URL]
-        E4[HAPPY_VARIANT]
-        E5[HAPPY_EXPERIMENTAL]
-        E6[HAPPY_DISABLE_CAFFEINATE]
+        E1[HAPPYHERD_HOME_DIR]
+        E2[HAPPYHERD_SERVER_URL]
+        E3[HAPPYHERD_WEBAPP_URL]
+        E4[HAPPYHERD_VARIANT]
+        E5[HAPPYHERD_EXPERIMENTAL]
+        E6[HAPPYHERD_DISABLE_CAFFEINATE]
     end
 
     E1 -.-> settings & access & daemon & logs
 ```
 
-Local state lives under `~/.happy` (or `HAPPY_HOME_DIR`):
+Local state lives under `~/.happyherd` (or `HAPPYHERD_HOME_DIR`):
 - `settings.json`: onboarding and profile settings (validated/migrated).
 - `access.key`: local key material for encryption/auth.
 - `daemon.state.json`: daemon PID + control port + version.
 - `logs/`: CLI/daemon logs.
 
 Configuration lives in `src/configuration.ts`:
-- `HAPPY_SERVER_URL` and `HAPPY_WEBAPP_URL` override defaults.
-- `HAPPY_VARIANT`, `HAPPY_EXPERIMENTAL`, `HAPPY_DISABLE_CAFFEINATE` control behavior.
+- `HAPPYHERD_SERVER_URL` and `HAPPYHERD_WEBAPP_URL` override defaults.
+- `HAPPYHERD_VARIANT`, `HAPPYHERD_EXPERIMENTAL`, `HAPPYHERD_DISABLE_CAFFEINATE` control behavior.
 
 ## API client architecture
 
@@ -373,9 +373,9 @@ RPC is used to send commands over the Socket.IO connection:
 This mechanism allows the server and mobile clients to drive local actions without exposing a broad REST surface.
 
 ## Implementation references
-- CLI entry: `packages/happy-cli/src/index.ts`
-- Daemon: `packages/happy-cli/src/daemon`
-- Control server/client: `packages/happy-cli/src/daemon/controlServer.ts`, `packages/happy-cli/src/daemon/controlClient.ts`
-- API clients: `packages/happy-cli/src/api`
-- Persistence: `packages/happy-cli/src/persistence.ts`
-- Config: `packages/happy-cli/src/configuration.ts`
+- CLI entry: `packages/happyherd-cli/src/index.ts`
+- Daemon: `packages/happyherd-cli/src/daemon`
+- Control server/client: `packages/happyherd-cli/src/daemon/controlServer.ts`, `packages/happyherd-cli/src/daemon/controlClient.ts`
+- API clients: `packages/happyherd-cli/src/api`
+- Persistence: `packages/happyherd-cli/src/persistence.ts`
+- Config: `packages/happyherd-cli/src/configuration.ts`

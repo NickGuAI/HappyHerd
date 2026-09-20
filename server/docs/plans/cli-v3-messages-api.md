@@ -1,7 +1,7 @@
-# CLI V3 Messages API Migration (happy-cli)
+# CLI V3 Messages API Migration (happyherd-cli)
 
 ## Overview
-Migrate `happy-cli`'s `ApiSessionClient` from Socket.IO-based message read/write to the new v3 HTTP endpoints. The client will:
+Migrate `happyherd-cli`'s `ApiSessionClient` from Socket.IO-based message read/write to the new v3 HTTP endpoints. The client will:
 - **Send messages** via `POST /v3/sessions/:sessionId/messages` using InvalidateSync to batch outgoing messages from an outbox — fixes the current problem where messages are silently lost on disconnect
 - **Receive messages** via `GET /v3/sessions/:sessionId/messages?after_seq=X` with cursor-based polling, triggered by Socket.IO event invalidation
 - **Track seq per session** — store `lastSeq` from server responses, use it for incremental fetches
@@ -10,7 +10,7 @@ Migrate `happy-cli`'s `ApiSessionClient` from Socket.IO-based message read/write
 This replaces the current fire-and-forget `socket.emit('message', ...)` (5 separate send methods all using this pattern) and the direct Socket.IO `update` event handler for receiving.
 
 ## Context (from discovery)
-- **Package**: `packages/happy-cli/src/api/apiSession.ts` — `ApiSessionClient` class (EventEmitter)
+- **Package**: `packages/happyherd-cli/src/api/apiSession.ts` — `ApiSessionClient` class (EventEmitter)
 - **Current send methods** (all use `socket.emit('message', { sid, message: encrypted })`):
   - `sendClaudeSessionMessage(body)` — Claude JSONL output
   - `sendCodexMessage(body)` — Codex messages
@@ -38,7 +38,7 @@ This replaces the current fire-and-forget `socket.emit('message', ...)` (5 separ
 - Mark completed items with `[x]` immediately when done
 - Add newly discovered tasks with ➕ prefix
 - Document issues/blockers with ⚠️ prefix
-- ⚠️ `npx eslint` in `packages/happy-cli` currently fails because there is no `eslint.config.(js|mjs|cjs)` in this workspace, so lint verification could not be completed.
+- ⚠️ `npx eslint` in `packages/happyherd-cli` currently fails because there is no `eslint.config.(js|mjs|cjs)` in this workspace, so lint verification could not be completed.
 
 ## Implementation Steps
 

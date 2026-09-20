@@ -12,7 +12,7 @@ relying on provider-specific behavior.
 - Generic ACP is not an active Human new-session UI entry on Web Desktop or
   Web Mobile.
 - The shared implementation lives under
-  `server/packages/happy-cli/src/agent/acp/`.
+  `server/packages/happyherd-cli/src/agent/acp/`.
 
 ## Capability and permission contract
 

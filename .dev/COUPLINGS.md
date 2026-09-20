@@ -8,7 +8,7 @@ durable truth. Package manifests and concrete call sites are authoritative.
 ```text
 @slopus/happy-wire
    ├──► happy-app
-   ├──► happy-cli (package name: @happyherd/cli)
+   ├──► happyherd-cli (package name: @happyherd/cli)
    ├──► happy-server
    ├──► happy-agent ◄── @happyherd/happyherd-agent
    └──► happy-server-self-host
@@ -18,7 +18,7 @@ happy-server-self-host ──builds──► happy-server + Prisma + happy-app w
 
 - `happy-wire` is the shared protocol leaf. A schema change can affect every
   application and runtime even if TypeScript finds only some consumers.
-- `@happyherd/cli` lives at `packages/happy-cli` and exposes `happyherd` as its
+- `@happyherd/cli` lives at `packages/happyherd-cli` and exposes `happyherd` as its
   sole primary command. The root `install.sh` installs a prepared target-specific
   release asset containing the built CLI, `happy-server-self-host` with Web
   bundle, unpacked platform tools, and bundled Node runtime. It retains normal
@@ -56,7 +56,7 @@ of server distribution, with runtime application remaining a deployment effect.
 
 ```text
 provider adapter
-  → happy-cli ApiSessionClient + encryption
+  → happyherd-cli ApiSessionClient + encryption
   → happy-server Socket.IO handler + Prisma SessionMessage
   → server event router
   → happy-app apiSocket + sync storage updates
@@ -71,14 +71,14 @@ canonical persisted session/message state.
 
 The server enforces a unique constraint on the existing `(accountId, tag)` to reserve one account entry. A stable prepared session ID and key are stored in the reconnect store before publishing, so retries or lost responses reuse the identity, and another machine reuses the existing entry without decrypting or relaunching it. The initial server list includes the reserved row outside the 150 most recent updates.
 
-Evidence: `server/packages/happy-server/sources/app/api/routes/sessionRoutes.ts` and `server/packages/happy-cli/src/{api,daemon,agentContext}/defaultAssistant.ts`. Local `session ensure-assistant` and `session create --local` use `daemon/controlClient.ts` → `daemon/controlServer.ts`; `session send` and `session inspect` use `daemon/localSessionClient.ts` with the existing encrypted message API. Remote `--machine` retains the separate account-control owner.
+Evidence: `server/packages/happy-server/sources/app/api/routes/sessionRoutes.ts` and `server/packages/happyherd-cli/src/{api,daemon,agentContext}/defaultAssistant.ts`. Local `session ensure-assistant` and `session create --local` use `daemon/controlClient.ts` → `daemon/controlServer.ts`; `session send` and `session inspect` use `daemon/localSessionClient.ts` with the existing encrypted message API. Remote `--machine` retains the separate account-control owner.
 
 ### Machine RPC
 
 ```text
 happy-app sync/ops
   → happy-server socket/rpcHandler relay
-  → happy-cli ApiMachine + registered handler
+  → happyherd-cli ApiMachine + registered handler
   → daemon/provider/filesystem
   → callback over the same relay
 ```
@@ -90,7 +90,7 @@ and any server relay before modifying them.
 
 ```text
 happy-app agent selection + live machine catalog
-  → happy-cli daemon spawn/resume
+  → happyherd-cli daemon spawn/resume
   → `happyherd grok`
   → existing `agent/acp` runner
   → official GrokBuild CLI over ACP stdio
@@ -107,7 +107,7 @@ ACP capabilities rather than another provider fallback.
 
 ```text
 ╔══════════════════════════╗    ╔═════════════════════════════════════╗
-║ happy-cli refresh        ║───→║ dsh --profile acp                  ║
+║ happyherd-cli refresh        ║───→║ dsh --profile acp                  ║
 ╚══════════════════════════╝    ╚═════════════════════════════════════╝
           │                                  │ session/new
           │                                  ▼
@@ -224,7 +224,7 @@ the original recorded `GROK_HOME` just as Codex restores its state home.
 
 The Settings page always presents the three supported providers (Claude,
 Codex, and Grok) and separately labels HappyHerd-managed accounts—which are
-owned by the `happy-cli` credential pool and exposed through authenticated
+owned by the `happyherd-cli` credential pool and exposed through authenticated
 machine RPC—from native provider CLI sign-ins. While the Claude `setup-token`
 requires a PTY to emit and accept its browser authorization flow and both Codex
 and Grok retain their device-auth child-process flows, login utilizes an
@@ -260,7 +260,7 @@ Shared wire and app metadata intentionally accept provider-native permission
 strings. Validation belongs at the exact provider/daemon boundary; a closed
 shared enum can discard a valid future-provider message before its adapter sees
 it. As of baseline `3eac2e3c`, the CLI copy in
-`server/packages/happy-cli/src/api/types.ts` is narrower than the wire and app
+`server/packages/happyherd-cli/src/api/types.ts` is narrower than the wire and app
 schemas and must be reconciled by any implementation that adds a new native
 permission code.
 
@@ -438,8 +438,8 @@ Never update only the live or only the installation-template instruction.
 | App live view state | `happy-app/sources/sync/storage.ts` | Derived client state must reconcile with server truth |
 | App local persistence | `happy-app/sources/sync/persistence.ts` | MMKV/local cache is device state, not cross-client authority |
 | App credentials | `happy-app/sources/auth/tokenStorage.ts` | SecureStore/native and browser storage implementations differ |
-| Maintained CLI machine/session runtime | `happy-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
-| Automation definitions and history | `happy-cli/src/automations/{store,service}.ts` | Sole owner for scheduled and heartbeat definitions and runs; provider sessions own provider lifetime, while exec runs own their direct process exit record |
+| Maintained CLI machine/session runtime | `happyherd-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
+| Automation definitions and history | `happyherd-cli/src/automations/{store,service}.ts` | Sole owner for scheduled and heartbeat definitions and runs; provider sessions own provider lifetime, while exec runs own their direct process exit record |
 | Commander identity and AgentContext | Human-authored Markdown/JSONL beneath the HappyHerd home | Human knowledge remains reviewable files; runtime state does not own it |
 | Governed Discord settlement and surface bindings | `happyherd-agent` `BridgeStore` | Dedicated bridge state; not server message authority |
 | Provider process lifetime | Provider process, orchestrated by the daemon | Daemon registration does not make transport presence canonical completion state |
@@ -450,7 +450,7 @@ Codium uses a platform-dependent `happy`/`Happy` directory. Never treat them as
 interchangeable stores.
 
 Native account-machine discovery and session creation cross one package edge:
-`happy-cli` owns the public commands, while the side-effect-free
+`happyherd-cli` owns the public commands, while the side-effect-free
 `happy-agent/control` and `happy-agent/auth` exports own account-machine
 decryption, encrypted machine RPC, and the app-approved account-link flow.
 `happyherd machine auth` stores its account-control key only at `agent.key` in the
@@ -467,7 +467,7 @@ cached install layer.
 The server-image workflow path filter must include both package trees.
 Deployments that deliberately install with `--ignore-scripts` must instead
 build `happy-agent` explicitly before building `@happyherd/cli` and the local CLI runtime.
-Native `happyherd session create` accepts only Happy CLI daemon machines. Rig has a
+Native `happyherd session create` accepts only HappyHerd CLI daemon machines. Rig has a
 separate idempotent, provider-qualified RPC contract and must fail closed here
 unless that distinct contract is implemented end to end.
 Machine kind alone is not authorization to use the strict creation RPC. New
@@ -651,9 +651,9 @@ allowlist entry to hide new hardcoded interface copy.
 |---|---|
 | Web app | `happy-app` source, catalogs, inventory, and production Expo export |
 | Self-host server | `happy-server-self-host`, server, Prisma, and app web bundle |
-| Host daemon | `happy-cli` and embedded/runtime dependencies |
+| Host daemon | `happyherd-cli` and embedded/runtime dependencies |
 | Governed bridge | `happy-agent`, `happyherd-agent`, deploy/runtime contracts |
-| Local user installer | `install.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/test-native-installer-asset.sh`, `.github/workflows/native-installer-release.yml`, `happy-cli`, `happy-server-self-host`, unpacked platform tools, and bundled Node runtime |
+| Local user installer | `install.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/test-native-installer-asset.sh`, `.github/workflows/native-installer-release.yml`, `happyherd-cli`, `happy-server-self-host`, unpacked platform tools, and bundled Node runtime |
 
 These are independent delivery lanes. The self-host server intentionally
 contains the Web bundle, but changing the CLI/daemon, mobile client, governed

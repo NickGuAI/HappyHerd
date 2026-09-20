@@ -6,7 +6,7 @@ before relying on these volatile facts.
 
 ## Execution boundary
 
-- The adapter lives under `server/packages/happy-cli/src/agy/`.
+- The adapter lives under `server/packages/happyherd-cli/src/agy/`.
 - It starts one `agy --print` child for each turn rather than keeping a
   streaming permission protocol open.
 - The active HappyHerd catalog advertises only `default` and

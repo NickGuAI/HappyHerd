@@ -125,7 +125,7 @@ here is mostly:
 - optional git worktree management
 
 It is **not** the same kind of OS/filesystem/network sandbox policy that Happy
-already has code for in `packages/happy-cli/src/sandbox/config.ts`.
+already has code for in `packages/happyherd-cli/src/sandbox/config.ts`.
 
 ## Flow 1: Permission Ask Around `apply_patch`
 
@@ -659,7 +659,7 @@ This section uses only Happy code, not Happy runtime traces.
 | Permissions | live `permission.asked` and `permission.replied` events carry tool linkage and diff metadata | `packages/happy-app/sources/sync/reducer/reducer.ts` still reconstructs permission state by merging transcript-ish messages with encrypted `agentState` |
 | Subagents | real child sessions with `parentID`; `task_id` is resumable child session id | `packages/happy-wire/src/sessionProtocol.ts` only has optional `subagent` on envelopes, not child-session identity plus transcript-level linkage |
 | Media | user `file` part plus synthetic helper `text`; successful local files become concrete `data:` URLs | `packages/happy-wire/src/sessionProtocol.ts` only has one `file` event shape; plan doc proposes direct `photo` / `video` / `file` variants |
-| Sandbox / isolation | routing is by directory/workspace and optional worktrees; “sandbox” is mostly worktree/workspace language | `packages/happy-cli/src/sandbox/config.ts` already has concrete filesystem allow/deny rules plus network modes |
+| Sandbox / isolation | routing is by directory/workspace and optional worktrees; “sandbox” is mostly worktree/workspace language | `packages/happyherd-cli/src/sandbox/config.ts` already has concrete filesystem allow/deny rules plus network modes |
 | Client complexity | OpenCode reducers merge live patches into already-typed message rows | `packages/happy-app/sources/sync/typesRaw.ts` and `packages/happy-app/sources/sync/reducer/reducer.ts` still carry legacy families plus complex reconstruction logic |
 
 The main conclusion is blunt:
