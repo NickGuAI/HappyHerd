@@ -8,6 +8,12 @@
 - Codes require the same account and server and do not change machine ownership, credentials, encryption, or existing sessions. Generate a code with `happyherd machine pair` on an updated, already running daemon.
 - Connection status reflects daemon verification, with recovery for unavailable targets and invalid, expired, cancelled, or used codes.
 
+# September 19 — Native app distribution and Commander creation
+
+- Native iOS users can choose Create Commander in New Session and start the same guided onboarding while retaining their selected machine, provider, and session settings.
+- Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.
+- iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project.
+
 # September 17 — Mobile browser layout
 
 - Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them.

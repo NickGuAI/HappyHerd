@@ -49,29 +49,23 @@
         "APP_ENV": "production",
         "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
       }
+    },
+    "simulator": {
+      "extends": "production",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
     "development-store": {
-      "ios": {
-        "appleId": "steve@bulkovo.com",
-        "ascAppId": "6748984254",
-        "appleTeamId": "466DQWDR8C"
-      }
+      "ios": {}
     },
     "preview-store": {
-      "ios": {
-        "appleId": "steve@bulkovo.com",
-        "ascAppId": "6749025570",
-        "appleTeamId": "466DQWDR8C"
-      }
+      "ios": {}
     },
     "production": {
-      "ios": {
-        "appleId": "steve@bulkovo.com",
-        "ascAppId": "6748571505",
-        "appleTeamId": "466DQWDR8C"
-      }
+      "ios": {}
     }
   }
 }

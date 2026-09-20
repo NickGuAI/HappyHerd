@@ -363,6 +363,8 @@ function PickerContent({
 }) {
     const { theme } = useUnistyles();
     const [search, setSearch] = React.useState('');
+    const fixedOptions = fixedItems?.filter(item => item.kind !== 'action');
+    const actions = fixedItems?.filter(item => item.kind === 'action');
     const shouldShowSearch = searchEnabled && (!embedded || items.length + (fixedItems?.length ?? 0) > 4);
 
     const filtered = React.useMemo(() => {
@@ -381,12 +383,15 @@ function PickerContent({
                 scaleFeedback={false}
                 disabled={disabled}
                 accessibilityRole={isAction ? 'button' : 'radio'}
+                accessibilityLabel={item.label}
+                accessibilityHint={item.subtitle}
                 accessibilityState={isAction
                     ? { disabled }
                     : { disabled, selected: isSelected }}
                 style={(p) => [
                     pickerStyles.option,
                     embedded && pickerStyles.embeddedOption,
+                    isAction && { minHeight: 44 },
                     p.pressed && pickerStyles.optionPressed,
                     (item.dimmed || disabled) && { opacity: 0.45 },
                 ]}
@@ -398,11 +403,11 @@ function PickerContent({
                     color={isAction || isSelected ? theme.colors.text : theme.colors.textSecondary}
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
+                    <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={isAction ? undefined : 1}>
                         {item.label}
                     </Text>
                     {item.subtitle && (
-                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 13 }]} numberOfLines={1}>
+                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 13 }]} numberOfLines={isAction ? undefined : 1}>
                             {item.subtitle}
                         </Text>
                     )}
@@ -445,8 +450,8 @@ function PickerContent({
                 contentContainerStyle={embedded && pickerStyles.embeddedOptionListContent}
                 keyboardShouldPersistTaps="handled"
             >
-                {fixedItems?.map(renderOption)}
-                {fixedItems && fixedItems.length > 0 && filtered.length > 0 && (
+                {fixedOptions?.map(renderOption)}
+                {!!fixedOptions?.length && filtered.length > 0 && (
                     <View style={[pickerStyles.divider, { backgroundColor: theme.colors.divider }]} />
                 )}
                 {filtered.map((item, index) => (
@@ -464,6 +469,10 @@ function PickerContent({
                         {t("uiCopy.noResults")}
                     </Text>
                 )}
+                {!!actions?.length && (
+                    <View style={[pickerStyles.divider, { backgroundColor: theme.colors.divider }]} />
+                )}
+                {actions?.map(renderOption)}
             </ScrollView>
         </View>
     );
@@ -1666,7 +1675,7 @@ function NewSessionScreen() {
             case 'commander':
                 return {
                     title: t("happyHerd.automations.commander"),
-                    fixedItems: getCommanderPickerFixedItems(Platform.OS, {
+                    fixedItems: getCommanderPickerFixedItems({
                         createLabel: t('happyHerd.commander.createTitle'),
                         createSubtitle: t('happyHerd.commander.createSubtitle'),
                         noneLabel: t('uiCopy.noCommander'),
@@ -2519,6 +2528,10 @@ function NewSessionScreen() {
                             <BubblePressable
                                 style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
                                 onPress={() => togglePicker('commander')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('happyHerd.automations.commander')}
+                                accessibilityValue={{ text: commanderLabel }}
+                                accessibilityState={{ expanded: activePicker === 'commander' }}
                             >
                                 <Ionicons name="person-circle-outline" size={15} color={theme.colors.textSecondary} />
                                 <Text style={[styles.configLabel, styles.configValueText]} numberOfLines={1}>
@@ -2652,6 +2665,10 @@ function NewSessionScreen() {
 
                             <BubblePressable
                                 onPress={() => togglePicker('commander')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('happyHerd.automations.commander')}
+                                accessibilityValue={{ text: commanderLabel }}
+                                accessibilityState={{ expanded: activePicker === 'commander' }}
                                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                                 style={(p) => [styles.collapsedIconButton, p.pressed && styles.configRowPressed]}
                             >

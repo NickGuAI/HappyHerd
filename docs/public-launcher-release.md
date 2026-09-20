@@ -5,8 +5,9 @@ detects the platform, downloads the matching archive, extracts it into the
 current user's home, saves the server choice, and starts the normal local host
 when requested.
 
-The Orca-style native macOS app remains a later phase. It is not part of this
-installer.
+The native macOS GUI and iOS app have separate
+[build and distribution instructions](native-app-builds.md). They are not part
+of this CLI/server installer.
 
 ## Install
 

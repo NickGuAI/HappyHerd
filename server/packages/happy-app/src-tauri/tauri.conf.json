@@ -1,8 +1,8 @@
 {
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Happy",
-  "version": "0.1.0",
-  "identifier": "com.slopus.happy",
+  "version": "../../happy-cli/package.json",
+  "identifier": "app.happyherd.client",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:8081",
@@ -37,12 +37,11 @@
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
-      "icons/128x128@2x.png",
+      "icons/256x256.png",
       "icons/icon.icns",
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "Developer ID Application: Bulka, LLC (466DQWDR8C)",
       "hardenedRuntime": true,
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "10.15"
