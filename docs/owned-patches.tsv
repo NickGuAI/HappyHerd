@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+KILV_GOLDEN_PIXEL_PROBE	accepted	test(app): exercise one-pixel failure through PR CI	scripts/kilv-golden.mjs
 KILV_GOLDEN_BASELINES	accepted	test(app): commit Linux golden baselines and await workspace hydration	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN_REGEN	accepted	test(app): regenerate golden baselines from exact PR artifacts	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN	accepted	test(app): add bounded KILV golden-image CI	docs/acceptance/issue-287/golden/README.md

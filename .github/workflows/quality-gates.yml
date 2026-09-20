@@ -211,7 +211,8 @@ jobs:
       - name: Compare KILV golden images
         env:
           GOLDEN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.golden_mode || 'compare' }}
-        run: node scripts/kilv-golden.mjs "$GOLDEN_MODE"
+        # Temporary acceptance probe; restored after retaining the failing diff.
+        run: node scripts/kilv-golden.mjs one-pixel
       - name: Upload golden comparison and readable diffs
         if: always()
         uses: actions/upload-artifact@v4
