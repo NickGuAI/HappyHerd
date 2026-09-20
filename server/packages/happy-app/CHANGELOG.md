@@ -1,3 +1,7 @@
+# September 20 — HappyHerd header title
+
+- The signed-out landing and home header now show HappyHerd instead of Happy.
+
 # September 20 — Codex context meter
 
 - The context meter now stays tied to the main Codex session while subagents are working.
