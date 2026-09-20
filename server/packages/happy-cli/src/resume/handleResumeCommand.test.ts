@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { SESSION_SCOPED_ENV_KEYS } from '@/daemon/sessionEnvironment';
+import { activateCredentialAccount } from '@/credentialPool/activate';
+import { markCredentialAccountLimited, renameCredentialAccount, upsertCredentialAccount, useCredentialAccount } from '@/credentialPool/store';
 
 const mocks = vi.hoisted(() => ({
     mockExistsSync: vi.fn(),
@@ -235,7 +240,7 @@ describe('buildResumeLaunch', () => {
             },
         })).toEqual({
             cwd: '/tmp/p1-control-flow',
-            args: ['codex', '--resume', '019ccca5-726b-7c61-b914-16de27dfab6e'],
+            args: ['codex', '--resume', '019ccca5-726b-7c61-b914-16de27dfab6e', '--provider-account-mode', 'unmanaged'],
         });
     });
 
@@ -340,6 +345,76 @@ describe('formatResumeHelp', () => {
 });
 
 describe('handleResumeCommand', () => {
+    it.each(['local', 'legacy'] as const)('preserves a renamed managed account by stable ID through %s resume and still rotates on quota', async (source) => {
+        const root = await mkdtemp(join(tmpdir(), 'happy-resume-identity-'));
+        const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+        try {
+            const account = await upsertCredentialAccount({
+                provider: 'codex', name: 'account-a',
+                credential: { type: 'auth-file', path: join(root, 'a-auth.json') },
+            }, { paths });
+            await upsertCredentialAccount({
+                provider: 'codex', name: 'account-b',
+                credential: { type: 'auth-file', path: join(root, 'b-auth.json') },
+            }, { paths });
+            const session = createReconnectableSession();
+            session.metadata.providerAccount = account.name;
+            session.metadata.providerAccountId = account.id;
+            session.metadata.codexHome = root;
+            await renameCredentialAccount('codex', account.name, 'renamed-a', paths);
+            await useCredentialAccount('codex', 'account-b', paths);
+            if (source === 'local') {
+                mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+            } else {
+                mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
+                mocks.mockResolveHappySession.mockResolvedValue(session);
+            }
+            vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', 'stale-parent-id');
+
+            await handleResumeCommand([session.id]);
+            const [args, { env }] = mocks.mockSpawnHappyCLI.mock.calls[0];
+            expect(args).not.toContain('--provider-account-mode');
+            expect(env.HAPPYHERD_PROVIDER_ACCOUNT_ID).toBe(account.id);
+            expect(env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
+            expect(env.HAPPYHERD_PROVIDER_ACCOUNT).toBe('account-a');
+            await expect(activateCredentialAccount('codex', { paths, env: { ...env } })).resolves.toMatchObject({
+                type: 'available', account: { id: account.id, name: 'renamed-a' },
+            });
+
+            await markCredentialAccountLimited('codex', 'renamed-a', Date.now() + 60_000, { paths });
+            await expect(activateCredentialAccount('codex', { paths, env: { ...env } })).resolves.toMatchObject({
+                type: 'available', account: { name: 'account-b' },
+            });
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it.each(['local', 'legacy'] as const)('keeps unmanaged Codex side chats on native auth through %s resume', async (source) => {
+        const session = createReconnectableSession();
+        session.metadata.isSideChat = true;
+        session.metadata.parentSessionId = 'parent';
+        session.metadata.codexHome = '/tmp/native-codex';
+        if (source === 'local') {
+            mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+        } else {
+            mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
+            mocks.mockResolveHappySession.mockResolvedValue(session);
+        }
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT', 'ambient-managed');
+        vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', 'ambient-managed-id');
+        vi.stubEnv('HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE', '/managed/auth.json');
+
+        await handleResumeCommand([session.id]);
+
+        const [args, { env }] = mocks.mockSpawnHappyCLI.mock.calls[0];
+        expect(args).toEqual(expect.arrayContaining(['--provider-account-mode', 'unmanaged']));
+        expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT');
+        expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT_ID');
+        expect(env).not.toHaveProperty('HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE');
+        expect(env.CODEX_HOME).toBe('/tmp/native-codex');
+    });
+
     it('revalidates and preserves a local Grok launch policy on terminal resume', async () => {
         const session = createReconnectableSession();
         session.metadata = {
@@ -447,6 +522,7 @@ describe('handleResumeCommand', () => {
             [
                 'codex',
                 '--resume', session.metadata.codexThreadId,
+                '--provider-account-mode', 'unmanaged',
                 '--permission-mode', 'read-only',
                 '--model', 'gpt-custom',
                 '--effort', 'high',
@@ -526,6 +602,7 @@ describe('handleResumeCommand', () => {
         expect(spawnArgs).toEqual([
             'codex',
             '--resume', session.metadata.codexThreadId,
+            '--provider-account-mode', 'unmanaged',
             '--permission-mode', 'safe-yolo',
             '--model', 'gpt-5.6-codex',
             '--effort', 'xhigh',

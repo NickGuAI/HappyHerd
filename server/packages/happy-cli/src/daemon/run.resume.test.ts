@@ -829,6 +829,77 @@ describe('daemon session continuity', () => {
     );
   });
 
+  it.each([
+    { managed: true, limited: false },
+    { managed: true, limited: true },
+    { managed: false, limited: false },
+    { managed: false, limited: true },
+  ])('resumes Codex with saved authentication (managed=$managed, limited=$limited)', async ({ managed, limited }) => {
+    const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+    const root = await mkdtemp(join(tmpdir(), 'happy-daemon-resume-auth-'));
+    temporaryDirectories.push(root);
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    const account = await store.upsertCredentialAccount({
+      provider: 'codex', name: 'account-a',
+      credential: { type: 'auth-file', path: join(root, 'a-auth.json') },
+    }, { paths });
+    await store.upsertCredentialAccount({
+      provider: 'codex', name: 'account-b',
+      credential: { type: 'auth-file', path: join(root, 'b-auth.json') },
+    }, { paths });
+    await store.renameCredentialAccount('codex', 'account-a', 'renamed-a', paths);
+    await store.useCredentialAccount('codex', 'account-b', paths);
+    if (limited) {
+      await store.markCredentialAccountLimited('codex', 'renamed-a', Date.now() + 60_000, { paths });
+      if (!managed) await store.markCredentialAccountLimited('codex', 'account-b', Date.now() + 60_000, { paths });
+    }
+    mocks.resolveCredentialAccountEnvironment.mockImplementation((...args: unknown[]) => {
+      const [provider, options] = args as Parameters<typeof store.resolveCredentialAccountEnvironment>;
+      return store.resolveCredentialAccountEnvironment(provider, { ...options, paths });
+    });
+    const sessionId = 'codex-auth-resume';
+    const metadata: Metadata = {
+      path: process.cwd(), flavor: 'codex', codexThreadId: 'same-native-thread', codexHome: root,
+      isSideChat: true, parentSessionId: 'parent', machineId: 'machine-1',
+      host: 'test-host', homeDir: root, happyHomeDir: root, happyLibDir: root, happyToolsDir: root,
+      ...(managed ? { providerAccount: 'account-a', providerAccountId: account.id } : {}),
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+      seq: 42, metadataVersion: 7, agentStateVersion: 9,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: { ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: Date.now() },
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    const [args, { env }] = mocks.spawnHappyCLI.mock.calls[0];
+    expect(args).toEqual(expect.arrayContaining(['--resume', 'same-native-thread']));
+    expect(env.CODEX_HOME).toBe(root);
+    expect(env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    if (managed) {
+      expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+        preferred: 'account-a', preferredId: account.id,
+      });
+      expect(args).not.toContain('--provider-account-mode');
+      expect(env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(limited ? 'account-b' : 'renamed-a');
+      if (!limited) expect(env.HAPPYHERD_PROVIDER_ACCOUNT_ID).toBe(account.id);
+    } else {
+      expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalled();
+      expect(args).toEqual(expect.arrayContaining(['--provider-account-mode', 'unmanaged']));
+      expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT_ID');
+      expect(env).not.toHaveProperty('HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE');
+    }
+  });
+
   it.each(commanderResumeCases)('$label on the next stopped-session resume', async ({ commander }) => {
     const sessionId = `commander-refresh-${commander?.id ?? 'none'}`;
     const encryptionKey = new Uint8Array(32).fill(7);
@@ -936,6 +1007,7 @@ describe('daemon session continuity', () => {
     expect(args).toEqual([
       'codex',
       '--resume', 'thread-continuity',
+      '--provider-account-mode', 'unmanaged',
       '--started-by', 'daemon',
       '--permission-mode', 'safe-yolo',
       '--model', 'gpt-5.6-codex',
@@ -1144,6 +1216,7 @@ describe('daemon session continuity', () => {
     expect(args).toEqual([
       'codex',
       '--resume', metadata.codexThreadId,
+      '--provider-account-mode', 'unmanaged',
       '--started-by', 'daemon',
       '--permission-mode', 'safe-yolo',
       '--model', 'gpt-5.6-codex',
@@ -1235,6 +1308,7 @@ describe('daemon session continuity', () => {
     expect(args).toEqual([
       'codex',
       '--resume', metadata.codexThreadId,
+      '--provider-account-mode', 'unmanaged',
       '--started-by', 'daemon',
       '--permission-mode', 'read-only',
       '--model', 'gpt-5.6-codex',

@@ -46,7 +46,7 @@ import {
   persistedProviderPermissionMode,
   resolveEffectiveSessionSettings,
 } from '@/capabilities/sessionLaunchSettings';
-import { buildResumeLaunch } from '@/resume/handleResumeCommand';
+import { buildResumeLaunch, isUnmanagedCodexSession } from '@/resume/handleResumeCommand';
 import { resolveCodexHomeForResume } from '@/resume/codexHome';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { backfillReconnectableSessionForMachine, resolveLocalReconnectableSession } from '@/resume/localResumeStore';
@@ -1340,7 +1340,8 @@ export async function startDaemon(): Promise<void> {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
         const credentialProvider = credentialProviderForAgent(resumeAgent);
-        const credentialResolution = credentialProvider
+        const preserveUnmanagedCodex = !freshProvider && isUnmanagedCodexSession(metadata);
+        const credentialResolution = credentialProvider && !preserveUnmanagedCodex
           ? await resolveCredentialAccountEnvironment(credentialProvider, {
             preferred: metadata.providerAccount,
             preferredId: metadata.providerAccountId,
