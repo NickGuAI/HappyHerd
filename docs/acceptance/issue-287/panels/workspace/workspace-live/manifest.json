@@ -1,0 +1,134 @@
+[
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-live-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nhttp://localhost:3000/live\n\n\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-live-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\nhttp://localhost:3000/live\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-live-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nhttp://localhost:3000/live\n\n\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-live-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\nhttp://localhost:3000/live\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  }
+]

@@ -1,0 +1,134 @@
+[
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "project-detail-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "project-detail-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "project-detail-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "project-detail-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  }
+]

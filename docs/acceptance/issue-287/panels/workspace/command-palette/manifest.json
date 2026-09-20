@@ -1,0 +1,146 @@
+[
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "command-palette-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "command-palette-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "command-palette-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "command-palette-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  }
+]

@@ -1,0 +1,130 @@
+[
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "connect-terminal-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "connect-terminal-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "connect-terminal-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "connect-terminal-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  }
+]

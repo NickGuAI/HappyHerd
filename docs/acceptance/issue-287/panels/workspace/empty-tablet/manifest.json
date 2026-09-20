@@ -1,0 +1,126 @@
+[
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-tablet-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-tablet-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-tablet-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-tablet-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  }
+]

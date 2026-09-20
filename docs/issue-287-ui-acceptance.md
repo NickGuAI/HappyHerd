@@ -126,6 +126,8 @@ For every input, textarea, select, contenteditable, placeholder and compact comp
 
 ## Review evidence
 
+The [per-panel screenshot review](issue-287-panel-screenshots.md) addresses PR #289’s reviewer request with source-to-panel mappings, full-resolution screenshots, distinct production-export and component-fixture evidence, and named gaps. The two before/after examples below remain baseline comparisons, not the panel coverage set. Screenshot review found and repaired a terminal URL input overflow in `a38fae51`; its [bounded baseline comparison and before/after measurements](acceptance/issue-287/connect-input-regression/README.md) are retained separately.
+
 The implementation is **code-ready, not full cross-platform acceptance**. All 945 issue-baseline paths plus 17 supplemental owners/assets have a disposition (962 rows). Product UI and code fonts are self-hosted; derived font generation and licenses are included. Unistyles remains the runtime theme authority. No deployment, service restart, merge or issue closure forms part of this patch.
 
 Representative exported-production screenshots, captured before at the implementation base and after the visual changes:

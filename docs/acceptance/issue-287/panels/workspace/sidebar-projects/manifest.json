@@ -1,0 +1,142 @@
+[
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "sidebar-projects-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "sidebar-projects-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "sidebar-projects-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "sidebar-projects-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  }
+]

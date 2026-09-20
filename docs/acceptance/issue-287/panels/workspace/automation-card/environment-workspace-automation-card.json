@@ -1,0 +1,50 @@
+{
+  "evidenceType": "component-fixture",
+  "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+  "sourceInputs": [
+    "sources/theme.ts",
+    "sources/constants/Typography.ts",
+    "sources/components/StyledText.tsx",
+    "sources/text/locales/en.json",
+    "sources/text/locales/cn.json",
+    "sources/text/locales/de.json",
+    "sources/text/_all.ts",
+    "sources/text/index.ts",
+    "sources/components/happyHerdAutomationCardPresentation.ts",
+    "sources/components/HappyHerdAutomationCard.tsx"
+  ],
+  "mockedModules": [
+    "react-native-unistyles",
+    "expo-image",
+    "expo-linear-gradient",
+    "react-native-gesture-handler",
+    "react-native-keyboard-controller",
+    "react-native-safe-area-context",
+    "expo-router",
+    "expo-clipboard",
+    "@/utils/responsive",
+    "@/sync/storage",
+    "@/sync/ops",
+    "@/sync/sync",
+    "@/modal",
+    "@/-session/workspaceLinkNavigation",
+    "@/hooks/useImagePicker",
+    "@/hooks/useVoiceInputAvailability",
+    "@/hooks/useVoiceDictation",
+    "@/text",
+    "@react-navigation/native",
+    "@/utils/machineUtils",
+    "@/hooks/useNavigateToSession",
+    "@/utils/automationProfiling",
+    "expo-localization",
+    "@/sync/persistence",
+    "react-native",
+    "expo-font"
+  ],
+  "visualAdapters": [
+    "React Native Web",
+    "Unistyles style/theme evaluation",
+    "Expo font loader with repository font files",
+    "Expo Image rendered by React Native Web Image"
+  ]
+}

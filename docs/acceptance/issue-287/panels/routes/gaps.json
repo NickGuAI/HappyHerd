@@ -1,0 +1,12 @@
+[
+  {
+    "sourcePath": "components/OAuthView.tsx",
+    "status": "unproved",
+    "reason": "The native-only OAuth WebView is not mounted by the Web Claude route. No installed iOS/Android provider-auth host is available. The Web manual setup route is captured without claiming OAuthView coverage."
+  },
+  {
+    "surface": "installed native",
+    "status": "unproved",
+    "reason": "All artifacts here use React Native Web. Native font/layout/device behavior and system integrations require installed-device acceptance."
+  }
+]

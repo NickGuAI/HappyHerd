@@ -1,0 +1,3682 @@
+[
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "sidebar-projects/sidebar-projects-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "sidebar-projects/environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "sidebar-projects/sidebar-projects-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "sidebar-projects/environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "sidebar-projects/sidebar-projects-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "sidebar-projects/environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "sidebar-projects",
+    "label": "Desktop navigation and project/session groups",
+    "sourcePaths": [
+      "components/SidebarView.tsx",
+      "components/SidebarNavigationButton.tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "sidebar-projects/sidebar-projects-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "sidebar-projects/environment-workspace-sidebar-projects.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The surrounding avatar/provider identities and service state are synthetic; navigation, grouping and session rows are production components.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different ",
+    "pageErrors": [],
+    "captureSceneId": "sidebar-projects",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Sidebar actions and session rows use KILV surfaces, compact geometry and Space Grotesk typography."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "session-workspace-groups/session-workspace-groups-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "session-workspace-groups/environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-workspace-groups/session-workspace-groups-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "session-workspace-groups/environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "session-workspace-groups/session-workspace-groups-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "session-workspace-groups/environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "session-workspace-groups",
+    "label": "Active session workspace groups",
+    "sourcePaths": [
+      "components/ActiveSessionsGroupCompact.tsx",
+      "components/ProjectGroup.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-workspace-groups/session-workspace-groups-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "session-workspace-groups/environment-workspace-session-workspace-groups.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Avatar/provider identities and account state are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\n\n\nNew session\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nBots\n\nBuild assistant\n12/31/69\n@builder-a · Alpha machine\n\nBuild assistant\n12/31/69\n@builder-b · Beta machine\n\nBeta machine\ncheckout\nmain\n\nRemote project session\nCo",
+    "pageErrors": [],
+    "captureSceneId": "session-workspace-groups",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Workspace and project groups use semantic borders, status tones and compact session row spacing."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "project-detail/project-detail-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "project-detail/environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "project-detail/project-detail-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "project-detail/environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "project-detail/project-detail-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "project-detail/environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "project-detail",
+    "label": "Project detail and assigned sessions",
+    "sourcePaths": [
+      "app/(app)/projects/[id].tsx",
+      "components/FlatSessionRow.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "project-detail/project-detail-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "project-detail/environment-workspace-project-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Back\n4 SESSIONS\n\nRename project\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\n\nBuild assist",
+    "pageErrors": [],
+    "captureSceneId": "project-detail",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Project detail actions, grouped session cards and mono workspace metadata inherit KILV tokens."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-markdown/workspace-markdown-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-markdown/environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-markdown/workspace-markdown-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-markdown/environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\ndemo.md\nPreview\nEdit\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-markdown/workspace-markdown-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-markdown/environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-markdown",
+    "label": "File workspace · Markdown preview",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-markdown/workspace-markdown-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-markdown/environment-workspace-workspace-markdown.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\ndemo.md\nPreview\nEdit\n1\n+\nDesktop workspace\n3\n+\nFirst review line\n4\n+\nSecond review line\n6\n+\nCopy\nconst answer = 42;\n\n\n10\n+\nOpen session relative\n\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-markdown",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "File tabs, review toolbar and Markdown source-line controls share KILV surfaces and mono labels."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-source/workspace-source-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-source/environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedba",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-source/workspace-source-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-source/environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nreview.ts\nPreview\nEdit\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-source/workspace-source-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-source/environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "demo.md\n\nreview.canvas\n\nreview.ts\n\nmachine.md\n\nsource.md\n\n\nPreview\nEdit\nDelete\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedba",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-source",
+    "label": "File workspace · source and diff controls",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/FileViewPanel.tsx",
+      "components/diff/PierreDiffView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-source/workspace-source-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-source/environment-workspace-workspace-source.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "File contents and machine RPC results are synthetic. Capture shows the production file viewer; it is not a live workspace."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nreview.ts\nPreview\nEdit\n\n\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-source",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Source review uses the KILV surrounding toolbar and tokenized syntax/line-review surfaces."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-live/workspace-live-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-live/environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nhttp://localhost:3000/live\n\n\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-live/workspace-live-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-live/environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\nhttp://localhost:3000/live\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-live/workspace-live-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-live/environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nhttp://localhost:3000/live\n\n\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-live",
+    "label": "Localhost live preview workspace",
+    "sourcePaths": [
+      "components/DesktopFileWorkspace.tsx",
+      "components/LocalhostLiveView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-live/workspace-live-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-live/environment-workspace-workspace-live.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Live transport returns a synthetic local page; preview controls are production."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\n\nhttp://localhost:3000/live\n\nStart commenting\nhttp://localhost:3000/live\nhttp://localhost:3000/live\n/machine-root\nSearch this folder...",
+    "pageErrors": [],
+    "captureSceneId": "workspace-live",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Live preview controls inherit the workspace material and typography while retaining real iframe behavior."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-link/workspace-link-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-link/environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-link/workspace-link-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-link/environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-link/workspace-link-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-link/environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-link/workspace-link-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "workspace-link/environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "new-session",
+    "label": "New session · model, machine, workspace and prompt",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session/new-session-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session/environment-workspace-new-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic model/machine capability state. No session is launched.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\nno commander\n\nantigravity\n\n·\nclaude-sonnet-4-5\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "new-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "New-session machine, provider and prompt controls adopt the KILV palette and compact spacing."
+  },
+  {
+    "panelId": "new-session",
+    "label": "New session · model, machine, workspace and prompt",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session/new-session-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session/environment-workspace-new-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic model/machine capability state. No session is launched.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\n\nno commander\n\nantigravity\n\n·\nclaude-sonnet-4-5\n\n\n\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "new-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "New-session machine, provider and prompt controls adopt the KILV palette and compact spacing."
+  },
+  {
+    "panelId": "new-session",
+    "label": "New session · model, machine, workspace and prompt",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session/new-session-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session/environment-workspace-new-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic model/machine capability state. No session is launched.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\nno commander\n\nantigravity\n\n·\nclaude-sonnet-4-5\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "new-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "New-session machine, provider and prompt controls adopt the KILV palette and compact spacing."
+  },
+  {
+    "panelId": "new-session",
+    "label": "New session · model, machine, workspace and prompt",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session/new-session-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session/environment-workspace-new-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic model/machine capability state. No session is launched.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\n\nno commander\n\nantigravity\n\n·\nclaude-sonnet-4-5\n\n\n\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "new-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "New-session machine, provider and prompt controls adopt the KILV palette and compact spacing."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session-path/new-session-path-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session-path/environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session-path/new-session-path-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session-path/environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": -172,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\nProject\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-06\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "new-session-path/new-session-path-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session-path/environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Start New Session\n\n\n\n\nMainEC2\n\n\n/work/project/extensions/browser-tools\n\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "new-session-path",
+    "label": "New session · machine folder picker",
+    "sourcePaths": [
+      "app/(app)/new/index.tsx",
+      "components/MachinePathBrowser.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "new-session-path/new-session-path-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "new-session-path/environment-workspace-new-session-path.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Directory listings and recent paths are synthetic.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": -172,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n\n\n/work/project/extensions/browser-tools\n\nProject\n\n\n/work/project\n\n\n\nUse this folder\nHOST FOLDERS\nShow hidden\n\n.hidden\n\n\nfolder-00\n\n\nfolder-01\n\n\nfolder-02\n\n\nfolder-03\n\n\nfolder-04\n\n\nfolder-05\n\n\nfolder-06\n\n\nfolder-0",
+    "pageErrors": [],
+    "captureSceneId": "new-session-path",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Machine path browser uses semantic selection surfaces, compact folder rows and mono paths."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "home-dock/home-dock-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "home-dock/environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "home-dock/home-dock-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "home-dock/environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "home-dock/home-dock-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "home-dock/environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "home-dock/home-dock-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "home-dock/environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-onboarding/empty-onboarding-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-onboarding/environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-onboarding/empty-onboarding-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-onboarding/environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-onboarding/empty-onboarding-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-onboarding/environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-onboarding",
+    "label": "Empty sessions · terminal connection onboarding",
+    "sourcePaths": [
+      "components/SessionsListWrapper.tsx",
+      "components/EmptyMainScreen.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-onboarding/empty-onboarding-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-onboarding/environment-workspace-empty-onboarding.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Ready to code?\n$ npm i -g @happyherd/cli\n$ happyherd\nShow archived",
+    "pageErrors": [],
+    "captureSceneId": "empty-onboarding",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty-session onboarding uses the KILV artwork, typography and terminal command surface."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-tablet/empty-tablet-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-tablet/environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-tablet/empty-tablet-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-tablet/environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "empty-tablet/empty-tablet-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-tablet/environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "empty-tablet",
+    "label": "No active sessions · connected machine",
+    "sourcePaths": [
+      "components/EmptySessionsTablet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "empty-tablet/empty-tablet-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "empty-tablet/environment-workspace-empty-tablet.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo active sessions\nStart a new session on any of your connected machines.\n\nStart New Session",
+    "pageErrors": [],
+    "captureSceneId": "empty-tablet",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Empty connected-machine state uses the KILV icon, action contrast and typography."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "signed-out/signed-out-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "signed-out/environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "signed-out/signed-out-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "signed-out/environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "signed-out/signed-out-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "signed-out/environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "signed-out",
+    "label": "Signed-out welcome and connect",
+    "sourcePaths": [
+      "app/(app)/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "signed-out/signed-out-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "signed-out/environment-workspace-signed-out.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "pageErrors": [],
+    "captureSceneId": "signed-out",
+    "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
+    "changeDescription": "Welcome artwork, headline and connect/restore controls use the KILV visual system."
+  },
+  {
+    "panelId": "code-editor",
+    "label": "Source code editor",
+    "sourcePaths": [
+      "components/CodeEditor.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "code-editor/code-editor-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "code-editor/environment-workspace-code-editor.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "type CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issue-287\",\n  theme: \"dark\",\n};\n\n\ntype CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issu",
+    "pageErrors": [],
+    "captureSceneId": "code-editor",
+    "fixtureSource": "Production CodeEditor.web.tsx with synthetic source text",
+    "changeDescription": "Source editor uses KILV foreground/background tokens and JetBrains Mono."
+  },
+  {
+    "panelId": "code-editor",
+    "label": "Source code editor",
+    "sourcePaths": [
+      "components/CodeEditor.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "code-editor/code-editor-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "code-editor/environment-workspace-code-editor.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "type CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issue-287\",\n  theme: \"dark\",\n};\n\n\ntype CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issu",
+    "pageErrors": [],
+    "captureSceneId": "code-editor",
+    "fixtureSource": "Production CodeEditor.web.tsx with synthetic source text",
+    "changeDescription": "Source editor uses KILV foreground/background tokens and JetBrains Mono."
+  },
+  {
+    "panelId": "code-editor",
+    "label": "Source code editor",
+    "sourcePaths": [
+      "components/CodeEditor.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "code-editor/code-editor-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "code-editor/environment-workspace-code-editor.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "type CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issue-287\",\n  theme: \"dark\",\n};\n\n\ntype CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issu",
+    "pageErrors": [],
+    "captureSceneId": "code-editor",
+    "fixtureSource": "Production CodeEditor.web.tsx with synthetic source text",
+    "changeDescription": "Source editor uses KILV foreground/background tokens and JetBrains Mono."
+  },
+  {
+    "panelId": "code-editor",
+    "label": "Source code editor",
+    "sourcePaths": [
+      "components/CodeEditor.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "code-editor/code-editor-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "code-editor/environment-workspace-code-editor.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "type CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issue-287\",\n  theme: \"dark\",\n};\n\n\ntype CapturePanel = { id: string; theme: \"light\" | \"dark\" };\n\nexport const panel: CapturePanel = {\n  id: \"issu",
+    "pageErrors": [],
+    "captureSceneId": "code-editor",
+    "fixtureSource": "Production CodeEditor.web.tsx with synthetic source text",
+    "changeDescription": "Source editor uses KILV foreground/background tokens and JetBrains Mono."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automations-list/automations-list-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automations-list/environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automations-list/automations-list-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automations-list/environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automations-list/automations-list-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automations-list/environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automations-list",
+    "label": "Automations · scheduled and paused tasks",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automations-list/automations-list-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automations-list/environment-workspace-automations-list.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nAll\nMaintenance\nProject Beacon\nDevelopment Mac\n2 automations\nWeekly project review\nWeekly on Monday at 9:00 AM · Next run in 2d · America/New_York\nActive\n\n",
+    "pageErrors": [],
+    "captureSceneId": "automations-list",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation navigation, filters and list items use semantic KILV surfaces and dense rows."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create/automation-create-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create/environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create/automation-create-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create/environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create/automation-create-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create/environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create/automation-create-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create/environment-workspace-automation-create.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the create form is displayed without saving a definition.",
+      "First viewport of the form; Project tags and Save automation may continue below the fold. See automation-create-bottom for the scrolled footer."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create-bottom/automation-create-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create-bottom/environment-workspace-automation-create-bottom.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the actual form is scrolled to the Save automation control. No definition is submitted.",
+      "Complements the retained automation-create first viewport; this is visual reachability evidence, not a persisted creation journey."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create-bottom",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create-bottom/automation-create-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create-bottom/environment-workspace-automation-create-bottom.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the actual form is scrolled to the Save automation control. No definition is submitted.",
+      "Complements the retained automation-create first viewport; this is visual reachability evidence, not a persisted creation journey."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create-bottom",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-create-bottom/automation-create-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create-bottom/environment-workspace-automation-create-bottom.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the actual form is scrolled to the Save automation control. No definition is submitted.",
+      "Complements the retained automation-create first viewport; this is visual reachability evidence, not a persisted creation journey."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create-bottom",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-create",
+    "label": "Automation · create a scheduled job",
+    "sourcePaths": [
+      "app/(app)/automations/index.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-create-bottom/automation-create-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-create-bottom/environment-workspace-automation-create-bottom.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Synthetic machine capabilities; the actual form is scrolled to the Save automation control. No definition is submitted.",
+      "Complements the retained automation-create first viewport; this is visual reachability evidence, not a persisted creation journey."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.\n\nNew\nNew automation\n\nMachine\nDevelopment Mac\nName\nProvider rail\nclaude\ncodex\nDirect Command\nInstruction\nKind\nScheduled\nMemory maintenance\nCron\nTimezone\nMachine ",
+    "pageErrors": [],
+    "captureSceneId": "automation-create-bottom",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation form fields, scheduling controls and footer actions adopt KILV surfaces and typography."
+  },
+  {
+    "panelId": "automation-detail",
+    "label": "Automation · instruction, schedule and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationDetail.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-detail/automation-detail-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-detail/environment-workspace-automation-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Active\nWeekly project review\n\nInstructions\nInstructions\n\nWeekly project review\nReview open pull requests and failing checks.\nSummarize changes to the workspace.\nSuggest the next small, reviewable improvement.\nShow full instruction\nDetails\nMachine\nD",
+    "pageErrors": [],
+    "captureSceneId": "automation-detail",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation details, instruction preview and schedule sections use KILV borders and typography."
+  },
+  {
+    "panelId": "automation-detail",
+    "label": "Automation · instruction, schedule and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationDetail.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-detail/automation-detail-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-detail/environment-workspace-automation-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nBack\nActive\nWeekly project review\n\nInstructions\nInstructions\n\nWeekly project review\nReview open pull requests and failing checks.\nSummarize changes to the workspace.\nSuggest the next small, reviewable improvement.\nShow full instruction\nDetails\nMa",
+    "pageErrors": [],
+    "captureSceneId": "automation-detail",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation details, instruction preview and schedule sections use KILV borders and typography."
+  },
+  {
+    "panelId": "automation-detail",
+    "label": "Automation · instruction, schedule and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationDetail.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-detail/automation-detail-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-detail/environment-workspace-automation-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Active\nWeekly project review\n\nInstructions\nInstructions\n\nWeekly project review\nReview open pull requests and failing checks.\nSummarize changes to the workspace.\nSuggest the next small, reviewable improvement.\nShow full instruction\nDetails\nMachine\nD",
+    "pageErrors": [],
+    "captureSceneId": "automation-detail",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation details, instruction preview and schedule sections use KILV borders and typography."
+  },
+  {
+    "panelId": "automation-detail",
+    "label": "Automation · instruction, schedule and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationDetail.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-detail/automation-detail-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-detail/environment-workspace-automation-detail.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nBack\nActive\nWeekly project review\n\nInstructions\nInstructions\n\nWeekly project review\nReview open pull requests and failing checks.\nSummarize changes to the workspace.\nSuggest the next small, reviewable improvement.\nShow full instruction\nDetails\nMa",
+    "pageErrors": [],
+    "captureSceneId": "automation-detail",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Automation details, instruction preview and schedule sections use KILV borders and typography."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-card/automation-card-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-card/environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-card/automation-card-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-card/environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "automation-card/automation-card-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-card/environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "automation-card",
+    "label": "Automation card · expanded actions and history",
+    "sourcePaths": [
+      "components/HappyHerdAutomationCard.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "automation-card/automation-card-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "automation-card/environment-workspace-automation-card.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Weekly project review\nActive\n\n0 9 * * 1 · America/New_York\nscheduled\n## Weekly project review\n\n- Review open pull requests and failing checks.\n- Summarize changes to the workspace.\n- Suggest the next small, reviewable improvement.\ncodex · /workspace",
+    "pageErrors": [],
+    "captureSceneId": "automation-card",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Expanded automation cards use KILV surfaces, status dots, tags and action colors."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "command-palette/command-palette-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "command-palette/environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "command-palette/command-palette-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "command-palette/environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "command-palette/command-palette-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "command-palette/environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "command-palette",
+    "label": "Command palette · navigation and session actions",
+    "sourcePaths": [
+      "components/CommandPalette/CommandPalette.tsx",
+      "components/CommandPalette/CommandPaletteInput.tsx",
+      "components/CommandPalette/CommandPaletteItem.tsx",
+      "components/CommandPalette/CommandPaletteResults.tsx",
+      "components/CommandPalette/CommandPaletteModal.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "command-palette/command-palette-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "command-palette/environment-workspace-command-palette.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "NAVIGATION\n\nOpen workspace\nBrowse files and review changes\n⌘1\n\nOpen projects\nView connected project sessions\n⌘2\nSESSIONS\n\nNew session\nStart an agent in a workspace\n⌘N\nType a command or search...",
+    "pageErrors": [],
+    "captureSceneId": "command-palette",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Command search, selected rows and shortcut hints use KILV palette, corners and type."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "duplicate-session/duplicate-session-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "duplicate-session/environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "duplicate-session/duplicate-session-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "duplicate-session/environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "duplicate-session/duplicate-session-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "duplicate-session/environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "duplicate-session",
+    "label": "Duplicate session · choose a rewind point",
+    "sourcePaths": [
+      "components/DuplicateSheet.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "duplicate-session/duplicate-session-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "duplicate-session/environment-workspace-duplicate-session.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Choose a rewind point\nThe new session keeps the chosen turn complete (your message and the agent’s response) and drops every prompt after it.\nAdd a focused regression test for the restore form.\n13 hours ago\nInspect the current project and explain its",
+    "pageErrors": [],
+    "captureSceneId": "duplicate-session",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Rewind selection sheet uses semantic KILV surfaces, selected rows and action colors."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "git-status/git-status-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "git-status/environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "git-status/git-status-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "git-status/environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "git-status/git-status-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "git-status/environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "git-status",
+    "label": "Project and session Git status indicators",
+    "sourcePaths": [
+      "components/ProjectGitStatus.tsx",
+      "components/CompactGitStatus.tsx",
+      "components/GitStatusBadge.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "git-status/git-status-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "git-status/environment-workspace-git-status.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The section headings are capture-only labels; all three Git indicators are production components with synthetic counts."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Project changes\n+128\n-42\nCompact changes\n\n+128\n-42\nSession changes\n\n+128\n-42",
+    "pageErrors": [],
+    "captureSceneId": "git-status",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Git indicators preserve added/removed meaning while adopting KILV palette and mono counts."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "inline-comment-review/inline-comment-review-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "inline-comment-review/environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inline-comment-review/inline-comment-review-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "inline-comment-review/environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "inline-comment-review/inline-comment-review-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "inline-comment-review/environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "inline-comment-review",
+    "label": "Inline file review · pinned comment and draft",
+    "sourcePaths": [
+      "components/InlineCommentReview.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inline-comment-review/inline-comment-review-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "inline-comment-review/environment-workspace-inline-comment-review.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Keep the existing workspace path when reconnecting.\nEdit\nDelete\nComment on line 3\nPin comment\nCancel\nInline comments\nSend 1 comments\nExplain why this fallback preserves the original session.",
+    "pageErrors": [],
+    "captureSceneId": "inline-comment-review",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Pinned comment cards use KILV seams, border glow, mono labels and input/action tones."
+  },
+  {
+    "panelId": "files-sidebar",
+    "label": "Files sidebar · changes, workspace and side-chat actions",
+    "sourcePaths": [
+      "components/FilesSidebar.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "files-sidebar/files-sidebar-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "files-sidebar/environment-workspace-files-sidebar.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The isolated sidebar is 280 px wide at both browser sizes, matching its production desktop slot."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 380
+    },
+    "textExcerpt": "\nChanges\n\nWorkspace\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "files-sidebar",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Files sidebar sections and file actions use KILV borders, typography and compact geometry."
+  },
+  {
+    "panelId": "files-sidebar",
+    "label": "Files sidebar · changes, workspace and side-chat actions",
+    "sourcePaths": [
+      "components/FilesSidebar.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "files-sidebar/files-sidebar-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "files-sidebar/environment-workspace-files-sidebar.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The isolated sidebar is 280 px wide at both browser sizes, matching its production desktop slot."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 380
+    },
+    "textExcerpt": "\nChanges\n\nWorkspace\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "files-sidebar",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Files sidebar sections and file actions use KILV borders, typography and compact geometry."
+  },
+  {
+    "panelId": "files-sidebar",
+    "label": "Files sidebar · changes, workspace and side-chat actions",
+    "sourcePaths": [
+      "components/FilesSidebar.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "files-sidebar/files-sidebar-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "files-sidebar/environment-workspace-files-sidebar.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The isolated sidebar is 280 px wide at both browser sizes, matching its production desktop slot."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 380
+    },
+    "textExcerpt": "\nChanges\n\nWorkspace\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "files-sidebar",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Files sidebar sections and file actions use KILV borders, typography and compact geometry."
+  },
+  {
+    "panelId": "files-sidebar",
+    "label": "Files sidebar · changes, workspace and side-chat actions",
+    "sourcePaths": [
+      "components/FilesSidebar.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "files-sidebar/files-sidebar-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "files-sidebar/environment-workspace-files-sidebar.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The isolated sidebar is 280 px wide at both browser sizes, matching its production desktop slot."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 380
+    },
+    "textExcerpt": "\nChanges\n\nWorkspace\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "files-sidebar",
+    "fixtureSource": "sources/components/desktopWorkspace.browser.test.ts",
+    "changeDescription": "Files sidebar sections and file actions use KILV borders, typography and compact geometry."
+  },
+  {
+    "panelId": "navigation-bars",
+    "label": "Navigation · header, tab bar and new-session action",
+    "sourcePaths": [
+      "components/navigation/Header.tsx",
+      "components/TabBar.tsx",
+      "components/FABWide.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "navigation-bars/navigation-bars-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "navigation-bars/environment-workspace-navigation-bars.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The panel arranges production navigation components in an isolated browser frame; native gesture animation and glass effects are not exercised.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nHappy\nProject Beacon\n\nStart New Session\n2\nInbox\nTerminals\nSettings",
+    "pageErrors": [],
+    "captureSceneId": "navigation-bars",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Header, tab selection and new-session action use the shared KILV surfaces and typography."
+  },
+  {
+    "panelId": "navigation-bars",
+    "label": "Navigation · header, tab bar and new-session action",
+    "sourcePaths": [
+      "components/navigation/Header.tsx",
+      "components/TabBar.tsx",
+      "components/FABWide.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "navigation-bars/navigation-bars-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "navigation-bars/environment-workspace-navigation-bars.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The panel arranges production navigation components in an isolated browser frame; native gesture animation and glass effects are not exercised.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nHappy\nProject Beacon\n\nStart New Session\n2\nInbox\nTerminals\nSettings",
+    "pageErrors": [],
+    "captureSceneId": "navigation-bars",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Header, tab selection and new-session action use the shared KILV surfaces and typography."
+  },
+  {
+    "panelId": "navigation-bars",
+    "label": "Navigation · header, tab bar and new-session action",
+    "sourcePaths": [
+      "components/navigation/Header.tsx",
+      "components/TabBar.tsx",
+      "components/FABWide.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "navigation-bars/navigation-bars-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "navigation-bars/environment-workspace-navigation-bars.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The panel arranges production navigation components in an isolated browser frame; native gesture animation and glass effects are not exercised.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nHappy\nProject Beacon\n\nStart New Session\n2\nInbox\nTerminals\nSettings",
+    "pageErrors": [],
+    "captureSceneId": "navigation-bars",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Header, tab selection and new-session action use the shared KILV surfaces and typography."
+  },
+  {
+    "panelId": "navigation-bars",
+    "label": "Navigation · header, tab bar and new-session action",
+    "sourcePaths": [
+      "components/navigation/Header.tsx",
+      "components/TabBar.tsx",
+      "components/FABWide.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "navigation-bars/navigation-bars-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "navigation-bars/environment-workspace-navigation-bars.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The panel arranges production navigation components in an isolated browser frame; native gesture animation and glass effects are not exercised.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nHappy\nProject Beacon\n\nStart New Session\n2\nInbox\nTerminals\nSettings",
+    "pageErrors": [],
+    "captureSceneId": "navigation-bars",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Header, tab selection and new-session action use the shared KILV surfaces and typography."
+  },
+  {
+    "panelId": "main-view",
+    "label": "Home main view · sessions and navigation",
+    "sourcePaths": [
+      "components/MainView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "main-view/main-view-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "main-view/environment-workspace-main-view.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Desktop uses the production sidebar variant and 390 px uses the phone variant. Synthetic sessions; HomeDock and inactive settings/inbox destinations are outside this fixture, each captured separately.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different project\n12/31/69\nProje",
+    "pageErrors": [],
+    "captureSceneId": "main-view",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Main view chrome and session layout inherit the KILV background and navigation tokens."
+  },
+  {
+    "panelId": "main-view",
+    "label": "Home main view · sessions and navigation",
+    "sourcePaths": [
+      "components/MainView.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "main-view/main-view-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "main-view/environment-workspace-main-view.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Desktop uses the production sidebar variant and 390 px uses the phone variant. Synthetic sessions; HomeDock and inactive settings/inbox destinations are outside this fixture, each captured separately.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Terminals\n\n\n\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different proj",
+    "pageErrors": [],
+    "captureSceneId": "main-view",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Main view chrome and session layout inherit the KILV background and navigation tokens."
+  },
+  {
+    "panelId": "main-view",
+    "label": "Home main view · sessions and navigation",
+    "sourcePaths": [
+      "components/MainView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "main-view/main-view-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "main-view/environment-workspace-main-view.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Desktop uses the production sidebar variant and 390 px uses the phone variant. Synthetic sessions; HomeDock and inactive settings/inbox destinations are outside this fixture, each captured separately.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different project\n12/31/69\nProje",
+    "pageErrors": [],
+    "captureSceneId": "main-view",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Main view chrome and session layout inherit the KILV background and navigation tokens."
+  },
+  {
+    "panelId": "main-view",
+    "label": "Home main view · sessions and navigation",
+    "sourcePaths": [
+      "components/MainView.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "main-view/main-view-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "main-view/environment-workspace-main-view.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Desktop uses the production sidebar variant and 390 px uses the phone variant. Synthetic sessions; HomeDock and inactive settings/inbox destinations are outside this fixture, each captured separately.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, AvatarBrutalist, AvatarSkia, AvatarGradient, CommanderSessionAvatar, ProviderIcon, HarnessBadgeIcon, StatusDot. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Terminals\n\n\n\n\n\nSuper Session (Pinned)\n12/31/69\n@assistant · Main machine\nNewest ordinary session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nRemote project session\n12/31/69\nProject Alpha\n\nMain machine\nmachine-1\nSame workspace different proj",
+    "pageErrors": [],
+    "captureSceneId": "main-view",
+    "fixtureSource": "sources/components/projectsSuperSession.browser.test.ts",
+    "changeDescription": "Main view chrome and session layout inherit the KILV background and navigation tokens."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "side-chat-panel/side-chat-panel-empty-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "side-chat-panel/environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "side-chat-panel/side-chat-panel-empty-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "side-chat-panel/environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "side-chat-panel/side-chat-panel-empty-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "side-chat-panel/environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "side-chat-panel",
+    "label": "Side chat panel · start a delegated conversation",
+    "sourcePaths": [
+      "components/SideChatPanel.tsx"
+    ],
+    "state": "empty",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "side-chat-panel/side-chat-panel-empty-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "side-chat-panel/environment-workspace-side-chat-panel.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Empty side chat state; this capture does not contain an active delegated session.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nNo side chats yet\nClick New side chat to open an empty side chat, then type normally in its composer.\n\nNew side chat",
+    "pageErrors": [],
+    "captureSceneId": "side-chat-panel",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Side chat empty state uses KILV typography and correctly contrasted primary actions."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "connect-terminal/connect-terminal-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "connect-terminal/environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "connect-terminal/connect-terminal-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "connect-terminal/environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "connect-terminal/connect-terminal-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "connect-terminal/environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  },
+  {
+    "panelId": "connect-terminal",
+    "label": "Connect terminal · paste authentication URL",
+    "sourcePaths": [
+      "components/ConnectButton.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "connect-terminal/connect-terminal-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "connect-terminal/environment-workspace-connect-terminal.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "pageErrors": [],
+    "captureSceneId": "connect-terminal",
+    "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
+    "changeDescription": "Terminal connect actions and URL input adopt KILV surfaces, borders and typography."
+  }
+]

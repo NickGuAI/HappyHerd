@@ -1,0 +1,4246 @@
+[
+  {
+    "panelId": "artifacts",
+    "label": "Artifacts",
+    "sourcePaths": [
+      "app/(app)/artifacts/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifacts-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Interface review notes\n9/19/2026\n\nRelease checklist\n9/19/2026\n\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifacts",
+    "label": "Artifacts",
+    "sourcePaths": [
+      "app/(app)/artifacts/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifacts-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Interface review notes\n9/19/2026\n\nRelease checklist\n9/19/2026\n\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifacts",
+    "label": "Artifacts",
+    "sourcePaths": [
+      "app/(app)/artifacts/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifacts-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Interface review notes\n9/19/2026\n\nRelease checklist\n9/19/2026\n\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifacts",
+    "label": "Artifacts",
+    "sourcePaths": [
+      "app/(app)/artifacts/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifacts-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Interface review notes\n9/19/2026\n\nRelease checklist\n9/19/2026\n\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact",
+    "label": "Artifact details",
+    "sourcePaths": [
+      "app/(app)/artifacts/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact",
+    "label": "Artifact details",
+    "sourcePaths": [
+      "app/(app)/artifacts/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact",
+    "label": "Artifact details",
+    "sourcePaths": [
+      "app/(app)/artifacts/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact",
+    "label": "Artifact details",
+    "sourcePaths": [
+      "app/(app)/artifacts/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-new",
+    "label": "New artifact editor",
+    "sourcePaths": [
+      "app/(app)/artifacts/new.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-new-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "TITLE\nCONTENT\nReview checklist\nCheck warm light and dark surfaces.\nVerify desktop and mobile typography.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-new",
+    "label": "New artifact editor",
+    "sourcePaths": [
+      "app/(app)/artifacts/new.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-new-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "TITLE\nCONTENT\nReview checklist\nCheck warm light and dark surfaces.\nVerify desktop and mobile typography.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-new",
+    "label": "New artifact editor",
+    "sourcePaths": [
+      "app/(app)/artifacts/new.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-new-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "TITLE\nCONTENT\nReview checklist\nCheck warm light and dark surfaces.\nVerify desktop and mobile typography.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-new",
+    "label": "New artifact editor",
+    "sourcePaths": [
+      "app/(app)/artifacts/new.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-new-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "TITLE\nCONTENT\nReview checklist\nCheck warm light and dark surfaces.\nVerify desktop and mobile typography.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-edit",
+    "label": "Edit artifact",
+    "sourcePaths": [
+      "app/(app)/artifacts/edit/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-edit-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-edit",
+    "label": "Edit artifact",
+    "sourcePaths": [
+      "app/(app)/artifacts/edit/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-edit-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-edit",
+    "label": "Edit artifact",
+    "sourcePaths": [
+      "app/(app)/artifacts/edit/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "artifact-edit-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "artifact-edit",
+    "label": "Edit artifact",
+    "sourcePaths": [
+      "app/(app)/artifacts/edit/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "artifact-edit-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friends",
+    "label": "Friends",
+    "sourcePaths": [
+      "app/(app)/friends/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "friends-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "FRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friends",
+    "label": "Friends",
+    "sourcePaths": [
+      "app/(app)/friends/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "friends-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "FRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friends",
+    "label": "Friends",
+    "sourcePaths": [
+      "app/(app)/friends/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "friends-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "FRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friends",
+    "label": "Friends",
+    "sourcePaths": [
+      "app/(app)/friends/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "friends-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "FRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friend-search",
+    "label": "Find friends",
+    "sourcePaths": [
+      "app/(app)/friends/search.tsx",
+      "components/UserSearchResult.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "friend-search-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ENTER A USERNAME TO SEARCH FOR FRIENDS\nRobin Chen\n@robin-review\nAlready Friends\nMorgan Lee\n@morgan-review\nAdd Friend\nreview",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friend-search",
+    "label": "Find friends",
+    "sourcePaths": [
+      "app/(app)/friends/search.tsx",
+      "components/UserSearchResult.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "friend-search-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ENTER A USERNAME TO SEARCH FOR FRIENDS\nRobin Chen\n@robin-review\nAlready Friends\nMorgan Lee\n@morgan-review\nAdd Friend\nreview",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friend-search",
+    "label": "Find friends",
+    "sourcePaths": [
+      "app/(app)/friends/search.tsx",
+      "components/UserSearchResult.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "friend-search-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ENTER A USERNAME TO SEARCH FOR FRIENDS\nRobin Chen\n@robin-review\nAlready Friends\nMorgan Lee\n@morgan-review\nAdd Friend\nreview",
+    "pageErrors": []
+  },
+  {
+    "panelId": "friend-search",
+    "label": "Find friends",
+    "sourcePaths": [
+      "app/(app)/friends/search.tsx",
+      "components/UserSearchResult.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "friend-search-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ENTER A USERNAME TO SEARCH FOR FRIENDS\nRobin Chen\n@robin-review\nAlready Friends\nMorgan Lee\n@morgan-review\nAdd Friend\nreview",
+    "pageErrors": []
+  },
+  {
+    "panelId": "inbox",
+    "label": "Inbox",
+    "sourcePaths": [
+      "app/(app)/inbox/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "inbox-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Inbox\n\n\nWhat's new\nSee the latest updates and improvements\n\nFRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "inbox",
+    "label": "Inbox",
+    "sourcePaths": [
+      "app/(app)/inbox/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inbox-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nInbox\n\nWhat's new\nSee the latest updates and improvements\n\nFRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "inbox",
+    "label": "Inbox",
+    "sourcePaths": [
+      "app/(app)/inbox/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "inbox-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Inbox\n\n\nWhat's new\nSee the latest updates and improvements\n\nFRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "inbox",
+    "label": "Inbox",
+    "sourcePaths": [
+      "app/(app)/inbox/index.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "inbox-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nInbox\n\nWhat's new\nSee the latest updates and improvements\n\nFRIEND REQUESTS\nSam Lane\n@sam-review\n\nMY FRIENDS\nRobin Chen\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "machine-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "machine-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "machine-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "machine-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "machine-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "machine-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "machine-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "machine",
+    "label": "Machine details",
+    "sourcePaths": [
+      "app/(app)/machine/[id].tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "machine-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "LAUNCH NEW SESSION IN DIRECTORY\n\n\n~/Projects/demo\nStatus\nonline\nStop Daemon\n\nLast Known PID\n1234\nDaemon State Version\n1\nPREVIOUS SESSIONS (UP TO 5 MOST RECENT)\nReview warm light and dark surfaces\n~/Projects/demo\n\nMACHINE\nHost\nreview-workstation\nM",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "session-info-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "session-info-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-info-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-info-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "session-info-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "session-info-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-info-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "session-info",
+    "label": "Session details",
+    "sourcePaths": [
+      "app/(app)/session/[id]/info.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "session-info-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "pageErrors": []
+  },
+  {
+    "panelId": "recent",
+    "label": "Recent sessions",
+    "sourcePaths": [
+      "app/(app)/session/recent.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "recent-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Today\nReview warm light and dark surfaces\n~/Projects/demo",
+    "pageErrors": []
+  },
+  {
+    "panelId": "recent",
+    "label": "Recent sessions",
+    "sourcePaths": [
+      "app/(app)/session/recent.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "recent-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Today\nReview warm light and dark surfaces\n~/Projects/demo",
+    "pageErrors": []
+  },
+  {
+    "panelId": "recent",
+    "label": "Recent sessions",
+    "sourcePaths": [
+      "app/(app)/session/recent.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "recent-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Today\nReview warm light and dark surfaces\n~/Projects/demo",
+    "pageErrors": []
+  },
+  {
+    "panelId": "recent",
+    "label": "Recent sessions",
+    "sourcePaths": [
+      "app/(app)/session/recent.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "recent-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Today\nReview warm light and dark surfaces\n~/Projects/demo",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account",
+    "label": "Account settings",
+    "sourcePaths": [
+      "app/(app)/settings/account.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "ACCOUNT INFORMATION\nStatus\nActive\nAnonymous ID\nNot available\nPublic ID\nNot available\nPROFILE\nName\nAvery River\nBACKUP\nSECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA\nYour secret key is the only way to recover ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account-key",
+    "label": "Synthetic account key",
+    "sourcePaths": [
+      "components/AccountKeyPanel.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-key-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "SECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account-key",
+    "label": "Synthetic account key",
+    "sourcePaths": [
+      "components/AccountKeyPanel.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-key-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "SECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account-key",
+    "label": "Synthetic account key",
+    "sourcePaths": [
+      "components/AccountKeyPanel.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "account-key-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "SECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA",
+    "pageErrors": []
+  },
+  {
+    "panelId": "account-key",
+    "label": "Synthetic account key",
+    "sourcePaths": [
+      "components/AccountKeyPanel.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "account-key-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "The displayed all-zero key is synthetic and has no account access."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "SECRET KEY (TAP TO COPY)\n\nAAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA-AA",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "agents-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "agents-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "agents-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "agents-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "agents-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "agents-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "agents-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "agents",
+    "label": "Agent defaults",
+    "sourcePaths": [
+      "app/(app)/settings/agents.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "agents-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "AGENT DEFAULTS\n\nClear Overrides\nReturn every agent to its available defaults\nCAPABILITY SOURCE MACHINE\n\nMachine\nfixture-id · online\nReview workstation\n\nMachine-owned defaults use only this exact machine's advertised capabilities.\nCLAUDE CODE\n\nPer",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "appearance-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use light theme\nLight\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "appearance-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use light theme\nLight\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "appearance-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use light theme\nLight\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "appearance-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use light theme\nLight\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "appearance-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use dark theme\nDark\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose w",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "appearance-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use dark theme\nDark\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose w",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "appearance-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use dark theme\nDark\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose w",
+    "pageErrors": []
+  },
+  {
+    "panelId": "appearance",
+    "label": "Appearance",
+    "sourcePaths": [
+      "app/(app)/settings/appearance.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "appearance-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "THEME\n\nAppearance\nAlways use dark theme\nDark\n\nChoose your preferred color scheme\nLANGUAGE\n\nCurrent Language\nEnglish\n\nChoose your preferred language for the app interface. This will sync across all your devices.\nCHAT\n\nSession Status Info\nChoose w",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "features-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "features-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "features-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "features-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "features-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "features",
+    "label": "Features",
+    "sourcePaths": [
+      "app/(app)/settings/features.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "features-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "INTERFACE\n\nWorkspace\nBrowse and edit files on connected machines without starting a session\nOptional panels and layout elements.\nEXPERIMENTS\n\nExperimental Features\nExperimental features enabled\n\nMarkdown Copy v2\nLong press opens copy modal\n\nHide ",
+    "pageErrors": []
+  },
+  {
+    "panelId": "commanders",
+    "label": "Commander profile pictures",
+    "sourcePaths": [
+      "components/CommanderAvatarSettings.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "commanders-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "REVIEW WORKSTATION\nRC\nReview Commander\nreview-commander\n\nChoose one picture per Commander on each machine. PNG, JPEG, or WebP up to 10 MiB.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "commanders",
+    "label": "Commander profile pictures",
+    "sourcePaths": [
+      "components/CommanderAvatarSettings.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "commanders-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "REVIEW WORKSTATION\nRC\nReview Commander\nreview-commander\n\nChoose one picture per Commander on each machine. PNG, JPEG, or WebP up to 10 MiB.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "commanders",
+    "label": "Commander profile pictures",
+    "sourcePaths": [
+      "components/CommanderAvatarSettings.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "commanders-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "REVIEW WORKSTATION\nRC\nReview Commander\nreview-commander\n\nChoose one picture per Commander on each machine. PNG, JPEG, or WebP up to 10 MiB.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "commanders",
+    "label": "Commander profile pictures",
+    "sourcePaths": [
+      "components/CommanderAvatarSettings.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "commanders-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "REVIEW WORKSTATION\nRC\nReview Commander\nreview-commander\n\nChoose one picture per Commander on each machine. PNG, JPEG, or WebP up to 10 MiB.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "language",
+    "label": "Interface language",
+    "sourcePaths": [
+      "app/(app)/settings/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "language-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "CURRENT LANGUAGE\n\nAutomatic\nDetect from device settings (English)\n\nEnglish\n\n\n中文\n\nDeutsch\nChoose your preferred language for the app interface. This will sync across all your devices.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "language",
+    "label": "Interface language",
+    "sourcePaths": [
+      "app/(app)/settings/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "language-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "CURRENT LANGUAGE\n\nAutomatic\nDetect from device settings (English)\n\nEnglish\n\n\n中文\n\nDeutsch\nChoose your preferred language for the app interface. This will sync across all your devices.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "language",
+    "label": "Interface language",
+    "sourcePaths": [
+      "app/(app)/settings/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "language-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "CURRENT LANGUAGE\n\nAutomatic\nDetect from device settings (English)\n\nEnglish\n\n\n中文\n\nDeutsch\nChoose your preferred language for the app interface. This will sync across all your devices.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "language",
+    "label": "Interface language",
+    "sourcePaths": [
+      "app/(app)/settings/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "language-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "CURRENT LANGUAGE\n\nAutomatic\nDetect from device settings (English)\n\nEnglish\n\n\n中文\n\nDeutsch\nChoose your preferred language for the app interface. This will sync across all your devices.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice",
+    "label": "Voice settings",
+    "sourcePaths": [
+      "app/(app)/settings/voice.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "VOICE DICTATION TRANSCRIPTION\n\nOpenAI API key\n•••••••• · Configured for this account\nConfigured\n\n\nTest OpenAI API key\nVerify access without recording audio\n\n\nRemove OpenAI API key\nDelete the account-specific transcription key\n\nThe key is encryp",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice-language",
+    "label": "Voice language",
+    "sourcePaths": [
+      "app/(app)/settings/voice/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-language-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nLANGUAGES\n\nAuto-detect\nAuto-detect\n\nEnglish - United States\nen-US\n\nEnglish - United Kingdom\nen-GB\n\nEnglish - Australia\nen-AU\n\nEnglish - Canada\nen-CA\n\nSpanish (Español) - Spain\nes-ES\n\nSpanish (Español) - Mexico\nes-MX\n\nSpanish (Español) - Arg",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice-language",
+    "label": "Voice language",
+    "sourcePaths": [
+      "app/(app)/settings/voice/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-language-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nLANGUAGES\n\nAuto-detect\nAuto-detect\n\nEnglish - United States\nen-US\n\nEnglish - United Kingdom\nen-GB\n\nEnglish - Australia\nen-AU\n\nEnglish - Canada\nen-CA\n\nSpanish (Español) - Spain\nes-ES\n\nSpanish (Español) - Mexico\nes-MX\n\nSpanish (Español) - Arg",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice-language",
+    "label": "Voice language",
+    "sourcePaths": [
+      "app/(app)/settings/voice/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "voice-language-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nLANGUAGES\n\nAuto-detect\nAuto-detect\n\nEnglish - United States\nen-US\n\nEnglish - United Kingdom\nen-GB\n\nEnglish - Australia\nen-AU\n\nEnglish - Canada\nen-CA\n\nSpanish (Español) - Spain\nes-ES\n\nSpanish (Español) - Mexico\nes-MX\n\nSpanish (Español) - Arg",
+    "pageErrors": []
+  },
+  {
+    "panelId": "voice-language",
+    "label": "Voice language",
+    "sourcePaths": [
+      "app/(app)/settings/voice/language.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "voice-language-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nLANGUAGES\n\nAuto-detect\nAuto-detect\n\nEnglish - United States\nen-US\n\nEnglish - United Kingdom\nen-GB\n\nEnglish - Australia\nen-AU\n\nEnglish - Canada\nen-CA\n\nSpanish (Español) - Spain\nes-ES\n\nSpanish (Español) - Mexico\nes-MX\n\nSpanish (Español) - Arg",
+    "pageErrors": []
+  },
+  {
+    "panelId": "claude",
+    "label": "Connect Claude",
+    "sourcePaths": [
+      "app/(app)/settings/connect/claude.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "claude-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "Web manual OAuth setup only; native OAuthView WebView is not mounted on Web."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Connect Claude\nRun the following command in your terminal:\n$ happyherd connect claude",
+    "pageErrors": []
+  },
+  {
+    "panelId": "claude",
+    "label": "Connect Claude",
+    "sourcePaths": [
+      "app/(app)/settings/connect/claude.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "claude-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "Web manual OAuth setup only; native OAuthView WebView is not mounted on Web."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Connect Claude\nRun the following command in your terminal:\n$ happyherd connect claude",
+    "pageErrors": []
+  },
+  {
+    "panelId": "claude",
+    "label": "Connect Claude",
+    "sourcePaths": [
+      "app/(app)/settings/connect/claude.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "claude-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "Web manual OAuth setup only; native OAuthView WebView is not mounted on Web."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Connect Claude\nRun the following command in your terminal:\n$ happyherd connect claude",
+    "pageErrors": []
+  },
+  {
+    "panelId": "claude",
+    "label": "Connect Claude",
+    "sourcePaths": [
+      "app/(app)/settings/connect/claude.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "claude-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture.",
+      "Web manual OAuth setup only; native OAuthView WebView is not mounted on Web."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Connect Claude\nRun the following command in your terminal:\n$ happyherd connect claude",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal",
+    "label": "Connect terminal",
+    "sourcePaths": [
+      "app/(app)/terminal/connect.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal",
+    "label": "Connect terminal",
+    "sourcePaths": [
+      "app/(app)/terminal/connect.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal",
+    "label": "Connect terminal",
+    "sourcePaths": [
+      "app/(app)/terminal/connect.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal",
+    "label": "Connect terminal",
+    "sourcePaths": [
+      "app/(app)/terminal/connect.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "text-selection",
+    "label": "Select text",
+    "sourcePaths": [
+      "app/(app)/text-selection.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "text-selection-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "text-selection",
+    "label": "Select text",
+    "sourcePaths": [
+      "app/(app)/text-selection.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "text-selection-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "text-selection",
+    "label": "Select text",
+    "sourcePaths": [
+      "app/(app)/text-selection.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "text-selection-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "text-selection",
+    "label": "Select text",
+    "sourcePaths": [
+      "app/(app)/text-selection.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "text-selection-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-confirm",
+    "label": "Terminal connection request",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "confirmation",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-confirm-confirmation-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-confirm",
+    "label": "Terminal connection request",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "confirmation",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-confirm-confirmation-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-confirm",
+    "label": "Terminal connection request",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "confirmation",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-confirm-confirmation-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-confirm",
+    "label": "Terminal connection request",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "confirmation",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-confirm-confirmation-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-invalid",
+    "label": "Invalid terminal link",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "invalid-link",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-invalid-invalid-link-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nInvalid Connection Link\nThe connection link is missing or invalid. Please check the URL and try again.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-invalid",
+    "label": "Invalid terminal link",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "invalid-link",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-invalid-invalid-link-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nInvalid Connection Link\nThe connection link is missing or invalid. Please check the URL and try again.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-invalid",
+    "label": "Invalid terminal link",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "invalid-link",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "terminal-invalid-invalid-link-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "\nInvalid Connection Link\nThe connection link is missing or invalid. Please check the URL and try again.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "terminal-invalid",
+    "label": "Invalid terminal link",
+    "sourcePaths": [
+      "app/(app)/terminal/index.tsx"
+    ],
+    "state": "invalid-link",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "terminal-invalid-invalid-link-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nInvalid Connection Link\nThe connection link is missing or invalid. Please check the URL and try again.",
+    "pageErrors": []
+  },
+  {
+    "panelId": "user",
+    "label": "User profile",
+    "sourcePaths": [
+      "app/(app)/user/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "user-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Robin Chen\n@robin-review\nBuilding thoughtful interfaces\n\nAlready Friends\n\nRemove Friend\n\nGitHub\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "user",
+    "label": "User profile",
+    "sourcePaths": [
+      "app/(app)/user/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "user-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Robin Chen\n@robin-review\nBuilding thoughtful interfaces\n\nAlready Friends\n\nRemove Friend\n\nGitHub\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "user",
+    "label": "User profile",
+    "sourcePaths": [
+      "app/(app)/user/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "user-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Robin Chen\n@robin-review\nBuilding thoughtful interfaces\n\nAlready Friends\n\nRemove Friend\n\nGitHub\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "user",
+    "label": "User profile",
+    "sourcePaths": [
+      "app/(app)/user/[id].tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "user-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Robin Chen\n@robin-review\nBuilding thoughtful interfaces\n\nAlready Friends\n\nRemove Friend\n\nGitHub\n@robin-review\n",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "settings-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "settings-scrolled-bottom-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "settings-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "settings-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "settings-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "settings-scrolled-bottom-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "settings-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "settings",
+    "label": "Settings",
+    "sourcePaths": [
+      "components/SettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "settings-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Avery River\n\nSupport us\nSupport project development\nCONNECTED ACCOUNTS\nClaude Code\nConnect account\n\nGitHub\nConnect your GitHub account\nMACHINES\n\nReview workstation\nreview-workstation • darwin • online\n\nFEATURES\n\nAccount\nManage your account detai",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "credentials-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "credentials-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "credentials-scrolled-bottom-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "credentials-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "credentials-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "credentials",
+    "label": "Saved credentials",
+    "sourcePaths": [
+      "components/CredentialsSettingsView.tsx"
+    ],
+    "state": "scrolled-bottom",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "credentials-scrolled-bottom-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Scrolled to the bottom using the existing production overflow container.",
+      "Synthetic service data; native navigation header is outside this fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "MACHINE\n\nReview workstation\nfixture-id · online\n\nAccounts are stored on the selected machine\nPROVIDER ACCOUNTS\nClaude\n1 managed account\nAdd another Claude account\nReview account\nStored\nDefault\n\nCodex\nNo managed accounts\nConnect Codex account\n\nGro",
+    "pageErrors": []
+  },
+  {
+    "panelId": "usage",
+    "label": "Provider usage",
+    "sourcePaths": [
+      "components/usage/UsagePanel.tsx",
+      "components/usage/UsageChart.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "usage-populated-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Known pre-existing chart clipping: upper bars and value labels are clipped by the horizontal ScrollView. Chart height, padding, and bar-scaling geometry are unchanged from baseline 189c504b; KILV changes only typography and semantic colors. The screenshot preserves this defect.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Today\nLast 7 days\nLast 30 days\nReported Tokens\n32.9K\nProvider Cost (USD)\n$1.4700\nREPORTING COVERAGE\nclaude: cost is the provider's per-model estimate, not a billing statement.\ncodex: Cost is not reported by the provider.\nUsage over time\nTokens\nCost\n3",
+    "pageErrors": []
+  },
+  {
+    "panelId": "usage",
+    "label": "Provider usage",
+    "sourcePaths": [
+      "components/usage/UsagePanel.tsx",
+      "components/usage/UsageChart.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "usage-populated-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Known pre-existing chart clipping: upper bars and value labels are clipped by the horizontal ScrollView. Chart height, padding, and bar-scaling geometry are unchanged from baseline 189c504b; KILV changes only typography and semantic colors. The screenshot preserves this defect.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Today\nLast 7 days\nLast 30 days\nReported Tokens\n32.9K\nProvider Cost (USD)\n$1.4700\nREPORTING COVERAGE\nclaude: cost is the provider's per-model estimate, not a billing statement.\ncodex: Cost is not reported by the provider.\nUsage over time\nTokens\nCost\n3",
+    "pageErrors": []
+  },
+  {
+    "panelId": "usage",
+    "label": "Provider usage",
+    "sourcePaths": [
+      "components/usage/UsagePanel.tsx",
+      "components/usage/UsageChart.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "filename": "usage-populated-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Known pre-existing chart clipping: upper bars and value labels are clipped by the horizontal ScrollView. Chart height, padding, and bar-scaling geometry are unchanged from baseline 189c504b; KILV changes only typography and semantic colors. The screenshot preserves this defect.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1000
+    },
+    "textExcerpt": "Today\nLast 7 days\nLast 30 days\nReported Tokens\n32.9K\nProvider Cost (USD)\n$1.4700\nREPORTING COVERAGE\nclaude: cost is the provider's per-model estimate, not a billing statement.\ncodex: Cost is not reported by the provider.\nUsage over time\nTokens\nCost\n3",
+    "pageErrors": []
+  },
+  {
+    "panelId": "usage",
+    "label": "Provider usage",
+    "sourcePaths": [
+      "components/usage/UsagePanel.tsx",
+      "components/usage/UsageChart.tsx",
+      "components/usage/UsageBar.tsx"
+    ],
+    "state": "populated",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "usage-populated-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-routes.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Known pre-existing chart clipping: upper bars and value labels are clipped by the horizontal ScrollView. Chart height, padding, and bar-scaling geometry are unchanged from baseline 189c504b; KILV changes only typography and semantic colors. The screenshot preserves this defect.",
+      "Expo Router Stack.Screen options are registered but its native navigation header is outside this component fixture."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "Today\nLast 7 days\nLast 30 days\nReported Tokens\n32.9K\nProvider Cost (USD)\n$1.4700\nREPORTING COVERAGE\nclaude: cost is the provider's per-model estimate, not a billing statement.\ncodex: Cost is not reported by the provider.\nUsage over time\nTokens\nCost\n3",
+    "pageErrors": []
+  }
+]

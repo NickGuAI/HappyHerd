@@ -1,0 +1,142 @@
+[
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-link-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-link-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "workspace-link-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  },
+  {
+    "panelId": "workspace-link",
+    "label": "Workspace file link and feedback composer",
+    "sourcePaths": [
+      "components/WorkspaceLinkViewer.tsx",
+      "components/WorkspaceFeedbackComposer.tsx",
+      "components/FileViewPanel.tsx",
+      "components/markdown/MarkdownView.web.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "workspace-link-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-workspace-link.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Linked machine, Markdown file and feedback transport are synthetic; no feedback is sent."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "review.md\nfixture\n/workspace/review.md:3:7\nPreview\nEdit\n\nBack to files\n/workspace\n1\n+\nReview fixture\n\n3\n+\nA paragraph to review.\n\n5\n+\nAnother paragraph.\n\n\n\nWe'd love to hear your feedback!",
+    "pageErrors": [],
+    "captureSceneId": "workspace-link",
+    "fixtureSource": "sources/components/WorkspaceLinkViewer.browser.test.ts",
+    "changeDescription": "Linked-file chrome and feedback composer use KILV input, action and border tokens."
+  }
+]

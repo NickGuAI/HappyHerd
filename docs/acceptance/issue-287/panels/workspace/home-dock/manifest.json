@@ -1,0 +1,130 @@
+[
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "home-dock-representative-light-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "light",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "home-dock-representative-light-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "filename": "home-dock-representative-dark-1440.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  },
+  {
+    "panelId": "home-dock",
+    "label": "Home dock · start a session",
+    "sourcePaths": [
+      "components/HomeDock.tsx"
+    ],
+    "state": "representative",
+    "theme": "dark",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "filename": "home-dock-representative-dark-390.png",
+    "evidenceType": "component-fixture",
+    "sourceRevision": "a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05",
+    "environment": "environment-workspace-home-dock.json",
+    "limitations": [
+      "Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.",
+      "Surrounding visual renderer replacements supplied by the fixture: Avatar, SessionStatusAvatar, ProviderIcon. These renderers are outside the claimed source owners and are not visual evidence for their production appearance; target owners, Typography and Expo vector icon glyphs remain real."
+    ],
+    "geometry": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "textExcerpt": "\nMainEC2\n\n~\n\nNo worktree\n\nAntigravity\nInspect attachments\ndefault\nGemini 3.6 Flash (High)\n\nInspect attachments",
+    "pageErrors": [],
+    "captureSceneId": "home-dock",
+    "fixtureSource": "sources/components/sideChatHeader.browser.test.ts",
+    "changeDescription": "Home composer and machine/model pickers adopt the KILV palette, mono metadata and flatter geometry."
+  }
+]
