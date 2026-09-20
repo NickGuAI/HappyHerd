@@ -1,4 +1,5 @@
 name: HappyHerd quality gates
+run-name: HappyHerd quality ${{ inputs.golden_request || github.event.pull_request.head.sha || github.sha }}
 
 on:
   push:
@@ -6,6 +7,15 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      golden_mode:
+        description: Golden comparison maintenance (PRs always compare)
+        type: choice
+        options: [compare, regenerate, one-pixel]
+        default: compare
+      golden_request:
+        description: Unique regeneration request identifier
+        type: string
 
 permissions:
   contents: read
@@ -190,6 +200,32 @@ jobs:
       - name: Execute built browser client
         working-directory: server
         run: pnpm --filter happy-app --fail-if-no-match web:smoke
+      # Bounded gate: production landing, restore-key, restore-device (offline),
+      # server-config, changelog; fixture appearance and terminal.
+      # All seven panels: desktop/mobile x light/dark = 28 committed baselines.
+      - name: Install pinned golden browser
+        working-directory: server
+        run: pnpm --filter happy-app exec playwright-core install --with-deps chromium
+      - name: Compare KILV golden images
+        env:
+          GOLDEN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.golden_mode || 'compare' }}
+        run: node scripts/kilv-golden.mjs "$GOLDEN_MODE"
+      - name: Upload golden comparison and readable diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kilv-golden-${{ github.run_id }}
+          path: .artifacts/kilv-golden/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload explicitly regenerated baselines
+        if: github.event_name == 'workflow_dispatch' && inputs.golden_mode == 'regenerate'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kilv-baselines-${{ github.run_id }}
+          path: docs/acceptance/issue-287/golden/*.png
+          if-no-files-found: error
+          retention-days: 30
       - name: Build daemon and server runtime
         working-directory: server
         run: |

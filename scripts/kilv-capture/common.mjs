@@ -73,7 +73,7 @@ function sourceFile(path) {
 }
 
 export async function createCapture({ group, entrySource, entryFile, virtualModules={}, onResolve, outDir, css:extraCss='' }) {
-  const directory=outDir??resolve(repoRoot,'docs/acceptance/issue-287/panels',group);
+  const directory=outDir??(process.env.KILV_OUTPUT_DIR ? resolve(process.env.KILV_OUTPUT_DIR,group) : resolve(repoRoot,'docs/acceptance/issue-287/panels',group));
   mkdirSync(directory,{recursive:true});
   const modules={...virtualModules,...baseVirtualModules};
   // The theme, typography, icons and the captured components remain source-owned.
@@ -166,7 +166,7 @@ export async function createCapture({ group, entrySource, entryFile, virtualModu
     if(text.trim().length<2)throw new Error(`${panelId}: empty target`);
     const width=(viewport??page.viewportSize()).width;
     const filename=`${panelId}-${state}-${theme??new URL(page.url()).searchParams.get('theme')}-${width}.png`;
-    await (locator?target:page).screenshot({path:resolve(directory,filename),...(locator?{}:{fullPage:true})});
+    await (locator?target:page).screenshot({path:resolve(directory,filename),animations:'disabled',caret:'hide',...(locator?{}:{fullPage:true})});
     const result={panelId,label,sourcePaths,state,theme:theme??new URL(page.url()).searchParams.get('theme'),viewport:viewport??page.viewportSize(),filename,evidenceType:'component-fixture',sourceRevision:'a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05',environment:`environment-${group}.json`,limitations:['Synthetic service/state boundaries; React Native Web adapter; not authenticated live or installed native evidence.',...limitations],geometry,textExcerpt:text.slice(0,250),pageErrors,...extra};
     manifest.push(result);writeFileSync(resolve(directory,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');return result;
   }

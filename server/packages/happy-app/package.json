@@ -10,6 +10,8 @@
     "submit": "eas submit --platform ios",
     "web": "expo start --web",
     "web:smoke": "node scripts/smoke-production-web.mjs",
+    "golden:test": "node ../../../scripts/kilv-golden.mjs",
+    "golden:update": "node ../../../scripts/kilv-golden-update.mjs",
     "test": "vitest",
     "generate:diff-syntax": "node scripts/build-diff-syntax.cjs",
     "perf:e2e": "node scripts/perf-e2e.mjs",
@@ -229,7 +231,9 @@
     "cross-env": "^10.1.0",
     "esbuild": "0.27.2",
     "patch-package": "^8.0.0",
+    "pixelmatch": "7.1.0",
     "playwright-core": "^1.62.1",
+    "pngjs": "7.0.0",
     "react-test-renderer": "19.0.0",
     "tsx": "^4.20.4",
     "typescript": "5.9.3"

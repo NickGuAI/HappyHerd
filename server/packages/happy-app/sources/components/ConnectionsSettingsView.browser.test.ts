@@ -23,16 +23,7 @@ const virtualModules: Record<string, string> = {
         };
     `,
     'react-native-unistyles': `
-        const theme = {
-            colors: {
-                divider: '#ddd', surface: '#fff', surfacePressedOverlay: '#eee', surfaceRipple: '#eee',
-                text: '#111', textLink: '#06c', textSecondary: '#666', textDestructive: '#c22',
-                glass: { divider: '#ddd' },
-                groupped: { background: '#f5f5f5', chevron: '#777', sectionTitle: '#666' },
-                shadow: { color: '#000', opacity: 0.1 },
-                status: { connected: '#0a0', disconnected: '#a00' },
-            },
-        };
+        import { lightTheme as theme } from '@/theme';
         export const StyleSheet = {
             create: (factory) => typeof factory === 'function' ? factory(theme, {}) : factory,
             hairlineWidth: 1,
@@ -69,7 +60,6 @@ const virtualModules: Record<string, string> = {
     '@/components/Avatar': `import { View } from 'react-native'; export const Avatar = View;`,
     '@/components/StyledText': `import { Text as NativeText } from 'react-native'; export const Text = NativeText;`,
     '@/components/layout': `export const layout = { maxWidth: 800 };`,
-    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
     '@/constants/product': `
         export const PRODUCT = {
             displayName: 'HappyHerd',
@@ -283,6 +273,7 @@ describe('Settings → Connections → Add device production component journeys'
     });
 
     async function open(page: Page, evidenceWidth?: number) {
+        page.on('pageerror', error => console.error('Connections fixture page error:', error.message));
         page.setDefaultTimeout(2500);
         await page.goto(`${origin}/settings`);
         await page.getByText('Connections', { exact: true }).waitFor();
