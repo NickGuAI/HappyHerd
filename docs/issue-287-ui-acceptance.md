@@ -1,6 +1,6 @@
 # Issue #287 UI acceptance record
 
-Scope: KILV visual rebuild, repository issue #287. The issue's source inventory is pinned to `4d339370bea7cc155d3731cf5ae8b862d2d46549`; implementation began at `189c504b5ab16eea7fa16e3c2fb33e98d147390d` on `feat/issue-287-kilv-ui`. The review commit and exact-head gate results are recorded in the pull request. The screenshots and source in this record travel in the same topical commit; no deployed revision is claimed. No deployment or native-host acceptance is implied by this document.
+Scope: KILV visual rebuild, repository issue #287. The issue's source inventory is pinned to `4d339370bea7cc155d3731cf5ae8b862d2d46549`; implementation began at `189c504b5ab16eea7fa16e3c2fb33e98d147390d` on `feat/issue-287-kilv-ui`. The review commit and exact-head gate results are recorded in the pull request. The screenshots and source in this record travel in the same pull request; no deployed revision is claimed. No deployment or native-host acceptance is implied by this document.
 
 The [disposition table](issue-287-ui-disposition.tsv) reconciles every one of the issue's 945 unique paths, including supplemental style/configuration owners and assets, against the implementation tree. Additional production TS/TSX/font/artwork owners are explicit as `added-at-implementation` or `supplemental-existing-owner`. The TSV path column percent-encodes the density-marker `@` as `%40`; URI-decoding yields each exact repository path (these filenames are not email addresses). `adapt` may be a direct style edit or inheritance from the shared Unistyles theme, typography, control or host named in the row. `keep` preserves data identity, runtime/platform behavior, wrappers or compiled references. `rebuild` replaces the central visual foundation. A row is a scoped disposition and source mapping, **not a visual acceptance pass**. `implementation` reports whether the file itself changed; `verification` deliberately keeps rendered/native gaps visible.
 
@@ -140,7 +140,7 @@ The [18-case Web result record](acceptance/issue-287/web-results.json) covers th
 Reproduce that evidence from `server/` (the second script argument chooses an artifact directory):
 
 ```sh
-APP_ENV=production pnpm --filter happy-app exec expo export --platform web --output-dir dist-ci
+APP_ENV=production pnpm --filter happy-app exec expo export --platform all --output-dir dist-ci
 pnpm --filter happy-app web:smoke
 pnpm --filter happy-app exec node scripts/verify-kilv-web.mjs dist-ci /tmp/kilv-web-evidence
 ```
@@ -152,14 +152,14 @@ Supporting browser fixtures exercise the real workspace, file editing/review, de
 | Source disposition | Complete | 945 baseline + 17 supplemental paths; exact filenames recover by URI-decoding the path column |
 | Frozen dependencies | Passed; lockfile unchanged | `pnpm install --frozen-lockfile` |
 | App typecheck | Passed | `pnpm --filter happy-app typecheck` |
-| Full app tests | Final result in PR | `pnpm --filter happy-app test --run --maxWorkers=2` |
+| Full app tests | 282 files / 2839 passed, 1 existing benchmark skipped before the native-build follow-up; latest-head result in PR | `pnpm --filter happy-app test --run --maxWorkers=2` |
 | UI inventory and i18n | Passed | 40 routes, 277 UI owners, 84 smoke cases; 1532 keys per en/cn/de; zero hardcoded-copy exceptions |
-| Changelog | Passed | September 19 — KILV interface; 142 parsed entries |
-| Production Web export | Passed | `APP_ENV=production ... expo export --platform web`, followed by production mount smoke |
-| iOS / Android JS export | Blocked by existing route/test bundling | `--platform all` resolves `new/index.launch.test.ts` and fails on `node:module`; independent baseline iOS export at `189c504b` fails identically. Native bundles and installed hosts remain unproved |
+| Changelog | Passed | September 19 — Native build reliability; 143 parsed entries, including the KILV interface entry |
+| Production Web export | Passed | `APP_ENV=production ... expo export --platform all`, followed by production mount smoke |
+| iOS / Android Hermes export | Passed | Existing Expo route collection included six Node/Vitest files. A route-root-only Metro exclusion fixes this; the actual Metro file-map/context regression test retains real routes and excludes those tests for all three platforms. Both native Hermes bundles now export successfully; installed hosts remain unproved |
 | Production Web entry / restore | Local evidence | 18 combinations in the linked JSON; authenticated outcome unproved |
 | CLI / server builds | Passed | Dependency `happy-agent` built first, then CLI and server production builds |
-| Repository contract suite | Exact-head result in PR | `scripts/contract-suite.sh`; isolated Bash 5.3 and ShellCheck 0.11 tooling, canonical upstream lineage |
+| Repository contract suite | UI commit `16249c9` passed all required GitHub gates; latest-head result in PR | `scripts/contract-suite.sh`; isolated Bash 5.3 and ShellCheck 0.11 tooling, canonical upstream lineage |
 | Actual iPhone Safari keyboard / zoom | Unproved | Requires physical-device input focus and safe-area proof |
 | Native iOS / Android / macOS / Windows hosts | Unproved | Requires applicable shipped-host runtime/hardware evidence |
 | Full authenticated journey matrix / live deployment | Unproved | Existing account/server/runtime evidence needed; no deployment authorized in this task |
