@@ -403,3 +403,4 @@ ISSUE_287_HEADER_GOLDENS	code-ready	test(app): regenerate goldens after HappyHer
 ISSUE_287_APPEARANCE_GOLDEN	code-ready	test(app): refresh appearance mobile-light golden	docs/acceptance/issue-287/golden/routes-appearance-populated-light-390.png
 ISSUE_287_QUEUE_WAIT	code-ready	test(cli): wait for outgoing queue image-start	server/packages/happy-cli/src/claude/utils/OutgoingMessageQueue.test.ts
 ISSUE_287_GOLDEN_RASTER	code-ready	test(app): stabilize golden screenshot rasterization	docs/acceptance/issue-287/golden/README.md
+ISSUE_287_GOLDEN_FULL_RASTER	code-ready	test(app): refresh full-raster appearance golden	docs/acceptance/issue-287/golden/routes-appearance-populated-dark-390.png
