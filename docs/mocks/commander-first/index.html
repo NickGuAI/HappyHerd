@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HappyHerd · Commander-first review</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <div class="preview">#300 · Interactive local mock · Simulated data only · Awaiting human review</div>
+    <header><strong>HappyHerd <span id="mode-label"></span></strong><button id="settings">Settings</button></header>
+    <main id="shell">
+        <aside id="library" aria-label="Bots and recent chats">
+            <div class="section-title"><h1 id="library-title">Sessions</h1><button id="create">+ Create Commander</button></div>
+            <label class="search">Search bots and chats<input id="search" type="search" placeholder="Find a Commander or conversation"></label>
+            <h2>Commanders <span class="muted">/ Bots</span></h2><div id="bots"></div>
+            <h2>Recent chats</h2><div id="recents"></div>
+        </aside>
+        <section id="chat" aria-label="Conversation">
+            <div class="chat-header"><button id="back">← Bots & chats</button><div><h1 id="chat-title">Choose a Commander</h1><div id="chat-subtitle" class="muted"></div></div><button id="new-chat" hidden>New chat</button></div>
+            <div id="standard" hidden><strong>Standard view · connection details</strong><div id="connection"></div><p>The standard app remains available when Simplified Mode is off. This is its review-only stand-in.</p></div>
+            <div id="messages" role="log" aria-label="Messages"></div>
+            <div id="error" role="alert" hidden></div>
+            <form id="composer" hidden>
+                <div id="attachments"></div>
+                <label for="draft" class="muted">Message <span id="draft-hint"></span></label>
+                <textarea id="draft" rows="3" placeholder="What would you like to work on?"></textarea>
+                <div class="composer-actions"><label class="file-button">+ Attach<input id="files" type="file" multiple aria-label="Attach files"></label><span class="muted">Local simulation</span><button id="send" class="primary" type="submit">Send</button></div>
+                <div id="attachment-status" role="status"></div>
+            </form>
+        </section>
+    </main>
+    <footer><details id="lab"><summary>Prototype lab · <span id="counts"></span></summary><div class="lab-controls"><label>Next launch scenario<select id="scenario"><option value="ready">Ready</option><option value="offline">Machine unavailable</option><option value="missing">Defaults missing</option><option value="failure">Temporary launch failure</option><option value="lost">Session created, response lost</option></select></label><button id="reset">Reset mock data</button></div><pre id="receipt"></pre></details></footer>
+    <dialog id="settings-dialog"><form method="dialog"><button class="close" aria-label="Close settings">✕</button></form><h1>Settings</h1><p class="muted">Features → Experimental Features</p><label class="toggle"><span><strong>Simplified Mode</strong><small>Choose a Commander, then send to start a chat.</small></span><input id="simplified" type="checkbox" role="switch"></label><p>Your Commanders, chats, drafts and standard connection settings are retained when switching modes.</p><hr><h2>Agent Defaults <span class="muted">· simulated</span></h2><p id="settings-defaults"></p><button id="repair">Restore saved mock defaults & machine</button><p class="muted">In production this recovery opens existing machine / Agent Defaults settings; this button only repairs the fixture.</p></dialog>
+    <dialog id="create-dialog"><form id="create-form"><h1>Create Commander</h1><p class="muted">A bot is an existing Commander, not a new account or provider.</p><label>Name<input id="name" required maxlength="60" autocomplete="off"></label><label>Purpose<textarea id="purpose" rows="3" maxlength="240" placeholder="How should this Commander help?"></textarea></label><p>Uses your saved defaults. Creating a Commander does not create a chat.</p><div class="dialog-actions"><button id="cancel-create" type="button">Cancel</button><button class="primary">Create Commander</button></div></form></dialog>
+</body>
+</html>

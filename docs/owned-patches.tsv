@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+COMMANDER_FIRST_MOCK	accepted	docs(mock): prototype Commander-first mode for issue 300	docs/mocks/commander-first/README.md
 NATIVE_INTERACTION_CHANGELOG_GOLDENS	accepted	test(app): refresh issue 295 changelog golden images	.dev/evidence/issue-295-native-interactions.md
 NATIVE_PLAN_QUESTION_RECOVERY	accepted	feat(providers): persist native plans and question answers	.dev/evidence/issue-295-native-interactions.md
 MANAGED_LOGIN_CHANGELOG_GOLDENS	accepted	test(app): refresh managed login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
