@@ -116,17 +116,23 @@ describe('Claude account rotation preserves interrupted work', () => {
         });
     });
 
-    it('classifies a failed turn usage snapshot before clearing current work', async () => {
-        sdkStream([failedResult], async () => ({
+    it.each(['five_hour', 'seven_day_sonnet', undefined])('uses the actual rejection reset (%s) instead of an unrelated exhausted snapshot window', async (rateLimitType) => {
+        sdkStream([{
+            ...rejected,
+            rate_limit_info: { ...rejected.rate_limit_info, rateLimitType },
+        }, failedResult], async () => ({
             rate_limits_available: true,
             rate_limits: {
-                five_hour: { utilization: 100, resets_at: '2035-01-01T00:00:00Z' },
+                seven_day_opus: { utilization: 100, resets_at: '2035-01-01T00:00:00Z' },
             },
         }));
         const turn = queuedTurn();
         await claudeRemote(turn.options);
         expectInterrupted(turn);
         expect(turn.onProviderHardLimit).toHaveBeenCalledTimes(1);
+        expect(turn.onProviderHardLimit).toHaveBeenCalledWith({
+            provider: 'claude', limitedUntil: 2_000_000_000_000,
+        });
     });
 
     it.each(['refused', 'thrown'] as const)('does not discard work after a %s rotation notice', async (failure) => {

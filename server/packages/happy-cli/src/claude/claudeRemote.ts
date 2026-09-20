@@ -321,11 +321,10 @@ export async function claudeRemote(opts: {
         if (signature === lastUsageSignature && Date.now() - lastUsageEmittedAt < USAGE_REFRESH_INTERVAL_MS) return;
         lastUsageSignature = signature;
         lastUsageEmittedAt = Date.now();
+        // get_usage includes inactive models and synthesizes display statuses
+        // from utilization. It is not evidence that this request was rejected.
+        // Only provider rejection events below may trigger quota rotation.
         opts.onUsageLimits(patch);
-        const hardLimit = classifyClaudeHardLimit(patch);
-        if (hardLimit) {
-            await deliverProviderHardLimit(hardLimit);
-        }
     };
     // Serialized: a second result must not interleave with a flush that is
     // still awaiting the seed, or it would drain the buffer mid-merge and
@@ -438,7 +437,7 @@ export async function claudeRemote(opts: {
                 logger.debug('[claudeRemote] Result received');
 
                 // Successful turns do not wait on optional usage telemetry.
-                // A failed turn must classify its usage snapshot before it
+                // A failed turn must flush its usage snapshot before it
                 // can discard the current batch as completed.
                 scheduleUsageFlush();
                 if (message.subtype !== 'success' && !providerHardLimitObserved) {

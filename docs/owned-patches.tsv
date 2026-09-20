@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+CLAUDE_MODEL_QUOTA	accepted	fix(claude): keep usage snapshots out of quota rotation	server/packages/happy-cli/src/claude/claudeRemote.test.ts
 CLAUDE_QUOTA_CHANGELOG_GOLDENS	accepted	test(app): refresh Claude quota recovery changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 CLAUDE_UNMANAGED_QUOTA	accepted	fix(claude): release unmanaged turns after quota rejection	server/packages/happy-cli/src/claude/claudeRemote.rotation.test.ts
 UPSTREAM_296_GOLDENS	code-ready	test(upstream): refresh exact-head changelog golden captures	docs/upstream-sync-37e94799.md
