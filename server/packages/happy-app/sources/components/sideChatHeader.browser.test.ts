@@ -2445,7 +2445,7 @@ describe('Side chats browser interaction', () => {
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(workspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
+        await expect.poll(() => workspace.getByPlaceholder('Path').inputValue(), { timeout: 3_000 }).toBe('/work/child-newest');
         await workspace.getByLabel('Attach child-newest-machine-file.md to next message').click({ timeout: 3_000 });
         await expect(page.evaluate(() => (window as any).__WORKSPACE_CONTEXT_CALLS__ ?? [])).resolves.toEqual([{
             sessionId: 'child-newest',
