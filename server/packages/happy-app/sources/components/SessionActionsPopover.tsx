@@ -54,13 +54,13 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     backdropScrim: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.10)',
+        backgroundColor: theme.colors.kilv.scrim,
     },
     webBackdrop: {
-        backgroundColor: 'rgba(0, 0, 0, 0.12)',
+        backgroundColor: theme.colors.kilv.scrim,
     },
     card: {
-        borderRadius: 16,
+        borderRadius: 6,
         overflow: 'hidden',
         backgroundColor: Platform.select({
             web: theme.colors.surface,
@@ -68,7 +68,7 @@ const stylesheet = StyleSheet.create((theme) => ({
             android: theme.colors.glass.backgroundStrong,
             default: theme.colors.surface,
         }),
-        borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
+        borderWidth: 1,
         borderColor: theme.colors.glass.border,
         shadowColor: theme.colors.shadow.color,
         shadowOpacity: theme.colors.shadow.opacity,
@@ -246,7 +246,7 @@ export function SessionActionsPopover({
 
     const nativeContent = (
         <>
-            <LocalBlurHalo borderRadius={18} expansion={14} />
+            <LocalBlurHalo borderRadius={6} expansion={14} />
             <MobileGlassSurface
                 enabled
                 nativeEffect

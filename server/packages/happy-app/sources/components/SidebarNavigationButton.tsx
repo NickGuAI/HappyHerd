@@ -13,9 +13,9 @@ const stylesheet = StyleSheet.create((theme) => ({
         alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 14,
-        borderRadius: 10,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
         backgroundColor: theme.colors.surface,
         gap: 8,
     },
@@ -29,7 +29,8 @@ const stylesheet = StyleSheet.create((theme) => ({
         paddingHorizontal: 10,
     },
     buttonHighlighted: {
-        backgroundColor: theme.colors.surfacePressed,
+        backgroundColor: theme.colors.surfaceSelected,
+        borderColor: theme.colors.kilv.accent,
     },
     label: {
         fontSize: 14,

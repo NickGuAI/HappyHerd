@@ -128,7 +128,7 @@ export function HappyHerdAutomationDetail({
                         </Pressable>
                     )}
                     <View style={styles.headingCopy}>
-                        <Text style={[styles.statusLabel, { color: active ? '#34C759' : theme.colors.textSecondary }]}>
+                        <Text style={[styles.statusLabel, { color: active ? theme.colors.success : theme.colors.textSecondary }]}>
                             {statusLabel}
                         </Text>
                         <Text style={styles.title} numberOfLines={2}>{automation.name}</Text>
@@ -288,7 +288,7 @@ export function HappyHerdAutomationDetail({
                                         {
                                             backgroundColor: run.status === 'failed'
                                                 ? theme.colors.status.disconnected
-                                                : '#34C759',
+                                                : theme.colors.success,
                                         },
                                     ]}
                                 />
@@ -407,7 +407,7 @@ export function HappyHerdAutomationDetail({
     );
 }
 
-const styles = StyleSheet.create(() => ({
+const styles = StyleSheet.create((theme) => ({
     panel: { minWidth: 0, flex: 1 },
     panelDesktop: {
         width: '34%',
@@ -435,28 +435,28 @@ const styles = StyleSheet.create(() => ({
     title: { marginTop: 6, fontSize: 19, ...Typography.default('semiBold') },
     backButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
     backText: { ...Typography.default('semiBold') },
-    iconButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+    iconButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: theme.borderRadius.md },
     scroll: { flex: 1 },
     scrollContent: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 28 },
     sectionLabel: { marginTop: 22, marginBottom: 9, marginHorizontal: 3, fontSize: 13, ...Typography.default('semiBold') },
-    instructionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, overflow: 'hidden' },
+    instructionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
     instructionHeader: { paddingHorizontal: 15, paddingTop: 13, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
     instructionTitle: { fontSize: 15, ...Typography.default('semiBold') },
     instructionBody: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 15, paddingTop: 13 },
     instructionCollapsed: { maxHeight: 92, overflow: 'hidden' },
     instructionAffordance: { paddingHorizontal: 15, paddingVertical: 12 },
     linkText: { fontSize: 13, ...Typography.default('semiBold') },
-    settingsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, overflow: 'hidden' },
+    settingsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
     settingRow: { minHeight: 46, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
     settingValue: { minWidth: 0, flexShrink: 1, textAlign: 'right' },
-    mono: { fontFamily: 'monospace', fontSize: 12 },
+    mono: { ...Typography.mono(), fontSize: 12 },
     historyLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
     historyError: { alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
     retryButton: {
         minHeight: 38,
         justifyContent: 'center',
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 10,
+        borderRadius: theme.borderRadius.md,
         paddingHorizontal: 14,
     },
     runRow: { minHeight: 50, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -464,11 +464,11 @@ const styles = StyleSheet.create(() => ({
     runCopy: { minWidth: 0, flex: 1 },
     runStatus: { ...Typography.default('semiBold') },
     runTime: { maxWidth: 150, fontSize: 12, textAlign: 'right' },
-    lifecycleCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, overflow: 'hidden' },
+    lifecycleCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
     lifecycleAction: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center' },
     footer: { paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 9 },
-    primaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    secondaryButton: { minHeight: 40, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    primaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: theme.borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+    secondaryButton: { minHeight: 40, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, alignItems: 'center', justifyContent: 'center' },
     buttonText: { ...Typography.default('semiBold') },
     pressed: { opacity: 0.7 },
 }));

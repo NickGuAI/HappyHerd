@@ -1,5 +1,6 @@
+import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -210,7 +211,7 @@ const styles = StyleSheet.create((theme) => ({
             default: theme.colors.surface,
         }),
         borderColor: theme.colors.glass.border,
-        borderRadius: 16,
+        borderRadius: 6,
         borderWidth: Platform.OS === 'web' ? 0 : StyleSheet.hairlineWidth,
         minWidth: 0,
         overflow: 'hidden',
@@ -246,7 +247,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     providerIcon: {
         alignItems: 'center',
-        borderRadius: 12,
+        borderRadius: 6,
         height: 40,
         justifyContent: 'center',
         width: 40,

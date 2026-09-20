@@ -155,7 +155,7 @@ export function AgentQuestionModal({ pending, sessionId, visible, onClose }: Age
                                         >
                                             <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
                                                 {selected && (
-                                                    <Ionicons name="checkmark" size={14} color="#fff" />
+                                                    <Ionicons name="checkmark" size={14} color={theme.colors.button.primary.tint} />
                                                 )}
                                             </View>
                                             <View style={styles.optionText}>
@@ -201,7 +201,7 @@ export function AgentQuestionModal({ pending, sessionId, visible, onClose }: Age
                         disabled={!ready || submitting}
                     >
                         {submitting ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color={theme.colors.button.primary.tint} />
                         ) : (
                             <Text style={styles.submitText}>{t('agentQuestion.submit')}</Text>
                         )}
@@ -272,7 +272,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#FF9500',
+        backgroundColor: theme.colors.warning,
     },
     questionText: {
         fontSize: 17,
@@ -289,7 +289,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         alignItems: 'flex-start',
         gap: 12,
         padding: 14,
-        borderRadius: 12,
+        borderRadius: 6,
         backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: 'transparent',
@@ -336,7 +336,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     customInput: {
         minHeight: 48,
-        borderRadius: 12,
+        borderRadius: 6,
         backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: theme.colors.divider,
@@ -348,7 +348,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     errorText: {
         fontSize: 14,
-        color: '#FF3B30',
+        color: theme.colors.textDestructive,
         ...Typography.default(),
     },
     footer: {
@@ -360,7 +360,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     submit: {
         height: 50,
-        borderRadius: 14,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: theme.colors.textLink,
@@ -370,7 +370,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     submitText: {
         fontSize: 16,
-        color: '#fff',
+        color: theme.colors.button.primary.tint,
         ...Typography.default('semiBold'),
     },
 }));

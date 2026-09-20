@@ -1,6 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useUnistyles } from 'react-native-unistyles';
 import {
     MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES,
     type HappyHerdCommanderSummary,
@@ -53,6 +54,7 @@ function uploadErrorMessage(error: unknown): string {
 }
 
 export function CommanderAvatarSettings() {
+    const { theme } = useUnistyles();
     const machines = useAllMachines({ includeOffline: true });
     const [machineStates, setMachineStates] = React.useState<Record<string, CommanderMachineState>>({});
     const [uploading, setUploading] = React.useState<string | null>(null);
@@ -143,7 +145,7 @@ export function CommanderAvatarSettings() {
             >
                 <Item
                     title={t('happyHerd.commanderAvatars.noMachines')}
-                    icon={<Ionicons name="desktop-outline" size={29} color="#999999" />}
+                    icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textSecondary} />}
                     disabled
                     showChevron={false}
                 />
@@ -161,7 +163,7 @@ export function CommanderAvatarSettings() {
                         <Item
                             key="offline"
                             title={t('happyHerd.commanderAvatars.machineOffline')}
-                            icon={<Ionicons name="cloud-offline-outline" size={29} color="#999999" />}
+                            icon={<Ionicons name="cloud-offline-outline" size={29} color={theme.colors.textSecondary} />}
                             disabled
                             showChevron={false}
                         />
@@ -181,7 +183,7 @@ export function CommanderAvatarSettings() {
                                 <Item
                                     key="error"
                                     title={t('happyHerd.commanderAvatars.loadFailed')}
-                                    icon={<Ionicons name="warning-outline" size={29} color="#FF9500" />}
+                                    icon={<Ionicons name="warning-outline" size={29} color={theme.colors.warning} />}
                                     disabled
                                     showChevron={false}
                                 />
@@ -211,7 +213,7 @@ export function CommanderAvatarSettings() {
                                                 />
                                             )}
                                             rightElement={(
-                                                <Ionicons name="camera-outline" size={22} color="#007AFF" />
+                                                <Ionicons name="camera-outline" size={22} color={theme.colors.textLink} />
                                             )}
                                             loading={uploading === identity}
                                             disabled={uploading !== null}

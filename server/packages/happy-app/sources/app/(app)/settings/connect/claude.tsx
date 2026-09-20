@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React from 'react';
 import { useRouter } from 'expo-router';
 import { OAuthView } from '@/components/OAuthView';
@@ -94,7 +95,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     webview: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0)',
+        backgroundColor: 'transparent',
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -131,11 +132,11 @@ const styles = StyleSheet.create((theme) => ({
     retryButton: {
         paddingHorizontal: 20,
         paddingVertical: 10,
-        backgroundColor: '#007AFF',
-        borderRadius: 8,
+        backgroundColor: theme.colors.button.primary.background,
+        borderRadius: theme.borderRadius.md,
     },
     retryButtonText: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -159,12 +160,12 @@ const styles = StyleSheet.create((theme) => ({
         marginBottom: 24,
     },
     terminalContainer: {
-        backgroundColor: Platform.select({ web: '#1e1e1e', android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
-        borderRadius: Platform.select({ web: 8, default: 18 }),
+        backgroundColor: theme.colors.surfaceHigh,
+        borderRadius: theme.borderRadius.xl,
         padding: 16,
         minWidth: 280,
         borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
-        borderColor: Platform.select({ web: 'rgba(255, 255, 255, 0.1)', default: theme.colors.glass.border }),
+        borderColor: theme.colors.divider,
         overflow: 'hidden',
         shadowColor: theme.colors.glass.shadow,
         shadowOffset: { width: 0, height: 10 },
@@ -172,13 +173,13 @@ const styles = StyleSheet.create((theme) => ({
         shadowRadius: 24,
     },
     terminalPrompt: {
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        ...Typography.mono(),
         fontSize: 14,
-        color: '#00ff00',
+        color: theme.colors.textLink,
     },
     terminalCommand: {
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        ...Typography.mono(),
         fontSize: 14,
-        color: '#ffffff',
+        color: theme.colors.text,
     },
 }));

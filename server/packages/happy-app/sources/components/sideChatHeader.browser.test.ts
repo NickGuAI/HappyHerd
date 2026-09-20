@@ -20,34 +20,8 @@ const virtualModules: Record<string, string> = {
         export const useAnimatedValue = (initialValue) => React.useRef(new Animated.Value(initialValue)).current;
     `,
     'react-native-unistyles': `
-        import { lightTheme } from '${resolve(appRoot, 'sources/theme.ts')}';
-        const theme = {
-            dark: false,
-            colors: {
-                diff: lightTheme.colors.diff,
-                text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#f5f5f5',
-                textLink: '#06c', textDestructive: '#c22', warningCritical: '#c22',
-                surfaceHigh: '#eee', surfaceHighest: '#e8e8e8', surfacePressed: '#ddd', surfacePressedOverlay: 'transparent',
-                surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
-                input: { background: '#f0f0f0', placeholder: '#999', text: '#111' },
-                header: { background: '#fff', tint: '#111' },
-                modal: { border: '#ddd' },
-                glass: {
-                    backgroundStrong: '#fff', backgroundSubtle: '#f8f8f8', border: '#ddd', divider: '#ddd',
-                    overlay: '#fff', overlayTint: '#fff',
-                },
-                shadow: { color: '#000', opacity: 0.1 },
-                button: { primary: { tint: '#fff', background: '#111', disabled: '#aaa' }, secondary: { tint: '#666' } },
-                success: '#0a0', gitAddedText: '#0a0', gitRemovedText: '#c22',
-                box: {
-                    error: { background: '#fee', border: '#d44', text: '#900' },
-                    warning: { background: '#fff8dd', border: '#b70', text: '#742' },
-                },
-                radio: { active: '#111', inactive: '#aaa', dot: '#fff' }, warning: '#b70',
-                status: { error: '#c22' },
-                switch: lightTheme.colors.switch,
-            },
-        };
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },

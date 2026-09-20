@@ -212,7 +212,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surface,
         marginHorizontal: Platform.select({ ios: 16, default: 12 }),
         marginBottom: 8,
-        borderRadius: Platform.select({ web: 16, default: 18 }),
+        borderRadius: theme.borderRadius.xl,
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
         borderColor: theme.colors.divider,
         overflow: 'hidden',

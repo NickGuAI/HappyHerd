@@ -1,16 +1,19 @@
 import React from 'react';
-import { View, Text, Platform, Pressable } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { View, Text, Platform, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import { RoundButton } from '@/components/RoundButton';
 import { useConnectTerminal } from '@/hooks/useConnectTerminal';
 import { Modal } from '@/modal';
 import { t } from '@/text';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles, withUnistyles } from 'react-native-unistyles';
 import { useAllMachines } from '@/sync/storage';
 import { collectMachineChoices } from '@/sync/machineChoices';
 import { useOfflineMachineTroubleshooting } from '@/hooks/useOfflineMachineTroubleshooting';
 import { useRouter } from 'expo-router';
+
+const Image = withUnistyles(ExpoImage);
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -19,8 +22,26 @@ const stylesheet = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         marginBottom: 32,
     },
+    onboardingScroll: {
+        flex: 1,
+    },
+    onboardingContent: {
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 32,
+    },
+    artwork: {
+        width: 128,
+        height: 128,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        marginBottom: 24,
+    },
     title: {
         marginBottom: 16,
+        paddingHorizontal: 24,
         textAlign: 'center',
         fontSize: 24,
         color: theme.colors.text,
@@ -47,18 +68,18 @@ const stylesheet = StyleSheet.create((theme) => ({
         ...Typography.default(),
     },
     terminalBlock: {
-        backgroundColor: Platform.select({ web: theme.colors.surfaceHighest, default: theme.colors.surfaceHigh }),
-        borderRadius: Platform.select({ web: 8, default: 12 }),
+        backgroundColor: theme.colors.kilv.bgSunken,
+        borderRadius: 6,
         padding: 20,
         marginHorizontal: 24,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: theme.colors.divider,
+        borderColor: theme.colors.kilv.rimLine,
     },
     terminalText: {
         ...Typography.mono(),
         fontSize: 16,
-        color: theme.colors.status.connected,
+        color: theme.colors.terminal.prompt,
     },
     terminalTextFirst: {
         marginBottom: 8,
@@ -81,10 +102,11 @@ const stylesheet = StyleSheet.create((theme) => ({
     stepNumber: {
         width: 24,
         height: 24,
-        borderRadius: 12,
+        flexShrink: 0,
+        borderRadius: 4,
         backgroundColor: Platform.select({ web: theme.colors.surfaceHigh, default: theme.colors.surfaceHighest }),
-        borderWidth: Platform.OS === 'web' ? 0 : 1,
-        borderColor: theme.colors.divider,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
@@ -96,6 +118,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     stepText: {
         ...Typography.default(),
+        flex: 1,
         fontSize: 18,
         color: theme.colors.textSecondary,
     },
@@ -113,14 +136,17 @@ const stylesheet = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         gap: 7,
         minHeight: 40,
+        marginHorizontal: 24,
         paddingHorizontal: 14,
-        borderRadius: 20,
+        borderRadius: 4,
     },
     manualUrlButtonPressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
     },
     manualUrlButtonText: {
         fontSize: 15,
+        flexShrink: 1,
+        textAlign: 'center',
         color: theme.colors.textSecondary,
         ...Typography.default('semiBold'),
     },
@@ -130,7 +156,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         paddingHorizontal: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 20,
+        borderRadius: 4,
     },
     secondaryActionPressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
@@ -145,9 +171,11 @@ const stylesheet = StyleSheet.create((theme) => ({
 export function EmptyMainScreen({
     hasArchivedSessions = false,
     onShowArchived,
+    bottomContentInset = 0,
 }: {
     hasArchivedSessions?: boolean;
     onShowArchived?: () => void;
+    bottomContentInset?: number;
 }) {
     const { connectTerminal, connectWithUrl, isLoading } = useConnectTerminal();
     const { theme } = useUnistyles();
@@ -213,7 +241,17 @@ export function EmptyMainScreen({
     }
 
     return (
-        <View style={styles.container}>
+        <ScrollView
+            testID="empty-main-onboarding"
+            style={styles.onboardingScroll}
+            contentContainerStyle={[styles.onboardingContent, { paddingBottom: Math.max(32, bottomContentInset) }]}
+        >
+            <Image
+                accessible={false}
+                source={theme.dark ? require('@/assets/images/kilv-mark-dark.webp') : require('@/assets/images/kilv-mark-light.webp')}
+                contentFit="cover"
+                style={styles.artwork}
+            />
             {/* Terminal-style code block */}
             <Text style={styles.title}>{t('components.emptyMainScreen.readyToCode')}</Text>
             <View style={styles.terminalBlock}>
@@ -281,6 +319,6 @@ export function EmptyMainScreen({
                 </>
             )}
             {showArchivedAction}
-        </View>
+        </ScrollView>
     );
 }

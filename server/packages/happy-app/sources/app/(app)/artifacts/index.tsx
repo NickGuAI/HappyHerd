@@ -66,17 +66,17 @@ const stylesheet = StyleSheet.create((theme) => ({
         width: '100%',
     },
     artifactItemFirst: {
-        borderTopLeftRadius: Platform.select({ web: 12, default: 18 }),
-        borderTopRightRadius: Platform.select({ web: 12, default: 18 }),
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
         marginTop: 16,
     },
     artifactItemLast: {
-        borderBottomLeftRadius: Platform.select({ web: 12, default: 18 }),
-        borderBottomRightRadius: Platform.select({ web: 12, default: 18 }),
+        borderBottomLeftRadius: theme.borderRadius.xl,
+        borderBottomRightRadius: theme.borderRadius.xl,
         marginBottom: 16,
     },
     artifactItemSingle: {
-        borderRadius: Platform.select({ web: 12, default: 18 }),
+        borderRadius: theme.borderRadius.xl,
         marginTop: 16,
         marginBottom: 16,
     },
@@ -115,14 +115,14 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.fab.background,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
+        shadowColor: theme.colors.shadow.color,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
         elevation: 4,
     },
     fabIcon: {
-        color: '#FFFFFF',
+        color: theme.colors.button.primary.tint,
     },
 }));
 

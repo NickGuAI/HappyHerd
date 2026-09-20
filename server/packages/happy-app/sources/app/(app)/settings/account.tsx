@@ -313,7 +313,7 @@ export default React.memo(() => {
                         <Item
                             title={t('settingsAccount.linkNewDevice')}
                             subtitle={isConnecting ? t('common.scanning') : t('settingsAccount.linkNewDeviceSubtitle')}
-                            icon={<Ionicons name="qr-code-outline" size={29} color="#007AFF" />}
+                            icon={<Ionicons name="qr-code-outline" size={29} color={theme.colors.textLink} />}
                             onPress={connectAccount}
                             disabled={isConnecting}
                             showChevron={false}
@@ -433,8 +433,8 @@ export default React.memo(() => {
                                     const optOut = !value;
                                     setAnalyticsOptOut(optOut);
                                 }}
-                                trackColor={{ false: '#767577', true: '#34C759' }}
-                                thumbColor="#FFFFFF"
+                                trackColor={{ false: theme.colors.switch.track.inactive, true: theme.colors.switch.track.active }}
+                                thumbColor={theme.colors.switch.thumb.active}
                             />
                         }
                         showChevron={false}
@@ -449,7 +449,7 @@ export default React.memo(() => {
                         title={t("uiCopy.permission")}
                         detail={formatPushPermissionLabel(pushPermission)}
                         subtitle={formatPushPermissionSubtitle(pushPermission)}
-                        icon={<Ionicons name="notifications-outline" size={29} color="#007AFF" />}
+                        icon={<Ionicons name="notifications-outline" size={29} color={theme.colors.textLink} />}
                         loading={loadingPushSettings}
                         showChevron={false}
                     />
@@ -460,7 +460,7 @@ export default React.memo(() => {
                             : pushPermission?.canAskAgain
                             ? t('uiCopy.showPushPromptAgain')
                             : t('uiCopy.openPushSettings')}
-                        icon={<Ionicons name="shield-checkmark-outline" size={29} color="#34C759" />}
+                        icon={<Ionicons name="shield-checkmark-outline" size={29} color={theme.colors.success} />}
                         onPress={handlePushPermissionRequest}
                         loading={requestingPushPermission}
                         disabled={requestingPushPermission || loadingPushSettings || pushPermission?.status === 'unsupported' || !auth.credentials}
@@ -471,7 +471,7 @@ export default React.memo(() => {
                         subtitle={currentPushToken
                             ? t('uiCopy.currentTokenValue', { value1: formatPushTokenFingerprint(currentPushToken) })
                             : t('uiCopy.fetchAndRegisterExpoToken')}
-                        icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}
+                        icon={<Ionicons name="refresh-outline" size={29} color={theme.colors.warning} />}
                         onPress={handleRefreshCurrentPushToken}
                         loading={refreshingPushToken}
                         disabled={refreshingPushToken || loadingPushSettings || !auth.credentials}
@@ -508,7 +508,7 @@ export default React.memo(() => {
                                             <Ionicons
                                                 name={isCurrentDevice ? 'phone-portrait-outline' : 'trash-outline'}
                                                 size={29}
-                                                color={isCurrentDevice ? theme.colors.textSecondary : '#FF3B30'}
+                                                color={isCurrentDevice ? theme.colors.textSecondary : theme.colors.textDestructive}
                                             />
                                         )}
                                         onPress={isCurrentDevice ? undefined : () => handleDeletePushToken(pushToken)}
@@ -528,7 +528,7 @@ export default React.memo(() => {
                     <Item
                         title={t('settingsAccount.logout')}
                         subtitle={t('settingsAccount.logoutSubtitle')}
-                        icon={<Ionicons name="log-out-outline" size={29} color="#FF3B30" />}
+                        icon={<Ionicons name="log-out-outline" size={29} color={theme.colors.textDestructive} />}
                         destructive
                         onPress={handleLogout}
                     />

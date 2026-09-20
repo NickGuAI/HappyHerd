@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import type {
     CredentialLoginFlow,
@@ -136,7 +137,7 @@ function ActionButton({
                 minHeight: 44,
                 minWidth: 44,
                 paddingHorizontal: 14,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius.md,
                 borderWidth: 1,
                 borderColor: selected ? theme.colors.header.tint : theme.colors.divider,
                 backgroundColor: pressed ? theme.colors.surfacePressedOverlay : theme.colors.surface,
@@ -207,9 +208,10 @@ function FormField({
                     minHeight: 44,
                     borderWidth: 1,
                     borderColor: theme.colors.divider,
-                    borderRadius: 10,
+                    borderRadius: theme.borderRadius.md,
                     paddingHorizontal: 12,
                     paddingVertical: 10,
+                    ...Typography.default(),
                     fontSize: 16,
                     color: theme.colors.text,
                     backgroundColor: theme.colors.groupped.background,
@@ -758,7 +760,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                     title={selectedMachine ? getMachineName(selectedMachine) : t('settingsCredentials.selectMachine')}
                     subtitle={machineSubtitle}
                     subtitleLines={0}
-                    icon={<Ionicons name="desktop-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textLink} />}
                     onPress={orderedMachines.length ? () => setMachinePickerExpanded((value) => !value) : undefined}
                     showChevron={orderedMachines.length > 0}
                     accessibilityRole={orderedMachines.length ? 'button' : undefined}
@@ -1066,7 +1068,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
             <ItemGroup title={t('settingsCredentials.savedCredentials')} footer={t('settingsCredentials.credentialHelp')}>
                 <Item
                     title={t('settingsCredentials.addCredential')}
-                    icon={<Ionicons name="key-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="key-outline" size={29} color={theme.colors.warning} />}
                     onPress={() => {
                         credentialMutationGeneration.current += 1;
                         revealGeneration.current += 1;
@@ -1203,7 +1205,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                                 title={credential.name}
                                 subtitle={[credential.service, credential.username].filter(Boolean).join(' · ') || credentialTypeLabel(credential.type)}
                                 detail={credential.usage.map(usageLabel).join(', ')}
-                                icon={<Ionicons name="key-outline" size={29} color="#FF9500" />}
+                                icon={<Ionicons name="key-outline" size={29} color={theme.colors.warning} />}
                                 onPress={() => {
                                     revealGeneration.current += 1;
                                     setRevealBusyId(null);
@@ -1221,11 +1223,11 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                                         minHeight: 44,
                                         color: theme.colors.text,
                                         fontSize: 16,
-                                        fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+                                        ...Typography.mono(),
                                         padding: 12,
                                         borderWidth: 1,
                                         borderColor: theme.colors.divider,
-                                        borderRadius: 10,
+                                        borderRadius: theme.borderRadius.md,
                                     }}>
                                         {revealed ?? '••••••••••••'}
                                     </Text>

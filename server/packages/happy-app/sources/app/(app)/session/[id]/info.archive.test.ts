@@ -92,10 +92,14 @@ vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
-vi.mock('react-native-unistyles', () => ({
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
+    return ({
     useUnistyles: () => ({
         theme: {
+            ...lightTheme,
             colors: {
+                ...lightTheme.colors,
                 groupped: { background: 'background' },
                 glass: {
                     backgroundStrong: 'glass',
@@ -112,7 +116,8 @@ vi.mock('react-native-unistyles', () => ({
             },
         },
     }),
-}));
+});
+});
 vi.mock('@/components/Item', async () => {
     const ReactModule = await import('react');
     return { Item: (props: any) => ReactModule.createElement('Item', props) };

@@ -1,6 +1,8 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { View, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { UserSearchResult } from '@/components/UserSearchResult';
 import { searchUsersByUsername, sendFriendRequest } from '@/sync/apiFriends';
 import { useAuth } from '@/auth/AuthContext';
@@ -13,6 +15,7 @@ import { ItemGroup } from '@/components/ItemGroup';
 import { useSearch } from '@/hooks/useSearch';
 
 export default function SearchFriendsScreen() {
+    const { theme } = useUnistyles();
     const { credentials } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [processingUserId, setProcessingUserId] = useState<string | null>(null);
@@ -84,7 +87,7 @@ export default function SearchFriendsScreen() {
                         <TextInput
                             style={styles.searchInput}
                             placeholder={t('friends.searchPlaceholder')}
-                            placeholderTextColor="#999999"
+                            placeholderTextColor={theme.colors.input.placeholder}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             autoCapitalize="none"
@@ -95,7 +98,7 @@ export default function SearchFriendsScreen() {
                         
                         {isSearching && (
                             <View style={styles.searchingIndicator}>
-                                <ActivityIndicator size="small" color="#2BACCC" />
+                                <ActivityIndicator size="small" color={theme.colors.textLink} />
                             </View>
                         )}
                     </View>
@@ -107,7 +110,7 @@ export default function SearchFriendsScreen() {
                     <View style={styles.resultsSection}>
                         {isSearching && searchResults.length === 0 ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color="#2BACCC" />
+                                <ActivityIndicator size="large" color={theme.colors.textLink} />
                                 <Text style={styles.loadingText}>{t('friends.searching')}</Text>
                             </View>
                         ) : searchResults.length > 0 ? (
@@ -159,10 +162,11 @@ const styles = StyleSheet.create((theme) => ({
         position: 'relative',
     },
     searchInput: {
+        ...Typography.default(),
         backgroundColor: Platform.select({ web: theme.colors.surface, default: 'transparent' }),
         borderWidth: 1,
         borderColor: theme.colors.divider,
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         paddingHorizontal: 16,
         paddingVertical: 16,
         fontSize: 16,

@@ -15,9 +15,12 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             text: '#111111',
             textSecondary: '#666666',
             surface: '#ffffff',
@@ -38,7 +41,7 @@ vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 
 const translations: Record<string, string> = {
     'happyHerd.automations.statusActive': 'Active',

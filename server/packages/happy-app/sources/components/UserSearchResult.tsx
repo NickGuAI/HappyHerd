@@ -1,6 +1,7 @@
+import { Text } from '@/components/StyledText';
 import React from 'react';
-import { Platform, View, Text, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { Platform, View, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { UserProfile, getDisplayName } from '@/sync/friendTypes';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/text';
@@ -18,6 +19,7 @@ export function UserSearchResult({
     onAddFriend, 
     isProcessing = false 
 }: UserSearchResultProps) {
+    const { theme } = useUnistyles();
     const router = useRouter();
     const displayName = getDisplayName(user);
     const avatarUrl = user.avatar?.url || user.avatar?.path;
@@ -25,7 +27,7 @@ export function UserSearchResult({
     // Determine button state based on relationship status
     const getButtonContent = () => {
         if (isProcessing) {
-            return <ActivityIndicator size="small" color="white" />;
+            return <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />;
         }
         
         switch (user.status) {
@@ -82,16 +84,16 @@ const styles = StyleSheet.create((theme) => ({
         marginHorizontal: 16,
         marginVertical: 4,
         backgroundColor: Platform.select({ web: theme.colors.surface, default: 'transparent' }),
-        borderRadius: Platform.select({ web: 12, default: 18 }),
+        borderRadius: theme.borderRadius.xl,
         overflow: Platform.select({ web: 'visible', default: 'hidden' }),
-        shadowColor: Platform.select({ web: '#000', default: 'transparent' }),
+        shadowColor: Platform.select({ web: theme.colors.shadow.color, default: 'transparent' }),
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: Platform.select({ web: 0.05, default: 0 }),
         shadowRadius: Platform.select({ web: 2, default: 0 }),
         elevation: Platform.select({ web: 2, default: 0 }),
     },
     glassCard: {
-        borderRadius: Platform.select({ web: 0, default: 18 }),
+        borderRadius: Platform.select({ web: 0, default: theme.borderRadius.xl }),
         overflow: Platform.select({ web: 'visible', default: 'hidden' }),
         backgroundColor: Platform.select({ web: 'transparent', android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
@@ -120,7 +122,7 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: Platform.select({ web: theme.colors.button.primary.background, default: theme.colors.glass.backgroundSubtle }),
         paddingHorizontal: 16,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         minWidth: 100,
         alignItems: 'center',
         borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),

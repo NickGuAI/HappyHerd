@@ -25,7 +25,7 @@ vi.mock('./diff/syntax/shared', () => ({ get diffSyntax() { return state.service
 
 import { SyntaxText } from './SyntaxText';
 import { CommandView } from './CommandView';
-import { darkTheme } from '@/theme';
+import { darkTheme, lightTheme } from '@/theme';
 
 const renderers: ReturnType<typeof create>[] = [];
 const jobs: { input: SyntaxInput; resolve: (result: SyntaxResult) => void }[] = [];
@@ -92,7 +92,7 @@ describe('detail-only terminal syntax', () => {
         expect(state.service.getStats()).toMatchObject({ completed: 1, running: false });
     });
 
-    it.each([false, true])('uses readable dark-surface colors even when app dark mode is %s', async dark => {
+    it.each([false, true])('keeps classified terminal text readable on its actual themed well (dark=%s)', async dark => {
         state.dark = dark;
         const tree = render(React.createElement(CommandView, {
             command: 'echo "hi"', stdout: 'if true 123\n', stderr: 'failed\n', syntaxHighlighting: true,
@@ -105,9 +105,19 @@ describe('detail-only terminal syntax', () => {
         await finish(1);
         await tick(1);
         await finish(2);
-        const colored = tree.root.findAllByType('Text').filter((node: any) => node.props.style?.color === darkTheme.colors.diff.syntax.string);
+        const theme = dark ? darkTheme : lightTheme;
+        const colored = tree.root.findAllByType('Text').filter((node: any) => node.props.style?.color === theme.colors.diff.syntax.string);
         expect(colored).toHaveLength(1);
         expect(textOf(colored[0])).toBe('"hi"');
+        const surface = tree.root.findAllByType('View').find((node: any) => (
+            Array.isArray(node.props.style) && node.props.style[0]?.backgroundColor
+        ));
+        const luminance = (hex: string) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
+            .reduce((sum, value, index) => sum + [0.2126, 0.7152, 0.0722][index]
+                * (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4), 0);
+        const foreground = luminance(colored[0].props.style.color);
+        const background = luminance(surface!.props.style[0].backgroundColor);
+        expect((Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)).toBeGreaterThanOrEqual(4.5);
         // Logs retain stdout/stderr colors, not misleading Bash token colors.
         expect(syntax(tree).slice(1).every((node: any) => node.children.every((child: unknown) => typeof child === 'string'))).toBe(true);
     });

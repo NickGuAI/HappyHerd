@@ -1,5 +1,7 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import * as React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Octicons } from '@expo/vector-icons';
 import { ToolCall } from '@/sync/typesMessage';
@@ -120,7 +122,7 @@ const styles = StyleSheet.create((theme) => ({
     commandText: {
         fontSize: 12,
         color: theme.colors.textSecondary,
-        fontFamily: 'monospace',
+        fontFamily: Typography.mono().fontFamily,
         marginTop: 8,
     },
 }));

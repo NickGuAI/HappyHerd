@@ -20,6 +20,7 @@ describe('CodeEditor Web typography', () => {
             format: 'iife',
             platform: 'browser',
             jsx: 'automatic',
+            alias: { 'react-native': 'react-native-web' },
         });
         const script = bundle.outputFiles[0].text;
         server = createServer((_request, response) => {

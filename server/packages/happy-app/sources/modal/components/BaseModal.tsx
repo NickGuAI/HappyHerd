@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
         // On web, ensure modal can receive pointer events when body has pointer-events: none
         ...Platform.select({ web: { pointerEvents: 'auto' as const } })
     },
@@ -126,6 +127,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'black',
     },
     content: {
-        zIndex: 1
+        zIndex: 1,
+        maxWidth: '100%'
     }
 });

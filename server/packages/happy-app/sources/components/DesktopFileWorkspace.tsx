@@ -522,7 +522,7 @@ const styles = StyleSheet.create((theme) => ({
     compactBack: {
         width: 30,
         height: 30,
-        borderRadius: 7,
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -582,7 +582,7 @@ const styles = StyleSheet.create((theme) => ({
     tabClose: {
         width: 22,
         height: 22,
-        borderRadius: 5,
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -593,7 +593,7 @@ const styles = StyleSheet.create((theme) => ({
         width: 30,
         height: 30,
         flexShrink: 0,
-        borderRadius: 7,
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexShrink: 0,
     },
     branchText: {
+        ...Typography.mono(),
         fontSize: 13,
         fontWeight: '500',
         color: theme.colors.groupped.sectionTitle,
@@ -36,6 +38,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexShrink: 0,
     },
     filesText: {
+        ...Typography.mono(),
         fontSize: 11,
         fontWeight: '500',
         color: theme.colors.textSecondary,
@@ -47,11 +50,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         gap: 2,
     },
     addedText: {
+        ...Typography.mono(),
         fontSize: 11,
         fontWeight: '600',
         color: theme.colors.gitAddedText,
     },
     removedText: {
+        ...Typography.mono(),
         fontSize: 11,
         fontWeight: '600',
         color: theme.colors.gitRemovedText,

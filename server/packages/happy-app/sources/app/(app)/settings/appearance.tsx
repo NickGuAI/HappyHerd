@@ -1,3 +1,4 @@
+import { Text } from '@/components/StyledText';
 import { Ionicons } from '@expo/vector-icons';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -8,7 +9,7 @@ import { useRouter } from 'expo-router';
 import * as Localization from 'expo-localization';
 import { StyleSheet, useUnistyles, UnistylesRuntime } from 'react-native-unistyles';
 import { Switch } from '@/components/Switch';
-import { Appearance, Platform, Pressable, Text, View } from 'react-native';
+import { Appearance, Platform, Pressable, View } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import { darkTheme, lightTheme } from '@/theme';
 import {
@@ -390,7 +391,7 @@ export default function AppearanceSettingsScreen() {
             <ItemGroup title={t('settingsLanguage.title')} footer={t('settingsLanguage.description')}>
                 <Item
                     title={t('settingsLanguage.currentLanguage')}
-                    icon={<Ionicons name="language-outline" size={29} color="#007AFF" />}
+                    icon={<Ionicons name="language-outline" size={29} color={theme.colors.textLink} />}
                     detail={getLanguageDisplayText()}
                     onPress={() => router.push('/settings/language')}
                 />
@@ -525,7 +526,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title="Text Size"
                     subtitle="Make text larger or smaller"
-                    icon={<Ionicons name="text-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="text-outline" size={29} color={theme.colors.textLink} />}
                     detail="Default"
                     onPress={() => { }}
                     disabled
@@ -533,7 +534,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title="Font"
                     subtitle="Choose your preferred font"
-                    icon={<Ionicons name="text-outline" size={29} color="#FF9500" />}
+                    icon={<Ionicons name="text-outline" size={29} color={theme.colors.textLink} />}
                     detail="System"
                     onPress={() => { }}
                     disabled
@@ -545,7 +546,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsAppearance.alwaysShowContextSize')}
                     subtitle={t('settingsAppearance.alwaysShowContextSizeDescription')}
-                    icon={<Ionicons name="analytics-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="analytics-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={alwaysShowContextSize}
@@ -560,7 +561,7 @@ export default function AppearanceSettingsScreen() {
                             subtitle={agentInputEnterToSend
                                 ? t('settingsFeatures.enterToSendEnabled')
                                 : t('settingsFeatures.enterToSendDisabled')}
-                            icon={<Ionicons name="return-down-forward-outline" size={29} color="#007AFF" />}
+                            icon={<Ionicons name="return-down-forward-outline" size={29} color={theme.colors.textLink} />}
                             rightElement={
                                 <Switch
                                     value={agentInputEnterToSend}
@@ -574,7 +575,7 @@ export default function AppearanceSettingsScreen() {
                             subtitle={commandPaletteEnabled
                                 ? t('settingsFeatures.commandPaletteEnabled')
                                 : t('settingsFeatures.commandPaletteDisabled')}
-                            icon={<Ionicons name="keypad-outline" size={29} color="#007AFF" />}
+                            icon={<Ionicons name="keypad-outline" size={29} color={theme.colors.textLink} />}
                             rightElement={
                                 <Switch
                                     value={commandPaletteEnabled}
@@ -591,7 +592,7 @@ export default function AppearanceSettingsScreen() {
                 {Platform.OS === 'web' ? (
                     <Item
                         title={t('sessionsFilter.groupingTitle')}
-                        icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
+                        icon={<Ionicons name="list-outline" size={29} color={theme.colors.textLink} />}
                         showChevron={false}
                         rightElement={
                             <select
@@ -626,7 +627,7 @@ export default function AppearanceSettingsScreen() {
                     >
                         <Item
                             title={t('sessionsFilter.groupingTitle')}
-                            icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
+                            icon={<Ionicons name="list-outline" size={29} color={theme.colors.textLink} />}
                             detail={getSessionListGroupingLabel(sessionListGrouping)}
                         />
                     </NativeSettingsMenu>
@@ -634,7 +635,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsAppearance.compactToolCalls')}
                     subtitle={t('settingsAppearance.compactToolCallsDescription')}
-                    icon={<Ionicons name="contract-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="contract-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={compactToolCalls}
@@ -645,7 +646,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('happyHerd.features.fileDiffsSidebar')}
                     subtitle={t('happyHerd.features.fileDiffsSidebarSubtitle')}
-                    icon={<Ionicons name="git-branch-outline" size={29} color="#5AC8FA" />}
+                    icon={<Ionicons name="git-branch-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={fileDiffsSidebar}
@@ -657,7 +658,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsFeatures.groupToolCalls')}
                     subtitle={t('settingsFeatures.groupToolCallsSubtitle')}
-                    icon={<Ionicons name="layers-outline" size={29} color="#AF52DE" />}
+                    icon={<Ionicons name="layers-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={groupToolCalls}
@@ -669,7 +670,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsAppearance.showLineNumbersInToolViews')}
                     subtitle={t('settingsAppearance.showLineNumbersInToolViewsDescription')}
-                    icon={<Ionicons name="code-working-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="code-working-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={showLineNumbersInToolViews}
@@ -680,7 +681,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsAppearance.showHarnessIconInSessionHeader')}
                     subtitle={t('settingsAppearance.showHarnessIconInSessionHeaderDescription')}
-                    icon={<Ionicons name="apps-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="apps-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={showHarnessIconInSessionHeader}
@@ -691,7 +692,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title={t('settingsAppearance.showHarnessIconsInSessionList')}
                     subtitle={t('settingsAppearance.showHarnessIconsInSessionListDescription')}
-                    icon={<Ionicons name="apps-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="apps-outline" size={29} color={theme.colors.textLink} />}
                     rightElement={
                         <Switch
                             value={showFlavorIcons}
@@ -702,7 +703,7 @@ export default function AppearanceSettingsScreen() {
                 {/* <Item
                     title="Show Avatars"
                     subtitle="Display user and assistant avatars"
-                    icon={<Ionicons name="person-circle-outline" size={29} color="#5856D6" />}
+                    icon={<Ionicons name="person-circle-outline" size={29} color={theme.colors.textLink} />}
                     disabled
                     rightElement={
                         <Switch
@@ -718,7 +719,7 @@ export default function AppearanceSettingsScreen() {
                 <Item
                     title="Accent Color"
                     subtitle="Choose your accent color"
-                    icon={<Ionicons name="color-palette-outline" size={29} color="#FF3B30" />}
+                    icon={<Ionicons name="color-palette-outline" size={29} color={theme.colors.textLink} />}
                     detail="Blue"
                     onPress={() => { }}
                     disabled
@@ -789,7 +790,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     bubblePreview: {
         width: 46,
         height: 28,
-        borderRadius: 14,
+        borderRadius: theme.borderRadius.xl,
         borderWidth: 1,
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -799,6 +800,6 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     bubblePreviewLine: {
         height: 3,
-        borderRadius: 999,
+        borderRadius: theme.borderRadius.xl,
     },
 }));

@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React from 'react';
 import { View, ScrollView, TextInput, Pressable, ActivityIndicator, Platform, KeyboardAvoidingView as RNKeyboardAvoidingView } from 'react-native';
 import { Text } from '@/components/StyledText';
@@ -52,8 +53,9 @@ const stylesheet = StyleSheet.create((theme) => ({
         letterSpacing: 0.5,
     },
     input: {
+        ...Typography.default(),
         backgroundColor: Platform.select({ web: theme.colors.surface, default: 'transparent' }),
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontSize: 16,
@@ -71,7 +73,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         lineHeight: 22,
     },
     inputGlass: {
-        borderRadius: 14,
+        borderRadius: theme.borderRadius.xl,
         overflow: 'hidden',
         backgroundColor: Platform.select({ web: 'transparent', android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
     },

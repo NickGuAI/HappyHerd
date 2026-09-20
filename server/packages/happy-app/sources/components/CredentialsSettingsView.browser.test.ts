@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,11 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
+// Match shipped font metrics before visibility and responsive-layout assertions.
+const fixtureFontNames = ['SpaceGrotesk-Regular', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'];
+const fixtureFontFaces = fixtureFontNames.map((name) => (
+    `@font-face{font-family:"${name}";src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, 'sources/assets/fonts', `${name}.ttf`)).toString('base64')}) format('truetype');}`
+)).join('');
 
 const virtualModules: Record<string, string> = {
     'react-native': `
@@ -21,26 +26,8 @@ const virtualModules: Record<string, string> = {
         };
     `,
     'react-native-unistyles': `
-        const dark = globalThis.__DARK__;
-        const theme = {
-            colors: {
-                divider: dark ? '#383838' : '#ddd',
-                surface: dark ? '#222' : '#fff',
-                surfacePressedOverlay: dark ? '#333' : '#eee',
-                surfaceRipple: dark ? '#333' : '#eee',
-                text: dark ? '#f5f5f5' : '#111',
-                textSecondary: dark ? '#aaa' : '#666',
-                textDestructive: '#d33',
-                header: { tint: '#0aa7d1' },
-                glass: { divider: dark ? '#444' : '#ddd' },
-                groupped: {
-                    background: dark ? '#181818' : '#f5f5f5',
-                    chevron: '#777',
-                    sectionTitle: dark ? '#aaa' : '#666',
-                },
-                shadow: { color: '#000', opacity: 0.1 },
-            },
-        };
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = globalThis.__DARK__ ? darkTheme : lightTheme;
         export const StyleSheet = {
             create: (factory) => typeof factory === 'function' ? factory(theme, {}) : factory,
             hairlineWidth: 1,
@@ -73,7 +60,6 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/StyledText': `import { Text as NativeText } from 'react-native'; export const Text = NativeText;`,
     '@/components/layout': `export const layout = { maxWidth: 800 };`,
-    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
     '@/modal': `
         export const Modal = {
             alert() {},
@@ -583,7 +569,7 @@ describe('CredentialsSettingsView browser journeys', () => {
                         globalThis.__ROOT__ = root;
                         render();
                     };
-                    render();
+                    Promise.all(${JSON.stringify(fixtureFontNames)}.map((font) => document.fonts.load('16px "' + font + '"'))).then(render);
                 `,
                 loader: 'tsx',
                 resolveDir: appRoot,
@@ -605,7 +591,7 @@ describe('CredentialsSettingsView browser journeys', () => {
         server = createServer((request, response) => {
             const dark = request.url?.includes('theme=dark');
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body{min-height:100%;margin:0;background:${dark ? '#181818' : '#f5f5f5'};color:${dark ? '#f5f5f5' : '#111'};font-family:system-ui}header{height:56px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;border-bottom:1px solid ${dark ? '#383838' : '#ddd'}}#root{min-height:calc(100% - 57px)}</style><header>Credentials &amp; Accounts</header><main id="root"></main><script>globalThis.__DARK__=${Boolean(dark)};globalThis.global=globalThis;${script}</script>`);
+            response.end(`<style>${fixtureFontFaces}html,body{min-height:100%;margin:0;background:${dark ? '#181818' : '#f5f5f5'};color:${dark ? '#f5f5f5' : '#111'};font-family:system-ui}header{height:56px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;border-bottom:1px solid ${dark ? '#383838' : '#ddd'}}#root{min-height:calc(100% - 57px)}</style><header>Credentials &amp; Accounts</header><main id="root"></main><script>globalThis.__DARK__=${Boolean(dark)};globalThis.global=globalThis;${script}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();

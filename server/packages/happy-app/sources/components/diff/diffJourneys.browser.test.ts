@@ -4,6 +4,9 @@ import { existsSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { resolve, relative } from 'node:path';
 import { chromium, type Browser } from 'playwright-core';
+import { lightTheme } from '@/theme';
+
+const cssRgb = (hex: string) => `rgb(${[1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16)).join(', ')})`;
 
 const appRoot = process.cwd();
 const patch = ['--- a/src/example.ts', '+++ b/src/example.ts', '@@ -10 +10 @@', '-const oldValue = 1;', '+const newValue = 2;'].join('\n');
@@ -134,7 +137,7 @@ describe('production diff journeys', () => {
             await file.click();
             await page.getByText('newValue',{exact:false}).first().waitFor();
             const keyword=page.getByText('const',{exact:true}).first();
-            expect(await keyword.evaluate((el)=>getComputedStyle(el).color)).toBe('rgb(207, 34, 46)');
+            expect(await keyword.evaluate((el)=>getComputedStyle(el).color)).toBe(cssRgb(lightTheme.colors.diff.syntax.keyword));
             if(width===390) expect(await keyword.evaluate((el)=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
             await page.getByRole('checkbox').click();
             await page.waitForFunction(()=> (window as any).__COMMANDS__.some((c:string)=>c.includes(' -w ')));

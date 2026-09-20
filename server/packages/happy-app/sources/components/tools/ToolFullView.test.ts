@@ -9,7 +9,13 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return { Text: host('Text'), View: host('View'), ScrollView: host('ScrollView'), Platform: { select: (value: any) => value.web ?? value.default }, useWindowDimensions: () => ({ width: 1440 }) };
 });
-vi.mock('react-native-unistyles', () => ({ StyleSheet: { create: (factory: any) => factory({ colors: { text: '#111', groupped: { background: '#fff' }, box: { error: {} } } }) } }));
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme: theme } = await import('@/theme');
+    return {
+        StyleSheet: { create: (factory: any) => factory(theme) },
+        useUnistyles: () => ({ theme }),
+    };
+});
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 vi.mock('../layout', () => ({ layout: { maxWidth: 800 } }));
 vi.mock('../CodeView', async () => { const ReactModule = await import('react'); return { CodeView: (props: any) => ReactModule.createElement('CodeView', props) }; });

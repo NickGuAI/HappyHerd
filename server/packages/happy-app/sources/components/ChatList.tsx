@@ -1,8 +1,9 @@
+import { Text } from '@/components/StyledText';
 import { DiffSyntaxCell, SyntaxViewport, SYNTAX_VIEWABILITY } from './diff/syntax/viewport';
 import * as React from 'react';
 import { useSession, useSessionMessages, useSetting } from "@/sync/storage";
 import { sync } from '@/sync/sync';
-import { ActivityIndicator, AppState, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, View } from 'react-native';
 import { useCallback } from 'react';
 import { FlashList, FlashListRef, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useHeaderHeight } from '@/utils/responsive';
@@ -1078,7 +1079,7 @@ const styles = StyleSheet.create((theme) => ({
         pointerEvents: 'box-none',
     },
     scrollButton: {
-        borderRadius: 16,
+        borderRadius: 6,
         minHeight: 32,
         paddingHorizontal: 12,
         flexDirection: 'row',

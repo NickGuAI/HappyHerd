@@ -1,5 +1,6 @@
+import { Text } from '@/components/StyledText';
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, ActivityIndicator, RefreshControl, Pressable, Platform } from 'react-native';
+import { View, ActivityIndicator, RefreshControl, Pressable, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -30,7 +31,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     pathInput: {
         flex: 1,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         backgroundColor: Platform.select({
             web: theme.colors.input?.background ?? theme.colors.groupped.background,
             default: theme.colors.glass.backgroundSubtle,
@@ -48,7 +49,7 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 10,
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.xl,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -267,7 +268,7 @@ export default function MachineDetailScreen() {
                     }}
                 />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.groupped.background }}>
-                    <Text style={[Typography.default(), { fontSize: 16, color: '#666' }]}>
+                    <Text style={[Typography.default(), { fontSize: 16, color: theme.colors.textSecondary }]}>
                         {t("uiCopy.machineNotFound")}
                     </Text>
                 </View>
@@ -428,14 +429,14 @@ export default function MachineDetailScreen() {
                             title={t('machine.status')}
                             detail={machineOnline ? t('status.online') : t('status.offline')}
                             detailStyle={{
-                                color: machineOnline ? '#34C759' : theme.colors.textSecondary
+                                color: machineOnline ? theme.colors.success : theme.colors.textSecondary
                             }}
                             showChevron={false}
                         />
                         <Item
                             title={t('machine.stopDaemon')}
                             titleStyle={{
-                                color: machineOnline ? '#FF9500' : theme.colors.textSecondary
+                                color: machineOnline ? theme.colors.warning : theme.colors.textSecondary
                             }}
                             onPress={machineOnline ? handleStopDaemon : undefined}
                             disabled={isStoppingDaemon || !machineOnline}
@@ -446,7 +447,7 @@ export default function MachineDetailScreen() {
                                     <Ionicons 
                                         name="stop-circle" 
                                         size={20} 
-                                        color={machineOnline ? '#FF9500' : theme.colors.textSecondary}
+                                        color={machineOnline ? theme.colors.warning : theme.colors.textSecondary}
                                     />
                                 )
                             }
@@ -457,14 +458,14 @@ export default function MachineDetailScreen() {
                                     <Item
                                         title={t('machine.lastKnownPid')}
                                         subtitle={String(machine.daemonState.pid)}
-                                        subtitleStyle={{ fontFamily: 'Menlo', fontSize: 13 }}
+                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
                                     />
                                 )}
                                 {machine.daemonState.httpPort && (
                                     <Item
                                         title={t('machine.lastKnownHttpPort')}
                                         subtitle={String(machine.daemonState.httpPort)}
-                                        subtitleStyle={{ fontFamily: 'Menlo', fontSize: 13 }}
+                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
                                     />
                                 )}
                                 {machine.daemonState.startTime && (
@@ -477,7 +478,7 @@ export default function MachineDetailScreen() {
                                     <Item
                                         title={t('machine.cliVersion')}
                                         subtitle={machine.daemonState.startedWithCliVersion}
-                                        subtitleStyle={{ fontFamily: 'Menlo', fontSize: 13 }}
+                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
                                     />
                                 )}
                             </>
@@ -495,7 +496,7 @@ export default function MachineDetailScreen() {
                             title={t("agentInput.agent.claude")}
                             showChevron={false}
                             rightElement={
-                                <Text style={{ color: metadata.cliAvailability.claude ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
+                                <Text style={{ color: metadata.cliAvailability.claude ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
                                     {metadata.cliAvailability.claude ? t('machine.cliInstalled') : t('machine.cliNotFound')}
                                 </Text>
                             }
@@ -504,7 +505,7 @@ export default function MachineDetailScreen() {
                             title={t("agentInput.agent.codex")}
                             showChevron={false}
                             rightElement={
-                                <Text style={{ color: metadata.cliAvailability.codex ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
+                                <Text style={{ color: metadata.cliAvailability.codex ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
                                     {metadata.cliAvailability.codex ? t('machine.cliInstalled') : t('machine.cliNotFound')}
                                 </Text>
                             }
@@ -513,7 +514,7 @@ export default function MachineDetailScreen() {
                             title={t("agentInput.agent.gemini")}
                             showChevron={false}
                             rightElement={
-                                <Text style={{ color: metadata.cliAvailability.gemini ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
+                                <Text style={{ color: metadata.cliAvailability.gemini ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
                                     {metadata.cliAvailability.gemini ? t('machine.cliInstalled') : t('machine.cliNotFound')}
                                 </Text>
                             }
@@ -523,7 +524,7 @@ export default function MachineDetailScreen() {
                                 title={t('uiCopy.rig')}
                                 showChevron={false}
                                 rightElement={
-                                    <Text style={{ color: metadata.cliAvailability.rig ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
+                                    <Text style={{ color: metadata.cliAvailability.rig ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
                                         {metadata.cliAvailability.rig ? t('machine.cliInstalled') : t('machine.cliNotFound')}
                                     </Text>
                                 }
@@ -546,7 +547,7 @@ export default function MachineDetailScreen() {
                                 title={getSessionName(session)}
                                 subtitle={getSessionSubtitle(session)}
                                 onPress={() => navigateToSession(session.id)}
-                                rightElement={<Ionicons name="chevron-forward" size={20} color="#C7C7CC" />}
+                                rightElement={<Ionicons name="chevron-forward" size={20} color={theme.colors.groupped.chevron} />}
                             />
                         ))}
                     </ItemGroup>
@@ -561,7 +562,7 @@ export default function MachineDetailScreen() {
                         <Item
                             title={t('machine.machineId')}
                             subtitle={machineId}
-                            subtitleStyle={{ fontFamily: 'Menlo', fontSize: 12 }}
+                            subtitleStyle={{ ...Typography.mono(), fontSize: 12 }}
                         />
                         {metadata?.username && (
                             <Item
@@ -573,7 +574,7 @@ export default function MachineDetailScreen() {
                             <Item
                                 title={t('machine.homeDirectory')}
                                 subtitle={metadata.homeDir}
-                                subtitleStyle={{ fontFamily: 'Menlo', fontSize: 13 }}
+                                subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
                             />
                         )}
                         {metadata?.platform && (
@@ -602,7 +603,7 @@ export default function MachineDetailScreen() {
                 <ItemGroup title={t('machine.dangerZone')} footer={t('machine.deleteFooter')}>
                     <Item
                         title={t('machine.delete')}
-                        titleStyle={{ color: '#FF3B30' }}
+                        titleStyle={{ color: theme.colors.textDestructive }}
                         onPress={handleDeleteMachine}
                         disabled={isDeletingMachine}
                         showChevron={false}
@@ -610,7 +611,7 @@ export default function MachineDetailScreen() {
                             isDeletingMachine ? (
                                 <ActivityIndicator size="small" color={theme.colors.textSecondary} />
                             ) : (
-                                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                                <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
                             )
                         }
                     />

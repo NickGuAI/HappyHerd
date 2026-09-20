@@ -1,5 +1,6 @@
+import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Svg, { Circle } from 'react-native-svg';
@@ -451,7 +452,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         maxHeight: 280,
         zIndex: 30,
         overflow: 'visible',
-        borderRadius: 12,
+        borderRadius: 6,
         backgroundColor: 'transparent',
         ...Platform.select({
             web: {
@@ -475,7 +476,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         maxHeight: 280,
         zIndex: 30,
         overflow: 'hidden',
-        borderRadius: 12,
+        borderRadius: 6,
         borderWidth: 1,
         borderColor: theme.colors.divider,
         backgroundColor: theme.colors.surface,
@@ -484,7 +485,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     menuGlass: {
         maxHeight: 280,
         overflow: 'hidden',
-        borderRadius: 18,
+        borderRadius: 6,
         borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
         borderColor: Platform.select({ web: theme.colors.divider, default: theme.colors.glass.border }),
         backgroundColor: Platform.select({ web: theme.colors.surface, android: theme.colors.glass.backgroundStrong, default: 'transparent' }),

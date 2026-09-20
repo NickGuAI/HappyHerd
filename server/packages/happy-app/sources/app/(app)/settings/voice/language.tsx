@@ -1,3 +1,4 @@
+import { Typography } from '@/constants/Typography';
 import React, { useState, useMemo } from 'react';
 import { Platform, View, TextInput, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,7 +51,7 @@ export default function LanguageSelectionScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     backgroundColor: Platform.select({ web: theme.colors.input.background, android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
-                    borderRadius: 16,
+                    borderRadius: theme.borderRadius.xl,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     overflow: 'hidden',
@@ -66,6 +67,7 @@ export default function LanguageSelectionScreen() {
                     <TextInput
                         style={{
                             flex: 1,
+                            ...Typography.default(),
                             fontSize: 16,
                             color: theme.colors.input.text,
                         }}
@@ -100,10 +102,10 @@ export default function LanguageSelectionScreen() {
                         <Item
                             title={getLanguageDisplayName(item)}
                             subtitle={item.code || t('settingsVoice.language.autoDetect')}
-                            icon={<Ionicons name="language-outline" size={29} color="#007AFF" />}
+                            icon={<Ionicons name="language-outline" size={29} color={theme.colors.textLink} />}
                             rightElement={
                                 voiceAssistantLanguage === item.code ? (
-                                    <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
+                                    <Ionicons name="checkmark-circle" size={24} color={theme.colors.textLink} />
                                 ) : null
                             }
                             onPress={() => handleLanguageSelect(item.code)}

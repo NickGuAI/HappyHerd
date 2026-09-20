@@ -45,19 +45,14 @@ vi.mock('@/components/FileDocumentPreview', async () => {
     const ReactModule = await import('react');
     return { FileDocumentPreview: (props: any) => ReactModule.createElement('FileDocumentPreview', props) };
 });
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/sync/ops', () => ({ sessionDeleteFile: vi.fn(), sessionReadFile: vi.fn(), sessionWriteFile: vi.fn() }));
 vi.mock('@/sync/storage', () => ({ useMachine: vi.fn(), useSession: vi.fn() }));
 vi.mock('@/sync/rig', () => ({ rigCanWriteFiles: vi.fn(() => true) }));
 vi.mock('@/modal', () => ({ Modal: modalMocks }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 1200 } }));
-vi.mock('react-native-unistyles', () => {
-    const colors = new Proxy({
-        groupped: { background: '#eee' },
-        input: { background: '#ddd' },
-    }, { get: (target, key) => Reflect.get(target, key) ?? '#000' });
-    const theme = { colors, dark: false };
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme: theme } = await import('@/theme');
     return {
         StyleSheet: {
             create: (factory: any) => factory(theme),

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Platform, View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { BaseModal } from './BaseModal';
 import { AlertModalConfig, ConfirmModalConfig } from '../types';
 import { Typography } from '@/constants/Typography';
 import { StyleSheet } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { t } from '@/text';
 
 interface WebAlertModalProps {
     config: AlertModalConfig | ConfirmModalConfig;
@@ -28,24 +29,20 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
 
     const buttons = isConfirm
         ? [
-            { text: config.cancelText || 'Cancel', style: 'cancel' as const },
-            { text: config.confirmText || 'OK', style: config.destructive ? 'destructive' as const : 'default' as const }
+            { text: config.cancelText || t('common.cancel'), style: 'cancel' as const },
+            { text: config.confirmText || t('common.ok'), style: config.destructive ? 'destructive' as const : 'default' as const }
         ]
-        : config.buttons || [{ text: 'OK', style: 'default' as const }];
+        : config.buttons || [{ text: t('common.ok'), style: 'default' as const }];
 
     const styles = StyleSheet.create({
         container: {
-            backgroundColor: Platform.select({
-                web: theme.colors.surface,
-                ios: theme.colors.glass.overlay,
-                android: theme.colors.glass.backgroundStrong,
-                default: theme.colors.surface,
-            }),
-            borderRadius: 14,
-            width: 270,
+            backgroundColor: theme.colors.kilv.stone,
+            borderRadius: 6,
+            width: 360,
+            maxWidth: '100%',
             overflow: 'hidden',
-            borderWidth: Platform.OS === 'web' ? 0 : StyleSheet.hairlineWidth,
-            borderColor: theme.colors.glass.border,
+            borderWidth: 1,
+            borderColor: theme.colors.kilv.rimLine,
             shadowColor: theme.colors.shadow.color,
             shadowOffset: {
                 width: 0,
@@ -56,58 +53,60 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
             elevation: 5
         },
         content: {
-            paddingHorizontal: 16,
-            paddingTop: 20,
+            paddingHorizontal: 24,
+            paddingTop: 24,
             paddingBottom: 16,
-            alignItems: 'center'
+            alignItems: 'stretch'
         },
         title: {
-            fontSize: 17,
-            textAlign: 'center',
-            color: theme.colors.text,
+            fontSize: 16,
+            textAlign: 'left',
+            color: theme.colors.kilv.stoneInk,
             marginBottom: 4
         },
         message: {
-            fontSize: 13,
-            textAlign: 'center',
-            color: theme.colors.text,
+            fontSize: 14,
+            textAlign: 'left',
+            color: theme.colors.kilv.stoneInk,
             marginTop: 4,
-            lineHeight: 18
+            lineHeight: 21
         },
         buttonContainer: {
             borderTopWidth: 1,
-            borderTopColor: theme.colors.divider,
+            borderTopColor: theme.colors.kilv.rimLine,
             flexDirection: 'row'
         },
         button: {
             flex: 1,
-            paddingVertical: 11,
+            minHeight: 48,
+            paddingVertical: 12,
+            paddingHorizontal: 12,
             alignItems: 'center',
             justifyContent: 'center'
         },
         buttonPressed: {
-            backgroundColor: theme.colors.divider
+            backgroundColor: theme.colors.kilv.rimLine
         },
         buttonSeparator: {
             width: 1,
-            backgroundColor: theme.colors.divider
+            backgroundColor: theme.colors.kilv.rimLine
         },
         buttonText: {
-            fontSize: 17,
-            color: theme.colors.textLink
+            fontSize: 16,
+            color: theme.colors.kilv.molten
         },
         cancelText: {
             fontWeight: '400'
         },
         destructiveText: {
-            color: theme.colors.textDestructive
+            color: theme.colors.kilv.islandDanger
         }
     });
 
     return (
         <BaseModal visible={true} onClose={onClose} closeOnBackdrop={false}>
             <MobileGlassSurface
-                enabled={Platform.OS !== 'web'}
+                enabled={false}
                 nativeEffect
                 glassEffectStyle="regular"
                 intensity={88}
@@ -130,6 +129,7 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
                         <React.Fragment key={index}>
                             {index > 0 && <View style={styles.buttonSeparator} />}
                             <Pressable
+                                accessibilityRole="button"
                                 style={({ pressed }) => [
                                     styles.button,
                                     pressed && styles.buttonPressed

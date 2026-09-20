@@ -1,20 +1,18 @@
 import * as React from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleProp, Text, TextStyle, View, ViewStyle } from 'react-native';
-import { iOSUIKit } from 'react-native-typography';
 import { Typography } from '@/constants/Typography';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { MobileGlassSurface } from './MobileGlass';
 
 export type RoundButtonSize = 'large' | 'normal' | 'small';
 const sizes: { [key in RoundButtonSize]: { height: number, fontSize: number, hitSlop: number, pad: number } } = {
-    large: { height: 48, fontSize: 21, hitSlop: 0, pad: Platform.OS == 'ios' ? 0 : -1 },
-    normal: { height: 32, fontSize: 16, hitSlop: 8, pad: Platform.OS == 'ios' ? 1 : -2 },
-    small: { height: 24, fontSize: 14, hitSlop: 12, pad: Platform.OS == 'ios' ? -1 : -1 }
+    large: { height: 48, fontSize: 17, hitSlop: 0, pad: Platform.OS == 'ios' ? 0 : -1 },
+    normal: { height: 40, fontSize: 16, hitSlop: 4, pad: Platform.OS == 'ios' ? 1 : -2 },
+    small: { height: 32, fontSize: 14, hitSlop: 8, pad: Platform.OS == 'ios' ? -1 : -1 }
 }
 
 export type RoundButtonDisplay = 'default' | 'inverted';
 
-const stylesheet = StyleSheet.create((theme) => ({
+const stylesheet = StyleSheet.create(() => ({
     loadingContainer: {
         position: 'absolute',
         top: 0,
@@ -29,29 +27,22 @@ const stylesheet = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         minWidth: 64,
         paddingHorizontal: 16,
-        borderRadius: 9999,
+        borderRadius: 4,
     },
     text: {
         ...Typography.default('semiBold'),
         fontWeight: '600',
         includeFontPadding: false,
-    },
-    glassSurface: {
-        overflow: 'hidden',
-        borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
-        borderColor: theme.colors.glass.border,
-        backgroundColor: Platform.select({ web: 'transparent', android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
-    },
-    accentTint: {
-        ...StyleSheet.absoluteFillObject,
-        opacity: 0.68,
+        textAlign: 'center',
+        maxWidth: '100%',
     },
 }));
 
-export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?: RoundButtonDisplay, title?: any, style?: StyleProp<ViewStyle>, textStyle?: StyleProp<TextStyle>, disabled?: boolean, loading?: boolean, onPress?: () => void, action?: () => Promise<any> }) => {
+export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?: RoundButtonDisplay, title?: any, numberOfLines?: number, style?: StyleProp<ViewStyle>, textStyle?: StyleProp<TextStyle>, disabled?: boolean, loading?: boolean, onPress?: () => void, action?: () => Promise<any> }) => {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     const [loading, setLoading] = React.useState(false);
+    const [hovered, setHovered] = React.useState(false);
     const doLoading = props.loading !== undefined ? props.loading : loading;
     const doAction = React.useCallback(() => {
         if (props.onPress) {
@@ -76,12 +67,12 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
     } } = {
         default: {
             backgroundColor: theme.colors.button.primary.background,
-            borderColor: 'transparent',
+            borderColor: theme.colors.button.primary.background,
             textColor: theme.colors.button.primary.tint
         },
         inverted: {
             backgroundColor: 'transparent',
-            borderColor: 'transparent',
+            borderColor: theme.colors.kilv.rimLine,
             textColor: theme.colors.text,
         }
     }
@@ -92,7 +83,7 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
         <View
             style={[
                 styles.contentContainer,
-                { height: size.height - 2 },
+                { minHeight: size.height - 2, paddingVertical: (props.numberOfLines ?? 1) > 1 ? 6 : 0 },
             ]}
         >
             {doLoading && (
@@ -102,7 +93,6 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
             )}
             <Text
                 style={[
-                    iOSUIKit.title3,
                     styles.text,
                     {
                         marginTop: size.pad,
@@ -112,7 +102,7 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
                     },
                     props.textStyle,
                 ]}
-                numberOfLines={1}
+                numberOfLines={props.numberOfLines ?? 1}
             >
                 {props.title}
             </Text>
@@ -122,39 +112,26 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
     return (
         <Pressable
             disabled={doLoading || props.disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: doLoading || !!props.disabled, busy: doLoading }}
             hitSlop={size.hitSlop}
+            onHoverIn={() => setHovered(true)}
+            onHoverOut={() => setHovered(false)}
             style={(p) => ([
                 {
                     borderWidth: 1,
-                    borderRadius: size.height / 2,
-                    backgroundColor: display.backgroundColor,
-                    borderColor: display.borderColor,
-                    opacity: props.disabled ? 0.5 : 1,
+                    borderRadius: 4,
+                    backgroundColor: (p.pressed || hovered) && !props.disabled && !doLoading
+                        ? props.display === 'inverted' ? theme.colors.surfacePressed : theme.colors.kilv.accentHot
+                        : display.backgroundColor,
+                    borderColor: hovered && !props.disabled && !doLoading ? theme.colors.kilv.accent : display.borderColor,
+                    opacity: props.disabled ? 0.45 : p.pressed ? 0.92 : 1,
                     overflow: Platform.OS === 'web' ? 'hidden' : 'visible',
-                },
-                {
-                    opacity: p.pressed ? 0.9 : 1
                 },
                 props.style])}
             onPress={doAction}
         >
-            {Platform.OS === 'web' ? content : (
-                <MobileGlassSurface
-                    enabled
-                    interactive
-                    intensity={72}
-                    tintColor={props.display === 'inverted' ? undefined : display.backgroundColor}
-                    style={[
-                        styles.glassSurface,
-                        { borderRadius: size.height / 2 },
-                    ]}
-                >
-                    {props.display !== 'inverted' && (
-                    <View pointerEvents="none" style={[styles.accentTint, { backgroundColor: display.backgroundColor }]} />
-                    )}
-                    {content}
-                </MobileGlassSurface>
-            )}
+            {content}
         </Pressable>
     )
 });

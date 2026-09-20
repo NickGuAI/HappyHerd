@@ -1,7 +1,7 @@
+import { Text } from '@/components/StyledText';
 import React from 'react';
 import {
     View,
-    Text,
     Platform,
     Pressable,
     Modal as RNModal,
@@ -671,11 +671,11 @@ function PathPickerContent({
                         >
                             <GlassView
                                 glassEffectStyle="regular"
-                                tintColor="rgba(255,255,255,0.10)"
+                                tintColor={theme.colors.glass.tint}
                                 isInteractive={getNativeGlassInteractivity(true)}
                                 style={[
                                     pickerStyles.doneButtonGlass,
-                                    { borderColor: 'rgba(255,255,255,0.16)' },
+                                    { borderColor: theme.colors.glass.border },
                                 ]}
                             >
                                 <Ionicons
@@ -3272,7 +3272,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     configBox: {
         backgroundColor: theme.colors.input.background,
-        borderRadius: Platform.select({ default: 16, android: 20 }),
+        borderRadius: theme.borderRadius.xl,
         paddingVertical: 4,
         paddingHorizontal: 4,
         overflow: 'hidden',
@@ -3296,17 +3296,17 @@ const styles = StyleSheet.create((theme) => ({
         overflow: 'visible',
     },
     popover: {
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         paddingVertical: 4,
         marginTop: 4,
         borderWidth: 1,
         borderColor: theme.colors.divider,
         ...Platform.select({
             web: {
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
+                boxShadow: `0 4px 20px ${theme.colors.glass.shadow}`,
             },
             default: {
-                shadowColor: '#000',
+                shadowColor: theme.colors.shadow.color,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.12,
                 shadowRadius: 10,
@@ -3323,7 +3323,7 @@ const styles = StyleSheet.create((theme) => ({
     nativePopoverSurface: {
         width: '100%',
         maxHeight: 264,
-        borderRadius: 24,
+        borderRadius: theme.borderRadius.xl,
         paddingHorizontal: 12,
         paddingVertical: 10,
         marginTop: 0,
@@ -3365,7 +3365,7 @@ const styles = StyleSheet.create((theme) => ({
         minWidth: 0,
         paddingHorizontal: 12,
         paddingVertical: Platform.select({ web: 10, default: 12 }),
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         minHeight: Platform.select({ web: 0, default: 48 }),
     },
     configRowWithToggle: {
@@ -3384,7 +3384,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 8,
         paddingHorizontal: 12,
         paddingVertical: Platform.select({ web: 10, default: 12 }),
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         minHeight: Platform.select({ web: 0, default: 48 }),
     },
     collapsedIconsRow: {
@@ -3397,7 +3397,7 @@ const styles = StyleSheet.create((theme) => ({
     collapsedIconButton: {
         width: 34,
         height: 28,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -3444,7 +3444,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     inputBox: {
         backgroundColor: theme.colors.input.background,
-        borderRadius: Platform.select({ default: 16, android: 20 }),
+        borderRadius: theme.borderRadius.xl,
         overflow: 'hidden',
         paddingVertical: 2,
         paddingBottom: 8,
@@ -3459,7 +3459,7 @@ const styles = StyleSheet.create((theme) => ({
             android: theme.colors.glass.backgroundStrong,
             default: theme.colors.glass.backgroundStrong,
         }),
-        borderRadius: 26,
+        borderRadius: theme.borderRadius.xl,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: theme.colors.glass.border,
         paddingVertical: 6,
@@ -3515,7 +3515,7 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         gap: 6,
         paddingHorizontal: 9,
-        borderRadius: 18,
+        borderRadius: theme.borderRadius.md,
     },
     composerAgentLabel: {
         minWidth: 0,
@@ -3536,14 +3536,14 @@ const styles = StyleSheet.create((theme) => ({
     composerActionButton: {
         width: 38,
         height: 38,
-        borderRadius: 19,
+        borderRadius: theme.borderRadius.md,
         alignItems: 'center',
         justifyContent: 'center',
     },
     sendButton: {
         width: COMPOSER_SEND_BUTTON_SIZE,
         height: COMPOSER_SEND_BUTTON_SIZE,
-        borderRadius: COMPOSER_SEND_BUTTON_SIZE / 2,
+        borderRadius: theme.borderRadius.md,
         justifyContent: 'center',
         alignItems: 'center',
         flexShrink: 0,
@@ -3558,7 +3558,7 @@ const styles = StyleSheet.create((theme) => ({
     mobileSendButton: {
         width: 38,
         height: 38,
-        borderRadius: 19,
+        borderRadius: theme.borderRadius.md,
         marginLeft: 0,
         backgroundColor: Platform.select({
             ios: 'transparent',
@@ -3595,7 +3595,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 8,
         paddingHorizontal: 12,
         paddingVertical: 10,
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
     },
     offlineHelpTitle: {
         fontSize: 13,
@@ -3610,7 +3610,7 @@ const styles = StyleSheet.create((theme) => ({
 }));
 
 // Bottom sheet styles
-const sheetStyles = {
+const sheetStyles = StyleSheet.create((theme) => ({
     iosContainer: {
         flex: 1,
     } as const,
@@ -3639,23 +3639,23 @@ const sheetStyles = {
     },
     backdropScrim: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.14)',
+        backgroundColor: theme.colors.glass.overlay,
     },
     sheet: {
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
         maxHeight: '70%' as const,
     },
     sheetSurface: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
         overflow: 'hidden' as const,
         borderWidth: StyleSheet.hairlineWidth,
     },
-};
+}));
 
 // Picker styles
-const pickerStyles = {
+const pickerStyles = StyleSheet.create((theme) => ({
     container: {
         paddingHorizontal: 16,
         paddingBottom: 8,
@@ -3683,7 +3683,7 @@ const pickerStyles = {
     composerPickerBackButton: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: theme.borderRadius.md,
         alignItems: 'center' as const,
         justifyContent: 'center' as const,
     } as const,
@@ -3714,12 +3714,12 @@ const pickerStyles = {
     doneButtonGlass: {
         width: 40,
         height: 36,
-        borderRadius: 18,
+        borderRadius: theme.borderRadius.md,
         alignItems: 'center' as const,
         justifyContent: 'center' as const,
         overflow: 'hidden' as const,
         borderWidth: 1,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: theme.colors.glass.backgroundSubtle,
     },
     searchRow: {
         flexDirection: 'row' as const,
@@ -3727,7 +3727,7 @@ const pickerStyles = {
         gap: 10,
         paddingHorizontal: 12,
         paddingVertical: 10,
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         marginBottom: 8,
     },
     embeddedSearchRow: {
@@ -3741,7 +3741,7 @@ const pickerStyles = {
     searchInput: {
         flex: 1,
         minWidth: 0,
-        fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 15 }),
+        fontSize: 16,
         padding: 0,
         ...Typography.default(),
         ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
@@ -3752,7 +3752,7 @@ const pickerStyles = {
         gap: 10,
         paddingHorizontal: 12,
         minHeight: 46,
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
         marginBottom: 8,
         borderWidth: 1,
     },
@@ -3781,7 +3781,7 @@ const pickerStyles = {
         }),
     } as const,
     embeddedPathTextInput: {
-        fontSize: Platform.select({ web: 16, default: 15 }),
+        fontSize: 16,
         minHeight: 34,
     } as const,
     pathMetaText: {
@@ -3804,7 +3804,7 @@ const pickerStyles = {
         gap: 12,
         paddingHorizontal: 12,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: theme.borderRadius.xl,
     },
     embeddedOption: {
         width: '100%',
@@ -3820,7 +3820,7 @@ const pickerStyles = {
     optionText: {
         minWidth: 0,
         flexShrink: 1,
-        fontSize: Platform.select({ web: NEW_SESSION_PANEL_ROW_FONT_SIZE, default: 15 }),
+        fontSize: 16,
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
@@ -3850,6 +3850,6 @@ const pickerStyles = {
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
-};
+}));
 
 export default React.memo(NewSessionScreen);

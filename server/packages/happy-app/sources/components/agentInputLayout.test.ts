@@ -19,7 +19,7 @@ describe('agent input compact mobile layout', () => {
 
     it('publishes one visual metric contract for Home and Chat composers', () => {
         expect((agentInputLayout as Record<string, unknown>).MOBILE_COMPOSER_METRICS).toEqual({
-            shellRadius: 30,
+            shellRadius: 6,
             shellInset: 10,
             shellPaddingTop: 8,
             shellPaddingBottom: 8,
@@ -47,14 +47,14 @@ describe('agent input compact mobile layout', () => {
 
         expect(geometry).toEqual({
             shellHeight: 56,
-            shellRadius: 28,
+            shellRadius: 6,
             contentPaddingLeft: 7,
             contentPaddingRight: 7,
             inputPaddingLeft: 21,
             inputPaddingRight: 4,
             textInset: 28,
         });
-        expect(geometry.textInset).toBe(geometry.shellRadius);
+        expect(geometry.textInset).toBe(28);
     });
 
     it('matches the chat shell height while the input grows and attachments appear', () => {
@@ -77,14 +77,14 @@ describe('agent input compact mobile layout', () => {
         ['model',
             { flexShrink: 1, minWidth: 0, height: 40 },
             {
-                minWidth: 0, height: 40, borderRadius: 20,
+                minWidth: 0, height: 40, borderRadius: 4,
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
                 paddingLeft: 12, paddingRight: 4, gap: 7,
             }],
         ['effort',
             { flexShrink: 0, minWidth: 64, height: 40 },
             {
-                minWidth: 0, height: 40, borderRadius: 20,
+                minWidth: 0, height: 40, borderRadius: 4,
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start',
                 paddingLeft: 4, paddingRight: 12, gap: 4,
             }],

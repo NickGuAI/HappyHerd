@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
+import { Typography } from '@/constants/Typography';
 import { ToolViewProps } from "./_all";
 import { knownTools } from '../../tools/knownTools';
 import { ToolSectionView } from '../../tools/ToolSectionView';
@@ -65,7 +67,7 @@ export const TodoView = React.memo<ToolViewProps>(({ tool }) => {
     return null;
 });
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
     container: {
         gap: 4,
     },
@@ -73,18 +75,19 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
     },
     todoText: {
+        ...Typography.default(),
         fontSize: 14,
-        color: '#000',
+        color: theme.colors.text,
         flex: 1,
     },
     completedText: {
-        color: '#34C759',
+        color: theme.colors.success,
         textDecorationLine: 'line-through',
     },
     inProgressText: {
-        color: '#007AFF',
+        color: theme.colors.textLink,
     },
     pendingText: {
-        color: '#666',
+        color: theme.colors.textSecondary,
     },
-});
+}));

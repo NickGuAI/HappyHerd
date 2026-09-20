@@ -97,11 +97,11 @@ const STATUS_DOT_TEXT_GAP = 4; // Gap between StatusDot and text (used throughou
 const ITEM_SPACING_GAP = 4; // Gap between elements and spacing between items (compact)
 const COMPACT_ITEM_PADDING = 4; // Vertical padding for compact lists
 // Border radius constants (consistent rounding)
-const INPUT_BORDER_RADIUS = 10; // Input field and containers
-const BUTTON_BORDER_RADIUS = 8; // Buttons and actionable elements
+const INPUT_BORDER_RADIUS = 4; // Input field and containers
+const BUTTON_BORDER_RADIUS = 4; // Buttons and actionable elements
 // ITEM_BORDER_RADIUS must match ItemGroup's contentContainer borderRadius to prevent clipping
-// ItemGroup uses Platform.select({ ios: 10, default: 16 })
-const ITEM_BORDER_RADIUS = Platform.select({ ios: 10, default: 16 }); // Match ItemGroup container radius
+// Shared raised panes use the KILV card radius.
+const ITEM_BORDER_RADIUS = 6; // Match ItemGroup container radius
 
 const stylesheet = StyleSheet.create((theme) => ({
     inputContainer: {
@@ -115,8 +115,8 @@ const stylesheet = StyleSheet.create((theme) => ({
         flex: 1,
         backgroundColor: theme.colors.input.background,
         borderRadius: INPUT_BORDER_RADIUS,
-        borderWidth: 0.5,
-        borderColor: theme.colors.divider,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
     },
     inputInner: {
         flexDirection: 'row',
@@ -136,6 +136,10 @@ const stylesheet = StyleSheet.create((theme) => ({
         marginLeft: 8,
     },
     favoriteButton: {
+        minHeight: 44,
+        minWidth: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
         borderRadius: BUTTON_BORDER_RADIUS,
         padding: 8,
     },
@@ -154,12 +158,12 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     selectedItemStyle: {
         borderWidth: 2,
-        borderColor: theme.colors.button.primary.tint,
+        borderColor: theme.colors.kilv.accent,
         borderRadius: ITEM_BORDER_RADIUS,
     },
     compactItemStyle: {
         paddingVertical: COMPACT_ITEM_PADDING,
-        minHeight: 0, // Override Item's default minHeight (44-56px) for compact mode
+        minHeight: 44, // Keep compact rows comfortably operable on touch screens
     },
     itemBackground: {
         backgroundColor: theme.colors.input.background,
@@ -168,7 +172,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     showMoreTitle: {
         textAlign: 'center',
-        color: theme.colors.button.primary.tint,
+        color: theme.colors.textLink,
     },
 }));
 
@@ -434,7 +438,7 @@ export function SearchableListSelector<T>(props: SearchableListSelectorProps<T>)
                             <Ionicons
                                 name="checkmark-circle"
                                 size={20}
-                                color={theme.colors.button.primary.tint}
+                                color={theme.colors.textLink}
                             />
                         )}
                     </View>
@@ -477,7 +481,7 @@ export function SearchableListSelector<T>(props: SearchableListSelectorProps<T>)
                             {inputText.trim() && (
                                 <Pressable
                                     onPress={handleClear}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                                     style={({ pressed }) => ([
                                         styles.clearButton,
                                         { opacity: pressed ? 0.6 : 0.8 }
@@ -606,7 +610,7 @@ export function SearchableListSelector<T>(props: SearchableListSelectorProps<T>)
                                                     <Ionicons
                                                         name="checkmark-circle"
                                                         size={20}
-                                                        color={theme.colors.button.primary.tint}
+                                                        color={theme.colors.textLink}
                                                     />
                                                 )}
                                                 {onToggleFavorite && canRemove && (
@@ -617,7 +621,7 @@ export function SearchableListSelector<T>(props: SearchableListSelectorProps<T>)
                                                             handleRemoveFavorite(item);
                                                         }}
                                                     >
-                                                        <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+                                                        <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
                                                     </Pressable>
                                                 )}
                                             </View>

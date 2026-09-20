@@ -1,10 +1,10 @@
+import { Text } from '@/components/StyledText';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Easing,
     ScrollView,
     StyleSheet,
-    Text,
     TouchableOpacity,
     View,
     Platform,
@@ -329,7 +329,7 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         button: {
             paddingHorizontal: 10,
             paddingVertical: 7,
-            borderRadius: 7,
+            borderRadius: 4,
             backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surface }),
             alignItems: 'center',
             justifyContent: 'center',

@@ -1,5 +1,7 @@
+import { Text } from '@/components/StyledText';
+import { Typography } from '@/constants/Typography';
 import * as React from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -183,7 +185,7 @@ function AgentTextBlock(props: {
 
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
+      <MarkdownView tone="island" markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
       {props.copyText ? <MessageCopyButton text={props.copyText} /> : null}
     </View>
   );
@@ -230,7 +232,7 @@ function MessageCopyButton(props: { text: string }) {
       <Ionicons
         name={copied ? 'checkmark' : 'copy-outline'}
         size={16}
-        color={theme.colors.text}
+        color={theme.colors.kilv.islandInk}
       />
     </Pressable>
   );
@@ -362,7 +364,7 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
     marginBottom: 4,
     maxWidth: '100%',
   },
@@ -394,7 +396,7 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 6,
     marginBottom: 4,
     maxWidth: '100%',
     opacity: 0.65,
@@ -402,14 +404,18 @@ const styles = StyleSheet.create((theme) => ({
   commandChipText: {
     color: theme.colors.input.text,
     fontSize: 13,
-    fontFamily: 'monospace',
+    fontFamily: Typography.mono().fontFamily,
   },
   agentMessageContainer: {
     // Symmetric, so a tool row reads the same distance from the text whether
     // it lands above or below it. Total rhythm matches the old 4 + 16.
     marginHorizontal: 16,
     marginVertical: 10,
-    borderRadius: 16,
+    padding: 16,
+    backgroundColor: theme.colors.kilv.islandTop,
+    borderWidth: 1,
+    borderColor: theme.colors.kilv.islandBorder,
+    borderRadius: 6,
     maxWidth: '100%',
   },
   copyAction: {
