@@ -15,7 +15,6 @@ export type CommanderPickerSelection =
     | { kind: 'select'; commanderId: string | null };
 
 export function getCommanderPickerFixedItems(
-    platform: string,
     copy: CommanderPickerCopy,
 ): NewSessionPickerItem[] {
     const noneItem: NewSessionPickerItem = {
@@ -24,18 +23,14 @@ export function getCommanderPickerFixedItems(
         subtitle: copy.noneSubtitle,
     };
 
-    if (platform !== 'web') {
-        return [noneItem];
-    }
-
     return [
+        noneItem,
         {
             key: CREATE_COMMANDER_PICKER_KEY,
             label: copy.createLabel,
             subtitle: copy.createSubtitle,
             kind: 'action',
         },
-        noneItem,
     ];
 }
 

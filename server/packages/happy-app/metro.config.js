@@ -14,7 +14,12 @@ config.resolver.assetExts.push('wasm');
 // Cargo writes/deletes transient files in src-tauri/target/debug/deps during
 // `tauri dev`, which crashes Metro's fallback watcher on Windows with ENOENT.
 config.resolver.blockList = [
+  ...[].concat(config.resolver.blockList ?? []),
   /[/\\]src-tauri[/\\]target[/\\].*/,
+  // Expo Router discovers every source file under app/, including colocated
+  // tests. Their Node/Vitest imports cannot be shipped in native bundles.
+  /\.(?:test|spec)\.[cm]?[jt]sx?$/,
+  /[/\\]__tests__[/\\]/,
 ];
 
 // Force every preact / preact/hooks import (ESM or CJS, from any package) to

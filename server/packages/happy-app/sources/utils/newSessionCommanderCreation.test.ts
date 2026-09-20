@@ -14,28 +14,18 @@ const copy = {
 };
 
 describe('new session Commander creation entry', () => {
-    it('puts a touch action before normal Commander selection on Web', () => {
-        expect(getCommanderPickerFixedItems('web', copy)).toEqual([
+    it('shares Commander choices and the creation intent across all platforms', () => {
+        expect(getCommanderPickerFixedItems(copy)).toEqual([
+            {
+                key: NO_COMMANDER_PICKER_KEY,
+                label: copy.noneLabel,
+                subtitle: copy.noneSubtitle,
+            },
             {
                 key: CREATE_COMMANDER_PICKER_KEY,
                 label: copy.createLabel,
                 subtitle: copy.createSubtitle,
                 kind: 'action',
-            },
-            {
-                key: NO_COMMANDER_PICKER_KEY,
-                label: copy.noneLabel,
-                subtitle: copy.noneSubtitle,
-            },
-        ]);
-    });
-
-    it('does not add the touch entry to the native iOS picker', () => {
-        expect(getCommanderPickerFixedItems('ios', copy)).toEqual([
-            {
-                key: NO_COMMANDER_PICKER_KEY,
-                label: copy.noneLabel,
-                subtitle: copy.noneSubtitle,
             },
         ]);
     });

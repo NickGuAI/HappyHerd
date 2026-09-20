@@ -18,6 +18,7 @@ impose that source-state gate.
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |
 | Upstream merge proposal | `docs/upstream-sync-rehearsal.md` | native `happyherd automation`, `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |
 | End-user native install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/{test-native-installer-asset,test-public-launcher-release-contract}.sh`, `.github/workflows/native-installer-release.yml` |
+| Native macOS DMG and iOS app | `docs/native-app-builds.md` | Happy app Expo/EAS and Tauri configuration; `tauri:build:production`, Expo prebuild, Xcode archive/export, standard Apple signing and notarization |
 | CLI command reference | `server/packages/happy-cli/README.md` | `happyherd --help` |
 | Side-chat delegation, lifecycle, and recovery | `.dev/playbooks/side-chat-lifecycle.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happyherd session side-chat` brief and lifecycle commands |
 | Unified Workspace | `.dev/playbooks/file-workspaces.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `SessionView`, `DesktopFileWorkspace`, `MachineWorkspaceBrowser`, and the rendered browser fixtures |

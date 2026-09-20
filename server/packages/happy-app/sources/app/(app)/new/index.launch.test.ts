@@ -6,6 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 const mocks = vi.hoisted(() => {
     (globalThis as typeof globalThis & { __DEV__?: boolean }).__DEV__ = false;
     return {
+        platform: 'web',
+        dimensions: { width: 844, height: 390 },
         renderMachines: [] as any[],
         liveMachines: {} as Record<string, any>,
         overrides: {} as Record<string, Record<string, string>>,
@@ -61,8 +63,8 @@ vi.mock('react-native', async () => {
             spring: () => ({}),
         },
         Platform: {
-            OS: 'web',
-            select: (options: Record<string, unknown>) => options.web ?? options.default,
+            get OS() { return mocks.platform; },
+            select: (options: Record<string, unknown>) => options[mocks.platform] ?? options.default,
         },
         Keyboard: {
             isVisible: () => false,
@@ -73,7 +75,7 @@ vi.mock('react-native', async () => {
             configureNext: vi.fn(),
             Presets: { easeInEaseOut: {} },
         },
-        useWindowDimensions: () => ({ width: 844, height: 390 }),
+        useWindowDimensions: () => mocks.dimensions,
     };
 });
 vi.mock('expo-glass-effect', async () => {
@@ -147,7 +149,8 @@ vi.mock('@/utils/responsive', () => ({
     useHeaderHeight: () => 0,
 }));
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
-vi.mock('@/utils/newSessionSidebarLayout', () => ({
+vi.mock('@/utils/newSessionSidebarLayout', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@/utils/newSessionSidebarLayout')>(),
     NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH: 1100,
     NEW_SESSION_PANEL_ROW_FONT_SIZE: 16,
     getNewSessionSidebarLayout: () => ({ showSidebar: false, sidebarWidth: 0 }),
@@ -502,6 +505,8 @@ afterAll(() => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.platform = 'web';
+    mocks.dimensions = { width: 844, height: 390 };
     mocks.overrides = {};
     mocks.places = [];
     mocks.expImageUpload = false;
@@ -633,6 +638,49 @@ describe('Full New Session path selection', () => {
             text.props.children === 'workspace.recent'
         ));
         expect(flattenStyle(recentSectionLabel?.props.style).fontSize).toBe(13);
+        act(() => renderer.unmount());
+    });
+});
+
+describe('New Session Commander onboarding', () => {
+    it.each([
+        ['ios', 390, 844],
+        ['ios', 1024, 1366],
+        ['web', 1440, 900],
+        ['web', 390, 844],
+    ])('exposes creation after Commander rows and retains selections on %s %dx%d', async (platform, width, height) => {
+        mocks.platform = platform as string;
+        mocks.dimensions = { width: width as number, height: height as number };
+        mocks.machineListCommanders.mockResolvedValue({ commanders: [
+            { id: 'athena', name: 'Athena', workspace: '/Users/dev/athena' },
+        ] });
+        mocks.draft = createDraft({ selectedCommanderId: 'athena' });
+        const renderer = await renderScreen();
+        const trigger = renderer.root.findAllByType('BubblePressable' as any)
+            .find((item: any) => item.props.accessibilityLabel === 'happyHerd.automations.commander');
+        expect(trigger).toBeDefined();
+        await act(async () => trigger!.props.onPress());
+
+        const options = renderer.root.findAllByType('BubblePressable' as any)
+            .filter((item: any) => ['radio', 'button'].includes(item.props.accessibilityRole));
+        const action = options.find((item: any) => item.props.accessibilityLabel === 'happyHerd.commander.createTitle');
+        const commander = options.find((item: any) => item.props.accessibilityLabel === 'Athena');
+        expect(action).toBeDefined();
+        expect(commander).toBeDefined();
+        expect(options.indexOf(action!)).toBeGreaterThan(options.indexOf(commander!));
+        expect(action!.props.accessibilityRole).toBe('button');
+        expect(action!.props.accessibilityHint).toBe('happyHerd.commander.createSubtitle');
+        expect(action!.props.accessibilityState).toEqual({ disabled: false });
+        expect(action!.findAllByType('Text' as any).every((text: any) => text.props.numberOfLines === undefined)).toBe(true);
+        await act(async () => action!.props.onPress());
+
+        expect(mocks.draft.setInput).toHaveBeenCalledWith('happyHerd.commander.onboardingPrompt');
+        for (const setter of ['setMachineId', 'setPath', 'setCommanderId', 'setAgentType', 'setPermissionMode', 'setModelMode', 'setEffortLevel']) {
+            expect(mocks.draft[setter]).not.toHaveBeenCalled();
+        }
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(renderer.root.findAllByType('BubblePressable' as any)
+            .filter((item: any) => item.props.accessibilityLabel === 'happyHerd.commander.createTitle')).toHaveLength(0);
         act(() => renderer.unmount());
     });
 });

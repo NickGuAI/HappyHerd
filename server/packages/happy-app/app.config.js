@@ -3,6 +3,9 @@ const productMetadata = require('./product-metadata.json');
 const happyHerdCliPackage = require('../happy-cli/package.json');
 
 const variant = process.env.APP_ENV || 'development';
+const bundleIdBase = process.env.HAPPY_APP_BUNDLE_ID || 'app.happyherd.client';
+const easProjectId = process.env.HAPPY_EAS_PROJECT_ID;
+const appLinkHost = process.env.HAPPY_APP_LINK_HOST;
 const name = {
     development: productMetadata.developmentDisplayName,
     preview: productMetadata.previewDisplayName,
@@ -12,6 +15,11 @@ const bundleId = {
     development: "com.slopus.happy.dev",
     preview: "com.slopus.happy.preview",
     production: "com.ex3ndr.happy"
+}[variant];
+const iosBundleId = {
+    development: `${bundleIdBase}.dev`,
+    preview: `${bundleIdBase}.preview`,
+    production: bundleIdBase,
 }[variant];
 // const stagingElevenLabsAgentId = 'agent_7801k2c0r5hjfraa1kdbytpvs6yt';
 const productionElevenLabsAgentId = 'agent_6701k211syvvegba4kt7m68nxjmw';
@@ -69,7 +77,9 @@ export default {
         userInterfaceStyle: "automatic",
         ios: {
             supportsTablet: true,
-            bundleIdentifier: bundleId,
+            bundleIdentifier: iosBundleId,
+            buildNumber: process.env.HAPPY_IOS_BUILD_NUMBER || '1',
+            ...(process.env.APPLE_TEAM_ID ? { appleTeamId: process.env.APPLE_TEAM_ID } : {}),
             config: {
                 usesNonExemptEncryption: false
             },
@@ -89,8 +99,8 @@ export default {
                     ? { NSAllowsLocalNetworking: true }
                     : { NSAllowsLocalNetworking: true, NSAllowsArbitraryLoads: true }
             },
-            ...(variant === 'production'
-                ? { associatedDomains: ["applinks:app.happy.engineering"] }
+            ...(variant === 'production' && appLinkHost
+                ? { associatedDomains: [`applinks:${appLinkHost}`] }
                 : {})
         },
         android: {
@@ -209,12 +219,14 @@ export default {
                 }
             ]
         ],
-        updates: {
-            url: "https://u.expo.dev/4558dd3d-cd5a-47cd-bad9-e591a241cc06",
+        // Native builds can ship through Xcode without an Expo account. Only
+        // configure OTA/push ownership when this distribution has its own project.
+        updates: easProjectId ? {
+            url: `https://u.expo.dev/${easProjectId}`,
             requestHeaders: {
-                "expo-channel-name": "production"
+                "expo-channel-name": variant,
             }
-        },
+        } : { enabled: false },
         experiments: {
             typedRoutes: true
         },
@@ -222,9 +234,7 @@ export default {
             router: {
                 root: "./sources/app"
             },
-            eas: {
-                projectId: "4558dd3d-cd5a-47cd-bad9-e591a241cc06"
-            },
+            ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
             app: {
                 product: productMetadata,
                 postHogKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
@@ -237,6 +247,6 @@ export default {
                 buildCommitTimestamp: buildMetadata.commitTimestamp,
             }
         },
-        owner: "bulkacorp"
+        ...(process.env.HAPPY_EAS_OWNER ? { owner: process.env.HAPPY_EAS_OWNER } : {}),
     }
 };
