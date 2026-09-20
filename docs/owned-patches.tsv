@@ -384,3 +384,4 @@ DEVICE_CODE_PAIRING_CI	code-ready	test(ui): wait for asynchronous browser state	
 NATIVE_APP_DELIVERY	code-ready	fix(app): enable native builds and Commander onboarding	docs/native-app-builds.md
 ISSUE_287_KILV_UI	code-ready	feat(app): rebuild interface with KILV design tokens	server/packages/happy-app/sources/theme.ts
 ISSUE_287_NATIVE_ROUTE_TESTS	code-ready	fix(app): exclude tests from Expo route bundles	server/packages/happy-app/metro.config.js
+ISSUE_287_BROWSER_FIXTURE	code-ready	test(app): serve side-chat fixture assets separately	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
