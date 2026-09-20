@@ -23,7 +23,7 @@ const temp = mkdtempSync(resolve(tmpdir(), 'kilv-baselines-'));
 try {
     run('gh', ['run', 'download', String(workflow.databaseId), '--repo', repo, '--name', `kilv-golden-${workflow.databaseId}`, '--dir', temp]);
     const summary = JSON.parse(readFileSync(resolve(temp, 'summary.json')));
-    if (summary.sourceRevision !== sha || summary.variants !== 28) throw new Error('Incomplete or wrong-revision capture artifact');
+    if (summary.sourceRevision !== sha || summary.variants !== 28 || summary.mode !== 'compare') throw new Error('Expected a complete, normal comparison capture on this revision (not a sensitivity probe)');
     const destination = resolve(repoRoot, 'docs/acceptance/issue-287/golden');
     mkdirSync(destination, { recursive: true });
     for (const group of ['production', 'routes']) {

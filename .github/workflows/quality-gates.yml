@@ -176,7 +176,7 @@ jobs:
     name: Production build
     needs: changes
     if: always() && (needs.changes.result != 'success' || needs.changes.outputs.run_suites == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -211,8 +211,7 @@ jobs:
       - name: Compare KILV golden images
         env:
           GOLDEN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.golden_mode || 'compare' }}
-        # Temporary acceptance probe; restored after retaining the failing diff.
-        run: node scripts/kilv-golden.mjs one-pixel
+        run: node scripts/kilv-golden.mjs "$GOLDEN_MODE"
       - name: Upload golden comparison and readable diffs
         if: always()
         uses: actions/upload-artifact@v4
