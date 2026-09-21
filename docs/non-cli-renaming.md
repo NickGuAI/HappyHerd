@@ -22,6 +22,17 @@ the governed bridge. Its exported client is `HappyHerdControlClient`.
 entrypoints, and version. App Expo/Tauri version references still read that CLI
 package. Self-host Web bundling still calls its `scripts/bundle-webapp.cjs`.
 
+Because the CLI is separately owned, non-CLI renames preserve the `@happyherd/cli`
+package, the `happyherd-cli` package directory, its commands and helpers, and the
+`happyherd` MCP namespace. Shared CLI environment variables also retain their names:
+`HAPPYHERD_SERVER_URL`, `HAPPYHERD_WEBAPP_URL`, `HAPPYHERD_HOME_DIR`,
+`HAPPYHERD_PROJECT_DIR`, and `HAPPYHERD_VARIANT`.
+
+The automation `runtimeOwner` value `happyherd`, attachment encryption domains,
+and serialized peer identities remain byte-exact. These scoped exceptions preserve
+existing workflows and data while internal source symbols can follow the product
+name. Renaming source does not rewrite user data.
+
 ## Run the parameterized source transformation
 
 Use an isolated, clean worktree. The script enumerates Git-tracked regular files;
