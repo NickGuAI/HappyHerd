@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+UPSTREAM_296_GOLDENS	code-ready	test(upstream): refresh exact-head changelog golden captures	docs/upstream-sync-37e94799.md
 UPSTREAM_296_INTEGRATION	code-ready	fix(upstream): finalize pinned integration contracts and evidence	docs/upstream-sync-37e94799.md
 UPSTREAM_296_REHEARSAL	code-ready	docs(upstream): record pinned 37e94799 conflict evidence	docs/upstream-sync-37e94799.md
 KILV_CHILD_WORKSPACE_HYDRATION	accepted	test(app): await side-chat workspace path hydration	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

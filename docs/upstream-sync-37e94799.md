@@ -74,21 +74,31 @@ CLI tests use a canonical macOS TMPDIR; server tests use `TZ=UTC`, matching CI.
 
 - Frozen install, app/CLI/server typechecks, CLI build and production server
   build passed. Production Web export and local mounted React smoke passed.
-- CLI full suite: 183 files / 1,819 tests passed before the final added real
-  process liveness regression. Its final execution is recorded in PR checks.
+- Full `scripts/contract-suite.sh` passed on `14af659f` with GNU sed on PATH,
+  `TZ=UTC` and canonical TMPDIR. This includes all repository contracts,
+  ShellCheck, affected typechecks and six package suites.
+- CLI full suite: 183 files / 1,820 tests passed, including the real owner/backend
+  process liveness fixture.
 - Server full suite: 35 files / 186 tests passed with UTC; an initial local-time
   run exposed an unchanged usage-day bucketing fixture's timezone assumption.
 - Wire: 14 files / 80 tests passed.
-- App full run reached 2,992 passed, three failed and one existing skip; failures
-  were fixture updates for blob-key readiness, Expo Image and new send options.
-  The repaired four-file bundle passed 44 tests; setup-help browser gestures
-  passed on both widths. Final full-suite and exact-head CI receipts live in PR.
+- App full suite: 295 files / 3,007 tests passed, one existing benchmark skip.
+  Agent suites: 252 and 52 tests passed. Earlier fixture mismatches for blob-key
+  readiness, Expo Image and send options were repaired without relaxing checks.
 - Localization: 1,576 keys in en/cn/de, zero production copy exceptions; UI
   inventory regenerated. Changelog: 149 entries, latest “September 20 — Session
   delivery and upstream reliability”.
 - Two-parent ancestry, lineage and patch discipline passed. Public-boundary
   review required setup links to use `PRODUCT.repositoryUrl`, preserving the
   distribution's existing metadata ownership.
+- Quality run [35559037403](https://github.com/NickGuAI/HappyHerd/actions/runs/35559037403)
+  passed install/lint/typecheck/unit tests on `14af659f`. Production export and
+  Web smoke passed; the golden comparison failed only the four changelog
+  variants changed by the new entry. All other 24 variants matched exactly.
+  `pnpm --filter happy-app golden:update` fetched the complete exact-head Linux
+  capture from that run. All four changed light/dark desktop/mobile images were
+  reviewed; only those four PNG baselines changed. No threshold, mask, test,
+  timeout, golden mode or active workflow was changed.
 
 Review/CI status is attached to the PR's exact latest head. Native/live gaps
 above are not converted into acceptance by green synthetic tests or CI.
