@@ -8,7 +8,7 @@
     {
       "title": "September 20 — Resume with the saved provider account",
       "summary": "",
-      "markdown": "- Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.\n- Codex sessions using native authentication, including unmanaged side chats, keep that authentication on terminal and daemon resume even when a managed account pool is configured or fully limited."
+      "markdown": "- Manual or scheduled command and agent automations can run again once a previous run completes or fails, including quota or preparation failures. Active runs still prevent overlapping runs.\n- Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.\n- Codex sessions using native authentication, including unmanaged side chats, keep that authentication on terminal and daemon resume even when a managed account pool is configured or fully limited."
     },
     {
       "title": "September 20 — Claude model-specific usage limits",
