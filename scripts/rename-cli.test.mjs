@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 import { renameText } from './rename-cli.mjs';
 
 test('case-safe one-pass replacement preserves nested target names', () => {
@@ -79,6 +79,49 @@ test('full baseline repository supports two consecutive tracked renames with bin
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
+});
+
+test('both CLI passes keep the current MCP title namespace aligned with the app', () => {
+  const root = resolve(import.meta.dirname, '..');
+  const temp = mkdtempSync(join(tmpdir(), 'cli-mcp-identity-'));
+  try {
+    const appConsumer = ['happyherd-app', 'happy-app']
+      .map(name => `server/packages/${name}/sources/sync/reducer/messageToEvent.ts`)
+      .find(path => existsSync(join(root, path)));
+    assert(appConsumer);
+    const cliSources = [
+      'claude/runClaude.ts', 'claude/utils/systemPrompt.ts',
+      'codex/runCodex.ts', 'codex/utils/permissionHandler.ts',
+      'gemini/runGemini.ts', 'gemini/utils/permissionHandler.ts',
+      'agent/acp/runAcp.ts', 'agent/transport/handlers/GeminiTransport.ts',
+    ];
+    for (const path of [appConsumer, 'scripts/cli-rename-scope.json',
+      ...cliSources.map(path => `server/packages/happyherd-cli/src/${path}`)]) {
+      mkdirSync(dirname(join(temp, path)), { recursive: true });
+      writeFileSync(join(temp, path), readFileSync(join(root, path)));
+    }
+    execFileSync('git', ['init', '-q'], { cwd: temp });
+    execFileSync('git', ['add', '.'], { cwd: temp });
+    const consumerBytes = readFileSync(join(temp, appConsumer));
+    assert.match(consumerBytes.toString(), /mcp__happyherd__change_title/);
+    for (const [from, to] of [['Happy', 'HappyHerd'], ['HappyHerd', 'Meadow']]) {
+      execFileSync(process.execPath, [join(root, 'scripts/rename-cli.mjs'), '--root', temp, '--from', from, '--to', to, '--apply']);
+      const read = path => readFileSync(join(temp, `server/packages/${to.toLowerCase()}-cli/src/${path}`), 'utf8');
+      assert.match(read('claude/runClaude.ts'), /'happyherd': \{/);
+      assert.match(read('claude/runClaude.ts'), /mcp__happyherd__\$\{toolName\}/);
+      assert.match(read('codex/runCodex.ts'), /mcpServers\.happyherd = \{/);
+      for (const path of ['gemini/runGemini.ts', 'agent/acp/runAcp.ts']) {
+        assert.match(read(path), /happyherd: \{/);
+      }
+      for (const path of ['claude/utils/systemPrompt.ts', 'codex/utils/permissionHandler.ts', 'gemini/utils/permissionHandler.ts']) {
+        assert.match(read(path), /mcp__happyherd__change_title/);
+      }
+      assert.match(read('agent/transport/handlers/GeminiTransport.ts'), /'happyherd__change_title'/);
+      assert.deepEqual(readFileSync(join(temp, appConsumer)), consumerBytes);
+      assert(read('codex/runCodex.ts').includes(`'${to.toLowerCase()}-mcp.mjs'`));
+      execFileSync('git', ['add', '-A'], { cwd: temp });
+    }
+  } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 
 test('destination collision fails before mutating source', async () => {
