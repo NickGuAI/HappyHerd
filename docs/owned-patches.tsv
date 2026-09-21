@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NON_CLI_CI_DERIVED	accepted	fix(product): finalize migration boundaries and generated contracts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 NON_CLI_BRIDGE_ENV	accepted	fix(product): retain deployed bridge environment compatibility	scripts/test-happyherd-agent-runtime.sh
 NON_CLI_HOST_BOUNDARY	accepted	fix(product): preserve cli-owned host migration checks	scripts/test-component-deployment-contract.sh
 NON_CLI_RENAME_CONTRACT	accepted	test(product): verify rename contracts and refresh branded goldens	docs/acceptance/issue-307.md
