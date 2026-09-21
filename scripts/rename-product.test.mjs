@@ -13,11 +13,13 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
   const temp = mkdtempSync(join(tmpdir(), 'product-rename-'));
   try {
     const archive = join(temp, 'baseline.tar');
-    execFileSync('git', ['archive', '--output', archive, '8c79a1c53335f029b54198083db67341d9e4df15'], { cwd: root });
+    const renameIntroduction = execFileSync('git', ['log', '-1', '--diff-filter=A', '--format=%H', '--', 'scripts/rename-product.mjs'], { cwd: root, encoding: 'utf8' }).trim();
+    execFileSync('git', ['archive', '--output', archive, `${renameIntroduction}^`], { cwd: root });
     execFileSync('tar', ['-xf', archive, '-C', temp]);
     rmSync(archive);
     execFileSync('git', ['init', '-q'], { cwd: temp });
-    execFileSync('git', ['add', '.'], { cwd: temp });
+    // The archive contains tracked files even when ignore rules match their paths.
+    execFileSync('git', ['add', '--force', '.'], { cwd: temp });
     const read = path => readFileSync(join(temp, path));
     const original = new Map([
       'LICENSE',
@@ -33,6 +35,9 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     ].map(path => [path, read(path)]));
     const first = planProductRename(temp, 'Happy', 'HappyHerd', scope);
     const destination = path => first.find(change => change.path === path)?.destination ?? path;
+    const ignoredTracked = execFileSync('git', ['ls-files', '--cached', '--ignored', '--exclude-standard', 'server/packages/happy-app', 'server/packages/happy-server'], { cwd: temp, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+    assert(ignoredTracked.includes('server/packages/happy-app/CLAUDE.md'));
+    assert(ignoredTracked.includes('server/packages/happy-server/.env.dev'));
     const binaryBytes = first.filter(change => change.before.includes(0));
     applyProductRename(temp, first);
     assert.match(read('server/packages/happyherd-app/sources/sync/apiSocket.ts').toString(), /\bhappyClient:/);
@@ -49,6 +54,11 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.ts').toString(), /function happyherdHomeDir/);
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.test.ts').toString(), /\/home\/alice\/happy'/);
     execFileSync('git', ['add', '-A'], { cwd: temp });
+    const firstTracked = new Set(execFileSync('git', ['ls-files'], { cwd: temp, encoding: 'utf8' }).split('\n'));
+    for (const path of ignoredTracked) {
+      assert(firstTracked.has(destination(path)), path);
+      assert(existsSync(join(temp, destination(path))), path);
+    }
     assert.equal(planProductRename(temp, 'Happy', 'HappyHerd', scope).length, 0);
     const second = planProductRename(temp, 'HappyHerd', 'Meadow', scope);
     applyProductRename(temp, second);
@@ -68,6 +78,12 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.ts').toString(), /function meadowHomeDir/);
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.test.ts').toString(), /meadowHomeDir\('linux'/);
     execFileSync('git', ['add', '-A'], { cwd: temp });
+    const secondTracked = new Set(execFileSync('git', ['ls-files'], { cwd: temp, encoding: 'utf8' }).split('\n'));
+    for (const path of ignoredTracked) {
+      assert(secondTracked.has(nextDestination(path)), path);
+      assert(existsSync(join(temp, nextDestination(path))), path);
+      assert(!existsSync(join(temp, destination(path))), path);
+    }
     assert.equal(planProductRename(temp, 'HappyHerd', 'Meadow', scope).length, 0);
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });
