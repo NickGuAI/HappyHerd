@@ -110,8 +110,8 @@
  * - Updated internal state for future processing
  */
 
-import { Message, ToolCall } from "../typesMessage";
-import { AgentEvent, NormalizedMessage, UsageData } from "../typesRaw";
+import { Message, PENDING_SORT_OFFSET, ToolCall } from "../typesMessage";
+import { AgentEvent, NormalizedMessage, SessionAuthor, UsageData } from "../typesRaw";
 import { createTracer, traceMessages, TracerState } from "./reducerTracer";
 import { AgentState, TodoItem, TodoItemsSchema } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
@@ -143,6 +143,10 @@ type ReducerMessage = {
     meta?: MessageMeta;
     claudeUuid?: string;
     codexItemId?: string;
+    pending?: boolean;
+    sendError?: string;
+    sortAt?: number;
+    author?: SessionAuthor;
 }
 
 type StoredPermission = {
@@ -172,6 +176,21 @@ export type ReducerState = {
     localIds: Map<string, string>;
     messageIds: Map<string, string>; // originalId -> internalId
     messages: Map<string, ReducerMessage>;
+    /**
+     * Send outcomes whose message we have not matched yet. A receipt can
+     * beat the server's echo of the message it names, and it can also name a
+     * message another device sent, which we never hold. Both look the same from
+     * here, so a receipt is remembered rather than dropped, and a message that
+     * later claims that server id settles at once.
+     */
+    pendingReceipts: Map<string, { createdAt: number; error?: string }>;
+    /**
+     * Send acks whose optimistic row has not been reduced yet. The POST ack
+     * runs outside the session message lock, so it can beat the queued
+     * optimistic insert; the pair is kept until the row exists rather than
+     * dropped, or the later receipt would never find its message.
+     */
+    unmatchedAckServerIds: Map<string, string>; // local id -> server message id
     sidechains: Map<string, ReducerMessage[]>;
     tracerState: TracerState; // Tracer state for sidechain processing
     latestTodos?: {
@@ -199,8 +218,21 @@ export function createReducer(): ReducerState {
         localIds: new Map(),
         messageIds: new Map(),
         sidechains: new Map(),
+        pendingReceipts: new Map(),
+        unmatchedAckServerIds: new Map(),
         tracerState: createTracer()
     }
+};
+
+/**
+ * How this session treats a message the user just sent.
+ *
+ * Only Happy Agent sessions report back when a message actually enters the
+ * agent's context, so only they can honestly show a message as not-yet-seen.
+ * Everywhere else a message commits the moment it is sent, exactly as before.
+ */
+export type ReducerOptions = {
+    holdUserMessagesUntilAccepted?: boolean;
 };
 
 const ENABLE_LOGGING = false;
@@ -374,6 +406,13 @@ export type ReducerResult = {
         contextWindow?: number;
     };
     hasReadyEvent?: boolean;
+    /**
+     * Ids of already-visible messages that only settled this call (receipt
+     * position applied, pending cleared). They appear in `messages` so the
+     * store re-renders them, but they are not new content — voice and other
+     * new-message consumers must not announce them a second time.
+     */
+    settledMessageIds?: string[];
 };
 
 function updateLatestTodos(state: ReducerState, value: unknown, timestamp: number) {
@@ -390,7 +429,76 @@ function updateLatestTodos(state: ReducerState, value: unknown, timestamp: numbe
     }
 }
 
-export function reducer(state: ReducerState, messages: NormalizedMessage[], agentState?: AgentState | null): ReducerResult {
+/** Applies one terminal send outcome without replacing the visible row. */
+function settleUserMessage(state: ReducerState, internalId: string, receipt: { createdAt: number; error?: string }): boolean {
+    const message = state.messages.get(internalId);
+    if (!message || message.role !== 'user') {
+        return false;
+    }
+    // A receipt may position a message once: a held message settles out of its
+    // bottom pin, and a replayed or other-device message that was never held
+    // takes its run-order place on creation — so a fresh reload reads the same
+    // as the live session did. A row that already has its place never moves
+    // again; repositioning something the person has watched sit still is worse
+    // than either order.
+    if (!message.pending && message.sortAt !== undefined) {
+        return false;
+    }
+    message.pending = false;
+    message.sortAt = receipt.createdAt;
+    message.sendError = receipt.error;
+    return true;
+}
+
+/**
+ * Records that the message the app knows by `internalId` is the one the server
+ * knows by `serverId`, and settles it right away when its acceptance receipt
+ * got here first. Returns true when the message settled and must be re-emitted.
+ */
+function joinUserMessageServerId(state: ReducerState, serverId: string, internalId: string): boolean {
+    if (!state.messageIds.has(serverId)) {
+        state.messageIds.set(serverId, internalId);
+    }
+    const receipt = state.pendingReceipts.get(serverId);
+    if (receipt === undefined) {
+        return false;
+    }
+    state.pendingReceipts.delete(serverId);
+    return settleUserMessage(state, internalId, receipt);
+}
+
+/**
+ * Feeds the send ack into the reducer: the POST response is the only place the
+ * server id and local id of an own message are guaranteed to appear together.
+ * The socket echo can be delayed or lost, so it cannot be the only source of
+ * this join. A later stream fetch may supply it again and is idempotent.
+ * Returns the messages that settled and must be merged back into the store.
+ */
+export function registerUserMessageServerIds(
+    state: ReducerState,
+    pairs: readonly { serverId: string; localId: string }[],
+): Message[] {
+    const settled: Message[] = [];
+    for (const pair of pairs) {
+        const internalId = state.localIds.get(pair.localId);
+        if (!internalId) {
+            // The ack beat the queued optimistic insert. Keep the pair; the
+            // insert consumes it the moment the row exists.
+            state.unmatchedAckServerIds.set(pair.localId, pair.serverId);
+            continue;
+        }
+        if (joinUserMessageServerId(state, pair.serverId, internalId)) {
+            const message = state.messages.get(internalId);
+            const converted = message ? convertReducerMessageToMessage(message, state) : null;
+            if (converted) {
+                settled.push(converted);
+            }
+        }
+    }
+    return settled;
+}
+
+export function reducer(state: ReducerState, messages: NormalizedMessage[], agentState?: AgentState | null, options?: ReducerOptions): ReducerResult {
     if (ENABLE_LOGGING) {
         console.log(`[REDUCER] Called with ${messages.length} messages, agentState: ${agentState ? 'YES' : 'NO'}`);
         if (agentState?.requests) {
@@ -404,6 +512,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     let newMessages: Message[] = [];
     let changed: Set<string> = new Set();
     let hasReadyEvent = false;
+    // Rows that only settled this call — re-rendered, but not new content.
+    let settledIds: Set<string> = new Set();
 
     // First, trace all messages to identify sidechains
     const tracedMessages = traceMessages(state.tracerState, messages);
@@ -427,9 +537,37 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     for (const msg of nonSidechainMessages) {
         // Check if we've already processed this message
         if (msg.role === 'user' && msg.localId && state.localIds.has(msg.localId)) {
+            // The server's echo of a message we already put on screen. The row keeps
+            // the identity it was created with, but the echo also carries the server
+            // id an acceptance receipt names — record the join. (The send ack does
+            // this too, through registerUserMessageServerIds; whichever runs first
+            // wins and the other is a no-op.)
+            const internalId = state.localIds.get(msg.localId)!;
+            if (joinUserMessageServerId(state, msg.id, internalId)) {
+                changed.add(internalId);
+                settledIds.add(internalId);
+            }
             continue;
         }
         if (state.messageIds.has(msg.id)) {
+            continue;
+        }
+
+        if (msg.role === 'event' && (msg.content.type === 'user-message-accepted' || msg.content.type === 'user-message-rejected')) {
+            state.messageIds.set(msg.id, msg.id);
+            const receipt = {
+                createdAt: msg.createdAt,
+                ...(msg.content.type === 'user-message-rejected' ? { error: msg.content.reason } : {}),
+            };
+            const internalId = state.messageIds.get(msg.content.ref);
+            if (internalId) {
+                if (settleUserMessage(state, internalId, receipt)) {
+                    changed.add(internalId);
+                    settledIds.add(internalId);
+                }
+            } else {
+                state.pendingReceipts.set(msg.content.ref, receipt);
+            }
             continue;
         }
 
@@ -815,12 +953,30 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         if (msg.role === 'user') {
             // Check if we've seen this localId before
             if (msg.localId && state.localIds.has(msg.localId)) {
+                // An echo landing in the same batch as its optimistic copy gets
+                // past Phase 0.5's guard — localIds is not written until here —
+                // so this dedupe is its only stop. Record the join it carries.
+                const internalId = state.localIds.get(msg.localId)!;
+                if (joinUserMessageServerId(state, msg.id, internalId)) {
+                    changed.add(internalId);
+                    settledIds.add(internalId);
+                }
                 continue;
             }
             // Check if we've seen this message ID before
             if (state.messageIds.has(msg.id)) {
                 continue;
             }
+
+            // A message this device just sent, shown before the server has it:
+            // the optimistic copy is the only one whose id is its own local id.
+            // In a session that reports acceptance, hold it — the agent has not
+            // seen it yet, and a turn that predates it may still be streaming.
+            const isOptimisticLocalCopy = msg.localId !== null && msg.id === msg.localId;
+            // The encrypted send-time marker also restores still-pending rows
+            // on reconnect. Older history without receipts has no such marker.
+            const hold = options?.holdUserMessagesUntilAccepted === true
+                && (isOptimisticLocalCopy || msg.meta?.expectsAcceptance === true);
 
             // Create a new message
             let mid = allocateId();
@@ -836,6 +992,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 meta: msg.meta,
                 claudeUuid: msg.claudeUuid,
                 codexItemId: msg.codexItemId,
+                author: msg.author,
+                ...(hold ? { pending: true, sortAt: msg.createdAt + PENDING_SORT_OFFSET } : {}),
             });
 
             // Track both localId and messageId
@@ -843,6 +1001,24 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 state.localIds.set(msg.localId, mid);
             }
             state.messageIds.set(msg.id, mid);
+
+            // An ack that got here before this row existed carries the server
+            // id; the join may in turn find a receipt that was also waiting.
+            if (msg.localId) {
+                const ackServerId = state.unmatchedAckServerIds.get(msg.localId);
+                if (ackServerId !== undefined) {
+                    state.unmatchedAckServerIds.delete(msg.localId);
+                    joinUserMessageServerId(state, ackServerId, mid);
+                }
+            }
+            // A receipt that got here before the row it names — history replay
+            // delivers the message under its server id after the receipt was
+            // remembered, and the row takes its run-order place on creation.
+            const receipt = state.pendingReceipts.get(msg.id);
+            if (receipt !== undefined) {
+                state.pendingReceipts.delete(msg.id);
+                settleUserMessage(state, mid, receipt);
+            }
 
             changed.add(mid);
         } else if (msg.role === 'agent') {
@@ -1263,6 +1439,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 tool: null,
                 text: null,
                 meta: msg.meta,
+                turn: msg.turn,
             });
             changed.add(mid);
         }
@@ -1302,7 +1479,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             contextSize: state.latestUsage.contextSize,
             ...(state.latestUsage.contextWindow ? { contextWindow: state.latestUsage.contextWindow } : {}),
         } : undefined,
-        hasReadyEvent: hasReadyEvent || undefined
+        hasReadyEvent: hasReadyEvent || undefined,
+        settledMessageIds: settledIds.size > 0 ? Array.from(settledIds) : undefined
     };
 }
 
@@ -1348,6 +1526,10 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             ...(reducerMsg.meta?.displayText && { displayText: reducerMsg.meta.displayText }),
             ...(reducerMsg.claudeUuid && { claudeUuid: reducerMsg.claudeUuid }),
             ...(reducerMsg.codexItemId && { codexItemId: reducerMsg.codexItemId }),
+            ...(reducerMsg.pending && { pending: true }),
+            ...(reducerMsg.sendError !== undefined && { sendError: reducerMsg.sendError }),
+            ...(reducerMsg.sortAt !== undefined && { sortAt: reducerMsg.sortAt }),
+            ...(reducerMsg.author && { author: reducerMsg.author }),
             meta: reducerMsg.meta
         };
     } else if (reducerMsg.role === 'agent' && reducerMsg.text !== null) {
@@ -1359,6 +1541,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             kind: 'agent-text',
             text: reducerMsg.text,
             ...(reducerMsg.isThinking && { isThinking: true }),
+            ...(reducerMsg.turn !== undefined && { turn: reducerMsg.turn }),
             meta: reducerMsg.meta
         };
     } else if (reducerMsg.role === 'agent' && reducerMsg.tool !== null) {
@@ -1380,6 +1563,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             kind: 'tool-call',
             tool: { ...reducerMsg.tool },
             children: childMessages,
+            ...(reducerMsg.turn !== undefined && { turn: reducerMsg.turn }),
             meta: reducerMsg.meta
         };
     } else if (reducerMsg.role === 'agent' && reducerMsg.event !== null) {
@@ -1388,6 +1572,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             createdAt: reducerMsg.createdAt,
             kind: 'agent-event',
             event: reducerMsg.event,
+            ...(reducerMsg.turn !== undefined && { turn: reducerMsg.turn }),
             meta: reducerMsg.meta
         };
     }

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { ProjectAvatar } from './projectTypes';
+import type { SessionAvatarDescriptor } from './sessionAvatarTypes';
 import {
     AgentMessageQueueStateSchema,
     HappyHerdMachineSessionSettingsSchema,
@@ -88,6 +90,11 @@ export const MetadataSchema = z.object({
             search: z.boolean(),
             write: z.boolean(),
         }).passthrough(),
+        // Daemon emits `user-message-accepted` receipts when a message enters
+        // the agent's context. Optional: absent on daemons that predate it,
+        // and the app must not hold messages for those — with no receipt ever
+        // coming, a held message would stay "Sending…" forever.
+        messageReceipts: z.boolean().optional(),
         modelSelection: z.boolean(),
         reasoningSelection: z.boolean(),
         permissionModeSelection: z.boolean(),
@@ -426,6 +433,12 @@ export interface SessionAgentModesPatch {
 
 export interface Session {
     id: string,
+    avatarDescriptor?: SessionAvatarDescriptor | null,
+    avatar?: ProjectAvatar | null,
+    /** Local account-event watermark; not the session message sequence. */
+    avatarUpdateSeq?: number,
+    /** Server avatar revision, including explicit removal snapshots. */
+    avatarRevision?: number,
     seq: number,
     createdAt: number,
     updatedAt: number,

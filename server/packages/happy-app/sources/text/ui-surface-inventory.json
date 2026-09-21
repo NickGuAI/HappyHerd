@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "08f9f35b52a22f6d1fdd9f643361b232225480f50d2992573726354030168900",
+  "sourceFingerprint": "37e119a7b0c5b020cf9a5c0f753adf9980c4e5126171a90987b5b6298f3c127c",
   "routeCount": 41,
   "surfaceCount": 279,
   "hardcodedCopyCount": 0,
@@ -3835,6 +3835,7 @@
         "uiCopy.selectAConnectedRigMachine",
         "uiCopy.worktree",
         "uiCopy.worktree_sdajyg",
+        "upstreamSync.harnessSetupHelp",
         "workspace.title"
       ],
       "states": [],
@@ -4197,6 +4198,9 @@
         "common.copy",
         "message.providerAccountSwitched",
         "message.providerQuotaExhausted",
+        "message.sendFailed",
+        "message.sending",
+        "message.sendsAfterThisTurn",
         "message.sentAsGoal",
         "message.switchedToMode",
         "message.unknownEvent",
@@ -5852,7 +5856,9 @@
         "imageUpload.limitMessage",
         "imageUpload.limitTitle",
         "imageUpload.permissionMessage",
-        "imageUpload.permissionTitle"
+        "imageUpload.permissionTitle",
+        "imageUpload.uploadFailedMessage",
+        "imageUpload.uploadFailedTitle"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5936,7 +5942,6 @@
         "newSession.workspaceNoLongerAvailable",
         "uiCopy.createDirectory",
         "uiCopy.failedToCreateWorktree",
-        "uiCopy.failedToSendTheFirstMessage",
         "uiCopy.failedToStartSession",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",

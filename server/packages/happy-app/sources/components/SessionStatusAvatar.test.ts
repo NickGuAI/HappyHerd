@@ -5,6 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const motion = vi.hoisted(() => ({ reduced: false }));
 const settings = vi.hoisted(() => ({ commanderProfilePictures: true }));
+vi.mock('expo-image', async () => {
+    const ReactModule = await import('react');
+    return { Image: (props: any) => ReactModule.createElement('Image', props) };
+});
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
@@ -90,6 +94,22 @@ function flattenedStyle(value: unknown): Record<string, unknown> {
 }
 
 describe('SessionStatusAvatar', () => {
+    it('shows encrypted session artwork without changing bot identity, and restores the bot on removal or image failure', () => {
+        const props = { active: true, botId: 'bot-one', botName: 'Build Bot', flavor: 'codex',
+            hasDraft: false, hasUnread: false, machineId: 'machine-one', state: 'waiting' as const };
+        let renderer!: ReturnType<typeof create>;
+        act(() => { renderer = create(React.createElement(SessionStatusAvatar, { ...props, imageUrl: 'data:image/png;base64,first' })); });
+        expect(renderer.root.findByType('Image' as any).props.source.uri).toBe('data:image/png;base64,first');
+        expect(renderer.root.findAllByType('View' as any).some((node: any) => node.props.accessibilityLabel?.includes('Build Bot'))).toBe(true);
+        act(() => renderer.root.findByType('Image' as any).props.onError());
+        expect(renderer.root.findAllByType('Image' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('Ionicons' as any).some((node: any) => node.props.name === 'hardware-chip-outline')).toBe(true);
+        act(() => renderer.update(React.createElement(SessionStatusAvatar, { ...props, imageUrl: 'data:image/png;base64,second' })));
+        expect(renderer.root.findByType('Image' as any).props.source.uri).toBe('data:image/png;base64,second');
+        act(() => renderer.update(React.createElement(SessionStatusAvatar, props)));
+        expect(renderer.root.findAllByType('Image' as any)).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
     it('keeps initials and status rendering but withholds the machine identity while pictures are disabled', () => {
         settings.commanderProfilePictures = false;
         let renderer!: ReturnType<typeof create>;

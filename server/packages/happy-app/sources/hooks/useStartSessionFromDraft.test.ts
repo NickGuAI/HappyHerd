@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     machineSpawnNewSession: vi.fn(),
     sessionSetAgentModes: vi.fn(),
     refreshSessions: vi.fn(),
+    ensureSessionReady: vi.fn(),
     sendMessage: vi.fn(),
     createWorktree: vi.fn(),
     machineStopSession: vi.fn(),
@@ -88,6 +89,7 @@ vi.mock('@/sync/ops', () => ({
 vi.mock('@/sync/sync', () => ({
     sync: {
         refreshSessions: mocks.refreshSessions,
+        ensureSessionReady: mocks.ensureSessionReady,
         sendMessage: mocks.sendMessage,
     },
 }));
@@ -172,7 +174,7 @@ vi.mock('@/text', () => ({
     t: (key: string) => key,
 }));
 
-import { completeSpawnRequest } from '@/sync/spawnRequestId';
+import { completeSpawnRequest, releaseSpawnedSession } from '@/sync/spawnRequestId';
 import { useStartSessionFromDraft } from './useStartSessionFromDraft';
 
 function createRigMachine(metadata: Record<string, unknown> = {}) {
@@ -287,7 +289,8 @@ describe('useStartSessionFromDraft', () => {
         mocks.draft = createDraft();
         mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-1' });
         mocks.refreshSessions.mockResolvedValue(undefined);
-        mocks.sendMessage.mockResolvedValue(undefined);
+        mocks.ensureSessionReady.mockResolvedValue(undefined);
+        mocks.sendMessage.mockResolvedValue(true);
         mocks.confirm.mockResolvedValue(false);
         mocks.machineStopSession.mockResolvedValue({ success: true });
         mocks.sessionKill.mockResolvedValue({ success: true });
@@ -315,17 +318,17 @@ describe('useStartSessionFromDraft', () => {
             modelMode: undefined,
             effortLevel: 'medium',
         });
-        expect(mocks.refreshSessions).toHaveBeenCalledOnce();
+        expect(mocks.ensureSessionReady).toHaveBeenCalledWith('session-1');
         expect(mocks.draft.setInput).toHaveBeenCalledWith('');
         expect(mocks.draft.setAttachments).toHaveBeenCalledWith([]);
         expect(mocks.navigateToSession).toHaveBeenCalledWith('session-1');
         expect(mocks.sendMessage).toHaveBeenCalledWith(
             'session-1',
             'Start the implementation',
-            { source: 'new_session', attachments: mocks.draft.attachments },
+            { source: 'new_session', attachments: mocks.draft.attachments, signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
         );
         expect(mocks.navigateToSession.mock.invocationCallOrder[0])
-            .toBeLessThan(mocks.sendMessage.mock.invocationCallOrder[0]);
+            .toBeGreaterThan(mocks.sendMessage.mock.invocationCallOrder[0]);
     });
 
     it('submits the visible Codex code default when an old CLI filters saved Auto', async () => {
@@ -522,7 +525,7 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.sendMessage).toHaveBeenCalledWith(
             'session-1',
             'Start the implementation',
-            { source: 'new_session', attachments: [] },
+            { source: 'new_session', attachments: [], signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
         );
     });
 
@@ -564,7 +567,7 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.sendMessage).toHaveBeenCalledWith(
             'session-1',
             'Start the implementation',
-            { source: 'new_session', attachments: [] },
+            { source: 'new_session', attachments: [], signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
         );
     });
 
@@ -611,6 +614,7 @@ describe('useStartSessionFromDraft', () => {
                 source: 'new_session',
                 attachments: [],
                 displayText: 'Start the implementation\n\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+                signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function),
             },
         );
         expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('session-1');
@@ -1428,5 +1432,107 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
         expect(mocks.navigateToSession).not.toHaveBeenCalled();
         expect(mocks.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('preserves text and attachments on failed placement, and retries the already-created CLI session', async () => {
+        mocks.sendMessage.mockResolvedValueOnce(false).mockResolvedValue(true);
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(mocks.sendMessage.mock.calls.map(call => call[0])).toEqual(['session-1', 'session-1']);
+    });
+
+    it('does not clear a newer draft edited during first-message placement', async () => {
+        let finish!: (accepted: boolean) => void;
+        mocks.sendMessage.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+        const originalDraft = mocks.draft;
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledOnce());
+        mocks.draft = createDraft({ input: 'new text', attachments: [] });
+        finish(true);
+        await expect(starting).resolves.toBe(true);
+        expect(originalDraft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+    });
+
+    it('cleans up a created unsent session when retry changes destination', async () => {
+        mocks.sendMessage.mockResolvedValueOnce(false).mockResolvedValue(true);
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        mocks.draft = createDraft({ selectedPath: '~/different' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-2' });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+        expect(mocks.machineStopSession).not.toHaveBeenCalledWith('machine-1', 'session-2');
+        expect(mocks.sendMessage.mock.calls[1][0]).toBe('session-2');
+    });
+
+    it('Stop during hydration prevents a late first send', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        cancelStart();
+        await expect(starting).resolves.toBe(false);
+        finish();
+        await Promise.resolve();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+    });
+
+    it('changing the destination during hydration cancels the first send without consuming the draft', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        mocks.draft = createDraft({ selectedPath: '~/different' });
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-1');
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+    });
+
+    it.each(['target-change', 'stop'])('never kills a session adopted while hydration is pending: %s', async (action) => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        releaseSpawnedSession('session-1');
+        if (action === 'stop') cancelStart();
+        else mocks.draft = createDraft({ selectedPath: '~/different' });
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).not.toHaveBeenCalled();
+        expect(mocks.sessionKill).not.toHaveBeenCalled();
+        expect(mocks.sessionArchive).not.toHaveBeenCalled();
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+    });
+
+    it('Stop after outbox acceptance cannot turn an accepted prompt into an unsent draft', async () => {
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        mocks.sendMessage.mockImplementation(async (_id, _text, options) => {
+            options.onAccepted();
+            cancelStart();
+            return true;
+        });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.draft.setInput).toHaveBeenCalledWith('');
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('session-1');
+        expect(mocks.machineStopSession).not.toHaveBeenCalled();
     });
 });

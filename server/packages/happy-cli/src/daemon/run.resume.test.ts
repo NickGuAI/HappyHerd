@@ -298,6 +298,7 @@ type CapturedRpcHandlers = {
 };
 
 type CapturedControlHandlers = {
+  stopSession: (sessionId: string) => boolean;
   sendLocalMessage: (request: import('./localSessionClient').LocalSessionSendRequest) => Promise<import('./localSessionClient').LocalSessionSendReceipt>;
   inspectLocalSession: (request: import('./localSessionClient').LocalSessionInspectRequest) => Promise<import('./localSessionClient').LocalSessionInspectReceipt>;
   ensureDefaultAssistant: () => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
@@ -445,6 +446,51 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
   }
+
+  it('coalesces concurrent resumes and keeps a reserved owner until registration', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const attempts = Array.from({ length: 8 }, () => rpc.resumeSession(sessionId));
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce();
+    // An unrelated registration must not overwrite this child's reserved ID.
+    control.onHappySessionWebhook('wrong-session', { ...metadata, hostPid: 4321 }, encryption);
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    for (const result of await Promise.all(attempts)) expect(result).toMatchObject({ type: 'success', sessionId });
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
+    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+  });
+
+  it.each(['stop', 'webhook'] as const)('rechecks %s arriving during authoritative recovery before spawning', async (race) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    let finish!: () => void;
+    mocks.inspectSessionAuthoritative.mockImplementationOnce((session: unknown) => new Promise(resolve => {
+      finish = () => resolve({ session, active: false });
+    }));
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const attempt = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce());
+    if (race === 'stop') expect(control.stopSession(sessionId)).toBe(true);
+    else control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 9876 }, encryption);
+    finish();
+    await expect(attempt).resolves.toMatchObject({ type: 'error' });
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+  });
+
+  it('retains a timed-out resume child as an owner and allows its late registration', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    // Shorten only the fixture timer; exercise the real timeout callback.
+    const realSetTimeout = global.setTimeout;
+    const timer = vi.spyOn(global, 'setTimeout').mockImplementation(((fn: (...args: any[]) => void, ms?: number, ...args: any[]) =>
+      realSetTimeout(fn, ms === 15_000 ? 20 : ms, ...args)) as typeof setTimeout);
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('timeout') });
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error' });
+    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
+    timer.mockRestore();
+  });
 
   it('sends a local task through the original session key and reads only bounded safe metadata and messages', async () => {
     const { sessionId, metadata, encryption, control } = await localMessagingFixture();

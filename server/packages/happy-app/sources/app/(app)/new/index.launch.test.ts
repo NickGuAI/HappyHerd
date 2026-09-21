@@ -301,6 +301,9 @@ vi.mock('@/sync/agentSessionPlaces', () => ({
     collectSessionWorkspaces: () => mocks.emptyList,
 }));
 vi.mock('@/sync/ops', () => ({
+    machineStopSession: vi.fn(async () => ({ success: true })),
+    sessionKill: vi.fn(async () => ({ success: true })),
+    sessionArchive: vi.fn(),
     machineListCommanders: mocks.machineListCommanders,
     machineSpawnNewSession: mocks.machineSpawnNewSession,
     sessionSetAgentModes: mocks.sessionSetAgentModes,
@@ -308,6 +311,7 @@ vi.mock('@/sync/ops', () => ({
 vi.mock('@/sync/sync', () => ({
     sync: {
         refreshSessions: mocks.refreshSessions,
+        ensureSessionReady: mocks.refreshSessions,
         sendMessage: mocks.sendMessage,
     },
 }));
@@ -524,7 +528,7 @@ beforeEach(() => {
     mocks.listWorktrees.mockResolvedValue([]);
     mocks.createWorktree.mockResolvedValue({ success: true, worktreePath: '/worktree', branchName: 'branch' });
     mocks.refreshSessions.mockResolvedValue(undefined);
-    mocks.sendMessage.mockResolvedValue(undefined);
+    mocks.sendMessage.mockResolvedValue({ localId: 'first-message' });
     mocks.confirm.mockResolvedValue(false);
     mocks.pickImagesForUpload.mockResolvedValue([]);
     mocks.uploadAssets.mockResolvedValue([]);
@@ -800,6 +804,7 @@ describe('Full New Session provider launch', () => {
                 source: 'new_session',
                 attachments: [],
                 displayText: 'Start the task\n\n/Users/dev/project/photo.jpg',
+                signal: expect.any(AbortSignal), isCurrent: expect.any(Function),
             },
         );
         expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('dsh-session');

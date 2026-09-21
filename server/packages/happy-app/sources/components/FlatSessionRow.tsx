@@ -125,6 +125,8 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
         >
             <View style={styles.avatar}>
                 <SessionStatusAvatar
+                    imageUrl={session.sessionAvatarUri}
+                    thumbhash={session.sessionAvatarThumbhash}
                     active={session.active}
                     botId={session.botId}
                     botName={session.name}

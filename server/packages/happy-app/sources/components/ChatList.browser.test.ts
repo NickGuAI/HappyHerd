@@ -41,6 +41,18 @@ const virtualModules: Record<string, string> = {
         let snapshot = new URLSearchParams(location.search).has('focus')
             ? { messages: Array.from({ length: 150 }, (_, index) => user(149-index)), hasMoreOlder: false, isLoadingOlder: false }
             : { messages: [agent('final', 'Completed response', 5), tool('last-tool', 'Inspect second file'), agent('progress', 'Checking the source', 3), tool('first-tool', 'Inspect first file'), user(0)], hasMoreOlder: false, isLoadingOlder: false };
+        if (new URLSearchParams(location.search).has('participants')) {
+            snapshot = { ...snapshot, messages: [
+                { ...user(3), text: 'Pending instruction', pending: true },
+                { ...user(2), text: 'Other participant\\n其他参与者', author: { id: 'other', name: 'Teammate', owner: false } },
+                { ...user(1), text: 'My instruction\\n我的消息', author: { id: 'owner', name: 'Owner', owner: true } },
+            ] };
+        }
+        window.__settle = (rejected) => {
+            snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
+                ? { ...message, pending: false, sendError: rejected ? 'provider refused' : undefined } : message) };
+            listeners.forEach(fn => fn());
+        };
         window.__prepend = () => { snapshot = { ...snapshot, messages: [user(150), ...snapshot.messages] }; listeners.forEach(fn => fn()); };
         export const useSession = () => session;
         export const useSessionAgentFormCommunication = () => null;
@@ -52,6 +64,7 @@ const virtualModules: Record<string, string> = {
         export const t = (key, params = {}) => ({
             'toolGroup.hide': 'Hide', 'toolGroup.workedFor': 'Worked for '+params.duration,
             'uiCopy.jumpToLatest': 'Jump to latest', 'uiCopy.newMessagesJumpToLatest': params.count+' new messages · Jump to latest',
+            'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
         }[key] ?? key);
     `,
     '@/components/tools/knownTools': `export const knownTools = {}; export const getToolCategoryIcon = () => null;`,
@@ -117,6 +130,25 @@ describe('ChatList production FlashList browser interactions', () => {
         await browser?.close();
         if (server) await new Promise<void>(closed => server.close(() => closed()));
     }, 20000);
+
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('aligns participants and settles pending status in the real chat at $width px', async viewport => {
+        const page = await browser.newPage({ viewport });
+        await page.goto(origin + '?participants');
+        const own = page.getByText('My instruction', { exact: false });
+        const other = page.getByText('Other participant', { exact: false });
+        await other.waitFor();
+        await page.getByText('Teammate', { exact: true }).waitFor();
+        await page.getByText('Sending…', { exact: true }).waitFor();
+        const [ownBox, otherBox] = await Promise.all([own.boundingBox(), other.boundingBox()]);
+        expect(ownBox!.x).toBeGreaterThan(otherBox!.x);
+        expect(otherBox!.x).toBeGreaterThanOrEqual(0);
+        expect(ownBox!.x + ownBox!.width).toBeLessThanOrEqual(viewport.width);
+        await page.evaluate(() => (window as any).__settle(true));
+        await page.getByText('Message not accepted: provider refused', { exact: true }).waitFor();
+        expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
+        expect(await page.getByText('Pending instruction', { exact: true }).count()).toBe(1);
+        await page.close();
+    });
 
     it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
         const page = await browser.newPage({ viewport });

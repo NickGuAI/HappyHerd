@@ -25,6 +25,7 @@ const accountTag = { accountId_tag: { accountId: 'account-a', tag } };
 function session(id: string, overrides: Partial<Session> = {}): Session {
     return {
         id, accountId: 'account-a', tag, projectId: null,
+        avatarRef: null, avatarPreview: null, avatarVersion: 0,
         metadata: 'stored-metadata', metadataVersion: 7, agentState: 'stored-state', agentStateVersion: 9,
         dataEncryptionKey: new Uint8Array([4, 5, 6]), seq: 23, active: false,
         createdAt: new Date(100), updatedAt: new Date(200), lastActiveAt: new Date(150), ...overrides,

@@ -85,6 +85,19 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 
 ## Provider onboarding conformance
 
+For the #296 integration, focus app `sync.send`, `sync.receipts`,
+`reducer/pendingUserMessages`, `firstSendComposers`, `spawnRequestId`,
+`useStartSessionFromDraft`, `useImagePicker` and session-avatar tests. Render
+participant alignment/pending rejection in `ChatList.browser` and zero-runnable
+setup help in `sideChatHeader.browser` at 1440×900 and 390×844. Preserve the
+existing strict Workspace, bot lifecycle, provider-mode, and side-chat suites.
+CLI `auth.logout` uses a temporary shared home; `run.resume` covers single-flight,
+late registration/Stop and timeout reservations; `sessionLiveness` also runs a
+real credential-free owner/backend fixture. Server avatar route and PGlite
+migration tests cover authorization, opaque data, revision ordering and existing
+session preservation. Physical-device photos and authenticated provider/avatar
+journeys remain separate proof from these tests.
+
 Every new provider, and every provider protocol-shape change, needs a
 deterministic vertical-slice fixture. The minimum matrix is:
 

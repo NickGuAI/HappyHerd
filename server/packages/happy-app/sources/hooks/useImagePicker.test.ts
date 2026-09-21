@@ -1,13 +1,14 @@
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     platform: { OS: 'ios' },
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
     manipulateAsync: vi.fn(),
+    getInfoAsync: vi.fn(),
     generateThumbhash: vi.fn(),
     alert: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock('expo-image-manipulator', () => ({
     SaveFormat: { JPEG: 'jpeg' },
     manipulateAsync: mocks.manipulateAsync,
 }));
+vi.mock('expo-file-system/legacy', () => ({ getInfoAsync: mocks.getInfoAsync }));
 
 vi.mock('@/modal', () => ({
     Modal: { alert: mocks.alert },
@@ -38,21 +40,28 @@ vi.mock('@/utils/thumbhash', () => ({
     generateThumbhash: mocks.generateThumbhash,
 }));
 
-import { normalizePickedAssetForUpload, useImagePicker } from './useImagePicker';
+import { MAX_FILE_SIZE, normalizePickedAssetForUpload, useImagePicker } from './useImagePicker';
+
+const photo = { uri: 'file:///test/photo.heic', width: 6048, height: 8064,
+    fileName: 'photo.heic', mimeType: 'image/heic', fileSize: 2_701_533 };
+beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.platform.OS = 'ios';
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [photo] });
+    mocks.manipulateAsync.mockResolvedValue({ uri: 'file:///test/normalized.jpg', width: 2304, height: 3072 });
+    mocks.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 3_000_000 });
+    mocks.generateThumbhash.mockResolvedValue('thumbhash');
+});
 
 type ImagePickerController = ReturnType<typeof useImagePicker>;
 
 describe('normalizePickedAssetForUpload', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mocks.platform.OS = 'ios';
-    });
-
     it('normalizes iOS image picker assets to JPEG before upload', async () => {
         mocks.manipulateAsync.mockResolvedValue({
             uri: 'file:///tmp/ImageManipulator/IMG_9824.jpg',
-            width: 4032,
-            height: 3024,
+            width: 3072,
+            height: 2304,
         });
 
         const normalized = await normalizePickedAssetForUpload({
@@ -65,16 +74,136 @@ describe('normalizePickedAssetForUpload', () => {
 
         expect(mocks.manipulateAsync).toHaveBeenCalledWith(
             'file:///tmp/IMG_9824.HEIC',
-            [],
-            { compress: expect.any(Number), format: 'jpeg' },
+            [{ resize: { width: 3072 } }],
+            { compress: 0.92, format: 'jpeg' },
         );
         expect(normalized).toEqual({
             uri: 'file:///tmp/ImageManipulator/IMG_9824.jpg',
             mimeType: 'image/jpeg',
             name: 'IMG_9824.jpg',
-            width: 4032,
-            height: 3024,
+            width: 3072,
+            height: 2304,
+            size: 3_000_000,
         });
+    });
+
+    it.each([
+        [6048, 8064, { height: 3072 }],
+        [8064, 6048, { width: 3072 }],
+        [8064, 8064, { width: 3072 }],
+        [12000, 2000, { width: 3072 }],
+    ])('bounds %ix%i images using one dimension to preserve framing', async (width, height, resize) => {
+        await normalizePickedAssetForUpload({ ...photo, width, height });
+        expect(mocks.manipulateAsync).toHaveBeenCalledExactlyOnceWith(
+            photo.uri, [{ resize }], { compress: 0.92, format: 'jpeg' },
+        );
+    });
+
+    it.each([[1024, 768], [3072, 2304]])('does not upscale or crop an already-small %ix%i image', async (width, height) => {
+        mocks.manipulateAsync.mockResolvedValue({ uri: 'file:///test/small.jpg', width, height });
+        const normalized = await normalizePickedAssetForUpload({ ...photo, width, height, fileName: 'small.jpg', mimeType: 'image/jpeg' });
+        expect(mocks.manipulateAsync).toHaveBeenCalledExactlyOnceWith(
+            photo.uri, [], { compress: 0.92, format: 'jpeg' },
+        );
+        expect(normalized).toMatchObject({ width, height, name: 'small.jpg' });
+    });
+
+    it('measures the converted URI even when source filesize is unavailable', async () => {
+        const normalized = await normalizePickedAssetForUpload({ ...photo, fileSize: undefined });
+        expect(mocks.getInfoAsync).toHaveBeenCalledExactlyOnceWith('file:///test/normalized.jpg');
+        expect(normalized).toMatchObject({ size: 3_000_000, width: 2304, height: 3072 });
+    });
+
+    it.each([
+        { exists: false },
+        { exists: true, isDirectory: true, size: 100 },
+        { exists: true, size: undefined },
+        { exists: true, size: 0 },
+        { exists: true, size: -1 },
+        { exists: true, size: NaN },
+        { exists: true, size: Infinity },
+    ])('rejects unreadable/unknown transformed filesize: %j', async (info) => {
+        mocks.getInfoAsync.mockResolvedValue(info);
+        await expect(normalizePickedAssetForUpload(photo)).rejects.toThrow();
+    });
+
+    it.each(['android', 'web'])('preserves the existing %s path', async (platform) => {
+        mocks.platform.OS = platform;
+        const normalized = await normalizePickedAssetForUpload(photo);
+        expect(normalized).toEqual({
+            uri: photo.uri, width: photo.width, height: photo.height,
+            mimeType: photo.mimeType, name: photo.fileName, size: photo.fileSize,
+        });
+        expect(mocks.manipulateAsync).not.toHaveBeenCalled();
+        expect(mocks.getInfoAsync).not.toHaveBeenCalled();
+    });
+});
+
+describe('useImagePicker transformed upload validation', () => {
+    let renderer: ReactTestRenderer;
+    let current: ImagePickerController;
+    function Harness() { current = useImagePicker(); return null; }
+    beforeEach(() => {
+        (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+        act(() => { renderer = create(React.createElement(Harness)); });
+    });
+    afterEach(() => { act(() => renderer.unmount()); });
+    const addedImages = () => current.selectedImages;
+    const pick = async () => { await act(async () => { await current.pickImages(); }); };
+
+    it('adds the converted bytes/size, not the original oversized HEIC', async () => {
+        mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ ...photo, fileSize: MAX_FILE_SIZE + 1 }] });
+        await pick();
+        expect(addedImages()).toEqual([expect.objectContaining({
+            uri: 'file:///test/normalized.jpg', size: 3_000_000,
+            width: 2304, height: 3072, name: 'photo.jpg', mimeType: 'image/jpeg', thumbhash: 'thumbhash',
+        })]);
+        expect(mocks.generateThumbhash).toHaveBeenCalledExactlyOnceWith('file:///test/normalized.jpg', 2304, 3072);
+        expect(mocks.alert).not.toHaveBeenCalled();
+    });
+
+    it.each([MAX_FILE_SIZE + 1, MAX_FILE_SIZE, MAX_FILE_SIZE - 39])('rejects transformed size %i including encryption overhead', async (size) => {
+        mocks.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size });
+        await pick();
+        expect(mocks.alert).toHaveBeenCalledWith('imageUpload.fileTooLargeTitle', 'imageUpload.fileTooLargeMessage', expect.any(Array));
+        expect(mocks.generateThumbhash).not.toHaveBeenCalled();
+        expect(addedImages()).toEqual([]);
+    });
+
+    it('accepts the exact encrypted upload boundary and reports plaintext bytes', async () => {
+        mocks.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: MAX_FILE_SIZE - 40 });
+        await pick();
+        expect(addedImages()[0].size).toBe(MAX_FILE_SIZE - 40);
+    });
+
+    it('accepts unknown original filesize after measuring the JPEG', async () => {
+        mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ ...photo, fileSize: undefined }] });
+        await pick();
+        expect(addedImages()[0].size).toBe(3_000_000);
+    });
+
+    it.each(['manipulateAsync', 'getInfoAsync'] as const)('isolates %s failure without dropping valid sibling images', async (operation) => {
+        mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [photo, photo] });
+        mocks[operation].mockRejectedValueOnce(new Error('native failure'));
+        await pick();
+        expect(addedImages()).toHaveLength(1);
+        expect(mocks.alert).toHaveBeenCalledWith('imageUpload.uploadFailedTitle', 'imageUpload.uploadFailedMessage', expect.any(Array));
+    });
+
+    it('does not add an image whose converted size is unavailable', async () => {
+        mocks.getInfoAsync.mockResolvedValue({ exists: false });
+        await pick();
+        expect(addedImages()).toEqual([]);
+        expect(mocks.alert).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([{ canceled: true, assets: null }, { canceled: false, assets: [] }])('does nothing on canceled/empty selection', async (result) => {
+        mocks.launchImageLibraryAsync.mockResolvedValue(result);
+        await pick();
+        expect(mocks.manipulateAsync).not.toHaveBeenCalled();
+        expect(mocks.getInfoAsync).not.toHaveBeenCalled();
+        expect(addedImages()).toEqual([]);
+        expect(mocks.alert).not.toHaveBeenCalled();
     });
 });
 

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
+import { PRODUCT } from '../constants/product';
 import { createServer, type Server } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -107,6 +108,7 @@ const virtualModules: Record<string, string> = {
     `,
     'zustand/react/shallow': `export const useShallow = (selector) => selector;`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
+    '@/constants/product': `export const PRODUCT = ${JSON.stringify(PRODUCT)};`,
     'expo-haptics': `
         export const NotificationFeedbackType = { Error: 'error' };
         export const ImpactFeedbackStyle = { Light: 'light' };
@@ -280,6 +282,9 @@ const virtualModules: Record<string, string> = {
                 effortLevels: [],
                 permissionModes: [{ code: 'default', value: 'default', isDefault: true }],
             } };
+        }
+        if (fixtureOptions.noRunnableHarness) {
+            for (const machine of machines) machine.metadata.cliAvailability = { claude: false, codex: false, agy: false, grok: false, dsh: false };
         }
         const changedFiles = (sessionId) => ({
             stagedFiles: [],
@@ -553,7 +558,9 @@ const virtualModules: Record<string, string> = {
                 return __loadProviderContinuationMessages();
             },
             refreshSessions: async () => {},
+            ensureSessionReady: async () => {},
             sendMessage: async (sessionId, text, options) => {
+                options?.onAccepted?.();
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
                 window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
                 if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferWorkspaceFeedback && window.__COMPOSER_SENDS__.length === 1) {
@@ -1456,6 +1463,22 @@ describe('Side chats browser interaction', () => {
             await page.close();
         }
     }, 30_000);
+
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('offers setup help without hiding unavailable harnesses at $width px', async viewport => {
+        const page = await browser.newPage({ viewport });
+        page.setDefaultTimeout(5000);
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { homeDock: true, noRunnableHarness: true };
+        });
+        await page.goto(origin);
+        await page.getByTestId('home-dock').getByText('Inspect attachments', { exact: true }).filter({ visible: true }).click();
+        const help = page.getByRole('link', { name: 'upstreamSync.harnessSetupHelp', exact: true }).filter({ visible: true });
+        await help.click();
+        expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual([`${PRODUCT.repositoryUrl}#installation`]);
+        await page.getByRole('button', { name: /^uiCopy.agent_1wzwjl:/ }).filter({ visible: true }).click();
+        expect(await page.locator('[aria-disabled="true"]').filter({ visible: true }).count()).toBeGreaterThan(0);
+        await page.close();
+    });
 
     it.each([
         ['active session', { width: 1440, height: 900 }],

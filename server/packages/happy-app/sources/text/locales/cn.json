@@ -1084,6 +1084,9 @@
     "deleteFailed": "删除设备失败。"
   },
   "message": {
+    "sendFailed": "消息未被接受：{reason}",
+    "sendsAfterThisTurn": "本轮结束后发送",
+    "sending": "正在发送…",
     "switchedToMode": "已切换到 {mode} 模式",
     "providerAccountSwitched": "{provider} 额度耗尽触发了从 {fromAccount} 到 {toAccount} 的账号切换。",
     "providerQuotaExhausted": "{provider} 额度已耗尽。",
@@ -1902,6 +1905,7 @@
     "bots": "机器人"
   },
   "upstreamSync": {
+    "harnessSetupHelp": "代理设置帮助",
     "loadFailed": "无法从 Happy Agent 加载更改。",
     "agentUpdate": "请更新电脑上的 Happy Agent，以查看此会话的更改。",
     "comparisonUnavailable": "此工作区无法与 origin/main 进行比较。",

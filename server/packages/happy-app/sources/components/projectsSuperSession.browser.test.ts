@@ -338,6 +338,7 @@ const virtualModules: Record<string, string> = {
     '@/components/MobileGlass': `import React from 'react'; export const MobileGlassSurface = ({ children }) => children;`,
     '@/components/AnimatedOverlay': `export const AnimatedCollapsible = ({ children, expanded }) => expanded ? children : null;`,
     '@/components/Avatar': `export const Avatar = () => null;`,
+    'expo-image': `import React from 'react'; export const Image = ({ source, style }) => React.createElement('img', { src: source?.uri, style });`,
     '@/components/AvatarBrutalist': `export const AvatarBrutalist = () => null;`,
     '@/components/AvatarSkia': `export const AvatarSkia = () => null;`,
     '@/components/AvatarGradient': `export const AvatarGradient = () => null;`,
