@@ -469,7 +469,7 @@ export async function seedEnvironment(name: string): Promise<void> {
     const daemonEnv = { ...process.env, ...envVars };
     delete daemonEnv.CLAUDECODE;
 
-    const happyBin = path.join(REPO_ROOT, "packages", "happy-cli", "bin", "happy.mjs");
+    const happyBin = path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs");
     const daemon = spawn("node", [happyBin, "daemon", "start"], {
         env: daemonEnv,
         stdio: "ignore",
@@ -711,7 +711,7 @@ function commandRun(service: string, serviceArgs: string[] = []) {
         }
         case "cli": {
             console.log(`Starting CLI for environment "${envName}"...`);
-            const cliBin = path.join(REPO_ROOT, "packages", "happy-cli", "bin", "happy.mjs");
+            const cliBin = path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs");
             const result = spawnSync(
                 "node",
                 [cliBin, ...serviceArgs],
@@ -754,11 +754,11 @@ function buildEnvVars(envDir: string, serverPort: number, expoPort: number): Rec
         EXPO_PORT: String(expoPort),
 
         // CLI
-        HAPPY_SERVER_URL: `http://localhost:${serverPort}`,
-        HAPPY_WEBAPP_URL: `http://localhost:${expoPort}`,
-        HAPPY_HOME_DIR: path.join(envDir, "cli", "home"),
-        HAPPY_PROJECT_DIR: projectDir,
-        HAPPY_VARIANT: "dev",
+        HAPPYHERD_SERVER_URL: `http://localhost:${serverPort}`,
+        HAPPYHERD_WEBAPP_URL: `http://localhost:${expoPort}`,
+        HAPPYHERD_HOME_DIR: path.join(envDir, "cli", "home"),
+        HAPPYHERD_PROJECT_DIR: projectDir,
+        HAPPYHERD_VARIANT: "dev",
         DEBUG: "1",
         ...(devAuth ? {
             EXPO_PUBLIC_DEV_TOKEN: devAuth.token,
@@ -767,7 +767,7 @@ function buildEnvVars(envDir: string, serverPort: number, expoPort: number): Rec
     };
 }
 
-function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: number): string {
+export function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: number): string {
     const vars = buildEnvVars(envDir, serverPort, expoPort);
     const lines: string[] = [
         `# Happy Dev Environment: ${name}`,
@@ -799,11 +799,11 @@ function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: 
     lines.push("");
 
     lines.push("# CLI");
-    lines.push(`export HAPPY_SERVER_URL="${vars.HAPPY_SERVER_URL}"`);
-    lines.push(`export HAPPY_WEBAPP_URL="${vars.HAPPY_WEBAPP_URL}"`);
-    lines.push(`export HAPPY_HOME_DIR="${vars.HAPPY_HOME_DIR}"`);
-    lines.push(`export HAPPY_PROJECT_DIR="${vars.HAPPY_PROJECT_DIR}"`);
-    lines.push(`export HAPPY_VARIANT=dev`);
+    lines.push(`export HAPPYHERD_SERVER_URL="${vars.HAPPYHERD_SERVER_URL}"`);
+    lines.push(`export HAPPYHERD_WEBAPP_URL="${vars.HAPPYHERD_WEBAPP_URL}"`);
+    lines.push(`export HAPPYHERD_HOME_DIR="${vars.HAPPYHERD_HOME_DIR}"`);
+    lines.push(`export HAPPYHERD_PROJECT_DIR="${vars.HAPPYHERD_PROJECT_DIR}"`);
+    lines.push(`export HAPPYHERD_VARIANT=dev`);
     lines.push(`export DEBUG=1`);
     lines.push(`export PATH="${path.join(envDir, "bin")}:$PATH"`);
     lines.push("");
@@ -822,7 +822,7 @@ function writeEnvCommands(envDir: string): void {
     const commands = [
         {
             name: "happyherd",
-            entrypoint: path.join(REPO_ROOT, "packages", "happy-cli", "bin", "happy.mjs"),
+            entrypoint: path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs"),
         },
         {
             name: "happy-agent",
@@ -886,7 +886,7 @@ async function commandUp(template: Template, opts?: { noSwitch?: boolean }) {
         const envVars = buildEnvVars(envDir, config.serverPort, config.expoPort);
         const mergedEnv: Record<string, string | undefined> = { ...process.env, ...envVars };
         const buildResult = spawnSync("pnpm", ["build"], {
-            cwd: path.join(REPO_ROOT, "packages", "happy-cli"),
+            cwd: path.join(REPO_ROOT, "packages", "happyherd-cli"),
             env: mergedEnv,
             stdio: "inherit",
         });

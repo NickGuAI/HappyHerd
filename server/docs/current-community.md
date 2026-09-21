@@ -275,7 +275,7 @@ Beyond filing issues/PRs, these people are the actual *community* — they discu
 
 **leeroybrun (Leeroy Brun)** — Lausanne, Switzerland — 69 followers
 - Full-stack engineer at **Batiplus**
-- **Built the entire Happy self-hosted ecosystem:** happy-stacks, happy-server-light, happy-cli, slopus.github.io (docs)
+- **Built the entire Happy self-hosted ecosystem:** happy-stacks, happy-server-light, happyherd-cli, slopus.github.io (docs)
 - 5 merged PRs + 40 issue comments. THE community champion.
 - Also built tools for Codex and OpenCode.
 
@@ -284,7 +284,7 @@ Beyond filing issues/PRs, these people are the actual *community* — they discu
 **cruzanstx** — Possibly US Virgin Islands — 9 followers
 - The LONGEST-TENURED active user: Nov 2025 to Apr 2026 (5+ months!)
 - Built **cclimits** (15 stars) — check quota for Claude Code, Codex, Gemini CLI
-- Also built own **hapi** fork and **happy-cli** fork
+- Also built own **hapi** fork and **happyherd-cli** fork
 - 6 issues spanning 5 months. The most persistent power user.
 
 **theflysurfer** — ??? — 0 followers, 0 repos

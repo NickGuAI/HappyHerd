@@ -1,19 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import { execFileSync, execSync } from 'child_process';
-import { resolve, dirname } from 'path';
+import { describe, it, expect, vi } from 'vitest';
+import { execFileSync } from 'child_process';
+import { resolve, dirname, join } from 'path';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
+import { testCliEnvironment } from './test-support/cliEnvironment';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const binPath = resolve(__dirname, '..', 'bin', 'happy-agent.mjs');
 
 function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: number } {
+    const home = mkdtempSync(join(tmpdir(), 'control-cli-index-'));
     try {
         const stdout = execFileSync(process.execPath, [
             '--no-warnings',
             '--no-deprecation',
             binPath,
             ...args,
-        ], { encoding: 'utf-8', env: { ...process.env, HAPPY_HOME_DIR: '/tmp/nonexistent-happy-test' } });
+        ], { encoding: 'utf-8', env: testCliEnvironment(home, 'http://127.0.0.1:1') });
         return { stdout, stderr: '', exitCode: 0 };
     } catch (err: unknown) {
         const e = err as { stdout?: string; stderr?: string; status?: number };
@@ -22,10 +26,40 @@ function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: 
             stderr: e.stderr ?? '',
             exitCode: e.status ?? 1,
         };
+    } finally {
+        rmSync(home, { recursive: true, force: true });
     }
 }
 
 describe('happy-agent CLI', () => {
+    it.each(['status', 'create', 'logout'])('isolates %s from inherited authenticated homes', (command) => {
+        const home = mkdtempSync(join(tmpdir(), 'control-parent-home-'));
+        const credential = join(home, 'agent.key');
+        const bytes = JSON.stringify({ token: 'synthetic-parent-token', secret: Buffer.alloc(32, 7).toString('base64') });
+        writeFileSync(credential, bytes);
+        vi.stubEnv('HAPPYHERD_HOME_DIR', home);
+        vi.stubEnv('HAPPYHERD_SERVER_URL', 'http://127.0.0.1:1');
+        /* rename:preserve */
+        vi.stubEnv('HAPPY_HOME_DIR', home);
+        vi.stubEnv('HAPPY_SERVER_URL', 'http://127.0.0.1:1');
+        /* /rename:preserve */
+        try {
+            if (command === 'create') {
+                const result = runCli('create', '--tag', 'isolated-test');
+                expect(result.exitCode).not.toBe(0);
+                expect(result.stderr).toContain('happy-agent auth login');
+            } else {
+                const result = runCli('auth', command);
+                expect(result.exitCode).toBe(0);
+                expect(result.stdout).toContain(command === 'status' ? 'Not authenticated' : 'Logged out');
+            }
+            expect(readFileSync(credential, 'utf8')).toBe(bytes);
+        } finally {
+            vi.unstubAllEnvs();
+            rmSync(home, { recursive: true, force: true });
+        }
+    });
+
     it('should display help output', () => {
         const { stdout } = runCli('--help');
         expect(stdout).toContain('happy-agent');

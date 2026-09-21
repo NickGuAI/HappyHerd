@@ -37,7 +37,7 @@ for (const path of [
   '.dev/VERIFY.md',
   '.dev/COUPLINGS.md',
   '.dev/playbooks/side-chat-lifecycle.md',
-  'server/packages/happy-cli/README.md',
+  'server/packages/happyherd-cli/README.md',
 ]) {
   const content = read(path);
   const normalized = content.replace(/\s+/g, ' ');
@@ -91,7 +91,7 @@ assert(
     && !machineCreateSideChat.includes('brief'),
   'the Human app must send only parentSessionId through the dedicated side-chat RPC',
 );
-const machineApi = read('server/packages/happy-cli/src/api/apiMachine.ts');
+const machineApi = read('server/packages/happyherd-cli/src/api/apiMachine.ts');
 assert(
   machineApi.includes('if (isSideChat === true)')
     && machineApi.includes('happyherd session side-chat create'),
@@ -103,7 +103,7 @@ assert(
   'the dedicated RPC must accept an omitted Human brief and validate any supplied Main Agent brief',
 );
 
-const sideChatCommand = read('server/packages/happy-cli/src/commands/sideChat.ts');
+const sideChatCommand = read('server/packages/happyherd-cli/src/commands/sideChat.ts');
 for (const option of [
   '--outcome',
   '--scope',
@@ -119,12 +119,12 @@ assert(
   'the Main Agent CLI must normalize and require its complete brief',
 );
 
-const sideChatLifecycle = read('server/packages/happy-cli/src/daemon/sideChatLifecycle.ts');
+const sideChatLifecycle = read('server/packages/happyherd-cli/src/daemon/sideChatLifecycle.ts');
 assert(
   sideChatLifecycle.includes("if (result === null) return phase('deliver-brief', 'skipped')"),
   'Human side-chat creation must record deliver-brief as skipped',
 );
-const daemonRun = read('server/packages/happy-cli/src/daemon/run.ts');
+const daemonRun = read('server/packages/happyherd-cli/src/daemon/run.ts');
 assert(
   daemonRun.includes('if (brief === null)')
     && daemonRun.includes('return { ...created, briefDelivery: null }')
@@ -133,8 +133,8 @@ assert(
 );
 
 const canonicalCommandFiles = [
-  'server/packages/happy-cli/src/commands/sideChat.ts',
-  'server/packages/happy-cli/README.md',
+  'server/packages/happyherd-cli/src/commands/sideChat.ts',
+  'server/packages/happyherd-cli/README.md',
   '.dev/COUPLINGS.md',
   '.dev/SOP_INDEX.md',
   '.dev/playbooks/side-chat-lifecycle.md',

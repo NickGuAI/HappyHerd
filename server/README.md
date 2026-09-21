@@ -89,7 +89,7 @@ On your computer, run `happyherd` instead of `claude` or `happyherd codex` inste
 
 - **[Happy Desktop](https://github.com/slopus/happy-desktop)** - Native macOS app ([download](https://github.com/slopus/happy-desktop/releases/latest))
 - **[Happy App](https://github.com/slopus/happy/tree/main/packages/happy-app)** - Web UI + mobile client (Expo)
-- **[HappyHerd CLI](https://github.com/NickGuAI/HappyHerd/tree/main/server/packages/happy-cli)** - Command-line interface for Claude Code and Codex
+- **[HappyHerd CLI](https://github.com/NickGuAI/HappyHerd/tree/main/server/packages/happyherd-cli)** - Command-line interface for Claude Code and Codex
 - **[Happy Agent](https://github.com/slopus/happy/tree/main/packages/happy-agent)** - Remote agent control CLI (create, send, monitor sessions)
 - **[Happy Server](https://github.com/slopus/happy/tree/main/packages/happy-server)** - Backend server for encrypted sync
 

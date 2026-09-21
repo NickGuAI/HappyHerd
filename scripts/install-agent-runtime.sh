@@ -12,7 +12,7 @@ die() {
 }
 
 [[ "$(id -u)" -eq 0 ]] || die 'install-agent-runtime.sh must run as root'
-[[ -x "$CLI_TARGET/bin/happy.mjs" ]] || \
+[[ -x "$CLI_TARGET/bin/happyherd.mjs" ]] || \
     die 'install the Happy CLI independently before installing the governed agent'
 
 if command -v pnpm >/dev/null 2>&1; then

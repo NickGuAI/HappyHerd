@@ -30,7 +30,7 @@ Happy Coder is the secure mobile companion for Claude Code that lets you continu
 • Zero-knowledge architecture - we can't read your data
 
 **How It Works:**
-1. Install the happy CLI on your computer
+1. Install the happyHerd CLI on your computer
 2. Scan a QR code to securely pair your devices
 3. Use 'happy' instead of 'claude' to start encrypted sessions
 4. Switch between desktop and mobile instantly

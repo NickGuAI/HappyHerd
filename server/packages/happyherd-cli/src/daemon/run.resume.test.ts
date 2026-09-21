@@ -1,0 +1,2829 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import type { Metadata } from '@/api/types';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import type { ProviderLimitRotationDependencies } from '@/credentialPool/rotation';
+import type {
+  SideChatDelegationBrief,
+  SideChatLifecycleReceipt,
+  SideChatLifecycleRequest,
+} from '@/commands/sideChat';
+import type { SessionEncryptionData } from './types';
+
+const mocks = vi.hoisted(() => ({
+  authoritativeActive: false,
+  backfillReconnectableSessionForMachine: vi.fn(),
+  controlHandlers: undefined as unknown,
+  exitedPids: new Set<number>(),
+  resolveCredentialAccountEnvironment: vi.fn(async (): Promise<any> => ({
+    selection: { type: 'unconfigured' },
+    env: {},
+  })),
+  forkClaudeBackendSession: vi.fn(async () => ({
+    type: 'success',
+    newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
+  })),
+  forkCodexBackendThread: vi.fn(async () => ({
+    type: 'success',
+    newCodexThreadId: 'thread-child',
+  })),
+  hasProviderProcessExited: vi.fn((_pid: number) => false),
+  inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
+  persistSession: vi.fn(() => true),
+  postSessionEvent: vi.fn(async () => undefined),
+  postSideChatBrief: vi.fn(async () => undefined),
+  postSessionTask: vi.fn(async (): Promise<{ seq: number }> => ({ seq: 9 })),
+  readRecentSessionMessages: vi.fn(async (): Promise<any[]> => []),
+  readPersistedSessions: vi.fn(() => ({})),
+  resolveLocalReconnectableSession: vi.fn(),
+  rotateProviderSessionAfterLimit: vi.fn(),
+  rotationDependencies: undefined as ProviderLimitRotationDependencies | undefined,
+  rpcHandlers: undefined as unknown,
+  spawnHappyHerdCLI: vi.fn(),
+  isTmuxAvailable: vi.fn(async () => false),
+  spawnInTmux: vi.fn(),
+}));
+
+vi.mock('@/api/api', () => ({
+  ApiClient: {
+    create: vi.fn(async () => ({
+      deactivateSession: vi.fn(),
+      inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
+      postSessionEvent: mocks.postSessionEvent,
+      postSideChatBrief: mocks.postSideChatBrief,
+      postSessionTask: mocks.postSessionTask,
+      readRecentSessionMessages: mocks.readRecentSessionMessages,
+      getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
+        id: 'machine-record',
+        metadata,
+      })),
+      machineSyncClient: vi.fn(() => ({
+        connect: vi.fn(),
+        forkClaudeBackendSession: mocks.forkClaudeBackendSession,
+        forkCodexBackendThread: mocks.forkCodexBackendThread,
+        setRPCHandlers: vi.fn((handlers: unknown) => {
+          mocks.rpcHandlers = handlers;
+        }),
+        shutdown: vi.fn(),
+        updateDaemonState: vi.fn(async () => undefined),
+      })),
+    })),
+  },
+}));
+
+vi.mock('@/persistence', () => ({
+  acquireDaemonLock: vi.fn(async () => ({})),
+  persistSession: mocks.persistSession,
+  readDaemonState: vi.fn(async () => null),
+  readPersistedSessions: mocks.readPersistedSessions,
+  releaseDaemonLock: vi.fn(async () => undefined),
+  writeDaemonState: vi.fn(),
+}));
+
+vi.mock('@/daemon/controlClient', () => ({
+  cleanupDaemonState: vi.fn(async () => undefined),
+  isDaemonRunningCurrentlyInstalledHappyHerdVersion: vi.fn(async () => false),
+  listDaemonSessions: vi.fn(async () => []),
+  stopDaemon: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/daemon/controlServer', () => ({
+  startDaemonControlServer: vi.fn(async (handlers: unknown) => {
+    mocks.controlHandlers = handlers;
+    return { port: 39001, stop: vi.fn(async () => undefined) };
+  }),
+}));
+
+vi.mock('@/resume/localResumeStore', () => ({
+  backfillReconnectableSessionForMachine: mocks.backfillReconnectableSessionForMachine,
+  resolveLocalReconnectableSession: mocks.resolveLocalReconnectableSession,
+}));
+
+vi.mock('@/utils/spawnHappyHerdCLI', () => ({
+  spawnHappyHerdCLI: mocks.spawnHappyHerdCLI,
+}));
+
+vi.mock('@/utils/tmux', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/utils/tmux')>(),
+  isTmuxAvailable: mocks.isTmuxAvailable,
+  getTmuxUtilities: () => ({ spawnInTmux: mocks.spawnInTmux }),
+}));
+
+vi.mock('@/ui/auth', () => ({
+  authAndSetupMachineIfNeeded: vi.fn(async () => ({
+    credentials: { token: 'test-token' },
+    machineId: 'machine-1',
+  })),
+}));
+
+vi.mock('@/ui/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    debugLargeJson: vi.fn(),
+    logFilePath: '/tmp/happyherd-daemon-test.log',
+    warn: vi.fn(),
+  },
+}));
+
+vi.mock('@/ui/doctor', () => ({
+  getEnvironmentInfo: vi.fn(() => ({})),
+}));
+
+vi.mock('@/utils/caffeinate', () => ({
+  startCaffeinate: vi.fn(() => false),
+  stopCaffeinate: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/utils/detectCLI', () => ({
+  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: true, dsh: true, opencode: false, agy: true, detectedAt: 1 })),
+}));
+
+vi.mock('@/capabilities/agentCapabilities', () => ({
+  buildBaselineAgentCapabilities: vi.fn(() => ({
+    claude: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [
+        { code: 'default', value: 'Default' },
+        { code: 'claude-opus-test', value: 'Claude Opus Test' },
+      ],
+      effortLevels: [
+        { code: 'max', value: 'Max', isDefault: true },
+        { code: 'high', value: 'High' },
+      ],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'bypassPermissions', value: 'Bypass permissions' },
+        { code: 'plan', value: 'Plan' },
+        { code: 'dontAsk', value: 'Deny without asking' },
+      ],
+    },
+    codex: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [
+        { code: 'gpt-5.6-codex', value: 'GPT-5.6 Codex', isDefault: true },
+        { code: 'gpt-custom', value: 'GPT Custom' },
+      ],
+      effortLevels: [
+        { code: 'xhigh', value: 'Extra high', isDefault: true },
+        { code: 'high', value: 'High' },
+      ],
+      permissionModes: [
+        { code: 'default', value: 'Ask first' },
+        { code: 'auto', value: 'Auto' },
+        { code: 'read-only', value: 'Read only' },
+        { code: 'safe-yolo', value: 'Workspace', isDefault: true },
+        { code: 'yolo', value: 'Full access' },
+      ],
+    },
+    grok: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'grok-build', value: 'GrokBuild', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'bypassPermissions', value: 'Bypass permissions' },
+        { code: 'dontAsk', value: 'Deny without asking' },
+      ],
+      acp: { loadSession: true, prompt: { image: true } },
+    },
+    dsh: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'deepseek-chat', value: 'DeepSeek Chat', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'danger-full-access', value: 'Full access' },
+      ],
+      acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
+    },
+    agy: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'gemini-2.5-pro', value: 'Gemini 2.5 Pro', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+    },
+  })),
+}));
+
+vi.mock('@/resume/localHappyHerdAgentAuth', () => ({
+  detectResumeSupport: vi.fn(() => ({ happyAgentAuthenticated: true })),
+}));
+
+vi.mock('@/agentContext/commanderContext', () => ({
+  contextEnvironment: vi.fn(() => ({})),
+  prepareCommanderContext: vi.fn(async () => ({
+    commander: null,
+    contextHash: 'context-hash',
+    bundlePath: '/tmp/context.md',
+    globalAgentsPath: null,
+    globalAgentContextPath: '/tmp/agentcontext',
+    projectGuidancePath: null,
+  })),
+}));
+
+vi.mock('@/automations/service', () => ({
+  HappyHerdAutomationService: class {
+    start = vi.fn(async () => undefined);
+    stop = vi.fn(async () => undefined);
+    listActiveRuns = vi.fn(async () => []);
+  },
+}));
+
+vi.mock('@/daemon/processStatus', () => ({
+  hasProviderProcessExited: mocks.hasProviderProcessExited,
+}));
+
+vi.mock('@/daemon/happyherdTerminalBoot', () => ({
+  startHappyHerdTerminalDaemon: vi.fn(),
+}));
+
+vi.mock('@/credentialPool/store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/credentialPool/store')>(),
+  resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
+}));
+
+vi.mock('@/credentialPool/manager', () => ({
+  CredentialAccountManager: class {
+    dispose = vi.fn(async () => undefined);
+  },
+}));
+
+vi.mock('@/credentialPool/rotation', () => ({
+  rotateProviderSessionAfterLimit: mocks.rotateProviderSessionAfterLimit,
+}));
+
+import {
+  initialMachineMetadata,
+  resolveDaemonAgentCommand,
+  resolveDaemonResumeAgent,
+  resolveSideChatResumeProvider,
+  startDaemon,
+} from './run';
+import { prepareCommanderContext } from '@/agentContext/commanderContext';
+import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
+import { DefaultAssistantApi } from '@/api/defaultAssistant';
+import * as defaultAssistantCommander from '@/agentContext/defaultAssistant';
+
+type CapturedRpcHandlers = {
+  requestShutdown: () => void;
+  spawnSession: (options: {
+    directory: string;
+    agent: 'codex';
+    effectiveSettings: typeof codexAdvertisedDefaultSettings;
+    continuedFromSessionId?: string;
+    isSuperSession?: boolean;
+    environmentVariables?: Record<string, string>;
+  }) => Promise<{ type: string; sessionId?: string; errorMessage?: string; settings?: unknown }>;
+  resumeSession: (
+    sessionId: string,
+    options?: {
+      model?: string;
+      effortLevel?: string;
+      permissionMode?: string;
+      replayQueueMessageId?: string;
+    },
+  ) => Promise<{ type: string; sessionId?: string; errorMessage?: string; settings?: unknown }>;
+  changeGrokPermissionMode: (request: {
+    sessionId: string;
+    permissionMode: string;
+  }) => Promise<{ type: 'success'; sessionId: string; permissionMode: string }>;
+};
+
+type CapturedControlHandlers = {
+  stopSession: (sessionId: string) => boolean;
+  sendLocalMessage: (request: import('./localSessionClient').LocalSessionSendRequest) => Promise<import('./localSessionClient').LocalSessionSendReceipt>;
+  inspectLocalSession: (request: import('./localSessionClient').LocalSessionInspectRequest) => Promise<import('./localSessionClient').LocalSessionInspectReceipt>;
+  ensureDefaultAssistant: () => Promise<import('./defaultAssistant').DefaultAssistantReceipt>;
+  createLocalSession: (request: import('./controlServer').LocalSessionCreationRequest) => Promise<import('./controlServer').LocalSessionCreationReceipt>;
+  onHappyHerdSessionWebhook: (
+    sessionId: string,
+    metadata: Metadata,
+    encryption?: SessionEncryptionData,
+  ) => void;
+  onProviderLimited: (notice: ProviderLimitNotice) => boolean;
+  sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
+};
+
+let daemonRun: Promise<void> | undefined;
+let originalCodexHome: string | undefined;
+const temporaryDirectories: string[] = [];
+const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
+const sideChatBrief: SideChatDelegationBrief = {
+  outcome: 'Deliver the delegated change.',
+  scope: 'Change the owned workstream only.',
+  dependencies: 'Use the parent context.',
+  writeOwnership: '/srv/project/owned.ts',
+  verification: 'Run the focused checks.',
+  handoff: 'Return result, evidence, blockers, and remaining work.',
+};
+const codexAdvertisedDefaultSettings = {
+  provider: 'codex' as const,
+  model: 'gpt-5.6-codex',
+  effort: 'xhigh',
+  permission: 'safe-yolo',
+};
+const commanderResumeCases = [
+  {
+    label: 'uses a reassigned Commander from authoritative metadata',
+    commander: {
+      id: 'athena',
+      name: 'Athena',
+      path: '/home/test/.happyherd/commanders/athena/COMMANDER.md',
+      workspace: '/srv/project',
+      agentContextPath: '/home/test/.happyherd/commanders/athena/agentcontext',
+    },
+  },
+  {
+    label: 'honors authoritative Commander detachment',
+    commander: null,
+  },
+] as const;
+
+describe('daemon session continuity', () => {
+  it('resolves first-class ACP resume commands for GrokBuild and DSH', () => {
+    expect(resolveDaemonAgentCommand('grok')).toBe('grok');
+    expect(resolveDaemonResumeAgent({ flavor: 'grok' } as Metadata)).toBe('grok');
+    expect(resolveDaemonAgentCommand('dsh')).toBe('dsh');
+    expect(resolveDaemonResumeAgent({ flavor: 'dsh', acpSessionId: 'provider-session' } as Metadata)).toBe('dsh');
+    expect(resolveSideChatResumeProvider({ flavor: 'dsh', isSideChat: true } as Metadata)).toBe('dsh');
+    expect(resolveSideChatResumeProvider({ flavor: 'gemini', isSideChat: true } as Metadata)).toBe('gemini');
+    expect(resolveSideChatResumeProvider({ flavor: 'agy', isSideChat: true } as Metadata)).toBe('agy');
+    expect(resolveSideChatResumeProvider({ flavor: 'dsh' } as Metadata)).toBe('dsh');
+    expect(resolveDaemonAgentCommand('future-provider' as any)).toBeNull();
+    expect(resolveDaemonResumeAgent({ flavor: 'future-provider' } as Metadata)).toBeNull();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    daemonRun = undefined;
+    mocks.controlHandlers = undefined;
+    mocks.rpcHandlers = undefined;
+    mocks.authoritativeActive = false;
+    mocks.exitedPids.clear();
+    mocks.hasProviderProcessExited.mockImplementation((pid: number) => mocks.exitedPids.has(pid));
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: unknown) => ({
+      session,
+      active: mocks.authoritativeActive,
+    }));
+    mocks.persistSession.mockReturnValue(true);
+    mocks.postSessionTask.mockResolvedValue({ seq: 9 });
+    mocks.readRecentSessionMessages.mockResolvedValue([]);
+    mocks.readPersistedSessions.mockReturnValue({});
+    mocks.isTmuxAvailable.mockResolvedValue(false);
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: { type: 'unconfigured' },
+      env: {},
+    });
+    mocks.rotateProviderSessionAfterLimit.mockImplementation(async (
+      _notice: ProviderLimitNotice,
+      dependencies: ProviderLimitRotationDependencies,
+    ) => {
+      mocks.rotationDependencies = dependencies;
+      return { type: 'rotated', account: 'account-two' };
+    });
+    mocks.rotationDependencies = undefined;
+    initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
+    originalCodexHome = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = '/ambient/wrong-provider-home';
+    vi.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
+    vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+  });
+
+  afterEach(async () => {
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers | undefined;
+    if (daemonRun && rpc?.requestShutdown) {
+      const timeoutSpy = vi.spyOn(global, 'setTimeout');
+      rpc.requestShutdown();
+      // Own the timers created synchronously by shutdown instead of guessing
+      // their delay. process.exit is mocked, so its fallback otherwise escapes
+      // this fixture and can fire after the process mock has been restored.
+      const shutdownTimers = timeoutSpy.mock.results
+        .filter((result) => result.type === 'return')
+        .map((result) => result.value as ReturnType<typeof setTimeout>);
+      try {
+        expect(shutdownTimers).toHaveLength(1);
+        await daemonRun;
+      } finally {
+        for (const timer of shutdownTimers) clearTimeout(timer);
+      }
+    }
+    if (originalCodexHome === undefined) {
+      delete process.env.CODEX_HOME;
+    } else {
+      process.env.CODEX_HOME = originalCodexHome;
+    }
+    for (const directory of temporaryDirectories.splice(0)) {
+      await rm(directory, { recursive: true, force: true });
+    }
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  async function localMessagingFixture(machineId = 'machine-1') {
+    const sessionId = 'local-command-session';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', codexThreadId: 'thread-local', commanderId: 'selected', commanderName: 'Selected Commander',
+      summary: { text: 'Delegated task', updatedAt: 1 },
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 8, metadataVersion: 2, agentStateVersion: 3,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
+  }
+
+  it('coalesces concurrent resumes and keeps a reserved owner until registration', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const attempts = Array.from({ length: 8 }, () => rpc.resumeSession(sessionId));
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce();
+    // An unrelated registration must not overwrite this child's reserved ID.
+    control.onHappyHerdSessionWebhook('wrong-session', { ...metadata, hostPid: 4321 }, encryption);
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    for (const result of await Promise.all(attempts)) expect(result).toMatchObject({ type: 'success', sessionId });
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+  });
+
+  it.each(['stop', 'webhook'] as const)('rechecks %s arriving during authoritative recovery before spawning', async (race) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    let finish!: () => void;
+    mocks.inspectSessionAuthoritative.mockImplementationOnce((session: unknown) => new Promise(resolve => {
+      finish = () => resolve({ session, active: false });
+    }));
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const attempt = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce());
+    if (race === 'stop') expect(control.stopSession(sessionId)).toBe(true);
+    else control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 9876 }, encryption);
+    finish();
+    await expect(attempt).resolves.toMatchObject({ type: 'error' });
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it('retains a timed-out resume child as an owner and allows its late registration', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    // Shorten only the fixture timer; exercise the real timeout callback.
+    const realSetTimeout = global.setTimeout;
+    const timer = vi.spyOn(global, 'setTimeout').mockImplementation(((fn: (...args: any[]) => void, ms?: number, ...args: any[]) =>
+      realSetTimeout(fn, ms === 15_000 ? 20 : ms, ...args)) as typeof setTimeout);
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('timeout') });
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error' });
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
+    timer.mockRestore();
+  });
+
+  it('sends a local task through the original session key and reads only bounded safe metadata and messages', async () => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321 }, encryption);
+    mocks.authoritativeActive = true;
+    mocks.readRecentSessionMessages.mockResolvedValue([
+      { seq: 9, localId: 'reply-one', createdAt: 3, content: { role: 'agent', content: { type: 'text', text: 'Done.' } } },
+      { seq: 8, localId: 'task-one', createdAt: 2, content: { role: 'user', content: { type: 'text', text: 'Task' } } },
+    ]);
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({
+      success: true, status: 'queued', sessionId, messageId: 'task-one', seq: 9,
+    });
+    expect(mocks.postSessionTask).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: sessionId, encryptionKey: encryption.encryptionKey }), { localId: 'task-one', text: 'Task' });
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    const result = await control.inspectLocalSession({ sessionId, limit: 5 });
+    expect(result).toMatchObject({ recent: true, limit: 5, session: { id: sessionId, active: true, providerRunning: true,
+      metadata: { path: metadata.path, commanderId: 'selected', commanderName: 'Selected Commander', title: 'Delegated task' } }, messages: [{ seq: 8 }, { seq: 9 }] });
+    expect(mocks.readRecentSessionMessages).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ encryptionKey: encryption.encryptionKey }), 5);
+    expect(result.session).not.toHaveProperty('encryptionKey');
+    expect(result.session.metadata).not.toHaveProperty('hostPid');
+  });
+
+  it.each(['persisted', 'authoritative'] as const)('rejects a foreign-machine local session from %s ownership before posting or reading messages', async (ownership) => {
+    const { sessionId, control } = await localMessagingFixture(ownership === 'persisted' ? 'foreign-machine' : 'machine-1');
+    if (ownership === 'authoritative') mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, metadata: { ...session.metadata, machineId: 'foreign-machine' } }, active: false,
+    }));
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({ success: false, status: 'failed', sessionId, messageId: 'task-one' });
+    await expect(control.inspectLocalSession({ sessionId, limit: 20 })).rejects.toThrow('machine');
+    expect(mocks.postSessionTask).not.toHaveBeenCalled(); expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it.each(['fresh', 'known-pending'] as const)('resumes stopped local work with original identity when the message is %s', async (kind) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    if (kind === 'known-pending') mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, seq: 9, agentState: { messageQueue: { currentMessageIds: [], pendingMessageIds: ['task-one'], updatedAt: 1 } } }, active: false,
+    }));
+    const send = control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const [, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(launch.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID).toBe(kind === 'fresh' ? 'task-one' : undefined);
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(send).resolves.toMatchObject({ success: true, status: 'queued', sessionId, messageId: 'task-one', seq: 9 });
+  });
+
+  it('reports ambiguous delivery after a lost acknowledgement without skipping or replaying a stopped duplicate', async () => {
+    const { sessionId, control } = await localMessagingFixture();
+    const request = { sessionId, messageId: 'task-one', text: 'Task' };
+    mocks.postSessionTask.mockRejectedValueOnce(new Error('Acknowledgement lost'));
+    await expect(control.sendLocalMessage(request)).resolves.toMatchObject({ success: false, sessionId, messageId: 'task-one', error: 'Acknowledgement lost' });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({ session: { ...session, seq: 9 }, active: false }));
+    await expect(control.sendLocalMessage(request)).resolves.toMatchObject({
+      success: false, status: 'queued', sessionId, messageId: 'task-one', seq: 9, error: expect.stringContaining('prior execution is unknown'),
+    });
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it('does not rerun a completed message when a stopped session receives the same ID again', async () => {
+    const { sessionId, control } = await localMessagingFixture();
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: { ...session, seq: 15, agentState: { messageQueue: { currentMessageIds: [], pendingMessageIds: [], updatedAt: 2 } } }, active: false,
+    }));
+    await expect(control.sendLocalMessage({ sessionId, messageId: 'task-one', text: 'Task' })).resolves.toMatchObject({
+      success: false, status: 'queued', seq: 9, error: expect.stringContaining('Inspect the session'),
+    });
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it.each(['codex', 'claude', 'grok', 'dsh'] as const)('attaches an initial %s Assistant to its precreated HappyHerd ID and original key', async (provider) => {
+    const sessionId = 'prepared-assistant';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: provider, isSuperSession: true, commanderId: 'assistant',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const settings = resolveEffectiveSessionSettings(initialMachineMetadata, 'machine-1', { provider });
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: settings }, encryption);
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    const [args, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args[0]).toBe(provider);
+    expect(args).not.toContain('--resume');
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+  });
+
+  it('publishes a recognizable title when creating the initial Assistant and waits for its registered session', async () => {
+    const sessionId = 'new-default-assistant';
+    const commander = {
+      id: 'custom-assistant', name: 'My Assistant', workspace: process.cwd(),
+      commanderPath: '/context/COMMANDER.md', agentContextPath: '/context/agentcontext',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    let prepared: import('@/api/types').Session | undefined;
+    vi.spyOn(defaultAssistantCommander, 'ensureDefaultAssistantCommander').mockResolvedValue(commander);
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue(null);
+    vi.spyOn(DefaultAssistantApi.prototype, 'prepare').mockImplementation((metadata) => {
+      prepared = { id: sessionId, ...encryption, metadata, agentState: null };
+      return prepared;
+    });
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish').mockResolvedValue({
+      session: { id: sessionId } as any, isRequestedSession: true,
+    });
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    let completed = false;
+    const ensure = control.ensureDefaultAssistant().then(result => { completed = true; return result; });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    expect(completed).toBe(false);
+    expect(publish.mock.calls[0][0].metadata).toMatchObject({
+      commanderId: commander.id,
+      summary: { text: commander.name, updatedAt: expect.any(Number) },
+    });
+    const [, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...prepared!.metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'created', sessionId, commanderId: commander.id });
+  });
+
+  it('initializes an Assistant with a reused untracked metadata PID instead of treating that process as its provider', async () => {
+    const sessionId = 'assistant-with-stale-pid';
+    const metadata: Metadata = {
+      path: process.cwd(), host: 'test-host', machineId: 'machine-1', hostPid: 9876,
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', isSuperSession: true, commanderId: 'assistant',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: 1,
+    } });
+    // The old PID is alive, but this daemon has no session registration for it.
+    mocks.hasProviderProcessExited.mockReturnValue(false);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    vi.spyOn(DefaultAssistantApi.prototype, 'get').mockResolvedValue({ id: sessionId } as any);
+    vi.spyOn(DefaultAssistantApi.prototype, 'hydrate').mockImplementation((_record, saved) => saved);
+    const prepare = vi.spyOn(DefaultAssistantApi.prototype, 'prepare');
+    const publish = vi.spyOn(DefaultAssistantApi.prototype, 'publish');
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const ensure = control.ensureDefaultAssistant();
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata, hostPid: 4321, codexThreadId: 'initialized-thread', spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+    await expect(ensure).resolves.toMatchObject({ status: 'existing', sessionId });
+    const [, launch] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(launch.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(launch.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(Buffer.from(encryption.encryptionKey).toString('base64'));
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalledWith(9876);
+    await expect(control.ensureDefaultAssistant()).resolves.toMatchObject({ status: 'existing', sessionId });
+    expect(mocks.hasProviderProcessExited).toHaveBeenCalledWith(4321);
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it.each(['exact', 'trailing-slash', 'symlink'] as const)('confirms local Commander launches with a %s workspace path without account-control auth', async (form) => {
+    let directory = form === 'trailing-slash' ? `${process.cwd()}/./` : process.cwd();
+    if (form === 'symlink') {
+      const temporary = await mkdtemp(join(tmpdir(), 'happyherd-local-create-path-'));
+      temporaryDirectories.push(temporary);
+      directory = join(temporary, 'workspace');
+      await symlink(process.cwd(), directory);
+    }
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const create = control.createLocalSession({
+      directory, agent: 'codex', commanderId: 'assistant', isSuperSession: true,
+      approvedNewDirectoryCreation: false,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('local-created', {
+      path: process.cwd(), host: 'test-host', hostPid: 4321, machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd', happyLibDir: '/app', happyToolsDir: '/app/tools',
+      flavor: 'codex', spawnSettings: codexAdvertisedDefaultSettings, isSuperSession: true,
+      commanderId: 'assistant', commanderName: 'Assistant', commanderPath: '/context/COMMANDER.md',
+      commanderWorkspace: '/home/test', commanderAgentContextPath: '/context/agentcontext',
+    }, { encryptionKey: new Uint8Array(32).fill(8), encryptionVariant: 'dataKey', seq: 0, metadataVersion: 0, agentStateVersion: 0 });
+    await expect(create).resolves.toMatchObject({
+      success: true, sessionId: 'local-created', path: process.cwd(), settings: codexAdvertisedDefaultSettings,
+      commander: { id: 'assistant', name: 'Assistant' }, superSession: true,
+    });
+    expect(prepareCommanderContext).toHaveBeenCalledWith('assistant', directory);
+  });
+
+  it('backfills a missing local record despite a reused stale metadata PID and spawns the same HappyHerd session', async () => {
+    const resolvedSessionId = 'csynthetic000000000000001';
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const codexHome = '/unavailable/provider-home';
+    const accountAuthFile = '/managed/codex/account-two/auth.json';
+    const providerAccountId = '00000000-0000-4000-8000-000000000004';
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-legacy',
+      codexHome,
+      providerAccount: 'account-one',
+      providerAccountId,
+      providerAccountCredentialVersion: 2,
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+      commanderId: 'athena',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 42,
+      metadataVersion: 7,
+      agentStateVersion: 9,
+    };
+    const persisted = {
+      encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+      encryptionVariant: encryption.encryptionVariant,
+      seq: encryption.seq,
+      metadataVersion: encryption.metadataVersion,
+      agentStateVersion: encryption.agentStateVersion,
+      metadata,
+      savedAt: Date.now(),
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: {
+        id: resolvedSessionId,
+        active: false,
+        metadata,
+        ...encryption,
+      },
+      persisted,
+    });
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          id: providerAccountId,
+          provider: 'codex',
+          name: 'account-two',
+          credential: { type: 'auth-file', path: accountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+          credentialVersion: 2,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: 'account-two',
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({
+      pid: 4321,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    expect(mocks.readPersistedSessions).toHaveReturnedWith({});
+
+    const resume = rpc.resumeSession(resolvedSessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(resolvedSessionId, {
+      ...metadata,
+      hostPid: 4321,
+      spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
+    expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith(resolvedSessionId, 'machine-1');
+    expect(prepareCommanderContext).toHaveBeenCalledWith('athena', metadata.path);
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalled();
+
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+      preferred: 'account-one',
+      preferredId: providerAccountId,
+    });
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe('account-two');
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(resolvedSessionId);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(persisted.encryptionKey);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT).toBe(encryption.encryptionVariant);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SEQ).toBe(String(encryption.seq));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(
+      codexAdvertisedDefaultSettings,
+    );
+  });
+
+  it.each([
+    { managed: true, limited: false },
+    { managed: true, limited: true },
+    { managed: false, limited: false },
+    { managed: false, limited: true },
+  ])('resumes Codex with saved authentication (managed=$managed, limited=$limited)', async ({ managed, limited }) => {
+    const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
+    const root = await mkdtemp(join(tmpdir(), 'happyherd-daemon-resume-auth-'));
+    temporaryDirectories.push(root);
+    const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
+    const account = await store.upsertCredentialAccount({
+      provider: 'codex', name: 'account-a',
+      credential: { type: 'auth-file', path: join(root, 'a-auth.json') },
+    }, { paths });
+    await store.upsertCredentialAccount({
+      provider: 'codex', name: 'account-b',
+      credential: { type: 'auth-file', path: join(root, 'b-auth.json') },
+    }, { paths });
+    await store.renameCredentialAccount('codex', 'account-a', 'renamed-a', paths);
+    await store.useCredentialAccount('codex', 'account-b', paths);
+    if (limited) {
+      await store.markCredentialAccountLimited('codex', 'renamed-a', Date.now() + 60_000, { paths });
+      if (!managed) await store.markCredentialAccountLimited('codex', 'account-b', Date.now() + 60_000, { paths });
+    }
+    mocks.resolveCredentialAccountEnvironment.mockImplementation((...args: unknown[]) => {
+      const [provider, options] = args as Parameters<typeof store.resolveCredentialAccountEnvironment>;
+      return store.resolveCredentialAccountEnvironment(provider, { ...options, paths });
+    });
+    const sessionId = 'codex-auth-resume';
+    const metadata: Metadata = {
+      path: process.cwd(), flavor: 'codex', codexThreadId: 'same-native-thread', codexHome: root,
+      isSideChat: true, parentSessionId: 'parent', machineId: 'machine-1',
+      host: 'test-host', homeDir: root, happyHomeDir: root, happyLibDir: root, happyToolsDir: root,
+      ...(managed ? { providerAccount: 'account-a', providerAccountId: account.id } : {}),
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+      seq: 42, metadataVersion: 7, agentStateVersion: 9,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: { ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: Date.now() },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    const [args, { env }] = mocks.spawnHappyHerdCLI.mock.calls[0];
+    expect(args).toEqual(expect.arrayContaining(['--resume', 'same-native-thread']));
+    expect(env.CODEX_HOME).toBe(root);
+    expect(env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    if (managed) {
+      expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+        preferred: 'account-a', preferredId: account.id,
+      });
+      expect(args).not.toContain('--provider-account-mode');
+      expect(env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(limited ? 'account-b' : 'renamed-a');
+      if (!limited) expect(env.HAPPYHERD_PROVIDER_ACCOUNT_ID).toBe(account.id);
+    } else {
+      expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalled();
+      expect(args).toEqual(expect.arrayContaining(['--provider-account-mode', 'unmanaged']));
+      expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT_ID');
+      expect(env).not.toHaveProperty('HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE');
+    }
+  });
+
+  it.each(commanderResumeCases)('$label on the next stopped-session resume', async ({ commander }) => {
+    const sessionId = `commander-refresh-${commander?.id ?? 'none'}`;
+    const encryptionKey = new Uint8Array(32).fill(7);
+    const workingDirectory = process.cwd();
+    const localMetadata: Metadata = {
+      path: workingDirectory,
+      flavor: 'codex',
+      codexThreadId: 'thread-continuity',
+      machineId: 'machine-1',
+      host: 'test-host',
+      hostPid: 9876,
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+      codexHome: '/unavailable/provider-home',
+      commanderId: 'old-commander',
+      commanderName: 'Old Commander',
+      commanderPath: '/old/COMMANDER.md',
+      commanderWorkspace: '/old/workspace',
+      commanderAgentContextPath: '/old/agentcontext',
+      spawnSettings: codexAdvertisedDefaultSettings,
+      gitBranch: 'preserve-me',
+    };
+    const authoritativeMetadata: Metadata = { ...localMetadata };
+    delete authoritativeMetadata.commanderId;
+    delete authoritativeMetadata.commanderName;
+    delete authoritativeMetadata.commanderPath;
+    delete authoritativeMetadata.commanderWorkspace;
+    delete authoritativeMetadata.commanderAgentContextPath;
+    if (commander) {
+      Object.assign(authoritativeMetadata, {
+        commanderId: commander.id,
+        commanderName: commander.name,
+        commanderPath: commander.path,
+        commanderWorkspace: commander.workspace,
+        commanderAgentContextPath: commander.agentContextPath,
+      });
+    }
+    const localEncryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 41,
+      metadataVersion: 7,
+      agentStateVersion: 8,
+    };
+    const refreshedEncryption: SessionEncryptionData = {
+      ...localEncryption,
+      seq: 84,
+      metadataVersion: 12,
+      agentStateVersion: 13,
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: localEncryption.encryptionVariant,
+        seq: localEncryption.seq,
+        metadataVersion: localEncryption.metadataVersion,
+        agentStateVersion: localEncryption.agentStateVersion,
+        metadata: localMetadata,
+        savedAt: 1,
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockImplementationOnce(async (session: any) => ({
+      active: false,
+      session: {
+        ...session,
+        seq: refreshedEncryption.seq,
+        metadata: authoritativeMetadata,
+        metadataVersion: refreshedEncryption.metadataVersion,
+        agentStateVersion: refreshedEncryption.agentStateVersion,
+      },
+    }));
+    mocks.spawnHappyHerdCLI.mockReturnValue({
+      pid: 4321,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...authoritativeMetadata,
+      hostPid: 4321,
+    }, refreshedEncryption);
+
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    expect(prepareCommanderContext).toHaveBeenCalledWith(commander?.id, workingDirectory);
+    expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledWith(expect.objectContaining({
+      id: sessionId,
+      seq: localEncryption.seq,
+      metadata: localMetadata,
+      metadataVersion: localEncryption.metadataVersion,
+      agentStateVersion: localEncryption.agentStateVersion,
+    }));
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', 'thread-continuity',
+      '--provider-account-mode', 'unmanaged',
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(spawnOptions.cwd).toBe(workingDirectory);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SEQ).toBe(String(refreshedEncryption.seq));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_METADATA_VERSION).toBe(String(refreshedEncryption.metadataVersion));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION).toBe(String(refreshedEncryption.agentStateVersion));
+    expect(mocks.persistSession.mock.calls[0]).toEqual([
+      sessionId,
+      expect.objectContaining({
+        seq: refreshedEncryption.seq,
+        metadataVersion: refreshedEncryption.metadataVersion,
+        agentStateVersion: refreshedEncryption.agentStateVersion,
+        metadata: authoritativeMetadata,
+      }),
+    ]);
+    expect(authoritativeMetadata.gitBranch).toBe('preserve-me');
+  });
+
+  it('fails before spawning when authoritative resume metadata cannot be refreshed', async () => {
+    const sessionId = 'commander-refresh-unavailable';
+    const encryptionKey = new Uint8Array(32).fill(9);
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 1,
+        metadataVersion: 2,
+        agentStateVersion: 3,
+        metadata: {
+          path: process.cwd(),
+          flavor: 'codex',
+          codexThreadId: 'thread-stale',
+          machineId: 'machine-1',
+          commanderId: 'old-commander',
+        },
+        savedAt: 1,
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockRejectedValueOnce(new Error('authoritative metadata unavailable'));
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({
+      type: 'error',
+      errorMessage: expect.stringContaining('authoritative metadata unavailable'),
+    });
+    expect(prepareCommanderContext).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    expect(mocks.persistSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { tmux: false, isSuperSession: false },
+    { tmux: false, isSuperSession: true },
+    { tmux: true, isSuperSession: false },
+    { tmux: true, isSuperSession: true },
+  ])('uses only explicit Super Session designation (tmux=$tmux, explicit=$isSuperSession)', async ({ tmux, isSuperSession }) => {
+    vi.stubEnv('HAPPYHERD_SUPER_SESSION', '1');
+    mocks.isTmuxAvailable.mockResolvedValue(tmux);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4322, kill: vi.fn(), on: vi.fn() });
+    mocks.spawnInTmux.mockResolvedValue({ success: true, pid: 4322, sessionId: 'test-tmux-session' });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const spawn = rpc.spawnSession({
+      directory: process.cwd(), agent: 'codex', effectiveSettings: codexAdvertisedDefaultSettings,
+      isSuperSession,
+      environmentVariables: { HAPPYHERD_SUPER_SESSION: '1', ...(tmux ? { TMUX_SESSION_NAME: 'test' } : {}) },
+    });
+    const launch = tmux ? mocks.spawnInTmux : mocks.spawnHappyHerdCLI;
+    await vi.waitFor(() => expect(launch).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('target-session', {
+      path: process.cwd(), flavor: 'codex', codexThreadId: 'fresh-thread',
+      host: 'test-host', hostPid: 4322, machineId: 'machine-1',
+      homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      spawnSettings: codexAdvertisedDefaultSettings,
+      ...(isSuperSession ? { isSuperSession: true } : {}),
+    });
+    await expect(spawn).resolves.toMatchObject({ type: 'success', sessionId: 'target-session' });
+
+    const environment = tmux ? launch.mock.calls[0][2] : launch.mock.calls[0][1].env;
+    expect(environment.HAPPYHERD_SUPER_SESSION).toBe(isSuperSession ? '1' : undefined);
+    if (tmux) {
+      const command = launch.mock.calls[0][0][0] as string;
+      const unsetCommand = command.split(';')[0];
+      expect(unsetCommand.includes('HAPPYHERD_SUPER_SESSION')).toBe(!isSuperSession);
+    }
+  });
+
+  it('carries provider-continuation lineage into a fresh daemon spawn without native resume state', async () => {
+    mocks.spawnHappyHerdCLI.mockReturnValue({
+      pid: 4322,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const spawn = rpc.spawnSession({
+      directory: process.cwd(),
+      agent: 'codex',
+      effectiveSettings: codexAdvertisedDefaultSettings,
+      continuedFromSessionId: 'source-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('target-session', {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'fresh-codex-thread',
+      continuedFromSessionId: 'source-session',
+      host: 'test-host',
+      hostPid: 4322,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+      spawnSettings: codexAdvertisedDefaultSettings,
+    });
+
+    await expect(spawn).resolves.toMatchObject({
+      type: 'success',
+      sessionId: 'target-session',
+      settings: codexAdvertisedDefaultSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).not.toContain('--resume');
+    expect(spawnOptions.cwd).toBe(process.cwd());
+    expect(spawnOptions.env.HAPPYHERD_CONTINUED_FROM_SESSION_ID).toBe('source-session');
+    expect(spawnOptions.env.HAPPYHERD_FORKED_FROM_SESSION_ID).toBeUndefined();
+  });
+
+  it('replays the next archived turn from an older retained record without changing session identity or encryption', async () => {
+    const sessionId = 'happyherd-archived-retained';
+    const encryptionKey = new Uint8Array([7, 8, 9, 10]);
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 91,
+      metadataVersion: 12,
+      agentStateVersion: 13,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-archived-retained',
+      lifecycleState: 'archived',
+      lifecycleStateSince: Date.now() - 60_000,
+      archivedBy: 'app',
+      archiveReason: 'User archived',
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    const persisted = {
+      encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+      encryptionVariant: encryption.encryptionVariant,
+      seq: encryption.seq,
+      metadataVersion: encryption.metadataVersion,
+      agentStateVersion: encryption.agentStateVersion,
+      metadata,
+      savedAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: persisted });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4324, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId, {
+      replayQueueMessageId: 'archived-next-turn',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4324,
+      spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--provider-account-mode', 'unmanaged',
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID).toBe('archived-next-turn');
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY).toBe(persisted.encryptionKey);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT).toBe(encryption.encryptionVariant);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SEQ).toBe(String(encryption.seq));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+  });
+
+  it('launches and returns the latest complete Codex tuple from the resume RPC', async () => {
+    const sessionId = 'codex-explicit-resume-mode';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([11, 12, 13, 14]),
+      encryptionVariant: 'dataKey',
+      seq: 5,
+      metadataVersion: 6,
+      agentStateVersion: 7,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-explicit-resume-mode',
+      permissionMode: 'read-only',
+      spawnSettings: {
+        ...codexAdvertisedDefaultSettings,
+        model: 'gpt-custom',
+        effort: 'high',
+        permission: 'yolo',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4325, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId, {
+      model: 'gpt-5.6-codex',
+      effortLevel: 'xhigh',
+      permissionMode: 'read-only',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+
+    const expectedSettings = {
+      ...codexAdvertisedDefaultSettings,
+      model: 'gpt-5.6-codex',
+      effort: 'xhigh',
+      permission: 'read-only',
+    };
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4325,
+      spawnSettings: expectedSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      settings: expectedSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--provider-account-mode', 'unmanaged',
+      '--started-by', 'daemon',
+      '--permission-mode', 'read-only',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(expectedSettings);
+  });
+
+  it('launches and returns the complete Claude tuple with the advertised effort default on resume', async () => {
+    const sessionId = 'claude-complete-resume-mode';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([21, 22, 23, 24]),
+      encryptionVariant: 'dataKey',
+      seq: 8,
+      metadataVersion: 9,
+      agentStateVersion: 10,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'claude',
+      claudeSessionId: '11111111-1111-4111-8111-111111111111',
+      permissionMode: 'plan',
+      modelMode: 'default',
+      effortLevel: null,
+      spawnSettings: {
+        provider: 'claude',
+        model: 'default',
+        effort: null,
+        permission: 'default',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4326, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const expectedSettings = {
+      provider: 'claude' as const,
+      model: 'claude-opus-test',
+      effort: 'max',
+      permission: 'bypassPermissions',
+    };
+    const resume = rpc.resumeSession(sessionId, {
+      model: expectedSettings.model,
+      permissionMode: expectedSettings.permission,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4326,
+      permissionMode: expectedSettings.permission,
+      modelMode: expectedSettings.model,
+      effortLevel: expectedSettings.effort,
+      spawnSettings: expectedSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      settings: expectedSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'claude',
+      '--happyherd-starting-mode', 'remote',
+      '--started-by', 'daemon',
+      '--resume', metadata.claudeSessionId,
+      '--permission-mode', 'bypassPermissions',
+      '--model', 'claude-opus-test',
+      '--effort', 'max',
+    ]);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(expectedSettings);
+  });
+
+  it('keeps the persisted Grok policy authoritative over a mismatched resume RPC', async () => {
+    const resolvedSessionId = 'grok-session';
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: 'grok-provider-session',
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      grokHome: '/srv/grok/original-home',
+      spawnSettings: {
+        provider: 'grok',
+        model: 'grok-build',
+        effort: null,
+        permission: 'dontAsk',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: resolvedSessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4322, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(resolvedSessionId, {
+      permissionMode: 'bypassPermissions',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
+
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(spawnOptions.env.GROK_HOME).toBe('/srv/grok/original-home');
+    expect(args).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-provider-session',
+      '--permission-mode', 'dontAsk',
+    ]);
+  });
+
+  it('resumes DSH through the same daemon session with its retained ACP id and launch settings', async () => {
+    const sessionId = 'dsh-session';
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const settings = {
+      provider: 'dsh' as const,
+      model: 'deepseek-chat',
+      effort: null,
+      permission: 'default',
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      acpSessionId: 'dsh-provider-session',
+      acpCapabilities: { loadSession: false, resumeSession: true, prompt: { image: false } },
+      spawnSettings: settings,
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4327, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4327 }, encryption);
+
+    await expect(resume).resolves.toEqual({ type: 'success', sessionId, settings });
+    const [args] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual([
+      'dsh',
+      '--started-by', 'daemon',
+      '--resume', 'dsh-provider-session',
+      '--permission-mode', 'default',
+      '--model', 'deepseek-chat',
+    ]);
+  });
+
+  it('uses the advertised default for legacy Grok resumes and rejects raw RPC policy without a valid catalog', async () => {
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    const metadata = (providerSessionId: string): Metadata => ({
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: providerSessionId,
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    });
+    const recovered = (sessionId: string, sessionMetadata: Metadata) => ({
+      session: { id: sessionId, active: false, metadata: sessionMetadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata: sessionMetadata,
+        savedAt: Date.now(),
+      },
+    });
+    const legacyMetadata = metadata('grok-legacy-provider-session');
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValueOnce(
+      recovered('grok-legacy-session', legacyMetadata),
+    );
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4323, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const legacyResume = rpc.resumeSession('grok-legacy-session', {
+      permissionMode: 'bypassPermissions',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('grok-legacy-session', {
+      ...legacyMetadata,
+      hostPid: 4323,
+      permissionMode: 'default',
+      spawnSettings: {
+        provider: 'grok',
+        model: 'grok-build',
+        effort: null,
+        permission: 'default',
+      },
+    }, encryption);
+
+    await expect(legacyResume).resolves.toMatchObject({ type: 'success', sessionId: 'grok-legacy-session' });
+    expect(mocks.spawnHappyHerdCLI.mock.calls[0]?.[0]).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-legacy-provider-session',
+      '--permission-mode', 'default',
+    ]);
+
+    for (const [catalogState, capabilities] of [
+      ['missing', {}],
+      ['invalid', { grok: { permissionModes: 'invalid' } }],
+    ] as const) {
+      initialMachineMetadata.agentCapabilities = capabilities as never;
+      const sessionId = `grok-${catalogState}-catalog-session`;
+      mocks.backfillReconnectableSessionForMachine.mockResolvedValueOnce(
+        recovered(sessionId, metadata(`grok-${catalogState}-provider-session`)),
+      );
+
+      await expect(rpc.resumeSession(sessionId, {
+        permissionMode: 'bypassPermissions',
+      })).resolves.toEqual({
+        type: 'error',
+        errorMessage: 'Failed to resume session: Grok resume requires a validated advertised permission mode on machine machine-record',
+      });
+      expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('validates, restarts, and resumes the same Grok session before returning a changed-mode receipt', async () => {
+    const sessionId = 'grok-live-session';
+    const oldPid = 7001;
+    const newPid = 7002;
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([1, 2, 3, 4]),
+      encryptionVariant: 'dataKey',
+      seq: 18,
+      metadataVersion: 6,
+      agentStateVersion: 7,
+    };
+    const oldSettings = {
+      provider: 'grok' as const,
+      model: 'grok-build',
+      effort: null,
+      permission: 'default',
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: 'grok-provider-session',
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      spawnSettings: oldSettings,
+      permissionMode: 'default',
+      host: 'test-host',
+      hostPid: oldPid,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    const kill = vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+      mocks.exitedPids.add(Math.abs(pid));
+      return true;
+    }) as typeof process.kill);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: newPid, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappyHerdSessionWebhook(sessionId, metadata, encryption);
+
+    await expect(rpc.changeGrokPermissionMode({
+      sessionId,
+      permissionMode: 'unknown-mode',
+    })).rejects.toThrow('does not advertise permission mode "unknown-mode"');
+    expect(kill).not.toHaveBeenCalled();
+
+    let settled = false;
+    const transition = rpc.changeGrokPermissionMode({
+      sessionId,
+      permissionMode: 'bypassPermissions',
+    }).finally(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    expect(kill).toHaveBeenCalledWith(oldPid, 'SIGTERM');
+
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-provider-session',
+      '--permission-mode', 'bypassPermissions',
+    ]);
+    expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual({
+      ...oldSettings,
+      permission: 'bypassPermissions',
+    });
+
+    // Reconnect registration alone is not a receipt: it still carries the old
+    // launch policy and must leave the RPC pending.
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: newPid }, encryption);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: newPid,
+      permissionMode: 'bypassPermissions',
+      spawnSettings: { ...oldSettings, permission: 'bypassPermissions' },
+    }, encryption);
+    await expect(transition).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      permissionMode: 'bypassPermissions',
+    });
+  });
+
+  it('persists one structured provider switch event through the resumed tracked session', async () => {
+    const sessionId = 'claude-provider-account-switch';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([31, 32, 33, 34]),
+      encryptionVariant: 'dataKey',
+      seq: 27,
+      metadataVersion: 8,
+      agentStateVersion: 9,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'claude',
+      claudeSessionId: '44444444-4444-4444-8444-444444444444',
+      providerAccount: 'personal 旧',
+      providerAccountId: '00000000-0000-4000-8000-000000000008',
+      providerAccountCredentialVersion: 3,
+      host: 'test-host',
+      hostPid: 7331,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappyHerdSessionWebhook(sessionId, metadata, encryption);
+
+    const notice: ProviderLimitNotice = {
+      sessionId,
+      provider: 'claude',
+      account: 'personal 旧',
+      accountId: metadata.providerAccountId,
+      credentialVersion: metadata.providerAccountCredentialVersion,
+      limitedUntil: 12_345,
+    };
+    expect(control.onProviderLimited({ ...notice, credentialVersion: 2 })).toBe(false);
+    expect(control.onProviderLimited({
+      ...notice, accountId: '00000000-0000-4000-8000-000000000009',
+    })).toBe(false);
+    expect(mocks.rotateProviderSessionAfterLimit).not.toHaveBeenCalled();
+    expect(control.onProviderLimited(notice)).toBe(true);
+    expect(control.onProviderLimited(notice)).toBe(true);
+    await vi.waitFor(() => expect(mocks.rotationDependencies).toBeDefined());
+    expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce();
+    expect(mocks.postSessionEvent).not.toHaveBeenCalled();
+
+    await mocks.rotationDependencies!.onAccountSwitched!({
+      sessionId,
+      provider: 'claude',
+      fromAccount: 'personal 旧',
+      toAccount: 'work 新',
+    });
+
+    expect(mocks.postSessionEvent).toHaveBeenCalledOnce();
+    const [session, event, localId] = mocks.postSessionEvent.mock.calls[0] as unknown as [
+      { id: string; seq: number; encryptionKey: Uint8Array },
+      {
+        type: string;
+        provider: string;
+        fromAccount: string;
+        toAccount: string;
+        incidentId: string;
+      },
+      string,
+    ];
+    expect(session).toMatchObject({
+      id: sessionId,
+      seq: encryption.seq,
+      encryptionKey: encryption.encryptionKey,
+    });
+    expect(event).toEqual({
+      type: 'provider-account-switched',
+      provider: 'claude',
+      fromAccount: 'personal 旧',
+      toAccount: 'work 新',
+      incidentId: expect.any(String),
+    });
+    expect(localId).toBe(event.incidentId);
+  });
+
+  it('does not let an in-flight old-revision limit suppress a relogged credential notice', async () => {
+    const sessionId = 'codex-provider-relogin-notice';
+    const accountId = '00000000-0000-4000-8000-000000000006';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([35, 36, 37, 38]),
+      encryptionVariant: 'dataKey',
+      seq: 28,
+      metadataVersion: 9,
+      agentStateVersion: 10,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-provider-relogin-notice',
+      providerAccount: 'work',
+      providerAccountId: accountId,
+      providerAccountCredentialVersion: 1,
+      host: 'test-host',
+      hostPid: 7332,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    let resolveOldRevision!: (result: { type: 'refreshed'; account: string }) => void;
+    mocks.rotateProviderSessionAfterLimit
+      .mockImplementationOnce(async () => new Promise((resolve) => { resolveOldRevision = resolve; }))
+      .mockResolvedValueOnce({ type: 'rotated', account: 'work' });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappyHerdSessionWebhook(sessionId, metadata, encryption);
+    control.onProviderLimited({
+      sessionId,
+      provider: 'codex',
+      account: 'work',
+      accountId,
+      credentialVersion: 1,
+      limitedUntil: 12_345,
+    });
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledOnce());
+
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      providerAccountCredentialVersion: 2,
+    }, encryption);
+    control.onProviderLimited({
+      sessionId,
+      provider: 'codex',
+      account: 'work',
+      accountId,
+      credentialVersion: 2,
+      limitedUntil: 23_456,
+    });
+
+    await vi.waitFor(() => expect(mocks.rotateProviderSessionAfterLimit).toHaveBeenCalledTimes(2));
+    resolveOldRevision({ type: 'refreshed', account: 'work' });
+  });
+
+  it.each(['claude', 'codex', 'grok', 'dsh'] as const)(
+    'persists one provider-named %s quota event when no managed account can switch',
+    async (provider) => {
+      const sessionId = `${provider}-unmanaged-quota`;
+      const encryption: SessionEncryptionData = {
+        encryptionKey: new Uint8Array([41, 42, 43, 44]),
+        encryptionVariant: 'dataKey',
+        seq: 31,
+        metadataVersion: 10,
+        agentStateVersion: 11,
+      };
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 7441,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happyherd',
+        happyToolsDir: '/srv/happyherd/tools',
+      };
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      control.onHappyHerdSessionWebhook(sessionId, metadata, encryption);
+      control.onProviderLimited({ sessionId, provider, limitedUntil: 45_000 });
+
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+      expect(mocks.rotateProviderSessionAfterLimit).not.toHaveBeenCalled();
+      const [session, event, localId] = mocks.postSessionEvent.mock.calls[0] as unknown as [
+        { id: string; encryptionKey: Uint8Array },
+        { type: string; provider: string; incidentId: string },
+        string,
+      ];
+      expect(session).toMatchObject({ id: sessionId, encryptionKey: encryption.encryptionKey });
+      expect(event).toEqual({
+        type: 'provider-quota-exhausted',
+        provider,
+        incidentId: expect.any(String),
+      });
+      expect(localId).toBe(event.incidentId);
+    },
+  );
+
+  it.each(['out of usable accounts', 'failed', 'ignored', 'unchanged'] as const)(
+    'persists a quota event when managed rotation is %s',
+    async (_label) => {
+      if (_label === 'failed') {
+        mocks.rotateProviderSessionAfterLimit.mockRejectedValueOnce(new Error('resume failed'));
+      } else if (_label === 'out of usable accounts') {
+        mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (
+          _notice: ProviderLimitNotice,
+        dependencies: ProviderLimitRotationDependencies,
+      ) => {
+        await dependencies.onNoUsableAccount?.();
+        await dependencies.onAccountSwitched?.({
+          sessionId: _notice.sessionId,
+          provider: 'codex',
+          fromAccount: 'work-primary',
+          toAccount: 'work-backup',
+        });
+        return { type: 'waited-and-rotated', account: 'work-backup' };
+      });
+      } else if (_label === 'ignored') {
+        mocks.rotateProviderSessionAfterLimit.mockResolvedValueOnce({ type: 'ignored' });
+      } else {
+        mocks.rotateProviderSessionAfterLimit.mockResolvedValueOnce({
+          type: 'unchanged',
+          account: 'work-primary',
+        });
+      }
+      const sessionId = `codex-rotation-${_label}`;
+      const encryption: SessionEncryptionData = {
+        encryptionKey: new Uint8Array([51, 52, 53, 54]),
+        encryptionVariant: 'dataKey',
+        seq: 32,
+        metadataVersion: 12,
+        agentStateVersion: 13,
+      };
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: 'codex',
+        providerAccount: 'work-primary',
+        host: 'test-host',
+        hostPid: 7551,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happyherd',
+        happyToolsDir: '/srv/happyherd/tools',
+      };
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      control.onHappyHerdSessionWebhook(sessionId, metadata, encryption);
+      control.onProviderLimited({
+        sessionId,
+        provider: 'codex',
+        account: 'work-primary',
+        limitedUntil: 45_000,
+      });
+
+      const expectedEventCount = _label === 'out of usable accounts' ? 2 : 1;
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledTimes(expectedEventCount));
+      const calls = mocks.postSessionEvent.mock.calls as unknown as Array<[unknown, { type: string }, string]>;
+      const quotaCall = calls.find(([, event]) => event.type === 'provider-quota-exhausted');
+      expect(quotaCall?.[1]).toMatchObject({
+        type: 'provider-quota-exhausted',
+        provider: 'codex',
+      });
+      if (_label === 'out of usable accounts') {
+        const switchCall = calls.find(([, event]) => event.type === 'provider-account-switched');
+        expect(switchCall?.[1]).toMatchObject({
+          provider: 'codex',
+          fromAccount: 'work-primary',
+          toAccount: 'work-backup',
+        });
+        expect(switchCall?.[2]).not.toBe(quotaCall?.[2]);
+      }
+    },
+  );
+
+  it.each([
+    ['claude', 'bypassPermissions'],
+    ['codex', 'yolo'],
+    ['grok', 'dontAsk'],
+    ['dsh', 'danger-full-access'],
+    ['agy', 'default'],
+  ] as const)('inherits the parent directory, permission and Commander for %s side chats', async (provider, permission) => {
+    const launchOnly = provider === 'grok' || provider === 'dsh';
+    const parentMetadata: Metadata = {
+      path: process.cwd(), flavor: provider, machineId: 'machine-1',
+      host: 'test-host', homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd', happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      claudeSessionId: 'claude-parent', codexThreadId: 'codex-parent',
+      commanderId: 'athena',
+      permissionMode: launchOnly ? 'default' : permission,
+      spawnSettings: { provider, model: null, effort: null, permission: launchOnly ? permission : 'default' },
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', active: false, metadata: parentMetadata,
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5660, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[], { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    const settings = spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON
+      ? JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON)
+      : undefined;
+    control.onHappyHerdSessionWebhook('child', {
+      ...parentMetadata, hostPid: 5660, parentSessionId: 'parent', isSideChat: true,
+      spawnSettings: settings,
+    }, {
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'child' });
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(prepareCommanderContext).toHaveBeenCalledWith('athena', parentMetadata.path);
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
+    expect(settings).toMatchObject({ provider, permission });
+  });
+
+  it.each([
+    ['reassigned Commander', 'new-commander'],
+    ['detached Commander', undefined],
+  ] as const)('uses the current parent permission and %s for a side chat', async (_label, commanderId) => {
+    const staleMetadata: Metadata = {
+      path: process.cwd(), flavor: 'codex', machineId: 'machine-1',
+      host: 'test-host', homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd', happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      codexThreadId: 'parent-thread', commanderId: 'old-commander', permissionMode: 'yolo',
+    };
+    const currentMetadata: Metadata = { ...staleMetadata, commanderId, permissionMode: 'default' };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', metadata: staleMetadata,
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.inspectSessionAuthoritative.mockImplementationOnce(async (session: any) => ({
+      session: { ...session, metadata: currentMetadata, metadataVersion: 2 }, active: true,
+    }));
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5661, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const [args, options] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[], { env: NodeJS.ProcessEnv },
+    ];
+    const settings = JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!);
+    control.onHappyHerdSessionWebhook('current-parent-child', {
+      ...currentMetadata, hostPid: 5661, parentSessionId: 'parent', isSideChat: true,
+      spawnSettings: settings,
+    }, {
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'current-parent-child' });
+    expect(prepareCommanderContext).toHaveBeenCalledWith(commanderId, staleMetadata.path);
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', 'default']));
+    expect(settings.permission).toBe('default');
+  });
+
+  it('does not fork with stale inheritance when current parent metadata is unavailable', async () => {
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent', metadata: {
+        path: process.cwd(), flavor: 'codex', machineId: 'machine-1',
+        codexThreadId: 'parent-thread', commanderId: 'old-commander', permissionMode: 'yolo',
+      },
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32), encryptionVariant: 'dataKey',
+    });
+    mocks.inspectSessionAuthoritative.mockRejectedValueOnce(new Error('current parent unavailable'));
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    await expect(control.sideChat({ action: 'create', parentSessionId: 'parent', brief: null }))
+      .resolves.toMatchObject({ success: false });
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    expect(prepareCommanderContext).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['gemini', undefined],
+    ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],
+    ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+  ] as const)(
+    'creates a fresh seeded %s side chat with exact lineage and no native fork',
+    async (provider, expectedSettings) => {
+      const parentMetadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 9876,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happyherd',
+        happyToolsDir: '/srv/happyherd/tools',
+      };
+      mocks.resolveLocalReconnectableSession.mockResolvedValue({
+        id: `${provider}-parent`,
+        active: false,
+        metadata: parentMetadata,
+        seq: 5,
+        metadataVersion: 2,
+        agentStateVersion: 1,
+        encryptionKey: new Uint8Array(32).fill(4),
+        encryptionVariant: 'dataKey',
+      });
+      mocks.readRecentSessionMessages.mockResolvedValueOnce([{
+        seq: 5,
+        localId: 'parent-message',
+        createdAt: 5,
+        content: { role: 'user', content: { type: 'text', text: 'parent visible context' } },
+      }]);
+      mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5600, kill: vi.fn(), on: vi.fn() });
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      const creation = control.sideChat({
+        action: 'create',
+        parentSessionId: `${provider}-parent`,
+        brief: sideChatBrief,
+      });
+      await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+      control.onHappyHerdSessionWebhook(`${provider}-child`, {
+        ...parentMetadata,
+        hostPid: 5600,
+        parentSessionId: `${provider}-parent`,
+        isSideChat: true,
+        ...(expectedSettings ? { spawnSettings: expectedSettings } : {}),
+      }, {
+        encryptionKey: new Uint8Array(32).fill(7),
+        encryptionVariant: 'dataKey',
+        seq: 1,
+        metadataVersion: 1,
+        agentStateVersion: 1,
+      });
+
+      await expect(creation).resolves.toMatchObject({
+        success: true,
+        parentSessionId: `${provider}-parent`,
+        sessionId: `${provider}-child`,
+      });
+      expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+      const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+        string[], { env: NodeJS.ProcessEnv },
+      ];
+      expect(args[0]).toBe(provider);
+      expect(args).not.toContain('--resume');
+      expect(spawnOptions.env.HAPPYHERD_FORKED_FROM_SESSION_ID).toBe(`${provider}-parent`);
+      expect(spawnOptions.env.HAPPYHERD_SIDE_CHAT).toBe('1');
+      expect(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON)
+        .toBe(expectedSettings ? JSON.stringify(expectedSettings) : undefined);
+      expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `${provider}-child` }),
+        expect.objectContaining({ text: expect.stringContaining('parent visible context') }),
+      );
+    },
+  );
+
+  it('does not spawn a fresh-provider child when bounded parent context cannot be read', async () => {
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'dsh-parent',
+      active: false,
+      metadata: {
+        path: process.cwd(), flavor: 'dsh', machineId: 'machine-1',
+      },
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+    });
+    mocks.readRecentSessionMessages.mockRejectedValueOnce(new Error('context unavailable'));
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'dsh-parent', brief: sideChatBrief,
+    })).resolves.toMatchObject({
+      success: false,
+      sessionId: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: 'context unavailable' }],
+    });
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+  });
+
+  it('keeps Human one-click creation empty for a fresh-provider parent', async () => {
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'dsh-human-parent',
+      active: false,
+      metadata,
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5650, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({
+      action: 'create', parentSessionId: 'dsh-human-parent', brief: null,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('dsh-human-child', {
+      ...metadata,
+      hostPid: 5650,
+      parentSessionId: 'dsh-human-parent',
+      isSideChat: true,
+      spawnSettings: { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' },
+    }, {
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'dsh-human-child' });
+    expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['gemini', undefined],
+    ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+  ] as const)(
+    'reopens a %s side chat in the same HappyHerd session with a fresh seeded provider process',
+    async (provider, spawnSettings) => {
+      const sessionId = `${provider}-archived-child`;
+      const parentSessionId = `${provider}-parent`;
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 9876,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happyherd',
+        happyToolsDir: '/srv/happyherd/tools',
+        parentSessionId,
+        isSideChat: true,
+        lifecycleState: 'archived',
+        ...(spawnSettings ? { spawnSettings } : {}),
+      };
+      mocks.readPersistedSessions.mockReturnValue({
+        [sessionId]: {
+          encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+          encryptionVariant: 'dataKey',
+          seq: 8,
+          metadataVersion: 4,
+          agentStateVersion: 3,
+          metadata,
+          savedAt: Date.now(),
+        },
+      });
+      mocks.readRecentSessionMessages.mockResolvedValueOnce([{
+        seq: 7,
+        localId: 'previous-user',
+        createdAt: 7,
+        content: { role: 'user', content: { type: 'text', text: 'continue this work' } },
+      }]);
+      mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5700, kill: vi.fn(), on: vi.fn() });
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      const reopening = control.sideChat({ action: 'reopen', sessionId });
+      await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+      mocks.authoritativeActive = true;
+      control.onHappyHerdSessionWebhook(sessionId, {
+        ...metadata,
+        hostPid: 5700,
+        lifecycleState: 'running',
+      }, {
+        encryptionKey: new Uint8Array(32).fill(5),
+        encryptionVariant: 'dataKey',
+        seq: 9,
+        metadataVersion: 5,
+        agentStateVersion: 4,
+      });
+
+      await expect(reopening).resolves.toMatchObject({
+        success: true,
+        sessionId,
+        parentSessionId,
+        child: { status: 'running', providerRunning: true, active: true },
+      });
+      const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+        string[], { env: NodeJS.ProcessEnv },
+      ];
+      expect(args[0]).toBe(provider);
+      expect(args).not.toContain('--resume');
+      expect(spawnOptions.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
+      expect(spawnOptions.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT).toBe('1');
+      expect(spawnOptions.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID).toEqual(expect.any(String));
+      expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
+        expect.objectContaining({ id: sessionId }),
+        expect.objectContaining({
+          localId: spawnOptions.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID,
+          text: expect.stringContaining('continue this work'),
+          providerContinuationHandoff: true,
+        }),
+      );
+    },
+  );
+
+  it('reuses an interrupted fresh-provider handoff instead of posting and replaying a duplicate', async () => {
+    const sessionId = 'dsh-interrupted-handoff';
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+      parentSessionId: 'dsh-parent',
+      isSideChat: true,
+      lifecycleState: 'archived',
+      spawnSettings: {
+        provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default',
+      },
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 9,
+        metadataVersion: 4,
+        agentStateVersion: 3,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: {
+        ...session,
+        agentState: {
+          messageQueue: { currentMessageIds: ['existing-handoff'], pendingMessageIds: [] },
+        },
+      },
+      active: mocks.authoritativeActive,
+    }));
+    mocks.readRecentSessionMessages.mockResolvedValueOnce([
+      {
+        seq: 8,
+        localId: 'existing-handoff',
+        createdAt: 8,
+        content: {
+          role: 'user',
+          content: { type: 'text', text: 'existing bounded handoff' },
+          meta: { providerContinuationHandoff: true },
+        },
+      },
+      {
+        seq: 9,
+        localId: 'newer-turn-event',
+        createdAt: 9,
+        content: { role: 'agent', content: { type: 'acp', data: { type: 'message', message: 'started' } } },
+      },
+    ]);
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5750, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const reopening = control.sideChat({ action: 'reopen', sessionId });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    mocks.authoritativeActive = true;
+    control.onHappyHerdSessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 5750,
+      lifecycleState: 'running',
+    }, {
+      encryptionKey: new Uint8Array(32).fill(5),
+      encryptionVariant: 'dataKey',
+      seq: 9,
+      metadataVersion: 5,
+      agentStateVersion: 4,
+    });
+
+    await expect(reopening).resolves.toMatchObject({ success: true, sessionId });
+    const spawnOptions = mocks.spawnHappyHerdCLI.mock.calls[0]?.[1] as { env: NodeJS.ProcessEnv };
+    expect(spawnOptions.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID).toBe('existing-handoff');
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['claude', 'bypassPermissions', 'default', 'max'],
+    ['codex', 'yolo', 'gpt-5.6-codex', 'xhigh'],
+    ['grok', 'bypassPermissions', 'grok-build', null],
+    ['dsh', 'danger-full-access', 'deepseek-chat', null],
+    ['agy', 'default', 'gemini-2.5-pro', null],
+  ] as const)('validates a permission-only %s side chat before fork and returns confirmed settings', async (provider, permission, model, effort) => {
+    mocks.authoritativeActive = true;
+    const parentMetadata: Metadata = {
+      path: process.cwd(), flavor: provider, host: 'test-host', hostPid: 9876,
+      machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      permissionMode: 'default',
+      spawnSettings: { provider, model, effort, permission: 'default' },
+      ...(provider === 'claude' ? { claudeSessionId: '11111111-1111-4111-8111-111111111111' } : {}),
+      ...(provider === 'codex' ? { codexThreadId: 'thread-parent' } : {}),
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({ id: 'parent-session', metadata: parentMetadata });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5432, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const invalidPermission = provider === 'codex' ? 'bypassPermissions' : 'yolo';
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission: invalidPermission },
+    })).resolves.toMatchObject({
+      success: false, sessionId: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: expect.stringContaining('does not advertise permission mode') }],
+    });
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+
+    const settings = { provider, permission, model, effort };
+    const creation = control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission },
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'parent-session', brief: sideChatBrief,
+      launch: { permission: invalidPermission },
+    })).resolves.toMatchObject({
+      success: false,
+      phases: [{ phase: 'resolve', status: 'failed', message: expect.stringContaining('different delegation brief or launch selection') }],
+    });
+    control.onHappyHerdSessionWebhook('child-session', {
+      ...parentMetadata, hostPid: 5432, parentSessionId: 'parent-session', isSideChat: true,
+      spawnSettings: settings, permissionMode: permission,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'child-session', settings });
+    const [args, options] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
+    expect(JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(settings);
+    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+  });
+
+  it('preserves a stale native Codex home while forking with the registered account path', async () => {
+    mocks.authoritativeActive = true;
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-auth-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'runtime');
+    const providerAccount = 'rotated-account';
+    const providerAccountId = '00000000-0000-4000-8000-000000000005';
+    const accountHome = join(testRoot, 'accounts', providerAccount);
+    const accountAuthFile = join(accountHome, 'auth.json');
+    const selectedAccountAuth = '{"account":"rotated"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(accountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), '{"account":"stale"}');
+    await writeFile(accountAuthFile, selectedAccountAuth);
+    let authAtFork: string | undefined;
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-child',
+      };
+    });
+    const parentMetadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-parent',
+      codexHome,
+      providerAccount,
+      providerAccountId,
+      providerAccountCredentialVersion: 3,
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          id: providerAccountId,
+          provider: 'codex',
+          name: providerAccount,
+          credential: { type: 'auth-file', path: accountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+          credentialVersion: 3,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      },
+    });
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent-session',
+      metadata: parentMetadata,
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({
+      pid: 5432,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    await expect(control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'not-advertised', effort: 'xhigh' },
+    })).resolves.toMatchObject({
+      success: false,
+      sessionId: null,
+      phases: [{
+        phase: 'resolve',
+        status: 'failed',
+        message: expect.stringContaining('does not advertise model "not-advertised"'),
+      }],
+    });
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+
+    const sideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'gpt-custom', effort: 'xhigh' },
+    });
+    const concurrentSideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'gpt-custom', effort: 'xhigh' },
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    await expect(control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'gpt-custom', effort: 'high' },
+    })).resolves.toMatchObject({
+      success: false,
+      phases: [{
+        phase: 'resolve',
+        status: 'failed',
+        message: expect.stringContaining('different delegation brief or launch selection'),
+      }],
+    });
+    control.onHappyHerdSessionWebhook('child-session', {
+      ...parentMetadata,
+      hostPid: 5432,
+      codexThreadId: 'thread-child',
+      parentSessionId: 'parent-session',
+      isSideChat: true,
+      spawnSettings: {
+        provider: 'codex',
+        model: 'gpt-custom',
+        effort: 'xhigh',
+        permission: 'safe-yolo',
+      },
+      modelMode: 'gpt-custom',
+      effortLevel: 'xhigh',
+      permissionMode: 'safe-yolo',
+    }, {
+      encryptionKey: new Uint8Array(32).fill(7),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(sideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
+    await expect(concurrentSideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
+    expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
+    expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+      preferred: providerAccount,
+      preferredId: providerAccountId,
+    });
+    expect(mocks.forkCodexBackendThread).toHaveBeenCalledWith(
+      parentMetadata.path,
+      parentMetadata.codexThreadId,
+      expect.objectContaining({
+        CODEX_HOME: codexHome,
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      }),
+    );
+    expect(authAtFork).toBe('{"account":"stale"}');
+    expect(await readFile(accountAuthFile, 'utf8')).toBe(selectedAccountAuth);
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual(expect.arrayContaining([
+      'codex',
+      '--resume', 'thread-child',
+      '--started-by', 'daemon',
+      '--model', 'gpt-custom',
+      '--effort', 'xhigh',
+      '--permission-mode', 'safe-yolo',
+    ]));
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(providerAccount);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
+    expect(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON).toBe(JSON.stringify({
+      provider: 'codex',
+      model: 'gpt-custom',
+      effort: 'xhigh',
+      permission: 'safe-yolo',
+    }));
+  });
+
+  it('preserves an unmanaged Codex custom home through fork and child launch', async () => {
+    mocks.authoritativeActive = true;
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-unmanaged-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'native-home');
+    const poolAccountHome = join(testRoot, 'accounts', 'daemon-default');
+    const poolAccountAuthFile = join(poolAccountHome, 'auth.json');
+    const nativeAuth = '{"account":"native-custom"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(poolAccountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), nativeAuth);
+    await writeFile(poolAccountAuthFile, '{"account":"daemon-default"}');
+    let authAtFork: string | undefined;
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: 'daemon-default',
+          credential: { type: 'auth-file', path: poolAccountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: 'daemon-default',
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: poolAccountAuthFile,
+      },
+    });
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-unmanaged-child',
+      };
+    });
+    const parentMetadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-unmanaged-parent',
+      codexHome,
+      host: 'test-host',
+      hostPid: 9877,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'unmanaged-parent-session',
+      metadata: parentMetadata,
+    });
+    mocks.spawnHappyHerdCLI.mockReturnValue({
+      pid: 5433,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const sideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'unmanaged-parent-session',
+      brief: null,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook('unmanaged-child-session', {
+      ...parentMetadata,
+      hostPid: 5433,
+      codexThreadId: 'thread-unmanaged-child',
+      parentSessionId: 'unmanaged-parent-session',
+      isSideChat: true,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(8),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(sideChat).resolves.toMatchObject({
+      success: true,
+      sessionId: 'unmanaged-child-session',
+    });
+    expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalled();
+    expect(authAtFork).toBe(nativeAuth);
+    const [, , forkEnvironment] = mocks.forkCodexBackendThread.mock.calls[0] as unknown as [
+      string,
+      string,
+      NodeJS.ProcessEnv,
+    ];
+    expect(forkEnvironment.CODEX_HOME).toBe(codexHome);
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
+    const [args, spawnOptions] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual(expect.arrayContaining([
+      'codex',
+      '--provider-account-mode', 'unmanaged',
+      '--resume', 'thread-unmanaged-child',
+    ]));
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
+  });
+
+  it('lists a stopped side chat after daemon restart from durable metadata and authoritative server state', async () => {
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-persisted',
+      host: 'test-host',
+      hostPid: 9999,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd',
+      happyToolsDir: '/srv/happyherd/tools',
+      parentSessionId: 'parent-persisted',
+      isSideChat: true,
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      'child-persisted': {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 8,
+        metadataVersion: 4,
+        agentStateVersion: 3,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    await expect(control.sideChat({ action: 'list', parentSessionId: 'parent-persisted' }))
+      .resolves.toMatchObject({
+        success: true,
+        children: [{
+          sessionId: 'child-persisted',
+          status: 'stopped',
+          active: false,
+          providerRunning: false,
+        }],
+      });
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalledWith(9999);
+  });
+});

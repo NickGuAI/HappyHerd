@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 20 — HappyHerd CLI naming",
+      "summary": "",
+      "markdown": "- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.\n- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed.\n- Pairing QR codes and manual links remain compatible with existing app versions."
+    },
+    {
       "title": "September 20 — Native plans and recoverable answers",
       "summary": "",
       "markdown": "- Codex questions now offer one inline form for choices and written answers, with cancellation and protection against answering an interrupted or replaced request.\n- Native Codex plans stay visible while streaming and when restoring provider history. Codex and ACP plan snapshots replace the current list, including explicit empty clears; ACP history replay retains plans when the provider supplies them.\n- Claude question answers now remain visible after reconnecting or reloading. Unsupported question payloads retain their generic content and supported cancellation controls."
@@ -781,5 +786,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 20 — Native plans and recoverable answers"
+  "latestTitle": "September 20 — HappyHerd CLI naming"
 }

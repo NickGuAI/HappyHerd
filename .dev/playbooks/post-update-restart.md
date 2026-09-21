@@ -1,7 +1,7 @@
 # Post-update server and daemon restart
 
 Use this playbook when an operator explicitly updates both the central
-server/Web component and one or more native Happy CLI daemon hosts. It is also
+server/Web component and one or more native HappyHerd CLI daemon hosts. It is also
 the acceptance path after a merged change crosses both component boundaries.
 
 This is not a lockstep release rule. Server/Web, CLI/daemon, mobile, governed

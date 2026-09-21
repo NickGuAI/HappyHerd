@@ -74,7 +74,7 @@ Read relevant shared learnings/skills, Commander-private rules, project guides,
 task artifacts, and live state as needed. The one public command is
 `happyherd`, for Commanders, sessions, daemon, automation, diagnostics,
 connections, provider launch, and upgrades; consult the owning operations guide
-and category `--help` for volatile syntax. The internal `bin/happy.mjs`
+and category `--help` for volatile syntax. The internal `bin/happyherd.mjs`
 filename remains valid and is not a second public command. Keep machine-owned
 state accessed through the supported interface instead of reading runtime
 databases, scheduler state, logs, credentials, or raw transcripts as files.

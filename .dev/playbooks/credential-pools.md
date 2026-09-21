@@ -40,7 +40,7 @@ Managed Codex app-server authentication reads registered credentials from the na
 
 ## Source owners
 
-- selection, persistence, and account environment: `server/packages/happy-cli/src/credentialPool/store.ts`
+- selection, persistence, and account environment: `server/packages/happyherd-cli/src/credentialPool/store.ts`
 - Codex/Grok activation and writeback: `credentialPool/{codexAuth,grokAuth}.ts`
 - hard-limit reporting: `credentialPool/providerLimitNotice.ts`
 - daemon acceptance and rotation: `daemon/{controlServer,run}.ts`

@@ -220,7 +220,7 @@ def default_happy_command() -> list[str]:
         return [installed]
     source_entrypoint = (
         Path.home()
-        / "App/apps/happyherd/server/packages/happy-cli/bin/happy.mjs"
+        / "App/apps/happyherd/server/packages/happyherd-cli/bin/happyherd.mjs"
     )
     return ["node", str(source_entrypoint)]
 

@@ -60,12 +60,12 @@ string policies HappyHerd currently sends.
   runs under the previous policy.
 
 The relevant owners are
-`server/packages/happy-cli/src/codex/executionPolicy.ts`,
-`server/packages/happy-cli/src/codex/runCodex.ts`,
-`server/packages/happy-cli/src/codex/codexTurnRouting.ts`,
-`server/packages/happy-cli/src/codex/resumeExistingThread.ts`,
-`server/packages/happy-cli/src/daemon/run.ts`,
-`server/packages/happy-cli/src/resume/handleResumeCommand.ts`,
+`server/packages/happyherd-cli/src/codex/executionPolicy.ts`,
+`server/packages/happyherd-cli/src/codex/runCodex.ts`,
+`server/packages/happyherd-cli/src/codex/codexTurnRouting.ts`,
+`server/packages/happyherd-cli/src/codex/resumeExistingThread.ts`,
+`server/packages/happyherd-cli/src/daemon/run.ts`,
+`server/packages/happyherd-cli/src/resume/handleResumeCommand.ts`,
 `server/packages/happy-app/sources/utils/sessionResume.ts`, and
 `server/packages/happy-app/sources/hooks/useSessionQuickActions.ts`.
 

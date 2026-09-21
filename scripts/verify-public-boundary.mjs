@@ -40,6 +40,9 @@ const approvedRepositoryDisplayPattern = new RegExp(
 // Only the email classification is exempted, only for these exact bytes. Edited
 // copies and every secret/identity/path rule remain subject to the normal scan.
 const publicUpstreamAttributionDigests = new Map([
+  // #297 relocates the upstream tmux implementation while retaining its MIT
+  // copyright email verbatim. Only this exact reviewed file exempts that email.
+  ['server/packages/happyherd-cli/src/utils/tmux.ts', '14fc502b57b164a300e565863bd91495fee478ed0d43dcb96f622464d7527f02'],
   ['server/packages/expo-tailcat/THIRD_PARTY_NOTICES.md', 'b0f17fb7be35a36808512d31e809528c4109e6902aee119ace15e2db07cb8476'],
   ['server/packages/expo-tailcat/example/pnpm-lock.yaml', 'dd87d87b5bf4f9846c6bb588fdf68ae90f5ea25b72ac3aeb36c8e9cb5a26cc1d'],
 ]);

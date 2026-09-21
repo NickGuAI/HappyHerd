@@ -13,14 +13,14 @@ are maintainer checks, not an alternate user-facing launch path.
 ## Current HappyHerd boundary
 
 - Codex sessions are owned by
-  `server/packages/happy-cli/src/codex/runCodex.ts` and
-  `server/packages/happy-cli/src/codex/codexAppServerClient.ts`; the external
+  `server/packages/happyherd-cli/src/codex/runCodex.ts` and
+  `server/packages/happyherd-cli/src/codex/codexAppServerClient.ts`; the external
   source's `codex exec` form is relevant only to a separately approved
   headless utility.
 - GrokBuild sessions use the fixed ACP transport assembled in
-  `server/packages/happy-cli/src/agent/acp/acpAgentConfig.ts`. Permission
+  `server/packages/happyherd-cli/src/agent/acp/acpAgentConfig.ts`. Permission
   choices are parsed from the installed CLI by
-  `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`.
+  `server/packages/happyherd-cli/src/capabilities/agentCapabilities.ts`.
 - Provider changes belong under the `happyherd-update-provider` skill. The live
   binary, current source, and its Codex/GrokBuild references outrank the
   external snapshots below.

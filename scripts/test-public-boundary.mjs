@@ -11,6 +11,12 @@ import { hasExactMarkdownLink } from './verify-community-contract.mjs';
 
 const inspect = (path, text) => inspectEntries([{ path, text }]).map(({ rule }) => rule);
 
+const relocatedAttributionPath = 'server/packages/happyherd-cli/src/utils/tmux.ts';
+const relocatedAttribution = readFileSync(new URL(`../${relocatedAttributionPath}`, import.meta.url), 'utf8');
+assert.deepEqual(inspect(relocatedAttributionPath, relocatedAttribution), []);
+assert(inspect(relocatedAttributionPath, relocatedAttribution + '\n// changed\n').includes('non-example email address'));
+assert(inspect('other.ts', relocatedAttribution).includes('non-example email address'));
+
 assert.deepEqual(inspect('README.md', 'Generic public documentation.'), []);
 assert.deepEqual(
   inspect('docs/example.md', 'See examples/' + ['pm', 'ai-happyherd-agent/'].join('') + ' for an organization example.'),

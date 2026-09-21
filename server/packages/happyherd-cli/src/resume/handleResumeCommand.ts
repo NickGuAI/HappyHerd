@@ -1,0 +1,309 @@
+import { existsSync } from 'node:fs';
+
+import type { Metadata } from '@/api/types';
+import { encodeBase64 } from '@/api/encryption';
+import { hasLocalHappyHerdAgentAuth } from '@/resume/localHappyHerdAgentAuth';
+import { spawnHappyHerdCLI } from '@/utils/spawnHappyHerdCLI';
+import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
+import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { detectAgentCapabilities } from '@/capabilities/agentCapabilities';
+import {
+    persistedProviderPermissionMode,
+    resolveEffectiveSessionSettings,
+} from '@/capabilities/sessionLaunchSettings';
+import { detectCLIAvailability } from '@/utils/detectCLI';
+import { machineSessionSettingsEnvironment } from '@/daemon/sessionLaunchSettings';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
+
+import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
+import { resolveHappyHerdSession, type ReconnectableHappyHerdSession, type ResumableHappyHerdSession } from './resolveHappyHerdSession';
+import { resolveCodexHomeForResume } from './codexHome';
+
+export type ResumeLaunch = {
+    cwd: string;
+    args: string[];
+    settings?: HappyHerdMachineSessionSettings;
+};
+
+export type ResumeLaunchOptions = {
+    claudeStartingMode?: 'local' | 'remote';
+    startedBy?: 'daemon' | 'terminal';
+};
+
+export function parseResumeCommandArgs(args: string[]): { showHelp: boolean; sessionId: string } {
+    if (args.includes('-h') || args.includes('--help')) {
+        return {
+            showHelp: true,
+            sessionId: '',
+        };
+    }
+
+    if (args.length === 0) {
+        throw new Error('HappyHerd session ID is required: happyherd resume <session-id>');
+    }
+    if (args.length > 1) {
+        throw new Error(`Unexpected arguments for happyherd resume: ${args.slice(1).join(' ')}`);
+    }
+
+    return {
+        showHelp: false,
+        sessionId: args[0],
+    };
+}
+
+function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | 'grok' | 'dsh' | null {
+    if (metadata.flavor === 'grok' || metadata.flavor === 'dsh') {
+        return metadata.flavor;
+    }
+    if (metadata.flavor === 'codex' || metadata.codexThreadId) {
+        return 'codex';
+    }
+    if (metadata.flavor === 'claude' || metadata.claudeSessionId) {
+        return 'claude';
+    }
+    return null;
+}
+
+export function isUnmanagedCodexSession(metadata: Metadata): boolean {
+    // Native-auth sessions (including explicitly unmanaged side chats) have no
+    // saved pool identity. A newly configured default must not claim them.
+    return resolveFlavor(metadata) === 'codex' && !metadata.providerAccount && !metadata.providerAccountId;
+}
+
+async function savedProviderResumeEnvironment(metadata: Metadata): Promise<NodeJS.ProcessEnv> {
+    const provider = resolveFlavor(metadata);
+    const codexHome = await resolveCodexHomeForResume(metadata);
+    const grokHome = provider === 'grok' ? metadata.grokHome?.trim() || undefined : undefined;
+    return {
+        ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+        ...(grokHome ? { GROK_HOME: grokHome } : {}),
+        ...(provider && (metadata.providerAccount || metadata.providerAccountId)
+            ? { HAPPYHERD_PROVIDER_ACCOUNT_TYPE: provider } : {}),
+        ...(metadata.providerAccount ? { HAPPYHERD_PROVIDER_ACCOUNT: metadata.providerAccount } : {}),
+        ...(metadata.providerAccountId ? { HAPPYHERD_PROVIDER_ACCOUNT_ID: metadata.providerAccountId } : {}),
+    };
+}
+
+export function buildResumeLaunch(session: ResumableHappyHerdSession, options: ResumeLaunchOptions = {}): ResumeLaunch {
+    const { metadata } = session;
+    const flavor = resolveFlavor(metadata);
+
+    if (flavor === 'codex') {
+        if (!metadata.codexThreadId) {
+            throw new Error(`HappyHerd session ${session.id} is missing its Codex thread ID.`);
+        }
+        const args = ['codex', '--resume', metadata.codexThreadId];
+        if (isUnmanagedCodexSession(metadata)) {
+            args.push('--provider-account-mode', 'unmanaged');
+        }
+        if (options.startedBy) {
+            args.push('--started-by', options.startedBy);
+        }
+        return {
+            cwd: metadata.path,
+            args,
+        };
+    }
+
+    if (flavor === 'claude') {
+        if (!metadata.claudeSessionId) {
+            throw new Error(`HappyHerd session ${session.id} is missing its Claude session ID.`);
+        }
+        const args = ['claude'];
+        if (options.claudeStartingMode) {
+            args.push('--happyherd-starting-mode', options.claudeStartingMode);
+        }
+        if (options.startedBy) {
+            args.push('--started-by', options.startedBy);
+        }
+        args.push('--resume', metadata.claudeSessionId);
+        return {
+            cwd: metadata.path,
+            args,
+        };
+    }
+
+    if (flavor === 'grok' || flavor === 'dsh') {
+        if (!metadata.acpSessionId) {
+            throw new Error(`HappyHerd session ${session.id} is missing its ACP session ID.`);
+        }
+        const args: string[] = [flavor];
+        if (options.startedBy) {
+            args.push('--started-by', options.startedBy);
+        }
+        args.push('--resume', metadata.acpSessionId);
+        return { cwd: metadata.path, args };
+    }
+
+    throw new Error(`HappyHerd session ${session.id} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
+}
+
+export function formatResumeHelp(): string {
+    return [
+        'happyherd resume - Resume a previous HappyHerd session',
+        '',
+        'Usage:',
+        '  happyherd resume <happyherd-session-id>',
+        '',
+        'Examples:',
+        '  happyherd resume cmmij8olq00dp5jcxr3wtbpau',
+        '  happyherd resume cmmij8',
+        '',
+        'This reuses the saved worktree/path and resumes the underlying agent session',
+        'when the backend supports it.',
+    ].join('\n');
+}
+
+async function buildReconnectEnv(
+    session: ReconnectableHappyHerdSession,
+    settings?: HappyHerdMachineSessionSettings,
+): Promise<NodeJS.ProcessEnv> {
+    const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
+    return buildSessionChildEnvironment(process.env, {
+        ...contextEnvironment(contextBundle),
+        ...machineSessionSettingsEnvironment(settings),
+        ...await savedProviderResumeEnvironment(session.metadata),
+        HAPPYHERD_RECONNECT_SESSION_ID: session.id,
+        HAPPYHERD_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
+        HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,
+        HAPPYHERD_RECONNECT_SEQ: String(session.seq),
+        HAPPYHERD_RECONNECT_METADATA_VERSION: String(session.metadataVersion),
+        HAPPYHERD_RECONNECT_AGENT_STATE_VERSION: String(session.agentStateVersion),
+    });
+}
+
+function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitizeSessionEnvironment(process.env)): Promise<number | null> {
+    return new Promise((resolve, reject) => {
+        const child = spawnHappyHerdCLI(launch.args, {
+            cwd: launch.cwd,
+            env,
+            stdio: 'inherit',
+        });
+
+        child.once('error', reject);
+        child.once('exit', (code, signal) => {
+            if (signal) {
+                reject(new Error(`Resumed session exited via signal ${signal}`));
+                return;
+            }
+            resolve(code);
+        });
+    });
+}
+
+/** Rebuild a local provider resume from saved policy and today's local catalog. */
+export async function buildValidatedTerminalResumeLaunch(
+    session: ResumableHappyHerdSession,
+): Promise<ResumeLaunch> {
+    const launch = buildResumeLaunch(session);
+    const flavor = resolveFlavor(session.metadata);
+    if (flavor !== 'claude' && flavor !== 'codex' && flavor !== 'grok' && flavor !== 'dsh') return launch;
+
+    const parsedReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(session.metadata.spawnSettings);
+    const receipt = parsedReceipt.success && parsedReceipt.data.provider === flavor
+        ? parsedReceipt.data
+        : undefined;
+    const permissionMode = flavor === 'grok' || flavor === 'dsh'
+        ? persistedProviderPermissionMode(session.metadata, flavor)
+        : session.metadata.permissionMode
+            ?? receipt?.permission
+            ?? undefined;
+
+    const availability = detectCLIAvailability();
+    const discovery = await detectAgentCapabilities(availability);
+    const settings = resolveEffectiveSessionSettings({
+        host: 'local',
+        platform: process.platform,
+        happyCliVersion: 'local',
+        homeDir: session.metadata.homeDir,
+        happyHomeDir: session.metadata.happyHomeDir,
+        happyLibDir: session.metadata.happyLibDir,
+        cliAvailability: availability,
+        agentCapabilities: discovery.capabilities,
+        ...(discovery.grokCapabilityError ? { grokCapabilityError: discovery.grokCapabilityError } : {}),
+        ...(discovery.dshCapabilityError ? { dshCapabilityError: discovery.dshCapabilityError } : {}),
+    }, 'local', {
+        provider: flavor,
+        model: session.metadata.modelMode ?? receipt?.model ?? undefined,
+        effort: session.metadata.effortLevel ?? receipt?.effort ?? undefined,
+        permission: permissionMode,
+    });
+    if (settings.permission) {
+        launch.args.push('--permission-mode', settings.permission);
+    }
+    if ((flavor === 'claude' || flavor === 'codex' || flavor === 'dsh') && settings.model && settings.model !== 'default') {
+        launch.args.push('--model', settings.model);
+    }
+    if ((flavor === 'claude' || flavor === 'codex' || flavor === 'dsh') && settings.effort) {
+        launch.args.push('--effort', settings.effort);
+    }
+    launch.settings = settings;
+    return launch;
+}
+
+async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ResumableHappyHerdSession | null> {
+    if (!hasLocalHappyHerdAgentAuth()) {
+        return null;
+    }
+    return resolveHappyHerdSession(sessionId);
+}
+
+export async function handleResumeCommand(args: string[]): Promise<void> {
+    const parsed = parseResumeCommandArgs(args);
+    if (parsed.showHelp) {
+        console.log(formatResumeHelp());
+        return;
+    }
+
+    let localError: unknown;
+    let reconnectableSession: ReconnectableHappyHerdSession | null = null;
+    try {
+        reconnectableSession = await resolveLocalReconnectableSession(parsed.sessionId);
+    } catch (error) {
+        localError = error;
+        if (error instanceof LocalResumeSessionError && error.code === 'ambiguous') {
+            throw error;
+        }
+    }
+
+    if (reconnectableSession) {
+        const launch = await buildValidatedTerminalResumeLaunch(reconnectableSession);
+
+        if (!existsSync(launch.cwd)) {
+            throw new Error(`Saved session path does not exist: ${launch.cwd}`);
+        }
+
+        const exitCode = await spawnResumeChild(
+            launch,
+            await buildReconnectEnv(reconnectableSession, launch.settings),
+        );
+        if (typeof exitCode === 'number' && exitCode !== 0) {
+            process.exit(exitCode);
+        }
+        return;
+    }
+
+    const session = await resolveLegacySessionIfAvailable(parsed.sessionId);
+    if (!session) {
+        throw localError;
+    }
+    const launch = await buildValidatedTerminalResumeLaunch(session);
+
+    if (!existsSync(launch.cwd)) {
+        throw new Error(`Saved session path does not exist: ${launch.cwd}`);
+    }
+
+    const exitCode = await spawnResumeChild(
+        launch,
+        buildSessionChildEnvironment(process.env, {
+            ...machineSessionSettingsEnvironment(launch.settings),
+            ...await savedProviderResumeEnvironment(session.metadata),
+        }),
+    );
+    if (typeof exitCode === 'number' && exitCode !== 0) {
+        process.exit(exitCode);
+    }
+}

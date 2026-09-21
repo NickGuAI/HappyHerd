@@ -1,7 +1,7 @@
 # Retired Gemini
 
 Verified 2026-08-30 against the retained compatibility source under
-`server/packages/happy-cli/src/gemini/`. Gemini is excluded from new-session
+`server/packages/happyherd-cli/src/gemini/`. Gemini is excluded from new-session
 launch. Recheck historical session data before relying on these legacy facts.
 
 ## Execution boundary

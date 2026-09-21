@@ -24,7 +24,7 @@ Host-specific values — the archive root, state file, semantic cache directory,
 exporter clone locations, per-source coverage, and provider retention notes —
 live in a PRIVATE overlay outside this public repository:
 
-`$HAPPY_HOME_DIR/agentcontext/rules/skills/session-archive.local.md`
+`$HAPPYHERD_HOME_DIR/agentcontext/rules/skills/session-archive.local.md`
 
 Read the overlay first; every `<archive root>`, `<exporter dir>`, and
 `<semantic-search dir>` placeholder below resolves from it. Do not add

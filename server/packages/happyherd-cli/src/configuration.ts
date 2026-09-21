@@ -1,0 +1,114 @@
+/**
+ * Global configuration for the HappyHerd CLI
+ * 
+ * Centralizes all configuration including environment variables and paths
+ * Environment files should be loaded using Node's --env-file flag
+ */
+
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import packageJson from '../package.json'
+import { initializeCliEnvironment, resolveCliHome } from './legacyCompatibility'
+
+initializeCliEnvironment()
+
+export function runtimeCliVersion(packageVersion: string): string {
+  return packageVersion
+}
+
+class Configuration {
+  public readonly serverUrl: string
+  public readonly webappUrl: string
+  public readonly isDaemonProcess: boolean
+
+  // Directories and paths (from persistence)
+  public readonly happyHomeDir: string
+  public readonly logsDir: string
+  public readonly settingsFile: string
+  public readonly privateKeyFile: string
+  public readonly daemonStateFile: string
+  public readonly daemonLockFile: string
+  public readonly sessionsFile: string
+  public readonly credentialPoolFile: string
+  public readonly credentialPoolDir: string
+  public readonly currentCliVersion: string
+
+  public readonly isExperimentalEnabled: boolean
+  public readonly disableCaffeinate: boolean
+  public readonly bootHappyHerdAgent: boolean
+
+  constructor() {
+    // Check if we're running as daemon based on process args
+    const args = process.argv.slice(2)
+    const isTopLevelVersionQuery = args.length === 1 && (args[0] === '--version' || args[0] === '-v')
+    this.isDaemonProcess = args.length >= 2 && args[0] === 'daemon' && (args[1] === 'start-sync')
+
+    // Directory configuration - Priority: HAPPYHERD_HOME_DIR env > default home dir
+    this.happyHomeDir = resolveCliHome(process.env, homedir())
+
+    this.logsDir = join(this.happyHomeDir, 'logs')
+    this.settingsFile = join(this.happyHomeDir, 'settings.json')
+    this.privateKeyFile = join(this.happyHomeDir, 'access.key')
+    this.daemonStateFile = join(this.happyHomeDir, 'daemon.state.json')
+    this.daemonLockFile = join(this.happyHomeDir, 'daemon.state.json.lock')
+    this.sessionsFile = join(this.happyHomeDir, 'sessions.json')
+    this.credentialPoolFile = join(this.happyHomeDir, 'credential-pools.json')
+    this.credentialPoolDir = join(this.happyHomeDir, 'credential-pools')
+
+    // URL precedence (both): HAPPYHERD_*_URL env > settings.<key> > default.
+    // Settings are read sync here (avoid circular import with persistence.ts).
+    // webappUrl must follow the same chain as serverUrl, otherwise `happyherd server`
+    // self-host points the API at localhost but auth still opens the prod webapp.
+    this.serverUrl =
+      process.env.HAPPYHERD_SERVER_URL ||
+      readSettingsStringSync(this.settingsFile, 'serverUrl') ||
+      'https://api.cluster-fluster.com'
+    this.webappUrl =
+      process.env.HAPPYHERD_WEBAPP_URL ||
+      readSettingsStringSync(this.settingsFile, 'webappUrl') ||
+      'https://app.happy.engineering'
+
+    this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPYHERD_EXPERIMENTAL?.toLowerCase() || '');
+    this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPYHERD_DISABLE_CAFFEINATE?.toLowerCase() || '');
+    // HappyHerd Agent is a second machine-level daemon with its own database and its own
+    // registration on the HappyHerd account, so starting it is opted into rather than
+    // inherited by everyone who upgrades the CLI.
+    this.bootHappyHerdAgent =
+      ['true', '1', 'yes'].includes(process.env.HAPPYHERD_BOOT_AGENT?.toLowerCase() || '') ||
+      this.isExperimentalEnabled;
+
+    this.currentCliVersion = runtimeCliVersion(packageJson.version)
+
+    // Visual indicator on CLI startup (only if not daemon process to avoid log clutter)
+    const variant = process.env.HAPPYHERD_VARIANT || 'stable'
+    if (!this.isDaemonProcess && variant === 'dev') {
+      console.log('\x1b[33m🔧 DEV MODE\x1b[0m - Data: ' + this.happyHomeDir)
+    }
+
+    // A top-level version probe is pure: importing the CLI must not create
+    // state directories before index.ts can return its version response.
+    if (!isTopLevelVersionQuery) {
+      if (!existsSync(this.happyHomeDir)) {
+        mkdirSync(this.happyHomeDir, { recursive: true })
+      }
+      // Ensure directories exist
+      if (!existsSync(this.logsDir)) {
+        mkdirSync(this.logsDir, { recursive: true })
+      }
+    }
+  }
+}
+
+function readSettingsStringSync(settingsFile: string, key: 'serverUrl' | 'webappUrl'): string | undefined {
+  try {
+    if (!existsSync(settingsFile)) return undefined
+    const raw = JSON.parse(readFileSync(settingsFile, 'utf8'))
+    const value = raw?.[key]
+    return typeof value === 'string' && value.length > 0 ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export const configuration: Configuration = new Configuration()

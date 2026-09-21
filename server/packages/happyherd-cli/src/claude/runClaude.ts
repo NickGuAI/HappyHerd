@@ -1,0 +1,1259 @@
+import os from 'node:os';
+import { randomUUID } from 'node:crypto';
+
+import { ApiClient } from '@/api/api';
+import { logger } from '@/ui/logger';
+import { loop } from '@/claude/loop';
+import { AgentGoalStatus, AgentState, Metadata } from '@/api/types';
+import packageJson from '../../package.json';
+import { Credentials, readSettings } from '@/persistence';
+import { EnhancedMode, PermissionMode } from './loop';
+import { MessageQueue2, queueMessageIdsForResume } from '@/utils/MessageQueue2';
+import { hashObject } from '@/utils/deterministicJson';
+import { parseSpecialCommand } from '@/parsers/specialCommands';
+import { getEnvironmentInfo } from '@/ui/doctor';
+import { configuration } from '@/configuration';
+import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
+import { initialMachineMetadata } from '@/daemon/run';
+import { startHappyHerdServer } from '@/claude/utils/startHappyHerdServer';
+import { startHookServer } from '@/claude/utils/startHookServer';
+import { generateHookSettingsFile, cleanupHookSettingsFile } from '@/claude/utils/generateHookSettings';
+import { registerKillSessionHandler } from './registerKillSessionHandler';
+import { projectPath } from '../projectPath';
+import { resolve } from 'node:path';
+import { startOfflineReconnection, connectionState } from '@/utils/serverConnectionErrors';
+import { claudeLocal } from '@/claude/claudeLocal';
+import { createSessionScanner } from '@/claude/utils/sessionScanner';
+import {
+    CLAUDE_GOAL_ACTION_CONFIRMATIONS,
+    claudeGoalActionCapabilities,
+    mapClaudeGoalStatusEventToAgentGoalStatus,
+    parseClaudeGoalActionParams,
+    type ClaudeGoalStatusTranscriptEvent,
+} from '@/claude/claudeGoalStatus';
+import { Session } from './session';
+import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
+import {
+    applySandboxPermissionPolicy,
+    buildClaudeNativeCliArgs,
+    isClaudePermissionMode,
+    normalizeRemotePermissionMode,
+    resolveInitialClaudePermissionMode,
+    resolveRemoteClaudePermissionMode,
+} from './utils/permissionMode';
+import { decodeBase64, encodeBase64 } from '@/api/encryption';
+import type { Session as ApiSession } from '@/api/types';
+import { getProjectPath } from './utils/path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { RawJSONLinesSchema, type RawJSONLines } from './types';
+import {
+    contextMetadataFromEnvironment,
+    instructionReceiptMetadata,
+    mergeContextPrompt,
+    readContextPromptFromEnvironment,
+} from '@/agentContext/commanderContext';
+import {
+    automationMetadataFromEnvironment,
+    readAutomationBootstrapFromEnvironment,
+} from '@/automations/sessionBootstrap';
+import {
+    AutomationGoalTerminalGate,
+    persistAutomationProviderOutcome,
+} from '@/automations/providerOutcome';
+import { systemPrompt } from './utils/systemPrompt';
+import { usageLimitsForProviderAccount } from './utils/usageLimits';
+import {
+    providerContinuationMetadataFromEnvironment,
+    superSessionMetadataFromEnvironment,
+} from '@/utils/createSessionMetadata';
+import {
+    composeUserSafeguardPrompt,
+    resolveUserSafeguardPromptMode,
+} from '@/userSafeguard/userSafeguard';
+
+/** JavaScript runtime to use for spawning Claude Code */
+export type JsRuntime = 'node' | 'bun'
+
+export interface StartOptions {
+    model?: string
+    permissionMode?: PermissionMode
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    startingMode?: 'local' | 'remote'
+    shouldStartDaemon?: boolean
+    claudeEnvVars?: Record<string, string>
+    claudeArgs?: string[]
+    startedBy?: 'daemon' | 'terminal'
+    noSandbox?: boolean
+    /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
+    jsRuntime?: JsRuntime
+}
+
+// No default permission mode. "Default" in the picker means "whatever this
+// harness is already configured to do", so the mode is left unset and Claude
+// applies its own settings. Substituting a value here — this used to be
+// 'yolo' — silently overrode every user's Claude config with full access.
+const DEFAULT_CLAUDE_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'max';
+type ClaudeGoalCommand = NonNullable<ReturnType<typeof parseClaudeGoalActionParams>>;
+type PendingClaudeGoalAction = {
+    command: ClaudeGoalCommand;
+    resolve: (value: { ok: true }) => void;
+    reject: (error: Error) => void;
+    timeout: ReturnType<typeof setTimeout>;
+};
+
+export async function runClaude(credentials: Credentials, options: StartOptions = {}): Promise<void> {
+    logger.debug(`[CLAUDE] ===== CLAUDE MODE STARTING =====`);
+    logger.debug(`[CLAUDE] This is the Claude agent, NOT Gemini`);
+    
+    const workingDirectory = process.cwd();
+    const sessionTag = randomUUID();
+    const happyHerdContextPrompt = await readContextPromptFromEnvironment();
+    const automationBootstrap = await readAutomationBootstrapFromEnvironment();
+    const automationGoalGate = new AutomationGoalTerminalGate();
+
+    // Log environment info at startup
+    logger.debugLargeJson('[START] HappyHerd process started', getEnvironmentInfo());
+    logger.debug(`[START] Options: startedBy=${options.startedBy}, startingMode=${options.startingMode}`);
+
+    // Validate daemon spawn requirements - fail fast on invalid config
+    if (options.startedBy === 'daemon' && options.startingMode === 'local') {
+        throw new Error('Daemon-spawned sessions cannot use local/interactive mode. Use --happyherd-starting-mode remote or spawn sessions directly from terminal.');
+    }
+
+    // Set backend for offline warnings (before any API calls)
+    connectionState.setBackend('Claude');
+
+    // Create session service
+    const api = await ApiClient.create(credentials);
+
+    // Create a new session
+    let state: AgentState = {};
+
+    // Get machine ID from settings (should already be set up)
+    const settings = await readSettings();
+    let machineId = settings?.machineId
+    const sandboxConfig = options.noSandbox ? undefined : settings?.sandboxConfig;
+    const sandboxEnabled = Boolean(sandboxConfig?.enabled);
+    const daemonLaunchSettings = machineSessionSettingsMetadataFromEnvironment().spawnSettings;
+    const claudeDaemonLaunchSettings = daemonLaunchSettings?.provider === 'claude'
+        ? daemonLaunchSettings
+        : null;
+    const hasClaudeDaemonLaunchReceipt = claudeDaemonLaunchSettings !== null;
+    const daemonPermissionMode = claudeDaemonLaunchSettings?.permission;
+    if (daemonPermissionMode != null && !isClaudePermissionMode(daemonPermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${daemonPermissionMode}`);
+    }
+    const requestedInitialPermissionMode = resolveInitialClaudePermissionMode(
+        hasClaudeDaemonLaunchReceipt
+            ? daemonPermissionMode ?? undefined
+            : automationBootstrap
+                ? 'bypassPermissions'
+                : options.permissionMode,
+        hasClaudeDaemonLaunchReceipt ? undefined : options.claudeArgs,
+    );
+    if (requestedInitialPermissionMode != null && !isClaudePermissionMode(requestedInitialPermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${requestedInitialPermissionMode}`);
+    }
+    const initialPermissionMode = hasClaudeDaemonLaunchReceipt
+        ? requestedInitialPermissionMode
+        : applySandboxPermissionPolicy(requestedInitialPermissionMode, sandboxEnabled);
+    if (!machineId) {
+        console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/NickGuAI/HappyHerd/issues`);
+        process.exit(1);
+    }
+    logger.debug(`Using machineId: ${machineId}`);
+
+    // Create machine if it doesn't exist
+    await api.getOrCreateMachine({
+        machineId,
+        metadata: initialMachineMetadata
+    });
+
+    // Lineage from the daemon's spawn RPC (set by app-side fork / duplicate).
+    const forkedFromSessionId = process.env.HAPPYHERD_FORKED_FROM_SESSION_ID;
+    const forkedFromMessageId = process.env.HAPPYHERD_FORKED_FROM_MESSAGE_ID;
+    const isSideChat = process.env.HAPPYHERD_SIDE_CHAT === '1';
+    const providerAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
+    const providerAccountId = process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID?.trim() || undefined;
+    const rawProviderAccountCredentialVersion = process.env.HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION?.trim();
+    const providerAccountCredentialVersion = rawProviderAccountCredentialVersion === undefined
+        ? Number.NaN
+        : Number(rawProviderAccountCredentialVersion);
+
+    let metadata: Metadata = {
+        path: workingDirectory,
+        host: os.hostname(),
+        version: packageJson.version,
+        os: os.platform(),
+        machineId: machineId,
+        homeDir: os.homedir(),
+        happyHomeDir: configuration.happyHomeDir,
+        happyLibDir: projectPath(),
+        happyToolsDir: resolve(projectPath(), 'tools', 'unpacked'),
+        startedFromDaemon: options.startedBy === 'daemon',
+        hostPid: process.pid,
+        startedBy: options.startedBy || 'terminal',
+        // Initialize lifecycle state
+        lifecycleState: 'running',
+        lifecycleStateSince: Date.now(),
+        flavor: 'claude',
+        ...(providerAccount
+            ? { providerAccount }
+            : {}),
+        ...(providerAccountId
+            && Number.isInteger(providerAccountCredentialVersion)
+            && providerAccountCredentialVersion > 0
+            ? { providerAccountId, providerAccountCredentialVersion }
+            : {}),
+        sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
+        dangerouslySkipPermissions: null,
+        spawnSettings: {
+            provider: 'claude',
+            model: options.model ?? null,
+            effort: options.effort ?? DEFAULT_CLAUDE_EFFORT,
+            permission: initialPermissionMode ?? null,
+        },
+        ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
+        ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
+        ...(isSideChat ? { isSideChat: true } : {}),
+        ...superSessionMetadataFromEnvironment(),
+        ...providerContinuationMetadataFromEnvironment(),
+        ...contextMetadataFromEnvironment(),
+        ...automationMetadataFromEnvironment(),
+        ...machineSessionSettingsMetadataFromEnvironment(),
+    };
+    const effectiveLaunchSettings = metadata.spawnSettings?.provider === 'claude'
+        ? metadata.spawnSettings
+        : null;
+    const nativePermissionMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.permission ?? undefined
+        : initialPermissionMode;
+    const effectiveModel = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.model ?? undefined
+        : options.model;
+    const nativeEffort = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.effort ?? undefined
+        : options.effort ?? DEFAULT_CLAUDE_EFFORT;
+    metadata.permissionMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.permission ?? null
+        : initialPermissionMode ?? null;
+    metadata.modelMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.model ?? null
+        : options.model ?? null;
+    metadata.effortLevel = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.effort ?? null
+        : nativeEffort ?? null;
+    if (nativePermissionMode != null && !isClaudePermissionMode(nativePermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${nativePermissionMode}`);
+    }
+    const effectivePermissionMode = nativePermissionMode ?? undefined;
+    if (
+        nativeEffort !== undefined
+        && nativeEffort !== null
+        && !(['low', 'medium', 'high', 'xhigh', 'max'] as const).includes(nativeEffort as never)
+    ) {
+        throw new Error(`Unsupported Claude effort level: ${nativeEffort}`);
+    }
+    const nativeClaudeArgs = buildClaudeNativeCliArgs(options.claudeArgs, {
+        permissionMode: effectivePermissionMode,
+        model: effectiveModel,
+        effort: nativeEffort as StartOptions['effort'],
+    });
+    // This field is a receipt for the provider's effective permission policy,
+    // not for HappyHerd's independent OS sandbox. Derive it only after the
+    // exact native args have removed stale or conflicting launch flags.
+    metadata.dangerouslySkipPermissions =
+        effectivePermissionMode === 'bypassPermissions'
+        || nativeClaudeArgs.includes('--dangerously-skip-permissions');
+
+    // Check for session reconnection env vars (set by daemon for resume-in-place)
+    const reconnectSessionId = process.env.HAPPYHERD_RECONNECT_SESSION_ID;
+    const reconnectKeyBase64 = process.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY;
+    const reconnectVariant = process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT as 'legacy' | 'dataKey' | undefined;
+    const reconnectSeq = process.env.HAPPYHERD_RECONNECT_SEQ;
+    const reconnectMetadataVersion = process.env.HAPPYHERD_RECONNECT_METADATA_VERSION;
+    const reconnectAgentStateVersion = process.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION;
+    const initialDeliveredInstruction = [happyHerdContextPrompt, systemPrompt]
+        .filter((part): part is string => Boolean(part))
+        .join('\n\n');
+    if (initialDeliveredInstruction) {
+        Object.assign(metadata, instructionReceiptMetadata({
+            provider: 'claude',
+            layer: 'system-append',
+            deliveredInstruction: initialDeliveredInstruction,
+        }));
+    }
+
+    let response: ApiSession | null;
+    if (reconnectSessionId && reconnectKeyBase64 && reconnectVariant) {
+        logger.debug(`[START] Reconnecting to existing session ${reconnectSessionId}`);
+        response = {
+            id: reconnectSessionId,
+            seq: parseInt(reconnectSeq || '0', 10),
+            encryptionKey: decodeBase64(reconnectKeyBase64),
+            encryptionVariant: reconnectVariant,
+            metadata,
+            metadataVersion: parseInt(reconnectMetadataVersion || '0', 10),
+            agentState: state,
+            agentStateVersion: parseInt(reconnectAgentStateVersion || '0', 10),
+        };
+        response = await api.refreshSessionForReconnect(response);
+        state = response.agentState ?? state;
+    } else {
+        response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+    }
+
+    // Handle server unreachable case - run Claude locally with hot reconnection
+    // Note: connectionState.notifyOffline() was already called by api.ts with error details
+    if (!response) {
+        if (automationBootstrap) {
+            throw new Error('HappyHerd automation requires a reachable server-backed session');
+        }
+        let offlineSessionId: string | null = null;
+
+        const reconnection = startOfflineReconnection({
+            serverUrl: configuration.serverUrl,
+            onReconnected: async () => {
+                const resp = await api.getOrCreateSession({ tag: randomUUID(), metadata, state });
+                if (!resp) throw new Error('Server unavailable');
+                const session = api.sessionSyncClient(resp);
+                let latestClaudeGoalStatus: AgentGoalStatus | null = null;
+                const observedClaudeGoalRevisions = new Set<string>();
+                const goalCommandSupported = () => {
+                    const slashCommands = session.getMetadata()?.slashCommands ?? [];
+                    return slashCommands.includes('goal') || slashCommands.includes('/goal');
+                };
+                const currentClaudeSessionId = () => session.getMetadata()?.claudeSessionId ?? null;
+                const updateClaudeGoalState = (event: ClaudeGoalStatusTranscriptEvent) => {
+                    if (observedClaudeGoalRevisions.has(event.sourceRevision)) {
+                        return;
+                    }
+                    const capabilities = claudeGoalActionCapabilities({
+                        goalCommandSupported: goalCommandSupported(),
+                        observedGoalStatus: true,
+                        confirmedActions: CLAUDE_GOAL_ACTION_CONFIRMATIONS,
+                    });
+                    const goalStatus = mapClaudeGoalStatusEventToAgentGoalStatus(
+                        event,
+                        currentClaudeSessionId(),
+                        capabilities ? { capabilities } : undefined,
+                    );
+                    if (!goalStatus) {
+                        return;
+                    }
+                    observedClaudeGoalRevisions.add(event.sourceRevision);
+                    latestClaudeGoalStatus = goalStatus;
+                    session.updateAgentState((current) => ({
+                        ...current,
+                        agentGoalStatus: latestClaudeGoalStatus ?? goalStatus,
+                    }));
+                };
+                const scanner = await createSessionScanner({
+                    sessionId: null,
+                    workingDirectory,
+                    onMessage: (msg) => {
+                        void session.sendClaudeSessionMessageFromLocalTranscript(msg);
+                    },
+                    onTranscriptEvent: updateClaudeGoalState,
+                });
+                if (offlineSessionId) scanner.onNewSession(offlineSessionId);
+                return { session, scanner };
+            },
+            onNotify: console.log,
+            onCleanup: () => {
+                // Scanner cleanup handled automatically when process exits
+            }
+        });
+
+        try {
+            await claudeLocal({
+                path: workingDirectory,
+                sessionId: null,
+                onSessionFound: (id) => { offlineSessionId = id; },
+                onThinkingChange: () => {},
+                abort: new AbortController().signal,
+                claudeEnvVars: options.claudeEnvVars,
+                claudeArgs: nativeClaudeArgs,
+                mcpServers: {},
+                allowedTools: [],
+                appendSystemPrompt: happyHerdContextPrompt,
+                sandboxConfig,
+            });
+        } finally {
+            reconnection.cancel();
+        }
+        process.exit(0);
+    }
+
+    logger.debug(`Session created: ${response.id}`);
+
+    // Always report to daemon if it exists
+    try {
+        logger.debug(`[START] Reporting session ${response.id} to daemon`);
+        const result = await notifyDaemonSessionStarted(response.id, metadata, {
+            encryptionKey: encodeBase64(response.encryptionKey),
+            encryptionVariant: response.encryptionVariant,
+            seq: response.seq,
+            metadataVersion: response.metadataVersion,
+            agentStateVersion: response.agentStateVersion,
+        });
+        if (result.error) {
+            logger.debug(`[START] Failed to report to daemon (may not be running):`, result.error);
+        } else {
+            logger.debug(`[START] Reported session ${response.id} to daemon`);
+        }
+    } catch (error) {
+        logger.debug('[START] Failed to report to daemon (may not be running):', error);
+    }
+
+    // SDK metadata (tools, slash commands) is now extracted from the
+    // system.init message in claudeRemote.ts via onSDKMetadata callback
+
+    // Create realtime session
+    const session = api.sessionSyncClient(response);
+    if (
+        providerAccount
+        && response.agentState?.usageLimits
+        && !usageLimitsForProviderAccount(response.agentState.usageLimits, providerAccount)
+    ) {
+        // Credential rotation resumes the same HappyHerd session under a new
+        // provider process. Clear the prior account's quota before the
+        // provider loop starts; if the new account cannot report usage, the
+        // old account's exhausted windows must remain absent.
+        await session.updateAgentState((currentState) => {
+            if (usageLimitsForProviderAccount(currentState.usageLimits, providerAccount)) {
+                return currentState;
+            }
+            const nextState = { ...currentState };
+            delete nextState.usageLimits;
+            return nextState;
+        });
+    }
+    const reconnectQueueMessageIds = reconnectSessionId
+        ? Array.from(new Set([
+            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID
+                ? [process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID]
+                : []),
+        ]))
+        : [];
+
+    // On reconnect, un-archive the session and skip replaying old messages.
+    if (reconnectSessionId) {
+        session.suppressNextArchiveSignal();
+        session.skipExistingMessages(reconnectQueueMessageIds, response.seq);
+        session.updateMetadata((meta) => ({
+            ...meta,
+            lifecycleState: 'running',
+            lifecycleStateSince: undefined,
+            archivedBy: undefined,
+            archiveReason: undefined,
+        }));
+    }
+
+    // Fork backfill: when this HappyHerd session was just spawned as a fork
+    // of another (HAPPYHERD_FORK_CLAUDE_SESSION_ID is set by the daemon at
+    // spawn time), the fresh server-side message log is empty but the
+    // copied Claude JSONL on disk has the full prior conversation. The
+    // SDK with `resume:` reads that JSONL silently — it never re-emits
+    // historical messages back to the HappyHerd client — so without an
+    // explicit backfill the user lands in an empty chat.
+    //
+    // Read the JSONL once before any SDK invocation and push every line
+    // through sendClaudeSessionMessage so the protocol mapper produces
+    // proper user/agent envelopes. SDK messages from later turns then
+    // continue from the same mapper state.
+    //
+    // Skipped on reconnect (HAPPYHERD_RECONNECT_*) — that path reattaches
+    // to the existing HappyHerd session, where the server already has every
+    // message it needs.
+    const forkClaudeSessionId = process.env.HAPPYHERD_FORK_CLAUDE_SESSION_ID;
+    if (!reconnectSessionId && forkClaudeSessionId) {
+        // Side chats resume the forked JSONL for full model context via the
+        // SDK (`resume:`), but we deliberately do NOT replay the pre-fork
+        // history into the UI — a side chat starts empty from the moment it
+        // was opened, so the user only sees the aside they began.
+        if (!isSideChat) {
+            const jsonlPath = join(getProjectPath(workingDirectory), `${forkClaudeSessionId}.jsonl`);
+            try {
+                const file = await readFile(jsonlPath, 'utf-8');
+                const lines = file.split('\n');
+                let backfilled = 0;
+                for (const line of lines) {
+                    if (line.trim().length === 0) continue;
+                    let parsed: unknown;
+                    try { parsed = JSON.parse(line); } catch { continue; }
+                    const result = RawJSONLinesSchema.safeParse(parsed);
+                    if (!result.success) continue;
+                    await session.sendClaudeSessionMessageFromLocalTranscript(
+                        result.data as RawJSONLines,
+                        { reportUsage: false },
+                    );
+                    backfilled += 1;
+                }
+                logger.debug(`[FORK BACKFILL] Replayed ${backfilled} historical messages from ${jsonlPath}`);
+            } catch (error) {
+                logger.debug(`[FORK BACKFILL] Failed to read ${jsonlPath}:`, error);
+            }
+        }
+        // Bind the new HappyHerd session to the forked Claude UUID up front so the
+        // metadata is consistent the moment the app opens this session — even
+        // before the SDK's hook callback fires. Done regardless of backfill.
+        session.updateMetadata((meta) => ({ ...meta, claudeSessionId: forkClaudeSessionId }));
+    }
+
+    // Ring buffer of user prompts that just arrived from the app via the
+    // legacy `sentFrom: 'web'` channel. The remote-mode session scanner
+    // (started below) walks the on-disk Claude JSONL looking for prompts
+    // that landed in the file but never reached the server — i.e. the
+    // ones the user typed in a `claude --resume <id>` terminal sitting
+    // alongside this HappyHerd session. App-sent prompts also land in the
+    // JSONL once the SDK writes them, so we'd double-forward them
+    // without this dedupe. Match by content within a short time window;
+    // entries older than 5 minutes roll off so unrelated future prompts
+    // with identical text still get through from the terminal side.
+    const recentAppPromptsMaxAgeMs = 5 * 60 * 1000;
+    const recentAppPrompts: Array<{ text: string; addedAt: number }> = [];
+    const recordAppPrompt = (text: string) => {
+        const now = Date.now();
+        recentAppPrompts.push({ text, addedAt: now });
+        const cutoff = now - recentAppPromptsMaxAgeMs;
+        while (recentAppPrompts.length > 0 && recentAppPrompts[0].addedAt < cutoff) {
+            recentAppPrompts.shift();
+        }
+    };
+    const consumeAppPrompt = (text: string): boolean => {
+        const cutoff = Date.now() - recentAppPromptsMaxAgeMs;
+        for (let i = 0; i < recentAppPrompts.length; i++) {
+            const entry = recentAppPrompts[i];
+            if (entry.addedAt < cutoff) continue;
+            if (entry.text === text) {
+                recentAppPrompts.splice(i, 1);
+                return true;
+            }
+        }
+        return false;
+    };
+
+    let currentRunMode: 'local' | 'remote' = options.startingMode ?? 'local';
+    let latestClaudeGoalStatus: AgentGoalStatus | null = null;
+    const observedClaudeGoalRevisions = new Set<string>();
+    let pendingClaudeGoalAction: PendingClaudeGoalAction | null = null;
+    const goalCommandSupported = () => {
+        const slashCommands = session.getMetadata()?.slashCommands ?? [];
+        return slashCommands.includes('goal') || slashCommands.includes('/goal');
+    };
+    const currentClaudeSessionId = () => session.getMetadata()?.claudeSessionId ?? null;
+    const settlePendingClaudeGoalAction = (goalStatus: AgentGoalStatus) => {
+        if (!pendingClaudeGoalAction) {
+            return;
+        }
+
+        const pending = pendingClaudeGoalAction;
+        if (pending.command.type === 'clear' && goalStatus.status === 'inactive') {
+            clearTimeout(pending.timeout);
+            pendingClaudeGoalAction = null;
+            pending.resolve({ ok: true });
+            return;
+        }
+
+        if (
+            pending.command.type === 'set'
+            && goalStatus.status === 'active'
+            && goalStatus.text.trim() === pending.command.objective.trim()
+        ) {
+            clearTimeout(pending.timeout);
+            pendingClaudeGoalAction = null;
+            pending.resolve({ ok: true });
+        }
+    };
+    const updateClaudeGoalState = (event: ClaudeGoalStatusTranscriptEvent) => {
+        if (observedClaudeGoalRevisions.has(event.sourceRevision)) {
+            return;
+        }
+        const capabilities = claudeGoalActionCapabilities({
+            goalCommandSupported: goalCommandSupported(),
+            observedGoalStatus: true,
+            confirmedActions: CLAUDE_GOAL_ACTION_CONFIRMATIONS,
+        });
+        const goalStatus = mapClaudeGoalStatusEventToAgentGoalStatus(
+            event,
+            currentClaudeSessionId(),
+            capabilities ? { capabilities } : undefined,
+        );
+        if (!goalStatus) {
+            return;
+        }
+        observedClaudeGoalRevisions.add(event.sourceRevision);
+        latestClaudeGoalStatus = goalStatus;
+        if (automationBootstrap) {
+            automationGoalGate.observe(goalStatus);
+        }
+        settlePendingClaudeGoalAction(goalStatus);
+        session.updateAgentState((current) => ({
+            ...current,
+            agentGoalStatus: latestClaudeGoalStatus ?? goalStatus,
+        }));
+    };
+
+    // Remote-mode session scanner: catches user-typed prompts that
+    // appeared in the Claude JSONL while we weren't looking — typically
+    // because the user opened `claude --resume <id>` in a terminal next
+    // to the running HappyHerd session. SDK-emitted assistant + tool_result
+    // user messages keep flowing through the existing sdkToLogConverter
+    // pipeline; the scanner here only forwards things that pipeline
+    // can't see.
+    const initialScannerSessionId = forkClaudeSessionId
+        ?? (metadata.claudeSessionId ?? null);
+    const remoteScanner = await createSessionScanner({
+        sessionId: initialScannerSessionId,
+        workingDirectory,
+        onMessage: (raw) => {
+            if (currentRunMode !== 'remote') return;
+            // Only user-typed prompts. SDK pipeline owns assistant and
+            // tool_result-bearing user messages.
+            if (raw.type !== 'user') return;
+            if ((raw as any).isSidechain) return;
+            const content = (raw as any).message?.content;
+            if (typeof content !== 'string') return;
+            // Drop empty / whitespace-only lines.
+            if (content.trim().length === 0) return;
+            // App-sent prompts will show up here because the SDK
+            // writes them to the JSONL — dedupe by content.
+            if (consumeAppPrompt(content)) return;
+            session.sendClaudeSessionMessage(raw);
+        },
+        onTranscriptEvent: updateClaudeGoalState,
+    });
+
+    // Start HappyHerd MCP server
+    const happyherdServer = await startHappyHerdServer(session);
+    logger.debug(`[START] HappyHerd MCP server started at ${happyherdServer.url}`);
+
+    // Variable to track current session instance (updated via onSessionReady callback)
+    // Used by hook server to notify Session when Claude changes session ID
+    let currentSession: Session | null = null;
+
+    // Start Hook server for receiving Claude session notifications
+    const hookServer = await startHookServer({
+        onSessionHook: (sessionId, data) => {
+            logger.debug(`[START] Session hook received: ${sessionId}`, data);
+
+            // Tell the remote scanner about this sessionId so it knows
+            // which JSONL to watch (and so it can fire onNewSession for
+            // claude --resume hand-offs that mint a fresh session id).
+            //
+            // In remote mode every user prompt arrives via the SDK or the
+            // app channel — both of which already deliver their messages
+            // to the server before they hit disk. Anything the scanner
+            // finds in the JSONL at the moment it learns the session id
+            // is therefore already on the server; treating it as fresh
+            // (the previous behavior) replayed the whole history back to
+            // the chat on reconnect. The scanner's real job is forwarding
+            // *future* JSONL writes from a parallel `claude --resume`
+            // terminal, which the file watcher will pick up.
+            remoteScanner.onNewSession(sessionId, { treatExistingAsProcessed: true });
+
+            // Update session ID in the Session instance
+            if (currentSession) {
+                const previousSessionId = currentSession.sessionId;
+                if (previousSessionId !== sessionId) {
+                    logger.debug(`[START] Claude session ID changed: ${previousSessionId} -> ${sessionId}`);
+                    currentSession.onSessionFound(sessionId);
+                }
+            }
+        }
+    });
+    logger.debug(`[START] Hook server started on port ${hookServer.port}`);
+
+    // Generate hook settings file for Claude
+    const hookSettingsPath = generateHookSettingsFile(hookServer.port);
+    logger.debug(`[START] Generated hook settings file: ${hookSettingsPath}`);
+
+    // Print log file path
+    const logPath = logger.logFilePath;
+    logger.infoDeveloper(`Session: ${response.id}`);
+    logger.infoDeveloper(`Logs: ${logPath}`);
+
+    // Import MessageQueue2 and create message queue
+    const messageQueue = new MessageQueue2<EnhancedMode>(mode => hashObject({
+        permissionMode: mode.permissionMode,
+        model: mode.model,
+        fallbackModel: mode.fallbackModel,
+        customSystemPrompt: mode.customSystemPrompt,
+        appendSystemPrompt: mode.appendSystemPrompt,
+        allowedTools: mode.allowedTools,
+        disallowedTools: mode.disallowedTools,
+        effort: mode.effort,
+    }));
+    messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+    messageQueue.setOnQueueStateChange((messageQueueState) => {
+        session.updateAgentState((currentState) => ({
+            ...currentState,
+            messageQueue: messageQueueState,
+        }));
+    });
+
+    // Set initial agent state, including an empty authoritative queue snapshot
+    // so new clients can distinguish queue-aware runtimes from older CLIs.
+    session.updateAgentState((currentState) => ({
+        ...currentState,
+        controlledByUser: options.startingMode !== 'remote',
+        messageQueue: messageQueue.getQueueState(),
+    }));
+
+    // Forward messages to the queue
+    // The wire type is shared, but Claude-native validation has already run at
+    // the provider boundary and every value below reaches the SDK unchanged.
+    let currentPermissionMode: PermissionMode | undefined = effectivePermissionMode;
+    // Undefined preserves Claude's own configured model. An explicit app or
+    // launch selection still becomes the sticky model for later turns.
+    let currentModel: string | undefined = effectiveModel;
+    let currentFallbackModel: string | undefined = undefined; // Track current fallback model
+    let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
+    // Keep the app-owned Human prompt and safeguard state separate from the
+    // invariant Commander context. Heartbeats need their own isolated prompt
+    // without mutating what the following Human turn will receive.
+    let currentAppAppendSystemPrompt: string | undefined;
+    let currentUserSafeguardEnabled: boolean | undefined;
+    let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
+    let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
+    let currentEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined = nativeEffort as StartOptions['effort']; // Track current Claude effort (thinking depth)
+
+    const resetCurrentModeDefaults = () => {
+        // Model and effort are deliberately NOT reset here. The app sends them
+        // only when the user changes the picker, so resetting them on abort
+        // silently desyncs the picker from what the next turn actually runs.
+        currentPermissionMode = effectivePermissionMode;
+        currentFallbackModel = undefined;
+        currentCustomSystemPrompt = undefined;
+        currentAppAppendSystemPrompt = undefined;
+        currentUserSafeguardEnabled = undefined;
+        currentAllowedTools = undefined;
+        currentDisallowedTools = undefined;
+        logger.debug('[loop] Reset current mode defaults after abort');
+    };
+    const humanAppendSystemPrompt = (): string | undefined => mergeContextPrompt(
+        happyHerdContextPrompt,
+        composeUserSafeguardPrompt(
+            currentAppAppendSystemPrompt,
+            resolveUserSafeguardPromptMode(currentUserSafeguardEnabled, false),
+        ),
+    );
+    const currentEnhancedMode = (appendSystemPrompt = humanAppendSystemPrompt()): EnhancedMode => ({
+        // Deliberately not coerced to 'default': undefined means "no override",
+        // which the SDK reads as "use Claude's own configuration". Coercing it
+        // would pin every unset session to prompting mode.
+        permissionMode: currentPermissionMode,
+        model: currentModel,
+        fallbackModel: currentFallbackModel,
+        customSystemPrompt: currentCustomSystemPrompt,
+        appendSystemPrompt,
+        allowedTools: currentAllowedTools,
+        disallowedTools: currentDisallowedTools,
+        effort: currentEffort,
+    });
+
+    session.rpcHandlerManager.registerHandler('goal-action', async (params: unknown) => {
+        const actionParams = params && typeof params === 'object' && !Array.isArray(params)
+            ? params as Record<string, unknown>
+            : null;
+        const command = actionParams ? parseClaudeGoalActionParams(actionParams) : null;
+        if (!command) {
+            throw new Error('Unsupported Claude goal action');
+        }
+        if (pendingClaudeGoalAction) {
+            throw new Error('Claude goal action already in progress');
+        }
+        if (!latestClaudeGoalStatus || latestClaudeGoalStatus.status !== 'active') {
+            throw new Error('No active Claude goal');
+        }
+
+        const capabilities = latestClaudeGoalStatus.capabilities ?? {};
+        if (command.type === 'clear' && !capabilities.clear) {
+            throw new Error('Claude clear goal action is not supported');
+        }
+        if (command.type === 'set' && !capabilities.edit) {
+            throw new Error('Claude edit goal action is not supported');
+        }
+        if (currentRunMode !== 'remote') {
+            throw new Error('Claude goal action is not ready: remote mode is not active');
+        }
+        if (!currentSession || currentSession.thinking) {
+            throw new Error('Claude goal action is not ready while Claude is thinking');
+        }
+        if (messageQueue.size() > 0) {
+            throw new Error('Claude message queue is busy');
+        }
+
+        const slashCommand = command.type === 'clear'
+            ? '/goal clear'
+            : `/goal ${command.objective}`;
+        const mode = currentEnhancedMode();
+
+        return await new Promise<{ ok: true }>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                pendingClaudeGoalAction = null;
+                reject(new Error('Timed out waiting for Claude goal confirmation'));
+            }, 30000);
+
+            pendingClaudeGoalAction = { command, resolve, reject, timeout };
+            try {
+                messageQueue.pushIsolated(slashCommand, mode);
+            } catch (error) {
+                clearTimeout(timeout);
+                pendingClaudeGoalAction = null;
+                reject(error instanceof Error ? error : new Error(String(error)));
+            }
+        });
+    });
+
+    // Exit when session is archived from web/mobile
+    session.on('archived', () => {
+        logger.debug('[loop] Session archived from web/mobile, cleaning up...');
+        cleanup();
+    });
+
+    // Handle file events — each download promise resolves to its own decoded
+    // attachment (or null). drainAttachmentsForUserMessage on the next text
+    // claims the in-flight set atomically; later file events go into a fresh
+    // bucket bound to the next message — no shared push-array between batches.
+    session.onFileEvent((fileEvent) => {
+        const ev = fileEvent.content.data.ev;
+        logger.debug(`[loop] File event received: ${ev.name} (${ev.size} bytes, ref: ${ev.ref})`);
+        const downloadPromise = (async (): Promise<{ data: Uint8Array; mimeType: string; name: string } | null> => {
+            try {
+                const decrypted = await session.downloadAndDecryptAttachment(ev.ref);
+                if (!decrypted) {
+                    logger.debug(`[loop] Failed to decrypt attachment: ${ev.name}`);
+                    return null;
+                }
+                logger.debug(`[loop] Attachment decrypted: ${ev.name} (${decrypted.length} bytes)`);
+                return { data: decrypted, mimeType: ev.mimeType ?? 'image/jpeg', name: ev.name };
+            } catch (error) {
+                logger.debug(`[loop] Failed to download attachment: ${ev.name}`, { error });
+                return null;
+            }
+        })();
+        session.trackAttachmentDownload(downloadPromise, fileEvent.meta?.queueMessageId);
+    });
+
+    session.onUserMessage(async (message) => {
+
+        const queueMessageId = message.meta?.deliveryMode === 'queue'
+            ? message.localKey ?? message.meta.queueMessageId
+            : undefined;
+        if (message.meta?.permissionMode && !isClaudePermissionMode(message.meta.permissionMode)) {
+            const error = `Unsupported Claude permission mode: ${message.meta.permissionMode}`;
+            logger.debug(`[loop] ${error}`);
+            session.sendSessionEvent({ type: 'message', message: error });
+            return;
+        }
+
+        // Stamp the prompt so the remote-mode JSONL scanner can dedupe
+        // it later — the SDK is about to write this same text to disk
+        // with a real Claude uuid, and we don't want to re-forward it.
+        if (message?.content?.text) {
+            recordAppPrompt(message.content.text);
+        }
+
+        // Claim every file attachment that arrived strictly before this text.
+        // New file events from this point on belong to the next user message.
+        const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage(queueMessageId);
+
+        // Resolve a provider-native permission mode from message metadata.
+        let messagePermissionMode: PermissionMode | undefined = currentPermissionMode;
+        if (message.meta?.permissionMode) {
+            messagePermissionMode = resolveRemoteClaudePermissionMode(
+                currentPermissionMode,
+                normalizeRemotePermissionMode(message.meta.permissionMode),
+                sandboxEnabled,
+            );
+            currentPermissionMode = messagePermissionMode;
+            logger.debug(`[loop] Permission mode updated from user message to: ${currentPermissionMode}`);
+        } else {
+            logger.debug(`[loop] User message received with no permission mode override, using current: ${currentPermissionMode}`);
+        }
+
+        // Resolve model - use message.meta.model if provided, otherwise use current model
+        let messageModel = currentModel;
+        if (message.meta?.hasOwnProperty('model')) {
+            messageModel = message.meta.model || undefined; // null becomes undefined
+            currentModel = messageModel;
+            logger.debug(`[loop] Model updated from user message: ${messageModel || 'reset to default'}`);
+        } else {
+            logger.debug(`[loop] User message received with no model override, using current: ${currentModel || 'default'}`);
+        }
+
+        // Resolve custom system prompt - use message.meta.customSystemPrompt if provided, otherwise use current
+        let messageCustomSystemPrompt = currentCustomSystemPrompt;
+        if (message.meta?.hasOwnProperty('customSystemPrompt')) {
+            messageCustomSystemPrompt = message.meta.customSystemPrompt || undefined; // null becomes undefined
+            currentCustomSystemPrompt = messageCustomSystemPrompt;
+            logger.debug(`[loop] Custom system prompt updated from user message: ${messageCustomSystemPrompt ? 'set' : 'reset to none'}`);
+        } else {
+            logger.debug(`[loop] User message received with no custom system prompt override, using current: ${currentCustomSystemPrompt ? 'set' : 'none'}`);
+        }
+
+        // Resolve fallback model - use message.meta.fallbackModel if provided, otherwise use current fallback model
+        let messageFallbackModel = currentFallbackModel;
+        if (message.meta?.hasOwnProperty('fallbackModel')) {
+            messageFallbackModel = message.meta.fallbackModel || undefined; // null becomes undefined
+            currentFallbackModel = messageFallbackModel;
+            logger.debug(`[loop] Fallback model updated from user message: ${messageFallbackModel || 'reset to none'}`);
+        } else {
+            logger.debug(`[loop] User message received with no fallback model override, using current: ${currentFallbackModel || 'none'}`);
+        }
+
+        const heartbeat = message.meta?.heartbeat;
+
+        // Only Human messages may update the retained app prompt and safeguard
+        // state. A heartbeat carries an explicit automation suppression prompt
+        // below, then the following Human turn returns to this retained state.
+        if (!heartbeat) {
+            if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+                currentAppAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
+                logger.debug(`[loop] Human append system prompt updated: ${currentAppAppendSystemPrompt ? 'set' : 'reset'}`);
+            } else {
+                logger.debug(`[loop] Human message received with no append system prompt override, using current: ${currentAppAppendSystemPrompt ? 'set' : 'none'}`);
+            }
+            if (message.meta?.hasOwnProperty('userSafeguardEnabled')) {
+                currentUserSafeguardEnabled = message.meta.userSafeguardEnabled;
+                logger.debug(`[loop] Human safeguard updated: ${currentUserSafeguardEnabled ? 'enabled' : 'disabled'}`);
+            }
+        }
+
+        // Resolve allowed tools - use message.meta.allowedTools if provided, otherwise use current
+        let messageAllowedTools = currentAllowedTools;
+        if (message.meta?.hasOwnProperty('allowedTools')) {
+            messageAllowedTools = message.meta.allowedTools || undefined; // null becomes undefined
+            currentAllowedTools = messageAllowedTools;
+            logger.debug(`[loop] Allowed tools updated from user message: ${messageAllowedTools ? messageAllowedTools.join(', ') : 'reset to none'}`);
+        } else {
+            logger.debug(`[loop] User message received with no allowed tools override, using current: ${currentAllowedTools ? currentAllowedTools.join(', ') : 'none'}`);
+        }
+
+        // Resolve disallowed tools - use message.meta.disallowedTools if provided, otherwise use current
+        let messageDisallowedTools = currentDisallowedTools;
+        if (message.meta?.hasOwnProperty('disallowedTools')) {
+            messageDisallowedTools = message.meta.disallowedTools || undefined; // null becomes undefined
+            currentDisallowedTools = messageDisallowedTools;
+            logger.debug(`[loop] Disallowed tools updated from user message: ${messageDisallowedTools ? messageDisallowedTools.join(', ') : 'reset to none'}`);
+        } else {
+            logger.debug(`[loop] User message received with no disallowed tools override, using current: ${currentDisallowedTools ? currentDisallowedTools.join(', ') : 'none'}`);
+        }
+
+        // Resolve effort — pass through to Claude SDK as the `effort` option.
+        // Validate against the SDK's accepted set so a stale/garbage value
+        // from the wire doesn't poison the session.
+        let messageEffort = currentEffort;
+        const VALID_EFFORTS: ReadonlySet<string> = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+        if (message.meta?.hasOwnProperty('effort')) {
+            const incoming = (message.meta as Record<string, unknown>).effort;
+            if (incoming === null || incoming === undefined) {
+                messageEffort = DEFAULT_CLAUDE_EFFORT;
+                currentEffort = DEFAULT_CLAUDE_EFFORT;
+                logger.debug(`[loop] Effort reset to default: ${DEFAULT_CLAUDE_EFFORT}`);
+            } else if (typeof incoming === 'string' && VALID_EFFORTS.has(incoming)) {
+                messageEffort = incoming as 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+                currentEffort = messageEffort;
+                logger.debug(`[loop] Effort updated from user message: ${messageEffort}`);
+            } else {
+                logger.debug(`[loop] Ignoring invalid effort from user message: ${String(incoming)}`);
+            }
+        } else {
+            logger.debug(`[loop] User message received with no effort override, using current: ${currentEffort ?? 'default'}`);
+        }
+
+        if (heartbeat) {
+            if (queueMessageId !== heartbeat.occurrenceId) {
+                logger.warn('[HEARTBEAT] Ignoring heartbeat marker whose queue identity does not match its occurrence');
+                return;
+            }
+            messageQueue.pushIsolated(
+                message.content.text,
+                {
+                    ...currentEnhancedMode(mergeContextPrompt(
+                        happyHerdContextPrompt,
+                        composeUserSafeguardPrompt(
+                            undefined,
+                            resolveUserSafeguardPromptMode(undefined, true),
+                        ),
+                    )),
+                    heartbeat,
+                },
+                attachmentsForThisMessage,
+                queueMessageId,
+            );
+            logger.debug(`[HEARTBEAT] Queued isolated Claude occurrence ${heartbeat.occurrenceId}`);
+            return;
+        }
+
+        // Check for special commands before processing
+        const specialCommand = parseSpecialCommand(message.content.text);
+
+        if (specialCommand.type === 'compact') {
+            logger.debug('[start] Detected /compact command');
+            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
+            logger.debugLargeJson('[start] /compact command pushed to queue:', message);
+            return;
+        }
+
+        if (specialCommand.type === 'clear') {
+            logger.debug('[start] Detected /clear command');
+            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
+            logger.debugLargeJson('[start] /clear command pushed to queue:', message);
+            return;
+        }
+
+        if (specialCommand.type === 'mcp' || specialCommand.type === 'skills') {
+            // In local mode, let Claude Code handle these commands natively
+            if (currentRunMode === 'local') {
+                logger.debug(`[start] /${specialCommand.type} in local mode — passing through to Claude Code`);
+            } else {
+                logger.debug(`[start] Detected /${specialCommand.type} command in remote mode`);
+                const metadata = session.getMetadata();
+                let responseText: string;
+
+                if (specialCommand.type === 'mcp') {
+                    const servers = metadata?.mcpServers;
+                    if (servers && servers.length > 0) {
+                        responseText = '**MCP Servers**\n\n' + servers.map(s => `- **${s.name}** — ${s.status}`).join('\n');
+                    } else {
+                        responseText = 'No MCP servers configured. Session may still be initializing — try again after sending a message.';
+                    }
+                } else {
+                    const skills = metadata?.skills ?? metadata?.slashCommands;
+                    if (skills && skills.length > 0) {
+                        responseText = '**Available Skills**\n\n' + skills.map(s => `- /${s}`).join('\n');
+                    } else {
+                        responseText = 'No skills available. Session may still be initializing — try again after sending a message.';
+                    }
+                }
+
+                session.sendClaudeSessionMessage({
+                    type: 'assistant',
+                    uuid: randomUUID(),
+                    parentUuid: null,
+                    isSidechain: false,
+                    sessionId: session.sessionId || 'unknown',
+                    timestamp: new Date().toISOString(),
+                    message: {
+                        role: 'assistant',
+                        model: 'system',
+                        content: [{ type: 'text', text: responseText }],
+                    },
+                } as any);
+                return;
+            }
+        }
+
+        // Push with resolved permission mode, model, system prompts, and tools
+        messageQueue.push(message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
+        logger.debugLargeJson('User message pushed to queue:', message)
+    });
+
+    if (automationBootstrap) {
+        messageQueue.push(
+            automationBootstrap.instruction,
+            currentEnhancedMode(happyHerdContextPrompt),
+            [],
+        );
+        messageQueue.close();
+        logger.debug(`[AUTOMATIONS] Queued initial Claude instruction for ${automationBootstrap.automationId}`);
+    }
+
+    // Setup signal handlers for graceful shutdown
+    //
+    // `archive`: whether to stamp lifecycleState='archived' on the way
+    // out. Two reasons we'd want to skip it:
+    //   - The user pressed Ctrl-C in their terminal. They almost
+    //     certainly want to come back to this session later — pinning
+    //     it as `archived` would hide it from the active sessions list
+    //     and force them to dig it up by URL just to hit Resume.
+    //   - Same for SIGTERM (e.g. the system shutting us down).
+    //
+    // Browser-side "Archive" is intentionally explicit and DOES want
+    // the metadata stamped — it routes through the killSession RPC
+    // handler which calls cleanup({ archive: true }).
+    //
+    // Crashes (uncaughtException / unhandledRejection) keep archiving
+    // because the session is genuinely toast at that point.
+    const cleanup = async (opts: { archive?: boolean } = { archive: true }) => {
+        logger.debug(`[START] Received termination signal, cleaning up (archive=${opts.archive ?? true})...`);
+
+        try {
+            // Update lifecycle state to archived before closing — only
+            // when explicitly archiving. On Ctrl-C / SIGTERM we leave
+            // lifecycleState alone so the server treats this exactly
+            // like a network blip: active=false via missed keepalives,
+            // but the session stays visible and resumable in the app.
+            if (session) {
+                if (opts.archive ?? true) {
+                    session.updateMetadata((currentMetadata) => ({
+                        ...currentMetadata,
+                        lifecycleState: 'archived',
+                        lifecycleStateSince: Date.now(),
+                        archivedBy: 'cli',
+                        archiveReason: 'User terminated'
+                    }));
+                }
+
+                // Cleanup session resources (intervals, callbacks)
+                currentSession?.cleanup();
+
+                // Send session death message
+                session.sendSessionDeath();
+
+                // Belt-and-braces: also POST /v1/sessions/<id>/archive so
+                // the server flips active=false even if the socket emit
+                // didn't drain before close. The HTTP endpoint touches
+                // only `active` and `lastActiveAt` — it doesn't write
+                // archive metadata — so this is safe in the archive=false
+                // case too, and matches the "session goes inactive but
+                // stays resumable" semantics we want for Ctrl-C.
+                try {
+                    await api.deactivateSession(session.sessionId);
+                } catch (err) {
+                    logger.debug('[START] deactivateSession during cleanup failed:', err);
+                }
+
+                await session.flush();
+                await session.close();
+            }
+
+            // Stop HappyHerd MCP server
+            happyherdServer.stop();
+
+            // Stop Hook server and cleanup settings file
+            hookServer.stop();
+            cleanupHookSettingsFile(hookSettingsPath);
+
+            // Stop the remote JSONL scanner (file watchers + intervals).
+            await remoteScanner.cleanup();
+
+            logger.debug('[START] Cleanup complete, exiting');
+            process.exit(0);
+        } catch (error) {
+            logger.debug('[START] Error during cleanup:', error);
+            process.exit(1);
+        }
+    };
+
+    // Handle termination signals — Ctrl-C / SIGTERM are user-initiated
+    // exits, treat as "I'll come back to this session later" rather than
+    // "archive forever".
+    process.on('SIGTERM', () => { void cleanup({ archive: false }); });
+    process.on('SIGINT', () => { void cleanup({ archive: false }); });
+
+    // Crashes archive on the way out so the session shows up correctly
+    // in the app rather than masquerading as live.
+    process.on('uncaughtException', (error) => {
+        logger.debug('[START] Uncaught exception:', error);
+        void cleanup({ archive: true });
+    });
+
+    process.on('unhandledRejection', (reason) => {
+        logger.debug('[START] Unhandled rejection:', reason);
+        void cleanup({ archive: true });
+    });
+
+    // Browser-side "Archive" button routes through this RPC and DOES
+    // want the metadata stamped — it's the user explicitly choosing to
+    // retire the session, not just disconnecting.
+    registerKillSessionHandler(session.rpcHandlerManager, () => cleanup({ archive: true }));
+
+    // Create claude loop
+    let automationProviderResult: { status: 'completed' | 'failed'; message: string | null } | null = null;
+    let exitCode: number;
+    try {
+        exitCode = await loop({
+            path: workingDirectory,
+            model: effectiveModel,
+            permissionMode: effectivePermissionMode,
+            startingMode: options.startingMode,
+            messageQueue,
+            api,
+            allowedTools: happyherdServer.toolNames.map(toolName => `mcp__happyherd__${toolName}`),
+            onModeChange: (newMode) => {
+                currentRunMode = newMode;
+                session.sendSessionEvent({ type: 'switch', mode: newMode });
+                session.updateAgentState((currentState) => ({
+                    ...currentState,
+                    controlledByUser: newMode === 'local'
+                }));
+            },
+            onSessionReady: (sessionInstance) => {
+                // Store reference for hook server callback
+                currentSession = sessionInstance;
+            },
+            onAbort: resetCurrentModeDefaults,
+            onProviderResult: (result) => {
+                if (automationBootstrap) automationProviderResult = result;
+            },
+            unattended: Boolean(automationBootstrap),
+            mcpServers: {
+                'happyherd': {
+                    type: 'http' as const,
+                    url: happyherdServer.url,
+                }
+            },
+            session,
+            claudeEnvVars: options.claudeEnvVars,
+            claudeArgs: nativeClaudeArgs,
+            sandboxConfig,
+            hookSettingsPath,
+            jsRuntime: options.jsRuntime
+        });
+    } catch (error) {
+        if (!automationBootstrap) throw error;
+        automationProviderResult = {
+            status: 'failed',
+            message: error instanceof Error ? error.message : String(error),
+        };
+        exitCode = 1;
+    }
+
+    if (automationBootstrap) {
+        await automationGoalGate.wait();
+        const terminal = automationProviderResult ?? {
+            status: 'failed' as const,
+            message: 'Claude automation ended without a provider result.',
+        };
+        await persistAutomationProviderOutcome(
+            session,
+            automationBootstrap,
+            terminal.status,
+            terminal.message,
+        );
+        if (terminal.status === 'failed') exitCode = 1;
+    }
+
+    // Cleanup session resources (intervals, callbacks) - prevents memory leak
+    // Note: currentSession is set by onSessionReady callback during loop()
+    (currentSession as Session | null)?.cleanup();
+
+    // Send session death message
+    session.sendSessionDeath();
+
+    // Wait for socket to flush
+    logger.debug('Waiting for socket to flush...');
+    await session.flush();
+
+    // Close session
+    logger.debug('Closing session...');
+    await session.close();
+
+    // Stop HappyHerd MCP server
+    happyherdServer.stop();
+    logger.debug('Stopped HappyHerd MCP server');
+
+    // Stop Hook server and cleanup settings file
+    hookServer.stop();
+    cleanupHookSettingsFile(hookSettingsPath);
+    logger.debug('Stopped Hook server and cleaned up settings file');
+
+    // Exit with the code from Claude
+    process.exit(exitCode);
+}

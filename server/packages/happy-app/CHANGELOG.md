@@ -1,3 +1,9 @@
+# September 20 — HappyHerd CLI naming
+
+- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.
+- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed.
+- Pairing QR codes and manual links remain compatible with existing app versions.
+
 # September 20 — Native plans and recoverable answers
 
 - Codex questions now offer one inline form for choices and written answers, with cancellation and protection against answering an interrupted or replaced request.

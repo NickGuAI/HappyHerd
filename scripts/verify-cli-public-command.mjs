@@ -5,8 +5,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, relative, resolve, sep } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const cliRoot = join(root, 'server/packages/happy-cli');
-const retiredWrapper = join(root, 'server/packages/happyherd-cli');
+const cliRoot = join(root, 'server/packages/happyherd-cli');
 const manifest = JSON.parse(readFileSync(join(cliRoot, 'package.json'), 'utf8'));
 const workspaceManifest = JSON.parse(readFileSync(join(root, 'server/package.json'), 'utf8'));
 const workspaceYaml = readFileSync(join(root, 'server/pnpm-workspace.yaml'), 'utf8');
@@ -17,22 +16,21 @@ const hostInstaller = readFileSync(join(root, 'scripts/install-host-cli.sh'), 'u
 assert.equal(manifest.name, '@happyherd/cli', 'the maintained CLI must own @happyherd/cli');
 assert.equal(manifest.publishConfig?.access, 'public', '@happyherd/cli must publish publicly');
 assert.equal(manifest.engines?.node, '>=20', 'the public CLI must reject unsupported Node releases');
-assert.equal(manifest.bin?.happyherd, './bin/happy.mjs', 'happyherd must invoke the native CLI entry');
+assert.equal(manifest.bin?.happyherd, './bin/happyherd.mjs', 'happyherd must invoke the native CLI entry');
 assert(!Object.hasOwn(manifest.bin ?? {}, 'happy'), 'the public package must not install a happy command');
 assert.deepEqual(
   Object.keys(manifest.bin ?? {}).sort(),
-  ['happy-mcp', 'happyherd', 'happyherd-agent-codex-policy', 'happyherd-agent-mcp'].sort(),
+  ['happyherd-mcp', 'happyherd', 'happyherd-agent-codex-policy', 'happyherd-agent-mcp'].sort(),
   'the package must expose one primary command and the retained helper commands',
 );
-assert(!existsSync(retiredWrapper), 'the retired wrapper package must be deleted');
+assert(!existsSync(join(cliRoot, 'bin/happy.mjs')), 'the retired CLI entry must be deleted');
 assert.equal(
   workspaceManifest.scripts?.cli,
-  'node packages/happy-cli/bin/happy.mjs',
+  'node packages/happyherd-cli/bin/happyherd.mjs',
   'the workspace CLI shortcut must execute the public command',
 );
-assert(workspaceManifest.workspaces?.packages?.includes('packages/happy-cli'), 'the workspace must retain packages/happy-cli');
-assert(!workspaceManifest.workspaces?.packages?.includes('packages/happyherd-cli'), 'the workspace must remove the wrapper package');
-assert(!workspaceYaml.includes('packages/happyherd-cli'), 'pnpm workspace discovery must remove the wrapper package');
+assert(workspaceManifest.workspaces?.packages?.includes('packages/happyherd-cli'), 'the workspace must retain packages/happyherd-cli');
+assert(workspaceYaml.includes('packages/happyherd-cli'), 'pnpm must discover the renamed native package');
 assert(cliSmokeWorkflow.includes('happyherd-cli-prefix/bin/happy'), 'Linux pack smoke must inspect its isolated prefix');
 assert(cliSmokeWorkflow.includes('%NPM_PREFIX%\\happy.cmd'), 'Windows pack smoke must inspect its isolated prefix');
 assert(!cliSmokeWorkflow.includes('command -v happy >/dev/null'), 'Linux smoke must preserve unrelated happy commands');
@@ -81,7 +79,7 @@ const scanRoots = [
   'server/README.md',
   'server/packages/happy-agent/src',
   'server/packages/happy-app/sources',
-  'server/packages/happy-cli',
+  'server/packages/happyherd-cli',
   'server/packages/happy-server-self-host/README.md',
   'server/packages/happyherd-agent/README.md',
 ];

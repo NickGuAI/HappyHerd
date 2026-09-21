@@ -10,7 +10,7 @@ This document explains how permission mode is resolved for session messages, dep
 ## Permission Modes
 - Shared mode type: `default | acceptEdits | bypassPermissions | plan | read-only | safe-yolo | yolo`
 - Claude SDK supports: `default | acceptEdits | bypassPermissions | plan`
-- Mapping to Claude happens in `packages/happy-cli/src/claude/utils/permissionMode.ts`:
+- Mapping to Claude happens in `packages/happyherd-cli/src/claude/utils/permissionMode.ts`:
   - `yolo -> bypassPermissions`
   - `safe-yolo -> default`
   - `read-only -> default`
@@ -59,8 +59,8 @@ This value is sent in:
 ## Claude CLI Resolution
 
 ### 1) Startup resolution
-`packages/happy-cli/src/claude/runClaude.ts`
-`packages/happy-cli/src/claude/utils/permissionMode.ts`
+`packages/happyherd-cli/src/claude/runClaude.ts`
+`packages/happyherd-cli/src/claude/utils/permissionMode.ts`
 
 Initial mode comes from:
 1. `--dangerously-skip-permissions` (highest priority) -> `bypassPermissions`
@@ -72,14 +72,14 @@ Then sandbox policy is applied:
 - If sandbox disabled: keep resolved mode
 
 ### 2) Per-message updates in remote flow
-`packages/happy-cli/src/claude/runClaude.ts`
+`packages/happyherd-cli/src/claude/runClaude.ts`
 
 When a user message includes `meta.permissionMode`:
 - If sandbox enabled: forced to `bypassPermissions`
 - If sandbox disabled: use incoming mode
 
 ### 3) Local Claude process
-`packages/happy-cli/src/claude/claudeLocal.ts`
+`packages/happyherd-cli/src/claude/claudeLocal.ts`
 
 If sandbox is enabled, launcher appends `--dangerously-skip-permissions` before spawn.
 

@@ -25,7 +25,7 @@ and every owned HappyHerd behavior.
   `Merge commit '<full-upstream-sha>'`.
 - Every subject in `docs/owned-patches.tsv` remains represented by the
   range-diff and passes patch-discipline verification.
-- `server/packages/happy-cli` remains the in-place CLI implementation and
+- `server/packages/happyherd-cli` remains the in-place CLI implementation and
   history path, with public package `@happyherd/cli` and binary `happyherd`.
   Upstream changes do not recreate a wrapper package or legacy `happy` package.
 - The selected checks in `.dev/VERIFY.md`, the contract suite, required PR
@@ -72,7 +72,7 @@ in an isolated topical worktree and branch. Preserve the merge topology and
 subject defined in the acceptance criteria. Reconcile conflicts against the
 current HappyHerd contracts rather than restoring overwritten upstream
 defaults. For CLI conflicts, keep upstream implementation changes in the
-existing `server/packages/happy-cli` path while retaining the current public
+existing `server/packages/happyherd-cli` path while retaining the current public
 package and command names.
 
 Verify the proposed integration with:

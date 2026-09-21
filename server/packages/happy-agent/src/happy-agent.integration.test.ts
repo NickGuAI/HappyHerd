@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeBase64, encodeBase64, libsodiumEncryptForPublicKey } from './encryption';
+import { testCliEnvironment } from './test-support/cliEnvironment';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = resolve(__dirname, '..');
@@ -11,7 +12,7 @@ const repoRoot = resolve(packageDir, '..', '..');
 const environmentsDir = join(repoRoot, 'environments', 'data', 'envs');
 const currentEnvironmentPath = join(repoRoot, 'environments', 'data', 'current.json');
 const binPath = resolve(packageDir, 'bin', 'happy-agent.mjs');
-const happyBinPath = resolve(repoRoot, 'packages', 'happy-cli', 'bin', 'happy.mjs');
+const happyBinPath = resolve(repoRoot, 'packages', 'happyherd-cli', 'bin', 'happyherd.mjs');
 const keepIntegrationEnv = ['1', 'true', 'yes'].includes((process.env.HAPPY_AGENT_KEEP_ENV ?? '').toLowerCase());
 
 type EnvironmentConfig = {
@@ -92,11 +93,7 @@ function readDaemonState(envDir: string): DaemonState | null {
 }
 
 function agentEnvVars(serverPort: number, homeDir: string): NodeJS.ProcessEnv {
-    return {
-        ...process.env,
-        HAPPY_SERVER_URL: `http://localhost:${serverPort}`,
-        HAPPY_HOME_DIR: homeDir,
-    };
+    return testCliEnvironment(homeDir, `http://localhost:${serverPort}`);
 }
 
 function runAgentCli(args: string[], env: NodeJS.ProcessEnv): string {

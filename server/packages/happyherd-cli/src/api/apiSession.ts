@@ -1,0 +1,1485 @@
+import { logger } from '@/ui/logger'
+import { EventEmitter } from 'node:events'
+import { io, Socket } from 'socket.io-client'
+import { AgentState, ClientToServerEvents, FileEventMessage, FileEventMessageSchema, Metadata, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema } from './types'
+import {
+    decodeBase64,
+    decryptBlob,
+    decrypt,
+    encodeBase64,
+    encrypt,
+    encryptBlob,
+} from './encryption';
+import { MAX_ENCRYPTED_ATTACHMENT_BYTES } from './attachmentLimits';
+import { backoff, delay } from '@/utils/time';
+import { configuration } from '@/configuration';
+import { RawJSONLines } from '@/claude/types';
+import { randomUUID } from 'node:crypto';
+import { AsyncLock } from '@/utils/lock';
+import { deriveKey } from '@/utils/deriveKey';
+import { RpcHandlerManager } from './rpc/RpcHandlerManager';
+import { registerCommonHandlers } from '../modules/common/registerCommonHandlers';
+import { shouldReconnect } from '@/utils/lidState';
+import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope, type SessionTurnEndStatus } from '@slopus/happy-wire';
+import {
+    closeClaudeTurnWithStatus,
+    mapClaudeLogMessageToSessionEnvelopes,
+    mapClaudeLogMessageToSessionEnvelopesWithAgentImages,
+    type ClaudeSessionProtocolState,
+} from '@/claude/utils/sessionProtocolMapper';
+import { InvalidateSync } from '@/utils/sync';
+import axios from 'axios';
+import { extractClaudeAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
+import type { CredentialProvider } from '@/credentialPool/types';
+import {
+    emptyUsageTokens,
+    usageReportKey,
+    type ProviderUsageReport,
+    type UsageCounterSnapshot,
+} from '@/usage/providerUsage';
+import { DurableUsageOutbox, type DurableUsageOutboxRecord } from '@/usage/usageOutbox';
+
+/**
+ * ACP (Agent Communication Protocol) message data types.
+ * This is the unified format for all agent messages - CLI adapts each provider's format to ACP.
+ */
+export type ACPMessageData =
+    // Core message types
+    | { type: 'message'; message: string }
+    | { type: 'reasoning'; message: string }
+    | { type: 'thinking'; text: string }
+    // Tool interactions
+    | { type: 'tool-call'; callId: string; name: string; input: unknown; id: string }
+    | { type: 'tool-result'; callId: string; output: unknown; id: string; isError?: boolean }
+    // File operations
+    | { type: 'file-edit'; description: string; filePath: string; diff?: string; oldContent?: string; newContent?: string; id: string }
+    // Terminal/command output
+    | { type: 'terminal-output'; data: string; callId: string }
+    // Task lifecycle events
+    | { type: 'task_started'; id: string }
+    | { type: 'task_complete'; id: string }
+    | { type: 'turn_aborted'; id: string }
+    // Permissions
+    | { type: 'permission-request'; permissionId: string; toolName: string; description: string; options?: unknown }
+    // Usage/metrics
+    | { type: 'token_count';[key: string]: unknown };
+
+export type ACPProvider = 'gemini' | 'codex' | 'claude' | 'opencode';
+
+export type AgentSessionEvent = {
+    type: 'switch';
+    mode: 'local' | 'remote';
+} | {
+    type: 'message';
+    message: string;
+} | {
+    type: 'permission-mode-changed';
+    mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
+} | {
+    type: 'provider-account-switched';
+    provider: CredentialProvider;
+    fromAccount: string;
+    toAccount: string;
+    incidentId: string;
+} | {
+    type: 'provider-quota-exhausted';
+    provider: CredentialProvider | 'dsh';
+    incidentId: string;
+} | {
+    type: 'ready';
+};
+
+export function createSessionEventMessage(event: AgentSessionEvent, id: string = randomUUID()) {
+    return {
+        role: 'agent' as const,
+        content: {
+            id,
+            type: 'event' as const,
+            data: event,
+        },
+    };
+}
+
+type V3SessionMessage = {
+    id: string;
+    seq: number;
+    content: { t: 'encrypted'; c: string };
+    localId: string | null;
+    createdAt: number;
+    updatedAt: number;
+};
+
+type V3GetSessionMessagesResponse = {
+    messages: V3SessionMessage[];
+    hasMore: boolean;
+};
+
+type V3PostSessionMessagesResponse = {
+    messages: Array<{
+        id: string;
+        seq: number;
+        localId: string | null;
+        createdAt: number;
+        updatedAt: number;
+    }>;
+};
+
+type AttachmentUploadResult = {
+    ref: string;
+    uploadUrl: string;
+    method?: 'PUT' | 'POST';
+    formFields?: Record<string, string>;
+};
+
+export type LocalImageAttachment = {
+    data: Uint8Array;
+    mimeType: string;
+    name: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function extensionForImageMime(mimeType: string): string {
+    switch (mimeType.toLowerCase()) {
+        case 'image/jpeg':
+        case 'image/jpg':
+            return 'jpg';
+        case 'image/gif':
+            return 'gif';
+        case 'image/webp':
+            return 'webp';
+        case 'image/png':
+        default:
+            return 'png';
+    }
+}
+
+function extractLocalTranscriptImageAttachments(body: RawJSONLines): LocalImageAttachment[] {
+    if (body.type !== 'user' || body.isMeta || body.isSidechain) {
+        return [];
+    }
+
+    const content = (body as { message?: { content?: unknown } }).message?.content;
+    if (!Array.isArray(content)) {
+        return [];
+    }
+
+    // Tool results are user-role messages from Claude's protocol, but they
+    // represent agent tool lifecycle, not human multimodal input.
+    if (content.some((block) => isRecord(block) && block.type === 'tool_result')) {
+        return [];
+    }
+
+    const attachments: LocalImageAttachment[] = [];
+    for (const block of content) {
+        if (!isRecord(block) || block.type !== 'image') {
+            continue;
+        }
+        const source = block.source;
+        if (!isRecord(source) || source.type !== 'base64' || typeof source.data !== 'string') {
+            continue;
+        }
+
+        const data = decodeBase64(source.data);
+        if (data.length === 0) {
+            continue;
+        }
+
+        const mimeType = typeof source.media_type === 'string' && source.media_type.startsWith('image/')
+            ? source.media_type
+            : 'image/png';
+        const index = attachments.length + 1;
+        attachments.push({
+            data,
+            mimeType,
+            name: `claude-image-${index}.${extensionForImageMime(mimeType)}`,
+        });
+    }
+
+    return attachments;
+}
+
+function escapeMultipartValue(value: string): string {
+    return value.replaceAll('\r', '').replaceAll('\n', '').replaceAll('"', '%22');
+}
+
+function buildMultipartUploadBody(
+    fields: Record<string, string> | undefined,
+    data: Uint8Array,
+): { body: Buffer; boundary: string } {
+    const boundary = `----happyherd-cli-${randomUUID()}`;
+    const chunks: Buffer[] = [];
+
+    for (const [key, value] of Object.entries(fields ?? {})) {
+        chunks.push(Buffer.from(
+            `--${boundary}\r\n`
+            + `Content-Disposition: form-data; name="${escapeMultipartValue(key)}"\r\n\r\n`
+            + `${value}\r\n`,
+            'utf8',
+        ));
+    }
+
+    chunks.push(Buffer.from(
+        `--${boundary}\r\n`
+        + 'Content-Disposition: form-data; name="file"; filename="blob"\r\n'
+        + 'Content-Type: application/octet-stream\r\n\r\n',
+        'utf8',
+    ));
+    chunks.push(Buffer.from(data));
+    chunks.push(Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8'));
+
+    return {
+        body: Buffer.concat(chunks),
+        boundary,
+    };
+}
+
+export class ApiSessionClient extends EventEmitter {
+    private readonly token: string;
+    readonly sessionId: string;
+    private metadata: Metadata | null;
+    private metadataVersion: number;
+    private agentState: AgentState | null;
+    private agentStateVersion: number;
+    private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+    private pendingMessages: UserMessage[] = [];
+    private pendingMessageCallback: ((message: UserMessage) => void) | null = null;
+    private pendingFileEvents: FileEventMessage[] = [];
+    private pendingFileEventCallback: ((data: FileEventMessage) => void) | null = null;
+    private blobKey: Uint8Array | null = null;
+    /**
+     * In-flight attachment download promises that belong to the *current*
+     * (not-yet-drained) batch. Each promise resolves to the decoded blob (or
+     * null on failure), so per-message ownership is intrinsic — there is no
+     * shared push-array between batches that a late download could leak into.
+     */
+    private pendingDownloads: Array<{
+        promise: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>;
+        queueMessageId?: string;
+    }> = [];
+    readonly rpcHandlerManager: RpcHandlerManager;
+    private agentStateLock = new AsyncLock();
+    private metadataLock = new AsyncLock();
+    private encryptionKey: Uint8Array;
+    private encryptionVariant: 'legacy' | 'dataKey';
+    private reconnectInterval: NodeJS.Timeout | null = null;
+    private reconnectTimeout: NodeJS.Timeout | null = null;
+    private closed = false;
+    private ignoreArchiveSignal = false;
+    private skipInitialMessages = false;
+    private skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
+    private replayExistingQueueMessageIds = new Set<string>();
+    private prioritizedReplayQueueMessageId: string | null = null;
+    private claudeSessionProtocolState: ClaudeSessionProtocolState = {
+        currentTurnId: null,
+        uuidToProviderSubagent: new Map<string, string>(),
+        taskPromptToSubagents: new Map<string, string[]>(),
+        providerSubagentToSessionSubagent: new Map<string, string>(),
+        subagentTitles: new Map<string, string>(),
+        bufferedSubagentMessages: new Map<string, RawJSONLines[]>(),
+        hiddenParentToolCalls: new Set<string>(),
+        startedSubagents: new Set<string>(),
+        activeSubagents: new Set<string>(),
+        subagentTurnIds: new Map<string, string>(),
+        subagentStops: new Map(),
+    };
+    /**
+     * How far this client has consumed the session's message log.
+     *
+     * A session has one seq counter and both sides draw from it, so this must
+     * only ever move over messages actually routed. It used to also be advanced
+     * by this client's own POST responses, which silently dropped inbound
+     * messages: a prompt sent by the app at seq 1 was skipped whenever the CLI's
+     * own startup event took seq 2 and its POST returned first, because the
+     * cursor then sat at 2 and both the socket's contiguity check and the next
+     * fetch's after_seq looked straight past seq 1.
+     */
+    private lastReceivedSeq = 0;
+    private pendingOutbox: Array<{ content: string; localId: string }> = [];
+    private pendingUsageReports = new Map<string, ProviderUsageReport & { sessionId: string }>();
+    private localUsageOutboxRecords = new Map<string, DurableUsageOutboxRecord>();
+    private outstandingUsageEnqueues = new Set<Promise<void>>();
+    private readonly durableUsageOutbox: DurableUsageOutbox;
+    private readonly usageEnqueueLock = new AsyncLock();
+    private readonly sendSync: InvalidateSync;
+    private readonly usageSync: InvalidateSync;
+    private readonly receiveSync: InvalidateSync;
+
+    constructor(token: string, session: Session) {
+        super()
+        this.token = token;
+        this.sessionId = session.id;
+        this.metadata = session.metadata;
+        this.metadataVersion = session.metadataVersion;
+        this.agentState = session.agentState;
+        this.agentStateVersion = session.agentStateVersion;
+        this.durableUsageOutbox = new DurableUsageOutbox(configuration.happyHomeDir, this.sessionId);
+        this.restorePendingUsageReportsFromAgentState();
+        this.restorePendingUsageReportsFromDisk();
+        this.encryptionKey = session.encryptionKey;
+        this.encryptionVariant = session.encryptionVariant;
+        this.sendSync = new InvalidateSync(() => this.flushOutbox());
+        this.usageSync = new InvalidateSync(() => this.flushProviderUsageReports());
+        this.receiveSync = new InvalidateSync(() => this.fetchMessages());
+
+        // Initialize RPC handler manager
+        this.rpcHandlerManager = new RpcHandlerManager({
+            scopePrefix: this.sessionId,
+            encryptionKey: this.encryptionKey,
+            encryptionVariant: this.encryptionVariant,
+            logger: (msg, data) => logger.debug(msg, data)
+        });
+        registerCommonHandlers(this.rpcHandlerManager, this.metadata.path);
+
+        //
+        // Create socket
+        //
+
+        this.socket = io(configuration.serverUrl, {
+            auth: {
+                token: this.token,
+                clientType: 'session-scoped' as const,
+                sessionId: this.sessionId,
+                happyClient: `cli-coding-session/${configuration.currentCliVersion}`
+            },
+            path: '/v1/updates',
+            reconnection: false,
+            transports: ['websocket'],
+            withCredentials: true,
+            autoConnect: false
+        });
+
+        //
+        // Handlers
+        //
+
+        this.socket.on('connect', () => {
+            if (this.closed) {
+                this.socket.close();
+                return;
+            }
+            logger.debug('Socket connected successfully');
+            this.clearReconnectTimers();
+            this.rpcHandlerManager.onSocketConnect(this.socket);
+            this.receiveSync.invalidate();
+            this.usageSync.invalidate();
+        })
+
+        // Set up global RPC request handler
+        this.socket.on('rpc-request', async (data: { method: string, params: string }, callback: (response: string) => void) => {
+            callback(await this.rpcHandlerManager.handleRequest(data));
+        })
+
+        this.socket.on('disconnect', (reason) => {
+            logger.debug(`[API] Socket disconnected: ${reason}`);
+            this.rpcHandlerManager.onSocketDisconnect();
+            if (this.closed) return;
+            this.startSmartReconnect();
+        })
+
+        this.socket.on('connect_error', (error) => {
+            logger.debug('[API] Socket connection error:', error);
+            this.rpcHandlerManager.onSocketDisconnect();
+            if (this.closed) return;
+            this.startSmartReconnect();
+        })
+
+        // Server events
+        this.socket.on('update', (data: Update) => {
+            try {
+                logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', data);
+
+                if (!data.body) {
+                    logger.debug('[SOCKET] [UPDATE] [ERROR] No body in update!');
+                    return;
+                }
+
+                if (data.body.t === 'new-message') {
+                    const messageSeq = data.body.message?.seq;
+                    if (typeof messageSeq !== 'number' || messageSeq !== this.lastReceivedSeq + 1 || data.body.message.content.t !== 'encrypted') {
+                        this.receiveSync.invalidate();
+                        return;
+                    }
+                    const body = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(data.body.message.content.c));
+                    logger.debug('[SOCKET] [UPDATE] Decrypted message', {
+                        role: typeof (body as { role?: unknown })?.role === 'string'
+                            ? (body as { role: string }).role
+                            : 'unknown',
+                        contentType: typeof (body as { content?: { type?: unknown } })?.content?.type === 'string'
+                            ? (body as { content: { type: string } }).content.type
+                            : 'unknown',
+                    });
+                    this.routeIncomingMessage(body, data.body.message.localId);
+                    this.lastReceivedSeq = messageSeq;
+                } else if (data.body.t === 'update-session') {
+                    if (data.body.metadata && data.body.metadata.version > this.metadataVersion) {
+                        this.metadata = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(data.body.metadata.value));
+                        this.metadataVersion = data.body.metadata.version;
+                        // Check if session was archived from web/mobile
+                        const meta = this.metadata as any;
+                        if (meta?.lifecycleState === 'archiveRequested' || meta?.lifecycleState === 'archived') {
+                            if (this.ignoreArchiveSignal) {
+                                logger.debug(`[SOCKET] Session archived (${meta.lifecycleState}) but suppressed for reconnect`);
+                                this.ignoreArchiveSignal = false;
+                            } else {
+                                logger.debug(`[SOCKET] Session archived (${meta.lifecycleState}), exiting...`);
+                                this.emit('archived');
+                            }
+                        }
+                    }
+                    if (data.body.agentState && data.body.agentState.version > this.agentStateVersion) {
+                        this.agentState = data.body.agentState.value ? decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(data.body.agentState.value)) : null;
+                        this.agentStateVersion = data.body.agentState.version;
+                    }
+                } else if (data.body.t === 'update-machine') {
+                    // Session clients shouldn't receive machine updates - log warning
+                    logger.debug(`[SOCKET] WARNING: Session client received unexpected machine update - ignoring`);
+                } else {
+                    // If not a user message, it might be a permission response or other message type
+                    this.emit('message', data.body);
+                }
+            } catch (error) {
+                logger.debug('[SOCKET] [UPDATE] [ERROR] Error handling update', { error });
+            }
+        });
+
+        // DEATH
+        this.socket.on('error', (error) => {
+            logger.debug('[API] Socket error:', error);
+        });
+
+        //
+        // Connect (after short delay to give a time to add handlers)
+        //
+
+        this.socket.connect();
+    }
+
+    onUserMessage(callback: (data: UserMessage) => void) {
+        this.pendingMessageCallback = callback;
+        while (this.pendingMessages.length > 0) {
+            callback(this.pendingMessages.shift()!);
+        }
+    }
+
+    onFileEvent(callback: (data: FileEventMessage) => void) {
+        this.pendingFileEventCallback = callback;
+        while (this.pendingFileEvents.length > 0) {
+            callback(this.pendingFileEvents.shift()!);
+        }
+    }
+
+    /**
+     * Derive (and cache) the blob decryption key for this session.
+     * Legacy sessions use deriveKey(masterSecret, 'Happy Blobs', ['master']).
+     * DataKey sessions use deriveKey(dataKey, 'Happy Blobs', ['session']).
+     */
+    async getBlobKey(): Promise<Uint8Array> {
+        if (!this.blobKey) {
+            const path = this.encryptionVariant === 'dataKey' ? ['session'] : ['master'];
+            this.blobKey = await deriveKey(this.encryptionKey, 'Happy Blobs', path);
+        }
+        return this.blobKey;
+    }
+
+    private async requestAttachmentUpload(filename: string, size: number): Promise<AttachmentUploadResult> {
+        const response = await axios.post<AttachmentUploadResult>(
+            `${configuration.serverUrl}/v1/sessions/${encodeURIComponent(this.sessionId)}/attachments/request-upload`,
+            { filename, size },
+            {
+                headers: this.authHeaders(),
+                timeout: 30000,
+            },
+        );
+
+        const upload = response.data;
+        if (
+            !upload
+            || typeof upload.ref !== 'string'
+            || typeof upload.uploadUrl !== 'string'
+            || (upload.method !== undefined && upload.method !== 'PUT' && upload.method !== 'POST')
+        ) {
+            throw new Error('request-upload returned an invalid response');
+        }
+
+        return {
+            ...upload,
+            method: upload.method ?? 'PUT',
+        };
+    }
+
+    private async uploadEncryptedAttachmentBlob(upload: AttachmentUploadResult, encrypted: Uint8Array): Promise<void> {
+        if (upload.method === 'POST') {
+            const { body, boundary } = buildMultipartUploadBody(upload.formFields, encrypted);
+            await axios.post(upload.uploadUrl, body, {
+                headers: {
+                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                },
+                timeout: 60000,
+                maxBodyLength: MAX_ENCRYPTED_ATTACHMENT_BYTES + 64 * 1024,
+            });
+            return;
+        }
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/octet-stream',
+        };
+        if (upload.uploadUrl.startsWith(configuration.serverUrl)) {
+            headers.Authorization = `Bearer ${this.token}`;
+        }
+
+        await axios.put(upload.uploadUrl, Buffer.from(encrypted), {
+            headers,
+            timeout: 60000,
+            maxBodyLength: MAX_ENCRYPTED_ATTACHMENT_BYTES,
+        });
+    }
+
+    async uploadImageAttachmentEnvelope(
+        attachment: LocalImageAttachment,
+        role: 'user' | 'agent',
+        opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'turn' | 'subagent' | 'claudeUuid' | 'codexItemId'> = {},
+    ): Promise<SessionEnvelope> {
+        const blobKey = await this.getBlobKey();
+        const encrypted = encryptBlob(attachment.data, blobKey);
+        const upload = await this.requestAttachmentUpload(attachment.name, encrypted.length);
+        await this.uploadEncryptedAttachmentBlob(upload, encrypted);
+
+        return createEnvelope(role, {
+            t: 'file',
+            ref: upload.ref,
+            name: attachment.name,
+            size: attachment.data.length,
+            mimeType: attachment.mimeType,
+        }, opts);
+    }
+
+    async uploadLocalImageAttachmentEnvelope(
+        attachment: LocalImageAttachment,
+        opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'claudeUuid' | 'codexItemId'> = {},
+    ): Promise<SessionEnvelope> {
+        return this.uploadImageAttachmentEnvelope(attachment, 'user', opts);
+    }
+
+    /**
+     * Download an encrypted attachment blob via the request-download flow:
+     * POST /request-download → { downloadUrl } → GET downloadUrl. Local mode
+     * downloadUrl points back at our server (Bearer required); S3 mode is a
+     * presigned URL that does not accept extra headers.
+     */
+    async downloadAttachment(ref: string): Promise<Uint8Array> {
+        const requestUrl = `${configuration.serverUrl}/v1/sessions/${this.sessionId}/attachments/request-download`;
+        const requestRes = await axios.post(
+            requestUrl,
+            { ref },
+            {
+                headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                timeout: 30000,
+            },
+        );
+        const downloadUrl = requestRes.data?.downloadUrl;
+        if (typeof downloadUrl !== 'string') {
+            throw new Error('request-download returned no downloadUrl');
+        }
+
+        const isServerUrl = downloadUrl.startsWith(configuration.serverUrl);
+        const headers: Record<string, string> = {};
+        if (isServerUrl) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+        const response = await axios.get(downloadUrl, {
+            headers,
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            maxRedirects: 5,
+            maxContentLength: 10 * 1024 * 1024,
+        });
+        return new Uint8Array(response.data);
+    }
+
+    /**
+     * Download and decrypt an attachment blob.
+     * Returns the decrypted binary data or null if decryption fails.
+     */
+    async downloadAndDecryptAttachment(ref: string): Promise<Uint8Array | null> {
+        const encrypted = await this.downloadAttachment(ref);
+        const key = await this.getBlobKey();
+        const decrypted = decryptBlob(encrypted, key);
+        return decrypted;
+    }
+
+    /**
+     * Track an attachment download whose promise resolves to the decoded blob
+     * (or null on failure). The download stays in the current batch until the
+     * next drainAttachmentsForUserMessage call swaps the bucket out — file
+     * events that arrive after the swap go into a fresh bucket bound to the
+     * next user-text message.
+     */
+    trackAttachmentDownload(
+        promise: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>,
+        queueMessageId?: string,
+    ): void {
+        this.pendingDownloads.push({
+            promise,
+            ...(queueMessageId ? { queueMessageId } : {}),
+        });
+    }
+
+    /**
+     * Atomically claim every download started before this call, wait for them
+     * to resolve, and return the successful ones. The swap-then-await order
+     * guarantees that a late-arriving file event cannot leak into this batch.
+     */
+    async drainAttachmentsForUserMessage(queueMessageId?: string): Promise<Array<{ data: Uint8Array; mimeType: string; name: string }>> {
+        const downloads = this.pendingDownloads.filter((download) => (
+            queueMessageId
+                ? download.queueMessageId === queueMessageId
+                : download.queueMessageId === undefined
+        ));
+        this.pendingDownloads = this.pendingDownloads.filter((download) => !downloads.includes(download));
+        if (downloads.length === 0) return [];
+        const results = await Promise.all(downloads.map((download) => download.promise));
+        return results.filter((x): x is { data: Uint8Array; mimeType: string; name: string } => x !== null);
+    }
+
+    private authHeaders() {
+        return {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
+        };
+    }
+
+    private routeIncomingMessage(message: unknown, persistedLocalId?: string | null) {
+        const userResult = UserMessageSchema.safeParse(message);
+        if (userResult.success) {
+            const localKey = persistedLocalId
+                ?? userResult.data.localKey
+                ?? userResult.data.meta?.queueMessageId;
+            const userMessage = localKey
+                ? { ...userResult.data, localKey }
+                : userResult.data;
+            if (this.pendingMessageCallback) {
+                this.pendingMessageCallback(userMessage);
+            } else {
+                this.pendingMessages.push(userMessage);
+            }
+            return;
+        }
+
+        // Check for file events (image attachments from app)
+        const fileResult = FileEventMessageSchema.safeParse(message);
+        if (fileResult.success) {
+            const ev = fileResult.data.content.data.ev;
+            logger.debug('[API] Received file event', {
+                size: ev.size,
+                hasMimeType: Boolean(ev.mimeType),
+            });
+            if (this.pendingFileEventCallback) {
+                this.pendingFileEventCallback(fileResult.data);
+            } else {
+                this.pendingFileEvents.push(fileResult.data);
+            }
+            return;
+        }
+
+        this.emit('message', message);
+    }
+
+    private async fetchMessages() {
+        // On reconnect, skip processing existing messages — just advance the cursor
+        const skipRouting = this.skipInitialMessages;
+        const deferredInitialMessages: Array<{ body: unknown; localId: string | null }> = [];
+        if (skipRouting) {
+            logger.debug('[API] Reconnect mode: skipping existing messages, advancing lastReceivedSeq');
+        }
+
+        let afterSeq = this.lastReceivedSeq;
+        while (true) {
+            const response = await axios.get<V3GetSessionMessagesResponse>(
+                `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
+                {
+                    params: {
+                        after_seq: afterSeq,
+                        limit: 100
+                    },
+                    headers: this.authHeaders(),
+                    timeout: 60000
+                }
+            );
+
+            const messages = Array.isArray(response.data.messages) ? response.data.messages : [];
+            let maxSeq = afterSeq;
+
+            for (const message of messages) {
+                if (message.seq > maxSeq) {
+                    maxSeq = message.seq;
+                }
+
+                if (message.content?.t !== 'encrypted') {
+                    continue;
+                }
+
+                try {
+                    const body = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(message.content.c));
+                    const isExistingAtReconnect = skipRouting
+                        && message.seq <= this.skipExistingMessagesThroughSeq;
+                    if (isExistingAtReconnect && !this.shouldReplayExistingQueueRecord(body, message.localId)) {
+                        continue;
+                    }
+                    if (skipRouting) {
+                        deferredInitialMessages.push({ body, localId: message.localId });
+                    } else {
+                        this.routeIncomingMessage(body, message.localId);
+                    }
+                } catch (error) {
+                    logger.debug('[API] Failed to decrypt fetched message', {
+                        sessionId: this.sessionId,
+                        seq: message.seq,
+                        error
+                    });
+                }
+            }
+
+            if (!skipRouting) {
+                this.lastReceivedSeq = Math.max(this.lastReceivedSeq, maxSeq);
+            }
+            const hasMore = !!response.data.hasMore;
+            if (hasMore && maxSeq === afterSeq) {
+                logger.debug('[API] fetchMessages pagination stalled, stopping to avoid infinite loop', {
+                    sessionId: this.sessionId,
+                    afterSeq
+                });
+                break;
+            }
+            afterSeq = maxSeq;
+            if (!hasMore) {
+                break;
+            }
+        }
+        if (skipRouting) {
+            const priorityIndex = deferredInitialMessages.findIndex(({ body, localId }) => (
+                this.isPrioritizedReplayRecord(body, localId)
+            ));
+            if (priorityIndex >= 0) {
+                const [priority] = deferredInitialMessages.splice(priorityIndex, 1);
+                this.routeIncomingMessage(priority.body, priority.localId);
+            }
+            for (const message of deferredInitialMessages) {
+                this.routeIncomingMessage(message.body, message.localId);
+            }
+            this.lastReceivedSeq = Math.max(this.lastReceivedSeq, afterSeq);
+            this.skipInitialMessages = false;
+            this.skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
+            this.replayExistingQueueMessageIds.clear();
+            this.prioritizedReplayQueueMessageId = null;
+        }
+    }
+
+    private isPrioritizedReplayRecord(body: unknown, persistedLocalId?: string | null): boolean {
+        if (!this.prioritizedReplayQueueMessageId || !body || typeof body !== 'object') return false;
+        const record = body as {
+            role?: unknown;
+            meta?: { queueMessageId?: unknown };
+        };
+        return record.role === 'user'
+            && (persistedLocalId === this.prioritizedReplayQueueMessageId
+                || record.meta?.queueMessageId === this.prioritizedReplayQueueMessageId);
+    }
+
+    private shouldReplayExistingQueueRecord(body: unknown, persistedLocalId?: string | null): boolean {
+        if (this.replayExistingQueueMessageIds.size === 0 || !body || typeof body !== 'object') {
+            return false;
+        }
+        const record = body as {
+            role?: unknown;
+            meta?: { queueMessageId?: unknown; deliveryMode?: unknown };
+        };
+        const parentQueueMessageId = typeof record.meta?.queueMessageId === 'string'
+            ? record.meta.queueMessageId
+            : null;
+        if (record.role === 'user') {
+            return (
+                (typeof persistedLocalId === 'string' && this.replayExistingQueueMessageIds.has(persistedLocalId))
+                || (record.meta?.deliveryMode === 'queue'
+                    && parentQueueMessageId !== null
+                    && this.replayExistingQueueMessageIds.has(parentQueueMessageId))
+            );
+        }
+        return parentQueueMessageId !== null
+            && this.replayExistingQueueMessageIds.has(parentQueueMessageId);
+    }
+
+    private static readonly MAX_OUTBOX_BATCH_SIZE = 50;
+
+    private async flushOutbox() {
+        // Send latest messages first so the user sees recent activity immediately,
+        // then backfill older messages in subsequent batches.
+        while (this.pendingOutbox.length > 0) {
+            const batchSize = Math.min(this.pendingOutbox.length, ApiSessionClient.MAX_OUTBOX_BATCH_SIZE);
+            const batchStart = this.pendingOutbox.length - batchSize;
+            const batch = this.pendingOutbox.slice(batchStart);
+
+            const response = await axios.post<V3PostSessionMessagesResponse>(
+                `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
+                {
+                    messages: batch
+                },
+                {
+                    headers: this.authHeaders(),
+                    timeout: 60000
+                }
+            );
+
+            // Deliberately does not touch the receive cursor. The seqs this
+            // response reports are ours, and moving the cursor onto them steps
+            // over anything the other side wrote in between — which is exactly
+            // how a new session lost the first prompt. Our own messages come
+            // back over the socket like everyone else's and move the cursor
+            // then, once they have actually been seen.
+            this.pendingOutbox.splice(batchStart, batch.length);
+        }
+    }
+
+    private enqueueMessage(content: unknown, invalidate: boolean = true, localId: string = randomUUID()) {
+        const encrypted = encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, content));
+        this.pendingOutbox.push({
+            content: encrypted,
+            localId,
+        });
+        if (invalidate) {
+            this.sendSync.invalidate();
+        }
+    }
+
+    private enqueueSessionProtocolEnvelopes(envelopes: SessionEnvelope[], invalidate: boolean = true) {
+        for (let i = 0; i < envelopes.length; i += 1) {
+            this.enqueueSessionProtocolEnvelope(envelopes[i], invalidate && i === envelopes.length - 1);
+        }
+    }
+
+    private applyClaudeSessionMessageSideEffects(body: RawJSONLines, reportUsage: boolean) {
+        // Track usage from assistant messages
+        if (reportUsage && body.type === 'assistant' && body.message?.usage) {
+            try {
+                const providerMessageId = typeof body.message.id === 'string' ? body.message.id : null;
+                const eventId = providerMessageId ?? (typeof body.uuid === 'string' ? body.uuid : null);
+                if (!eventId) {
+                    logger.debug('[SOCKET] Claude usage did not include a stable event id; skipping report');
+                } else {
+                    const usage = body.message.usage;
+                    const totalTokens = usage.input_tokens
+                        + usage.output_tokens
+                        + (usage.cache_creation_input_tokens || 0)
+                        + (usage.cache_read_input_tokens || 0);
+                    this.sendProviderUsageReport({
+                        key: usageReportKey(['claude', 'transcript', eventId]),
+                        provider: 'claude',
+                        model: body.message.model ?? null,
+                        source: 'claude-transcript-assistant',
+                        occurredAt: (() => {
+                            const rawTimestamp = (body as RawJSONLines & { timestamp?: unknown }).timestamp;
+                            const parsed = typeof rawTimestamp === 'string' ? Date.parse(rawTimestamp) : Number.NaN;
+                            return Number.isFinite(parsed) ? parsed : Date.now();
+                        })(),
+                        tokens: {
+                            total: totalTokens,
+                            input: usage.input_tokens,
+                            output: usage.output_tokens,
+                            cache_creation: usage.cache_creation_input_tokens || 0,
+                            cache_read: usage.cache_read_input_tokens || 0,
+                        },
+                        cost: { total: 0 },
+                        costBasis: 'unavailable',
+                        tokensAvailable: true,
+                        costAvailable: false,
+                        limitations: ['cost-not-reported-by-provider'],
+                    });
+                }
+            } catch (error) {
+                logger.debug('[SOCKET] Failed to send usage data:', error);
+            }
+        }
+
+        // Update metadata with summary if this is a summary message
+        if (body.type === 'summary' && 'summary' in body && 'leafUuid' in body) {
+            this.updateMetadata((metadata) => ({
+                ...metadata,
+                summary: {
+                    text: body.summary,
+                    updatedAt: Date.now()
+                }
+            }));
+        }
+    }
+
+    /**
+     * Send message to session
+     * @param body - Message body (can be MessageContent or raw content for agent messages)
+     */
+    sendClaudeSessionMessage(body: RawJSONLines, opts?: { reportUsage?: boolean }) {
+        const mapped = mapClaudeLogMessageToSessionEnvelopes(body, this.claudeSessionProtocolState);
+        this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
+    }
+
+    async sendClaudeSessionMessageWithAgentImages(
+        body: RawJSONLines,
+        opts?: { reportUsage?: boolean },
+    ): Promise<void> {
+        const mapped = await mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
+            body,
+            this.claudeSessionProtocolState,
+            async (attachment, opts) => {
+                try {
+                    return await this.uploadImageAttachmentEnvelope(attachment, 'agent', opts);
+                } catch (error) {
+                    logger.debug('[API] Failed to upload Claude agent output image', {
+                        sessionId: this.sessionId,
+                        name: attachment.name,
+                        error,
+                    });
+                    return null;
+                }
+            },
+        );
+        this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
+    }
+
+    async sendClaudeSessionMessageFromLocalTranscript(
+        body: RawJSONLines,
+        opts?: { reportUsage?: boolean },
+    ): Promise<void> {
+        if (extractClaudeAgentOutputImages(body).length > 0) {
+            await this.sendClaudeSessionMessageWithAgentImages(body, opts);
+            return;
+        }
+
+        const attachments = extractLocalTranscriptImageAttachments(body);
+        if (attachments.length === 0) {
+            this.sendClaudeSessionMessage(body, opts);
+            return;
+        }
+
+        const closeMapped = closeClaudeTurnWithStatus(this.claudeSessionProtocolState, 'completed');
+        this.claudeSessionProtocolState.currentTurnId = closeMapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(closeMapped.envelopes, false);
+
+        const claudeUuid = typeof (body as { uuid?: unknown }).uuid === 'string'
+            ? (body as { uuid: string }).uuid
+            : undefined;
+        for (const attachment of attachments) {
+            try {
+                const envelope = await this.uploadLocalImageAttachmentEnvelope(attachment, { claudeUuid });
+                this.enqueueSessionProtocolEnvelope(envelope, false);
+            } catch (error) {
+                logger.debug('[API] Failed to upload local Claude transcript image attachment', {
+                    sessionId: this.sessionId,
+                    name: attachment.name,
+                    error,
+                });
+            }
+        }
+
+        const mapped = mapClaudeLogMessageToSessionEnvelopes(body, this.claudeSessionProtocolState);
+        this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(mapped.envelopes, mapped.envelopes.length > 0);
+        if (mapped.envelopes.length === 0) {
+            this.sendSync.invalidate();
+        }
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
+    }
+
+    closeClaudeSessionTurn(status: SessionTurnEndStatus = 'completed') {
+        const mapped = closeClaudeTurnWithStatus(this.claudeSessionProtocolState, status);
+        this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
+    }
+
+    sendCodexMessage(body: any) {
+        let content = {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: body  // This wraps the entire Claude message
+            },
+            meta: {
+                sentFrom: 'cli'
+            }
+        };
+        this.enqueueMessage(content);
+    }
+
+    private enqueueSessionProtocolEnvelope(envelope: SessionEnvelope, invalidate: boolean = true) {
+        const content = {
+            role: 'session',
+            content: envelope,
+            meta: {
+                sentFrom: 'cli'
+            }
+        };
+
+        this.enqueueMessage(content, invalidate);
+    }
+
+    sendSessionProtocolMessage(envelope: SessionEnvelope) {
+        if (envelope.role !== 'user') {
+            this.enqueueSessionProtocolEnvelope(envelope);
+            return;
+        }
+
+        if (envelope.ev.t !== 'text') {
+            this.enqueueSessionProtocolEnvelope(envelope);
+            return;
+        }
+
+        this.enqueueSessionProtocolEnvelope(envelope);
+    }
+
+    /**
+     * Send a generic agent message to the session using ACP (Agent Communication Protocol) format.
+     * Works for any agent type (Gemini, Codex, Claude, etc.) - CLI normalizes to unified ACP format.
+     * 
+     * @param provider - The agent provider sending the message (e.g., 'gemini', 'codex', 'claude')
+     * @param body - The message payload (type: 'message' | 'reasoning' | 'tool-call' | 'tool-result')
+     */
+    sendAgentMessage(provider: 'gemini' | 'codex' | 'claude' | 'opencode', body: ACPMessageData) {
+        let content = {
+            role: 'agent',
+            content: {
+                type: 'acp',
+                provider,
+                data: body
+            },
+            meta: {
+                sentFrom: 'cli'
+            }
+        };
+
+        logger.debug(`[SOCKET] Sending ACP message from ${provider}:`, { type: body.type, hasMessage: 'message' in body });
+
+        this.enqueueMessage(content);
+    }
+
+    sendSessionEvent(event: AgentSessionEvent, id: string = randomUUID()) {
+        this.enqueueMessage(createSessionEventMessage(event, id), true, id);
+    }
+
+    /**
+     * Send a ping message to keep the connection alive
+     */
+    keepAlive(thinking: boolean, mode: 'local' | 'remote') {
+        if (process.env.DEBUG) { // too verbose for production
+            logger.debug(`[API] Sending keep alive message: ${thinking}`);
+        }
+        this.socket.volatile.emit('session-alive', {
+            sid: this.sessionId,
+            time: Date.now(),
+            thinking,
+            mode
+        });
+    }
+
+    /**
+     * Send session death message
+     */
+    sendSessionDeath() {
+        this.socket.emit('session-end', { sid: this.sessionId, time: Date.now() });
+    }
+
+    sendProviderUsageReport(
+        report: ProviderUsageReport,
+        options?: {
+            mutateAgentState?: (state: AgentState) => AgentState;
+            onDurable?: () => void;
+        },
+    ): Promise<void> {
+        const enqueue = this.enqueueProviderUsageReport(report, options);
+        this.outstandingUsageEnqueues.add(enqueue);
+        void enqueue.finally(() => this.outstandingUsageEnqueues.delete(enqueue)).catch(() => {});
+        return enqueue;
+    }
+
+    private async enqueueProviderUsageReport(
+        report: ProviderUsageReport,
+        options?: {
+            mutateAgentState?: (state: AgentState) => AgentState;
+            onDurable?: () => void;
+        },
+    ): Promise<void> {
+        const usageReport = { ...report, sessionId: this.sessionId };
+        logger.debugLargeJson('[SOCKET] Sending provider usage data:', usageReport);
+        const cursorState = options?.mutateAgentState
+            ? options.mutateAgentState(this.agentState ?? {}).usageCursors
+            : undefined;
+        const record: DurableUsageOutboxRecord = {
+            report,
+            ...(cursorState ? { usageCursors: cursorState } : {}),
+        };
+        await this.usageEnqueueLock.inLock(async () => {
+            await this.durableUsageOutbox.write(record);
+            this.localUsageOutboxRecords.set(report.key, record);
+            this.pendingUsageReports.set(report.key, usageReport);
+            options?.onDurable?.();
+        });
+        await this.usageSync.invalidateAndAwait();
+    }
+
+    sendProviderUsageLimitation(
+        report: Omit<ProviderUsageReport, 'tokens' | 'cost' | 'costBasis'>,
+    ): Promise<void> {
+        return this.sendProviderUsageReport({
+            ...report,
+            tokens: emptyUsageTokens(),
+            cost: { total: 0 },
+            costBasis: 'unavailable',
+        });
+    }
+
+    private async flushProviderUsageReports(): Promise<void> {
+        if (!this.socket.connected) {
+            throw new Error('Socket is not connected');
+        }
+        for (const [key, report] of Array.from(this.pendingUsageReports.entries())) {
+            const persistedReport = this.withoutUsageSessionId(report);
+            const localRecord = this.localUsageOutboxRecords.get(key);
+            await this.updateDurableUsageState(
+                (currentState) => ({
+                    ...currentState,
+                    ...(localRecord?.usageCursors ? {
+                        usageCursors: this.mergeUsageCursors(currentState.usageCursors, localRecord.usageCursors),
+                    } : {}),
+                    pendingUsageReports: {
+                        ...currentState.pendingUsageReports,
+                        [key]: persistedReport,
+                    },
+                }),
+                (currentState) => this.sameProviderUsageReport(
+                    currentState.pendingUsageReports?.[key],
+                    persistedReport,
+                ) && this.includesUsageCursors(currentState.usageCursors, localRecord?.usageCursors),
+            );
+            const response = await this.socket.timeout(10000).emitWithAck('usage-report', report);
+            if (!response.success) {
+                throw new Error(response.error ?? 'Provider usage report was rejected');
+            }
+            if (this.pendingUsageReports.get(key) === report) {
+                await this.updateDurableUsageState(
+                    (currentState) => {
+                        if (!this.sameProviderUsageReport(
+                            currentState.pendingUsageReports?.[key],
+                            persistedReport,
+                        )) {
+                            return currentState;
+                        }
+                        const pendingUsageReports = { ...currentState.pendingUsageReports };
+                        delete pendingUsageReports[key];
+                        return {
+                            ...currentState,
+                            pendingUsageReports: Object.keys(pendingUsageReports).length > 0
+                                ? pendingUsageReports
+                                : undefined,
+                        };
+                    },
+                    (currentState) => !this.sameProviderUsageReport(
+                        currentState.pendingUsageReports?.[key],
+                        persistedReport,
+                    ),
+                );
+                if (this.pendingUsageReports.get(key) === report) {
+                    await this.durableUsageOutbox.remove(key);
+                    this.localUsageOutboxRecords.delete(key);
+                    this.pendingUsageReports.delete(key);
+                }
+            }
+        }
+    }
+
+    private restorePendingUsageReportsFromAgentState(): void {
+        for (const [key, report] of Object.entries(this.agentState?.pendingUsageReports ?? {})) {
+            if (!report || typeof report !== 'object' || report.key !== key) continue;
+            this.pendingUsageReports.set(key, { ...report, sessionId: this.sessionId });
+        }
+    }
+
+    private restorePendingUsageReportsFromDisk(): void {
+        for (const record of this.durableUsageOutbox.load()) {
+            const { report } = record;
+            this.localUsageOutboxRecords.set(report.key, record);
+            this.pendingUsageReports.set(report.key, { ...report, sessionId: this.sessionId });
+            if (record.usageCursors) {
+                this.agentState = {
+                    ...(this.agentState ?? {}),
+                    usageCursors: this.mergeUsageCursors(this.agentState?.usageCursors, record.usageCursors),
+                };
+            }
+        }
+    }
+
+    private mergeUsageCursors(
+        current: AgentState['usageCursors'],
+        desired: AgentState['usageCursors'],
+    ): AgentState['usageCursors'] {
+        return {
+            ...current,
+            ...desired,
+            ...(current?.acpCostUsd || desired?.acpCostUsd ? {
+                acpCostUsd: {
+                    ...current?.acpCostUsd,
+                    ...desired?.acpCostUsd,
+                },
+            } : {}),
+            ...(current?.codexTokens || desired?.codexTokens ? {
+                codexTokens: {
+                    ...current?.codexTokens,
+                    ...desired?.codexTokens,
+                },
+            } : {}),
+        };
+    }
+
+    private includesUsageCursors(
+        current: AgentState['usageCursors'],
+        desired: AgentState['usageCursors'],
+    ): boolean {
+        if (!desired) return true;
+        return Object.entries(desired.acpCostUsd ?? {}).every(
+            ([key, value]) => current?.acpCostUsd?.[key] === value,
+        ) && Object.entries(desired.codexTokens ?? {}).every(
+            ([key, value]) => this.sameUsageCounterSnapshot(current?.codexTokens?.[key], value),
+        );
+    }
+
+    private sameUsageCounterSnapshot(
+        left: UsageCounterSnapshot | undefined,
+        right: UsageCounterSnapshot,
+    ): boolean {
+        return left !== undefined
+            && left.total === right.total
+            && left.input === right.input
+            && left.output === right.output
+            && left.cacheCreation === right.cacheCreation
+            && left.cacheRead === right.cacheRead
+            && left.reasoning === right.reasoning;
+    }
+
+    private withoutUsageSessionId(
+        report: ProviderUsageReport & { sessionId: string },
+    ): ProviderUsageReport {
+        const { sessionId: _sessionId, ...persistedReport } = report;
+        return persistedReport;
+    }
+
+    private sameProviderUsageReport(
+        left: ProviderUsageReport | undefined,
+        right: ProviderUsageReport,
+    ): boolean {
+        return left !== undefined && JSON.stringify(left) === JSON.stringify(right);
+    }
+
+    private async updateDurableUsageState(
+        handler: (state: AgentState) => AgentState,
+        isComplete: (state: AgentState) => boolean,
+    ): Promise<void> {
+        await backoff(async () => {
+            await this.updateAgentState(handler);
+            if (!isComplete(this.agentState ?? {})) {
+                throw new Error('Provider usage outbox state was not persisted');
+            }
+        });
+    }
+
+    /**
+     * Returns the latest session metadata known to the client.
+     */
+    getMetadata(): Metadata | null {
+        return this.metadata;
+    }
+
+    getAgentState(): AgentState | null {
+        return this.agentState;
+    }
+
+    /**
+     * Update session metadata
+     * @param handler - Handler function that returns the updated metadata
+     */
+    suppressNextArchiveSignal() {
+        this.ignoreArchiveSignal = true;
+    }
+
+    skipExistingMessages(
+        queueMessageIds: readonly string[] = [],
+        throughSeq: number = Number.MAX_SAFE_INTEGER,
+        prioritizedQueueMessageId?: string,
+    ) {
+        this.skipInitialMessages = true;
+        this.skipExistingMessagesThroughSeq = throughSeq;
+        this.replayExistingQueueMessageIds = new Set(queueMessageIds);
+        this.prioritizedReplayQueueMessageId = prioritizedQueueMessageId ?? null;
+    }
+
+    async waitForConnected(timeoutMs = 10_000): Promise<void> {
+        if (this.socket.connected) return;
+        await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                cleanup();
+                reject(new Error(`Timed out waiting for session ${this.sessionId} socket connection`));
+            }, timeoutMs);
+            const onConnect = () => {
+                cleanup();
+                resolve();
+            };
+            const cleanup = () => {
+                clearTimeout(timer);
+                this.socket.off('connect', onConnect);
+            };
+            this.socket.on('connect', onConnect);
+            // The socket can connect between the initial check and handler
+            // registration. Recheck after subscribing so that race cannot
+            // turn a healthy lifecycle mutation into a false timeout.
+            if (this.socket.connected) onConnect();
+        });
+    }
+
+    updateMetadata(handler: (metadata: Metadata) => Metadata, ackTimeoutMs?: number): Promise<void> {
+        return this.metadataLock.inLock(async () => {
+            const updateOnce = async () => {
+                let updated = handler(this.metadata!); // Weird state if metadata is null - should never happen but here we are
+                const payload = { sid: this.sessionId, expectedVersion: this.metadataVersion, metadata: encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) };
+                const answer = ackTimeoutMs === undefined
+                    ? await this.socket.emitWithAck('update-metadata', payload)
+                    : await this.socket.timeout(ackTimeoutMs).emitWithAck('update-metadata', payload);
+                if (answer.result === 'success') {
+                    this.metadata = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.metadata));
+                    this.metadataVersion = answer.version;
+                } else if (answer.result === 'version-mismatch') {
+                    if (answer.version > this.metadataVersion) {
+                        this.metadataVersion = answer.version;
+                        this.metadata = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.metadata));
+                    }
+                    throw new Error('Metadata version mismatch');
+                } else if (answer.result === 'error') {
+                    if (ackTimeoutMs !== undefined) {
+                        throw new Error('Server rejected the metadata update');
+                    }
+                    // Preserve existing best-effort behavior for session hot paths.
+                }
+            };
+            // Lifecycle commands need a bounded, truthful receipt. Existing
+            // session hot paths retain retry-forever behavior when no timeout
+            // is supplied; a bounded caller gets one native Socket.IO ack
+            // attempt and can report a version conflict or timeout exactly.
+            if (ackTimeoutMs === undefined) {
+                await backoff(updateOnce);
+            } else {
+                await updateOnce();
+            }
+        });
+    }
+
+    /**
+     * Update session agent state
+     * @param handler - Handler function that returns the updated agent state
+     */
+    updateAgentState(handler: (metadata: AgentState) => AgentState): Promise<void> {
+        logger.debugLargeJson('Updating agent state', this.agentState);
+        return this.agentStateLock.inLock(async () => {
+            await backoff(async () => {
+                let updated = handler(this.agentState || {});
+                const answer = await this.socket.emitWithAck('update-state', { sid: this.sessionId, expectedVersion: this.agentStateVersion, agentState: updated ? encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) : null });
+                if (answer.result === 'success') {
+                    this.agentState = answer.agentState ? decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.agentState)) : null;
+                    this.agentStateVersion = answer.version;
+                    logger.debug('Agent state updated', this.agentState);
+                } else if (answer.result === 'version-mismatch') {
+                    if (answer.version > this.agentStateVersion) {
+                        this.agentStateVersion = answer.version;
+                        this.agentState = answer.agentState ? decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.agentState)) : null;
+                    }
+                    throw new Error('Agent state version mismatch');
+                } else if (answer.result === 'error') {
+                    // console.error('Agent state update error', answer);
+                    // Hard error - ignore
+                }
+            });
+        });
+    }
+
+    /**
+     * Wait for socket buffer to flush
+     */
+    async flush(): Promise<void> {
+        await Promise.race([
+            Promise.allSettled(Array.from(this.outstandingUsageEnqueues)),
+            delay(10000),
+        ]);
+        await Promise.all([
+            Promise.race([this.sendSync.invalidateAndAwait(), delay(10000)]),
+            Promise.race([this.usageSync.invalidateAndAwait(), delay(10000)]),
+        ]);
+        if (!this.socket.connected) {
+            return;
+        }
+        return new Promise((resolve) => {
+            this.socket.emit('ping', () => {
+                resolve();
+            });
+            setTimeout(() => {
+                resolve();
+            }, 10000);
+        });
+    }
+
+    async close() {
+        if (this.closed) return;
+        this.closed = true;
+        logger.debug('[API] socket.close() called');
+        this.sendSync.stop();
+        this.usageSync.stop();
+        this.receiveSync.stop();
+        this.clearReconnectTimers();
+        this.socket.close();
+    }
+
+    private startSmartReconnect() {
+        if (this.closed || this.reconnectInterval) return;
+
+        this.reconnectInterval = setInterval(() => {
+            if (this.closed || this.socket.connected) {
+                this.clearReconnectTimers();
+                return;
+            }
+            if (!shouldReconnect()) {
+                logger.debug('[API] Still not ready to reconnect');
+                return;
+            }
+            logger.debug('[API] Attempting reconnect');
+            this.socket.connect();
+        }, 3000);
+
+        if (shouldReconnect()) {
+            logger.debug('[API] Network up + lid open — reconnecting in 1s');
+            this.reconnectTimeout = setTimeout(() => {
+                this.reconnectTimeout = null;
+                if (!this.closed && !this.socket.connected) this.socket.connect();
+            }, 1000);
+        }
+    }
+
+    private clearReconnectTimers() {
+        if (this.reconnectInterval) {
+            clearInterval(this.reconnectInterval);
+            this.reconnectInterval = null;
+        }
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+    }
+}

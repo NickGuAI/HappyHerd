@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Happy",
-  "version": "../../happy-cli/package.json",
+  "version": "../../happyherd-cli/package.json",
   "identifier": "app.happyherd.client",
   "build": {
     "frontendDist": "../dist",

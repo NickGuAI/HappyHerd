@@ -1,0 +1,435 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { codexClientMethods } = vi.hoisted(() => ({
+    codexClientMethods: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        forkThread: vi.fn(),
+        readThread: vi.fn(),
+        rollbackThread: vi.fn(),
+        injectItems: vi.fn(),
+    },
+}));
+
+vi.mock('@/codex/codexAppServerClient', () => ({
+    CodexAppServerClient: vi.fn().mockImplementation(() => codexClientMethods),
+}));
+
+function machineClient() {
+    const catalog = {
+        detectedAt: 1,
+        sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+        models: [{ code: 'default', value: 'Default', isDefault: true }],
+        effortLevels: [],
+        permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+    };
+    const claudeCatalog = {
+        ...catalog,
+        effortLevels: [{ code: 'max', value: 'Max', isDefault: true }],
+    };
+    return {
+        id: 'machine-1',
+        encryptionKey: new Uint8Array(32),
+        encryptionVariant: 'legacy',
+        metadata: {
+            host: 'machine',
+            platform: 'linux',
+            happyCliVersion: 'test',
+            homeDir: '/home/user',
+            happyHomeDir: '/home/user/.happyherd',
+            happyLibDir: '/opt/happyherd',
+            cliAvailability: {
+                claude: true,
+                codex: true,
+                gemini: false,
+                grok: false,
+                agy: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: { claude: claudeCatalog, codex: catalog },
+        },
+    } as any;
+}
+
+function handlersFrom(client: any): Map<string, (params: any) => Promise<any>> {
+    return client.rpcHandlerManager.handlers;
+}
+
+describe('ApiMachineClient Codex fork RPCs', () => {
+    beforeEach(() => {
+        for (const method of Object.values(codexClientMethods)) {
+            method.mockReset();
+        }
+        codexClientMethods.connect.mockResolvedValue(undefined);
+        codexClientMethods.disconnect.mockResolvedValue(undefined);
+    });
+
+    it('registers a full Codex thread fork RPC', async () => {
+        codexClientMethods.forkThread.mockResolvedValue({
+            threadId: 'thread-forked',
+            thread: { id: 'thread-forked', turns: [] },
+        });
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:codex-fork-thread')?.({
+            directory: '/tmp/project',
+            codexThreadId: 'thread-source',
+        });
+
+        expect(result).toEqual({ type: 'success', newCodexThreadId: 'thread-forked' });
+        expect(codexClientMethods.connect).toHaveBeenCalledOnce();
+        expect(codexClientMethods.forkThread).toHaveBeenCalledWith({
+            threadId: 'thread-source',
+            cwd: '/tmp/project',
+        });
+        expect(codexClientMethods.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('forwards resumeCodexThreadId through the spawn RPC', async () => {
+        const settings = { provider: 'codex', model: 'default', effort: null, permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happyherd-forked', settings });
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            resumeCodexThreadId: 'thread-forked',
+            parentSessionId: 'happyherd-source',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happyherd-forked', settings });
+        expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+            directory: '/tmp/project',
+            agent: 'codex',
+            effectiveSettings: settings,
+            resumeCodexThreadId: 'thread-forked',
+            parentSessionId: 'happyherd-source',
+        }));
+    });
+
+    it('forwards fresh provider-continuation lineage without native resume state', async () => {
+        const settings = { provider: 'codex', model: 'default', effort: null, permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happyherd-target', settings });
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'happyherd-source',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happyherd-target', settings });
+        expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+            directory: '/tmp/project',
+            agent: 'codex',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'happyherd-source',
+            effectiveSettings: settings,
+        }));
+        expect(spawnSession.mock.calls[0]?.[0].resumeClaudeSessionId).toBeUndefined();
+        expect(spawnSession.mock.calls[0]?.[0].resumeCodexThreadId).toBeUndefined();
+    });
+
+    it('forwards the archived prompt replay ID through the exact-session resume RPC', async () => {
+        const resumeSession = vi.fn().mockResolvedValue({
+            type: 'success',
+            sessionId: 'happyherd-archived',
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            resumeSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:resume-happy-session')?.({
+            sessionId: 'happyherd-archived',
+            replayQueueMessageId: 'archived-next-turn',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happyherd-archived' });
+        expect(resumeSession).toHaveBeenCalledWith('happyherd-archived', {
+            model: undefined,
+            permissionMode: undefined,
+            agentRuntimeContext: undefined,
+            replayQueueMessageId: 'archived-next-turn',
+        });
+    });
+
+    it('rejects generic side-chat spawn before creating an unbriefed Worker Agent', async () => {
+        const spawnSession = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await expect(handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            resumeCodexThreadId: 'thread-forked',
+            parentSessionId: 'happyherd-source',
+            isSideChat: true,
+        })).rejects.toThrow('use happyherd session side-chat create with all six delegation brief fields');
+        expect(spawnSession).not.toHaveBeenCalled();
+    });
+
+    it('routes a one-click Human creation through the dedicated side-chat RPC without a brief', async () => {
+        const sideChat = vi.fn().mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happyherd-source',
+            sessionId: 'happyherd-child',
+            child: null,
+            phases: [],
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+
+        const result = await handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happyherd-source',
+        });
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happyherd-child' });
+        expect(sideChat).toHaveBeenCalledWith({
+            action: 'create',
+            parentSessionId: 'happyherd-source',
+            brief: null,
+        });
+    });
+
+    it('still forwards a complete Main Agent brief through the dedicated lifecycle RPC', async () => {
+        const sideChat = vi.fn().mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happyherd-source',
+            sessionId: 'happyherd-child',
+            child: null,
+            phases: [],
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+        const brief = {
+            outcome: 'Deliver the result.',
+            scope: 'Only the assigned files.',
+            dependencies: 'None.',
+            writeOwnership: 'src/owned.ts',
+            verification: 'Run the focused test.',
+            handoff: 'Return the commit and evidence.',
+        };
+
+        const result = await handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happyherd-source',
+            brief,
+        });
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happyherd-child' });
+        expect(sideChat).toHaveBeenCalledWith({
+            action: 'create',
+            parentSessionId: 'happyherd-source',
+            brief,
+        });
+    });
+
+    it('rejects an explicitly supplied partial brief before entering the side-chat lifecycle', async () => {
+        const sideChat = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+
+        await expect(handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happyherd-source',
+            brief: { outcome: 'Only one field.' },
+        })).rejects.toThrow('Side-chat creation requires');
+        expect(sideChat).not.toHaveBeenCalled();
+    });
+
+    it('forwards Commander identity and the advertised Claude effort default through a fresh spawn', async () => {
+        const settings = { provider: 'claude', model: 'default', effort: 'max', permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happyherd-commander', settings });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'claude',
+            commanderId: 'athena',
+            isSuperSession: true,
+        });
+
+        expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+            commanderId: 'athena',
+            isSuperSession: true,
+            effectiveSettings: settings,
+        }));
+    });
+
+    it('rejects an unadvertised mode on the target before starting a provider', async () => {
+        const spawnSession = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await expect(handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            modelMode: 'model-from-another-machine',
+        })).rejects.toThrow('does not advertise model');
+        expect(spawnSession).not.toHaveBeenCalled();
+    });
+
+    it('registers automation handlers against the daemon service', async () => {
+        const automations = {
+            list: vi.fn().mockResolvedValue({ automations: [] }),
+        } as any;
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            automations,
+        });
+
+        const result = await handlersFrom(client).get('machine-1:happyherd-automations-list')?.({});
+
+        expect(result).toEqual({ automations: [] });
+        expect(automations.list).toHaveBeenCalledOnce();
+    });
+
+    it('lists Codex rewind points from thread/read', async () => {
+        codexClientMethods.readThread.mockResolvedValue({
+            thread: {
+                id: 'thread-source',
+                turns: [{
+                    id: 'turn-1',
+                    startedAt: 10,
+                    items: [
+                        { id: 'user-1', type: 'userMessage', content: [{ type: 'text', text: 'hello' }] },
+                    ],
+                }],
+            },
+        });
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:codex-list-rewind-points')?.({
+            directory: '/tmp/project',
+            codexThreadId: 'thread-source',
+        });
+
+        expect(result).toEqual({
+            type: 'success',
+            points: [{ itemId: 'user-1', text: 'hello', timestamp: 10_000 }],
+        });
+        expect(codexClientMethods.readThread).toHaveBeenCalledWith({
+            threadId: 'thread-source',
+            includeTurns: true,
+        });
+    });
+
+    it('duplicates a Codex thread by rolling back turns after the selected item', async () => {
+        codexClientMethods.forkThread.mockResolvedValue({
+            threadId: 'thread-forked',
+            thread: {
+                id: 'thread-forked',
+                turns: [
+                    { id: 'turn-1', items: [{ id: 'user-1', type: 'userMessage', content: [{ type: 'text', text: 'one' }] }] },
+                    { id: 'turn-2', items: [{ id: 'user-2', type: 'userMessage', content: [{ type: 'text', text: 'two' }] }] },
+                ],
+            },
+        });
+        codexClientMethods.rollbackThread.mockResolvedValue({ thread: { id: 'thread-forked', turns: [] } });
+        codexClientMethods.injectItems.mockResolvedValue({});
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:codex-duplicate-thread')?.({
+            directory: '/tmp/project',
+            codexThreadId: 'thread-source',
+            cutAfterItemId: 'user-1',
+        });
+
+        expect(result).toEqual({ type: 'success', newCodexThreadId: 'thread-forked' });
+        expect(codexClientMethods.rollbackThread).toHaveBeenCalledWith({
+            threadId: 'thread-forked',
+            numTurns: 2,
+        });
+        expect(codexClientMethods.injectItems).toHaveBeenCalledWith({
+            threadId: 'thread-forked',
+            items: [{
+                type: 'message',
+                role: 'user',
+                content: [{ type: 'input_text', text: 'one' }],
+            }],
+        });
+    });
+});

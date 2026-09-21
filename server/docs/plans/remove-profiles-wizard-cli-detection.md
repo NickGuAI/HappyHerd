@@ -14,7 +14,7 @@ The new session creation screen UI will be implemented separately — this plan 
 
 ### 1.1 Add `cliAvailability` to `MachineMetadata` schema
 
-**File:** `packages/happy-cli/src/api/types.ts` (line 130)
+**File:** `packages/happyherd-cli/src/api/types.ts` (line 130)
 
 Add to `MachineMetadataSchema`:
 ```typescript
@@ -36,7 +36,7 @@ Add same `cliAvailability` optional field to the app's `MachineMetadataSchema`.
 
 ### 1.3 Implement cross-platform CLI detection in the daemon
 
-**File:** `packages/happy-cli/src/daemon/run.ts`
+**File:** `packages/happyherd-cli/src/daemon/run.ts`
 
 Add a `detectCLIAvailability()` function that:
 - Checks `os.platform()` to pick POSIX vs Windows detection
@@ -47,7 +47,7 @@ Add a `detectCLIAvailability()` function that:
 
 ### 1.4 Run detection at daemon boot
 
-**File:** `packages/happy-cli/src/daemon/run.ts` (line 27-34)
+**File:** `packages/happyherd-cli/src/daemon/run.ts` (line 27-34)
 
 Update `initialMachineMetadata` construction to call `detectCLIAvailability()` and include the result:
 ```typescript
@@ -64,7 +64,7 @@ export const initialMachineMetadata: MachineMetadata = {
 
 ### 1.5 Re-detect every 20 seconds on keep-alive
 
-**File:** `packages/happy-cli/src/api/apiMachine.ts` (line 299-312)
+**File:** `packages/happyherd-cli/src/api/apiMachine.ts` (line 299-312)
 
 Modify `startKeepAlive()` to also run `detectCLIAvailability()` every 20 seconds. If the result differs from the last known state, call `updateMachineMetadata()` to push the change. This avoids unnecessary metadata updates when nothing changed.
 
@@ -78,7 +78,7 @@ startKeepAlive():
       lastKnownAvailability = newAvailability
 ```
 
-The `detectCLIAvailability` function needs to be importable from apiMachine.ts — put it in a shared util like `packages/happy-cli/src/utils/detectCLI.ts`.
+The `detectCLIAvailability` function needs to be importable from apiMachine.ts — put it in a shared util like `packages/happyherd-cli/src/utils/detectCLI.ts`.
 
 ### 1.6 Delete `useCLIDetection` hook from app
 
@@ -126,10 +126,10 @@ The app now reads `machine.metadata.cliAvailability` directly from the machine r
 - Remove `environmentVariables` from the RPC params type in `machineSpawnNewSession()`
 - The daemon only uses its own process.env + auth tokens
 
-**`packages/happy-cli/src/persistence.ts`**
+**`packages/happyherd-cli/src/persistence.ts`**
 - Remove: `AIBackendProfileSchema` duplicate, `validateProfileForAgent()`, `getProfileEnvironmentVariables()`, `readSettings()` profile-related code, `activeProfileId` handling
 
-**`packages/happy-cli/src/daemon/run.ts`**
+**`packages/happyherd-cli/src/daemon/run.ts`**
 - Remove: `getProfileEnvironmentVariablesForAgent()` function (lines 37-65)
 - Remove: Layer 2 profile env var logic in `spawnSession()` (lines 293-324) — simplify to just auth env + daemon's process.env
 - The env merge becomes: `{ ...authEnv }` only, expanded against `process.env`
@@ -247,7 +247,7 @@ APP (new session screen)
 
 ## Verification
 
-1. **Typecheck:** `yarn typecheck` in `happy-app` and `happy-cli` — must pass with no errors
+1. **Typecheck:** `yarn typecheck` in `happy-app` and `happyherd-cli` — must pass with no errors
 2. **Daemon boot:** Start daemon, verify `initialMachineMetadata` includes `cliAvailability` in logs
 3. **Keep-alive re-detection:** Install/uninstall a CLI tool, verify metadata updates within 20s
 4. **App reads availability:** Open app, select a machine, verify availability shows from metadata (no bash RPC)

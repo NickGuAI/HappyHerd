@@ -22,7 +22,7 @@ When `PATH` is unavailable, invoke the same command surface using its
 maintained source entrypoint from the HappyHerd repository root:
 
 ```bash
-node server/packages/happy-cli/bin/happy.mjs <command>
+node server/packages/happyherd-cli/bin/happyherd.mjs <command>
 ```
 
 Always query command options using top-level or category-specific help:
@@ -80,7 +80,7 @@ available; missing private tooling is not a stop.
 3. For a durable nested child of the current parent, use
    `happyherd session side-chat create`. For an intentionally independent
    top-level conversation, use `happyherd` or `happyherd codex` for a new
-   launch, or `happyherd resume <happy-session-id>` for an existing session.
+   launch, or `happyherd resume <happyherd-session-id>` for an existing session.
    Do not call it a HappyHerd worker until its actual session ID or application
    link is available; record that identity in the handoff.
 4. Record one concise dispatch comment and one final handoff comment per lane

@@ -28,7 +28,7 @@ Present these as options. Wait for the user to pick.
 
 ## CLI Release
 
-    Package:     packages/happy-cli
+    Package:     packages/happyherd-cli
     npm name:    @happyherd/cli
     Registry:    https://registry.npmjs.org
     Git tags:    cli-{version}
@@ -43,7 +43,7 @@ Tag namespace note:
 
 Run these in parallel:
 1. `npm view @happyherd/cli dist-tags` — see current latest + beta
-2. `cat packages/happy-cli/package.json | grep version` — local version
+2. `cat packages/happyherd-cli/package.json | grep version` — local version
 3. `git status --short` — check for dirty state
 4. `git branch --show-current` — confirm branch
 5. `git log --oneline -10` — recent commits for release notes context
@@ -69,13 +69,13 @@ Present as options. Wait for confirmation.
 
 ### Step 4: Version bump
 
-Edit `packages/happy-cli/package.json` directly — do NOT use `npm version` (it chokes on pnpm workspace protocol).
+Edit `packages/happyherd-cli/package.json` directly — do NOT use `npm version` (it chokes on pnpm workspace protocol).
 
 IMPORTANT: do this **before** build/test for the CLI. The build imports `package.json` and bakes the version into the generated bundle. If you build first and bump later, `happyherd --version` can still report the old prerelease version even though npm metadata shows the new one.
 
 ### Step 4b: `@slopus/happy-wire` must stay bundled — do NOT move it back
 
-`packages/happy-cli/package.json` keeps `"@slopus/happy-wire": "workspace:*"` in
+`packages/happyherd-cli/package.json` keeps `"@slopus/happy-wire": "workspace:*"` in
 **`devDependencies`, deliberately**. That is not a mistake to tidy up.
 
 pkgroll has no `--external` flag — its entire externals policy is derived from
@@ -91,9 +91,9 @@ It must stay in `devDependencies`. After any build change, verify:
 
 ```bash
 # must return nothing — no runtime import may survive
-grep -rnE "(import|require).*@slopus/happy-wire" packages/happy-cli/dist/
+grep -rnE "(import|require).*@slopus/happy-wire" packages/happyherd-cli/dist/
 # must return the definitions, not just import mentions
-grep -rhoE "(function|const) (createEnvelope|stripLeadingTaskNotificationWrappers)" packages/happy-cli/dist/
+grep -rhoE "(function|const) (createEnvelope|stripLeadingTaskNotificationWrappers)" packages/happyherd-cli/dist/
 ```
 
 (A bare `"@slopus/happy-wire": "workspace:*"` string does still appear in dist —
@@ -104,7 +104,7 @@ string. Inert. Only an actual `import`/`require` matters.)
 "0.1.0"` — the only version on npm, published 2026-02-13. Local happy-wire was
 *also* labeled `0.1.0` but had 18 commits of drift, including `f85b20c3` which
 added `stripLeadingTaskNotificationWrappers` and imported it from
-`happy-cli/src/codex/utils/sessionProtocolMapper.ts`. February's tarball had no
+`happyherd-cli/src/codex/utils/sessionProtocolMapper.ts`. February's tarball had no
 such export, ESM failed at module load, and the CLI crashed on **every**
 invocation — dead on arrival, not degraded. `1.2.0` had survived the identical
 latent bug purely because none of its 15 import sites needed a post-February
@@ -140,7 +140,7 @@ look like the command only reports Claude Code's version. Read the first line.
 ### Step 5: Build
 
 ```bash
-cd packages/happy-cli
+cd packages/happyherd-cli
 pnpm --filter @happyherd/cli run build
 ```
 
@@ -184,7 +184,7 @@ aborted the publish at the `prepublishOnly` test step.)
 ### Step 6: Test (unit only)
 
 ```bash
-cd packages/happy-cli
+cd packages/happyherd-cli
 pnpm --filter @happyherd/cli exec vitest run --project unit
 ```
 
@@ -196,7 +196,7 @@ Report results. If failures, ask the user whether to proceed or abort.
 ### Step 7: Publish
 
 ```bash
-cd packages/happy-cli
+cd packages/happyherd-cli
 pnpm publish --tag {channel} --no-git-checks
 ```
 

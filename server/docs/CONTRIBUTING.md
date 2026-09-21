@@ -86,7 +86,7 @@ pnpm --filter happy-app tauri:dev      # Run with hot reload
 pnpm --filter happy-app tauri:build:dev
 ```
 
-### Happy CLI
+### HappyHerd CLI
 
 ```bash
 pnpm --filter @happyherd/cli build
@@ -120,7 +120,7 @@ EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 pnpm --filter happy-app start
 This is a monorepo with four packages:
 
 - **happy-app** — React Native + Expo mobile/web client
-- **happy-cli** — Node.js CLI that wraps Claude Code and Codex
+- **happyherd-cli** — Node.js CLI that wraps Claude Code and Codex
 - **happy-agent** — Remote agent control
 - **happy-server** — Backend for encrypted sync
 

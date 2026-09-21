@@ -1,0 +1,108 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { startDaemonControlServer } from './controlServer';
+
+describe('provider-limit daemon control route', () => {
+  let stop: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await stop?.();
+    stop = null;
+  });
+
+  it('accepts dsh quota notices without a credential-pool account', async () => {
+    const onProviderLimited = vi.fn(() => true);
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: () => false,
+      spawnSession: vi.fn(),
+      sideChat: vi.fn(),
+      requestShutdown: vi.fn(),
+      onHappyHerdSessionWebhook: vi.fn(),
+      onProviderLimited,
+      automations: {} as any,
+    });
+    stop = server.stop;
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/provider-limited`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'dsh-session',
+        provider: 'dsh',
+        limitedUntil: 1234,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: 'scheduled' });
+    expect(onProviderLimited).toHaveBeenCalledWith({
+      sessionId: 'dsh-session',
+      provider: 'dsh',
+      limitedUntil: 1234,
+    });
+  });
+
+  it('reports ignored when the daemon rejects a stale provider-limit notice', async () => {
+    const onProviderLimited = vi.fn(() => false);
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: () => false,
+      spawnSession: vi.fn(),
+      sideChat: vi.fn(),
+      requestShutdown: vi.fn(),
+      onHappyHerdSessionWebhook: vi.fn(),
+      onProviderLimited,
+      automations: {} as any,
+    });
+    stop = server.stop;
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/provider-limited`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'codex-session',
+        provider: 'codex',
+        account: 'work',
+        accountId: '00000000-0000-4000-8000-000000000005',
+        credentialVersion: 1,
+        limitedUntil: 1234,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: 'ignored' });
+    expect(onProviderLimited).toHaveBeenCalledOnce();
+  });
+
+  it('delegates credential mutation checks and returns a bounded rejection', async () => {
+    const assertCredentialAccountMutationAllowed = vi.fn(async ({ name }: { name: string }) => {
+      if (name === 'legacy') throw new Error('Finish the legacy session first.');
+    });
+    const server = await startDaemonControlServer({
+      getChildren: () => [],
+      stopSession: () => false,
+      spawnSession: vi.fn(),
+      sideChat: vi.fn(),
+      requestShutdown: vi.fn(),
+      onHappyHerdSessionWebhook: vi.fn(),
+      onProviderLimited: vi.fn(),
+      assertCredentialAccountMutationAllowed,
+      automations: {} as any,
+    });
+    stop = server.stop;
+    const post = (body: unknown) => fetch(`http://127.0.0.1:${server.port}/credential-account-mutation-check`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const allowed = await post({ provider: 'codex', name: 'work' });
+    expect(allowed.status).toBe(200);
+    await expect(allowed.json()).resolves.toEqual({ status: 'allowed' });
+    const rejected = await post({ provider: 'codex', name: 'legacy' });
+    expect(rejected.status).toBe(500);
+    await expect(rejected.json()).resolves.toMatchObject({ message: 'Finish the legacy session first.' });
+    expect(assertCredentialAccountMutationAllowed).toHaveBeenCalledTimes(2);
+  });
+});

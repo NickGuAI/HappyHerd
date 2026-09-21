@@ -80,7 +80,7 @@ function workspaceVersions(serverRoot) {
     'packages/happy-wire/package.json',
     'packages/happy-agent/package.json',
     'packages/happy-server-self-host/package.json',
-    'packages/happy-cli/package.json',
+    'packages/happyherd-cli/package.json',
   ];
   return new Map(packagePaths.map((path) => {
     const packageJson = readJson(join(serverRoot, path));

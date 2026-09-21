@@ -2,7 +2,7 @@
 
 CLI client for controlling Happy Coder agents remotely.
 
-Unlike `happy-cli` which both runs and controls agents, `happy-agent` only controls them — listing machines, spawning sessions on a machine, creating sessions, sending messages, reading history, monitoring state, and stopping sessions.
+Unlike `happyherd-cli` which both runs and controls agents, `happy-agent` only controls them — listing machines, spawning sessions on a machine, creating sessions, sending messages, reading history, monitoring state, and stopping sessions.
 
 ## Library control surface
 

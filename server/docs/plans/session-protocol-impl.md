@@ -27,7 +27,7 @@ Implement `docs/session-protocol.md` as the new message format for Codex session
 
 ### Files involved
 
-**CLI (happy-cli):**
+**CLI (happyherd-cli):**
 - `src/api/apiSession.ts` — new `sendSessionProtocolMessage()` method
 - `src/codex/runCodex.ts` — convert from `sendCodexMessage()` to session-protocol events
 - `src/codex/utils/reasoningProcessor.ts` — emit thinking events
@@ -56,7 +56,7 @@ Implement `docs/session-protocol.md` as the new message format for Codex session
 - Mark completed items with `[x]` immediately when done
 - Add newly discovered tasks with ➕ prefix
 - Document issues/blockers with ⚠️ prefix
-- ⚠️ `packages/happy-cli` and `packages/happy-app` do not define a `lint` script; verification used full test suites plus `yarn typecheck` in both packages.
+- ⚠️ `packages/happyherd-cli` and `packages/happy-app` do not define a `lint` script; verification used full test suites plus `yarn typecheck` in both packages.
 - ⚠️ In app normalization for `content.type === 'session'`, `uuid` uses envelope `id` (not `turn`) to keep message identity unique while `invoke` handles sidechain linkage.
 - ⚠️ `ReasoningProcessor` and `DiffProcessor` still emit legacy internal shapes; Codex now maps those outputs to session-protocol envelopes in `sessionProtocolMapper.ts` before sending.
 
@@ -66,7 +66,7 @@ Implement `docs/session-protocol.md` as the new message format for Codex session
 
 Create the TypeScript types and Zod schemas for all 7 session-protocol event types plus the envelope. These will be used by both CLI (for emitting) and app (for parsing).
 
-- [x] Create `packages/happy-cli/src/sessionProtocol/types.ts` with:
+- [x] Create `packages/happyherd-cli/src/sessionProtocol/types.ts` with:
   - Envelope type: `{ id, time, role, turn?, invoke?, ev }`
   - Event union type discriminated by `ev.t`: `text`, `tool-call-start`, `tool-call-end`, `file`, `photo`, `turn-start`, `turn-end`
   - Each event type as a separate interface
@@ -80,7 +80,7 @@ Create the TypeScript types and Zod schemas for all 7 session-protocol event typ
 
 Add a new send method that wraps session-protocol envelopes in the wire format.
 
-- [x] Add `sendSessionProtocolMessage(envelope)` to `ApiSessionClient` in `packages/happy-cli/src/api/apiSession.ts`
+- [x] Add `sendSessionProtocolMessage(envelope)` to `ApiSessionClient` in `packages/happyherd-cli/src/api/apiSession.ts`
   - Wraps as `{ role: 'session', content: envelope }`
   - Encrypts and sends via socket (same pattern as `sendCodexMessage`)
 - [x] Write tests for the new method (verify envelope wrapping, encryption call)
@@ -160,7 +160,7 @@ The reducer already handles `NormalizedMessage` well. Minor updates for the new 
 - [x] Verify app still handles legacy formats (output, codex, acp) correctly
 - [x] Verify subagent nesting works via invoke field
 - [x] Verify turn lifecycle (turn-start/turn-end) works correctly
-- [x] Run full test suite — `yarn test` in happy-cli, happy-app
+- [x] Run full test suite — `yarn test` in happyherd-cli, happy-app
 - [x] Run linter — all issues must be fixed
 
 ### Task 8: [Final] Update documentation

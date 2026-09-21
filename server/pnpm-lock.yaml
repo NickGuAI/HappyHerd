@@ -962,7 +962,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/happy-cli:
+  packages/happyherd-cli:
     dependencies:
       '@agentclientprotocol/sdk':
         specifier: ^0.14.1

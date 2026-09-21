@@ -139,7 +139,7 @@ deploy_locked @happyherd/cli "$runtime_stage"
 deploy_locked happy-server-self-host "$server_stage"
 node "$repo_root/server/patches/fix-pglite-prisma-bytes.cjs" "$server_stage"
 
-[[ -f "$runtime_stage/bin/happy.mjs" ]] || { echo 'error: CLI deployment is incomplete' >&2; exit 1; }
+[[ -f "$runtime_stage/bin/happyherd.mjs" ]] || { echo 'error: CLI deployment is incomplete' >&2; exit 1; }
 [[ -f "$server_stage/package.json" ]] || { echo 'error: server deployment is incomplete' >&2; exit 1; }
 
 node "$runtime_stage/scripts/unpack-tools.cjs"
@@ -191,7 +191,7 @@ cp "$repo_root/installers/uninstall.sh" "$asset_root/uninstall.sh"
 cp "$repo_root/installers/cleanup-legacy.sh" "$asset_root/cleanup-legacy.sh"
 chmod 755 "$asset_root/uninstall.sh" "$asset_root/cleanup-legacy.sh"
 
-"$asset_root/node/bin/node" "$asset_root/runtime/bin/happy.mjs" --version >/dev/null
+"$asset_root/node/bin/node" "$asset_root/runtime/bin/happyherd.mjs" --version >/dev/null
 
 asset_path="$output_dir/happyherd-$target.tar.gz"
 tar -czf "$asset_path" -C "$work_root" happyherd

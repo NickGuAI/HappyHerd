@@ -9,7 +9,7 @@ BRIDGE_KEY=/var/lib/happyherd-agent-bridge/happy-agent/agent.key
 DAEMON_KEY=/var/lib/happyherd-agent-runtime/happy-home/access.key
 DAEMON_SETTINGS=/var/lib/happyherd-agent-runtime/happy-home/settings.json
 DAEMON_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
-DAEMON_CLI="${HAPPYHERD_DAEMON_CLI:-$DAEMON_ROOT/bin/happy.mjs}"
+DAEMON_CLI="${HAPPYHERD_DAEMON_CLI:-$DAEMON_ROOT/bin/happyherd.mjs}"
 DAEMON_BOOTSTRAP="${HAPPYHERD_DAEMON_BOOTSTRAP:-/usr/local/lib/happyherd/start-host-daemon.sh}"
 
 die() {

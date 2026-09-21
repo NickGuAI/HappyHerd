@@ -33,7 +33,7 @@
   "scripts": {
     "build": "pnpm --filter happy-server --fail-if-no-match typecheck && node scripts/build-runtime.cjs",
     "build:runtime": "node scripts/build-runtime.cjs",
-    "bundle:webapp": "node ../happy-cli/scripts/bundle-webapp.cjs --out-dir webapp",
+    "bundle:webapp": "node ../happyherd-cli/scripts/bundle-webapp.cjs --out-dir webapp",
     "generate": "prisma generate --schema=prisma/schema.prisma",
     "postinstall": "node scripts/postinstall.cjs",
     "prepublishOnly": "pnpm run build && pnpm run bundle:webapp && pnpm --filter happy-server --fail-if-no-match test"

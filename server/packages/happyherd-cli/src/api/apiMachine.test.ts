@@ -1,0 +1,497 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiMachineClient } from './apiMachine';
+import type { Machine } from './types';
+
+const {
+    mockIo,
+    mockShouldReconnect,
+    mockDetectCLIAvailability,
+    mockDetectAgentCapabilities,
+    mockReadCredentialPoolState,
+    mockCredentialAccountEnvironment,
+} = vi.hoisted(() => ({
+    mockIo: vi.fn(),
+    mockShouldReconnect: vi.fn(() => true),
+    mockDetectCLIAvailability: vi.fn(),
+    mockDetectAgentCapabilities: vi.fn(),
+    mockReadCredentialPoolState: vi.fn(),
+    mockCredentialAccountEnvironment: vi.fn(),
+}));
+
+vi.mock('socket.io-client', () => ({
+    io: mockIo
+}));
+
+vi.mock('@/configuration', () => ({
+    configuration: {
+        serverUrl: 'http://127.0.0.1:3005',
+        currentCliVersion: 'test'
+    }
+}));
+
+vi.mock('@/ui/logger', () => ({
+    logger: {
+        debug: vi.fn(),
+        debugLargeJson: vi.fn()
+    }
+}));
+
+vi.mock('@/modules/common/registerCommonHandlers', () => ({
+    registerCommonHandlers: vi.fn()
+}));
+
+vi.mock('@/api/rpc/RpcHandlerManager', () => ({
+    RpcHandlerManager: class {
+        onSocketConnect = vi.fn();
+        onSocketDisconnect = vi.fn();
+        handleRequest = vi.fn(async () => '');
+        registerHandler = vi.fn();
+        unregisterHandler = vi.fn();
+        hasHandler = vi.fn(() => false);
+    }
+}));
+
+vi.mock('@/utils/detectCLI', () => ({
+    detectCLIAvailability: mockDetectCLIAvailability,
+}));
+
+vi.mock('@/capabilities/agentCapabilities', () => ({
+    detectAgentCapabilities: mockDetectAgentCapabilities,
+    capabilityFingerprint: (capabilities: unknown) => JSON.stringify(capabilities),
+}));
+
+vi.mock('@/credentialPool/store', () => ({
+    readCredentialPoolState: mockReadCredentialPoolState,
+    credentialAccountEnvironment: mockCredentialAccountEnvironment,
+}));
+
+vi.mock('@/resume/localHappyHerdAgentAuth', () => ({
+    detectResumeSupport: vi.fn(() => ({
+        rpcAvailable: false,
+        requiresSameMachine: false,
+        requiresHappyAgentAuth: false,
+        happyAgentAuthenticated: false
+    }))
+}));
+
+vi.mock('@/utils/lidState', () => ({
+    shouldReconnect: mockShouldReconnect
+}));
+
+type SocketHandler = (...args: any[]) => void;
+type SocketHandlers = Record<string, SocketHandler[]>;
+
+function makeMachine(): Machine {
+    return {
+        id: 'test-machine-id',
+        metadata: {
+            host: 'localhost',
+            platform: 'darwin',
+            happyCliVersion: 'test',
+            homeDir: '/home/user',
+            happyHomeDir: '/home/user/.happyherd',
+            happyLibDir: '/home/user/.happyherd/lib'
+        },
+        metadataVersion: 0,
+        daemonState: null,
+        daemonStateVersion: 0,
+        encryptionKey: new Uint8Array(32),
+        encryptionVariant: 'legacy'
+    };
+}
+
+describe('ApiMachineClient socket reconnection', () => {
+    let socketHandlers: SocketHandlers;
+    let mockSocket: any;
+
+    const emitSocketEvent = (event: string, ...args: any[]) => {
+        const handlers = socketHandlers[event] || [];
+        handlers.forEach((handler) => handler(...args));
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockShouldReconnect.mockReturnValue(true);
+        mockDetectCLIAvailability.mockReturnValue({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 1,
+        });
+        mockDetectAgentCapabilities.mockResolvedValue({ capabilities: {} });
+        mockReadCredentialPoolState.mockResolvedValue({
+            schemaVersion: 2,
+            current: {},
+            accounts: [],
+        });
+        mockCredentialAccountEnvironment.mockImplementation((account: any) => ({
+            HAPPYHERD_PROVIDER_ACCOUNT: account.name,
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: account.provider,
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: String(account.credentialVersion),
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+        }));
+        socketHandlers = {};
+        mockSocket = {
+            connected: false,
+            connect: vi.fn(),
+            on: vi.fn((event: string, handler: SocketHandler) => {
+                if (!socketHandlers[event]) {
+                    socketHandlers[event] = [];
+                }
+                socketHandlers[event].push(handler);
+            }),
+            emit: vi.fn(),
+            emitWithAck: vi.fn(),
+            close: vi.fn(),
+            io: {
+                on: vi.fn()
+            }
+        };
+
+        mockIo.mockReturnValue(mockSocket);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    it('sends the established client identity key to existing servers', () => {
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        client.connect();
+        expect(mockIo.mock.calls[0][1].auth).toEqual({
+            token: 'fake-token', clientType: 'machine-scoped', machineId: 'test-machine-id',
+            happyClient: 'cli-daemon/test',
+        });
+        client.shutdown();
+    });
+
+    it('retries after initial socket connection error', async () => {
+        vi.useFakeTimers();
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        client.connect();
+
+        expect(mockIo).toHaveBeenCalledWith('ws://127.0.0.1:3005', expect.objectContaining({
+            reconnection: false
+        }));
+        expect(mockSocket.connect).not.toHaveBeenCalled();
+
+        emitSocketEvent('connect_error', new Error('ECONNREFUSED'));
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(mockSocket.connect).toHaveBeenCalledTimes(2);
+
+        client.shutdown();
+    });
+
+    it('emits machine-alive immediately when the socket connects', async () => {
+        vi.useFakeTimers();
+        mockSocket.emitWithAck.mockImplementation(() => new Promise(() => {}));
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        client.connect();
+
+        expect(mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive')).toHaveLength(0);
+
+        emitSocketEvent('connect');
+
+        let aliveCalls = mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive');
+        expect(aliveCalls).toHaveLength(1);
+        expect(aliveCalls[0][1]).toEqual(expect.objectContaining({
+            machineId: 'test-machine-id',
+            time: expect.any(Number)
+        }));
+
+        await vi.advanceTimersByTimeAsync(19999);
+        aliveCalls = mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive');
+        expect(aliveCalls).toHaveLength(1);
+
+        await vi.advanceTimersByTimeAsync(1);
+        aliveCalls = mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive');
+        expect(aliveCalls).toHaveLength(2);
+
+        client.shutdown();
+    });
+
+    it('republishes the running CLI version without dropping stored machine fields', () => {
+        vi.useFakeTimers();
+        mockSocket.emitWithAck.mockImplementation(() => new Promise(() => {}));
+        const machine = makeMachine();
+        const storedMetadata = { ...machine.metadata!, happyCliVersion: '1.0.0', displayName: 'My Mac' };
+        machine.metadata = storedMetadata;
+        const client = new ApiMachineClient('fake-token', machine);
+        const publications: Machine['metadata'][] = [];
+        vi.spyOn(client, 'updateMachineMetadata').mockImplementation(async (handler) => {
+            publications.push(handler(storedMetadata));
+        });
+        client.connect();
+        emitSocketEvent('connect');
+
+        expect(publications).toContainEqual(expect.objectContaining({
+            displayName: 'My Mac',
+            happyCliVersion: 'test',
+            cliAvailability: expect.objectContaining({ claude: false, codex: false }),
+        }));
+        client.shutdown();
+    });
+
+    it('adds machine-scoped file deletion when a new daemon connects to old metadata', async () => {
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata!,
+            cliAvailability: mockDetectCLIAvailability(),
+            resumeSupport: {
+                rpcAvailable: false,
+                requiresSameMachine: false,
+                requiresHappyAgentAuth: false,
+                happyAgentAuthenticated: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {},
+        };
+        expect(machine.metadata?.supportsFileDelete).toBeUndefined();
+        expect(machine.metadata?.supportsDirectoryDelete).toBeUndefined();
+        expect(machine.metadata?.devicePairingProtocolVersion).toBeUndefined();
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
+            if (event === 'machine-update-metadata') {
+                return {
+                    result: 'success',
+                    metadata: payload.metadata,
+                    version: machine.metadataVersion + 1,
+                };
+            }
+            return {
+                result: 'success',
+                daemonState: payload.daemonState,
+                version: machine.daemonStateVersion + 1,
+            };
+        });
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        emitSocketEvent('connect');
+
+        await vi.waitFor(() => {
+            expect(machine.metadata?.supportsFileDelete).toBe(true);
+            expect(machine.metadata?.supportsDirectoryDelete).toBe(true);
+            expect(machine.metadata?.devicePairingProtocolVersion).toBe(1);
+        });
+        expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
+            'machine-update-metadata',
+            expect.objectContaining({ machineId: 'test-machine-id', expectedVersion: 0 }),
+        );
+        client.shutdown();
+    });
+
+    it('publishes file deletion after connect even when offline fallback metadata already claims support', async () => {
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata!,
+            supportsFileDelete: true,
+            supportsDirectoryDelete: true,
+            cliAvailability: mockDetectCLIAvailability(),
+            resumeSupport: {
+                rpcAvailable: false,
+                requiresSameMachine: false,
+                requiresHappyAgentAuth: false,
+                happyAgentAuthenticated: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {},
+        };
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
+            if (event === 'machine-update-metadata') {
+                return {
+                    result: 'success',
+                    metadata: payload.metadata,
+                    version: machine.metadataVersion + 1,
+                };
+            }
+            return {
+                result: 'success',
+                daemonState: payload.daemonState,
+                version: machine.daemonStateVersion + 1,
+            };
+        });
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        emitSocketEvent('connect');
+
+        await vi.waitFor(() => {
+            expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
+                'machine-update-metadata',
+                expect.objectContaining({ machineId: 'test-machine-id', expectedVersion: 0 }),
+            );
+        });
+        client.shutdown();
+    });
+
+    it('republishes directory deletion on reconnect even when local metadata already advertises it', () => {
+        const machine = makeMachine();
+        const storedMetadata = machine.metadata;
+        machine.metadata = { ...machine.metadata!, supportsFileDelete: true, supportsDirectoryDelete: true };
+        const client = new ApiMachineClient('fake-token', machine);
+        const publications: Machine['metadata'][] = [];
+        vi.spyOn(client, 'updateMachineMetadata').mockImplementation(async (handler) => {
+            publications.push(handler(storedMetadata));
+        });
+        client.connect();
+        emitSocketEvent('connect');
+        publications.length = 0;
+
+        emitSocketEvent('connect');
+
+        expect(publications).toContainEqual(expect.objectContaining({
+            supportsFileDelete: true,
+            supportsDirectoryDelete: true,
+        }));
+        client.shutdown();
+    });
+
+    it('publishes provider discovery errors while retaining this run\'s fresh Codex catalog', async () => {
+        const availability = {
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: true,
+            dsh: true,
+            agy: false,
+            detectedAt: 2,
+        };
+        const staleCatalog = {
+            detectedAt: 1,
+            sources: { models: 'stale', effortLevels: 'stale', permissionModes: 'stale' },
+            models: [],
+            effortLevels: [],
+            permissionModes: [],
+        };
+        const freshCodexCatalog = {
+            ...staleCatalog,
+            detectedAt: 2,
+            sources: { ...staleCatalog.sources, models: 'codex-app-server:model/list' },
+            models: [{ code: 'gpt-fresh-codex', value: 'GPT Fresh Codex' }],
+        };
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata,
+            cliAvailability: availability,
+            agentCapabilities: { codex: staleCatalog, grok: staleCatalog, dsh: staleCatalog },
+        };
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockDetectAgentCapabilities.mockResolvedValueOnce({
+            capabilities: { codex: freshCodexCatalog },
+            grokCapabilityError: 'GrokBuild is installed but ACP capability discovery failed: not authenticated. Run `grok login`.',
+            dshCapabilityError: 'dsh is installed but ACP capability discovery failed: missing configOptions. Verify `dsh --profile acp` starts.',
+        });
+        mockSocket.emitWithAck.mockImplementation(async (_event: string, payload: { metadata: string }) => ({
+            result: 'success',
+            metadata: payload.metadata,
+            version: machine.metadataVersion + 1,
+        }));
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(machine.metadata?.grokCapabilityError).toContain('Run `grok login`.');
+        expect(machine.metadata?.dshCapabilityError).toContain('dsh --profile acp');
+        expect(machine.metadata?.agentCapabilities?.grok).toBeUndefined();
+        expect(machine.metadata?.agentCapabilities?.dsh).toBeUndefined();
+        expect(machine.metadata?.agentCapabilities?.codex.models[0]?.code).toBe('gpt-fresh-codex');
+        client.shutdown();
+    });
+
+    it('binds discovery to the current Codex account without rotating or clearing its limit', async () => {
+        const availability = {
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 3,
+        };
+        const account = {
+            provider: 'codex' as const,
+            name: 'work',
+            id: '00000000-0000-4000-8000-000000000021',
+            credentialVersion: 7,
+            createdAt: 1,
+            updatedAt: 2,
+            limitedUntil: 1,
+            credential: { type: 'auth-file' as const, path: '/tmp/codex-work/auth.json' },
+        };
+        const state = {
+            schemaVersion: 2 as const,
+            current: { codex: 'work' },
+            accounts: [account],
+        };
+        const originalState = JSON.stringify(state);
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockReadCredentialPoolState.mockResolvedValueOnce(state);
+        mockCredentialAccountEnvironment.mockReturnValueOnce({
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: String(account.credentialVersion),
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+        });
+        mockDetectAgentCapabilities.mockResolvedValueOnce({ capabilities: {} });
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        vi.spyOn(client, 'updateMachineMetadata').mockResolvedValue();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(mockReadCredentialPoolState).toHaveBeenCalledTimes(1);
+        expect(mockCredentialAccountEnvironment).toHaveBeenCalledWith(account);
+        expect(mockDetectAgentCapabilities).toHaveBeenCalledWith(
+            availability,
+            expect.objectContaining({
+                codexProcessEnvironment: expect.objectContaining({
+                    HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+                    HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '7',
+                    HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: account.credential.path,
+                    PATH: process.env.PATH,
+                }),
+            }),
+        );
+        expect(JSON.stringify(state)).toBe(originalState);
+        client.shutdown();
+    });
+
+    it('keeps unmanaged discovery on the ambient environment without a current account', async () => {
+        const availability = {
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 4,
+        };
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockReadCredentialPoolState.mockResolvedValueOnce({
+            schemaVersion: 2,
+            current: {},
+            accounts: [],
+        });
+        mockDetectAgentCapabilities.mockResolvedValueOnce({ capabilities: {} });
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        vi.spyOn(client, 'updateMachineMetadata').mockResolvedValue();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(mockCredentialAccountEnvironment).not.toHaveBeenCalled();
+        expect(mockDetectAgentCapabilities).toHaveBeenCalledWith(availability, undefined);
+        client.shutdown();
+    });
+});
