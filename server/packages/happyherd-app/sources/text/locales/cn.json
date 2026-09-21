@@ -1093,7 +1093,11 @@
     "unknownEvent": "未知事件",
     "usageLimitUntil": "使用限制到 {time}",
     "sentAsGoal": "已作为目标发送",
-    "unknownTime": "未知时间"
+    "unknownTime": "未知时间",
+    "safeguard": {
+      "revise": "提示词检查：建议修改",
+      "ready": "提示词检查：未发现明显问题"
+    }
   },
   "codex": {
     "permissions": {

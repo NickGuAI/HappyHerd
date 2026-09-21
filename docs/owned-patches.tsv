@@ -457,3 +457,4 @@ CONTROL_TEST_ENV_ISOLATION	accepted	test(control): isolate all CLI test homes an
 CLI_SHARED_RECOVERY_ARTIFACTS	accepted	chore(cli): reconcile generated artifacts after shared recovery integration	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 PRODUCT_FINAL_CLI_CONTINUITY	accepted	fix(product): retain final CLI continuity repairs after integration	server/packages/happyherd-cli/src/automations/service.test.ts
 PRODUCT_FINAL_CHANGELOG_GOLDENS	accepted	test(product): refresh final integrated changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+USER_SAFEGUARD_ASSESSMENT	accepted	feat(safeguard): assess prompts and render concise reminders	server/packages/happyherd-app/sources/components/safeguardReminder.test.ts
