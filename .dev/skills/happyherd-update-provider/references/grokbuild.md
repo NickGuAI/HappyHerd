@@ -13,6 +13,10 @@ behavior before relying on these volatile facts.
 - `server/packages/happy-cli/src/agent/acp/runAcp.ts` owns the ACP session and
   permission callback policy.
 - Launch permission is separate from the ACP plan/build operating mode.
+- Terminal named-account login stages a fresh `GROK_HOME` and removes inherited
+  `GROK_AUTH_PATH` from the child environment. Native Grok gives a nonempty auth
+  override priority over the home, including login writes (verified 2026-09-20:
+  [native storage resolver at 4247f661](https://github.com/xai-org/grok-build/blob/4247f661689354b831191f11eeeac8424993fe3d/crates/codegen/xai-grok-login/src/storage.rs#L43-L55)).
 
 ## Capability and permission contract
 
