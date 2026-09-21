@@ -45,9 +45,10 @@ plan rendering. There is no new storage service or ACP question protocol.
   its exported declarations.
 - CLI/app typechecks passed.
 - Full app suite: **287 files passed; 2,883 tests passed, 1 skipped**.
-- Full CLI suite under Node **20.20.2**, pnpm **10.11.0**, Bun **1.3.11** and
-  canonical macOS `TMPDIR`: **181 files / 1,804 tests passed**. Subsequent added
-  lifecycle/parser cases passed in the focused **54-test** native run.
+- Final source revision `c6c98074792f960ea9112cbaa838ee1a5dd6b2fe`: full CLI suite
+  under Node **20.20.2**, pnpm **10.11.0**, Bun **1.3.11** and canonical macOS
+  `TMPDIR`: **182 files / 1,813 tests passed**. Native lifecycle/parser focus:
+  **54 tests passed**.
 - Initial CLI run with the host's Node 26 failed three unrelated assertions:
   Node's `DEP0205` stderr warning and two `/var` versus `/private/var` realpath
   assertions. Using the CI Node major and canonical temporary path made the
@@ -64,7 +65,41 @@ plan rendering. There is no new storage service or ACP question protocol.
 - Production Web export and `web:smoke` passed. CLI production build passed as
   part of its package tests. `git diff --check` and source lint passed.
 
-Clean committed-tree contract/PR results are recorded in the final handoff.
+### Clean-tree contract result and bounded blockers
+
+The clean-tree `scripts/contract-suite.sh` was run on source revision
+`c6c98074792f960ea9112cbaa838ee1a5dd6b2fe`, with Node 20.20.2, Bun 1.3.11,
+pnpm 10.11.0, GNU sed on PATH, canonical `TMPDIR` and finally `TZ=UTC`.
+Lineage, patch discipline, public-boundary, CLI command, source lint, product
+identity, multiagent/community guidance, installer, component deployment,
+agent runtime, upstream/merge provenance and ShellCheck gates passed.
+The sandbox canary reports its existing host-only dependency skip.
+
+**The combined contract suite is not green locally.** On the final run all
+**2,883 app test cases passed (1 skipped)**, but four unrelated browser
+`afterAll` hooks timed out: `theme.browser`, `EmptyMainScreen.browser`,
+`workspaceDelete.browser` (10 seconds each) and `MarkdownView.browser`
+(30 seconds). An earlier full app run passed all 287 files; the isolated
+workspace deletion rerun passed all 14 cases. No timeout, assertion, test or
+check was disabled or changed to conceal these failures. The aggregate suite
+stops at the app package; Linux CI must establish the full contract result.
+
+Remaining package gates were executed separately on that exact source revision:
+wire **80**, happy-agent **252**, happyherd-agent **52**, CLI **1,813**, and server
+**176** tests passed. Server typecheck/build passed. Server tests require UTC
+for an existing date-bucket assertion (the initial New York run failed that
+one assertion); rerunning the unchanged tests with UTC passed all 31 files.
+Frozen-lockfile installation plus `git diff --exit-code` passed after commit.
+
+An initial unpushed commit inherited noncanonical local Git identity and failed
+the public-boundary check. The same patch was recommitted from the same clean
+base on the `-v2` branch using the repository's canonical maintainer identity;
+the published history passes that gate. No Git configuration or gate changed.
+
+Final sign-off: **Not signed off for issue closure**. The source is delivered
+for review, with the local combined-contract teardown blocker and the
+authenticated acceptance rows explicitly open. CI conclusions and PR identity
+belong to the final PR handoff; no green CI is presumed here.
 
 ## Review and activation boundary
 
