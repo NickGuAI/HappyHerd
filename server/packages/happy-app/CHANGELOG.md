@@ -1,3 +1,7 @@
+# September 20 — Claude model-specific usage limits
+
+- Sonnet sessions no longer rotate accounts just because Opus usage is exhausted. All model usage windows remain visible, and actual Claude quota rejections still trigger quota handling.
+
 # September 20 — Claude quota recovery
 
 - Claude conversations using native sign-in now accept a new message after a quota reset instead of waiting indefinitely for an account switch. The failed turn remains visible and is not automatically retried.

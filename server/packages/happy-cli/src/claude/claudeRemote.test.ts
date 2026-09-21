@@ -374,7 +374,7 @@ describe('claudeRemote', () => {
         }));
     });
 
-    it('delivers a rejected full usage snapshot as a provider hard limit', async () => {
+    it.each(['success', 'error_during_execution'])('keeps exhausted Opus telemetry without rotating a Sonnet turn (%s)', async (subtype) => {
         process.env.HAPPYHERD_PROVIDER_ACCOUNT = 'work';
         const resetsAt = '2035-01-01T00:00:00Z';
         vi.mocked(query).mockReturnValue({
@@ -382,11 +382,14 @@ describe('claudeRemote', () => {
             usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: vi.fn(async () => ({
                 rate_limits_available: true,
                 rate_limits: {
-                    five_hour: { utilization: 100, resets_at: resetsAt },
+                    five_hour: { utilization: 20, resets_at: resetsAt },
+                    seven_day: { utilization: 20, resets_at: resetsAt },
+                    seven_day_sonnet: { utilization: 20, resets_at: resetsAt },
+                    seven_day_opus: { utilization: 100, resets_at: resetsAt },
                 },
             })),
             async *[Symbol.asyncIterator]() {
-                yield { type: 'result', subtype: 'error_during_execution' };
+                yield { type: 'result', subtype };
             },
         } as any);
         const onUsageLimits = vi.fn();
@@ -400,7 +403,7 @@ describe('claudeRemote', () => {
             hookSettingsPath: '/tmp/happy-test-settings.json',
             nextMessage: async () => {
                 messageCount += 1;
-                return messageCount === 1 ? { message: 'continue', mode } : null;
+                return messageCount === 1 ? { message: 'continue', mode: { ...mode, model: 'sonnet' } } : null;
             },
             onReady: vi.fn(),
             canCallTool: async () => ({ behavior: 'allow' }) as any,
@@ -412,19 +415,18 @@ describe('claudeRemote', () => {
         });
 
         await vi.waitFor(() => {
-            expect(onProviderHardLimit).toHaveBeenCalledOnce();
+            expect(onUsageLimits).toHaveBeenCalledOnce();
         });
         expect(onUsageLimits).toHaveBeenCalledWith(expect.objectContaining({
             replace: true,
-            windows: [expect.objectContaining({
-                id: 'five_hour',
-                status: 'rejected',
-            })],
+            windows: [
+                expect.objectContaining({ id: 'five_hour', utilization: 20, status: 'allowed' }),
+                expect.objectContaining({ id: 'seven_day', utilization: 20, status: 'allowed' }),
+                expect.objectContaining({ id: 'seven_day_sonnet', utilization: 20, status: 'allowed' }),
+                expect.objectContaining({ id: 'seven_day_opus', utilization: 100, status: 'rejected', resetsAt: Date.parse(resetsAt) }),
+            ],
         }));
-        expect(onProviderHardLimit).toHaveBeenCalledWith({
-            provider: 'claude',
-            limitedUntil: Date.parse(resetsAt),
-        });
+        expect(onProviderHardLimit).not.toHaveBeenCalled();
     });
 
     it('waits through delayed result handling so a trailing typed reset wins', async () => {
