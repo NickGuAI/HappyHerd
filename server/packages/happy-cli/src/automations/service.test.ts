@@ -4,6 +4,8 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HappyHerdAutomationService, runHappyHerdExecCommand } from './service';
+import type { HappyHerdAutomationStore } from './store';
+import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
 import type { Session } from '@/api/types';
 
 let root: string;
@@ -416,6 +418,91 @@ describe('HappyHerdAutomationService', () => {
     });
     expect(spawnSession).not.toHaveBeenCalled();
     expect((await service.history(created.id)).runs).toEqual([failed, completed]);
+  });
+
+  it.each([
+    ['exec', 'manual'], ['exec', 'schedule'],
+    ['agent', 'manual'], ['agent', 'schedule'],
+  ] as const)('admits %s after %s terminal history is visible without releasing the next admission', async (execution, source) => {
+    const success = { exitCode: 0, signal: null, stderr: '', stderrTruncated: false };
+    let finishNextWork!: () => void;
+    const workGate = new Promise<void>((resolve) => { finishNextWork = resolve; });
+    const execCommand = vi.fn().mockResolvedValueOnce(success).mockImplementationOnce(async () => {
+      await workGate;
+      return success;
+    });
+    const spawnSession = vi.fn()
+      .mockResolvedValueOnce({ type: 'error', retrySafe: true, errorMessage: 'Quota exhausted before spawn' })
+      .mockImplementationOnce(async () => {
+        await workGate;
+        return { type: 'success', sessionId: 'next-session' };
+      });
+    service = new HappyHerdAutomationService('machine-one', spawnSession, undefined, undefined, execCommand);
+    const created = await service.create(execution === 'exec' ? execInput() : input());
+    const internals = service as unknown as {
+      store: HappyHerdAutomationStore;
+      execute: (id: string, source: 'manual' | 'schedule', scheduledFor: Date) => Promise<HappyHerdAutomationRun>;
+    };
+    const launch = () => source === 'manual'
+      ? service!.runNow(created.id)
+      : internals.execute(created.id, source, new Date());
+    let releaseCompletion!: () => void;
+    const completionGate = new Promise<void>((resolve) => { releaseCompletion = resolve; });
+    let terminalPublished!: () => void;
+    const published = new Promise<void>((resolve) => { terminalPublished = resolve; });
+    const appendRun = internals.store.appendRun.bind(internals.store);
+    const terminalStatus = execution === 'exec' ? 'completed' : 'failed';
+    let holdFirstCompletion = true;
+    vi.spyOn(internals.store, 'appendRun').mockImplementation(async (run) => {
+      await appendRun(run);
+      if (run.status === terminalStatus && holdFirstCompletion) {
+        holdFirstCompletion = false;
+        terminalPublished();
+        // Atomic history is visible before the publishing caller resumes.
+        await completionGate;
+      }
+    });
+    let releaseAdmission!: () => void;
+    const admissionGate = new Promise<void>((resolve) => { releaseAdmission = resolve; });
+    const first = launch();
+    let next: Promise<HappyHerdAutomationRun> | undefined;
+    try {
+      await published;
+      expect((await service.history(created.id)).runs[0].status).toBe(terminalStatus);
+      expect(await service.listActiveRuns()).toEqual([]);
+      const activeRun = internals.store.activeRun.bind(internals.store);
+      const admission = vi.spyOn(internals.store, 'activeRun').mockImplementationOnce(async (id) => {
+        await admissionGate;
+        return activeRun(id);
+      });
+      next = launch();
+      await vi.waitFor(() => expect(admission).toHaveBeenCalledOnce());
+      releaseCompletion();
+      await first;
+      await new Promise((resolve) => setImmediate(resolve));
+      // The older completion cannot unlock a successor awaiting its durable row.
+      expect((await launch()).status).toBe('skipped');
+      expect(admission).toHaveBeenCalledOnce();
+      releaseAdmission();
+      const runner = execution === 'exec' ? execCommand : spawnSession;
+      await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(2));
+      expect((await launch()).status).toBe('skipped');
+      expect(runner).toHaveBeenCalledTimes(2);
+      finishNextWork();
+      const accepted = await next;
+      expect(accepted.status).toBe(execution === 'agent' ? 'started' : source === 'manual' ? 'running' : 'completed');
+      if (execution === 'exec') {
+        await vi.waitFor(async () => {
+          expect((await service!.history(created.id)).runs.find((run) => run.id === accepted.id)?.status).toBe('completed');
+        });
+      }
+    } finally {
+      releaseCompletion();
+      releaseAdmission();
+      finishNextWork();
+      await Promise.all([first, next]);
+      await new Promise((resolve) => setImmediate(resolve));
+    }
   });
 
   it('acknowledges a manual exec run while a command remains active beyond the RPC budget', async () => {

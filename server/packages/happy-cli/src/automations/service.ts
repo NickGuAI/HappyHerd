@@ -412,7 +412,7 @@ export class HappyHerdAutomationService {
     }
 
     this.inFlight.add(id);
-    let execCompletionOwnsInFlight = false;
+    let admissionReleased = false;
     try {
       if (await this.store.activeRun(id)) {
         return this.recordSkipped(id, source, scheduledFor);
@@ -434,15 +434,15 @@ export class HappyHerdAutomationService {
       };
       await this.store.recordSchedule(id, scheduledFor.toISOString());
       await this.store.appendRun(latest);
+      // Persisted running history now prevents overlap. Release admission
+      // before terminal history is visible, without later unlocking a new run.
+      this.inFlight.delete(id);
+      admissionReleased = true;
       if (automation.rail === 'exec') {
         if (source === 'manual') {
-          execCompletionOwnsInFlight = true;
           void this.completeExecRun(automation, latest)
             .catch((error) => {
               logger.warn(`[AUTOMATIONS] Failed to record exec run ${runId}`, error);
-            })
-            .finally(() => {
-              this.inFlight.delete(id);
             });
           return latest;
         }
@@ -526,7 +526,7 @@ export class HappyHerdAutomationService {
       }
       return latest;
     } finally {
-      if (!execCompletionOwnsInFlight) this.inFlight.delete(id);
+      if (!admissionReleased) this.inFlight.delete(id);
     }
   }
 

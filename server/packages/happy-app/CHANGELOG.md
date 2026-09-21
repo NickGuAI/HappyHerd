@@ -1,5 +1,10 @@
+# September 20 — Grok account login
+
+- Managed Grok login now accepts the native scoped OAuth credential format and preserves its refresh metadata, while retaining support for legacy login credentials.
+
 # September 20 — Resume with the saved provider account
 
+- Manual or scheduled command and agent automations can run again once a previous run completes or fails, including quota or preparation failures. Active runs still prevent overlapping runs.
 - Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.
 - Codex sessions using native authentication, including unmanaged side chats, keep that authentication on terminal and daemon resume even when a managed account pool is configured or fully limited.
 
