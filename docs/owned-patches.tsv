@@ -439,3 +439,4 @@ RENAME_PEER_COMPATIBILITY	accepted	fix(cli): preserve established attachment and
 CLI_RENAME_AUTOMATION_OWNER	accepted	fix(cli): retain automation ownership through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_MCP_IDENTITY	accepted	fix(cli): retain the title tool peer namespace through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_PEER_SOP	accepted	docs(cli): document preserved peer identities through repeated renames	docs/cli-renaming.md
+CONTROL_SMOKE_HOME_ISOLATION	accepted	test(control): isolate smoke commands from inherited homes	server/packages/happy-agent/src/cli-smoke.test.ts

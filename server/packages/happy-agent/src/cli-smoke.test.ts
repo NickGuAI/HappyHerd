@@ -7,7 +7,9 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { execFileSync } from 'child_process';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, join } from 'path';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import tweetnacl from 'tweetnacl';
 import {
@@ -38,13 +40,21 @@ const binPath = resolve(__dirname, '..', 'bin', 'happy-agent.mjs');
 // --- CLI runner ---
 
 function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: number } {
+    const home = mkdtempSync(join(tmpdir(), 'control-cli-smoke-'));
     try {
         const stdout = execFileSync(process.execPath, [
             '--no-warnings',
             '--no-deprecation',
             binPath,
             ...args,
-        ], { encoding: 'utf-8', env: { ...process.env, HAPPY_HOME_DIR: '/tmp/nonexistent-happy-acceptance' } });
+        ], {
+            encoding: 'utf-8',
+            env: {
+                ...process.env,
+                HAPPYHERD_HOME_DIR: home,
+                /* rename:preserve */ HAPPY_HOME_DIR: home /* /rename:preserve */,
+            },
+        });
         return { stdout, stderr: '', exitCode: 0 };
     } catch (err: unknown) {
         const e = err as { stdout?: string; stderr?: string; status?: number };
@@ -53,6 +63,8 @@ function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: 
             stderr: e.stderr ?? '',
             exitCode: e.status ?? 1,
         };
+    } finally {
+        rmSync(home, { recursive: true, force: true });
     }
 }
 
@@ -148,6 +160,21 @@ describe('Smoke: CLI command surface', () => {
             const { stdout, exitCode } = runCli('auth', 'logout');
             expect(exitCode).toBe(0);
             expect(stdout).toContain('Logged out');
+        });
+
+        it('keeps an inherited canonical home untouched during logout smoke checks', () => {
+            const home = mkdtempSync(join(tmpdir(), 'control-parent-home-'));
+            const credential = join(home, 'agent.key');
+            const bytes = Buffer.from('synthetic-parent-credential');
+            writeFileSync(credential, bytes);
+            vi.stubEnv('HAPPYHERD_HOME_DIR', home);
+            try {
+                expect(runCli('auth', 'logout').exitCode).toBe(0);
+                expect(readFileSync(credential)).toEqual(bytes);
+            } finally {
+                vi.unstubAllEnvs();
+                rmSync(home, { recursive: true, force: true });
+            }
         });
     });
 
@@ -547,10 +574,12 @@ describe('Smoke: Full test suite runs', () => {
     });
 
     it('config loads with correct defaults', () => {
-        const origUrl = process.env.HAPPY_SERVER_URL;
-        const origHome = process.env.HAPPY_HOME_DIR;
-        delete process.env.HAPPY_SERVER_URL;
-        delete process.env.HAPPY_HOME_DIR;
+        vi.stubEnv('HAPPYHERD_SERVER_URL', undefined);
+        vi.stubEnv('HAPPYHERD_HOME_DIR', undefined);
+        /* rename:preserve */
+        vi.stubEnv('HAPPY_SERVER_URL', undefined);
+        vi.stubEnv('HAPPY_HOME_DIR', undefined);
+        /* /rename:preserve */
 
         try {
             const config = loadConfig();
@@ -558,8 +587,7 @@ describe('Smoke: Full test suite runs', () => {
             expect(config.homeDir).toContain('.happy');
             expect(config.credentialPath).toContain('agent.key');
         } finally {
-            if (origUrl !== undefined) process.env.HAPPY_SERVER_URL = origUrl;
-            if (origHome !== undefined) process.env.HAPPY_HOME_DIR = origHome;
+            vi.unstubAllEnvs();
         }
     });
 });
