@@ -7,7 +7,8 @@
     "/var/lib/happyherd-agent-bridge/happy-agent",
     "\"clever\", \"happy\", \"swift\"", "'clever', 'happy', 'swift'",
     ":happy:", "S3_BUCKET=happy\n", "S3_BUCKET: happy\n", "\"/data/happy\"",
-    "value: happy\n", "postgresql://happy:happy@", ":5432/happy"
+    "value: happy\n", "postgresql://happy:happy@", ":5432/happy",
+    "'happy-agent-spawn'", "type: 'happy-agent'", "sentFrom: 'happy-agent'"
   ],
   "preserve": [
     "Happy EnCoder", "'Happy Coder'", "\"Happy Coder\"", "Happy Blobs", "upstream Happy", "slopus/happy", "happy.engineering", "happy-coder", "@slopus/happy-terminal", "happy-dom",

@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NON_CLI_RENAME_EVIDENCE	accepted	fix(product): refresh renamed evidence and verification contracts	scripts/rename-product.test.mjs
 CLI_RENAME_PROVIDER_INTEGRATION	accepted	fix(cli): integrate refreshed provider and native interaction contracts	server/packages/happy-app/sources/components/nativeQuestions.browser.test.ts
 CLI_RENAME_UPSTREAM_CONTINUITY	accepted	fix(cli): apply canonical names to upstream continuity changes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 CLI_RENAME_TRACKING	accepted	fix(cli): retain tracked ignored files through repeated renames	scripts/rename-cli.test.mjs
@@ -391,7 +392,7 @@ WORKSPACE_DELETE_NAVIGATION_TEST	accepted	test(workspace): match exact names dur
 CREDENTIAL_MANAGER	accepted	feat(credentials): add account and credential management	server/packages/happyherd-app/sources/components/CredentialsSettingsView.browser.test.ts
 CREDENTIAL_LOGIN_VISIBILITY	accepted	fix(credentials): expose providers and run Claude login in a PTY	server/packages/happyherd-cli/src/credentialPool/loginManager.test.ts
 UPSTREAM_4B7D763E	code-ready	docs(upstream): record approved 4b7d763e integration	docs/upstream-sync-4b7d763e.md
-UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happyherd-app/sources/sync/happyToolProtocol.test.ts
+UPSTREAM_4B7D763E_CI_REPAIR	accepted	fix(upstream): reconcile selected integration contracts	server/packages/happyherd-app/sources/sync/happyherdToolProtocol.test.ts
 UPSTREAM_4B7D763E_BROWSER_TIMING	accepted	test(upstream): synchronize browser interaction assertions	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 AUTOMATION_PRESPAWN_REJECTION	accepted	fix(automations): finalize proven pre-spawn launch rejections	server/packages/happyherd-cli/src/daemon/run.preSpawn.test.ts
 AUTOMATION_PRESPAWN_PREPARATION	accepted	fix(automations): classify preparation failures before launch	server/packages/happyherd-cli/src/daemon/run.preSpawn.test.ts

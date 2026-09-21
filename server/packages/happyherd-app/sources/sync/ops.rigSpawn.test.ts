@@ -81,11 +81,11 @@ describe('Rig machine spawn RPC', () => {
             'rig-machine',
             'spawn-happy-session',
             {
-                type: 'happyherd-control-agent-spawn',
+                type: 'happy-agent-spawn',
                 clientRequestId: 'request-2',
                 target: { kind: 'newWorkspace', projectId: 'project-1' },
                 agentConfiguration: {
-                    type: 'happyherd-control-agent',
+                    type: 'happy-agent',
                     providerId: 'codex',
                     modelId: 'gpt-5.6-sol',
                     permissionMode: 'auto',

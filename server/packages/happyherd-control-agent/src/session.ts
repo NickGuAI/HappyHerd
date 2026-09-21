@@ -280,7 +280,7 @@ export class SessionClient extends EventEmitter {
                 text,
             },
             meta: {
-                sentFrom: 'happyherd-control-agent',
+                sentFrom: 'happy-agent',
                 ...meta,
             },
         };

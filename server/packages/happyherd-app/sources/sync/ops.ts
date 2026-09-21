@@ -408,11 +408,11 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             continuedFromSessionId?: string,
         };
         type HappyHerdAgentSpawnRequest = {
-            type: 'happyherd-control-agent-spawn';
+            type: 'happy-agent-spawn';
             clientRequestId: string;
             target: HappyHerdAgentSpawnTarget;
             agentConfiguration: {
-                type: 'happyherd-control-agent';
+                type: 'happy-agent';
                 permissionMode?: string;
                 providerId?: string;
                 modelId?: string;
@@ -422,11 +422,11 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
         type SpawnRequest = DirectorySpawnRequest | HappyHerdAgentSpawnRequest;
         const request: SpawnRequest = agent === 'rig' && happyherdAgentTarget
             ? {
-                type: 'happyherd-control-agent-spawn',
+                type: 'happy-agent-spawn',
                 clientRequestId: clientRequestId!,
                 target: happyherdAgentTarget,
                 agentConfiguration: {
-                    type: 'happyherd-control-agent',
+                    type: 'happy-agent',
                     ...(permissionMode ? { permissionMode } : {}),
                     ...(providerId ? { providerId } : {}),
                     ...(modelId ? { modelId } : {}),

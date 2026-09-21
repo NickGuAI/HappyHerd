@@ -45,6 +45,7 @@ export function planProductRename(root, from, to, scope) {
         const fields = line.split('\t');
         if (fields.length !== 4 || line.startsWith('#')) return line;
         for (const [source, targetName] of packages) fields[3] = renameText(fields[3], source, targetName);
+        if (!/\/[^/]+-cli\//.test(fields[3])) fields[3] = renameText(fields[3], from, to);
         return fields.join('\t');
       }).join('\n');
       if (after !== before) changes.push({ path, destination, before: buffer, after: Buffer.from(after) });
@@ -55,7 +56,9 @@ export function planProductRename(root, from, to, scope) {
       for (const [source, targetName] of packages) after = renameText(after, source, targetName, protectedValues);
       if (!cli) after = renameText(after, from, to, protectedValues);
       for (const value of cli ? [] : scope.stable ?? []) {
-        const renamed = renameText(value, from, to);
+        let renamed = value;
+        for (const [source, targetName] of packages) renamed = renameText(renamed, source, targetName);
+        renamed = renameText(renamed, from, to);
         if (renamed !== value) after = after.replaceAll(renamed, value);
       }
     }
