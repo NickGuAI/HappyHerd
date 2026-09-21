@@ -145,7 +145,7 @@ async function handleAuthLogout(): Promise<void> {
         console.log(chalk.gray('Stopped daemon'));
       } catch { }
 
-      // The home is shared with Happy Agent. Logout owns only CLI authentication,
+      // The home is shared with HappyHerd Agent. Logout owns only CLI authentication,
       // never the Agent runtime/database or the local history used for resume.
       await clearCredentials();
       await clearMachineId();

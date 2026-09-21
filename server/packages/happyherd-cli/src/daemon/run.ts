@@ -970,7 +970,7 @@ export async function startDaemon(): Promise<void> {
       automation?: { id: string; runId: string };
       settings?: HappyHerdMachineSessionSettings;
       deferSettingsReceipt?: boolean;
-      reconnect?: { happySessionId: string; happySessionMetadataFromLocalWebhook: Metadata; encryption: SessionEncryptionData };
+      reconnect?: { happySessionId: string; happyherdSessionMetadataFromLocalWebhook: Metadata; encryption: SessionEncryptionData };
     }): Promise<SpawnSessionResult> => {
       const happyherdProcess = spawnHappyHerdCLI(args, {
         cwd,
@@ -1429,7 +1429,7 @@ export async function startDaemon(): Promise<void> {
         const resumed = await spawnTrackedHappyHerdProcess({
           args: launch.args,
           cwd: launch.cwd,
-          reconnect: { happySessionId: resolvedSessionId, happySessionMetadataFromLocalWebhook: metadata, encryption: tracked.encryption },
+          reconnect: { happySessionId: resolvedSessionId, happyherdSessionMetadataFromLocalWebhook: metadata, encryption: tracked.encryption },
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
             ...agentRuntimeEnvironment,

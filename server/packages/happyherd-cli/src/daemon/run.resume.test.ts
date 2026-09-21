@@ -451,14 +451,14 @@ describe('daemon session continuity', () => {
     const { sessionId, metadata, encryption, control } = await localMessagingFixture();
     const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
     const attempts = Array.from({ length: 8 }, () => rpc.resumeSession(sessionId));
-    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
     expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce();
     // An unrelated registration must not overwrite this child's reserved ID.
-    control.onHappySessionWebhook('wrong-session', { ...metadata, hostPid: 4321 }, encryption);
-    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    control.onHappyHerdSessionWebhook('wrong-session', { ...metadata, hostPid: 4321 }, encryption);
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
     for (const result of await Promise.all(attempts)) expect(result).toMatchObject({ type: 'success', sessionId });
     await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
-    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
   });
 
   it.each(['stop', 'webhook'] as const)('rechecks %s arriving during authoritative recovery before spawning', async (race) => {
@@ -471,10 +471,10 @@ describe('daemon session continuity', () => {
     const attempt = rpc.resumeSession(sessionId);
     await vi.waitFor(() => expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledOnce());
     if (race === 'stop') expect(control.stopSession(sessionId)).toBe(true);
-    else control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 9876 }, encryption);
+    else control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 9876 }, encryption);
     finish();
     await expect(attempt).resolves.toMatchObject({ type: 'error' });
-    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
   });
 
   it('retains a timed-out resume child as an owner and allows its late registration', async () => {
@@ -486,8 +486,8 @@ describe('daemon session continuity', () => {
       realSetTimeout(fn, ms === 15_000 ? 20 : ms, ...args)) as typeof setTimeout);
     await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('timeout') });
     await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error' });
-    expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce();
-    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce();
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
     await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({ type: 'error', errorMessage: expect.stringContaining('already running') });
     timer.mockRestore();
   });
