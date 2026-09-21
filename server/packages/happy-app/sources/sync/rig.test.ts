@@ -17,6 +17,7 @@ import {
     rigCanSearchFiles,
     rigCanUseShell,
     rigCanWriteFiles,
+    rigSendsMessageReceipts,
     sessionCanDeleteFiles,
     usesControlledSessionUi,
 } from './rig';
@@ -163,4 +164,3 @@ describe('Rig metadata', () => {
         expect(sessionCanDeleteFiles(brandedBeforeV1)).toBe(false);
     });
 });
-import { rigSendsMessageReceipts } from './rig';

@@ -1,4 +1,101 @@
-# Issue #296: pinned integration rehearsal and remaining work
+# Issue #296: pinned upstream integration
+
+## Current implementation
+
+The owner authorized autonomous conflict resolution after receiving the
+47-conflict report. The historical pause below is superseded. PR #313 remains
+the owning PR, based independently on `origin/main` at `c1dd1b1e`.
+
+The full-history integration merge is `8feb4b201f7f122d72b9c16011dda670c95c99e5`:
+
+- First parent: `5b5c306582a24ebe9575f1e7393ddace9b74fc4e` (original report).
+- Second parent: `37e9479947e183800cd557d4ccb968c2e2298ac1` (exact approved target).
+- Subject: `Merge commit '37e9479947e183800cd557d4ccb968c2e2298ac1'`.
+- Only `server/` changed in that merge. All upstream ancestors remain reachable.
+  No squash, rebase, force-push or history replacement was used.
+
+### Delivered versus already present
+
+| Groups | Outcome and verification owners |
+| --- | --- |
+| 5 | CLI package advances from 1.2.3 to 1.2.4 with existing package, binaries, repository and independent release ownership retained. Frozen install and CLI build/typecheck verify metadata compatibility. |
+| 24 | Logout clears the CLI access key and machine ID, preserving the home, Agent key and retained sessions. `auth.logout.test.ts` uses a real temporary home, including daemon-stop failure and cancellation. Desktop linking is excluded. |
+| 25 | Participant identity/alignment, explicit receipt-capability gating, pending/rejection state, ACK-before-echo joins, stream cursor preservation and settle-only voice suppression. Raw normalization, reducer, sync race tests and real ChatList browser rendering at 1440×900 and 390×844 cover the boundaries. |
+| 29, 30 | Continuation envelopes receive valid turn IDs; callers retain mapper turn state. Closing the API client cancels both reconnect timers and ignores late socket events. Codex mapper and API session regressions cover both. |
+| 33 | iOS 3072-edge aspect-preserving downscale, final JPEG byte measurement and nonce/tag allowance. Native API fixtures cover HEIC/JPEG, dimensions, missing size, exact limits, sibling failure and retained Workspace upload behavior. |
+| 34 | Single-flight resume, late ownership/Stop rechecks, reserved child identity before webhook, timeout retention, duplicate registration exclusion and same-boot local PID conflict detection. Existing authoritative recovery, machine validation, account selection, permission transitions and exit/deactivation owners remain intact. Daemon regression tests plus a real credential-free owner/backend process exercise these boundaries. No age-based expiry or raw fallback keys. |
+| 35 | Both creation composers wait for metadata/session keys; first-send failures retain drafts and retry the created session. Target/Commander changes, same-frame double submit, adoption, Stop, edits during preparation and attachment staging have regression coverage. Existing chat delivery/queue/Workspace owners retain their receipt contract, with acceptance-scoped draft clearing. |
+| 36 | Pinned server migration/opaque avatar transport and mobile encrypted descriptor/download/hydration/revision sync are integrated. Session pictures appear in existing presentation while missing/removed/failed pictures retain bot/Commander/provider identity. Route authorization, PGlite migration, real cryptography, cache races, revision removal and rendering tests cover this path. |
+| 38 | Zero-runnable HomeDock shows a localized setup-help action linking through existing distribution metadata. Disabled choices stay accessible. Desktop/mobile browser tests click help and reopen the disabled picker. |
+| 8–11, 16–23 | Already delivered in #277; not reimported. Existing tests cover aliases/raw patches, explicit-model Astra ordering, touch-down/focus, stale worktree reads, five-second liveness, watched groups, offline help, syntax budgets/viewport scheduling, diff typography, headers and terminal details. The app suite exercises their retained implementation. |
+
+All rejected groups retain the established contracts: local changelog, rich
+provider outcomes, folder/path and composer status, single Workspace, bot
+ownership and ordering, async sodium fixtures, independent publisher, retained
+resume records, daemon-derived credentials, terminal-evidence wait and disabled
+harness recovery rows. Codium and experimental expo-tailcat remain included;
+no tunnel activation, publishing or release behavior was added.
+
+### Human journeys and proof boundaries
+
+- A desktop/mobile Human submits a first message, sees preparation, and either
+  opens the created session on acceptance or retains an editable retry draft.
+  Newer destination/draft changes never redirect the old asynchronous send.
+- A Human viewing shared chat sees their own messages on the right, another
+  participant with their name on the left, and pending/rejected delivery status
+  on the existing bubble. Receipt arrival preserves row identity.
+- A Human with no runnable provider can discover setup help and still inspect
+  unavailable choices without silent rerouting.
+- A session avatar replacement/removal syncs through the existing encrypted
+  session, preserving independent project and bot/Commander identity.
+
+Web Desktop and Web Mobile have rendered production-host interaction evidence.
+iOS photo conversion uses native-shaped mocks; no physical-device photo picker,
+authenticated native app journey, live provider continuation or deployed
+server/avatar writer was exercised. These remain explicit runtime acceptance
+gaps. No deployment, restart, installation or issue closure is authorized here.
+
+### Composition order
+
+This branch has no dependency on PR #316, #318 or #317. Prefer integrating #296
+at the existing paths before applying the #297/#307 rename sequence. If naming
+lands first, map this subtree merge's CLI/app/server files and imports through
+the rename owners' scripts and rerun their scans; never squash the upstream
+parent. #295/PR #317 overlaps Codex mapper/callers and app models: retain both
+its native plan/question identities and this continuation/receipt behavior.
+Changelog, generated inventory, ledger and any changed golden captures require
+regeneration after composing branches. This is a recommendation, not a merge.
+
+### Verification record
+
+Toolchain: Node 20.20.2 and pinned pnpm 10.11.0 via
+`npx --yes --package=node@20 --package=pnpm@10.11.0 -c 'COMMAND'`.
+CLI tests use a canonical macOS TMPDIR; server tests use `TZ=UTC`, matching CI.
+
+- Frozen install, app/CLI/server typechecks, CLI build and production server
+  build passed. Production Web export and local mounted React smoke passed.
+- CLI full suite: 183 files / 1,819 tests passed before the final added real
+  process liveness regression. Its final execution is recorded in PR checks.
+- Server full suite: 35 files / 186 tests passed with UTC; an initial local-time
+  run exposed an unchanged usage-day bucketing fixture's timezone assumption.
+- Wire: 14 files / 80 tests passed.
+- App full run reached 2,992 passed, three failed and one existing skip; failures
+  were fixture updates for blob-key readiness, Expo Image and new send options.
+  The repaired four-file bundle passed 44 tests; setup-help browser gestures
+  passed on both widths. Final full-suite and exact-head CI receipts live in PR.
+- Localization: 1,576 keys in en/cn/de, zero production copy exceptions; UI
+  inventory regenerated. Changelog: 149 entries, latest “September 20 — Session
+  delivery and upstream reliability”.
+- Two-parent ancestry, lineage and patch discipline passed. Public-boundary
+  review required setup links to use `PRODUCT.repositoryUrl`, preserving the
+  distribution's existing metadata ownership.
+
+Review/CI status is attached to the PR's exact latest head. Native/live gaps
+above are not converted into acceptance by green synthetic tests or CI.
+
+---
+
+## Historical rehearsal (before owner continuation)
 
 **Blocked draft; no new upstream implementation is delivered by this report.**
 

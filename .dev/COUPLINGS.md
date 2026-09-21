@@ -37,6 +37,23 @@ files, and `happy-server-self-host/scripts/build-runtime.cjs`.
 
 ### Session delivery
 
+Issue #296 adds two distinct acceptance boundaries: the app's first-send flow
+waits for metadata and session/blob keys, then commits to the existing outbox;
+Happy Agent's advertised `messageReceipts` capability additionally controls
+provider-acceptance presentation. A POST ACK joins local and server message IDs
+but cannot advance the unread stream cursor. Receipt settlement updates the
+existing bubble without repeating voice announcements. `spawnRequestId.ts`
+retains created-session ownership until acceptance/adoption; it includes the
+Commander in the destination signature. Strict Workspace batches keep their
+separate server-acceptance contract.
+
+Session avatar descriptors travel through `sessionAvatarRoutes.ts`, session
+list/update payloads, `SessionAvatarHydrator` and `resolveSessionAvatar`.
+The server stores opaque preview/blob bytes and monotonic removal revisions;
+the app decrypts only with the owning session keys. Session artwork must not
+overwrite project art or bot/Commander identity. The pinned migration is part
+of server distribution, with runtime application remaining a deployment effect.
+
 ```text
 provider adapter
   → happy-cli ApiSessionClient + encryption

@@ -1,5 +1,6 @@
 import { Text } from '@/components/StyledText';
 import React from 'react';
+import { machineStopSession, sessionKill, sessionArchive } from '@/sync/ops';
 import {
     View,
     Platform,
@@ -3901,4 +3902,3 @@ const pickerStyles = StyleSheet.create((theme) => ({
 }));
 
 export default React.memo(NewSessionScreen);
-import { machineStopSession, sessionKill, sessionArchive } from '@/sync/ops';

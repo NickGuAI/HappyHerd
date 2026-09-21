@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import os from 'os';
+import { hasPersistedProcessConflict, machineBootTimeMs } from './sessionLiveness';
 import * as tmp from 'tmp';
 import { randomUUID } from 'node:crypto';
 import {
@@ -402,7 +403,7 @@ export async function startDaemon(): Promise<void> {
     });
     let automations: HappyHerdAutomationService | null = null;
     let automationReconcileRunning = false;
-    const bootTimeMs = machineBootTimeMs(uptime(), Date.now());
+    const bootTimeMs = machineBootTimeMs(os.uptime(), Date.now());
     const stoppingPids = new Set<number>();
     const registeringPids = new Set<number>();
     const resumesInFlight = new Map<string, Promise<SpawnSessionResult>>();
@@ -2576,5 +2577,3 @@ export async function startDaemon(): Promise<void> {
     process.exit(1);
   }
 }
-import { uptime } from 'node:os';
-import { hasPersistedProcessConflict, machineBootTimeMs } from './sessionLiveness';

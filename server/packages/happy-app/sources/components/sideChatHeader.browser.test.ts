@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
+import { PRODUCT } from '../constants/product';
 import { createServer, type Server } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -107,6 +108,7 @@ const virtualModules: Record<string, string> = {
     `,
     'zustand/react/shallow': `export const useShallow = (selector) => selector;`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
+    '@/constants/product': `export const PRODUCT = ${JSON.stringify(PRODUCT)};`,
     'expo-haptics': `
         export const NotificationFeedbackType = { Error: 'error' };
         export const ImpactFeedbackStyle = { Light: 'light' };
@@ -1472,7 +1474,7 @@ describe('Side chats browser interaction', () => {
         await page.getByTestId('home-dock').getByText('Inspect attachments', { exact: true }).filter({ visible: true }).click();
         const help = page.getByRole('link', { name: 'upstreamSync.harnessSetupHelp', exact: true }).filter({ visible: true });
         await help.click();
-        expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://github.com/NickGuAI/HappyHerd#installation']);
+        expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual([`${PRODUCT.repositoryUrl}#installation`]);
         await page.getByRole('button', { name: /^uiCopy.agent_1wzwjl:/ }).filter({ visible: true }).click();
         expect(await page.locator('[aria-disabled="true"]').filter({ visible: true }).count()).toBeGreaterThan(0);
         await page.close();

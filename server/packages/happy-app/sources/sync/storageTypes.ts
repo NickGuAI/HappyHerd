@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { ProjectAvatar } from './projectTypes';
+import type { SessionAvatarDescriptor } from './sessionAvatarTypes';
 import {
     AgentMessageQueueStateSchema,
     HappyHerdMachineSessionSettingsSchema,
@@ -665,5 +667,3 @@ export interface GitStatus {
     behindCount?: number; // Commits behind upstream
     stashCount?: number; // Number of stash entries
 }
-import type { ProjectAvatar } from './projectTypes';
-import type { SessionAvatarDescriptor } from './sessionAvatarTypes';

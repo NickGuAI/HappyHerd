@@ -90,6 +90,7 @@ import { Shaker, type ShakeInstance } from './Shaker';
 import { hapticsError } from './haptics';
 import { HARNESS_ORDER, getHarnessName } from '@/utils/harnessCatalog';
 import { openExternalUrl } from '@/utils/openExternalUrl';
+import { PRODUCT } from '@/constants/product';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
 import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
@@ -131,7 +132,7 @@ const MOBILE_HOME_DOCK_TOP_PADDING = 8;
 // Sits in the gap the focused dock already leaves above the composer, so it
 // costs no layout: showing it must not move the pickers or the composer.
 const START_PROGRESS_ROW_HEIGHT = 18;
-const HARNESS_SETUP_HELP_URL = 'https://github.com/NickGuAI/HappyHerd#installation';
+const HARNESS_SETUP_HELP_URL = `${PRODUCT.repositoryUrl}#installation`;
 // Matches Shaker's own keyframes so a refused picker reads the same as every
 // other refusal in the app.
 const SHAKE_KEYFRAMES = [3, -3, 3, -3, 0];
