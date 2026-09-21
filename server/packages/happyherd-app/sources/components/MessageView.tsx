@@ -20,6 +20,8 @@ import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
 import { getHarnessName } from '@/utils/harnessCatalog';
 import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
+import { parseSafeguardReminder } from './safeguardReminder';
+import { SafeguardReminderCard } from './SafeguardReminderCard';
 
 
 export const MessageView = React.memo((props: {
@@ -246,9 +248,12 @@ function AgentTextBlock(props: {
     return null;
   }
 
+  const parsed = parseSafeguardReminder(props.message.text);
+
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView tone="island" markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
+      {parsed.reminder ? <SafeguardReminderCard reminder={parsed.reminder} /> : null}
+      <MarkdownView tone="island" markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
       {props.copyText ? <MessageCopyButton text={props.copyText} /> : null}
     </View>
   );

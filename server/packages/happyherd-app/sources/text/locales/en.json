@@ -1179,7 +1179,11 @@
     "unknownEvent": "Unknown event",
     "usageLimitUntil": "Usage limit reached until {time}",
     "sentAsGoal": "Sent as goal",
-    "unknownTime": "unknown time"
+    "unknownTime": "unknown time",
+    "safeguard": {
+      "revise": "Prompt check: suggested revision",
+      "ready": "Prompt check: no obvious issues"
+    }
   },
   "codex": {
     "permissions": {

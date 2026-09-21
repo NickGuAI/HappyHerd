@@ -43,6 +43,21 @@ describe('bundled User Safeguard', () => {
         expect(composeUserSafeguardPrompt(undefined, undefined)).toBeUndefined();
     });
 
+    it('ships the same assessment contract as the canonical skill only for enabled Human turns', () => {
+        const canonical = readFileSync(resolve(packageRoot, '../../../.dev/skills/happyherd-user-safeguard/SKILL.md'), 'utf8').trim();
+        expect(loadBundledUserSafeguardSkill(packageRoot)).toBe(canonical);
+        const enabled = composeUserSafeguardPrompt('base instructions', 'enabled');
+        expect(enabled).toContain('<happyherd-safeguard-reminder status="revise">');
+        expect(enabled).toContain('<quote>');
+        expect(enabled).toContain('<suggestion>');
+        expect(enabled).toContain('<happyherd-safeguard-reminder status="ready">');
+        expect(enabled).toContain('first non-whitespace character');
+        expect(enabled).toContain('`ready` does not authorize execution');
+        for (const mode of ['disabled', 'automation', undefined] as const) {
+            expect(composeUserSafeguardPrompt('base instructions', mode)).not.toContain('<happyherd-safeguard-reminder');
+        }
+    });
+
     it('gives trusted automation provenance precedence over a retained Human setting', () => {
         expect(resolveUserSafeguardPromptMode(true, true)).toBe('automation');
         expect(resolveUserSafeguardPromptMode(true, false)).toBe('enabled');

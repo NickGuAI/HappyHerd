@@ -1,3 +1,7 @@
+# September 21 — Safeguard prompt checks
+
+- Adds a brief prompt assessment at the top of AI replies to suggest necessary revisions or indicate no obvious issues before requesting Human approval.
+
 # September 20 — HappyHerd app and server naming
 
 - App, desktop, server and shared components now consistently use HappyHerd naming, including development and self-host build paths.

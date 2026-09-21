@@ -625,6 +625,8 @@ export type TranslationKey =
     | "markdown.openImageFullSize"
     | "message.providerAccountSwitched"
     | "message.providerQuotaExhausted"
+    | "message.safeguard.ready"
+    | "message.safeguard.revise"
     | "message.sendFailed"
     | "message.sending"
     | "message.sendsAfterThisTurn"

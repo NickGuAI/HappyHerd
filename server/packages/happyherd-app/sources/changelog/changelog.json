@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 21 — Safeguard prompt checks",
+      "summary": "",
+      "markdown": "- Adds a brief prompt assessment at the top of AI replies to suggest necessary revisions or indicate no obvious issues before requesting Human approval."
+    },
+    {
       "title": "September 20 — HappyHerd app and server naming",
       "summary": "",
       "markdown": "- App, desktop, server and shared components now consistently use HappyHerd naming, including development and self-host build paths.\n- Existing accounts, session history, encryption keys and device storage retain their identities. Historical configuration and pairing links remain usable, and both current and historical title-change tools display session title events."
@@ -791,5 +796,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 20 — HappyHerd app and server naming"
+  "latestTitle": "September 21 — Safeguard prompt checks"
 }

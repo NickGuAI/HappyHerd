@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
+import { darkTheme, lightTheme } from '@/theme';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -32,9 +33,14 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
+        import { Text } from 'react-native';
+        import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = Icon;
+        export const Ionicons = (props) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard
+            ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
+                glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
+            : React.createElement(Icon, props);
         export const Octicons = Icon;
         export const MaterialCommunityIcons = Icon;
     `,
@@ -365,16 +371,46 @@ const virtualModules: Record<string, string> = {
             text: '[Hosted page ' + id + '](' + (fixtureOptions.localhostUrl || 'http://localhost:8766/validation-map.html') + ') [External reference](https://example.com/docs)',
         }]]));
         let messagesLoaded = fixtureOptions.providerContinuationMessagesLoaded !== false;
+        const safeguardStorageKey = 'safeguard-browser-messages';
+        let safeguardMessages = fixtureOptions.safeguard
+            ? JSON.parse(localStorage.getItem(safeguardStorageKey) ?? '[]')
+            : [];
+        let safeguardSnapshot = { hasMoreOlder: false, isLoaded: true, isLoadingOlder: false, messages: safeguardMessages };
+        const saveSafeguardMessages = (next) => {
+            safeguardMessages = next;
+            safeguardSnapshot = { ...safeguardSnapshot, messages: next };
+            localStorage.setItem(safeguardStorageKey, JSON.stringify(next));
+            emit();
+        };
+        export const __sendSafeguardMessage = async (sessionId, text, options) => {
+            if (!fixtureOptions.safeguard || sessionId !== 'parent') return;
+            const createdAt = Date.now();
+            const user = { kind: 'user-text', id: 'safeguard-user-' + createdAt, localId: null, createdAt, text };
+            saveSafeguardMessages([user, ...safeguardMessages]);
+            if (options?.source === 'option') return;
+            const responseId = 'safeguard-agent-' + createdAt;
+            const receiveText = (text) => saveSafeguardMessages([
+                { kind: 'agent-text', id: responseId, localId: null, createdAt: createdAt + 1, text },
+                ...safeguardMessages.filter((message) => message.id !== responseId),
+            ]);
+            receiveText(fixtureOptions.safeguard.partial);
+            const response = await fetch('/fixture-safeguard-response').then((response) => response.json());
+            receiveText(response.text);
+        };
         export const __loadProviderContinuationMessages = () => {
             messagesLoaded = true;
             return messages;
         };
-        export const useSessionMessages = (sessionId) => ({
-            hasMoreOlder: false,
-            isLoaded: messagesLoaded,
-            isLoadingOlder: false,
-            messages: fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
-        });
+        export const useSessionMessages = (sessionId) => {
+            const snapshot = React.useSyncExternalStore(subscribe, () => safeguardSnapshot, () => safeguardSnapshot);
+            if (fixtureOptions.safeguard && sessionId === 'parent') return snapshot;
+            return {
+                hasMoreOlder: false,
+                isLoaded: messagesLoaded,
+                isLoadingOlder: false,
+                messages: fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
+            };
+        };
         export const useSessionPendingCommunications = () => [];
         export const useSessionProjectFiles = (sessionId) => React.useSyncExternalStore(
             subscribe,
@@ -416,7 +452,10 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/FileIcon': `import React from 'react'; export const FileIcon = () => React.createElement('span');`,
     '@/text': `
+        import en from '@/text/locales/en.json';
         export const t = (key, params) => ({
+            'message.safeguard.revise': en.message.safeguard.revise,
+            'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
             'uiCopy.hostFolders': 'Host folders',
             'uiCopy.useThisFolder': 'Use this folder',
@@ -550,7 +589,7 @@ const virtualModules: Record<string, string> = {
         export const getDeviceType = () => 'tablet';
     `,
     '@/sync/sync': `
-        import { __loadProviderContinuationMessages } from '@/sync/storage';
+        import { __loadProviderContinuationMessages, __sendSafeguardMessage } from '@/sync/storage';
         export const sync = {
             onSessionVisible() {},
             ensureSessionMessagesLoaded: async (sessionId) => {
@@ -563,6 +602,7 @@ const virtualModules: Record<string, string> = {
                 options?.onAccepted?.();
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
                 window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
+                await __sendSafeguardMessage(sessionId, text, options);
                 if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferWorkspaceFeedback && window.__COMPOSER_SENDS__.length === 1) {
                     await new Promise((resolve) => { window.__RESOLVE_WORKSPACE_FEEDBACK__ = resolve; });
                 }
@@ -1359,6 +1399,133 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
+        ['revise', 'ready'].map((status) => ({ width, theme, status })),
+    )))('renders a streamed safeguard $status assessment after the real Send gesture at $width px in $theme mode', async ({ width, theme, status }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        const partial = `<happyherd-safeguard-reminder status="${status}">`;
+        const assessment = status === 'revise'
+            ? '<quote>publish it everywhere</quote><suggestion>Name the intended destination first.</suggestion>'
+            : 'The destination and testing scope are clear.';
+        const body = '**Implementation plan**\n\n- Preserve existing approval.\n- Run the tests.\n\n[Reference](https://example.com/docs)\n\n<options>\n<option>Approve implementation</option>\n</options>';
+        const responseText = `${partial}${assessment}</happyherd-safeguard-reminder>\n\n${body}`;
+        let finishResponse!: () => void;
+        const responseHeld = new Promise<void>((resolveResponse) => { finishResponse = resolveResponse; });
+        await page.route('**/fixture-safeguard-response', async (route) => {
+            await responseHeld;
+            await route.fulfill({ json: { text: responseText } });
+        });
+        const fonts = [
+            'SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold',
+            'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold',
+        ].map((family) => ({ family, data: readFileSync(resolve(appRoot, `sources/assets/fonts/${family}.ttf`)).toString('base64') }));
+        fonts.push({ family: 'ionicons', data: readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')).toString('base64') });
+        await page.addInitScript(({ partial, fonts }) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { safeguard: { partial } };
+            for (const { family, data } of fonts) document.fonts.add(new FontFace(family, `url(data:font/ttf;base64,${data})`));
+        }, { partial, fonts });
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            expect(await page.evaluate(async (families) => {
+                const loaded = await Promise.all(families.map((family) => document.fonts.load(`16px "${family}"`)));
+                return loaded.every((faces) => faces.length > 0 && faces.every((face) => face.status === 'loaded'));
+            }, fonts.map(({ family }) => family))).toBe(true);
+            const foreground = page.getByTestId('foreground-session');
+            const composer = foreground.locator('textarea').first();
+            await composer.fill('Review this plan, then publish it everywhere.');
+            await foreground.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last().click();
+            // The backend response is held after the opening tag. No test-only
+            // UI control or direct component callback completes this stream.
+            await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('safeguard-browser-messages') ?? '[]')
+                .some((message: any) => message.kind === 'agent-text'))).toBe(true);
+            expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
+            expect(await page.evaluate(() => (window as any).__COMPOSER_SENDS__.length)).toBe(1);
+            finishResponse();
+
+            const card = foreground.getByTestId(`safeguard-reminder-${status}`);
+            await card.waitFor({ state: 'visible' });
+            const plan = foreground.getByText('Implementation plan', { exact: true });
+            await plan.waitFor({ state: 'visible' });
+            const cardBox = (await card.boundingBox())!;
+            const bodyBox = (await plan.boundingBox())!;
+            expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(bodyBox.y + 1);
+            expect(cardBox.width).toBeGreaterThan(200);
+            expect(cardBox.x).toBeGreaterThanOrEqual(0);
+            expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(width + 1);
+            const palette = theme === 'dark' ? darkTheme : lightTheme;
+            const colors = status === 'revise'
+                ? { background: palette.colors.box.warning.background, border: palette.colors.box.warning.border }
+                : { background: palette.colors.diff.addedBg, border: palette.colors.diff.addedBorder };
+            expect(await card.evaluate((element, colors) => {
+                const expected = document.createElement('div');
+                expected.style.backgroundColor = colors.background;
+                expected.style.borderColor = colors.border;
+                const actual = getComputedStyle(element);
+                return actual.backgroundColor === expected.style.backgroundColor && actual.borderTopColor === expected.style.borderColor;
+            }, colors)).toBe(true);
+            expect(await foreground.innerText()).not.toContain('happyherd-safeguard-reminder');
+            expect(await foreground.locator('strong').filter({ hasText: 'Implementation plan' }).count()).toBe(1);
+            expect(await foreground.getByRole('listitem').count()).toBe(2);
+            expect(await foreground.getByRole('link', { name: 'Reference', exact: true }).isVisible()).toBe(true);
+            if (status === 'revise') {
+                expect(await card.getByText('publish it everywhere', { exact: true }).isVisible()).toBe(true);
+                expect(await card.getByText('Name the intended destination first.', { exact: true }).isVisible()).toBe(true);
+            } else {
+                expect(await card.getByText('The destination and testing scope are clear.', { exact: true }).isVisible()).toBe(true);
+            }
+            const screenshotDirectory = process.env.HAPPYHERD_SAFEGUARD_SCREENSHOT_DIR?.trim();
+            if (screenshotDirectory) {
+                mkdirSync(screenshotDirectory, { recursive: true });
+                await card.locator('..').screenshot({ path: resolve(screenshotDirectory, `safeguard-${status}-${theme}-${width}.png`) });
+            }
+
+            await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_SENDS__?.length)).toBe(2);
+            expect(await page.evaluate(() => (window as any).__COMPOSER_SENDS__[1])).toEqual({
+                sessionId: 'parent', text: 'Approve implementation', options: { source: 'option' },
+            });
+            await page.reload();
+            await foreground.getByTestId(`safeguard-reminder-${status}`).waitFor({ state: 'visible' });
+            expect(await foreground.getByText('Implementation plan', { exact: true }).isVisible()).toBe(true);
+            expect(await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).isVisible()).toBe(true);
+            expect(await page.evaluate(() => (window as any).__COMPOSER_SENDS__ ?? [])).toEqual([]);
+            expect(errors).toEqual([]);
+        } finally {
+            finishResponse();
+            await page.close();
+        }
+    }, 20_000);
+
+    it.each([
+        '<happyherd-safeguard-reminder status="ready"></happyherd-safeguard-reminder>',
+        '<happyherd-safeguard-reminder status="unknown">Proceed</happyherd-safeguard-reminder>',
+        '<happyherd-safeguard-reminder status="ready">No obvious issues.</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="ready">No obvious issues.',
+    ])('never gives malformed safeguard output a ready card: %s', async (text) => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { safeguard: { partial: '<happyherd-safeguard-reminder' } };
+        });
+        const responseText = text + '\n\n**Plan remains visible**\n\n<options>\n<option>Approve implementation</option>\n</options>';
+        await page.route('**/fixture-safeguard-response', (route) => route.fulfill({ json: { text: responseText } }));
+        await page.goto(origin);
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.locator('textarea').first().fill('Check the request.');
+        await foreground.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last().click();
+        await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('safeguard-browser-messages') ?? '[]')[0]?.text)).toBe(responseText);
+        expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
+        await foreground.getByText('Plan remains visible', { exact: true }).waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).waitFor({ state: 'visible' });
+        await page.reload();
+        await foreground.getByText('Plan remains visible', { exact: true }).waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).waitFor({ state: 'visible' });
+        expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
+        await page.close();
+    }, 15_000);
 
     it.each([1440, 1920])('renders the production New Session route with a readable 720px panel at %ipx', async (width) => {
         const page = await browser.newPage({ viewport: { width, height: 900 } });
