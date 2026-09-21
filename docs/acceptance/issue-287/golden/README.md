@@ -31,7 +31,7 @@ the decoration or changing application source.
 Push the intended source to the PR branch, then from `server/` run:
 
 ```sh
-pnpm --filter happy-app golden:update
+pnpm --filter happyherd-app golden:update
 ```
 
 This one command waits for the existing PR quality workflow on local HEAD and
@@ -49,8 +49,8 @@ Every comparison uploads `kilv-golden-RUN_ID` (30-day retention): `summary.json`
 captured images, and `index.html` with linked expected/actual/diff triptychs for
 failures. Download and open `index.html`. Missing baselines and changed dimensions
 also fail. Reproduce on the same Linux environment with a production `dist-ci`
-export, `pnpm --filter happy-app exec playwright-core install --with-deps chromium`,
-then `pnpm --filter happy-app golden:test`.
+export, `pnpm --filter happyherd-app exec playwright-core install --with-deps chromium`,
+then `pnpm --filter happyherd-app golden:test`.
 
 The explicit workflow-dispatch `golden_mode=one-pixel` diagnostic changes exactly
 one screenshot pixel after rendering, runs the **same comparator**, and must fail

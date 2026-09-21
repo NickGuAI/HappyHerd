@@ -7,7 +7,7 @@ Codex is emitting local file references as absolute-path markdown links because 
 - `For clickable/openable file references, the path target must be an absolute filesystem path.`
 - `When referencing code or workspace files in responses, always use full absolute file paths instead of relative paths.`
 
-Happy does not currently implement that contract. The chat renderer only handles:
+HappyHerd does not currently implement that contract. The chat renderer only handles:
 
 - explicit markdown links
 - bare `http(s)` URLs

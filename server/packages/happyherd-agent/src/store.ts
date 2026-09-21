@@ -58,7 +58,7 @@ async function persistAtomic(stateFile: string, stateDir: string, state: BridgeS
 
 type InboundPatch = Partial<Omit<
   InboundRecord,
-  'sourceMessageId' | 'surfaceKey' | 'channelId' | 'authorDiscordId' | 'happyLocalId' | 'createdAt'
+  'sourceMessageId' | 'surfaceKey' | 'channelId' | 'authorDiscordId' | 'happyherdLocalId' | 'createdAt'
 >>;
 
 export class BridgeStore {
@@ -154,7 +154,7 @@ export class BridgeStore {
         authorDiscordId: message.authorDiscordId,
         status: 'claimed',
         happySessionId: null,
-        happyLocalId: `discord:${message.sourceMessageId}`,
+        happyherdLocalId: `discord:${message.sourceMessageId}`,
         baselineSequence: null,
         turnId: null,
         answerHash: null,

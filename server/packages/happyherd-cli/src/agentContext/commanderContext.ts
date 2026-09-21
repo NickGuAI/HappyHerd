@@ -25,7 +25,7 @@ import {
   type HappyHerdCommanderAvatar,
   type HappyHerdCommanderListResponse,
   type HappyHerdCommanderSummary,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { configuration } from '@/configuration';
 
 const BUNDLE_VERSION = 4;

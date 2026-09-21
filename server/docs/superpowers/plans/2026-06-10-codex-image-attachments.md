@@ -2,30 +2,30 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add Codex image attachment parity with Claude while preserving Happy encrypted attachment storage and safe fork/history behavior.
+**Goal:** Add Codex image attachment parity with Claude while preserving HappyHerd encrypted attachment storage and safe fork/history behavior.
 
-**Architecture:** The app keeps the existing encrypted upload plus `file` event flow and extends the support gate from Claude to Codex. The Codex CLI mirrors Claude's file-event ownership model, validates image bytes, writes local plaintext image files into a configured per-session cache, and sends Codex `localImage` input items through `codex app-server`. Provider-history fork backfill uses a side-effecting orchestrator that uploads existing local image paths through the normal Happy encrypted attachment API while keeping the pure Codex thread mapper side-effect-free.
+**Architecture:** The app keeps the existing encrypted upload plus `file` event flow and extends the support gate from Claude to Codex. The Codex CLI mirrors Claude's file-event ownership model, validates image bytes, writes local plaintext image files into a configured per-session cache, and sends Codex `localImage` input items through `codex app-server`. Provider-history fork backfill uses a side-effecting orchestrator that uploads existing local image paths through the normal HappyHerd encrypted attachment API while keeping the pure Codex thread mapper side-effect-free.
 
-**Tech Stack:** TypeScript, Vitest, React Native/Expo, Happy session protocol, Happy encrypted attachment APIs, Codex app-server JSON-RPC v2.
+**Tech Stack:** TypeScript, Vitest, React Native/Expo, HappyHerd session protocol, HappyHerd encrypted attachment APIs, Codex app-server JSON-RPC v2.
 
 ---
 
 ## File Structure
 
-- Create `packages/happy-app/sources/sync/attachmentSupport.ts`: pure app helper for image attachment support decisions.
-- Create `packages/happy-app/sources/sync/attachmentSupport.test.ts`: focused tests for Claude/Codex support and unsupported image-only sends.
-- Modify `packages/happy-app/sources/sync/sync.ts`: use the support helper and avoid empty text messages for unsupported image-only sends.
-- Modify `packages/happy-app/sources/text/_default.ts`: change image upload feature subtitle from Claude-only wording to supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/en.ts`: keep English translation aligned with `_default.ts`.
-- Modify `packages/happy-app/sources/text/translations/ru.ts`: update Russian subtitle wording.
-- Modify `packages/happy-app/sources/text/translations/ca.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/es.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/it.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/ja.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/pl.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/pt.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/zh-Hans.ts`: replace Claude-only subtitle with neutral supported-agent wording.
-- Modify `packages/happy-app/sources/text/translations/zh-Hant.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Create `packages/happyherd-app/sources/sync/attachmentSupport.ts`: pure app helper for image attachment support decisions.
+- Create `packages/happyherd-app/sources/sync/attachmentSupport.test.ts`: focused tests for Claude/Codex support and unsupported image-only sends.
+- Modify `packages/happyherd-app/sources/sync/sync.ts`: use the support helper and avoid empty text messages for unsupported image-only sends.
+- Modify `packages/happyherd-app/sources/text/_default.ts`: change image upload feature subtitle from Claude-only wording to supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/en.ts`: keep English translation aligned with `_default.ts`.
+- Modify `packages/happyherd-app/sources/text/translations/ru.ts`: update Russian subtitle wording.
+- Modify `packages/happyherd-app/sources/text/translations/ca.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/es.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/it.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/ja.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/pl.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/pt.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/zh-Hans.ts`: replace Claude-only subtitle with neutral supported-agent wording.
+- Modify `packages/happyherd-app/sources/text/translations/zh-Hant.ts`: replace Claude-only subtitle with neutral supported-agent wording.
 - Modify `packages/happyherd-cli/src/codex/codexClearCommand.ts`: carry attachments when queueing normal Codex messages and isolated `/clear` messages.
 - Modify `packages/happyherd-cli/src/codex/codexClearCommand.test.ts`: prove attachments are forwarded into queue calls.
 - Modify `packages/happyherd-cli/src/codex/codexAppServerTypes.ts`: align image input items with generated Codex 0.137 wire shape by allowing optional `detail`.
@@ -33,7 +33,7 @@
 - Modify `packages/happyherd-cli/src/codex/codexAppServerClient.test.ts`: assert text-only input stays unchanged and image-only input is sent without `text: ""`.
 - Create `packages/happyherd-cli/src/codex/utils/imageInput.ts`: detect supported image bytes, write generated cache files, and build Codex `localImage` input items.
 - Create `packages/happyherd-cli/src/codex/utils/imageInput.test.ts`: cover byte detection, generated names, unsupported formats, and cache root selection.
-- Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.ts`: convert Happy `file` events into decrypted `PendingAttachment` promises for Codex.
+- Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.ts`: convert HappyHerd `file` events into decrypted `PendingAttachment` promises for Codex.
 - Create `packages/happyherd-cli/src/codex/utils/attachmentEvents.test.ts`: cover successful download/decrypt and failure isolation.
 - Modify `packages/happyherd-cli/src/api/apiSession.ts`: expose a generic encrypted local image upload helper that can tag envelopes with `claudeUuid` or `codexItemId`.
 - Modify `packages/happyherd-cli/src/api/apiSession.test.ts`: preserve Claude transcript image upload coverage and add Codex-tagged local image upload coverage.
@@ -46,24 +46,24 @@
 ### Task 1: App Attachment Support Gate
 
 **Files:**
-- Create: `packages/happy-app/sources/sync/attachmentSupport.ts`
-- Create: `packages/happy-app/sources/sync/attachmentSupport.test.ts`
-- Modify: `packages/happy-app/sources/sync/sync.ts`
-- Modify: `packages/happy-app/sources/text/_default.ts`
-- Modify: `packages/happy-app/sources/text/translations/en.ts`
-- Modify: `packages/happy-app/sources/text/translations/ru.ts`
-- Modify: `packages/happy-app/sources/text/translations/ca.ts`
-- Modify: `packages/happy-app/sources/text/translations/es.ts`
-- Modify: `packages/happy-app/sources/text/translations/it.ts`
-- Modify: `packages/happy-app/sources/text/translations/ja.ts`
-- Modify: `packages/happy-app/sources/text/translations/pl.ts`
-- Modify: `packages/happy-app/sources/text/translations/pt.ts`
-- Modify: `packages/happy-app/sources/text/translations/zh-Hans.ts`
-- Modify: `packages/happy-app/sources/text/translations/zh-Hant.ts`
+- Create: `packages/happyherd-app/sources/sync/attachmentSupport.ts`
+- Create: `packages/happyherd-app/sources/sync/attachmentSupport.test.ts`
+- Modify: `packages/happyherd-app/sources/sync/sync.ts`
+- Modify: `packages/happyherd-app/sources/text/_default.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/en.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/ru.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/ca.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/es.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/it.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/ja.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/pl.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/pt.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/zh-Hans.ts`
+- Modify: `packages/happyherd-app/sources/text/translations/zh-Hant.ts`
 
 - [ ] **Step 1: Write the failing support helper test**
 
-Create `packages/happy-app/sources/sync/attachmentSupport.test.ts`:
+Create `packages/happyherd-app/sources/sync/attachmentSupport.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -134,14 +134,14 @@ describe('getImageAttachmentSendPlan', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentSupport.test.ts
 ```
 
 Expected: FAIL with an import error because `attachmentSupport.ts` does not exist.
 
 - [ ] **Step 3: Add the support helper**
 
-Create `packages/happy-app/sources/sync/attachmentSupport.ts`:
+Create `packages/happyherd-app/sources/sync/attachmentSupport.ts`:
 
 ```ts
 export type ImageAttachmentFlavor = string | null | undefined;
@@ -177,7 +177,7 @@ export function getImageAttachmentSendPlan(opts: {
 
 - [ ] **Step 4: Use the helper in `sync.sendMessage`**
 
-In `packages/happy-app/sources/sync/sync.ts`, add the import:
+In `packages/happyherd-app/sources/sync/sync.ts`, add the import:
 
 ```ts
 import { getImageAttachmentSendPlan } from './attachmentSupport';
@@ -208,80 +208,80 @@ Replace the current `supportsAttachments` block in `sendMessage` with:
 
 - [ ] **Step 5: Update image upload feature copy**
 
-Replace the English/default subtitle in `packages/happy-app/sources/text/_default.ts` and `packages/happy-app/sources/text/translations/en.ts`:
+Replace the English/default subtitle in `packages/happyherd-app/sources/text/_default.ts` and `packages/happyherd-app/sources/text/translations/en.ts`:
 
 ```ts
 imageUploadSubtitle: 'Attach images to messages for supported agents to analyze',
 ```
 
-Replace the English/default unsupported message in `packages/happy-app/sources/text/_default.ts` and `packages/happy-app/sources/text/translations/en.ts`:
+Replace the English/default unsupported message in `packages/happyherd-app/sources/text/_default.ts` and `packages/happyherd-app/sources/text/translations/en.ts`:
 
 ```ts
 notSupportedMessage: 'This agent does not support image attachments. Images were not sent.',
 ```
 
-Replace the Russian subtitle in `packages/happy-app/sources/text/translations/ru.ts`:
+Replace the Russian subtitle in `packages/happyherd-app/sources/text/translations/ru.ts`:
 
 ```ts
 imageUploadSubtitle: 'Прикрепляйте изображения к сообщениям для анализа поддерживаемыми агентами',
 ```
 
-Replace the Russian unsupported message in `packages/happy-app/sources/text/translations/ru.ts`:
+Replace the Russian unsupported message in `packages/happyherd-app/sources/text/translations/ru.ts`:
 
 ```ts
 notSupportedMessage: 'Этот агент не поддерживает вложения изображений. Изображения не были отправлены.',
 ```
 
-In `packages/happy-app/sources/text/translations/ca.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/ca.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: 'Adjunta imatges als missatges perquè els agents compatibles les analitzin',
 notSupportedMessage: 'Aquest agent no admet fitxers adjunts d\'imatge. Les imatges no s\'han enviat.',
 ```
 
-In `packages/happy-app/sources/text/translations/es.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/es.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: 'Adjunta imágenes a los mensajes para que los agentes compatibles las analicen',
 notSupportedMessage: 'Este agente no admite archivos adjuntos de imagen. Las imágenes no se enviaron.',
 ```
 
-In `packages/happy-app/sources/text/translations/it.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/it.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: 'Allega immagini ai messaggi per farle analizzare dagli agenti supportati',
 notSupportedMessage: 'Questo agente non supporta gli allegati immagine. Le immagini non sono state inviate.',
 ```
 
-In `packages/happy-app/sources/text/translations/ja.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/ja.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: '対応エージェントに分析させるため、メッセージに画像を添付する',
 notSupportedMessage: 'このエージェントは画像の添付に対応していません。画像は送信されませんでした。',
 ```
 
-In `packages/happy-app/sources/text/translations/pl.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/pl.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: 'Dołączaj obrazy do wiadomości, aby obsługiwani agenci mogli je analizować',
 notSupportedMessage: 'Ten agent nie obsługuje załączników obrazów. Obrazy nie zostały wysłane.',
 ```
 
-In `packages/happy-app/sources/text/translations/pt.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/pt.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: 'Anexe imagens às mensagens para que agentes compatíveis as analisem',
 notSupportedMessage: 'Este agente não suporta anexos de imagem. As imagens não foram enviadas.',
 ```
 
-In `packages/happy-app/sources/text/translations/zh-Hans.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/zh-Hans.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: '将图片附加到消息中，以便受支持的代理进行分析',
 notSupportedMessage: '此代理不支持图片附件。图片未发送。',
 ```
 
-In `packages/happy-app/sources/text/translations/zh-Hant.ts`, replace both strings:
+In `packages/happyherd-app/sources/text/translations/zh-Hant.ts`, replace both strings:
 
 ```ts
 imageUploadSubtitle: '將圖片附加到訊息中，讓支援的代理分析',
@@ -293,8 +293,8 @@ notSupportedMessage: '此代理不支援圖片附件。圖片未傳送。',
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentSupport.test.ts
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS.
@@ -304,20 +304,20 @@ Expected: PASS.
 Run:
 
 ```bash
-git add packages/happy-app/sources/sync/attachmentSupport.ts \
-  packages/happy-app/sources/sync/attachmentSupport.test.ts \
-  packages/happy-app/sources/sync/sync.ts \
-  packages/happy-app/sources/text/_default.ts \
-  packages/happy-app/sources/text/translations/en.ts \
-  packages/happy-app/sources/text/translations/ru.ts \
-  packages/happy-app/sources/text/translations/ca.ts \
-  packages/happy-app/sources/text/translations/es.ts \
-  packages/happy-app/sources/text/translations/it.ts \
-  packages/happy-app/sources/text/translations/ja.ts \
-  packages/happy-app/sources/text/translations/pl.ts \
-  packages/happy-app/sources/text/translations/pt.ts \
-  packages/happy-app/sources/text/translations/zh-Hans.ts \
-  packages/happy-app/sources/text/translations/zh-Hant.ts
+git add packages/happyherd-app/sources/sync/attachmentSupport.ts \
+  packages/happyherd-app/sources/sync/attachmentSupport.test.ts \
+  packages/happyherd-app/sources/sync/sync.ts \
+  packages/happyherd-app/sources/text/_default.ts \
+  packages/happyherd-app/sources/text/translations/en.ts \
+  packages/happyherd-app/sources/text/translations/ru.ts \
+  packages/happyherd-app/sources/text/translations/ca.ts \
+  packages/happyherd-app/sources/text/translations/es.ts \
+  packages/happyherd-app/sources/text/translations/it.ts \
+  packages/happyherd-app/sources/text/translations/ja.ts \
+  packages/happyherd-app/sources/text/translations/pl.ts \
+  packages/happyherd-app/sources/text/translations/pt.ts \
+  packages/happyherd-app/sources/text/translations/zh-Hans.ts \
+  packages/happyherd-app/sources/text/translations/zh-Hant.ts
 git commit -m "feat(app): enable image attachments for codex"
 ```
 
@@ -512,12 +512,12 @@ Append this test case inside `describe('CodexAppServerClient sandbox integration
             sandbox: 'danger-full-access',
         });
         await client.sendTurnAndWait('', {
-            extraInputItems: [{ type: 'localImage', path: '/tmp/happy-image.png' }],
+            extraInputItems: [{ type: 'localImage', path: '/tmp/happyherd-image.png' }],
         });
 
         expect(requests.find((msg) => msg.method === 'turn/start')?.params).toMatchObject({
             threadId: 'thread-images',
-            input: [{ type: 'localImage', path: '/tmp/happy-image.png' }],
+            input: [{ type: 'localImage', path: '/tmp/happyherd-image.png' }],
         });
 
         await client.disconnect();
@@ -701,7 +701,7 @@ vi.mock('@/ui/logger', () => ({
 }));
 
 vi.mock('@/configuration', () => ({
-    configuration: { happyHomeDir: '/home/test/.happy' },
+    configuration: { happyHomeDir: '/home/test/.happyherd' },
 }));
 
 import {
@@ -713,7 +713,7 @@ import {
 const tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), 'happy-codex-image-input-'));
+    const dir = await mkdtemp(join(tmpdir(), 'happyherd-codex-image-input-'));
     tempDirs.push(dir);
     return dir;
 }
@@ -821,15 +821,15 @@ describe('prepareCodexImageInputItems', () => {
 describe('resolveCodexImageCacheDir', () => {
     it('uses the explicit cache root when provided', () => {
         expect(resolveCodexImageCacheDir({
-            cacheRootDir: '/tmp/happy-cache',
+            cacheRootDir: '/tmp/happyherd-cache',
             sessionId: 'session-1',
-        })).toBe('/tmp/happy-cache/session-1');
+        })).toBe('/tmp/happyherd-cache/session-1');
     });
 
-    it('defaults to Happy local state instead of arbitrary OS temp', () => {
+    it('defaults to HappyHerd local state instead of arbitrary OS temp', () => {
         expect(resolveCodexImageCacheDir({
             sessionId: 'session-4',
-        })).toBe('/home/test/.happy/codex-image-cache/session-4');
+        })).toBe('/home/test/.happyherd/codex-image-cache/session-4');
     });
 });
 ```
@@ -1512,14 +1512,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createEnvelope } from '@slopus/happy-wire';
+import { createEnvelope } from '@happyherd/wire';
 
 vi.mock('@/ui/logger', () => ({
     logger: { debug: vi.fn() },
 }));
 
 vi.mock('@/configuration', () => ({
-    configuration: { happyHomeDir: '/home/test/.happy' },
+    configuration: { happyHomeDir: '/home/test/.happyherd' },
 }));
 
 import { buildCodexThreadBackfillEnvelopes } from './threadImageBackfill';
@@ -1527,7 +1527,7 @@ import { buildCodexThreadBackfillEnvelopes } from './threadImageBackfill';
 const tempDirs: string[] = [];
 
 async function makePngFile(name: string): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), 'happy-codex-backfill-'));
+    const dir = await mkdtemp(join(tmpdir(), 'happyherd-codex-backfill-'));
     tempDirs.push(dir);
     const filePath = join(dir, name);
     await writeFile(filePath, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]));
@@ -1678,8 +1678,8 @@ Create `packages/happyherd-cli/src/codex/utils/threadImageBackfill.ts`:
 ```ts
 import { readFile } from 'node:fs/promises';
 
-import type { SessionEnvelope } from '@slopus/happy-wire';
-import { createEnvelope } from '@slopus/happy-wire';
+import type { SessionEnvelope } from '@happyherd/wire';
+import { createEnvelope } from '@happyherd/wire';
 
 import type { Thread, ThreadItem, ThreadTurn } from '../codexAppServerTypes';
 import { detectSupportedImageType } from './imageInput';
@@ -1794,7 +1794,7 @@ In `packages/happyherd-cli/src/codex/runCodex.ts`, add:
 import { buildCodexThreadBackfillEnvelopes } from './utils/threadImageBackfill';
 ```
 
-In the `HAPPY_FORK_CODEX_THREAD_ID` block, replace:
+In the `HAPPYHERD_FORK_CODEX_THREAD_ID` block, replace:
 
 ```ts
                 const envelopes = mapCodexThreadToSessionEnvelopes(thread);
@@ -1847,8 +1847,8 @@ git commit -m "feat(cli): backfill codex image history"
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentSupport.test.ts
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS.
@@ -1897,21 +1897,21 @@ Expected: `git diff --check` prints nothing. `git status --short` shows only int
 Start the local server, CLI daemon, and web app in separate terminals:
 
 ```bash
-pnpm --filter happy-server standalone:dev
+pnpm --filter happyherd-server standalone:dev
 ```
 
 ```bash
 pnpm --filter happyherd cli:install
-HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy daemon stop
-HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy daemon start
-HAPPY_HOME_DIR=~/.happy-dev HAPPY_SERVER_URL=http://localhost:3005 happy auth
+HAPPYHERD_HOME_DIR=~/.happyherd-dev HAPPYHERD_SERVER_URL=http://localhost:3005 happyherd daemon stop
+HAPPYHERD_HOME_DIR=~/.happyherd-dev HAPPYHERD_SERVER_URL=http://localhost:3005 happyherd daemon start
+HAPPYHERD_HOME_DIR=~/.happyherd-dev HAPPYHERD_SERVER_URL=http://localhost:3005 happyherd auth
 ```
 
 ```bash
-EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 pnpm --filter happy-app web
+EXPO_PUBLIC_HAPPYHERD_SERVER_URL=http://localhost:3005 pnpm --filter happyherd-app web
 ```
 
-In the Happy web app, open or create a Codex session, attach a small PNG image with text, and send it.
+In the HappyHerd web app, open or create a Codex session, attach a small PNG image with text, and send it.
 
 Expected:
 - the app shows the image bubble before the text bubble
@@ -1930,10 +1930,10 @@ Expected:
 
 - [ ] **Step 7: Manual Codex fork smoke test**
 
-From a Codex session that previously received a Happy image attachment, create a fork or duplicate session on the same machine.
+From a Codex session that previously received a HappyHerd image attachment, create a fork or duplicate session on the same machine.
 
 Expected:
-- the new Happy session displays historical image file events in the correct order before the matching user text
+- the new HappyHerd session displays historical image file events in the correct order before the matching user text
 - if a provider `localImage.path` no longer exists, text history still appears and no fake image bubble is created
 
 - [ ] **Step 8: Final commit**
@@ -1941,7 +1941,7 @@ Expected:
 If Task 8 revealed fixes, commit them:
 
 ```bash
-git add packages/happy-app packages/happyherd-cli
+git add packages/happyherd-app packages/happyherd-cli
 git commit -m "test: verify codex image attachments"
 ```
 

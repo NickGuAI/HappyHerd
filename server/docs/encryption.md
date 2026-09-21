@@ -545,5 +545,5 @@ graph TB
 ## Implementation references
 - Client crypto: `packages/happyherd-cli/src/api/encryption.ts`
 - Session message format: `packages/happyherd-cli/src/api/types.ts`
-- Server message ingestion: `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`
-- Artifact/KV routes: `packages/happy-server/sources/app/api/routes/artifactsRoutes.ts`, `packages/happy-server/sources/app/kv/kvMutate.ts`
+- Server message ingestion: `packages/happyherd-server/sources/app/api/socket/sessionUpdateHandler.ts`
+- Artifact/KV routes: `packages/happyherd-server/sources/app/api/routes/artifactsRoutes.ts`, `packages/happyherd-server/sources/app/kv/kvMutate.ts`

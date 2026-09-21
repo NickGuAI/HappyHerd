@@ -1,8 +1,8 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type {
-    HappyAuthenticatedClientStatus,
-    HappyStateSnapshot,
-} from '../../shared/happy-protocol'
+    HappyHerdAuthenticatedClientStatus,
+    HappyHerdStateSnapshot,
+} from '../../shared/happyherd-protocol'
 
 export type ThemeSource = 'system' | 'light' | 'dark'
 export type ThemeState = { source: ThemeSource; shouldUseDarkColors: boolean }
@@ -70,15 +70,15 @@ export type CodexAuthApi = {
     cancelLogin(): void
 }
 
-export type HappyApi = {
-    getState(): Promise<HappyStateSnapshot>
-    createAccount(): Promise<HappyStateSnapshot>
-    startLinkDevice(): Promise<HappyStateSnapshot>
-    restoreSecret(secretKey: string): Promise<HappyStateSnapshot>
-    cancelAuth(): Promise<HappyStateSnapshot>
-    logout(): Promise<HappyStateSnapshot>
-    clientStatus(): Promise<HappyAuthenticatedClientStatus>
-    onState(cb: (state: HappyStateSnapshot) => void): () => void
+export type HappyHerdApi = {
+    getState(): Promise<HappyHerdStateSnapshot>
+    createAccount(): Promise<HappyHerdStateSnapshot>
+    startLinkDevice(): Promise<HappyHerdStateSnapshot>
+    restoreSecret(secretKey: string): Promise<HappyHerdStateSnapshot>
+    cancelAuth(): Promise<HappyHerdStateSnapshot>
+    logout(): Promise<HappyHerdStateSnapshot>
+    clientStatus(): Promise<HappyHerdAuthenticatedClientStatus>
+    onState(cb: (state: HappyHerdStateSnapshot) => void): () => void
 }
 
 export type {
@@ -129,7 +129,7 @@ declare global {
         files: FilesApi
         projects: ProjectsApi
         codexAuth: CodexAuthApi
-        happy: HappyApi
+        happyherd: HappyHerdApi
         agent: AgentApi
         chats: ChatsApi
     }

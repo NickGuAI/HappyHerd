@@ -27,7 +27,7 @@ if [[ "${#missing_sandbox_dependencies[@]}" -gt 0 ]]; then
 fi
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap installation did not provide bwrap'
 command -v socat >/dev/null 2>&1 || die 'socat installation did not complete'
-[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'Happy CLI bundled ripgrep is missing or not executable'
+[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'HappyHerd CLI bundled ripgrep is missing or not executable'
 
 ensure_system_user() {
     local user_name="$1"
@@ -48,7 +48,7 @@ install -d -o root -g root -m 0751 "$CONFIG_ROOT"
 install -d -o "$BRIDGE_USER" -g "$BRIDGE_USER" -m 0700 \
     "$CONFIG_ROOT/secrets" \
     "$BRIDGE_ROOT" \
-    "$BRIDGE_ROOT/happy-agent" \
+    "$BRIDGE_ROOT/happyherd-control-agent" \
     "$BRIDGE_ROOT/state"
 install -d -o "$AGENT_USER" -g "$AGENT_USER" -m 0700 \
     "$AGENT_ROOT" \
@@ -64,16 +64,16 @@ install -d -o "$AGENT_USER" -g "$AGENT_USER" -m 0700 \
     "$AGENT_ROOT/workspace"
 
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/AGENTS.md" \
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/AGENTS.md" \
     "$AGENT_ROOT/happy-home/AGENTS.md"
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md" \
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/USER.md" \
     "$AGENT_ROOT/happy-home/agentcontext/USER.md"
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
     "$AGENT_ROOT/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md"
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md" \
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/commanders/team-agent/COMMANDER.md" \
     "$AGENT_ROOT/happy-home/commanders/team-agent/COMMANDER.md"
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
     "$ROOT/deploy/happyherd-agent-runtime/workspace/AGENTS.md" \

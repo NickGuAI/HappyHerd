@@ -73,9 +73,9 @@ Cryptographic domains `Happy EnCoder` and `Happy Blobs` must stay byte-exact, wh
 
 The pairing URI must remain `happy://terminal?` to ensure compatibility with existing app readers, and the app must continue to recognize both the current `mcp__happyherd__change_title` and historical title tools. The existing `happyherd` MCP namespace serves as a shared protocol identity that must be preserved across subsequent CLI renames, even when underlying executable and package names change.
 
-The CLI consumes #307-owned `happy-agent` (`HappyControlClient` imported under
-a renamed local alias), `@slopus/happy-wire`, `happy-app`, `happy-server` and
-`happy-server-self-host`. Its server launcher still emits `HAPPY_STATIC_DIR`
+The CLI consumes #307-owned `happyherd-control-agent` (`HappyHerdControlClient` imported under
+a renamed local alias), `@happyherd/wire`, `happyherd-app`, `happyherd-server` and
+`happyherd-server-self-host`. Its server launcher still emits `HAPPY_STATIC_DIR`
 and `HAPPY_INJECT_HTML_CONFIG` for that server. The separately published
 `@slopus/happy-terminal` is external. Existing API/webapp hostnames are working
 addresses, not names for this source script to invent.
@@ -105,11 +105,11 @@ node scripts/test-cli-rename-runtime.mjs
 scripts/test-public-launcher-release-contract.sh
 # From server/, Node 20 and pnpm 10.11.0:
 pnpm install --frozen-lockfile
-pnpm --filter happy-agent build
+pnpm --filter happyherd-control-agent build
 pnpm --filter @happyherd/cli build
 pnpm --filter @happyherd/cli test
 pnpm --filter @happyherd/cli test:session-continuity
-pnpm --filter happy-app exec tsx sources/scripts/parseChangelog.ts
+pnpm --filter happyherd-app exec tsx sources/scripts/parseChangelog.ts
 ```
 
 The script regression archives the pre-rename repository (`CLI_RENAME_BASE`,

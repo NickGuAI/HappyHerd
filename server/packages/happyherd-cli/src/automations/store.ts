@@ -14,7 +14,7 @@ import {
   type HappyHerdAutomationListResponse,
   type HappyHerdAutomationRun,
   type HappyHerdAutomationUpdateInput,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { agentContextRoot } from '@/agentContext/commanderContext';
 import { assertValidCron, assertValidTimezone } from './cronValidation';
 

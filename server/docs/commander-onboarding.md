@@ -57,7 +57,7 @@ does not generate placeholder identity or memory content.
 - Files are written to a private staging directory and renamed into place only
   after validation and all writes succeed. A failed or interrupted command
   leaves no discoverable partial Commander.
-- `HAPPY_HOME_DIR` selects the local machine store. Creation on one machine does
+- `HAPPYHERD_HOME_DIR` selects the local machine store. Creation on one machine does
   not publish to any other machine or to the HappyHerd server.
 
 The resulting tree is:

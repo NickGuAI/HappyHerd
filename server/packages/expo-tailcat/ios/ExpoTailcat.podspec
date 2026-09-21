@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.summary = package['description']
   s.description = package['description']
   s.license = { :type => 'MIT', :file => '../LICENSE' }
-  s.author = 'Happy contributors'
+  s.author = 'HappyHerd contributors'
   s.homepage = 'https://github.com/slopus/happy/tree/main/packages/expo-tailcat'
   s.platforms = { :ios => '15.1' }
   s.swift_version = '5.0'

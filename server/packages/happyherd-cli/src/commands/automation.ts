@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import {
   type HappyHerdAutomationCreateInput,
   type HappyHerdAutomationUpdateInput,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { daemonAutomationAction } from '@/daemon/controlClient';
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning';
 

@@ -11,7 +11,7 @@ import {
   type GrokPermissionModeTransitionRequest,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdAutomationRun,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import { ApiClient } from '@/api/api';
 import { DefaultAssistantApi } from '@/api/defaultAssistant';
@@ -19,7 +19,7 @@ import { DefaultAssistantBootstrap, hasAssistantProviderIdentity, type DefaultAs
 import { ensureDefaultAssistantCommander } from '@/agentContext/defaultAssistant';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata, type Session } from '@/api/types';
-import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@slopus/happy-wire';
+import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@happyherd/wire';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
@@ -70,7 +70,7 @@ import {
   machineSessionSettingsEnvironment,
   persistedMachineSessionSettingsMatch,
 } from './sessionLaunchSettings';
-import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
+import type { HappyHerdMachineSessionSettings } from '@happyherd/wire';
 import {
   createChildSideChat,
   formatSideChatDelegationPrompt,
@@ -257,8 +257,8 @@ export async function startDaemon(): Promise<void> {
   // In case the setup malfunctions - our signal handlers will not properly
   // shut down. We will force exit the process with code 1.
   let credentialAccounts: CredentialAccountManager | undefined;
-  let requestShutdown: (source: 'happy-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string) => void;
-  let resolvesWhenShutdownRequested = new Promise<({ source: 'happy-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string })>((resolve) => {
+  let requestShutdown: (source: 'happyherd-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string) => void;
+  let resolvesWhenShutdownRequested = new Promise<({ source: 'happyherd-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string })>((resolve) => {
     requestShutdown = (source, errorMessage) => {
       logger.debug(`[DAEMON RUN] Requesting shutdown (source: ${source}, errorMessage: ${errorMessage})`);
 
@@ -1979,7 +1979,7 @@ export async function startDaemon(): Promise<void> {
       resumeSession,
       stopSession,
       changeGrokPermissionMode,
-      requestShutdown: () => requestShutdown('happy-app'),
+      requestShutdown: () => requestShutdown('happyherd-app'),
       automations,
       sideChat: (request) => manageLocalSideChat(request),
       credentialAccounts: activeCredentialAccounts,
@@ -2533,7 +2533,7 @@ export async function startDaemon(): Promise<void> {
     }, heartbeatIntervalMs); // Every 60 seconds in production
 
     // Setup signal handlers
-    const cleanupAndShutdown = async (source: 'happy-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string) => {
+    const cleanupAndShutdown = async (source: 'happyherd-app' | 'happy-cli' | 'os-signal' | 'exception', errorMessage?: string) => {
       logger.debug(`[DAEMON RUN] Starting proper cleanup (source: ${source}, errorMessage: ${errorMessage})...`);
 
       // Clear health check interval

@@ -1,5 +1,5 @@
 import os from 'node:os';
-import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
+import type { HappyHerdCommanderSummary } from '@happyherd/wire';
 import { listCommanders } from './commanderContext';
 import { createCommanderFromManifest } from '@/commands/commander';
 import { defaultAssistantCommanderMarkdown, DEFAULT_ASSISTANT_ROLE } from './defaultAssistantTemplate';

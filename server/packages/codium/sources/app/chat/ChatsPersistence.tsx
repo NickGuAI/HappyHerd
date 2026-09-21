@@ -19,7 +19,7 @@ import {
 
 /**
  * Mount-once side-effect component that:
- *   - loads persisted chats from <Happy home>/state.sqlite on boot
+ *   - loads persisted chats from <HappyHerd home>/state.sqlite on boot
  *   - subscribes to chat changes and writes them back, debounced
  *
  * Renders nothing. Sits at the root of the app tree.

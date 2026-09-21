@@ -92,7 +92,7 @@ Orchestrating Agent can inspect or close the exact conversation.
 `inspect`, `pause`, and `resume` are aliases for `status`, `stop`, and
 `reopen`; lifecycle receipts keep the canonical action names. Claude, Codex,
 and Grok retain provider-native resume. Gemini, DSH, and Agy reopen the same
-Happy session with a fresh same-provider process seeded from bounded visible
+HappyHerd session with a fresh same-provider process seeded from bounded visible
 child context; do not describe that behavior as native provider resume. The
 dedicated Gemini side-chat path does not re-enable ordinary Gemini launch UI.
 

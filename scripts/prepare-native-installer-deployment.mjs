@@ -12,7 +12,7 @@ import {
 import { createRequire } from 'node:module';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-const packageNames = new Set(['@happyherd/cli', 'happy-server-self-host']);
+const packageNames = new Set(['@happyherd/cli', 'happyherd-server-self-host']);
 const dependencyFields = [
   'dependencies',
   'devDependencies',
@@ -77,9 +77,9 @@ function configure(payload, serverRoot, packageName) {
 
 function workspaceVersions(serverRoot) {
   const packagePaths = [
-    'packages/happy-wire/package.json',
-    'packages/happy-agent/package.json',
-    'packages/happy-server-self-host/package.json',
+    'packages/happyherd-wire/package.json',
+    'packages/happyherd-control-agent/package.json',
+    'packages/happyherd-server-self-host/package.json',
     'packages/happyherd-cli/package.json',
   ];
   return new Map(packagePaths.map((path) => {
@@ -133,8 +133,8 @@ function finalize(payload, serverRoot, packageName) {
 
   const versions = workspaceVersions(serverRoot);
   rewriteWorkspaceReferences(packagePath, versions);
-  rewriteWorkspaceReferences(join(payload, 'node_modules', 'happy-agent', 'package.json'), versions);
-  rewriteWorkspaceReferences(join(payload, 'node_modules', '@slopus', 'happy-wire', 'package.json'), versions);
+  rewriteWorkspaceReferences(join(payload, 'node_modules', 'happyherd-control-agent', 'package.json'), versions);
+  rewriteWorkspaceReferences(join(payload, 'node_modules', '@slopus', 'happyherd-wire', 'package.json'), versions);
 
   const finalizedPackage = readJson(packagePath);
   delete finalizedPackage.devDependencies;

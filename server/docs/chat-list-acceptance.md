@@ -27,11 +27,11 @@ off by default. The Legend List experiment is deleted; its lessons live in
 - **A5 — keyboard.** Opening the keyboard translates the view once. No
   double-move, no flash of content under the keyboard, no stuck offset.
 
-## B. Performance budgets (enforced by `pnpm --filter happy-app perf:e2e`)
+## B. Performance budgets (enforced by `pnpm --filter happyherd-app perf:e2e`)
 
 Measured on the iOS simulator, dev-client build, against the account's **10
 most recent real sessions** — no fixtures, no synthetic data. The harness
-deep-links `happy://session/<id>`, reads `[perf]` lines from Metro, and fails
+deep-links `happyherd://session/<id>`, reads `[perf]` lines from Metro, and fails
 the run when any budget is broken.
 
 - **B1 — no long JS blocks.** The **worst** ChatList commit for a session ≤

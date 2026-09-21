@@ -15,7 +15,7 @@ import type { AgentState, Metadata } from '@/api/types';
 import {
     HappyHerdMachineSessionSettingsSchema,
     type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { configuration } from '@/configuration';
 import { projectPath } from '@/projectPath';
 import type { SandboxConfig } from '@/persistence';

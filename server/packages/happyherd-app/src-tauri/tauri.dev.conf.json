@@ -1,0 +1,20 @@
+{
+  "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "HappyHerd (dev)",
+  "identifier": "app.happyherd.client.dev",
+  "app": {
+    "windows": [
+      {
+        "title": "HappyHerd (dev)",
+        "width": 1680,
+        "height": 1050,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 22,
+          "y": 22
+        },
+        "hiddenTitle": true
+      }
+    ]
+  }
+}

@@ -3,7 +3,7 @@ import type { ActorAuthorizer } from './authorization';
 import { CapabilityRegistry, createCapabilityId } from './capabilities';
 import type { BridgeConfig } from './config';
 import type { DiscordReplyTransport } from './discord';
-import type { HappySessionRuntime } from './happy';
+import type { HappyHerdSessionRuntime } from './happyherd';
 import { evaluateMessagePolicy } from './policy';
 import type { BridgeStore } from './store';
 import type {
@@ -12,7 +12,7 @@ import type {
   NormalizedDiscordMessage,
   SurfaceBinding,
 } from './types';
-import type { TurnResult } from 'happy-agent/control';
+import type { TurnResult } from 'happyherd-control-agent/control';
 
 export type BridgeLogger = (event: string, fields?: Record<string, unknown>) => void;
 
@@ -83,7 +83,7 @@ export class DiscordAgentBridge {
   private readonly store: BridgeStore;
   private readonly authorizer: ActorAuthorizer;
   private readonly capabilities: CapabilityRegistry;
-  private readonly happy: HappySessionRuntime;
+  private readonly happyherd: HappyHerdSessionRuntime;
   private readonly discord: DiscordReplyTransport;
   private readonly logger: BridgeLogger;
   private readonly queue = new KeyedSerialQueue();
@@ -93,7 +93,7 @@ export class DiscordAgentBridge {
     store: BridgeStore;
     authorizer: ActorAuthorizer;
     capabilities: CapabilityRegistry;
-    happy: HappySessionRuntime;
+    happyherd: HappyHerdSessionRuntime;
     discord: DiscordReplyTransport;
     logger?: BridgeLogger;
   }) {
@@ -101,7 +101,7 @@ export class DiscordAgentBridge {
     this.store = options.store;
     this.authorizer = options.authorizer;
     this.capabilities = options.capabilities;
-    this.happy = options.happy;
+    this.happyherd = options.happyherd;
     this.discord = options.discord;
     this.logger = options.logger ?? (() => {});
   }
@@ -162,7 +162,7 @@ export class DiscordAgentBridge {
       });
     }
     this.capabilities.activate(binding, grant, message.sourceMessageId);
-    const ensured = await this.happy.ensureSession(binding);
+    const ensured = await this.happyherd.ensureSession(binding);
     if (binding.happySessionId !== ensured.sessionId) {
       binding = await this.store.bindSurface({
         ...binding,
@@ -176,7 +176,7 @@ export class DiscordAgentBridge {
   private async waitForExistingTurn(record: InboundRecord): Promise<TurnResult | null> {
     const deadline = Date.now() + this.config.turnTimeoutMs;
     do {
-      const recovered = await this.happy.recoverTurn(record);
+      const recovered = await this.happyherd.recoverTurn(record);
       if (recovered.result) {
         return recovered.result;
       }
@@ -318,16 +318,16 @@ export class DiscordAgentBridge {
         }
       }
 
-      const history = await this.happy.history(sessionId);
+      const history = await this.happyherd.history(sessionId);
       const baselineSequence = history.reduce((maximum, item) => Math.max(maximum, item.seq), 0);
       record = await this.store.updateInbound(record.sourceMessageId, {
         status: 'turn-pending',
         happySessionId: sessionId,
         baselineSequence,
       });
-      const result = await this.happy.sendTurn({
+      const result = await this.happyherd.sendTurn({
         sessionId,
-        localId: record.happyLocalId,
+        localId: record.happyherdLocalId,
         text: agentPrompt(message, decision),
         sourceMessageId: message.sourceMessageId,
       });

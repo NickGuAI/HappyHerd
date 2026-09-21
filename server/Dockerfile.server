@@ -14,30 +14,30 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY scripts ./scripts
 COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-server packages/happyherd-cli packages/happy-wire
+RUN mkdir -p packages/happyherd-app packages/happyherd-server packages/happyherd-cli packages/happyherd-wire
 
-COPY packages/happy-app/package.json packages/happy-app/
-COPY packages/happy-server/package.json packages/happy-server/
+COPY packages/happyherd-app/package.json packages/happyherd-app/
+COPY packages/happyherd-server/package.json packages/happyherd-server/
 COPY packages/happyherd-cli/package.json packages/happyherd-cli/
-COPY packages/happy-wire/package.json packages/happy-wire/
+COPY packages/happyherd-wire/package.json packages/happyherd-wire/
 
 # Workspace postinstall requirements
-COPY packages/happy-app/patches packages/happy-app/patches
-COPY packages/happy-app/scripts/setup-pdfjs-web.mjs packages/happy-app/scripts/setup-pdfjs-web.mjs
-COPY packages/happy-server/prisma packages/happy-server/prisma
+COPY packages/happyherd-app/patches packages/happyherd-app/patches
+COPY packages/happyherd-app/scripts/setup-pdfjs-web.mjs packages/happyherd-app/scripts/setup-pdfjs-web.mjs
+COPY packages/happyherd-server/prisma packages/happyherd-server/prisma
 COPY packages/happyherd-cli/scripts packages/happyherd-cli/scripts
 COPY packages/happyherd-cli/tools packages/happyherd-cli/tools
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 pnpm install --frozen-lockfile
+RUN SKIP_HAPPYHERD_WIRE_BUILD=1 pnpm install --frozen-lockfile
 
 # Stage 2: build the server
 FROM deps AS builder
 
-COPY packages/happy-wire ./packages/happy-wire
-COPY packages/happy-server ./packages/happy-server
+COPY packages/happyherd-wire ./packages/happyherd-wire
+COPY packages/happyherd-server ./packages/happyherd-server
 
-RUN pnpm --filter @slopus/happy-wire --fail-if-no-match build
-RUN pnpm --filter happy-server --fail-if-no-match build
+RUN pnpm --filter @happyherd/wire --fail-if-no-match build
+RUN pnpm --filter happyherd-server --fail-if-no-match build
 
 # Stage 3: runtime
 FROM node:20 AS runner
@@ -53,13 +53,13 @@ ENV NODE_ENV=production
 
 # Copy necessary files from the builder stage
 COPY --from=builder /repo/node_modules /repo/node_modules
-COPY --from=builder /repo/packages/happy-wire /repo/packages/happy-wire
-COPY --from=builder /repo/packages/happy-server /repo/packages/happy-server
+COPY --from=builder /repo/packages/happyherd-wire /repo/packages/happyherd-wire
+COPY --from=builder /repo/packages/happyherd-server /repo/packages/happyherd-server
 
 # Expose the port the app will run on
 EXPOSE 3000
 
 # Command to run the application
 COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml /repo/
-WORKDIR /repo/packages/happy-server
+WORKDIR /repo/packages/happyherd-server
 CMD ["pnpm", "run", "start"]

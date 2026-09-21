@@ -2,7 +2,7 @@
 
 ## Context
 
-Plan mode buttons (accept/reject) don't reliably appear in the Happy app UI. Root cause: the CLI's `permissionHandler.handleToolCall` auto-approves ExitPlanMode when `permissionMode` is stale (`bypassPermissions` from a prior session), and `reset()` never clears `permissionMode`. Additionally, `isAborted` always returns true for ExitPlanMode as part of a PLAN_FAKE_RESTART hack, which causes a dead-end when the tool is auto-approved without injecting a restart message.
+Plan mode buttons (accept/reject) don't reliably appear in the HappyHerd app UI. Root cause: the CLI's `permissionHandler.handleToolCall` auto-approves ExitPlanMode when `permissionMode` is stale (`bypassPermissions` from a prior session), and `reset()` never clears `permissionMode`. Additionally, `isAborted` always returns true for ExitPlanMode as part of a PLAN_FAKE_RESTART hack, which causes a dead-end when the tool is auto-approved without injecting a restart message.
 
 The current custom SDK (`src/claude/sdk/`) reimplements what `@anthropic-ai/claude-agent-sdk` now provides natively, including `toolUseID` in `canUseTool` (eliminates our 1-second delay hack) and `setPermissionMode()` (eliminates the session-restart-on-mode-change hack).
 
@@ -64,7 +64,7 @@ Replace custom types with re-exports from the Agent SDK:
 - `CanCallToolCallback` → `CanUseTool` from agent-sdk (now receives `options.toolUseID`)
 - `QueryOptions` → from agent-sdk `Options`
 - `PermissionResult` → from agent-sdk
-- Keep any Happy-specific extensions as wrappers
+- Keep any HappyHerd-specific extensions as wrappers
 
 ### 2c. Migrate query.ts
 
@@ -141,7 +141,7 @@ Depends on Part 2 being complete.
 
 **File:** `src/claude/planMode.integration.test.ts`
 
-Three tests against an isolated `/tmp/happy-testing-ground-<random>/` fixture with `hello-world.js` in a git repo:
+Three tests against an isolated `/tmp/happyherd-testing-ground-<random>/` fixture with `hello-world.js` in a git repo:
 
 1. **Plan approval** → ExitPlanMode received by canCallTool, plan input has content, Claude edits the file
 2. **Plan denial** → file untouched after deny

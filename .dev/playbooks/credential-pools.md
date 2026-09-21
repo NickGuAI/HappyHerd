@@ -14,7 +14,7 @@ account selection
   → publish stable account ID + credential version in session metadata
   → provider reports a hard quota limit
   → daemon accepts or ignores the exact notice
-  → accepted notice marks/selects account and resumes the same Happy session
+  → accepted notice marks/selects account and resumes the same HappyHerd session
   → provider resumes its retained native conversation/state home
   → a later Human/heartbeat turn uses the replacement account
 ```
@@ -28,7 +28,7 @@ exhausted, unchanged, or failed outcomes are separate evidence.
 
 | Provider | Credential source | Stable native identity | State home retained on resume | Rotation ownership |
 |---|---|---|---|---|
-| Claude | named OAuth token in the pool | `claudeSessionId` | provider-native session plus Happy reconnect state | session metadata must carry display name, stable account ID, and credential version |
+| Claude | named OAuth token in the pool | `claudeSessionId` | provider-native session plus HappyHerd reconnect state | session metadata must carry display name, stable account ID, and credential version |
 | Codex | registered auth read under the pool lock and supplied to the native ephemeral app-server store | `codexThreadId` | exact saved `CODEX_HOME` | native auth stays in memory; account ID/version guards reject stale processes |
 | Grok | per-account stored `auth.json` copied to a credential ID/version-bound runtime file and passed as `GROK_AUTH_PATH` | `acpSessionId` | exact saved `GROK_HOME` | version-bound files prevent stale processes from writing back another account's auth |
 

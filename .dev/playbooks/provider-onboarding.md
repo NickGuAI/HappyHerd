@@ -52,16 +52,16 @@ plan:
 
 | Question | Required answer |
 |---|---|
-| Source | Provider help/catalog, ACP configuration, or Happy-owned policy |
+| Source | Provider help/catalog, ACP configuration, or HappyHerd-owned policy |
 | Delivery | Process launch flag, runtime selector, or both |
 | User promise | Interactive, deny-without-prompt, or no-prompt allow |
-| Callback owner | Provider handles it, Happy asks, Happy allows, or Happy denies |
+| Callback owner | Provider handles it, HappyHerd asks, HappyHerd allows, or HappyHerd denies |
 | Resume behavior | How the selected policy is restored and verified |
 | Failure behavior | What happens for an unknown mode or absent allow/reject option |
 
 Launch policy and provider operating mode are independent unless the provider
 explicitly defines them as one setting. For every non-interactive mode, test a
-provider permission callback after startup: Happy must not add a pending
+provider permission callback after startup: HappyHerd must not add a pending
 request. An allow-without-prompt mode may select only an allow option the
 provider advertised; a deny-without-prompt mode selects an advertised reject
 or cancels. An unknown provider or mode fails safe rather than inheriting
@@ -96,8 +96,8 @@ the selected exact-daemon catalog or provider adapter before execution.
 
 Audit together:
 
-- `server/packages/happy-wire/src/messageMeta.ts`;
-- `server/packages/happy-app/sources/sync/typesMessageMeta.ts`;
+- `server/packages/happyherd-wire/src/messageMeta.ts`;
+- `server/packages/happyherd-app/sources/sync/typesMessageMeta.ts`;
 - `server/packages/happyherd-cli/src/api/types.ts` and `apiSession.ts`;
 - capability validation, daemon spawn, and the provider adapter.
 
@@ -129,7 +129,7 @@ when the supported outcome requires it.
 
 The current generic ACP path is
 `AcpBackend.ts` → `sessionUpdateHandlers.ts` → `AgentMessage.ts` →
-`AcpSessionManager.ts` → `happy-wire/src/sessionProtocol.ts` → app
+`AcpSessionManager.ts` → `happyherd-wire/src/sessionProtocol.ts` → app
 `typesRaw.ts`/reducer → `components/tools/ToolView.tsx` and
 `utils/toolDisplay.ts`.
 
@@ -153,7 +153,7 @@ For an interactive mode, it records the expected prompt. For tool rendering,
 use an unfamiliar native tool name so the generic path—not a provider-specific
 registry—proves correctness.
 
-Run the focused tests first, then the affected wire, `@happyherd/cli`, and `happy-app`
+Run the focused tests first, then the affected wire, `@happyherd/cli`, and `happyherd-app`
 package checks from [`../VERIFY.md`](../VERIFY.md). Record unavailable live
 prerequisites explicitly; do not replace missing behavioral proof with argv or
 snapshot assertions.

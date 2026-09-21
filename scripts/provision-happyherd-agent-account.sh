@@ -5,7 +5,7 @@ BRIDGE_ENV="${1:-/etc/happyherd-agent/bridge.env}"
 DAEMON_ENV="${2:-/etc/happyherd-agent/daemon.env}"
 BRIDGE_USER=happyherd-agent-bridge
 AGENT_USER=happyherd-agent-runtime
-BRIDGE_KEY=/var/lib/happyherd-agent-bridge/happy-agent/agent.key
+BRIDGE_KEY=/var/lib/happyherd-agent-bridge/happyherd-control-agent/agent.key
 DAEMON_KEY=/var/lib/happyherd-agent-runtime/happy-home/access.key
 DAEMON_SETTINGS=/var/lib/happyherd-agent-runtime/happy-home/settings.json
 DAEMON_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
@@ -27,9 +27,9 @@ set -a
 # shellcheck disable=SC1090
 source "$BRIDGE_ENV"
 set +a
-[[ "${HAPPY_SERVER_URL:-}" == https://* ]] || die 'HAPPY_SERVER_URL must use HTTPS'
+[[ "${HAPPYHERD_SERVER_URL:-}" == https://* ]] || die 'HAPPYHERD_SERVER_URL must use HTTPS'
 
-export HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL="$HAPPY_SERVER_URL"
+export HAPPYHERD_AGENT_PROVISION_HAPPYHERD_SERVER_URL="$HAPPYHERD_SERVER_URL"
 export HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY="$BRIDGE_KEY"
 export HAPPYHERD_AGENT_PROVISION_DAEMON_KEY="$DAEMON_KEY"
 export HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT="$DAEMON_ROOT"
@@ -39,7 +39,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const tweetnacl = require(`${process.env.HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT}/node_modules/tweetnacl`);
 
-const serverUrl = new URL(process.env.HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL);
+const serverUrl = new URL(process.env.HAPPYHERD_AGENT_PROVISION_HAPPYHERD_SERVER_URL);
 if (serverUrl.protocol !== 'https:' || serverUrl.username || serverUrl.password) {
   throw new Error('Dedicated HappyHerd account endpoint must be credential-free HTTPS');
 }
@@ -114,7 +114,7 @@ const writeAtomicExclusive = (target, value) => {
   process.exit(1);
 });
 NODE
-unset HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY \
+unset HAPPYHERD_AGENT_PROVISION_HAPPYHERD_SERVER_URL HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY \
     HAPPYHERD_AGENT_PROVISION_DAEMON_KEY HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT
 
 chown "$BRIDGE_USER:$BRIDGE_USER" "$BRIDGE_KEY"
@@ -124,9 +124,9 @@ chmod 0600 "$DAEMON_KEY"
 
 runuser -u "$AGENT_USER" -- env -i \
     HOME=/var/lib/happyherd-agent-runtime \
-    HAPPY_SERVER_URL="$HAPPY_SERVER_URL" \
-    HAPPY_WEBAPP_URL="$HAPPY_SERVER_URL" \
-    HAPPY_HOME_DIR=/var/lib/happyherd-agent-runtime/happy-home \
+    HAPPYHERD_SERVER_URL="$HAPPYHERD_SERVER_URL" \
+    HAPPYHERD_WEBAPP_URL="$HAPPYHERD_SERVER_URL" \
+    HAPPYHERD_HOME_DIR=/var/lib/happyherd-agent-runtime/happy-home \
     PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:/usr/local/bin:/usr/bin:/bin" \
     SHELL=/bin/bash \
     /usr/bin/node "$DAEMON_CLI" auth login

@@ -22,7 +22,7 @@ import {
   type HappyHerdHeartbeatAutomation,
   type HappyHerdHeartbeatControlInput,
   type HappyHerdHeartbeatControlResponse,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import type { Session } from '@/api/types';
 import type { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';

@@ -227,7 +227,7 @@ scenes.push({
     '@/text': english,
     '@/sync/storage': `export const useSession=()=>({id:'copy-session',metadata:{flavor:'codex',machineId:'machine-287',path:'/workspace/happyherd',codexThreadId:'thread-287'}});`,
     '@/sync/ops': `export const codexListRewindPoints=async()=>({type:'success',points:[{itemId:'first',text:'Inspect the current project and explain its main modules.',timestamp:1789822800000},{itemId:'second',text:'Add a focused regression test for the restore form.',timestamp:1789823100000}]});export const claudeListRewindPoints=codexListRewindPoints;export const forkAndSpawn=async()=>({type:'success',sessionId:'synthetic'});`,
-    '@/hooks/useHappyAction': `import React from 'react';export const useHappyAction=fn=>[false,React.useCallback(fn,[fn])];`,
+    '@/hooks/useHappyHerdAction': `import React from 'react';export const useHappyHerdAction=fn=>[false,React.useCallback(fn,[fn])];`,
   },
   sourcePaths: source(['DuplicateSheet']), ready: '#root',
   prepare: async page => { await page.getByText('Add a focused regression test for the restore form.', { exact: true }).waitFor(); },
@@ -250,7 +250,7 @@ scenes.push({
   sourcePaths:source(['ConnectButton']),ready:'input',
   limitations:['The Authenticate Terminal title remains ellipsized in its fixed 210 px container; a rendered comparison against baseline 189c504b confirmed that title truncation predates this redesign. The manual URL input overflow introduced by the 16 px mono typography is fixed with minWidth:0. Each capture asserts the input and confirmation control remain within the card while retaining 16 px JetBrains Mono.'],
   prepare:async(page,viewport)=>{
-    await page.locator('input').fill('happy://terminal?publicKey=synthetic-preview');
+    await page.locator('input').fill('happyherd://terminal?publicKey=synthetic-preview');
     const measurement=await page.locator('input').evaluate(input=>{
       const row=input.parentElement;
       const card=row.parentElement;
@@ -259,7 +259,7 @@ scenes.push({
       const font=getComputedStyle(input);
       return{value:input.value,card:rect(card),input:rect(input),confirmationButton:rect(confirmationButton),fontSize:font.fontSize,fontFamily:font.fontFamily,minWidth:font.minWidth};
     });
-    if(measurement.value!=='happy://terminal?publicKey=synthetic-preview')throw new Error('Terminal URL draft changed while resizing: '+JSON.stringify(measurement));
+    if(measurement.value!=='happyherd://terminal?publicKey=synthetic-preview')throw new Error('Terminal URL draft changed while resizing: '+JSON.stringify(measurement));
     const fits=(inner,outer)=>inner.left>=outer.left-.5&&inner.right<=outer.right+.5&&inner.top>=outer.top-.5&&inner.bottom<=outer.bottom+.5;
     if(!fits(measurement.input,measurement.card)||!fits(measurement.confirmationButton,measurement.card))throw new Error('Terminal URL input or confirmation button exceeds its card: '+JSON.stringify(measurement));
     if(measurement.fontSize!=='16px'||!measurement.fontFamily.includes('JetBrainsMono'))throw new Error('Terminal URL input lost 16px mono typography: '+JSON.stringify(measurement));
@@ -291,7 +291,7 @@ scenes.push({
   id:'navigation-bars',label:'Navigation · header, tab bar and new-session action',fixture:projects,
   modules:navigationModules,removeModules:['@/components/TabBar','@/components/navigation/Header'],
   sourcePaths:source(['components/navigation/Header.tsx','TabBar','FABWide']),ready:'#navigation-bars',
-  entrySource:`import React from'react';import{createRoot}from'react-dom/client';import{View,Pressable}from'react-native';import{Ionicons}from'@expo/vector-icons';import{useUnistyles}from'react-native-unistyles';import{Header}from'@/components/navigation/Header';import{TabBar}from'@/components/TabBar';import{FABWide}from'@/components/FABWide';function App(){const{theme}=useUnistyles();const[tab,setTab]=React.useState('sessions');return <div id="navigation-bars" style={{height:'100vh',display:'flex',flexDirection:'column'}}><Header title="Happy" subtitle="Project Beacon" headerLeft={()=> <Ionicons name="menu" size={24} color={theme.colors.text}/>} headerRight={()=> <Ionicons name="search" size={22} color={theme.colors.text}/>}/><View style={{flex:1}}><FABWide onPress={()=>{}}/></View><TabBar activeTab={tab} onTabPress={setTab} inboxBadgeCount={2}/></div>};createRoot(document.getElementById('root')).render(<App/>);`,
+  entrySource:`import React from'react';import{createRoot}from'react-dom/client';import{View,Pressable}from'react-native';import{Ionicons}from'@expo/vector-icons';import{useUnistyles}from'react-native-unistyles';import{Header}from'@/components/navigation/Header';import{TabBar}from'@/components/TabBar';import{FABWide}from'@/components/FABWide';function App(){const{theme}=useUnistyles();const[tab,setTab]=React.useState('sessions');return <div id="navigation-bars" style={{height:'100vh',display:'flex',flexDirection:'column'}}><Header title="HappyHerd" subtitle="Project Beacon" headerLeft={()=> <Ionicons name="menu" size={24} color={theme.colors.text}/>} headerRight={()=> <Ionicons name="search" size={22} color={theme.colors.text}/>}/><View style={{flex:1}}><FABWide onPress={()=>{}}/></View><TabBar activeTab={tab} onTabPress={setTab} inboxBadgeCount={2}/></div>};createRoot(document.getElementById('root')).render(<App/>);`,
   limitations:['The panel arranges production navigation components in an isolated browser frame; native gesture animation and glass effects are not exercised.'],
 });
 scenes.push({

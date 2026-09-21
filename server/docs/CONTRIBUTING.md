@@ -1,6 +1,6 @@
-# Contributing to Happy
+# Contributing to HappyHerd
 
-Happy is built by engineers who use AI coding tools all day — and we built Happy so we could use them from anywhere. Contributions that make Happy better for that workflow are welcome.
+HappyHerd is built by engineers who use AI coding tools all day — and we built HappyHerd so we could use them from anywhere. Contributions that make HappyHerd better for that workflow are welcome.
 
 If you don't get a response on your PR or issue, tag **@bra1ndump**.
 
@@ -55,35 +55,35 @@ Every issue should start with a **one-paragraph summary** of the problem. Don't 
 
 ```bash
 git clone https://github.com/slopus/happy.git
-cd happy
+cd happyherd
 pnpm install
 ```
 
-### Happy App (Mobile + Web)
+### HappyHerd App (Mobile + Web)
 
 ```bash
-pnpm --filter happy-app start          # Expo dev server
-pnpm --filter happy-app ios:dev        # iOS simulator
-pnpm --filter happy-app android:dev    # Android emulator
+pnpm --filter happyherd-app start          # Expo dev server
+pnpm --filter happyherd-app ios:dev        # iOS simulator
+pnpm --filter happyherd-app android:dev    # Android emulator
 pnpm web                                # Browser (shortcut)
-pnpm --filter happy-app typecheck      # Run after all changes
+pnpm --filter happyherd-app typecheck      # Run after all changes
 ```
 
 The app has three build variants — all can be installed simultaneously on the same device:
 
 | Variant | Bundle ID | App Name | Use Case |
 |---------|-----------|----------|----------|
-| Development | `com.slopus.happy.dev` | Happy (dev) | Local development with hot reload |
-| Preview | `com.slopus.happy.preview` | Happy (preview) | Beta testing & OTA updates |
-| Production | `com.ex3ndr.happy` | Happy | App Store release |
+| Development | `com.slopus.happy.dev` | HappyHerd (dev) | Local development with hot reload |
+| Preview | `com.slopus.happy.preview` | HappyHerd (preview) | Beta testing & OTA updates |
+| Production | `com.ex3ndr.happy` | HappyHerd | App Store release |
 
 Swap `ios:dev` for `ios:preview` or `ios:production` (same for `android:`).
 
 #### macOS Desktop (Tauri)
 
 ```bash
-pnpm --filter happy-app tauri:dev      # Run with hot reload
-pnpm --filter happy-app tauri:build:dev
+pnpm --filter happyherd-app tauri:dev      # Run with hot reload
+pnpm --filter happyherd-app tauri:build:dev
 ```
 
 ### HappyHerd CLI
@@ -101,30 +101,30 @@ It reuses `~/.happyherd/` (auth, sessions) — no separate dev home. To undo:
 npm unlink -g @happyherd/cli && npm install -g @happyherd/cli@latest
 ```
 
-To sandbox dev data, set `HAPPY_HOME_DIR=~/.happy-dev` in your shell before running `happyherd`.
+To sandbox dev data, set `HAPPYHERD_HOME_DIR=~/.happyherd-dev` in your shell before running `happyherd`.
 
-### Happy Server
+### HappyHerd Server
 
 ```bash
-pnpm --filter ./packages/happy-server --fail-if-no-match standalone:dev   # Local server (no Docker needed)
+pnpm --filter ./packages/happyherd-server --fail-if-no-match standalone:dev   # Local server (no Docker needed)
 ```
 
 Runs on `localhost:3005` with embedded PGlite. To point the app at your local server:
 
 ```bash
-EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 pnpm --filter happy-app start
+EXPO_PUBLIC_HAPPYHERD_SERVER_URL=http://localhost:3005 pnpm --filter happyherd-app start
 ```
 
 ## Project Structure
 
 This is a monorepo with four packages:
 
-- **happy-app** — React Native + Expo mobile/web client
+- **happyherd-app** — React Native + Expo mobile/web client
 - **happyherd-cli** — Node.js CLI that wraps Claude Code and Codex
-- **happy-agent** — Remote agent control
-- **happy-server** — Backend for encrypted sync
+- **happyherd-control-agent** — Remote agent control
+- **happyherd-server** — Backend for encrypted sync
 
-For architecture details, check the [docs/](.) folder or ask Happy itself — it knows how the project is set up.
+For architecture details, check the [docs/](.) folder or ask HappyHerd itself — it knows how the project is set up.
 
 ## Community
 

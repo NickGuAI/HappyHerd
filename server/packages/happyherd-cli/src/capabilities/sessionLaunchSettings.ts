@@ -2,7 +2,7 @@ import {
     HappyHerdMachineSessionSettingsSchema,
     type HappyHerdMachineSessionProvider,
     type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import {
     AgentCapabilityCatalogSchema,

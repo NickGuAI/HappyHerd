@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const roots = [
     path.resolve(__dirname, '..', 'node_modules', '@shopify', 'flash-list'),
-    path.resolve(__dirname, '..', 'packages', 'happy-app', 'node_modules', '@shopify', 'flash-list'),
+    path.resolve(__dirname, '..', 'packages', 'happyherd-app', 'node_modules', '@shopify', 'flash-list'),
 ];
 let patched = 0;
 for (const root of roots) {

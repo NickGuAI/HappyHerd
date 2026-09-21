@@ -75,7 +75,7 @@ describe('resolveLocalReconnectableSession', () => {
         });
     });
 
-    it('reports missing local encryption data without suggesting happy-agent auth login', async () => {
+    it('reports missing local encryption data without suggesting happyherd-control-agent auth login', async () => {
         mocks.mockReadPersistedSessions.mockReturnValue({});
 
         let thrown: unknown;
@@ -87,7 +87,7 @@ describe('resolveLocalReconnectableSession', () => {
 
         expect(thrown).toBeInstanceOf(LocalResumeSessionError);
         expect((thrown as Error).message).toContain('/tmp/.happyherd/sessions.json');
-        expect((thrown as Error).message).not.toContain('happy-agent auth login');
+        expect((thrown as Error).message).not.toContain('happyherd-control-agent auth login');
     });
 });
 

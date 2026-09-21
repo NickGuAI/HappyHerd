@@ -1,4 +1,4 @@
-import type { HappyHerdAutomation } from '@slopus/happy-wire';
+import type { HappyHerdAutomation } from '@happyherd/wire';
 
 type AutomationRail = Exclude<HappyHerdAutomation['rail'], 'exec'>;
 

@@ -4,7 +4,7 @@
  * The renderer keeps live state in jotai. On boot it asks main for the
  * persisted snapshot via `chats:load`; after each change it pushes the
  * snapshot back via `chats:save`. The snapshot is stored in
- * <Happy home>/state.sqlite.
+ * <HappyHerd home>/state.sqlite.
  * ──────────────────────────────────────────────────────────────────────── */
 import { app, ipcMain } from 'electron'
 import Database from 'better-sqlite3'

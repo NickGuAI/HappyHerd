@@ -16,7 +16,7 @@ export type BridgeConfig = {
   serviceSigningSecretFile: string;
   transportSecretFile: string;
   happyHomeDir: string;
-  happyMachineId: string;
+  happyherdMachineId: string;
   agentWorkspace: string;
   commanderId: string;
   stateDir: string;
@@ -104,7 +104,7 @@ function assertDedicatedPaths(config: Pick<BridgeConfig, 'happyHomeDir' | 'agent
     resolve(homedir(), 'App'),
   ];
   for (const [label, candidate] of [
-    ['HAPPY_HOME_DIR', config.happyHomeDir],
+    ['HAPPYHERD_HOME_DIR', config.happyHomeDir],
     ['HAPPYHERD_AGENT_WORKSPACE', config.agentWorkspace],
     ['HAPPYHERD_AGENT_STATE_DIR', config.stateDir],
   ] as const) {
@@ -113,7 +113,7 @@ function assertDedicatedPaths(config: Pick<BridgeConfig, 'happyHomeDir' | 'agent
     }
   }
   if (new Set([config.happyHomeDir, config.agentWorkspace, config.stateDir]).size !== 3) {
-    throw new Error('Happy home, agent workspace, and bridge state directories must be distinct');
+    throw new Error('HappyHerd home, agent workspace, and bridge state directories must be distinct');
   }
 }
 
@@ -148,8 +148,8 @@ export function loadBridgeConfig(env: NodeJS.ProcessEnv = process.env): BridgeCo
     agentId: env.HAPPYHERD_AGENT_ID?.trim() || 'happyherd-agent',
     serviceSigningSecretFile: absolutePath(env, 'HAPPYHERD_AGENT_SERVICE_SIGNING_SECRET_FILE'),
     transportSecretFile: absolutePath(env, 'HAPPYHERD_AGENT_TRANSPORT_SECRET_FILE'),
-    happyHomeDir: absolutePath(env, 'HAPPY_HOME_DIR'),
-    happyMachineId: required(env, 'HAPPYHERD_AGENT_MACHINE_ID'),
+    happyHomeDir: absolutePath(env, 'HAPPYHERD_HOME_DIR'),
+    happyherdMachineId: required(env, 'HAPPYHERD_AGENT_MACHINE_ID'),
     agentWorkspace: absolutePath(env, 'HAPPYHERD_AGENT_WORKSPACE'),
     commanderId: env.HAPPYHERD_AGENT_COMMANDER_ID?.trim() || 'team-agent',
     stateDir: absolutePath(env, 'HAPPYHERD_AGENT_STATE_DIR'),

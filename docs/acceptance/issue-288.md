@@ -34,27 +34,27 @@ macOS. Runtime and export checks also exercised the host's Node `26.6.0`.
 | Command | Result |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Passed; no lockfile change |
-| `pnpm --filter @slopus/happy-wire test` | 14 files, 80 tests passed |
+| `pnpm --filter @happyherd/wire test` | 14 files, 80 tests passed |
 | `pnpm --filter @happyherd/cli test` | 181 files, 1794 tests passed |
-| `pnpm --filter happy-app test --run` | 280 files, 2830 passed, 1 skipped |
+| `pnpm --filter happyherd-app test --run` | 280 files, 2830 passed, 1 skipped |
 | `pnpm --filter @happyherd/cli typecheck` | Passed |
-| `pnpm --filter happy-app typecheck` | Failed: four pre-existing TS2540 errors described below |
-| `pnpm --filter @slopus/happy-wire build` | Passed |
-| `pnpm --filter happy-agent build` | Passed |
+| `pnpm --filter happyherd-app typecheck` | Failed: four pre-existing TS2540 errors described below |
+| `pnpm --filter @happyherd/wire build` | Passed |
+| `pnpm --filter happyherd-control-agent build` | Passed |
 | `pnpm --filter @happyherd/cli build` | Passed |
-| `pnpm --filter ./packages/happy-server build` | Passed |
-| `pnpm --filter happy-app i18n:check` | Passed: 1572 keys in en/cn/de, zero hardcoded copy exceptions, 41 routes, 279 surfaces, 84 smoke cases |
-| `pnpm --filter happy-app exec tsx sources/scripts/parseChangelog.ts` | 142 entries; newest title: September 19 — Device codes for existing account machines |
-| `APP_ENV=production EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:61060 pnpm --filter happy-app exec expo export --platform web --output-dir dist` | Passed |
-| `pnpm --filter happy-app web:smoke dist` | Passed: exported React app mounted without page errors |
+| `pnpm --filter ./packages/happyherd-server build` | Passed |
+| `pnpm --filter happyherd-app i18n:check` | Passed: 1572 keys in en/cn/de, zero hardcoded copy exceptions, 41 routes, 279 surfaces, 84 smoke cases |
+| `pnpm --filter happyherd-app exec tsx sources/scripts/parseChangelog.ts` | 142 entries; newest title: September 19 — Device codes for existing account machines |
+| `APP_ENV=production EXPO_PUBLIC_HAPPYHERD_SERVER_URL=http://localhost:61060 pnpm --filter happyherd-app exec expo export --platform web --output-dir dist` | Passed |
+| `pnpm --filter happyherd-app web:smoke dist` | Passed: exported React app mounted without page errors |
 | `git diff --check` and `node scripts/lint-source.mjs` | Passed |
 | `node scripts/verify-public-boundary.mjs --current-only` | Passed |
 
 Native packaging also passed using Rust `1.98.1` and the final Web export:
 
 ```sh
-pnpm --filter happy-app exec tauri build --debug --bundles app --no-sign \
-  --config '{"build":{"beforeBuildCommand":""},"productName":"Happy Issue 288 QA","identifier":"com.slopus.happy.issue288qa"}'
+pnpm --filter happyherd-app exec tauri build --debug --bundles app --no-sign \
+  --config '{"build":{"beforeBuildCommand":""},"productName":"HappyHerd Issue 288 QA","identifier":"com.slopus.happy.issue288qa"}'
 ```
 
 This produced a separate unsigned QA app bundle. It does not prove native GUI

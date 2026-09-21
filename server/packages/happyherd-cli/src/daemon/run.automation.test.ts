@@ -4,7 +4,7 @@ import type { Metadata } from '@/api/types';
 import {
   HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
   type HappyHerdAutomationRun,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import {
   automationSessionMatchesRun,
   automationWebhookMatchesTrackedSession,

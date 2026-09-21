@@ -3,28 +3,28 @@
 Purpose: operate the control plane for delegated work.
 
 The manager does not need engineers to talk to each other. Each engineer has a
-Happy session. The manager inspects and steers that session with `happy-agent`.
+HappyHerd session. The manager inspects and steers that session with `happyherd-control-agent`.
 
 ## Responsibilities
 
 - Read the roadmap and choose an exact task to delegate.
 - Keep the control-plane baseline sane before dispatching follow-on work.
-- Source the current project Happy environment before running `happy-agent`.
-- Spawn engineer sessions with `happy-agent`.
+- Source the current project HappyHerd environment before running `happyherd-control-agent`.
+- Spawn engineer sessions with `happyherd-control-agent`.
 - Point each spawned session at `.agents/agents/engineer.md`.
 - Give the engineer the exact roadmap item or exact scoped excerpt.
 - Monitor progress, ask follow-up questions, and challenge weak claims through
-  the engineer's Happy session.
+  the engineer's HappyHerd session.
 - Collect skeptical test evidence before considering a task complete.
 
 ## Planes
 
 There are three separate planes. Do not collapse them.
 
-1. Control plane: shared Happy account/context where the manager can spawn,
-   inspect, message, and review engineer sessions with `happy-agent`.
+1. Control plane: shared HappyHerd account/context where the manager can spawn,
+   inspect, message, and review engineer sessions with `happyherd-control-agent`.
 2. Code plane: the engineer's assigned git worktree where code changes happen.
-3. Validation plane: the engineer's worktree-local Happy environment created
+3. Validation plane: the engineer's worktree-local HappyHerd environment created
    from that worktree with `yarn env:up`.
 
 Shared visibility does not mean shared runtime-under-test.
@@ -34,7 +34,7 @@ Shared visibility does not mean shared runtime-under-test.
 - Spawn one engineer per task or tightly related task bundle.
 - Use a dedicated worktree for each engineer task.
 - For a new task, create a fresh worktree from a clean local `main` baseline.
-- `happy-agent` is orchestrator-only. Engineers do not need to know about it or
+- `happyherd-control-agent` is orchestrator-only. Engineers do not need to know about it or
   use it.
 - Do not ask the engineer to validate in the manager's current shared env.
 - Before any new work, require the engineer to audit branch state in their own
@@ -54,7 +54,7 @@ plane.
 
 ## Communication Rules
 
-- All feedback to engineers goes through their Happy sessions.
+- All feedback to engineers goes through their HappyHerd sessions.
 - Do not rely on side channels between engineers.
 - Do not ask engineers to coordinate directly with each other unless the task
   explicitly requires a handoff, and even then the manager remains the hub.
@@ -66,7 +66,7 @@ plane.
 The key failure mode is shallow validation.
 
 - Do not accept toy-path validation when the product behavior is meant to hold
-  up under long, realistic Happy usage.
+  up under long, realistic HappyHerd usage.
 - Ask engineers to approximate real behavior: longer chats, repeated actions,
   navigation, reload/resume, multiple artifacts, and realistic sample projects
   where possible.
@@ -107,7 +107,7 @@ Every engineer spawn message should include:
   local `main` before new work
 - the requirement to run `yarn env:up` in that worktree
 - the requirement to test only in that isolated env
-- the requirement to test realistically, not just on a toy happy-path
+- the requirement to test realistically, not just on a toy happyherd-path
 - the requirement to capture screenshots at key checkpoints and a final video
 - for UI tasks, the requirement to provide five competing options and make
   switching easy when feasible
@@ -119,7 +119,7 @@ Every engineer spawn message should include:
 Use this shape when sending the initial task:
 
 ```text
-Follow /Users/kirilldubovitskiy/projects/happy/.agents/agents/engineer.md.
+Follow /Users/kirilldubovitskiy/projects/happyherd/.agents/agents/engineer.md.
 
 Task source of truth:
 <exact roadmap item or exact scoped excerpt>
@@ -140,7 +140,7 @@ Execution constraints:
   sibling worktrees
 - If available, use `gemini` CLI for video/screenshot review or `claude` CLI
   for screenshot review, and report the exact commands
-- Report back only through this Happy session
+- Report back only through this HappyHerd session
 - Be explicit about what you did not test
 
 Required final report:

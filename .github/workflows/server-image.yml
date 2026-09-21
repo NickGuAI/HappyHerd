@@ -14,13 +14,13 @@ on:
       - server/pnpm-workspace.yaml
       - server/patches/**
       - server/scripts/**
-      - server/packages/happy-app/**
-      - server/packages/happy-agent/**
+      - server/packages/happyherd-app/**
+      - server/packages/happyherd-control-agent/**
       - server/packages/happyherd-cli/package.json
       - server/packages/happyherd-cli/scripts/bundle-webapp.cjs
-      - server/packages/happy-server/**
-      - server/packages/happy-server-self-host/**
-      - server/packages/happy-wire/**
+      - server/packages/happyherd-server/**
+      - server/packages/happyherd-server-self-host/**
+      - server/packages/happyherd-wire/**
   pull_request:
     paths:
       - .github/workflows/server-image.yml
@@ -32,13 +32,13 @@ on:
       - server/pnpm-workspace.yaml
       - server/patches/**
       - server/scripts/**
-      - server/packages/happy-app/**
-      - server/packages/happy-agent/**
+      - server/packages/happyherd-app/**
+      - server/packages/happyherd-control-agent/**
       - server/packages/happyherd-cli/package.json
       - server/packages/happyherd-cli/scripts/bundle-webapp.cjs
-      - server/packages/happy-server/**
-      - server/packages/happy-server-self-host/**
-      - server/packages/happy-wire/**
+      - server/packages/happyherd-server/**
+      - server/packages/happyherd-server-self-host/**
+      - server/packages/happyherd-wire/**
   workflow_dispatch:
 
 permissions:

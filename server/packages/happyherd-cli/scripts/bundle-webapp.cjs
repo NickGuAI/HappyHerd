@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Runs `expo export -p web` in packages/happy-app and copies the output into
+ * Runs `expo export -p web` in packages/happyherd-app and copies the output into
  * a package-owned artifact directory. By default this writes to happyherd-cli/tools/webapp
  * for local development. Release packaging can pass --out-dir to place it elsewhere.
  *
- * happyherd-cli does NOT depend on happy-app — we reach into the sibling at build time only.
+ * happyherd-cli does NOT depend on happyherd-app — we reach into the sibling at build time only.
  */
 
 const fs = require('node:fs');
@@ -14,7 +14,7 @@ const { spawnSync } = require('node:child_process');
 
 const PACKAGE_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(PACKAGE_DIR, '..', '..');
-const APP_DIR = path.resolve(REPO_ROOT, 'packages/happy-app');
+const APP_DIR = path.resolve(REPO_ROOT, 'packages/happyherd-app');
 const APP_DIST = path.join(APP_DIR, 'dist');
 
 function rmrf(p) {
@@ -39,7 +39,7 @@ function main() {
         process.exit(1);
     }
 
-    console.log(`→ Building happy-app web bundle (expo export)`);
+    console.log(`→ Building happyherd-app web bundle (expo export)`);
     rmrf(APP_DIST);
     run('pnpm', ['exec', 'expo', 'export', '-p', 'web', '--output-dir', 'dist'], { cwd: APP_DIR });
 

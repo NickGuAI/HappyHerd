@@ -1,0 +1,19 @@
+{
+  "git": {
+    "commitMessage": "Release happyherd-control-agent ${version}",
+    "tagName": "happyherd-control-agent-v${version}",
+    "push": true,
+    "requireCleanWorkingDir": true,
+    "requireBranch": "main",
+    "addUntrackedFiles": false
+  },
+  "github": {
+    "release": true,
+    "releaseName": "happyherd-control-agent-v${version}",
+    "releaseNotes": "node .release-it.notes.js ${version}"
+  },
+  "npm": {
+    "publish": true
+  },
+  "hooks": {}
+}

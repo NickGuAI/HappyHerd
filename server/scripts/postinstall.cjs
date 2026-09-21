@@ -10,11 +10,11 @@ require('../patches/fix-react-native-audio-api-size-t.cjs');
 require('../patches/deterministic-expo-hermes-temp.cjs');
 require('../patches/fix-flash-list-inverted-web-layout.cjs');
 
-if (process.env.SKIP_HAPPY_WIRE_BUILD === '1') {
-  console.log('[postinstall] SKIP_HAPPY_WIRE_BUILD=1, skipping @slopus/happy-wire build');
+if (process.env.SKIP_HAPPYHERD_WIRE_BUILD === '1') {
+  console.log('[postinstall] SKIP_HAPPYHERD_WIRE_BUILD=1, skipping @happyherd/wire build');
   process.exit(0);
 }
 
-execSync('pnpm --filter @slopus/happy-wire build', {
+execSync('pnpm --filter @happyherd/wire build', {
   stdio: 'inherit',
 });

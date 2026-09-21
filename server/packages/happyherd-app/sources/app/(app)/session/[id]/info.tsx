@@ -1,0 +1,878 @@
+import { Text } from '@/components/StyledText';
+import React, { useCallback } from 'react';
+import { View, Platform, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { CommonActions, StackActions, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { randomUUID } from 'expo-crypto';
+import { Typography } from '@/constants/Typography';
+import { Item } from '@/components/Item';
+import { ItemGroup } from '@/components/ItemGroup';
+import { ItemList } from '@/components/ItemList';
+import { storage, useProjects, useSession, useIsDataReady } from '@/sync/storage';
+import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getResumeCommand } from '@/utils/sessionUtils';
+import * as Clipboard from 'expo-clipboard';
+import { Modal } from '@/modal';
+import { machineControlHeartbeat, sessionArchive, sessionKill, sessionDelete } from '@/sync/ops';
+import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
+import { useUnistyles } from 'react-native-unistyles';
+import { t } from '@/text';
+import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
+import { CodeView } from '@/components/CodeView';
+import { Session } from '@/sync/storageTypes';
+import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
+import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
+import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard } from '@/utils/copySessionMetadataToClipboard';
+import { HappyHerdError } from '@/utils/errors';
+import { getRigIdentity, isRigMetadata, rigCanBrowseFiles, rigCanUseShell } from '@/sync/rig';
+import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
+import { isRunningOnMac } from '@/utils/platform';
+import { ProviderIcon } from '@/components/ProviderIcon';
+import {
+    HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
+    type HappyHerdHeartbeatControlResponse,
+} from '@happyherd/wire';
+import { formatHeartbeatStatusPresentation } from '@/utils/heartbeatCommand';
+import { formatDangerouslySkipPermissionsMetadata } from '@/utils/sessionPermissionMetadata';
+import { findMountedSessionRouteTarget } from '@/utils/sessionInfoChangesNavigation';
+
+const DEFAULT_RIG_NAME = 'Rig';
+
+function formatSandboxMetadata(sandbox: unknown, homeDir?: string): string {
+    if (sandbox === null || sandbox === undefined) {
+        return 'Disabled';
+    }
+
+    if (typeof sandbox === 'string') {
+        return sandbox;
+    }
+
+    if (typeof sandbox !== 'object') {
+        return String(sandbox);
+    }
+
+    const value = sandbox as Record<string, unknown>;
+    if (value.enabled === false) {
+        return 'Disabled';
+    }
+
+    const parts: string[] = ['Enabled'];
+    const isolation = typeof value.sessionIsolation === 'string' ? value.sessionIsolation : undefined;
+    const networkMode = typeof value.networkMode === 'string' ? value.networkMode : undefined;
+    const workspaceRoot = typeof value.workspaceRoot === 'string' ? value.workspaceRoot : undefined;
+
+    if (isolation) {
+        parts.push(`isolation=${isolation}`);
+    }
+    if (networkMode) {
+        parts.push(`network=${networkMode}`);
+    }
+    if (workspaceRoot) {
+        parts.push(`workspace=${formatPathRelativeToHome(workspaceRoot, homeDir)}`);
+    }
+
+    return parts.join(' | ');
+}
+
+function SessionInfoContent({ session }: { session: Session }) {
+    const { theme } = useUnistyles();
+    const router = useRouter();
+    const navigation = useNavigation();
+    const projects = useProjects();
+    const projectText = t as (key: string, params?: Record<string, string | number>) => string;
+    const projectName = session.projectId ? projects[session.projectId]?.name : null;
+    const devModeEnabled = __DEV__;
+    const sessionStatus = useSessionStatus(session);
+    const canOpenChanges = (Platform.OS === 'web' || isRunningOnMac())
+        && rigCanBrowseFiles(session.metadata)
+        && rigCanUseShell(session.metadata);
+    const heartbeatSupported = Boolean(
+        session.metadata?.machineId
+        && ((session.metadata.flavor ?? 'claude') === 'claude' || session.metadata.flavor === 'codex')
+        && ((session.metadata.flavor ?? 'claude') === 'codex'
+            ? session.metadata.codexThreadId
+            : session.metadata.claudeSessionId),
+    );
+    const [heartbeatResponse, setHeartbeatResponse] = React.useState<HappyHerdHeartbeatControlResponse | null>(null);
+    const [heartbeatBusy, setHeartbeatBusy] = React.useState(false);
+    const [heartbeatError, setHeartbeatError] = React.useState<string | null>(null);
+    const [heartbeatInterval, setHeartbeatInterval] = React.useState('30');
+    const [heartbeatUnit, setHeartbeatUnit] = React.useState<'s' | 'm' | 'h' | 'd'>('m');
+    const [heartbeatInstruction, setHeartbeatInstruction] = React.useState('');
+    const heartbeatPresentation = heartbeatResponse
+        ? formatHeartbeatStatusPresentation(heartbeatResponse, (key, params) => (t as any)(key, params))
+        : null;
+    const {
+        canShowResume,
+        canFork,
+        canContinueWithProvider,
+        forking,
+        forkSession,
+        openDuplicateSheet,
+        openProviderContinuationSheet,
+        resumeSession,
+        resumeSessionSubtitle,
+    } = useSessionQuickActions(session);
+
+    const applyHeartbeatResponse = useCallback((response: HappyHerdHeartbeatControlResponse) => {
+        setHeartbeatResponse(response);
+        const definition = response.heartbeat;
+        if (!definition) return;
+        const unit: 's' | 'm' | 'h' | 'd' = definition.intervalSeconds % 86_400 === 0
+            ? 'd'
+            : definition.intervalSeconds % 3_600 === 0
+                ? 'h'
+                : definition.intervalSeconds % 60 === 0
+                    ? 'm'
+                    : 's';
+        const multiplier = unit === 'd' ? 86_400 : unit === 'h' ? 3_600 : unit === 'm' ? 60 : 1;
+        setHeartbeatInterval(String(definition.intervalSeconds / multiplier));
+        setHeartbeatUnit(unit);
+        setHeartbeatInstruction(definition.instruction === HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION
+            ? ''
+            : definition.instruction);
+    }, []);
+
+    const runHeartbeatAction = useCallback(async (action: Parameters<typeof machineControlHeartbeat>[1]) => {
+        const machineId = session.metadata?.machineId;
+        if (!machineId) return;
+        setHeartbeatBusy(true);
+        setHeartbeatError(null);
+        try {
+            applyHeartbeatResponse(await machineControlHeartbeat(machineId, action));
+        } catch (error) {
+            setHeartbeatError(error instanceof Error ? error.message : t('happyHerd.heartbeat.unavailable'));
+        } finally {
+            setHeartbeatBusy(false);
+        }
+    }, [applyHeartbeatResponse, session.metadata?.machineId]);
+
+    React.useEffect(() => {
+        if (!heartbeatSupported || !session.metadata?.machineId) return;
+        void runHeartbeatAction({ action: 'status', targetSessionId: session.id });
+    }, [heartbeatSupported, runHeartbeatAction, session.id, session.metadata?.machineId]);
+
+    const saveHeartbeat = useCallback(() => {
+        const value = Number(heartbeatInterval);
+        const multiplier = heartbeatUnit === 'd' ? 86_400 : heartbeatUnit === 'h' ? 3_600 : heartbeatUnit === 'm' ? 60 : 1;
+        const intervalSeconds = value * multiplier;
+        if (!Number.isInteger(value) || value <= 0 || !Number.isSafeInteger(intervalSeconds) || intervalSeconds < 60) {
+            setHeartbeatError(t('happyHerd.heartbeat.minimum'));
+            return;
+        }
+        void runHeartbeatAction({
+            action: 'set',
+            targetSessionId: session.id,
+            intervalSeconds,
+            instruction: heartbeatInstruction.trim() || null,
+        });
+    }, [heartbeatInstruction, heartbeatInterval, heartbeatUnit, runHeartbeatAction, session.id]);
+
+    // Check if CLI version is outdated
+    const isCliOutdated = session.metadata?.version && !isVersionSupported(session.metadata.version, MINIMUM_CLI_VERSION);
+
+    const handleCopySessionId = useCallback(async () => {
+        if (!session) return;
+        try {
+            await Clipboard.setStringAsync(session.id);
+            Modal.alert(t('common.success'), t('sessionInfo.happySessionIdCopied'));
+        } catch (error) {
+            Modal.alert(t('common.error'), t('sessionInfo.failedToCopySessionId'));
+        }
+    }, [session]);
+
+    const handleCopyMetadata = useCallback(() => {
+        void copySessionMetadataToClipboard(session);
+    }, [session]);
+
+    const handleCopyMetadataAndLogs = useCallback(() => {
+        void copySessionMetadataAndLogsToClipboard(session);
+    }, [session]);
+
+    const handleOpenChanges = useCallback(() => {
+        if (!canOpenChanges) return;
+        const requestId = randomUUID();
+        const mountedRoute = findMountedSessionRouteTarget(navigation.getState(), session.id);
+        if (mountedRoute) {
+            navigation.dispatch({
+                ...CommonActions.setParams({ openChangesRequestId: requestId }),
+                source: mountedRoute.routeKey,
+            });
+            navigation.dispatch(StackActions.pop(mountedRoute.popCount));
+            return;
+        }
+        router.replace({
+            pathname: '/session/[id]',
+            params: {
+                id: session.id,
+                openChangesRequestId: requestId,
+            },
+        });
+    }, [canOpenChanges, navigation, router, session.id]);
+
+    // Use HappyHerdAction for archiving - it handles errors automatically
+    const [archivingSession, performArchive] = useHappyHerdAction(async () => {
+        const latestSession = storage.getState().sessions[session.id];
+        const isBot = Boolean(latestSession?.metadata?.bot || session.metadata?.bot);
+        // A bot's machine owns its single continuous conversation and archive state.
+        if (!isBot) {
+            await maybeCleanupWorktree(session.id, session.metadata?.path, session.metadata?.machineId);
+        }
+
+        // Ask the owning process to archive; ordinary sessions retain the server fallback.
+        const killResult = await sessionKill(session.id);
+        if (!killResult.success) {
+            if (isBot) {
+                throw new HappyHerdError(t('sessionInfo.botArchiveRequiresMachine'), false);
+            }
+            await sessionArchive(session.id);
+        }
+        // Success - navigate back
+        router.back();
+        router.back();
+    });
+
+    const handleArchiveSession = useCallback(() => {
+        performArchive();
+    }, [performArchive]);
+
+    // Use HappyHerdAction for deletion - kills session first if needed, then deletes
+    const [deletingSession, performDelete] = useHappyHerdAction(async () => {
+        const latestSession = storage.getState().sessions[session.id];
+        if (latestSession?.metadata?.bot || session.metadata?.bot) {
+            throw new HappyHerdError(t('sessionInfo.botDeleteUnavailable'), false);
+        }
+        // Prompt for worktree cleanup before killing (needs an active machine connection)
+        await maybeCleanupWorktree(session.id, session.metadata?.path, session.metadata?.machineId);
+
+        // Navigate back optimistically
+        router.back();
+        router.back();
+
+        // Kill session first if it's still active (best-effort)
+        if (sessionStatus.isConnected || session.active) {
+            await sessionKill(session.id).catch(() => {});
+        }
+
+        const result = await sessionDelete(session.id);
+        if (!result.success) {
+            throw new HappyHerdError(result.message || t('sessionInfo.failedToDeleteSession'), false);
+        }
+    });
+
+    const handleDeleteSession = useCallback(() => {
+        Modal.alert(
+            t('sessionInfo.deleteSession'),
+            t('sessionInfo.deleteSessionWarning'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('sessionInfo.deleteSession'),
+                    style: 'destructive',
+                    onPress: performDelete
+                }
+            ]
+        );
+    }, [performDelete]);
+
+    const formatDate = useCallback((timestamp: number) => {
+        return new Date(timestamp).toLocaleString();
+    }, []);
+
+    const handleCopyUpdateCommand = useCallback(async () => {
+        const updateCommand = 'npm install -g @happyherd/cli@latest';
+        try {
+            await Clipboard.setStringAsync(updateCommand);
+            Modal.alert(t('common.success'), updateCommand);
+        } catch (error) {
+            Modal.alert(t('common.error'), t('common.error'));
+        }
+    }, []);
+
+    return (
+        <>
+            <ItemList
+                containerStyle={{
+                    paddingTop: Platform.OS === 'ios' ? MOBILE_GLASS_HEADER_HEIGHT : 0,
+                }}
+            >
+                {/* Quick Actions */}
+                <ItemGroup title={t('sessionInfo.quickActions')}>
+                    <Item
+                        title={t('files.changes')}
+                        icon={<Ionicons name="git-compare-outline" size={29} color={theme.colors.textLink} />}
+                        onPress={canOpenChanges ? handleOpenChanges : undefined}
+                        disabled={!canOpenChanges}
+                        showChevron={canOpenChanges}
+                    />
+                    {session.metadata?.machineId && (
+                        <Item
+                            title={t('sessionInfo.viewMachine')}
+                            subtitle={t('sessionInfo.viewMachineSubtitle')}
+                            icon={<Ionicons name="server-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={() => router.push(`/machine/${session.metadata?.machineId}`)}
+                        />
+                    )}
+                    {canShowResume && (
+                        <Item
+                            title={t('sessionInfo.resumeSession')}
+                            subtitle={resumeSessionSubtitle}
+                            icon={<Ionicons name="play-circle-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={resumeSession}
+                        />
+                    )}
+                    {canFork && (
+                        <Item
+                            title={t('session.forkAction')}
+                            subtitle={t('session.forkSubtitle')}
+                            icon={<Ionicons name="git-branch-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={forkSession}
+                            loading={forking}
+                        />
+                    )}
+                    {canFork && (
+                        <Item
+                            title={t('session.duplicateAction')}
+                            subtitle={t('session.duplicateSubtitle')}
+                            icon={<Ionicons name="time-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={openDuplicateSheet}
+                        />
+                    )}
+                    {canContinueWithProvider && (
+                        <Item
+                            title={t('session.providerContinuationAction')}
+                            subtitle={t('session.providerContinuationFreshSession')}
+                            icon={<Ionicons name="swap-horizontal-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={openProviderContinuationSheet}
+                        />
+                    )}
+                    {session.metadata?.parentSessionId && (
+                        <Item
+                            title={t('session.forkedFromLabel')}
+                            subtitle={t('session.forkedFromSubtitle')}
+                            icon={<Ionicons name="return-up-back-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={() => router.push(`/session/${session.metadata!.parentSessionId}`)}
+                        />
+                    )}
+                    <Item
+                        title={t('sessionInfo.archiveSession')}
+                        subtitle={t('sessionInfo.archiveSessionSubtitle')}
+                        icon={<Ionicons name="archive-outline" size={29} color={theme.colors.textDestructive} />}
+                        onPress={handleArchiveSession}
+                        loading={archivingSession}
+                    />
+                    {!session.metadata?.bot && (
+                        <Item
+                            title={t('sessionInfo.deleteSession')}
+                            subtitle={t('sessionInfo.deleteSessionSubtitle')}
+                            icon={<Ionicons name="trash-outline" size={29} color={theme.colors.textDestructive} />}
+                            onPress={handleDeleteSession}
+                        />
+                    )}
+                </ItemGroup>
+
+                {/* CLI Version Warning */}
+                {isCliOutdated && (
+                    <ItemGroup>
+                        <Item
+                            title={t('sessionInfo.cliVersionOutdated')}
+                            subtitle={t('sessionInfo.updateCliInstructions')}
+                            icon={<Ionicons name="warning-outline" size={29} color={theme.colors.warning} />}
+                            showChevron={false}
+                            onPress={handleCopyUpdateCommand}
+                        />
+                    </ItemGroup>
+                )}
+
+                {/* Session Details */}
+                <ItemGroup>
+                    <Item
+                        title={projectText('projects.project')}
+                        detail={projectName ?? (session.projectId
+                            ? projectText('projects.project')
+                            : projectText('projects.noProject'))}
+                        icon={<Ionicons name="albums-outline" size={29} color={theme.colors.textLink} />}
+                        onPress={() => router.push(`/session/${session.id}/project` as any)}
+                    />
+                    <Item
+                        title={t('sessionInfo.happySessionId')}
+                        subtitle={`${session.id.substring(0, 8)}...${session.id.substring(session.id.length - 8)}`}
+                        icon={<Ionicons name="finger-print-outline" size={29} color={theme.colors.textLink} />}
+                        onPress={handleCopySessionId}
+                    />
+                    {session.metadata?.claudeSessionId && (
+                        <Item
+                            title={t('sessionInfo.claudeCodeSessionId')}
+                            subtitle={`${session.metadata.claudeSessionId.substring(0, 8)}...${session.metadata.claudeSessionId.substring(session.metadata.claudeSessionId.length - 8)}`}
+                            icon={<Ionicons name="code-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={async () => {
+                                try {
+                                    await Clipboard.setStringAsync(session.metadata!.claudeSessionId!);
+                                    Modal.alert(t('common.success'), t('sessionInfo.claudeCodeSessionIdCopied'));
+                                } catch (error) {
+                                    Modal.alert(t('common.error'), t('sessionInfo.failedToCopyClaudeCodeSessionId'));
+                                }
+                            }}
+                        />
+                    )}
+                    {session.metadata?.codexThreadId && (
+                        <Item
+                            title={t('sessionInfo.codexThreadId')}
+                            subtitle={`${session.metadata.codexThreadId.substring(0, 8)}...${session.metadata.codexThreadId.substring(session.metadata.codexThreadId.length - 8)}`}
+                            icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={async () => {
+                                try {
+                                    await Clipboard.setStringAsync(session.metadata!.codexThreadId!);
+                                    Modal.alert(t('common.success'), t('sessionInfo.codexThreadIdCopied'));
+                                } catch (error) {
+                                    Modal.alert(t('common.error'), t('sessionInfo.failedToCopyCodexThreadId'));
+                                }
+                            }}
+                        />
+                    )}
+                    {/* Resume command — shown for disconnected sessions with a backend session ID */}
+                    {/* TODO: migrate to `happyherd resume <happyherd-session-id>` once it works without happyherd-control-agent auth */}
+                    {!sessionStatus.isConnected && getResumeCommand(session) && (
+                        <CopyableItem
+                            title={t("uiCopy.resumeCommand")}
+                            subtitle={getResumeCommand(session)!}
+                            icon={<Ionicons name="play-circle-outline" size={29} color={theme.colors.success} />}
+                            copyText={getResumeCommand(session)!}
+                        />
+                    )}
+                    <Item
+                        title={t('sessionInfo.connectionStatus')}
+                        detail={sessionStatus.isConnected ? t('status.online') : t('status.offline')}
+                        icon={<Ionicons name="pulse-outline" size={29} color={sessionStatus.isConnected ? theme.colors.success : theme.colors.textSecondary} />}
+                        showChevron={false}
+                    />
+                    <Item
+                        title={t('sessionInfo.created')}
+                        subtitle={formatDate(session.createdAt)}
+                        icon={<Ionicons name="calendar-outline" size={29} color={theme.colors.textLink} />}
+                        showChevron={false}
+                    />
+                    <Item
+                        title={t('sessionInfo.lastUpdated')}
+                        subtitle={formatDate(session.updatedAt)}
+                        icon={<Ionicons name="time-outline" size={29} color={theme.colors.textLink} />}
+                        showChevron={false}
+                    />
+                    <Item
+                        title={t('sessionInfo.sequence')}
+                        detail={session.seq.toString()}
+                        icon={<Ionicons name="git-commit-outline" size={29} color={theme.colors.textLink} />}
+                        showChevron={false}
+                    />
+                </ItemGroup>
+
+                {heartbeatSupported && (
+                    <ItemGroup title={t('happyHerd.heartbeat.title')}>
+                        <Item
+                            title={heartbeatPresentation
+                                ? heartbeatPresentation.summary
+                                : t('happyHerd.heartbeat.notConfigured')}
+                            subtitle={heartbeatPresentation?.details.join('\n')}
+                            icon={<Ionicons name="heart-outline" size={29} color={theme.colors.textDestructive} />}
+                            showChevron={false}
+                        />
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}>
+                            <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.heartbeat.every')}</Text>
+                            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                <TextInput
+                                    value={heartbeatInterval}
+                                    onChangeText={setHeartbeatInterval}
+                                    keyboardType="number-pad"
+                                    accessibilityLabel={t('happyHerd.heartbeat.interval')}
+                                    style={{
+                                        flex: 1,
+                                        minHeight: 42,
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.divider,
+                                        borderRadius: theme.borderRadius.md,
+                                        color: theme.colors.text,
+                                        paddingHorizontal: 12,
+                                    }}
+                                />
+                                {(['s', 'm', 'h', 'd'] as const).map((unit) => (
+                                    <Pressable
+                                        key={unit}
+                                        onPress={() => setHeartbeatUnit(unit)}
+                                        style={{
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 10,
+                                            borderRadius: theme.borderRadius.md,
+                                            backgroundColor: heartbeatUnit === unit ? theme.colors.textLink : theme.colors.surfaceHigh,
+                                        }}
+                                    >
+                                        <Text style={{ color: heartbeatUnit === unit ? theme.colors.surface : theme.colors.text }}>{unit}</Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                            <TextInput
+                                value={heartbeatInstruction}
+                                onChangeText={setHeartbeatInstruction}
+                                placeholder={t('happyHerd.heartbeat.instructionPlaceholder')}
+                                placeholderTextColor={theme.colors.textSecondary}
+                                multiline
+                                style={{
+                                    minHeight: 72,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.divider,
+                                    borderRadius: theme.borderRadius.md,
+                                    color: theme.colors.text,
+                                    padding: 12,
+                                }}
+                            />
+                            {heartbeatError && <Text style={{ color: theme.colors.textDestructive }}>{heartbeatError}</Text>}
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                <Pressable onPress={saveHeartbeat} disabled={heartbeatBusy} style={{ padding: 10 }}>
+                                    {heartbeatBusy
+                                        ? <ActivityIndicator />
+                                        : <Text style={{ color: theme.colors.textLink }}>{t('common.save')}</Text>}
+                                </Pressable>
+                                {heartbeatResponse?.heartbeat && (
+                                    <Pressable
+                                        onPress={() => void runHeartbeatAction({
+                                            action: heartbeatResponse.heartbeat?.status === 'paused' ? 'resume' : 'pause',
+                                            targetSessionId: session.id,
+                                        })}
+                                        disabled={heartbeatBusy}
+                                        style={{ padding: 10 }}
+                                    >
+                                        <Text style={{ color: theme.colors.textLink }}>
+                                            {heartbeatResponse.heartbeat.status === 'paused'
+                                                ? t('happyHerd.heartbeat.resume')
+                                                : t('happyHerd.heartbeat.pause')}
+                                        </Text>
+                                    </Pressable>
+                                )}
+                                {heartbeatResponse?.heartbeat && (
+                                    <Pressable
+                                        onPress={() => void runHeartbeatAction({ action: 'clear', targetSessionId: session.id })}
+                                        disabled={heartbeatBusy}
+                                        style={{ padding: 10 }}
+                                    >
+                                        <Text style={{ color: theme.colors.textDestructive }}>{t('happyHerd.heartbeat.clear')}</Text>
+                                    </Pressable>
+                                )}
+                                <Pressable onPress={() => router.push('/automations')} style={{ padding: 10 }}>
+                                    <Text style={{ color: theme.colors.textLink }}>{t('happyHerd.heartbeat.automation')}</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </ItemGroup>
+                )}
+
+                {/* Metadata */}
+                {session.metadata && (
+                    <ItemGroup title={t('sessionInfo.metadata')}>
+                        <Item
+                            title={t('sessionInfo.host')}
+                            subtitle={session.metadata.host}
+                            icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />
+                        <Item
+                            title={t('sessionInfo.path')}
+                            subtitle={formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
+                            icon={<Ionicons name="folder-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />
+                        {session.metadata.version && (
+                            <Item
+                                title={t('sessionInfo.cliVersion')}
+                                subtitle={session.metadata.version}
+                                detail={isCliOutdated ? '⚠️' : undefined}
+                                icon={<Ionicons name="git-branch-outline" size={29} color={isCliOutdated ? theme.colors.warning : theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        {session.metadata.os && (
+                            <Item
+                                title={t('sessionInfo.operatingSystem')}
+                                subtitle={formatOSPlatform(session.metadata.os)}
+                                icon={<Ionicons name="hardware-chip-outline" size={29} color={theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        {isRigMetadata(session.metadata) && (
+                            <Item
+                                title={t("uiCopy.client")}
+                                subtitle={`${session.metadata.client?.name ?? DEFAULT_RIG_NAME}${session.metadata.client?.version ? ` ${session.metadata.client.version}` : ''}`}
+                                icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        <Item
+                            title={t('sessionInfo.aiProvider')}
+                            subtitle={(() => {
+                                const rigIdentity = getRigIdentity(session.metadata);
+                                if (rigIdentity) return rigIdentity.providerName;
+                                const flavor = session.metadata.flavor || 'claude';
+                                if (flavor === 'claude') return 'Claude';
+                                if (flavor === 'gpt' || flavor === 'openai') return 'Codex';
+                                if (flavor === 'gemini') return 'Gemini';
+                                if (flavor === 'grok') return t('agentInput.agent.grok');
+                                if (flavor === 'dsh') return t('agentInput.agent.dsh');
+                                return flavor;
+                            })()}
+                            icon={session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh'
+                                ? <ProviderIcon kind={session.metadata.flavor} size={29} />
+                                : <Ionicons name="sparkles-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />
+                        {(getRigIdentity(session.metadata)?.modelName || (
+                            (session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh')
+                            && session.metadata.currentModelCode
+                        )) && (
+                            <Item
+                                title={t("uiCopy.model")}
+                                subtitle={getRigIdentity(session.metadata)?.modelName
+                                    ?? session.metadata?.models?.find((model) => model.code === session.metadata?.currentModelCode)?.value
+                                    ?? session.metadata?.currentModelCode}
+                                icon={<Ionicons name="hardware-chip-outline" size={29} color={theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        {!isRigMetadata(session.metadata) && <Item
+                            title={t("uiCopy.sandbox")}
+                            subtitle={formatSandboxMetadata(session.metadata.sandbox, session.metadata.homeDir)}
+                            icon={<Ionicons name="shield-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />}
+                        {!isRigMetadata(session.metadata) && <Item
+                            title={t("uiCopy.dangerouslySkipPermissions")}
+                            subtitle={formatDangerouslySkipPermissionsMetadata(
+                                session.metadata.dangerouslySkipPermissions,
+                                session.permissionMode,
+                            )}
+                            icon={<Ionicons name="warning-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />}
+                        {session.metadata.hostPid && (
+                            <Item
+                                title={t('sessionInfo.processId')}
+                                subtitle={session.metadata.hostPid.toString()}
+                                icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        {session.metadata.happyHomeDir && (
+                            <Item
+                                title={t('sessionInfo.happyherdHome')}
+                                subtitle={formatPathRelativeToHome(session.metadata.happyHomeDir, session.metadata.homeDir)}
+                                icon={<Ionicons name="home-outline" size={29} color={theme.colors.textLink} />}
+                                showChevron={false}
+                            />
+                        )}
+                        <Item
+                            title={t('sessionInfo.copyMetadata')}
+                            icon={<Ionicons name="copy-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={handleCopyMetadata}
+                        />
+                        <Item
+                            title={t('uiCopy.copyMetadataAndClientLogs')}
+                            icon={<Ionicons name="document-text-outline" size={29} color={theme.colors.textLink} />}
+                            onPress={handleCopyMetadataAndLogs}
+                        />
+                    </ItemGroup>
+                )}
+
+                {/* Agent State */}
+                {session.agentState && session.metadata?.client?.id !== 'rig' && (
+                    <ItemGroup title={t('sessionInfo.agentState')}>
+                        <Item
+                            title={t('sessionInfo.controlledByUser')}
+                            detail={session.agentState.controlledByUser ? t('common.yes') : t('common.no')}
+                            icon={<Ionicons name="person-outline" size={29} color={theme.colors.warning} />}
+                            showChevron={false}
+                        />
+                        {session.agentState.requests && Object.keys(session.agentState.requests).length > 0 && (
+                            <Item
+                                title={t('sessionInfo.pendingRequests')}
+                                detail={Object.keys(session.agentState.requests).length.toString()}
+                                icon={<Ionicons name="hourglass-outline" size={29} color={theme.colors.warning} />}
+                                showChevron={false}
+                            />
+                        )}
+                    </ItemGroup>
+                )}
+
+                {/* Activity */}
+                <ItemGroup title={t('sessionInfo.activity')}>
+                    <Item
+                        title={t('sessionInfo.thinking')}
+                        detail={session.thinking ? t('common.yes') : t('common.no')}
+                        icon={<Ionicons name="bulb-outline" size={29} color={session.thinking ? theme.colors.warning : theme.colors.textSecondary} />}
+                        showChevron={false}
+                    />
+                    {session.thinking && (
+                        <Item
+                            title={t('sessionInfo.thinkingSince')}
+                            subtitle={formatDate(session.thinkingAt)}
+                            icon={<Ionicons name="timer-outline" size={29} color={theme.colors.warning} />}
+                            showChevron={false}
+                        />
+                    )}
+                    {(session.metadata?.activity?.subagents.running ?? 0) + (session.metadata?.activity?.subagents.queued ?? 0) > 0 && (
+                        <Item
+                            title={t("uiCopy.subagents")}
+                            detail={t('uiCopy.runningAndQueued', {
+                                value1: session.metadata!.activity!.subagents.running,
+                                value2: session.metadata!.activity!.subagents.queued,
+                            })}
+                            icon={<Ionicons name="people-outline" size={29} color={theme.colors.textLink} />}
+                            showChevron={false}
+                        />
+                    )}
+                    {(session.metadata?.activity?.workflows.running ?? 0) > 0 && (
+                        <Item title={t("uiCopy.workflows")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.workflows.running })} icon={<Ionicons name="git-network-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                    )}
+                    {(session.metadata?.activity?.processes.running ?? 0) > 0 && (
+                        <Item title={t("uiCopy.backgroundProcesses")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.processes.running })} icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                    )}
+                    {(session.metadata?.activity?.tasks.pending ?? 0) + (session.metadata?.activity?.tasks.inProgress ?? 0) > 0 && (
+                        <Item title={t("uiCopy.tasks")} detail={t('uiCopy.inProgressAndPending', { value1: session.metadata!.activity!.tasks.inProgress, value2: session.metadata!.activity!.tasks.pending })} icon={<Ionicons name="checkbox-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                    )}
+                </ItemGroup>
+
+                {/* Raw JSON (Dev Mode Only) */}
+                {devModeEnabled && (
+                    <ItemGroup title={t("tools.fullView.rawJsonDevMode")}>
+                        {session.agentState && (
+                            <>
+                                <Item
+                                    title={t("sessionInfo.agentState")}
+                                    icon={<Ionicons name="code-working-outline" size={29} color={theme.colors.warning} />}
+                                    showChevron={false}
+                                />
+                                <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                                    <CodeView 
+                                        code={JSON.stringify(session.agentState, null, 2)}
+                                        language="json"
+                                    />
+                                </View>
+                            </>
+                        )}
+                        {session.metadata && (
+                            <>
+                                <Item
+                                    title={t("sessionInfo.metadata")}
+                                    icon={<Ionicons name="information-circle-outline" size={29} color={theme.colors.textLink} />}
+                                    showChevron={false}
+                                />
+                                <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                                    <CodeView 
+                                        code={JSON.stringify(session.metadata, null, 2)}
+                                        language="json"
+                                    />
+                                </View>
+                            </>
+                        )}
+                        {sessionStatus && (
+                            <>
+                                <Item
+                                    title={t("uiCopy.sessionStatus")}
+                                    icon={<Ionicons name="analytics-outline" size={29} color={theme.colors.textLink} />}
+                                    showChevron={false}
+                                />
+                                <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                                    <CodeView 
+                                        code={JSON.stringify({
+                                            isConnected: sessionStatus.isConnected,
+                                            statusText: sessionStatus.statusText,
+                                            statusColor: sessionStatus.statusColor,
+                                            statusDotColor: sessionStatus.statusDotColor,
+                                            isPulsing: sessionStatus.isPulsing
+                                        }, null, 2)}
+                                        language="json"
+                                    />
+                                </View>
+                            </>
+                        )}
+                        {/* Full Session Object */}
+                        <Item
+                            title={t("uiCopy.fullSessionObject")}
+                            icon={<Ionicons name="document-text-outline" size={29} color={theme.colors.success} />}
+                            showChevron={false}
+                        />
+                        <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                            <CodeView 
+                                code={JSON.stringify(session, null, 2)}
+                                language="json"
+                            />
+                        </View>
+                    </ItemGroup>
+                )}
+            </ItemList>
+        </>
+    );
+}
+
+export default React.memo(() => {
+    const { theme } = useUnistyles();
+    const { id } = useLocalSearchParams<{ id: string }>();
+    const session = useSession(id);
+    const isDataReady = useIsDataReady();
+    const screenTitle = session
+        ? getSessionName(session)
+        : isDataReady
+            ? t('errors.sessionDeleted')
+            : '';
+    const screenOptions = <Stack.Screen options={{ headerTitle: screenTitle }} />;
+
+    // Handle three states: loading, deleted, and exists
+    if (!isDataReady) {
+        // Still loading data
+        return (
+            <>
+                {screenOptions}
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.groupped.background }}>
+                    <Ionicons name="hourglass-outline" size={48} color={theme.colors.textSecondary} />
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 17, marginTop: 16, ...Typography.default('semiBold') }}>{t('common.loading')}</Text>
+                </View>
+            </>
+        );
+    }
+
+    if (!session) {
+        // Session has been deleted or doesn't exist
+        return (
+            <>
+                {screenOptions}
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.groupped.background }}>
+                    <Ionicons name="trash-outline" size={48} color={theme.colors.textSecondary} />
+                    <Text style={{ color: theme.colors.text, fontSize: 20, marginTop: 16, ...Typography.default('semiBold') }}>{t('errors.sessionDeleted')}</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 15, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, ...Typography.default() }}>{t('errors.sessionDeletedDescription')}</Text>
+                </View>
+            </>
+        );
+    }
+
+    return (
+        <>
+            {screenOptions}
+            <SessionInfoContent session={session} />
+        </>
+    );
+});
+
+function CopyableItem({ title, subtitle, icon, copyText }: { title: string; subtitle: string; icon: React.ReactNode; copyText: string }) {
+    const { theme } = useUnistyles();
+    const [copied, setCopied] = React.useState(false);
+    return (
+        <Item
+            title={title}
+            subtitle={subtitle}
+            icon={icon}
+            showChevron={false}
+            rightElement={<Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? theme.colors.success : theme.colors.textSecondary} />}
+            onPress={async () => {
+                await Clipboard.setStringAsync(copyText);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }}
+        />
+    );
+}

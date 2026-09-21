@@ -17,7 +17,7 @@ function baseEnvironment(): NodeJS.ProcessEnv {
     HAPPYHERD_AGENT_TOOL_MANIFEST_FILE: '/var/lib/happyherd-agent/agent-manifest.json',
     HAPPYHERD_AGENT_SERVICE_SIGNING_SECRET_FILE: '/var/lib/happyherd-agent/secrets/signing-key',
     HAPPYHERD_AGENT_TRANSPORT_SECRET_FILE: '/var/lib/happyherd-agent/secrets/transport-key',
-    HAPPY_HOME_DIR: '/var/lib/happyherd-agent/happy-home',
+    HAPPYHERD_HOME_DIR: '/var/lib/happyherd-agent/happyherd-home',
     HAPPYHERD_AGENT_MACHINE_ID: 'machine-1',
     HAPPYHERD_AGENT_WORKSPACE: '/var/lib/happyherd-agent/workspace',
     HAPPYHERD_AGENT_STATE_DIR: '/var/lib/happyherd-agent/state',
@@ -50,7 +50,7 @@ describe('loadBridgeConfig', () => {
   it('rejects personal runtime paths on every host', () => {
     expect(() => loadBridgeConfig({
       ...baseEnvironment(),
-      HAPPY_HOME_DIR: join(homedir(), '.happyherd'),
+      HAPPYHERD_HOME_DIR: join(homedir(), '.happyherd'),
     })).toThrow('dedicated service path');
     expect(() => loadBridgeConfig({
       ...baseEnvironment(),

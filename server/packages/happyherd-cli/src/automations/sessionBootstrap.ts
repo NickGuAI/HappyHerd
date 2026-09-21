@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { HappyHerdAutomationKindSchema } from '@slopus/happy-wire';
+import { HappyHerdAutomationKindSchema } from '@happyherd/wire';
 import * as z from 'zod';
 
 import { configuration } from '@/configuration';

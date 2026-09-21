@@ -228,11 +228,11 @@ staged_runtime="$asset_root/runtime"
 [ -f "$asset_root/node/LICENSE" ] || { echo 'error: prepared release has no Node license' >&2; exit 1; }
 [ -f "$staged_runtime/bin/happyherd.mjs" ] || { echo 'error: prepared release has no HappyHerd command' >&2; exit 1; }
 [ -x "$staged_runtime/tools/unpacked/rg" ] || { echo 'error: prepared release has no platform tools' >&2; exit 1; }
-[ -f "$staged_runtime/node_modules/happy-server-self-host/package.json" ] || {
+[ -f "$staged_runtime/node_modules/happyherd-server-self-host/package.json" ] || {
   echo 'error: prepared release has no self-host server' >&2
   exit 1
 }
-[ -f "$staged_runtime/node_modules/happy-server-self-host/webapp/index.html" ] || {
+[ -f "$staged_runtime/node_modules/happyherd-server-self-host/webapp/index.html" ] || {
   echo 'error: prepared release has no Web app' >&2
   exit 1
 }

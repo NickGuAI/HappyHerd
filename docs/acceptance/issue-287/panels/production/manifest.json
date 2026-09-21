@@ -26,7 +26,7 @@
       "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
     ],
     "pageErrors": [],
-    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+    "textExcerpt": "HappyHerd\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
   },
   {
     "panelId": "restore-key",
@@ -75,7 +75,7 @@
       "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
     ],
     "pageErrors": [],
-    "textExcerpt": "Link New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+    "textExcerpt": "Link New Device\n1. Open HappyHerd on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
   },
   {
     "panelId": "server-config",
@@ -156,7 +156,7 @@
       "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
     ],
     "pageErrors": [],
-    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+    "textExcerpt": "HappyHerd\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
   },
   {
     "panelId": "restore-key",
@@ -205,7 +205,7 @@
       "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
     ],
     "pageErrors": [],
-    "textExcerpt": "\nLink New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+    "textExcerpt": "\nLink New Device\n1. Open HappyHerd on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
   },
   {
     "panelId": "server-config",
@@ -286,7 +286,7 @@
       "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
     ],
     "pageErrors": [],
-    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+    "textExcerpt": "HappyHerd\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
   },
   {
     "panelId": "restore-key",
@@ -335,7 +335,7 @@
       "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
     ],
     "pageErrors": [],
-    "textExcerpt": "Link New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+    "textExcerpt": "Link New Device\n1. Open HappyHerd on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
   },
   {
     "panelId": "server-config",
@@ -416,7 +416,7 @@
       "Unmodified exported production UI on an isolated loopback static host; backend offline; not deployed/authenticated evidence."
     ],
     "pageErrors": [],
-    "textExcerpt": "Happy\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
+    "textExcerpt": "HappyHerd\n127.0.0.1:61188\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app"
   },
   {
     "panelId": "restore-key",
@@ -465,7 +465,7 @@
       "The offline endpoint cannot issue/complete a QR pairing request; no ready/authenticated QR state is claimed."
     ],
     "pageErrors": [],
-    "textExcerpt": "\nLink New Device\n1. Open Happy on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
+    "textExcerpt": "\nLink New Device\n1. Open HappyHerd on your mobile device\n2. Go to Settings → Account\n3. Tap \"Link New Device\"\n4. Scan this QR code\nRestore with Secret Key Instead\nError\nAuthentication failed\nOK"
   },
   {
     "panelId": "server-config",

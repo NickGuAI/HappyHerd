@@ -25,7 +25,7 @@
       "width": 1440,
       "height": 900
     },
-    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappyherd://terminal?publicKey=synthetic-preview",
     "pageErrors": [],
     "captureSceneId": "connect-terminal",
     "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
@@ -57,7 +57,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappyherd://terminal?publicKey=synthetic-preview",
     "pageErrors": [],
     "captureSceneId": "connect-terminal",
     "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
@@ -89,7 +89,7 @@
       "width": 1440,
       "height": 900
     },
-    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappyherd://terminal?publicKey=synthetic-preview",
     "pageErrors": [],
     "captureSceneId": "connect-terminal",
     "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",
@@ -121,7 +121,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappy://terminal?publicKey=synthetic-preview",
+    "textExcerpt": "Authenticate Terminal\n\nAuthenticate Terminal with URL paste\nPaste the auth URL from your terminal\n\nhappyherd://terminal?publicKey=synthetic-preview",
     "pageErrors": [],
     "captureSceneId": "connect-terminal",
     "fixtureSource": "sources/components/EmptyMainScreen.browser.test.ts",

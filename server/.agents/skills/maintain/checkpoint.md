@@ -12,7 +12,7 @@
 1. **table stakes** — devs use it daily and don't want to kill
    themselves. critical bugs, UX blockers, polish.
 2. **growth** — viral features, community, social, engagement.
-   anything that makes happy spread. may spin off per-feature
+   anything that makes happyherd spread. may spin off per-feature
    milestones later.
 3. **devx** — how hard is it to build a new feature? env setup,
    e2e testing, docs/skills hygiene, reducing friction for
@@ -73,7 +73,7 @@ Not milestones (tracked, not focus areas):
 - #54 — Voice on self-hosted (Sep '25)
 
 ## Notes
-- npm `happy` package donated by @franciscop (issue #880)
+- npm `happyherd` package donated by @franciscop (issue #880)
 - PR #803 is NOT needed for mobile askUserQuestion flow
 - ACP agent detection is hardcoded per-agent (6-7 touch points)
 - v1.7.0 native shipped ~2 weeks ago, multiple OTAs since

@@ -580,7 +580,7 @@
     "sources/components/ItemList.tsx",
     "sources/components/ItemGroup.tsx",
     "sources/utils/errors.ts",
-    "sources/hooks/useHappyAction.ts",
+    "sources/hooks/useHappyHerdAction.ts",
     "sources/app/(app)/friends/index.tsx",
     "sources/components/UserSearchResult.tsx",
     "sources/hooks/useSearch.ts",

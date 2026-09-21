@@ -1,9 +1,9 @@
 import { posix, win32 } from 'node:path';
 
 import {
-  HappyControlClient as HappyHerdControlClient,
+  HappyHerdControlClient as HappyHerdControlClient,
   type DecryptedMachine,
-} from 'happy-agent/control';
+} from 'happyherd-control-agent/control';
 import {
   HappyHerdCommanderListResponseSchema,
   HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
@@ -11,12 +11,12 @@ import {
   type HappyHerdCommanderSummary,
   type HappyHerdMachineSessionProvider,
   type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import {
   authLogin as linkMachineControlAccount,
   authLogout as unlinkMachineControlAccount,
   authStatus as machineControlAccountStatus,
-} from 'happy-agent/auth';
+} from 'happyherd-control-agent/auth';
 
 import {
   AgentCapabilityCatalogSchema,
@@ -590,7 +590,7 @@ async function controlCall<T>(operation: () => Promise<T>): Promise<T> {
     return await operation();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes('happy-agent auth login')) {
+    if (message.includes('happyherd-control-agent auth login')) {
       throw new Error('Account-level machine authentication expired. Run `happyherd machine auth login` and approve the one-time link in the HappyHerd app.');
     }
     if (message.startsWith('Directory creation requires approval:')) {

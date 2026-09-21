@@ -1,4 +1,4 @@
-import { MessageContentSchema } from '@slopus/happy-wire';
+import { MessageContentSchema } from '@happyherd/wire';
 
 export const SIDE_CHAT_CONTEXT_MESSAGE_LIMIT = 4;
 export const SIDE_CHAT_CONTEXT_CHARACTER_LIMIT = 6_000;

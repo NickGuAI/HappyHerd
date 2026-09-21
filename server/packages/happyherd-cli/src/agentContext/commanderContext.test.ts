@@ -2,7 +2,7 @@ import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:f
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES } from '@slopus/happy-wire';
+import { MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES } from '@happyherd/wire';
 
 import {
   contextEnvironment,

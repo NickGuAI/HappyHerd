@@ -18,8 +18,8 @@ lifecycle and race-safe cleanup procedure in
 
 ## Interface localization
 
-- Every user-facing interface term must use `t()` and exist in all three canonical JSON catalogs: `packages/happy-app/sources/text/locales/en.json`, `cn.json`, and `de.json`.
+- Every user-facing interface term must use `t()` and exist in all three canonical JSON catalogs: `packages/happyherd-app/sources/text/locales/en.json`, `cn.json`, and `de.json`.
 - English defines the key and placeholder schema. Do not add TypeScript language catalogs or inline translation objects.
 - Preserve raw user content, provider/model slugs, paths, commands, logs, and protocol payloads; these are data, not interface copy.
-- Run `pnpm --filter happy-app i18n:generate` after changing catalog keys or placeholders, then run `pnpm --filter happy-app i18n:check`.
+- Run `pnpm --filter happyherd-app i18n:generate` after changing catalog keys or placeholders, then run `pnpm --filter happyherd-app i18n:check`.
 - Never refresh the hardcoded-copy allowlist to hide newly introduced UI strings. Move new copy into the three catalogs. The allowlist is only the explicit legacy migration baseline.

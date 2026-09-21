@@ -142,7 +142,7 @@ export class SDKToLogConverter {
                 // feeding the skill body back into the conversation) as
                 // `isSynthetic: true` in memory; on disk claude writes the
                 // equivalent flag as `isMeta`. The downstream mapper and
-                // happy-app both already short-circuit on `isMeta`, so
+                // happyherd-app both already short-circuit on `isMeta`, so
                 // forward the same signal whichever shape we received.
                 const meta = (userMsg as any).isSynthetic === true || (userMsg as any).isMeta === true
                 logMessage = {

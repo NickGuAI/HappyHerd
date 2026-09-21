@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const repoRoot = resolve(import.meta.dirname, '..');
-const appRoot = resolve(repoRoot, 'server/packages/happy-app');
+const appRoot = resolve(repoRoot, 'server/packages/happyherd-app');
 const metadata = JSON.parse(readFileSync(resolve(appRoot, 'product-metadata.json'), 'utf8'));
 const cliPackage = JSON.parse(readFileSync(resolve(appRoot, '../happyherd-cli/package.json'), 'utf8'));
 const appConfig = readFileSync(resolve(appRoot, 'app.config.js'), 'utf8');
@@ -45,7 +45,7 @@ for (const envName of [
 if (!/\bPRODUCT\.repositoryUrl\s*\?/.test(settingsView) || !/\bPRODUCT\.issueUrl\s*\?/.test(settingsView)) {
   throw new Error('About/support UI must keep actions gated by their resolved destinations');
 }
-if (/slopus\/happy/.test(productSource) || /slopus\/happy/.test(settingsView)) {
+if (/slopus\/happyherd/.test(productSource) || /slopus\/happyherd/.test(settingsView)) {
   throw new Error('stale upstream product support destination found');
 }
 

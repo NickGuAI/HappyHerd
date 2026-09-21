@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * Bundles happy-server into a self-contained artifact directory.
+ * Bundles happyherd-server into a self-contained artifact directory.
  *
  * Uses `bun build --compile` to produce a single platform-specific binary, then copies the
  * pglite WASM/data files and prisma migrations alongside. happyherd-cli does NOT depend on the
- * happy-server workspace package — we reach into the sibling directory at build time only.
+ * happyherd-server workspace package — we reach into the sibling directory at build time only.
  *
  * Layout produced:
  *   <out-dir>/
  *     <platform>/
- *       happy-server                  # bun-compiled binary
+ *       happyherd-server                  # bun-compiled binary
  *       pglite.wasm                   # PGlite expects these next to process.execPath
  *       pglite.data
  *       prisma/migrations/...
@@ -30,7 +30,7 @@ const { spawnSync } = require('node:child_process');
 
 const PACKAGE_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(PACKAGE_DIR, '..', '..');
-const SERVER_DIR = path.resolve(REPO_ROOT, 'packages/happy-server');
+const SERVER_DIR = path.resolve(REPO_ROOT, 'packages/happyherd-server');
 
 const BUN_TARGETS = {
     'arm64-darwin': 'bun-darwin-arm64',
@@ -47,7 +47,7 @@ function currentPlatform() {
 }
 
 function platformBinaryName(plat) {
-    return plat.endsWith('-win32') ? 'happy-server.exe' : 'happy-server';
+    return plat.endsWith('-win32') ? 'happyherd-server.exe' : 'happyherd-server';
 }
 
 function run(cmd, args, opts = {}) {
@@ -87,7 +87,7 @@ function buildPlatform(plat, outRoot) {
     fs.mkdirSync(outDir, { recursive: true });
     const outFile = path.join(outDir, platformBinaryName(plat));
 
-    console.log(`\n→ Bundling happy-server for ${plat} (${target})`);
+    console.log(`\n→ Bundling happyherd-server for ${plat} (${target})`);
     run(
         'bun',
         [
@@ -151,7 +151,7 @@ function main() {
         copyAssetsForPlatform(plat, outDir);
     }
 
-    console.log(`\n✓ happy-server bundle written to ${outDir}`);
+    console.log(`\n✓ happyherd-server bundle written to ${outDir}`);
 }
 
 function valueAfter(args, flag) {

@@ -1,6 +1,6 @@
 # Manual Product Validation
 
-This is the full Happy product check.
+This is the full HappyHerd product check.
 
 It is manual on purpose.
 
@@ -34,9 +34,9 @@ happyherd daemon start
 
 That shell now points at the local stack through:
 
-- `HAPPY_SERVER_URL`
-- `HAPPY_WEBAPP_URL`
-- `HAPPY_HOME_DIR`
+- `HAPPYHERD_SERVER_URL`
+- `HAPPYHERD_WEBAPP_URL`
+- `HAPPYHERD_HOME_DIR`
 
 Use the local web app URL printed by `yarn env:web`, or open the mobile app if
 you are testing on device.
@@ -86,7 +86,7 @@ Expected:
 
 Send:
 
-`Reply with exactly: happy-e2e-ok`
+`Reply with exactly: happyherd-e2e-ok`
 
 Expected:
 

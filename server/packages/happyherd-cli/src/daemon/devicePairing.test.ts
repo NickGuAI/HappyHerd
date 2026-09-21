@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEVICE_PAIRING_TTL_MS } from '@slopus/happy-wire';
+import { DEVICE_PAIRING_TTL_MS } from '@happyherd/wire';
 import { DevicePairingService } from './devicePairing';
 
 function fixture() {

@@ -124,7 +124,7 @@ jobs:
             packages/expo-tailcat/ios/Frameworks
             packages/expo-tailcat/android/libs
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
-      - name: Install standalone test app (not the Happy monorepo)
+      - name: Install standalone test app (not the HappyHerd monorepo)
         run: pnpm --dir example install --ignore-workspace --frozen-lockfile --ignore-scripts
       - name: Generate native test project
         run: pnpm --dir example exec expo prebuild --platform '${{ matrix.platform }}' --no-install

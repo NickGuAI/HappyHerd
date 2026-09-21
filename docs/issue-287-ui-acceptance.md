@@ -4,11 +4,11 @@ Scope: KILV visual rebuild, repository issue #287. The issue's source inventory 
 
 The [disposition table](issue-287-ui-disposition.tsv) reconciles every one of the issue's 945 unique paths, including supplemental style/configuration owners and assets, against the implementation tree. Additional production TS/TSX/font/artwork owners are explicit as `added-at-implementation` or `supplemental-existing-owner`. The TSV path column percent-encodes the density-marker `@` as `%40`; URI-decoding yields each exact repository path (these filenames are not email addresses). `adapt` may be a direct style edit or inheritance from the shared Unistyles theme, typography, control or host named in the row. `keep` preserves data identity, runtime/platform behavior, wrappers or compiled references. `rebuild` replaces the central visual foundation. A row is a scoped disposition and source mapping, **not a visual acceptance pass**. `implementation` reports whether the file itself changed; `verification` deliberately keeps rendered/native gaps visible.
 
-Assets are usage-review targets: deterministic avatar/empty-state image libraries, provider identities, raw user/agent images and approved Happy/Hervald product marks remain separate from KILV surface styling. No app, CLI or filesystem rename is authorized. Generated JSON is a theme reference, never runtime authority. Existing Unistyles breakpoints remain `xs0`, `sm300`, `md500`, `lg800`, `xl1200`.
+Assets are usage-review targets: deterministic avatar/empty-state image libraries, provider identities, raw user/agent images and approved HappyHerd/Hervald product marks remain separate from KILV surface styling. No app, CLI or filesystem rename is authorized. Generated JSON is a theme reference, never runtime authority. Existing Unistyles breakpoints remain `xs0`, `sm300`, `md500`, `lg800`, `xl1200`.
 
 ## Human journey contracts
 
-Human: an existing Happy user, except J01 begins signed out. Start on the ordinary production entry named below, in both populated and applicable empty/loading/error states. Every journey retains existing copy, data contracts, gestures and capability boundaries.
+Human: an existing HappyHerd user, except J01 begins signed out. Start on the ordinary production entry named below, in both populated and applicable empty/loading/error states. Every journey retains existing copy, data contracts, gestures and capability boundaries.
 
 | ID | Journey / start and visible entry | Gesture | Visible outcome | Retention and failure | Production ownership |
 |---|---|---|---|---|---|
@@ -142,9 +142,9 @@ The [18-case Web result record](acceptance/issue-287/web-results.json) covers th
 Reproduce that evidence from `server/` (the second script argument chooses an artifact directory):
 
 ```sh
-APP_ENV=production pnpm --filter happy-app exec expo export --platform all --output-dir dist-ci
-pnpm --filter happy-app web:smoke
-pnpm --filter happy-app exec node scripts/verify-kilv-web.mjs dist-ci /tmp/kilv-web-evidence
+APP_ENV=production pnpm --filter happyherd-app exec expo export --platform all --output-dir dist-ci
+pnpm --filter happyherd-app web:smoke
+pnpm --filter happyherd-app exec node scripts/verify-kilv-web.mjs dist-ci /tmp/kilv-web-evidence
 ```
 
 Supporting browser fixtures exercise the real workspace, file editing/review, deletion, side chats, projects, credentials, settings, automation and usage components with synthetic service/state boundaries. They retain their operation, recovery, draft and scrolling assertions. They do not prove live authenticated journeys. Native render tests cover Markdown body/list/link/table/inline-code readability in both tones and themes; actual rendered Web pixels check that bold, headings and italic remain visually distinct with the loaded font faces.
@@ -153,14 +153,14 @@ Supporting browser fixtures exercise the real workspace, file editing/review, de
 |---|---|---|
 | Source disposition | Complete | 945 baseline + 17 supplemental paths; exact filenames recover by URI-decoding the path column |
 | Frozen dependencies | Passed; lockfile unchanged | `pnpm install --frozen-lockfile` |
-| App typecheck | Passed | `pnpm --filter happy-app typecheck` |
-| Full app tests | 282 files / 2839 passed, 1 existing benchmark skipped before the native-build follow-up; latest-head result in PR | `pnpm --filter happy-app test --run --maxWorkers=2` |
+| App typecheck | Passed | `pnpm --filter happyherd-app typecheck` |
+| Full app tests | 282 files / 2839 passed, 1 existing benchmark skipped before the native-build follow-up; latest-head result in PR | `pnpm --filter happyherd-app test --run --maxWorkers=2` |
 | UI inventory and i18n | Passed | 40 routes, 277 UI owners, 84 smoke cases; 1532 keys per en/cn/de; zero hardcoded-copy exceptions |
 | Changelog | Passed | September 19 — Native build reliability; 143 parsed entries, including the KILV interface entry |
 | Production Web export | Passed | `APP_ENV=production ... expo export --platform all`, followed by production mount smoke |
 | iOS / Android Hermes export | Passed | Existing Expo route collection included six Node/Vitest files. A route-root-only Metro exclusion fixes this; the actual Metro file-map/context regression test retains real routes and excludes those tests for all three platforms. Both native Hermes bundles now export successfully; installed hosts remain unproved |
 | Production Web entry / restore | Local evidence | 18 combinations in the linked JSON; authenticated outcome unproved |
-| CLI / server builds | Passed | Dependency `happy-agent` built first, then CLI and server production builds |
+| CLI / server builds | Passed | Dependency `happyherd-control-agent` built first, then CLI and server production builds |
 | Repository contract suite | UI commit `16249c9` passed all required GitHub gates; latest-head result in PR | `scripts/contract-suite.sh`; isolated Bash 5.3 and ShellCheck 0.11 tooling, canonical upstream lineage |
 | Actual iPhone Safari keyboard / zoom | Unproved | Requires physical-device input focus and safe-area proof |
 | Native iOS / Android / macOS / Windows hosts | Unproved | Requires applicable shipped-host runtime/hardware evidence |

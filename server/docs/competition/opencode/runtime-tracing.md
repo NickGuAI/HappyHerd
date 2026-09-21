@@ -12,18 +12,18 @@ install into an isolated temp root, drive a real sample project, and only trust:
 - raw `/event` SSE logs from OpenCode
 - OpenCode source code
 
-For the Happy side of the comparison, this document only trusts Happy code.
+For the HappyHerd side of the comparison, this document only trusts HappyHerd code.
 
 ## Setup That Was Actually Used
 
 OpenCode source checkout:
 
-- `../happy-adjacent/research/opencode`
+- `../happyherd-adjacent/research/opencode`
 - commit `2e0d5d230893dbddcefb35a02f53ff2e7a58e5d0`
 
 Sample project:
 
-- `/Users/kirilldubovitskiy/projects/happy/environments/lab-rat-todo-project`
+- `/Users/kirilldubovitskiy/projects/happyherd/environments/lab-rat-todo-project`
 
 Isolated runtime root:
 
@@ -51,13 +51,13 @@ bun run --cwd packages/opencode --conditions=browser src/index.ts \
 
 Important source files behind that setup:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/auth/index.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/server/server.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/server/routes/experimental.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/prompt.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/auth/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/server/server.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/server/routes/experimental.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/prompt.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
 
 ## What Counts As “Real” Here
 
@@ -71,7 +71,7 @@ across four surfaces:
    `/session/:id/children`, `/experimental/worktree`, and
    `/experimental/workspace`
 
-That distinction matters for Happy. OpenCode does **not** have one single
+That distinction matters for HappyHerd. OpenCode does **not** have one single
 append-only transcript stream that already contains everything the UI needs.
 It has:
 
@@ -87,7 +87,7 @@ Before touching prompts, I verified how the server scopes requests.
 The key routing input is the header:
 
 ```http
-x-opencode-directory: /Users/kirilldubovitskiy/projects/happy/environments/lab-rat-todo-project
+x-opencode-directory: /Users/kirilldubovitskiy/projects/happyherd/environments/lab-rat-todo-project
 ```
 
 Real `GET /path` response:
@@ -97,8 +97,8 @@ Real `GET /path` response:
   "home": "/Users/kirilldubovitskiy",
   "state": "/tmp/opencode-trace-dev.ptZAVJ/state/opencode",
   "config": "/tmp/opencode-trace-dev.ptZAVJ/config/opencode",
-  "worktree": "/Users/kirilldubovitskiy/projects/happy",
-  "directory": "/Users/kirilldubovitskiy/projects/happy/environments/lab-rat-todo-project"
+  "worktree": "/Users/kirilldubovitskiy/projects/happyherd",
+  "directory": "/Users/kirilldubovitskiy/projects/happyherd/environments/lab-rat-todo-project"
 }
 ```
 
@@ -124,7 +124,7 @@ here is mostly:
 - optional workspace routing
 - optional git worktree management
 
-It is **not** the same kind of OS/filesystem/network sandbox policy that Happy
+It is **not** the same kind of OS/filesystem/network sandbox policy that HappyHerd
 already has code for in `packages/happyherd-cli/src/sandbox/config.ts`.
 
 ## Flow 1: Permission Ask Around `apply_patch`
@@ -424,7 +424,7 @@ The successful media path looked different because the input URL was a local
       "type": "file",
       "mime": "image/png",
       "filename": "logo.png",
-      "url": "file:///Users/kirilldubovitskiy/projects/happy/logo.png"
+      "url": "file:///Users/kirilldubovitskiy/projects/happyherd/logo.png"
     }
   ]
 }
@@ -443,7 +443,7 @@ The successful media path looked different because the input URL was a local
     {
       "type": "text",
       "synthetic": true,
-      "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/kirilldubovitskiy/projects/happy/logo.png\"}"
+      "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/kirilldubovitskiy/projects/happyherd/logo.png\"}"
     },
     {
       "type": "file",
@@ -505,7 +505,7 @@ So the real media story is:
 
 ## Flow 4: Subtask / Child Session / Permission Constraining
 
-This was the most important trace for side-by-side comparison with Happy.
+This was the most important trace for side-by-side comparison with HappyHerd.
 
 ### 1. Prompt body sent
 
@@ -613,7 +613,7 @@ Real `GET /session/{parentID}/children` response:
     "id": "ses_2f07a8dd6ffeRc23sIIgM4ZpMT",
     "parentID": "ses_2f07aa25affeqiZHSnBiN8pSyG",
     "title": "Find main project files (@explore subagent)",
-    "directory": "/Users/kirilldubovitskiy/projects/happy/environments/lab-rat-todo-project",
+    "directory": "/Users/kirilldubovitskiy/projects/happyherd/environments/lab-rat-todo-project",
     "permission": [
       { "permission": "todowrite", "pattern": "*", "action": "deny" },
       { "permission": "todoread", "pattern": "*", "action": "deny" },
@@ -648,25 +648,25 @@ So OpenCode is not faking subagents inside one flat message lane. It uses:
 - child session transcript
 - parent tool metadata linking to the child session id
 
-## Side By Side With Happy’s Current Code
+## Side By Side With HappyHerd’s Current Code
 
-This section uses only Happy code, not Happy runtime traces.
+This section uses only HappyHerd code, not HappyHerd runtime traces.
 
-| Topic | OpenCode, proven by logs/code | Happy, proven by code |
+| Topic | OpenCode, proven by logs/code | HappyHerd, proven by code |
 |---|---|---|
-| Outer envelope | message rows already have top-level `info` plus ordered typed `parts` | `packages/happy-wire/src/messages.ts` still wraps the newer format as `role: "session"` with inner `content: sessionEnvelope` |
-| Event discriminant | parts use top-level `type` like `text`, `reasoning`, `tool`, `file`, `agent`, `subtask`, `step-start` | `packages/happy-wire/src/sessionProtocol.ts` still nests event type under `ev.t` |
-| Permissions | live `permission.asked` and `permission.replied` events carry tool linkage and diff metadata | `packages/happy-app/sources/sync/reducer/reducer.ts` still reconstructs permission state by merging transcript-ish messages with encrypted `agentState` |
-| Subagents | real child sessions with `parentID`; `task_id` is resumable child session id | `packages/happy-wire/src/sessionProtocol.ts` only has optional `subagent` on envelopes, not child-session identity plus transcript-level linkage |
-| Media | user `file` part plus synthetic helper `text`; successful local files become concrete `data:` URLs | `packages/happy-wire/src/sessionProtocol.ts` only has one `file` event shape; plan doc proposes direct `photo` / `video` / `file` variants |
+| Outer envelope | message rows already have top-level `info` plus ordered typed `parts` | `packages/happyherd-wire/src/messages.ts` still wraps the newer format as `role: "session"` with inner `content: sessionEnvelope` |
+| Event discriminant | parts use top-level `type` like `text`, `reasoning`, `tool`, `file`, `agent`, `subtask`, `step-start` | `packages/happyherd-wire/src/sessionProtocol.ts` still nests event type under `ev.t` |
+| Permissions | live `permission.asked` and `permission.replied` events carry tool linkage and diff metadata | `packages/happyherd-app/sources/sync/reducer/reducer.ts` still reconstructs permission state by merging transcript-ish messages with encrypted `agentState` |
+| Subagents | real child sessions with `parentID`; `task_id` is resumable child session id | `packages/happyherd-wire/src/sessionProtocol.ts` only has optional `subagent` on envelopes, not child-session identity plus transcript-level linkage |
+| Media | user `file` part plus synthetic helper `text`; successful local files become concrete `data:` URLs | `packages/happyherd-wire/src/sessionProtocol.ts` only has one `file` event shape; plan doc proposes direct `photo` / `video` / `file` variants |
 | Sandbox / isolation | routing is by directory/workspace and optional worktrees; “sandbox” is mostly worktree/workspace language | `packages/happyherd-cli/src/sandbox/config.ts` already has concrete filesystem allow/deny rules plus network modes |
-| Client complexity | OpenCode reducers merge live patches into already-typed message rows | `packages/happy-app/sources/sync/typesRaw.ts` and `packages/happy-app/sources/sync/reducer/reducer.ts` still carry legacy families plus complex reconstruction logic |
+| Client complexity | OpenCode reducers merge live patches into already-typed message rows | `packages/happyherd-app/sources/sync/typesRaw.ts` and `packages/happyherd-app/sources/sync/reducer/reducer.ts` still carry legacy families plus complex reconstruction logic |
 
 The main conclusion is blunt:
 
 - OpenCode has the cleaner transcript shape
-- Happy has the stronger real sandbox config
-- Happy’s current reducer complexity is the strongest argument against keeping
+- HappyHerd has the stronger real sandbox config
+- HappyHerd’s current reducer complexity is the strongest argument against keeping
   multiple plaintext payload families alive
 
 ## What This Means For `provider-envelope-redesign.md`
@@ -681,7 +681,7 @@ looks right:
   transcript permissions, direct media variants
 - the current proposal in that plan doc is still the plan of record
 - OpenCode raw protocol shape remains the strongest outside reference to
-  evaluate before locking a new steady-state Happy schema
+  evaluate before locking a new steady-state HappyHerd schema
 - Claude’s older transcript-like format is still a plausible fallback if the
   simplest stable model turns out to be closer to that history
 
@@ -694,14 +694,14 @@ copying the raw transcript shape:
 - explicit child-session identity
 - clear separation between transcript state and live patch transport
 
-## The Hard Part For Happy: Encrypted Storage
+## The Hard Part For HappyHerd: Encrypted Storage
 
-This is where OpenCode and Happy diverge most.
+This is where OpenCode and HappyHerd diverge most.
 
 OpenCode can happily keep canonical message rows and patch parts over time
 because its storage layer sees plaintext session state.
 
-Happy stores opaque encrypted blobs. That means copying OpenCode literally
+HappyHerd stores opaque encrypted blobs. That means copying OpenCode literally
 forces a storage decision.
 
 ### Option A: Append-only canonical transcript events
@@ -720,7 +720,7 @@ Pros:
 
 - keeps storage immutable
 - refetch is simple
-- matches Happy’s current transport assumptions
+- matches HappyHerd’s current transport assumptions
 - avoids replaying raw deltas to rebuild a usable transcript
 
 Cons:
@@ -795,7 +795,7 @@ Pros:
 
 Cons:
 
-- this is exactly the direction most likely to recreate Happy’s current reducer
+- this is exactly the direction most likely to recreate HappyHerd’s current reducer
   pain
 - refetch requires replay/materialization
 - encrypted storage plus legacy format support makes this the highest-complexity
@@ -803,7 +803,7 @@ Cons:
 
 ### Recommendation
 
-If Happy borrows from OpenCode, it should probably steal the **shape** but not
+If HappyHerd borrows from OpenCode, it should probably steal the **shape** but not
 the entire persistence strategy.
 
 The strongest options are:

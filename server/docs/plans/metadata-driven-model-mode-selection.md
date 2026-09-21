@@ -23,14 +23,14 @@
 ## Files involved
 | File | Change |
 |------|--------|
-| `packages/happy-app/sources/components/PermissionModeSelector.tsx` | Change both `ModelMode` and `PermissionMode` to `{ key, name, description }` struct |
-| `packages/happy-app/sources/sync/storageTypes.ts` | Change `Session.modelMode` and `Session.permissionMode` to `string | null` (store key only) |
-| `packages/happy-app/sources/sync/storage.ts` | Widen both `updateSessionModelMode()` and `updateSessionPermissionMode()` to accept `string` |
-| `packages/happy-app/sources/components/AgentInput.tsx` | Accept structs for both, render from metadata or hardcoded, show `name` in UI |
-| `packages/happy-app/sources/-session/SessionView.tsx` | Build structs from metadata for both model and mode, pass to AgentInput |
-| `packages/happy-app/sources/sync/sync.ts` | Send model key in meta for all agent types, send permission mode key |
-| `packages/happy-app/sources/sync/typesMessageMeta.ts` | Ensure meta schema accepts any string for permissionMode |
-| `packages/happy-app/sources/app/(app)/new/index.tsx` | Adapt to structs for both model and mode |
+| `packages/happyherd-app/sources/components/PermissionModeSelector.tsx` | Change both `ModelMode` and `PermissionMode` to `{ key, name, description }` struct |
+| `packages/happyherd-app/sources/sync/storageTypes.ts` | Change `Session.modelMode` and `Session.permissionMode` to `string | null` (store key only) |
+| `packages/happyherd-app/sources/sync/storage.ts` | Widen both `updateSessionModelMode()` and `updateSessionPermissionMode()` to accept `string` |
+| `packages/happyherd-app/sources/components/AgentInput.tsx` | Accept structs for both, render from metadata or hardcoded, show `name` in UI |
+| `packages/happyherd-app/sources/-session/SessionView.tsx` | Build structs from metadata for both model and mode, pass to AgentInput |
+| `packages/happyherd-app/sources/sync/sync.ts` | Send model key in meta for all agent types, send permission mode key |
+| `packages/happyherd-app/sources/sync/typesMessageMeta.ts` | Ensure meta schema accepts any string for permissionMode |
+| `packages/happyherd-app/sources/app/(app)/new/index.tsx` | Adapt to structs for both model and mode |
 
 ## Development Approach
 - **Testing approach**: Regular (code first, then tests)
@@ -51,7 +51,7 @@
 - Document issues/blockers with ⚠️ prefix
 - Update plan if implementation deviates from original scope
 - Keep plan in sync with actual work done
-- ⚠️ `yarn workspace happy-app lint` is unavailable because the package has no `lint` script
+- ⚠️ `yarn workspace happyherd-app lint` is unavailable because the package has no `lint` script
 
 ## Implementation Steps
 

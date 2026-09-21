@@ -8,7 +8,7 @@ owning GitHub issue → feature branch → PR checks → merge commit
        │                                                    + ancestry → exact cleanup
        └──────────── concise real-transition comments on the issue ──────────────────┘
 
-Happy upstream → happyherd-upstream-merge-proposal → optional operator-tracker proposal
+HappyHerd upstream → happyherd-upstream-merge-proposal → optional operator-tracker proposal
                          └─ unchanged SHA → no write
 ```
 

@@ -1,5 +1,5 @@
 import { logger } from "@/ui/logger";
-import type { AgentMessageQueueState } from '@slopus/happy-wire';
+import type { AgentMessageQueueState } from '@happyherd/wire';
 
 export type PendingAttachment = { data: Uint8Array; mimeType: string; name: string };
 

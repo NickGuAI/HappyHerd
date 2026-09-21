@@ -109,7 +109,7 @@ export type InboundRecord = {
   authorDiscordId: string;
   status: InboundStatus;
   happySessionId: string | null;
-  happyLocalId: string;
+  happyherdLocalId: string;
   baselineSequence: number | null;
   turnId: string | null;
   answerHash: string | null;

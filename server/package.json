@@ -4,9 +4,9 @@
     "scripts": {
         "cli": "node packages/happyherd-cli/bin/happyherd.mjs",
         "release": "node ./scripts/release.cjs",
-        "web": "pnpm --filter happy-app web",
+        "web": "pnpm --filter happyherd-app web",
         "codium": "pnpm --filter codium dev",
-        "app-logs": "pnpm --filter happy-app-logs start",
+        "app-logs": "pnpm --filter happyherd-app-logs start",
         "postinstall": "node ./scripts/postinstall.cjs",
         "env:new": "tsx environments/environments.ts new",
         "env:list": "tsx environments/environments.ts list",
@@ -26,13 +26,13 @@
     },
     "workspaces": {
         "packages": [
-            "packages/happy-app",
-            "packages/happy-agent",
+            "packages/happyherd-app",
+            "packages/happyherd-control-agent",
             "packages/happyherd-cli",
-            "packages/happy-server",
-            "packages/happy-server-self-host",
-            "packages/happy-wire",
-            "packages/happy-app-logs",
+            "packages/happyherd-server",
+            "packages/happyherd-server-self-host",
+            "packages/happyherd-wire",
+            "packages/happyherd-app-logs",
             "packages/happyherd-agent",
             "packages/codium",
             "packages/expo-tailcat"

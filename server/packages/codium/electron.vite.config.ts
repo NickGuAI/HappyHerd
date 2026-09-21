@@ -41,9 +41,9 @@ export default defineConfig({
                         __dirname,
                         'sources/boot/main/agent-worker/worker.ts',
                     ),
-                    'happy-worker': resolve(
+                    'happyherd-worker': resolve(
                         __dirname,
-                        'sources/boot/main/happy-worker/worker.ts',
+                        'sources/boot/main/happyherd-worker/worker.ts',
                     ),
                 },
                 external: MAIN_EXTERNALS,

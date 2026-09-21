@@ -8,7 +8,7 @@ import {
   type DevicePairingConfirmResponse,
   type DevicePairingCreateResponse,
   type DevicePairingCancelResponse,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 type Pairing = {
   code: string;

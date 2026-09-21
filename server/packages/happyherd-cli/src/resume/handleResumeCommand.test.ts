@@ -635,7 +635,7 @@ describe('handleResumeCommand', () => {
         expect(spawnedEnv).not.toHaveProperty('CODEX_THREAD_ID');
     });
 
-    it('does not suggest happy-agent auth login when no local resume data or agent.key exists', async () => {
+    it('does not suggest happyherd-control-agent auth login when no local resume data or agent.key exists', async () => {
         mocks.mockResolveLocalReconnectableSession.mockRejectedValue(
             new LocalResumeSessionError(
                 'Cannot resume HappyHerd session "missing" on this machine: no local session encryption data found at /tmp/.happyherd/sessions.json.',
@@ -651,7 +651,7 @@ describe('handleResumeCommand', () => {
 
         expect(thrown).toBeInstanceOf(Error);
         expect((thrown as Error).message).toContain('no local session encryption data found');
-        expect((thrown as Error).message).not.toContain('happy-agent auth login');
+        expect((thrown as Error).message).not.toContain('happyherd-control-agent auth login');
         expect(mocks.mockSpawnHappyHerdCLI).not.toHaveBeenCalled();
     });
 

@@ -10,8 +10,8 @@ web-build/
 expo-env.d.ts
 /ios
 /android
-/packages/happy-app/ios
-/packages/happy-app/android
+/packages/happyherd-app/ios
+/packages/happyherd-app/android
 
 # Native
 .kotlin/
@@ -72,14 +72,14 @@ docs/competition/opencode/traces/
 
 # scratch tooling
 .cdp-scripts/
-happy-workspaces/
+happyherd-workspaces/
 
-# local HAPPY_HOME_DIR for self-host testing
-.happy-fully-local/
-.happy-dev/
+# local HAPPYHERD_HOME_DIR for self-host testing
+.happyherd-fully-local/
+.happyherd-dev/
 
 # third party tools
 .supervibe/
 
 .context/
-.happy-tmp/
+.happyherd-tmp/

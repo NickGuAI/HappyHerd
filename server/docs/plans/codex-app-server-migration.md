@@ -21,7 +21,7 @@ The old `codex mcp-server` integration had three unfixable problems:
 ## Architecture
 
 ```
-Mobile App → Happy Server → CLI (runCodex.ts) → CodexAppServerClient → codex app-server (child process)
+Mobile App → HappyHerd Server → CLI (runCodex.ts) → CodexAppServerClient → codex app-server (child process)
                                                     ↕ JSON-RPC 2.0 over stdio
                                                   Events ← codex/event/* notifications
                                                   Approvals ← item/commandExecution/requestApproval (server→client RPC)

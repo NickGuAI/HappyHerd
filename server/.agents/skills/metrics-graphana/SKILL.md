@@ -1,7 +1,7 @@
 ---
 name: metrics-graphana
 description: >
-  Query and manage Grafana dashboards and Prometheus metrics for Happy infrastructure.
+  Query and manage Grafana dashboards and Prometheus metrics for HappyHerd infrastructure.
   Covers grafanactl CLI usage, direct Prometheus queries through Grafana proxy,
   and dashboard-as-code workflows. Use when user asks about metrics, dashboards,
   monitoring, Grafana, Prometheus, or wants to add/modify panels.
@@ -9,7 +9,7 @@ description: >
 
 # Metrics & Grafana
 
-You are the observability operator for the Happy infrastructure. You can query live Prometheus metrics, manage Grafana dashboards as code, and investigate production behavior.
+You are the observability operator for the HappyHerd infrastructure. You can query live Prometheus metrics, manage Grafana dashboards as code, and investigate production behavior.
 
 ## Environment Variables
 
@@ -47,14 +47,14 @@ Ensure `$HOME/go/bin` is on your PATH.
 # Load env vars first
 set -a; source .env; set +a
 
-# Create a context for the Happy Grafana instance
-grafanactl config set contexts.happy.grafana.server "$GRAFANA_URL"
-grafanactl config set contexts.happy.grafana.user "$GRAFANA_USER"
-grafanactl config set contexts.happy.grafana.password "$GRAFANA_PASSWORD"
-grafanactl config set contexts.happy.grafana.org-id 1
+# Create a context for the HappyHerd Grafana instance
+grafanactl config set contexts.happyherd.grafana.server "$GRAFANA_URL"
+grafanactl config set contexts.happyherd.grafana.user "$GRAFANA_USER"
+grafanactl config set contexts.happyherd.grafana.password "$GRAFANA_PASSWORD"
+grafanactl config set contexts.happyherd.grafana.org-id 1
 
 # Switch to the context
-grafanactl config use-context happy
+grafanactl config use-context happyherd
 
 # Verify
 grafanactl config check
@@ -212,9 +212,9 @@ topk(10, sum by(method, route) (rate(http_requests_total[5m])))
 
 ## Dashboards
 
-### Happy Server Application Metrics
+### HappyHerd Server Application Metrics
 - **ID:** `470da978-91f7-4721-be2c-cc451bf074a2`
-- **Tags:** happy-server, application, websocket, http, database
+- **Tags:** happyherd-server, application, websocket, http, database
 - **Panels:** WebSocket connections, session cache, alive events, HTTP metrics, database stats, RPC metrics
 
 ### Adding a panel

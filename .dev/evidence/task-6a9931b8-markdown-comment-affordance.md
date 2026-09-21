@@ -14,13 +14,13 @@ Desktop opacity is `0` before hover and `1` after hover; in the true-touch 390×
 
 - **Focused suite:** 5 files and 34 tests passed.
 - **Coupled `sideChatHeader` browser suite:** 18 tests passed.
-- **Full `happy-app` suite:** 205 files and 1,892 tests passed.
+- **Full `happyherd-app` suite:** 205 files and 1,892 tests passed.
 - **Typecheck:** Passed.
 - **Source lint:** Passed.
 - **i18n validation:** Validated 1,382 keys for en/cn/de, 36 routes, 255 UI owners, 72 smoke cases, and zero hardcoded-copy exceptions.
 - **Production Expo Web export:** Passed with `HappyHerd` in the index title.
 - **Production Web smoke:** Passed.
-- **Builds:** `happy-agent`, the `happyherd` CLI, and `happy-server` passed.
+- **Builds:** `happyherd-control-agent`, the `happyherd` CLI, and `happyherd-server` passed.
 
 ## Before/after proof
 

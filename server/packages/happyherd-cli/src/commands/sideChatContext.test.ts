@@ -1,4 +1,4 @@
-import { createEnvelope } from '@slopus/happy-wire';
+import { createEnvelope } from '@happyherd/wire';
 import { describe, expect, it } from 'vitest';
 import {
   buildBoundedVisibleSideChatContext,

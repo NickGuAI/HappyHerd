@@ -4,14 +4,14 @@ Research summary as of 2026-03-06.
 
 ## Why this note exists
 
-Happy already has the runtime pieces needed for long-running and partially unsupervised agent work, but the guidance for how to operate, validate, and trust those workflows is scattered. This note captures:
+HappyHerd already has the runtime pieces needed for long-running and partially unsupervised agent work, but the guidance for how to operate, validate, and trust those workflows is scattered. This note captures:
 
 - what is documented today in this repository
 - what is missing for unsupervised development guidance
 - what a stronger adjacent process looks like
 - what the current skills ecosystem suggests for reusable agent procedures
 
-## What Happy documents today
+## What HappyHerd documents today
 
 The strongest documentation in this repository is about runtime behavior, not operator process.
 
@@ -24,12 +24,12 @@ The strongest documentation in this repository is about runtime behavior, not op
 There are also package-level agent instruction files:
 
 - [`../../packages/happyherd-cli/CLAUDE.md`](../../packages/happyherd-cli/CLAUDE.md)
-- [`../../packages/happy-app/CLAUDE.md`](../../packages/happy-app/CLAUDE.md)
-- [`../../packages/happy-server/CLAUDE.md`](../../packages/happy-server/CLAUDE.md)
+- [`../../packages/happyherd-app/CLAUDE.md`](../../packages/happyherd-app/CLAUDE.md)
+- [`../../packages/happyherd-server/CLAUDE.md`](../../packages/happyherd-server/CLAUDE.md)
 
 These are useful as local coding guidance, but they are not a coherent unsupervised-development handbook. In practice, the CLI one is also stale enough to still refer to `handy-cli`, so it should not be treated as the canonical source for current behavior.
 
-## How unsupervised development currently works in Happy
+## How unsupervised development currently works in HappyHerd
 
 Based on the current docs and codebase structure, the operating model is roughly:
 
@@ -41,13 +41,13 @@ Based on the current docs and codebase structure, the operating model is roughly
 6. The session protocol carries user messages, agent turns, tool calls, files, and subagent events.
 7. Provider-specific adapters map raw provider logs and streams into that unified protocol.
 
-Important consequence: Happy already has a protocol-level understanding of subagents and tool-spawned sidechains. The missing layer is not transport. The missing layer is process: when unsupervised operation is allowed, how it is validated, and what counts as evidence that it is safe and working.
+Important consequence: HappyHerd already has a protocol-level understanding of subagents and tool-spawned sidechains. The missing layer is not transport. The missing layer is process: when unsupervised operation is allowed, how it is validated, and what counts as evidence that it is safe and working.
 
 ## What is missing
 
 There is no single document that answers these operator questions:
 
-- What counts as an approved unsupervised workflow in Happy?
+- What counts as an approved unsupervised workflow in HappyHerd?
 - Which modes are safe only with sandboxing, and which require human approval?
 - What is the required validation loop before trusting an autonomous flow?
 - How should regressions be tracked and replayed?
@@ -62,7 +62,7 @@ There is also no explicit process split between:
 - a janitor or process-fixer
 - a review role
 
-That means Happy has the runtime for autonomous behavior, but not the operating manual.
+That means HappyHerd has the runtime for autonomous behavior, but not the operating manual.
 
 ## Adjacent process inspiration
 
@@ -75,7 +75,7 @@ An adjacent local project explored during this research used a much stricter age
 - rollout folders with plan, log, issues faced, artifacts, and final report
 - a janitor feedback loop that proposes process fixes based on repeated mistakes
 
-The most important ideas worth copying into Happy are:
+The most important ideas worth copying into HappyHerd are:
 
 - **Current-state ledger**: a brutally honest document of what actually works today, backed by evidence
 - **Role separation**: development, QA, review, and process-cleanup should not be implicit
@@ -116,7 +116,7 @@ Useful ideas from the standard:
 - the format is meant to be open and shared across agent products
 - skills can capture domain expertise, new capabilities, and repeatable workflows
 
-This matches Happy's needs well. Happy wraps multiple agents already, so a portable procedural layer is more valuable than yet another provider-specific prompt convention.
+This matches HappyHerd's needs well. HappyHerd wraps multiple agents already, so a portable procedural layer is more valuable than yet another provider-specific prompt convention.
 
 ### Anthropic custom subagents
 
@@ -131,15 +131,15 @@ Useful ideas:
 - subagents are useful for task-specific workflows and context management
 - hooks and tool restrictions matter when delegating work
 
-This lines up with Happy's existing protocol support for `subagent` event streams. The runtime already understands subagent identity; the missing piece is guidance for when and how to use that capability well.
+This lines up with HappyHerd's existing protocol support for `subagent` event streams. The runtime already understands subagent identity; the missing piece is guidance for when and how to use that capability well.
 
-## Implications for Happy
+## Implications for HappyHerd
 
 The practical conclusion is:
 
-- Happy does **not** need to invent subagent transport first.
-- Happy does **not** primarily need more architecture docs.
-- Happy **does** need an operator/process layer for autonomous work.
+- HappyHerd does **not** need to invent subagent transport first.
+- HappyHerd does **not** primarily need more architecture docs.
+- HappyHerd **does** need an operator/process layer for autonomous work.
 
 The first useful documentation pass would be:
 
@@ -159,23 +159,23 @@ The first useful documentation pass would be:
    - when to use a skill vs a subagent
    - naming and specialization guidance
    - project-local vs global skills
-   - how Happy should interoperate with existing agent skill directories
+   - how HappyHerd should interoperate with existing agent skill directories
 
 ## Recommended design direction
 
-If Happy decides to adopt skills more explicitly, the most compatible path is likely:
+If HappyHerd decides to adopt skills more explicitly, the most compatible path is likely:
 
 - support the standard `SKILL.md` format rather than inventing a new one
 - prefer project-local skill installation for reproducible teams
 - allow global skills for personal workflows
 - map onto the native skill directories already used by wrapped agents where possible
-- keep Happy focused on orchestration, observability, and validation rather than becoming a separate skill runtime
+- keep HappyHerd focused on orchestration, observability, and validation rather than becoming a separate skill runtime
 
-That approach keeps Happy aligned with the broader ecosystem while preserving its real value: remote control, daemonized execution, protocol normalization, and session observability across providers.
+That approach keeps HappyHerd aligned with the broader ecosystem while preserving its real value: remote control, daemonized execution, protocol normalization, and session observability across providers.
 
 ## Bottom line
 
-Happy currently has the substrate for unsupervised development, but not the handbook.
+HappyHerd currently has the substrate for unsupervised development, but not the handbook.
 
 The strongest next step is to document:
 

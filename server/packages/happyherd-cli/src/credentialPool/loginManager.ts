@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type {
   CredentialLoginFlow,
   ManagedCredentialProvider,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import crossSpawn from 'cross-spawn';
 
 import {

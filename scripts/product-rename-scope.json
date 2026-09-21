@@ -1,0 +1,19 @@
+{
+  "exclude": ["scripts/rename-product", "scripts/product-rename-scope.json", "scripts/rename-cli", "scripts/cli-rename-scope.json", "docs/lineage.md", "docs/upstream-sync-", "scripts/verify-lineage.sh", "scripts/verify-patch-discipline.sh", "docs/non-cli-renaming.md"],
+  "cli": ["docs/cli-", ".dev/skills/happyherd/", "install.sh", "installers/", "scripts/test-cli-rename-runtime.mjs", "server/.github/workflows/cli-smoke-test.yml"],
+  "stable": [
+    "happy-dev-secret", "happy-upstream-base-", "happy-auth.json",
+    "/var/lib/happyherd-agent-runtime/happy-home", "$AGENT_ROOT/happy-home",
+    "/var/lib/happyherd-agent-bridge/happy-agent",
+    "\"clever\", \"happy\", \"swift\"", "'clever', 'happy', 'swift'",
+    ":happy:", "S3_BUCKET=happy\n", "S3_BUCKET: happy\n", "\"/data/happy\"",
+    "value: happy\n", "postgresql://happy:happy@", ":5432/happy"
+  ],
+  "preserve": [
+    "Happy EnCoder", "'Happy Coder'", "\"Happy Coder\"", "Happy Blobs", "upstream Happy", "slopus/happy", "happy.engineering", "happy-coder", "@slopus/happy-terminal", "happy-dom",
+    "happyCliVersion", "happyHomeDir", "happyLibDir", "happyToolsDir", "happySessionId", "requiresHappyAgentAuth", "happyAgentAuthenticated", "spawn-happy-session", "resume-happy-session",
+    "X-Happy-Client", "x-happy-client", "mcp__happy__change_title", "mcp__happy_cli__change_title", "mcp__happy-cli__change_title",
+    "com.slopus.happy", "com.ex3ndr.happy", "'.happy'", "\".happy\"", "'.happy-dev'", "\".happy-dev\"", "'.happy-server'", "\".happy-server\"",
+    "happy-server-tokens", "github-happy"
+  ]
+}

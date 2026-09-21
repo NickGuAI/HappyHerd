@@ -1,4 +1,4 @@
-import { DevicePairingCheckRequestSchema, DevicePairingConfirmRequestSchema } from '@slopus/happy-wire';
+import { DevicePairingCheckRequestSchema, DevicePairingConfirmRequestSchema } from '@happyherd/wire';
 import type { DevicePairingService } from '@/daemon/devicePairing';
 /**
  * WebSocket client for machine/daemon communication with HappyHerd server
@@ -20,7 +20,7 @@ import {
     CredentialLoginStartRequestSchema,
     CredentialLoginSubmitCodeRequestSchema,
     ManagedProviderAccountListSchema,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { logger } from '@/ui/logger';
 import { configuration } from '@/configuration';
 import { MachineMetadata, DaemonState, Machine, Update, UpdateMachineBody } from './types';

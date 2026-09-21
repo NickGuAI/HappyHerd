@@ -1,7 +1,7 @@
 # HappyHerd AgentContext authority
 
 HappyHerd has one editable instruction authority: the directory configured by
-`HAPPY_HOME_DIR` (normally `~/.happyherd`). It does not fall back to another
+`HAPPYHERD_HOME_DIR` (normally `~/.happyherd`). It does not fall back to another
 state root, a singular `commander/` store, or a second home-level instruction
 copy.
 

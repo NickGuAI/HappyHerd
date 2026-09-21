@@ -78,6 +78,6 @@ generic deployment profile is `deploy/happyherd-agent.env.example`.
 ```bash
 pnpm --filter @happyherd/happyherd-agent typecheck
 pnpm --filter @happyherd/happyherd-agent test
-pnpm --filter happy-agent test
+pnpm --filter happyherd-control-agent test
 pnpm --filter @happyherd/cli test
 ```

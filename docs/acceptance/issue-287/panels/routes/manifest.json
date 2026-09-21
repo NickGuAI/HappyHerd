@@ -141,7 +141,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happyherd-app test\n",
     "pageErrors": []
   },
   {
@@ -170,7 +170,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happyherd-app test\n",
     "pageErrors": []
   },
   {
@@ -199,7 +199,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happyherd-app test\n",
     "pageErrors": []
   },
   {
@@ -228,7 +228,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happy-app test\n",
+    "textExcerpt": "Interface review notes\nSeptember 19, 2026 at 10:04 PM\nKILV interface review\n\nWarm materials and clear hierarchy.\n\nReview typography and contrast\nCheck desktop and mobile layouts\nSample command\nCopy\npnpm --filter happyherd-app test\n",
     "pageErrors": []
   },
   {
@@ -373,7 +373,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happyherd-app test\n~~~\n",
     "pageErrors": []
   },
   {
@@ -402,7 +402,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happyherd-app test\n~~~\n",
     "pageErrors": []
   },
   {
@@ -431,7 +431,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happyherd-app test\n~~~\n",
     "pageErrors": []
   },
   {
@@ -460,7 +460,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happy-app test\n~~~\n",
+    "textExcerpt": "TITLE\nCONTENT\nInterface review notes\n# KILV interface review\n\nWarm materials and clear hierarchy.\n\n- Review typography and contrast\n- Check desktop and mobile layouts\n\n## Sample command\n\n~~~sh\npnpm --filter happyherd-app test\n~~~\n",
     "pageErrors": []
   },
   {
@@ -1077,7 +1077,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1107,7 +1107,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1136,7 +1136,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1166,7 +1166,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1195,7 +1195,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1225,7 +1225,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1254,7 +1254,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -1284,7 +1284,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappy Session ID\nfixture-...xture-id\n\n\nCon",
+    "textExcerpt": "QUICK ACTIONS\n\nChanges\n\n\nView Machine\nView machine details and sessions\n\n\nArchive Session\nArchive this session and stop it\n\n\nDelete Session\nPermanently remove this session\n\n\nProject\nNo Project\n\n\nHappyHerd Session ID\nfixture-...xture-id\n\n\nCon",
     "pageErrors": []
   },
   {
@@ -3149,7 +3149,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3178,7 +3178,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3207,7 +3207,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3236,7 +3236,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3265,7 +3265,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happyherd-app test\n\nTypography stays readable on desktop and mobile.",
     "pageErrors": []
   },
   {
@@ -3294,7 +3294,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happyherd-app test\n\nTypography stays readable on desktop and mobile.",
     "pageErrors": []
   },
   {
@@ -3323,7 +3323,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happyherd-app test\n\nTypography stays readable on desktop and mobile.",
     "pageErrors": []
   },
   {
@@ -3352,7 +3352,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happy-app test\n\nTypography stays readable on desktop and mobile.",
+    "textExcerpt": "KILV interface review\n\nSelect and copy this sample text.\n\npnpm --filter happyherd-app test\n\nTypography stays readable on desktop and mobile.",
     "pageErrors": []
   },
   {
@@ -3381,7 +3381,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3410,7 +3410,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3439,7 +3439,7 @@
       "width": 1440,
       "height": 1000
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {
@@ -3468,7 +3468,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
+    "textExcerpt": "\nConnect Terminal\nA terminal is requesting to connect to your HappyHerd Coder account. This will allow the terminal to send and receive messages securely.\nCONNECTION DETAILS\n\nPublic Key\nsynthetic-pu...\n\nEncryption\nEnd-to-end encrypted\nAccept Connectio",
     "pageErrors": []
   },
   {

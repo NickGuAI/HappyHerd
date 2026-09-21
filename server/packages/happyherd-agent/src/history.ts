@@ -1,4 +1,4 @@
-import type { DecryptedMessage, TurnResult } from 'happy-agent/control';
+import type { DecryptedMessage, TurnResult } from 'happyherd-control-agent/control';
 
 type SessionEnvelope = {
   role?: unknown;

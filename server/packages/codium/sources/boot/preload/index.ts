@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
-    HappyAuthenticatedClientStatus,
-    HappyStateSnapshot,
-} from '../../shared/happy-protocol'
+    HappyHerdAuthenticatedClientStatus,
+    HappyHerdStateSnapshot,
+} from '../../shared/happyherd-protocol'
 
 export type ThemeSource = 'system' | 'light' | 'dark'
 export type ThemeState = { source: ThemeSource; shouldUseDarkColors: boolean }
@@ -94,7 +94,7 @@ const agent = {
     },
 }
 
-/* ─────── Chats persistence (jotai store <-> <Happy home>/state.sqlite) ─────── */
+/* ─────── Chats persistence (jotai store <-> <HappyHerd home>/state.sqlite) ─────── */
 
 export interface PersistedChats {
     chats: Record<string, unknown>
@@ -120,25 +120,25 @@ const codexAuth = {
     cancelLogin: () => ipcRenderer.send('codex:auth:cancel-login'),
 }
 
-const happy = {
-    getState: (): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:state:get'),
-    createAccount: (): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:create-account'),
-    startLinkDevice: (): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:start-link-device'),
-    restoreSecret: (secretKey: string): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:restore-secret', secretKey),
-    cancelAuth: (): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:cancel-auth'),
-    logout: (): Promise<HappyStateSnapshot> =>
-        ipcRenderer.invoke('happy:logout'),
-    clientStatus: (): Promise<HappyAuthenticatedClientStatus> =>
-        ipcRenderer.invoke('happy:client-status'),
-    onState(cb: (state: HappyStateSnapshot) => void) {
-        const listener = (_: unknown, state: HappyStateSnapshot) => cb(state)
-        ipcRenderer.on('happy:state', listener)
-        return () => ipcRenderer.off('happy:state', listener)
+const happyherd = {
+    getState: (): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:state:get'),
+    createAccount: (): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:create-account'),
+    startLinkDevice: (): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:start-link-device'),
+    restoreSecret: (secretKey: string): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:restore-secret', secretKey),
+    cancelAuth: (): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:cancel-auth'),
+    logout: (): Promise<HappyHerdStateSnapshot> =>
+        ipcRenderer.invoke('happyherd:logout'),
+    clientStatus: (): Promise<HappyHerdAuthenticatedClientStatus> =>
+        ipcRenderer.invoke('happyherd:client-status'),
+    onState(cb: (state: HappyHerdStateSnapshot) => void) {
+        const listener = (_: unknown, state: HappyHerdStateSnapshot) => cb(state)
+        ipcRenderer.on('happyherd:state', listener)
+        return () => ipcRenderer.off('happyherd:state', listener)
     },
 }
 
@@ -199,7 +199,7 @@ if (process.contextIsolated) {
         contextBridge.exposeInMainWorld('files', files)
         contextBridge.exposeInMainWorld('projects', projects)
         contextBridge.exposeInMainWorld('codexAuth', codexAuth)
-        contextBridge.exposeInMainWorld('happy', happy)
+        contextBridge.exposeInMainWorld('happyherd', happyherd)
         contextBridge.exposeInMainWorld('agent', agent)
         contextBridge.exposeInMainWorld('chats', chats)
     } catch (error) {
@@ -223,7 +223,7 @@ if (process.contextIsolated) {
     // @ts-expect-error augmenting window
     window.codexAuth = codexAuth
     // @ts-expect-error augmenting window
-    window.happy = happy
+    window.happyherd = happyherd
     // @ts-expect-error augmenting window
     window.agent = agent
     // @ts-expect-error augmenting window

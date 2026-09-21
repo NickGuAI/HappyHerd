@@ -4,11 +4,11 @@
 Integrate `@anthropic-ai/sandbox-runtime` into happyherd-cli to sandbox both **Claude Code** and **Codex** sessions with OS-level filesystem and network restrictions. The sandbox wraps agent subprocesses, enforcing configurable restrictions without requiring containers.
 
 Key features:
-- **`happy sandbox configure`** - Interactive CLI wizard (using `inquirer`) to set up sandbox rules
-- **`happy sandbox status`** - Show current sandbox configuration
-- **`happy sandbox disable`** - Turn off sandboxing
+- **`happyherd sandbox configure`** - Interactive CLI wizard (using `inquirer`) to set up sandbox rules
+- **`happyherd sandbox status`** - Show current sandbox configuration
+- **`happyherd sandbox disable`** - Turn off sandboxing
 - **Automatic enforcement** - Once configured, sandbox wraps both Claude and Codex sessions by default (bypass with `--no-sandbox`)
-- **Global config** - Stored in `~/.happy/settings.json` alongside existing settings
+- **Global config** - Stored in `~/.happyherd/settings.json` alongside existing settings
 - **Dual agent support** - Same sandbox config applies to both Claude Code and Codex
 
 ## Context
@@ -147,7 +147,7 @@ The sandbox provides a strict OS-level security boundary (filesystem + network).
 - [x] Write tests for lifecycle manager (mock `SandboxManager`)
 - [x] Run tests - must pass before next task
 
-### Task 5: Create `happy sandbox configure` interactive wizard
+### Task 5: Create `happyherd sandbox configure` interactive wizard
 - [x] Create `packages/happyherd-cli/src/commands/sandbox.ts`
 - [x] Implement `handleSandboxCommand(args: string[])` with subcommand dispatch (`configure`, `status`, `disable`, `help`)
 - [x] Implement `handleSandboxConfigure()` using `inquirer` prompts:
@@ -172,7 +172,7 @@ The sandbox provides a strict OS-level security boundary (filesystem + network).
 - [x] Write tests for `handleSandboxCommand` argument routing (unit test the dispatch logic)
 - [x] Run tests - must pass before next task
 
-### Task 6: Implement `happy sandbox status` and `happy sandbox disable`
+### Task 6: Implement `happyherd sandbox status` and `happyherd sandbox disable`
 - [x] Implement `handleSandboxStatus()` - reads settings, prints formatted sandbox config or "not configured"
 - [x] Implement `handleSandboxDisable()` - sets `sandboxConfig.enabled = false` via `updateSettings()`
 - [x] Implement `handleSandboxHelp()` - prints usage information
@@ -218,17 +218,17 @@ The sandbox provides a strict OS-level security boundary (filesystem + network).
 - [x] Write tests for `--no-sandbox` flag parsing
 - [x] Run tests - must pass before next task
 
-### Task 10: Add `happy sandbox` to help text and polish
-- [x] Add `happy sandbox` to the help text in `index.ts` (alongside `auth`, `connect`, `daemon`, etc.)
+### Task 10: Add `happyherd sandbox` to help text and polish
+- [x] Add `happyherd sandbox` to the help text in `index.ts` (alongside `auth`, `connect`, `daemon`, etc.)
 - [x] Add startup message when sandbox is active for both Claude and Codex (e.g., "Sandbox enabled: workspace=~/projects, network=allowed")
 - [x] Handle errors gracefully: if `SandboxManager.initialize()` fails, warn user and continue without sandbox
 - [x] Handle unsupported platforms (Windows): skip sandbox with warning
 - [x] Run tests - must pass before next task
 
 ### Task 11: Verify acceptance criteria
-- [x] Verify `happy sandbox configure` walks through all questions and saves config (automated command tests)
-- [x] Verify `happy sandbox status` shows current config (automated command tests)
-- [x] Verify `happy sandbox disable` turns off sandbox (automated command tests)
+- [x] Verify `happyherd sandbox configure` walks through all questions and saves config (automated command tests)
+- [x] Verify `happyherd sandbox status` shows current config (automated command tests)
+- [x] Verify `happyherd sandbox disable` turns off sandbox (automated command tests)
 - [x] Verify Claude launches with sandbox wrapping when configured (claudeLocal sandbox tests)
 - [x] Verify Claude gets `--dangerously-skip-permissions` auto-added when sandbox is active (claudeLocal sandbox tests)
 - [x] Verify Codex launches with sandbox wrapping when configured (codexMcpClient sandbox tests)
@@ -298,7 +298,7 @@ index.ts (parse --no-sandbox for codex subcommand too)
 ## Post-Completion
 
 **Manual verification:**
-- Test `happy sandbox configure` end-to-end on macOS
+- Test `happyherd sandbox configure` end-to-end on macOS
 - Test that Claude Code sessions actually run inside sandbox (try reading `~/.ssh`)
 - Test that Codex sessions actually run inside sandbox (try reading `~/.ssh`)
 - Test that `--no-sandbox` flag works correctly for both agents

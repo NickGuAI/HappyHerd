@@ -66,8 +66,8 @@ The relevant owners are
 `server/packages/happyherd-cli/src/codex/resumeExistingThread.ts`,
 `server/packages/happyherd-cli/src/daemon/run.ts`,
 `server/packages/happyherd-cli/src/resume/handleResumeCommand.ts`,
-`server/packages/happy-app/sources/utils/sessionResume.ts`, and
-`server/packages/happy-app/sources/hooks/useSessionQuickActions.ts`.
+`server/packages/happyherd-app/sources/utils/sessionResume.ts`, and
+`server/packages/happyherd-app/sources/hooks/useSessionQuickActions.ts`.
 
 ## Verification focus
 

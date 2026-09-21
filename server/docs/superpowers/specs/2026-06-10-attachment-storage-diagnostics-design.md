@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Image attachments currently work for some users and networks but fail for others. The suspected failure is not in the agent-specific image delivery path, but in the storage transfer path used by Happy attachments: the app asks Happy for an upload or download URL, then follows that URL to either Happy local storage or the S3-compatible storage host.
+Image attachments currently work for some users and networks but fail for others. The suspected failure is not in the agent-specific image delivery path, but in the storage transfer path used by HappyHerd attachments: the app asks HappyHerd for an upload or download URL, then follows that URL to either HappyHerd local storage or the S3-compatible storage host.
 
 Because the failure is not reproducible on every network, the first fix should make the failing leg observable without exposing attachment data or secrets. This design adds sanitized diagnostics around attachment upload and download. It does not change the storage architecture in the first phase.
 
@@ -23,18 +23,18 @@ Because the failure is not reproducible on every network, the first fix should m
 
 ## Current Flow
 
-The app sends image attachments through the existing Happy attachment pipeline:
+The app sends image attachments through the existing HappyHerd attachment pipeline:
 
 1. Read local image bytes from the selected attachment URI.
 2. Encrypt bytes locally with the session blob key.
-3. `POST /v1/sessions/:sessionId/attachments/request-upload` to Happy.
+3. `POST /v1/sessions/:sessionId/attachments/request-upload` to HappyHerd.
 4. Upload the encrypted blob to the returned URL:
-   - `PUT` to Happy server in local-storage mode.
+   - `PUT` to HappyHerd server in local-storage mode.
    - `POST` multipart form to the S3-compatible storage endpoint in S3 mode.
 5. Queue a session `file` event before the user text message.
 6. Later, download uses `request-download`, then follows the returned URL and decrypts locally for inline rendering or CLI delivery.
 
-The production deployment exposes both API and file storage behind Cloudflare. The file host returns S3-style XML responses. That makes network-specific failure on the direct storage leg plausible, especially if a carrier, corporate network, WAF, or bot-protection rule treats multipart POSTs to the storage host differently from normal Happy API calls.
+The production deployment exposes both API and file storage behind Cloudflare. The file host returns S3-style XML responses. That makes network-specific failure on the direct storage leg plausible, especially if a carrier, corporate network, WAF, or bot-protection rule treats multipart POSTs to the storage host differently from normal HappyHerd API calls.
 
 ## Phase 1: Diagnostic Layer
 
@@ -53,8 +53,8 @@ Each diagnostic record should include:
 - sanitized `host`, not the full URL
 - HTTP `status` and `statusText`, when available
 - network error message, when fetch throws
-- platform and Happy client version, if available from existing client helpers
-- whether the transfer target was Happy API/local storage or external storage, inferred from host comparison
+- platform and HappyHerd client version, if available from existing client helpers
+- whether the transfer target was HappyHerd API/local storage or external storage, inferred from host comparison
 
 The diagnostic helper must strip URL paths and query strings. It must not include attachment refs, presigned policy data, authorization headers, encrypted bytes, decrypted bytes, base64 payloads, or local file paths.
 
@@ -75,16 +75,16 @@ The point of phase 1 is to give maintainers a clear answer to “which leg faile
 
 ## Phase 2: Server-Mediated Fallback Candidate
 
-If diagnostics show failures concentrated on `blob-upload` or `blob-download` against the external storage host, design a second phase that routes storage traffic through Happy server as a fallback.
+If diagnostics show failures concentrated on `blob-upload` or `blob-download` against the external storage host, design a second phase that routes storage traffic through HappyHerd server as a fallback.
 
 The likely fallback shape:
 
 1. App first attempts the existing direct storage transfer.
-2. On selected network failures or storage-host HTTP errors, app retries via a Happy API endpoint.
-3. Happy server streams the encrypted blob to or from S3-compatible storage.
+2. On selected network failures or storage-host HTTP errors, app retries via a HappyHerd API endpoint.
+3. HappyHerd server streams the encrypted blob to or from S3-compatible storage.
 4. The server still never sees plaintext attachment bytes.
 
-This fallback increases Happy server bandwidth and request load, so it should not be added silently without evidence. The fallback also needs explicit tests for size limits, auth, path/ref validation, and safe retry behavior.
+This fallback increases HappyHerd server bandwidth and request load, so it should not be added silently without evidence. The fallback also needs explicit tests for size limits, auth, path/ref validation, and safe retry behavior.
 
 ## Error Handling
 
@@ -114,7 +114,7 @@ Manual web smoke test:
 2. Verify the message sends and no sensitive upload URL appears in logs.
 3. Block or override `files.cluster-fluster.com` in browser tooling or host resolution.
 4. Send another image and verify the log identifies `blob-upload` or `blob-download`, not a generic upload failed message only.
-5. Block Happy API and verify the log identifies `request-upload` or `request-download`.
+5. Block HappyHerd API and verify the log identifies `request-upload` or `request-download`.
 
 Manual native follow-up:
 
@@ -126,7 +126,7 @@ Phase 1 can ship with the restored image upload feature toggle. It is low-risk b
 
 After collecting diagnostics, choose one of these outcomes:
 
-- Failure is mostly `request-upload` or `request-download`: investigate Happy API reachability, auth, rate limiting, or proxy behavior.
+- Failure is mostly `request-upload` or `request-download`: investigate HappyHerd API reachability, auth, rate limiting, or proxy behavior.
 - Failure is mostly `blob-upload` or `blob-download` to the storage host: design and implement the server-mediated fallback.
 - Failure is mostly decrypt/render: investigate blob key, upload byte integrity, or attachment event ordering.
 

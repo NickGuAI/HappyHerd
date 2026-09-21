@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
-import type { CreateEnvelopeOptions, SessionEnvelope } from '@slopus/happy-wire';
-import { createEnvelope } from '@slopus/happy-wire';
+import type { CreateEnvelopeOptions, SessionEnvelope } from '@happyherd/wire';
+import { createEnvelope } from '@happyherd/wire';
 
 import { logger } from '@/ui/logger';
 

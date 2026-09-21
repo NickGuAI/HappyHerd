@@ -141,7 +141,7 @@ explicit: rerun `scripts/deploy-server.sh` with the previously published tag.
 ## 4. Stop, upgrade, and start each native host daemon
 
 Record the host account and environment that already own the daemon. The same
-account, `HAPPY_HOME_DIR`, server URL, and provider credentials must be used on
+account, `HAPPYHERD_HOME_DIR`, server URL, and provider credentials must be used on
 both sides of the restart. On Linux, this helper runs native CLI commands in
 that existing environment without printing it:
 
@@ -157,7 +157,7 @@ sudo chown "$DAEMON_USER:$DAEMON_GROUP" "$DAEMON_ENV"
 sudo chmod 0600 "$DAEMON_ENV"
 sudo -u "$DAEMON_USER" test -r "$DAEMON_ENV"
 
-host_happy() {
+host_happyherd() {
   sudo -u "$DAEMON_USER" bash -c '
     set -a
     source "$1"
@@ -170,20 +170,20 @@ host_happy() {
 
 Do not overwrite an existing environment file with the repository example.
 The expected steady state is mode `0600`, owned by the daemon account that must
-read its server URL, Happy home, and provider environment. Root-only ownership
+read its server URL, HappyHerd home, and provider environment. Root-only ownership
 is incompatible with the maintained user-owned cron/bootstrap path.
 
 Capture the pre-restart process and session view, then stop only the daemon:
 
 ```bash
-host_happy --version
-host_happy daemon status
-host_happy daemon list
-host_happy daemon stop
+host_happyherd --version
+host_happyherd daemon status
+host_happyherd daemon list
+host_happyherd daemon stop
 ```
 
 `happyherd daemon stop` deliberately leaves provider sessions alive. Do not use
-`happyherd doctor clean`, log out, delete the Happy home, or kill provider
+`happyherd doctor clean`, log out, delete the HappyHerd home, or kill provider
 processes as part of an update.
 
 For a Linux source installation, install from the recorded `CLI_SOURCE_SHA`
@@ -209,9 +209,9 @@ Start through the maintained detached lifecycle, still as the same account:
 sudo -u "$DAEMON_USER" \
   /usr/local/lib/happyherd/start-host-daemon.sh "$DAEMON_ENV"
 
-host_happy --version
-host_happy daemon status
-host_happy daemon list
+host_happyherd --version
+host_happyherd daemon status
+host_happyherd daemon list
 ```
 
 Verify a new daemon PID/start time and compare the pre/post session IDs, not
@@ -220,10 +220,10 @@ accepts the next turn when the release touches session or recovery behavior.
 
 On macOS, use the command surface that owns the existing installation. For the
 user-owned HappyHerd installation, run the pre-restart read-backs and
-`happyherd daemon stop` as the logged-in owner of the existing Happy home. Run
+`happyherd daemon stop` as the logged-in owner of the existing HappyHerd home. Run
 the one-command installer again from the selected source, then run `happyherd
 daemon start`, `happyherd daemon status`, and `happyherd daemon list` as that
-same user. The `happyherd` command forwards those commands directly to Happy.
+same user. The `happyherd` command forwards those commands directly to HappyHerd.
 Do not run
 `scripts/install-host-cli.sh`, the Linux bootstrap, or Linux root commands on
 the Mac. When both components are being updated, the central server deployment
@@ -256,7 +256,7 @@ metadata also carries `happyLibDir` and capability fields.
 
 1. Fully reload the website once and re-run daemon status/list read-backs.
 2. Do not rename or delete the machine, run `happyherd doctor clean`, replace the
-   Happy home, or create a new machine ID.
+   HappyHerd home, or create a new machine ID.
 3. If the machine is online but metadata remains invalid, treat activation as
    failed and escalate with the preserved machine ID and metadata version. Do
    not attempt a raw database edit. A maintainer repair must use the existing

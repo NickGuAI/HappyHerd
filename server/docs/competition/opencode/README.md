@@ -1,16 +1,16 @@
 # OpenCode
 
-Reviewed on 2026-03-21 from `../happy-adjacent/research/opencode` at commit
+Reviewed on 2026-03-21 from `../happyherd-adjacent/research/opencode` at commit
 `2e0d5d230893dbddcefb35a02f53ff2e7a58e5d0`.
 
 ## Why it matters
 
-OpenCode is currently the strongest overall product reference for Happy.
+OpenCode is currently the strongest overall product reference for HappyHerd.
 
 - the desktop UI is excellent
 - the feature set feels coherent and ambitious
 - clicking the context field opens a genuinely useful debug/context inspector
-- the transcript and sync model look much closer to what Happy should want than a flat custom message stream
+- the transcript and sync model look much closer to what HappyHerd should want than a flat custom message stream
 
 ## Current take
 
@@ -32,13 +32,13 @@ OpenCode is currently the strongest overall product reference for Happy.
 
 ## Important repo files
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/index.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/tool/todo.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/control-plane/workspace-server/routes.ts`
-- `../happy-adjacent/research/opencode/packages/app/src/components/session/session-context-tab.tsx`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/tool/todo.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/control-plane/workspace-server/routes.ts`
+- `../happyherd-adjacent/research/opencode/packages/app/src/components/session/session-context-tab.tsx`
 
 See `docs/competition/opencode/message-protocol.md`,
 `docs/competition/opencode/runtime-tracing.md`, and

@@ -10,7 +10,7 @@ expected_pnpm="10.11.0"
 # leak into provider tests as if it belonged to the test child.
 while IFS='=' read -r environment_name _; do
   case "$environment_name" in
-    HAPPY_RECONNECT_*|HAPPY_FORKED_*|HAPPY_SIDE_CHAT|HAPPYHERD_RECONNECT_*|HAPPYHERD_FORKED_*|HAPPYHERD_SIDE_CHAT|HAPPYHERD_FRESH_PROVIDER_RECONNECT|HAPPYHERD_CONTEXT_*|HAPPYHERD_GLOBAL_*|\
+    HAPPYHERD_RECONNECT_*|HAPPYHERD_FORKED_*|HAPPYHERD_SIDE_CHAT|HAPPYHERD_RECONNECT_*|HAPPYHERD_FORKED_*|HAPPYHERD_SIDE_CHAT|HAPPYHERD_FRESH_PROVIDER_RECONNECT|HAPPYHERD_CONTEXT_*|HAPPYHERD_GLOBAL_*|\
     HAPPYHERD_PROJECT_GUIDANCE_PATH|HAPPYHERD_COMMANDER_*|HAPPYHERD_AUTOMATION_*|\
     HAPPYHERD_AGENT_SURFACE_ID|HAPPYHERD_AGENT_CAPABILITY_ID|HAPPYHERD_AGENT_BROKER_URL|\
     HAPPYHERD_AGENT_TOOL_MANIFEST_JSON|CODEX_THREAD_ID)
@@ -43,7 +43,7 @@ export NODE_ENV=test
 node "$repo_root/scripts/test-public-boundary.mjs"
 node "$repo_root/scripts/verify-public-boundary.mjs"
 node "$repo_root/scripts/verify-cli-public-command.mjs"
-node "$repo_root/scripts/rename-cli.mjs" --from Happy --to HappyHerd --check
+node "$repo_root/scripts/rename-cli.mjs" --from HappyHerd --to HappyHerd --check
 node "$repo_root/scripts/lint-source.mjs"
 node "$repo_root/scripts/verify-product-identity.mjs"
 node "$repo_root/scripts/test-multiagent-guidance-contract.mjs"
@@ -59,13 +59,13 @@ shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh \
   "$repo_root/install.sh" "$repo_root/installers"/*.sh
 
 cd "$server_root"
-pnpm --filter happy-app --fail-if-no-match typecheck
-pnpm --filter happy-app --fail-if-no-match test --run
-pnpm --filter @slopus/happy-wire --fail-if-no-match test
-pnpm --filter happy-agent --fail-if-no-match test
+pnpm --filter happyherd-app --fail-if-no-match typecheck
+pnpm --filter happyherd-app --fail-if-no-match test --run
+pnpm --filter @happyherd/wire --fail-if-no-match test
+pnpm --filter happyherd-control-agent --fail-if-no-match test
 pnpm --filter @happyherd/happyherd-agent --fail-if-no-match test
 pnpm --filter @happyherd/cli --fail-if-no-match test
-pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
-pnpm --filter ./packages/happy-server --fail-if-no-match test
+pnpm --filter ./packages/happyherd-server --fail-if-no-match typecheck
+pnpm --filter ./packages/happyherd-server --fail-if-no-match test
 
 echo "contract-suite: ok"

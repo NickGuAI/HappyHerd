@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Options as ClaudeSdkOptions } from '@anthropic-ai/claude-agent-sdk';
-import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
+import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@happyherd/wire';
 import { parseDocument } from 'yaml';
 
 import type { AgentCapabilityCatalog } from '@/api/types';

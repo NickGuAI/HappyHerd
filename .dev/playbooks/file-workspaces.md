@@ -111,7 +111,7 @@ a visible, clickable Human entry.
 
 The chat file-surface instructions are part of this contract. Keep the live
 `~/.happyherd/AGENTS.md` pointer and learning file byte-aligned with the
-baked-in `deploy/happyherd-agent-runtime/happy-home/` copies. A change to
+baked-in `deploy/happyherd-agent-runtime/happyherd-home/` copies. A change to
 accepted or rejected Markdown forms updates both instruction surfaces in the
 same delivery.
 
@@ -122,7 +122,7 @@ same delivery.
 | Machine browser and chat context | `sources/app/(app)/workspace/index.tsx`, `MachineWorkspaceBrowser`, `sync/workspaceContext.ts` | Start embedded browsing at the exact chat machine/cwd, admit loopback live URLs for the selected machine, preserve subsequent Human navigation, and add existing file/directory references to that exact chat. |
 | Workspace host | `components/DesktopFileWorkspace.tsx`, `components/LocalhostLiveView.web.tsx` | Own deduplicated file/live tabs, the wide split, compact layout, and one mounted content host; do not add a second viewer or header `+`. |
 | File content and transport | `components/FileViewPanel.tsx`, `components/FileDocumentPreview.tsx`, `sync/ops.ts` | Reuse `FileContentPanel` for Preview/Edit/supported Delete and machine transport, including absolute paths outside cwd without a HappyHerd access block. |
-| Live selected-machine transport | `sync/workspaceLive.ts`, `public/workspace-live-sw.js`, `happy-wire/src/workspaceLive.ts`, `happyherd-cli/src/modules/common/registerCommonHandlers.ts` | Map only a registered live iframe's loopback HTTP requests onto the selected daemon's encrypted `workspace-live-fetch` RPC; all unrelated browser traffic passes through unchanged. |
+| Live selected-machine transport | `sync/workspaceLive.ts`, `public/workspace-live-sw.js`, `happyherd-wire/src/workspaceLive.ts`, `happyherd-cli/src/modules/common/registerCommonHandlers.ts` | Map only a registered live iframe's loopback HTTP requests onto the selected daemon's encrypted `workspace-live-fetch` RPC; all unrelated browser traffic passes through unchanged. |
 | Feedback | `components/FileViewPanel.tsx`, `components/InlineCommentReview.web.tsx`, `components/diff/PierreDiffView.tsx`, `components/markdown/MarkdownView.web.tsx`, `components/lineReviewStyles.ts`, `sync/workspaceFeedback.ts` | `FileViewPanel` manages shared state and placement, while `PierreDiffView` and `MarkdownView.web` handle line anchoring for code and Markdown threads; `InlineCommentReview.web` renders these threads alongside docked Canvas-node/localhost live-element comments and a single batch review bar, with `workspaceFeedback` preserving unchanged structured delivery to the Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
@@ -198,11 +198,11 @@ Main Agent and an active Side chat:
 Then run from `server/`:
 
 ```bash
-pnpm --filter happy-app typecheck
-pnpm --filter happy-app test --run
-pnpm --filter happy-app ui:inventory:generate
-pnpm --filter happy-app i18n:check
-APP_ENV=production pnpm --filter happy-app exec expo export \
+pnpm --filter happyherd-app typecheck
+pnpm --filter happyherd-app test --run
+pnpm --filter happyherd-app ui:inventory:generate
+pnpm --filter happyherd-app i18n:check
+APP_ENV=production pnpm --filter happyherd-app exec expo export \
   --platform web --output-dir dist-ci
 ```
 

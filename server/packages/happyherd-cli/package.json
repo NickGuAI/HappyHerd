@@ -117,7 +117,7 @@
     "expo-server-sdk": "^3.15.0",
     "fastify": "^5.6.2",
     "fastify-type-provider-zod": "^6.1.0",
-    "happy-agent": "workspace:*",
+    "happyherd-control-agent": "workspace:*",
     "http-proxy": "^1.18.1",
     "http-proxy-middleware": "^3.0.5",
     "ink": "^6.5.1",
@@ -137,7 +137,7 @@
   },
   "devDependencies": {
     "@eslint/compat": "^1",
-    "@slopus/happy-wire": "workspace:*",
+    "@happyherd/wire": "workspace:*",
     "@types/inquirer": "^9.0.9",
     "@types/node": ">=20",
     "cross-env": "^10.1.0",

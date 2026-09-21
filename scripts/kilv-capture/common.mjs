@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { runInNewContext } from 'node:vm';
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-export const appRoot = resolve(repoRoot, 'server/packages/happy-app');
+export const appRoot = resolve(repoRoot, 'server/packages/happyherd-app');
 const require = createRequire(resolve(appRoot, 'package.json'));
 const { build } = require('esbuild');
 const { chromium } = require('playwright-core');

@@ -61,10 +61,10 @@ files; infrastructure failures fail plain without retry storms.
 From the repository root:
 
 ```sh
-pnpm --filter @slopus/happy-wire build
-pnpm --filter happy-app typecheck
-pnpm --filter happy-app exec vitest run sources/components/diff sources/components/tools/ToolView.test.ts sources/components/tools/knownTools.spec.ts sources/utils/codexUnifiedDiff.spec.ts sources/utils/codexPatchEntry.spec.ts
-DIFF_BENCH=1 pnpm --filter happy-app exec vitest run sources/components/diff/engine/benchmark.spec.ts
+pnpm --filter @happyherd/wire build
+pnpm --filter happyherd-app typecheck
+pnpm --filter happyherd-app exec vitest run sources/components/diff sources/components/tools/ToolView.test.ts sources/components/tools/knownTools.spec.ts sources/utils/codexUnifiedDiff.spec.ts sources/utils/codexPatchEntry.spec.ts
+DIFF_BENCH=1 pnpm --filter happyherd-app exec vitest run sources/components/diff/engine/benchmark.spec.ts
 ```
 
 The tests cover actual Worklets Babel transformation with an empty captured
@@ -76,7 +76,7 @@ preserving text/emphasis/layout, and filename propagation from tool views.
 After changing the worker, highlighting engine, or Prism dependency:
 
 ```sh
-pnpm --filter happy-app generate:diff-syntax
+pnpm --filter happyherd-app generate:diff-syntax
 ```
 
 A unit test rejects stale generated output. `esbuild` is a pinned dev-only
@@ -103,7 +103,7 @@ Use a native development build that already includes Worklets. For performance
 decisions, repeat on a physical device in a release-like build; Node timings
 and simulator/dev timings are not Hermes device guarantees.
 
-1. Open `/dev/diff-bench` (deep link `happy://dev/diff-bench`). Keep **syntax**
+1. Open `/dev/diff-bench` (deep link `happyherd://dev/diff-bench`). Keep **syntax**
    and **worker** on. Choose **file**, then **cold cache**. Code should first
    appear colored; at worst it appears plain after approximately one second.
    The reserved space must not expose selectable/invisible code to VoiceOver.

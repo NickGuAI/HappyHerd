@@ -11,7 +11,7 @@ import os from 'node:os';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_AGY_EFFORTS, HAPPYHERD_DEFAULT_AGY_MODEL, HAPPYHERD_DEFAULT_AGY_EFFORT } from '@slopus/happy-wire';
+import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_AGY_EFFORTS, HAPPYHERD_DEFAULT_AGY_MODEL, HAPPYHERD_DEFAULT_AGY_EFFORT } from '@happyherd/wire';
 
 /** Default command name for the agy binary (looked up on PATH). */
 export const AGY_BIN = 'agy';

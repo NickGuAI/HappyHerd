@@ -10,7 +10,7 @@ description: >
 
 # Release
 
-You are the release operator for the Happy monorepo. When invoked, walk the user through releasing the component they choose.
+You are the release operator for the HappyHerd monorepo. When invoked, walk the user through releasing the component they choose.
 
 ## Step 1: Pick a target
 
@@ -37,7 +37,7 @@ Tag namespace note:
 - CLI releases use `cli-X.Y.Z`
 - Native releases use `native-<runtime-version>`
 - OTA releases use `ota-<ota-version>`
-- Do not use a bare `vX.Y.Z` tag for Happy releases because multiple release streams coexist in this repo
+- Do not use a bare `vX.Y.Z` tag for HappyHerd releases because multiple release streams coexist in this repo
 
 ### Step 2: Gather state
 
@@ -73,16 +73,16 @@ Edit `packages/happyherd-cli/package.json` directly — do NOT use `npm version`
 
 IMPORTANT: do this **before** build/test for the CLI. The build imports `package.json` and bakes the version into the generated bundle. If you build first and bump later, `happyherd --version` can still report the old prerelease version even though npm metadata shows the new one.
 
-### Step 4b: `@slopus/happy-wire` must stay bundled — do NOT move it back
+### Step 4b: `@happyherd/wire` must stay bundled — do NOT move it back
 
-`packages/happyherd-cli/package.json` keeps `"@slopus/happy-wire": "workspace:*"` in
+`packages/happyherd-cli/package.json` keeps `"@happyherd/wire": "workspace:*"` in
 **`devDependencies`, deliberately**. That is not a mistake to tidy up.
 
 pkgroll has no `--external` flag — its entire externals policy is derived from
 `dependencies`/`peerDependencies`. So the dependency section IS the bundling
 switch:
 
-- in `dependencies` → pkgroll emits a bare `import ... from '@slopus/happy-wire'`
+- in `dependencies` → pkgroll emits a bare `import ... from '@happyherd/wire'`
   and Node resolves it from the registry at runtime
 - in `devDependencies` → pkgroll inlines the code into `dist/`, and the dep
   vanishes from the published `package.json` entirely
@@ -91,17 +91,17 @@ It must stay in `devDependencies`. After any build change, verify:
 
 ```bash
 # must return nothing — no runtime import may survive
-grep -rnE "(import|require).*@slopus/happy-wire" packages/happyherd-cli/dist/
+grep -rnE "(import|require).*@happyherd/wire" packages/happyherd-cli/dist/
 # must return the definitions, not just import mentions
 grep -rhoE "(function|const) (createEnvelope|stripLeadingTaskNotificationWrappers)" packages/happyherd-cli/dist/
 ```
 
-(A bare `"@slopus/happy-wire": "workspace:*"` string does still appear in dist —
+(A bare `"@happyherd/wire": "workspace:*"` string does still appear in dist —
 that is the CLI's own package.json inlined as a JSON literal for the version
 string. Inert. Only an actual `import`/`require` matters.)
 
-**Why this exists.** `1.2.1-beta.0` shipped declaring `"@slopus/happy-wire":
-"0.1.0"` — the only version on npm, published 2026-02-13. Local happy-wire was
+**Why this exists.** `1.2.1-beta.0` shipped declaring `"@happyherd/wire":
+"0.1.0"` — the only version on npm, published 2026-02-13. Local happyherd-wire was
 *also* labeled `0.1.0` but had 18 commits of drift, including `f85b20c3` which
 added `stripLeadingTaskNotificationWrappers` and imported it from
 `happyherd-cli/src/codex/utils/sessionProtocolMapper.ts`. February's tarball had no
@@ -115,13 +115,13 @@ symbol. `workspace:*` publishes the local version NUMBER, never the local CODE.
 all 792 unit tests — always sees the correct code. It only fails against the
 registry. The global-install smoke check in Step 11 is the ONLY gate.
 
-**Still exposed — `happy-agent` and `happy-server-self-host`** both keep
-happy-wire in `dependencies`, so they carry the original trap. Before publishing
-either, bundle it the same way or get happy-wire republished first.
+**Still exposed — `happyherd-control-agent` and `happyherd-server-self-host`** both keep
+happyherd-wire in `dependencies`, so they carry the original trap. Before publishing
+either, bundle it the same way or get happyherd-wire republished first.
 
-**Publish rights:** `@slopus/happy-wire` is owned solely by `steve.kite
-<steve@korshakov.com>`. Ownership of the historical `happy` package does not
-grant access to the `@slopus` scope, so publishing happy-wire 404s for other
+**Publish rights:** `@happyherd/wire` is owned solely by `steve.kite
+<steve@korshakov.com>`. Ownership of the historical `happyherd` package does not
+grant access to the `@slopus` scope, so publishing happyherd-wire 404s for other
 maintainers. Bundling exists partly
 to route around that.
 
@@ -150,16 +150,16 @@ Report success/failure. Stop on failure.
 
 The `@happyherd/cli` npm package does not bundle the self-host server binary or webapp.
 Packaged installs resolve those from the separately installed
-`happy-server-self-host` package. Do not rebuild or ship `tools/server` or
+`happyherd-server-self-host` package. Do not rebuild or ship `tools/server` or
 `tools/webapp` as part of a CLI release.
 
 If the CLI release depends on self-host server changes, release
-`happy-server-self-host` separately. It lives in `packages/happy-server-self-host`
-and is the publishing shell around the private `packages/happy-server`:
-`pnpm --filter happy-server-self-host build` bundles that package's standalone
+`happyherd-server-self-host` separately. It lives in `packages/happyherd-server-self-host`
+and is the publishing shell around the private `packages/happyherd-server`:
+`pnpm --filter happyherd-server-self-host build` bundles that package's standalone
 entrypoint into `dist/` and copies `prisma/` in (this needs bun), then
-`pnpm --filter happy-server-self-host run bundle:webapp` builds the bundled
-webapp. Publish from `packages/happy-server-self-host` — `packages/happy-server`
+`pnpm --filter happyherd-server-self-host run bundle:webapp` builds the bundled
+webapp. Publish from `packages/happyherd-server-self-host` — `packages/happyherd-server`
 is private and is never published. The server package is a JS/TS npm package;
 npm handles platform
 specific dependencies such as Prisma and sharp normally. Do not pass
@@ -171,7 +171,7 @@ chain yourself to catch failures early — the `bundle:webapp` step runs a multi
 `expo export`, and `build` needs bun:
 
 ```bash
-pnpm --filter happy-server-self-host --fail-if-no-match run prepublishOnly
+pnpm --filter happyherd-server-self-host --fail-if-no-match run prepublishOnly
 ```
 
 The server typecheck, unit suite, and both Docker images are gated by
@@ -308,7 +308,7 @@ The smoke check must confirm that `happyherd --version` matches the published ve
 
 ## Mobile Release
 
-    Package:     packages/happy-app
+    Package:     packages/happyherd-app
     Variants:    development, preview, production
     Platform:    Expo SDK 54 / React Native 0.81.4
 
@@ -326,36 +326,36 @@ options in order of popularity:
 
   ```bash
   # Preview (most common)
-  pnpm --filter happy-app run ota
+  pnpm --filter happyherd-app run ota
 
   # Production
-  pnpm --filter happy-app run ota:production
+  pnpm --filter happyherd-app run ota:production
   ```
 
 OTA scripts require a message — stdin is not readable from Claude Code, so run the
 underlying `eas update` directly with `--message`:
   ```bash
-  cd packages/happy-app && APP_ENV=preview NODE_ENV=preview tsx sources/scripts/parseChangelog.ts && pnpm typecheck && eas update --branch preview --message "<message>"
+  cd packages/happyherd-app && APP_ENV=preview NODE_ENV=preview tsx sources/scripts/parseChangelog.ts && pnpm typecheck && eas update --branch preview --message "<message>"
   ```
 
 #### Native Builds
 
 - **Dev build** — development profile, used when native code changes (points to dev server)
   ```bash
-  cd packages/happy-app && eas build --profile development --platform all --non-interactive
+  cd packages/happyherd-app && eas build --profile development --platform all --non-interactive
   ```
 
 - **TestFlight / Play Store builds** — use `-store` profiles for distribution via TestFlight and Play Store.
   **Always pass `--auto-submit`** so the build goes straight to TestFlight after completion.
   ```bash
   # Preview (TestFlight/internal testing)
-  cd packages/happy-app && eas build --profile preview-store --platform ios --non-interactive --auto-submit
+  cd packages/happyherd-app && eas build --profile preview-store --platform ios --non-interactive --auto-submit
 
   # Dev (TestFlight, points to dev server)
-  cd packages/happy-app && eas build --profile development-store --platform ios --non-interactive --auto-submit
+  cd packages/happyherd-app && eas build --profile development-store --platform ios --non-interactive --auto-submit
 
   # Production (App Store / Play Store submission)
-  cd packages/happy-app && eas build --profile production --platform ios --non-interactive --auto-submit
+  cd packages/happyherd-app && eas build --profile production --platform ios --non-interactive --auto-submit
   ```
 
 **IMPORTANT:** Always pass `--non-interactive` to `eas build` commands. Without it,
@@ -400,12 +400,12 @@ Runtime version "20" — bump when native code changes to invalidate OTA.
 
 ## Web Release
 
-    Package:     packages/happy-app (same Expo app, web export)
+    Package:     packages/happyherd-app (same Expo app, web export)
     Dockerfile:  Dockerfile.webapp
-    Image:       docker.korshakov.com/happy-app:{version}
-    K8s:         packages/happy-app/deploy/happy-app.yaml (3 replicas)
+    Image:       docker.korshakov.com/happyherd-app:{version}
+    K8s:         packages/happyherd-app/deploy/happyherd-app.yaml (3 replicas)
 
-Web releases go through TeamCity (`Lab_HappyWeb`). The config is in the TeamCity UI, not in the repo.
+Web releases go through TeamCity (`Lab_HappyHerdWeb`). The config is in the TeamCity UI, not in the repo.
 
 Flow: `expo export --platform web` -> nginx:alpine static serve -> Docker build -> push -> K8s deploy.
 
@@ -417,16 +417,16 @@ Guide the user to trigger the TeamCity build, or help with manual Docker builds 
 
 ## Server Release
 
-    Package:     packages/happy-server
+    Package:     packages/happyherd-server
     Dockerfile:  Dockerfile.server (production), Dockerfile (standalone w/ PGlite)
     Image:       docker.korshakov.com/handy-server:{version}
-    K8s:         packages/happy-server/deploy/handy.yaml (1 replica, port 3005)
+    K8s:         packages/happyherd-server/deploy/handy.yaml (1 replica, port 3005)
 
-Server releases go through TeamCity (`Lab_HappyServer`). The config is in the TeamCity UI, not in the repo.
+Server releases go through TeamCity (`Lab_HappyHerdServer`). The config is in the TeamCity UI, not in the repo.
 
-Build: node:20 + python3 + ffmpeg, builds happy-wire + happy-server.
+Build: node:20 + python3 + ffmpeg, builds happyherd-wire + happyherd-server.
 Secrets from Vault: handy-db, handy-master, handy-github, handy-files, handy-e2b, handy-revenuecat, handy-elevenlabs.
-Redis: happy-redis StatefulSet (redis:7-alpine, 1Gi persistent volume).
+Redis: happyherd-redis StatefulSet (redis:7-alpine, 1Gi persistent volume).
 
 Guide the user to trigger the TeamCity build.
 
@@ -449,7 +449,7 @@ Separate repo, not part of this monorepo. Guide the user to push to that repo.
 2. **Default-off ⇒ exclude.** A change behind a setting/experimental flag that defaults to OFF (or whose UI entry point is hidden) is a silent ship — omit it until it's on by default. Same for impl / perf-internal / refactor / type-only changes.
 3. **Audience is phone users.** Most never touch the CLI or desktop. Be skeptical of CLI-only / desktop-only / web-only / beta-only items — a genuinely strong feature can still be wrong for *this* venue; announce those in CLI release notes / docs / GitHub instead.
 4. **Ask, don't assume.** When announce-vs-silent-ship, default state, or scope is unclear, ask the owner and confirm the final include/exclude list before writing. Never headline-announce on your own judgment.
-5. **Voice:** benefit-first, terse, em-dash, one line per item, grouped as a dated themed entry like existing ones. Edit `CHANGELOG.md` only, then regenerate via `tsx packages/happy-app/sources/scripts/parseChangelog.ts`.
+5. **Voice:** benefit-first, terse, em-dash, one line per item, grouped as a dated themed entry like existing ones. Edit `CHANGELOG.md` only, then regenerate via `tsx packages/happyherd-app/sources/scripts/parseChangelog.ts`.
 6. **Community Credits bullet.** End each entry with a single bullet crediting community contributors whose commits ship in it: `- Community Credits: [@user1](https://github.com/user1), [@user2](https://github.com/user2)`. Core team never appears there — Kirill (`bra1ndump` / kirill2003de@gmail.com), `Scoteezy`, and Steve (`ex3ndr`). To find contributors: get the previous OTA's commit via `eas update:list --branch preview` + `eas update:view <group-id> --json` (`gitCommitHash`), then `git log <hash>..HEAD` and keep non-core authors. GitHub handles come from the PR (`gh pr view <n> --json author`), not from the commit email. If an OTA shipped without a changelog entry, its uncredited community commits roll into the next entry's credits.
 
 ## Rules
@@ -457,7 +457,7 @@ Separate repo, not part of this monorepo. Guide the user to push to that repo.
 - **Release notes: investigate with subagents, exclude default-off, ask when unsure** — see "Writing release notes" above.
 - **Always present options** — never assume which component, channel, or version.
 - **Always verify before publishing** — show the user what will be published and get confirmation.
-- **Do not bundle self-host server/webapp into `@happyherd/cli`** — self-host runtime and the bundled webapp ship through `happy-server-self-host`, not the main CLI package.
+- **Do not bundle self-host server/webapp into `@happyherd/cli`** — self-host runtime and the bundled webapp ship through `happyherd-server-self-host`, not the main CLI package.
 - **Unit tests are the gate, not integration tests** — integration tests are slow and have flaky abort/interrupt tests.
 - **Use pnpm publish, not npm publish** — avoids workspace protocol issues.
 - **Never use --ignore-scripts for package publishing** — prepublish scripts are the last guard before npm receives the tarball.

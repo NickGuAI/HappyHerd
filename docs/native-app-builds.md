@@ -15,10 +15,10 @@ Set these values in the release environment before generating or building iOS:
 
 ```sh
 export APP_ENV=production
-export HAPPY_APP_BUNDLE_ID=com.example.happyherd
+export HAPPYHERD_APP_BUNDLE_ID=com.example.happyherd
 export APPLE_TEAM_ID=EXAMPLETEAM
-export HAPPY_IOS_BUILD_NUMBER=1
-export EXPO_PUBLIC_HAPPY_SERVER_URL=https://happy.example.com
+export HAPPYHERD_IOS_BUILD_NUMBER=1
+export EXPO_PUBLIC_HAPPYHERD_SERVER_URL=https://happy.example.com
 ```
 
 Use the registered bundle ID and actual Apple Developer team for the release.
@@ -32,13 +32,13 @@ intended server when exporting Web assets for a desktop release or bundling iOS.
 
 Optional service settings:
 
-- `HAPPY_EAS_PROJECT_ID` and `HAPPY_EAS_OWNER` select the distribution's own Expo
+- `HAPPYHERD_EAS_PROJECT_ID` and `HAPPYHERD_EAS_OWNER` select the distribution's own Expo
   project/account for EAS, push notifications, and over-the-air updates. Without
   a project ID, OTA is disabled and Expo push registration has no project; local
   Xcode builds still work. Do not substitute the upstream Happy project.
-- `HAPPY_APP_LINK_HOST` enables the production iOS associated domain. Configure
+- `HAPPYHERD_APP_LINK_HOST` enables the production iOS associated domain. Configure
   the matching Apple association file on that host before relying on universal
-  links. The normal `happy` URL scheme is retained.
+  links. The normal `happyherd` URL scheme is retained.
 - EAS submission profiles deliberately contain no upstream account or App Store
   Connect app ID. Configure the release account before using EAS submission.
 
@@ -50,7 +50,7 @@ credentials or `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password), and
 `APPLE_TEAM_ID`. Keep these in the release environment, never in Git.
 
 ```sh
-pnpm --filter happy-app tauri:build:production \
+pnpm --filter happyherd-app tauri:build:production \
   --bundles app dmg --config '{"identifier":"com.example.happyherd"}'
 ```
 
@@ -64,7 +64,7 @@ artifact, install both Rust Apple targets and add
 `--target universal-apple-darwin`. An unsigned local test build can use Tauri's
 standard `--no-sign` option; that output is not a signed/notarized release.
 
-Artifacts are under `packages/happy-app/src-tauri/target/release/bundle/`
+Artifacts are under `packages/happyherd-app/src-tauri/target/release/bundle/`
 (or the selected target directory). Before distribution, verify the actual app
 and disk image with `codesign --verify --deep --strict`, Gatekeeper's `spctl`
 assessment, `xcrun stapler validate`, and `hdiutil verify`. Launch the app and
@@ -76,8 +76,8 @@ notarization or authenticated-flow evidence.
 Generate the native project with the selected release configuration:
 
 ```sh
-pnpm --filter happy-app exec expo prebuild --platform ios
-xcodebuild -workspace packages/happy-app/ios/HappyHerd.xcworkspace \
+pnpm --filter happyherd-app exec expo prebuild --platform ios
+xcodebuild -workspace packages/happyherd-app/ios/HappyHerd.xcworkspace \
   -scheme HappyHerd -configuration Release -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /tmp/happyherd-simulator CODE_SIGNING_ALLOWED=NO build
@@ -90,7 +90,7 @@ For a signed device archive, use the enrolled Apple Developer team and its
 Apple Distribution signing identity:
 
 ```sh
-xcodebuild -workspace packages/happy-app/ios/HappyHerd.xcworkspace \
+xcodebuild -workspace packages/happyherd-app/ios/HappyHerd.xcworkspace \
   -scheme HappyHerd -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath /tmp/HappyHerd.xcarchive -allowProvisioningUpdates archive

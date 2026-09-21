@@ -101,7 +101,7 @@ change. When behavior changes, update both this skill and
 
 ## Ownership map
 
-Paths below are relative to `server/packages/happy-app/` unless they start
+Paths below are relative to `server/packages/happyherd-app/` unless they start
 with `.dev/` or `docs/`.
 
 ### Routes and hosts
@@ -199,10 +199,10 @@ with `.dev/` or `docs/`.
 
 - `.dev/AGENTS.md`, `.dev/ROUTING.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md`,
   `.dev/playbooks/file-workspaces.md`, .dev skill catalogs.
-- `server/packages/happy-app/sources/text/locales/{en,cn,de}.json`,
+- `server/packages/happyherd-app/sources/text/locales/{en,cn,de}.json`,
   `sources/text/generated.ts`, `sources/text/ui-surface-inventory.json`,
   `sources/text/ui-tree.html`.
-- `server/packages/happy-app/CHANGELOG.md` +
+- `server/packages/happyherd-app/CHANGELOG.md` +
   `sources/changelog/changelog.json`.
 - `docs/owned-patches.tsv` (only when the commit touches outside `.dev/`).
 
@@ -283,14 +283,14 @@ Web Mobile `390 × 844` for a Main Agent and an active Side chat:
 From `server/`:
 
 ```bash
-pnpm --filter happy-app typecheck
-pnpm --filter happy-app test --run
-pnpm --filter happy-app ui:inventory:generate     # review the diff
-pnpm --filter happy-app i18n:check
-pnpm --filter happy-app exec tsx sources/scripts/parseChangelog.ts   # when user-visible
-APP_ENV=production pnpm --filter happy-app exec expo export --platform web --output-dir dist-ci
-grep -F '<title>HappyHerd</title>' packages/happy-app/dist-ci/index.html
-pnpm --filter happy-app web:smoke
+pnpm --filter happyherd-app typecheck
+pnpm --filter happyherd-app test --run
+pnpm --filter happyherd-app ui:inventory:generate     # review the diff
+pnpm --filter happyherd-app i18n:check
+pnpm --filter happyherd-app exec tsx sources/scripts/parseChangelog.ts   # when user-visible
+APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir dist-ci
+grep -F '<title>HappyHerd</title>' packages/happyherd-app/dist-ci/index.html
+pnpm --filter happyherd-app web:smoke
 ```
 
 From the repository root:

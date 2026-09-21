@@ -3,8 +3,8 @@
     "panelId": "chat-list",
     "label": "Conversation transcript",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -36,8 +36,8 @@
     "panelId": "chat-list",
     "label": "Conversation transcript",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -69,8 +69,8 @@
     "panelId": "chat-list",
     "label": "Conversation transcript",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -102,8 +102,8 @@
     "panelId": "chat-list",
     "label": "Conversation transcript",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -135,7 +135,7 @@
     "panelId": "messages",
     "label": "Human and agent messages",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -167,7 +167,7 @@
     "panelId": "messages",
     "label": "Human and agent messages",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -199,7 +199,7 @@
     "panelId": "messages",
     "label": "Human and agent messages",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -231,7 +231,7 @@
     "panelId": "messages",
     "label": "Human and agent messages",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -263,9 +263,9 @@
     "panelId": "goal-work-queue",
     "label": "Goal, completed work and message queue",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentGoalBar.tsx",
-      "server/packages/happy-app/sources/components/AgentWorkGroupHeader.tsx",
-      "server/packages/happy-app/sources/components/QueuedMessagesPanel.tsx"
+      "server/packages/happyherd-app/sources/components/AgentGoalBar.tsx",
+      "server/packages/happyherd-app/sources/components/AgentWorkGroupHeader.tsx",
+      "server/packages/happyherd-app/sources/components/QueuedMessagesPanel.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -297,9 +297,9 @@
     "panelId": "goal-work-queue",
     "label": "Goal, completed work and message queue",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentGoalBar.tsx",
-      "server/packages/happy-app/sources/components/AgentWorkGroupHeader.tsx",
-      "server/packages/happy-app/sources/components/QueuedMessagesPanel.tsx"
+      "server/packages/happyherd-app/sources/components/AgentGoalBar.tsx",
+      "server/packages/happyherd-app/sources/components/AgentWorkGroupHeader.tsx",
+      "server/packages/happyherd-app/sources/components/QueuedMessagesPanel.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -331,9 +331,9 @@
     "panelId": "goal-work-queue",
     "label": "Goal, completed work and message queue",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentGoalBar.tsx",
-      "server/packages/happy-app/sources/components/AgentWorkGroupHeader.tsx",
-      "server/packages/happy-app/sources/components/QueuedMessagesPanel.tsx"
+      "server/packages/happyherd-app/sources/components/AgentGoalBar.tsx",
+      "server/packages/happyherd-app/sources/components/AgentWorkGroupHeader.tsx",
+      "server/packages/happyherd-app/sources/components/QueuedMessagesPanel.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -365,9 +365,9 @@
     "panelId": "goal-work-queue",
     "label": "Goal, completed work and message queue",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentGoalBar.tsx",
-      "server/packages/happy-app/sources/components/AgentWorkGroupHeader.tsx",
-      "server/packages/happy-app/sources/components/QueuedMessagesPanel.tsx"
+      "server/packages/happyherd-app/sources/components/AgentGoalBar.tsx",
+      "server/packages/happyherd-app/sources/components/AgentWorkGroupHeader.tsx",
+      "server/packages/happyherd-app/sources/components/QueuedMessagesPanel.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -399,7 +399,7 @@
     "panelId": "empty",
     "label": "Empty conversation",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/EmptyMessages.tsx"
+      "server/packages/happyherd-app/sources/components/EmptyMessages.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -431,7 +431,7 @@
     "panelId": "empty",
     "label": "Empty conversation",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/EmptyMessages.tsx"
+      "server/packages/happyherd-app/sources/components/EmptyMessages.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -463,7 +463,7 @@
     "panelId": "empty",
     "label": "Empty conversation",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/EmptyMessages.tsx"
+      "server/packages/happyherd-app/sources/components/EmptyMessages.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -495,7 +495,7 @@
     "panelId": "empty",
     "label": "Empty conversation",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/EmptyMessages.tsx"
+      "server/packages/happyherd-app/sources/components/EmptyMessages.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -527,9 +527,9 @@
     "panelId": "status",
     "label": "Session status and connected voice",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionStatusBar.tsx",
-      "server/packages/happy-app/sources/components/VoiceAssistantStatusBar.tsx",
-      "server/packages/happy-app/sources/components/ShimmerView.tsx"
+      "server/packages/happyherd-app/sources/components/SessionStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/VoiceAssistantStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/ShimmerView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -562,9 +562,9 @@
     "panelId": "status",
     "label": "Session status and connected voice",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionStatusBar.tsx",
-      "server/packages/happy-app/sources/components/VoiceAssistantStatusBar.tsx",
-      "server/packages/happy-app/sources/components/ShimmerView.tsx"
+      "server/packages/happyherd-app/sources/components/SessionStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/VoiceAssistantStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/ShimmerView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -597,9 +597,9 @@
     "panelId": "status",
     "label": "Session status and connected voice",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionStatusBar.tsx",
-      "server/packages/happy-app/sources/components/VoiceAssistantStatusBar.tsx",
-      "server/packages/happy-app/sources/components/ShimmerView.tsx"
+      "server/packages/happyherd-app/sources/components/SessionStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/VoiceAssistantStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/ShimmerView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -632,9 +632,9 @@
     "panelId": "status",
     "label": "Session status and connected voice",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionStatusBar.tsx",
-      "server/packages/happy-app/sources/components/VoiceAssistantStatusBar.tsx",
-      "server/packages/happy-app/sources/components/ShimmerView.tsx"
+      "server/packages/happyherd-app/sources/components/SessionStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/VoiceAssistantStatusBar.tsx",
+      "server/packages/happyherd-app/sources/components/ShimmerView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -667,7 +667,7 @@
     "panelId": "attachment-menu",
     "label": "Attachment source menu",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AttachmentInputMenu.tsx"
+      "server/packages/happyherd-app/sources/components/AttachmentInputMenu.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -699,7 +699,7 @@
     "panelId": "attachment-menu",
     "label": "Attachment source menu",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AttachmentInputMenu.tsx"
+      "server/packages/happyherd-app/sources/components/AttachmentInputMenu.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -731,7 +731,7 @@
     "panelId": "attachment-menu",
     "label": "Attachment source menu",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AttachmentInputMenu.tsx"
+      "server/packages/happyherd-app/sources/components/AttachmentInputMenu.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -763,7 +763,7 @@
     "panelId": "attachment-menu",
     "label": "Attachment source menu",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AttachmentInputMenu.tsx"
+      "server/packages/happyherd-app/sources/components/AttachmentInputMenu.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -795,7 +795,7 @@
     "panelId": "question",
     "label": "Agent question modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -827,7 +827,7 @@
     "panelId": "question",
     "label": "Agent question modal — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "selected-answer",
     "theme": "light",
@@ -858,7 +858,7 @@
     "panelId": "question",
     "label": "Agent question modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -890,7 +890,7 @@
     "panelId": "question",
     "label": "Agent question modal — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "selected-answer",
     "theme": "light",
@@ -921,7 +921,7 @@
     "panelId": "question",
     "label": "Agent question modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -953,7 +953,7 @@
     "panelId": "question",
     "label": "Agent question modal — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "selected-answer",
     "theme": "dark",
@@ -984,7 +984,7 @@
     "panelId": "question",
     "label": "Agent question modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1016,7 +1016,7 @@
     "panelId": "question",
     "label": "Agent question modal — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentQuestionModal.tsx"
+      "server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx"
     ],
     "state": "selected-answer",
     "theme": "dark",
@@ -1047,8 +1047,8 @@
     "panelId": "continuation",
     "label": "Provider continuation links and sheet",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ProviderContinuationLinks.tsx",
-      "server/packages/happy-app/sources/components/ProviderContinuationSheet.tsx"
+      "server/packages/happyherd-app/sources/components/ProviderContinuationLinks.tsx",
+      "server/packages/happyherd-app/sources/components/ProviderContinuationSheet.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1080,8 +1080,8 @@
     "panelId": "continuation",
     "label": "Provider continuation links and sheet",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ProviderContinuationLinks.tsx",
-      "server/packages/happy-app/sources/components/ProviderContinuationSheet.tsx"
+      "server/packages/happyherd-app/sources/components/ProviderContinuationLinks.tsx",
+      "server/packages/happyherd-app/sources/components/ProviderContinuationSheet.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1113,8 +1113,8 @@
     "panelId": "continuation",
     "label": "Provider continuation links and sheet",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ProviderContinuationLinks.tsx",
-      "server/packages/happy-app/sources/components/ProviderContinuationSheet.tsx"
+      "server/packages/happyherd-app/sources/components/ProviderContinuationLinks.tsx",
+      "server/packages/happyherd-app/sources/components/ProviderContinuationSheet.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1146,8 +1146,8 @@
     "panelId": "continuation",
     "label": "Provider continuation links and sheet",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/ProviderContinuationLinks.tsx",
-      "server/packages/happy-app/sources/components/ProviderContinuationSheet.tsx"
+      "server/packages/happyherd-app/sources/components/ProviderContinuationLinks.tsx",
+      "server/packages/happyherd-app/sources/components/ProviderContinuationSheet.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1179,7 +1179,7 @@
     "panelId": "session-actions",
     "label": "Session actions popover",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionActionsPopover.tsx"
+      "server/packages/happyherd-app/sources/components/SessionActionsPopover.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1211,7 +1211,7 @@
     "panelId": "session-actions",
     "label": "Session actions popover",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionActionsPopover.tsx"
+      "server/packages/happyherd-app/sources/components/SessionActionsPopover.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1243,7 +1243,7 @@
     "panelId": "session-actions",
     "label": "Session actions popover",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionActionsPopover.tsx"
+      "server/packages/happyherd-app/sources/components/SessionActionsPopover.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1275,7 +1275,7 @@
     "panelId": "session-actions",
     "label": "Session actions popover",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SessionActionsPopover.tsx"
+      "server/packages/happyherd-app/sources/components/SessionActionsPopover.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1307,7 +1307,7 @@
     "panelId": "native-editor",
     "label": "Native code editor",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/CodeEditor.tsx"
+      "server/packages/happyherd-app/sources/components/CodeEditor.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1340,7 +1340,7 @@
     "panelId": "native-editor",
     "label": "Native code editor",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/CodeEditor.tsx"
+      "server/packages/happyherd-app/sources/components/CodeEditor.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1373,7 +1373,7 @@
     "panelId": "native-editor",
     "label": "Native code editor",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/CodeEditor.tsx"
+      "server/packages/happyherd-app/sources/components/CodeEditor.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1406,7 +1406,7 @@
     "panelId": "native-editor",
     "label": "Native code editor",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/CodeEditor.tsx"
+      "server/packages/happyherd-app/sources/components/CodeEditor.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1439,9 +1439,9 @@
     "panelId": "tool-shells",
     "label": "Compact tool and provider command results",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/CodexBashView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/GeminiExecuteView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/CodexBashView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/GeminiExecuteView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1473,9 +1473,9 @@
     "panelId": "tool-shells",
     "label": "Compact tool and provider command results",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/CodexBashView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/GeminiExecuteView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/CodexBashView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/GeminiExecuteView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1507,9 +1507,9 @@
     "panelId": "tool-shells",
     "label": "Compact tool and provider command results",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/CodexBashView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/GeminiExecuteView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/CodexBashView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/GeminiExecuteView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1541,9 +1541,9 @@
     "panelId": "tool-shells",
     "label": "Compact tool and provider command results",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/CodexBashView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/GeminiExecuteView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/CodexBashView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/GeminiExecuteView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1575,7 +1575,7 @@
     "panelId": "tool-full",
     "label": "Tool detail and error result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolFullView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolFullView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1607,7 +1607,7 @@
     "panelId": "tool-full",
     "label": "Tool detail and error result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolFullView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolFullView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1639,7 +1639,7 @@
     "panelId": "tool-full",
     "label": "Tool detail and error result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolFullView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolFullView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1671,7 +1671,7 @@
     "panelId": "tool-full",
     "label": "Tool detail and error result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolFullView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolFullView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1703,10 +1703,10 @@
     "panelId": "tool-states",
     "label": "Tool execution and permission states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolSectionView.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolError.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolStatusIndicator.tsx",
-      "server/packages/happy-app/sources/components/tools/PermissionFooter.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolSectionView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolError.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolStatusIndicator.tsx",
+      "server/packages/happyherd-app/sources/components/tools/PermissionFooter.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1738,10 +1738,10 @@
     "panelId": "tool-states",
     "label": "Tool execution and permission states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolSectionView.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolError.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolStatusIndicator.tsx",
-      "server/packages/happy-app/sources/components/tools/PermissionFooter.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolSectionView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolError.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolStatusIndicator.tsx",
+      "server/packages/happyherd-app/sources/components/tools/PermissionFooter.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1773,10 +1773,10 @@
     "panelId": "tool-states",
     "label": "Tool execution and permission states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolSectionView.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolError.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolStatusIndicator.tsx",
-      "server/packages/happy-app/sources/components/tools/PermissionFooter.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolSectionView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolError.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolStatusIndicator.tsx",
+      "server/packages/happyherd-app/sources/components/tools/PermissionFooter.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1808,10 +1808,10 @@
     "panelId": "tool-states",
     "label": "Tool execution and permission states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/ToolSectionView.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolError.tsx",
-      "server/packages/happy-app/sources/components/tools/ToolStatusIndicator.tsx",
-      "server/packages/happy-app/sources/components/tools/PermissionFooter.tsx"
+      "server/packages/happyherd-app/sources/components/tools/ToolSectionView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolError.tsx",
+      "server/packages/happyherd-app/sources/components/tools/ToolStatusIndicator.tsx",
+      "server/packages/happyherd-app/sources/components/tools/PermissionFooter.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1843,8 +1843,8 @@
     "panelId": "tool-patch",
     "label": "Compact patch, expanded patch and multiple edits",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/CodexPatchView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/MultiEditViewFull.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/CodexPatchView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/MultiEditViewFull.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1876,8 +1876,8 @@
     "panelId": "tool-patch",
     "label": "Compact patch, expanded patch and multiple edits",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/CodexPatchView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/MultiEditViewFull.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/CodexPatchView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/MultiEditViewFull.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -1909,8 +1909,8 @@
     "panelId": "tool-patch",
     "label": "Compact patch, expanded patch and multiple edits",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/CodexPatchView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/MultiEditViewFull.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/CodexPatchView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/MultiEditViewFull.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1942,8 +1942,8 @@
     "panelId": "tool-patch",
     "label": "Compact patch, expanded patch and multiple edits",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/CodexPatchView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/MultiEditViewFull.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/CodexPatchView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/MultiEditViewFull.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -1975,7 +1975,7 @@
     "panelId": "tool-file",
     "label": "Image attachment result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/FileView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/FileView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2008,7 +2008,7 @@
     "panelId": "tool-file",
     "label": "Image attachment result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/FileView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/FileView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2041,7 +2041,7 @@
     "panelId": "tool-file",
     "label": "Image attachment result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/FileView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/FileView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2074,7 +2074,7 @@
     "panelId": "tool-file",
     "label": "Image attachment result",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/FileView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/FileView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2107,7 +2107,7 @@
     "panelId": "tool-question",
     "label": "Inline question form",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2139,7 +2139,7 @@
     "panelId": "tool-question",
     "label": "Inline question form — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "selected-answer",
     "theme": "light",
@@ -2170,7 +2170,7 @@
     "panelId": "tool-question",
     "label": "Inline question form",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2202,7 +2202,7 @@
     "panelId": "tool-question",
     "label": "Inline question form — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "selected-answer",
     "theme": "light",
@@ -2233,7 +2233,7 @@
     "panelId": "tool-question",
     "label": "Inline question form",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2265,7 +2265,7 @@
     "panelId": "tool-question",
     "label": "Inline question form — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "selected-answer",
     "theme": "dark",
@@ -2296,7 +2296,7 @@
     "panelId": "tool-question",
     "label": "Inline question form",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2328,7 +2328,7 @@
     "panelId": "tool-question",
     "label": "Inline question form — selected answer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx"
     ],
     "state": "selected-answer",
     "theme": "dark",
@@ -2359,9 +2359,9 @@
     "panelId": "tool-agents",
     "label": "Subagent trace, task activity and checklist",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/SubagentView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TaskView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TodoView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/SubagentView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TaskView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TodoView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2393,9 +2393,9 @@
     "panelId": "tool-agents",
     "label": "Subagent trace, task activity and checklist",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/SubagentView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TaskView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TodoView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/SubagentView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TaskView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TodoView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2427,9 +2427,9 @@
     "panelId": "tool-agents",
     "label": "Subagent trace, task activity and checklist",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/SubagentView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TaskView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TodoView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/SubagentView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TaskView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TodoView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2461,9 +2461,9 @@
     "panelId": "tool-agents",
     "label": "Subagent trace, task activity and checklist",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/tools/views/SubagentView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TaskView.tsx",
-      "server/packages/happy-app/sources/components/tools/views/TodoView.tsx"
+      "server/packages/happyherd-app/sources/components/tools/views/SubagentView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TaskView.tsx",
+      "server/packages/happyherd-app/sources/components/tools/views/TodoView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2495,7 +2495,7 @@
     "panelId": "selector",
     "label": "Searchable path selector",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SearchableListSelector.tsx"
+      "server/packages/happyherd-app/sources/components/SearchableListSelector.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2527,7 +2527,7 @@
     "panelId": "selector",
     "label": "Searchable path selector",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SearchableListSelector.tsx"
+      "server/packages/happyherd-app/sources/components/SearchableListSelector.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2559,7 +2559,7 @@
     "panelId": "selector",
     "label": "Searchable path selector",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SearchableListSelector.tsx"
+      "server/packages/happyherd-app/sources/components/SearchableListSelector.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2591,7 +2591,7 @@
     "panelId": "selector",
     "label": "Searchable path selector",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/SearchableListSelector.tsx"
+      "server/packages/happyherd-app/sources/components/SearchableListSelector.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2623,8 +2623,8 @@
     "panelId": "alert",
     "label": "Destructive confirmation modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebAlertModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebAlertModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2656,8 +2656,8 @@
     "panelId": "alert",
     "label": "Destructive confirmation modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebAlertModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebAlertModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2689,8 +2689,8 @@
     "panelId": "alert",
     "label": "Destructive confirmation modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebAlertModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebAlertModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2722,8 +2722,8 @@
     "panelId": "alert",
     "label": "Destructive confirmation modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebAlertModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebAlertModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2755,10 +2755,10 @@
     "panelId": "session",
     "label": "Session conversation and composer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/-session/SessionView.tsx",
-      "server/packages/happy-app/sources/components/AgentInput.tsx",
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/-session/SessionView.tsx",
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx",
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2818,10 +2818,10 @@
     "panelId": "session",
     "label": "Session conversation and composer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/-session/SessionView.tsx",
-      "server/packages/happy-app/sources/components/AgentInput.tsx",
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/-session/SessionView.tsx",
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx",
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -2881,10 +2881,10 @@
     "panelId": "session",
     "label": "Session conversation and composer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/-session/SessionView.tsx",
-      "server/packages/happy-app/sources/components/AgentInput.tsx",
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/-session/SessionView.tsx",
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx",
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -2944,10 +2944,10 @@
     "panelId": "session",
     "label": "Session conversation and composer",
     "sourcePaths": [
-      "server/packages/happy-app/sources/-session/SessionView.tsx",
-      "server/packages/happy-app/sources/components/AgentInput.tsx",
-      "server/packages/happy-app/sources/components/ChatList.tsx",
-      "server/packages/happy-app/sources/components/MessageView.tsx"
+      "server/packages/happyherd-app/sources/-session/SessionView.tsx",
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx",
+      "server/packages/happyherd-app/sources/components/ChatList.tsx",
+      "server/packages/happyherd-app/sources/components/MessageView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3007,7 +3007,7 @@
     "panelId": "composer",
     "label": "Message composer with draft",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentInput.tsx"
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3057,7 +3057,7 @@
     "panelId": "composer",
     "label": "Message composer with draft",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentInput.tsx"
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3107,7 +3107,7 @@
     "panelId": "composer",
     "label": "Message composer with draft",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentInput.tsx"
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3157,7 +3157,7 @@
     "panelId": "composer",
     "label": "Message composer with draft",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/AgentInput.tsx"
+      "server/packages/happyherd-app/sources/components/AgentInput.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3207,9 +3207,9 @@
     "panelId": "native-text",
     "label": "Native Markdown, code and terminal renderers",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/markdown/MarkdownView.tsx",
-      "server/packages/happy-app/sources/components/CodeView.tsx",
-      "server/packages/happy-app/sources/components/CommandView.tsx"
+      "server/packages/happyherd-app/sources/components/markdown/MarkdownView.tsx",
+      "server/packages/happyherd-app/sources/components/CodeView.tsx",
+      "server/packages/happyherd-app/sources/components/CommandView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3253,15 +3253,15 @@
     ],
     "stateDescription": "Native Markdown renderer with bold/italic/link/list/quote/code, CodeView, and terminal stdout/stderr",
     "changeDescription": "Native text renderers use Space Grotesk and JetBrains Mono with themed code and terminal surfaces.",
-    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happy-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
+    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happyherd-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
   },
   {
     "panelId": "native-text",
     "label": "Native Markdown, code and terminal renderers",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/markdown/MarkdownView.tsx",
-      "server/packages/happy-app/sources/components/CodeView.tsx",
-      "server/packages/happy-app/sources/components/CommandView.tsx"
+      "server/packages/happyherd-app/sources/components/markdown/MarkdownView.tsx",
+      "server/packages/happyherd-app/sources/components/CodeView.tsx",
+      "server/packages/happyherd-app/sources/components/CommandView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3305,15 +3305,15 @@
     ],
     "stateDescription": "Native Markdown renderer with bold/italic/link/list/quote/code, CodeView, and terminal stdout/stderr",
     "changeDescription": "Native text renderers use Space Grotesk and JetBrains Mono with themed code and terminal surfaces.",
-    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happy-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
+    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happyherd-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
   },
   {
     "panelId": "native-text",
     "label": "Native Markdown, code and terminal renderers",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/markdown/MarkdownView.tsx",
-      "server/packages/happy-app/sources/components/CodeView.tsx",
-      "server/packages/happy-app/sources/components/CommandView.tsx"
+      "server/packages/happyherd-app/sources/components/markdown/MarkdownView.tsx",
+      "server/packages/happyherd-app/sources/components/CodeView.tsx",
+      "server/packages/happyherd-app/sources/components/CommandView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3357,15 +3357,15 @@
     ],
     "stateDescription": "Native Markdown renderer with bold/italic/link/list/quote/code, CodeView, and terminal stdout/stderr",
     "changeDescription": "Native text renderers use Space Grotesk and JetBrains Mono with themed code and terminal surfaces.",
-    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happy-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
+    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happyherd-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
   },
   {
     "panelId": "native-text",
     "label": "Native Markdown, code and terminal renderers",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/markdown/MarkdownView.tsx",
-      "server/packages/happy-app/sources/components/CodeView.tsx",
-      "server/packages/happy-app/sources/components/CommandView.tsx"
+      "server/packages/happyherd-app/sources/components/markdown/MarkdownView.tsx",
+      "server/packages/happyherd-app/sources/components/CodeView.tsx",
+      "server/packages/happyherd-app/sources/components/CommandView.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3409,15 +3409,15 @@
     ],
     "stateDescription": "Native Markdown renderer with bold/italic/link/list/quote/code, CodeView, and terminal stdout/stderr",
     "changeDescription": "Native text renderers use Space Grotesk and JetBrains Mono with themed code and terminal surfaces.",
-    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happy-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
+    "visibleBodyText": "REVIEW FIXTURE · native-text · synthetic data · actual production components\nNative Markdown renderer imported explicitly; hosted through React Native Web.\nReview summary\nBold emphasis and italic emphasis with reference.\n•\nFirst check passed\n•\nSecond check passed\nPreserve the user’s content.\nts\nexport const radius = 4;\nCopy\nconst theme = {\n  radius: 4,\n  tone: \"warm\"\n};\n$ \npnpm --filter happyherd-app test\nTests: 73 passed\nFixture output: optional provider unavailable"
   },
   {
     "panelId": "controls",
     "label": "Shared button and item states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/RoundButton.tsx",
-      "server/packages/happy-app/sources/components/Item.tsx",
-      "server/packages/happy-app/sources/components/ItemGroup.tsx"
+      "server/packages/happyherd-app/sources/components/RoundButton.tsx",
+      "server/packages/happyherd-app/sources/components/Item.tsx",
+      "server/packages/happyherd-app/sources/components/ItemGroup.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3471,9 +3471,9 @@
     "panelId": "controls",
     "label": "Shared button and item states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/RoundButton.tsx",
-      "server/packages/happy-app/sources/components/Item.tsx",
-      "server/packages/happy-app/sources/components/ItemGroup.tsx"
+      "server/packages/happyherd-app/sources/components/RoundButton.tsx",
+      "server/packages/happyherd-app/sources/components/Item.tsx",
+      "server/packages/happyherd-app/sources/components/ItemGroup.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3527,9 +3527,9 @@
     "panelId": "controls",
     "label": "Shared button and item states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/RoundButton.tsx",
-      "server/packages/happy-app/sources/components/Item.tsx",
-      "server/packages/happy-app/sources/components/ItemGroup.tsx"
+      "server/packages/happyherd-app/sources/components/RoundButton.tsx",
+      "server/packages/happyherd-app/sources/components/Item.tsx",
+      "server/packages/happyherd-app/sources/components/ItemGroup.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3583,9 +3583,9 @@
     "panelId": "controls",
     "label": "Shared button and item states",
     "sourcePaths": [
-      "server/packages/happy-app/sources/components/RoundButton.tsx",
-      "server/packages/happy-app/sources/components/Item.tsx",
-      "server/packages/happy-app/sources/components/ItemGroup.tsx"
+      "server/packages/happyherd-app/sources/components/RoundButton.tsx",
+      "server/packages/happyherd-app/sources/components/Item.tsx",
+      "server/packages/happyherd-app/sources/components/ItemGroup.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3639,8 +3639,8 @@
     "panelId": "prompt",
     "label": "Text entry modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebPromptModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebPromptModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3689,8 +3689,8 @@
     "panelId": "prompt",
     "label": "Text entry modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebPromptModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebPromptModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "light",
@@ -3739,8 +3739,8 @@
     "panelId": "prompt",
     "label": "Text entry modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebPromptModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebPromptModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
@@ -3789,8 +3789,8 @@
     "panelId": "prompt",
     "label": "Text entry modal",
     "sourcePaths": [
-      "server/packages/happy-app/sources/modal/components/BaseModal.tsx",
-      "server/packages/happy-app/sources/modal/components/WebPromptModal.tsx"
+      "server/packages/happyherd-app/sources/modal/components/BaseModal.tsx",
+      "server/packages/happyherd-app/sources/modal/components/WebPromptModal.tsx"
     ],
     "state": "synthetic-review",
     "theme": "dark",
