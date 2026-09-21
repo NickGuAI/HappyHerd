@@ -405,28 +405,36 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
         };
     }, [cancelActiveLoginBestEffort, loadCredentials]);
 
+    // Success can arrive from start, code submission, cancellation, or polling.
+    // Finalize from the shared state transition rather than one RPC handler.
+    React.useEffect(() => {
+        if (login?.state !== 'succeeded' || loginMachineId !== selectedMachineId) return;
+        setAddingAccount(false);
+        setLoginCode('');
+        void loadAccounts();
+    }, [login?.id, login?.state, loginMachineId, selectedMachineId, loadAccounts]);
+
     React.useEffect(() => {
         if (!login || !loginMachineId || !['starting', 'waiting-user'].includes(login.state)) return;
         const generation = loginGeneration.current;
+        let disposed = false;
         const timer = setTimeout(async () => {
             try {
                 const next = await getManagedCredentialLogin(loginMachineId, login.id);
-                if (generation !== loginGeneration.current) return;
+                if (disposed || generation !== loginGeneration.current) return;
                 setLoginPollError(null);
                 setLogin(next);
-                if (next.state === 'succeeded') {
-                    setAddingAccount(false);
-                    setLoginCode('');
-                    await loadAccounts();
-                }
             } catch (error) {
-                if (generation !== loginGeneration.current) return;
+                if (disposed || generation !== loginGeneration.current) return;
                 setLoginPollError(errorMessage(error, t('settingsCredentials.loginFailed')));
                 setLogin((current) => current ? { ...current } : current);
             }
         }, 1_500);
-        return () => clearTimeout(timer);
-    }, [login, loginMachineId, loadAccounts]);
+        return () => {
+            disposed = true;
+            clearTimeout(timer);
+        };
+    }, [login, loginMachineId]);
 
     const applyAccountMutation = React.useCallback(async (
         key: string,

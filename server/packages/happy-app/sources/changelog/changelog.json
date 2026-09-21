@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 20 — Managed account login refresh",
+      "summary": "",
+      "markdown": "- Successful provider logins now refresh managed account rows immediately and close the add-account form, including when submitting a verification code completes the login.\n- Logging in again refreshes the account's credential version so subsequent account changes work without reloading Settings."
+    },
+    {
       "title": "September 20 — Grok terminal account login",
       "summary": "",
       "markdown": "- Connecting a named Grok account from the terminal now preserves existing credentials when `GROK_AUTH_PATH` is set and registers and selects the newly signed-in account under its requested nickname."
@@ -771,5 +776,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 20 — Grok terminal account login"
+  "latestTitle": "September 20 — Managed account login refresh"
 }

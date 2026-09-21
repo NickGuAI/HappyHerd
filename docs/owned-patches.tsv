@@ -1,5 +1,7 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+MANAGED_LOGIN_CHANGELOG_GOLDENS	accepted	test(app): refresh managed login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+MANAGED_LOGIN_REFRESH	accepted	fix(app): refresh managed accounts after every login success	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
 GROK_TERMINAL_LOGIN_GOLDENS	accepted	test(app): refresh Grok terminal login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 GROK_TERMINAL_LOGIN	accepted	fix(grok): isolate terminal login from inherited auth paths	server/packages/happy-cli/src/commands/connect.credentialFiles.test.ts
 AUTOMATION_ADMISSION_HANDOFF	accepted	fix(automations): release admission after persisting active runs	server/packages/happy-cli/src/automations/service.test.ts
