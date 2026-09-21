@@ -38,4 +38,4 @@ install -o root -g root -m 0644 \
     "$rendered_cron" \
     "$CRON_FILE"
 
-printf 'HappyHerd Linux daemon bootstrap installed for %s. The HappyHerd CLI remains independently installed and upgraded.\n' "$RUN_USER"
+printf 'HappyHerd Linux daemon bootstrap installed for %s. The Happy CLI remains independently installed and upgraded.\n' "$RUN_USER"

@@ -24,12 +24,12 @@ fi
 
 # A fresh host uses the same local-first setting as the user installer. Existing
 # settings and explicit environment overrides remain authoritative.
-if [[ -z "${HAPPYHERD_SERVER_URL:-}" ]]; then
-    HAPPYHERD_HOME="${HAPPYHERD_HOME_DIR:-$HOME/.happyherd}"
-    HAPPYHERD_HOME="${HAPPYHERD_HOME/#\~/$HOME}"
+if [[ -z "${HAPPY_SERVER_URL:-}" ]]; then
+    HAPPY_HOME="${HAPPY_HOME_DIR:-$HOME/.happyherd}"
+    HAPPY_HOME="${HAPPY_HOME/#\~/$HOME}"
     NODE_BIN="$(command -v node || true)"
-    [[ -n "$NODE_BIN" ]] || die 'node is required to initialize normal HappyHerd settings'
-    "$NODE_BIN" - "$HAPPYHERD_HOME/settings.json" <<'NODE'
+    [[ -n "$NODE_BIN" ]] || die 'node is required to initialize normal Happy settings'
+    "$NODE_BIN" - "$HAPPY_HOME/settings.json" <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
 const settingsPath = process.argv[2];

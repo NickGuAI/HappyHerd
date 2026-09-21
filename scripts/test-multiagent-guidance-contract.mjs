@@ -146,7 +146,7 @@ for (const path of canonicalCommandFiles) {
     `${path} must use the canonical happyherd side-chat command`,
   );
   assert(
-    !content.includes('happyherd session side-chat'),
+    !content.includes(/* rename:preserve */ 'happy session side-chat' /* /rename:preserve */),
     `${path} must not advertise the retired side-chat command surface`,
   );
 }

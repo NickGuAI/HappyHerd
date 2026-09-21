@@ -1,6 +1,6 @@
 {
   "exclude": ["scripts/rename-product", "scripts/product-rename-scope.json", "scripts/rename-cli", "scripts/cli-rename-scope.json", "docs/lineage.md", "docs/upstream-sync-", "scripts/verify-lineage.sh", "scripts/verify-patch-discipline.sh", "docs/non-cli-renaming.md"],
-  "cli": ["docs/cli-", ".dev/skills/happyherd/", "install.sh", "installers/", "scripts/test-cli-rename-runtime.mjs", "server/.github/workflows/cli-smoke-test.yml"],
+  "cli": ["docs/cli-", ".dev/skills/happyherd/", "install.sh", "installers/", "scripts/test-cli-rename-runtime.mjs", "server/.github/workflows/cli-smoke-test.yml", "scripts/start-host-daemon.sh", "scripts/install-linux-daemon-bootstrap.sh", "scripts/lib/cli-command-migration.sh", "scripts/test-component-deployment-contract.sh"],
   "stable": [
     "happy-dev-secret", "happy-upstream-base-", "happy-auth.json",
     "/var/lib/happyherd-agent-runtime/happy-home", "$AGENT_ROOT/happy-home",
