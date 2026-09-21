@@ -166,7 +166,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             requestShutdown: vi.fn(),
         });
 
-        const result = await handlersFrom(client).get('machine-1:resume-happyherd-session')?.({
+        const result = await handlersFrom(client).get('machine-1:resume-happy-session')?.({
             sessionId: 'happyherd-archived',
             replayQueueMessageId: 'archived-next-turn',
         });

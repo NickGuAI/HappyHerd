@@ -575,7 +575,7 @@ export class ApiMachineClient {
     }
 
     private syncResumeSessionRpcRegistration(): void {
-        const method = 'resume-happyherd-session';
+        const method = 'resume-happy-session';
 
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {

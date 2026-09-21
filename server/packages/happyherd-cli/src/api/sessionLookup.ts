@@ -29,7 +29,7 @@ export async function loadSessionRecords(
         const response = await axios.get<SessionListPage>(`${configuration.serverUrl}/v2/sessions`, {
             headers: {
                 Authorization: `Bearer ${token}`,
-                'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+                'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
             },
             params: {
                 limit: 200,

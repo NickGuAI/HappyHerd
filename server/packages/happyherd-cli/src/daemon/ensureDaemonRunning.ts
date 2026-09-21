@@ -25,7 +25,7 @@ export async function ensureDaemonRunning(): Promise<void> {
   // Wait for the spawned daemon to be fully ready: it must write daemon.state.json,
   // bind its HTTP port, and respond to a health ping. Without this, early callers
   // (e.g. notifyDaemonSessionStarted) race the daemon startup and the webhook is
-  // silently lost — which later breaks resume-happyherd-session.
+  // silently lost — which later breaks resume-happy-session.
   const deadline = Date.now() + DAEMON_READY_TIMEOUT_MS
   while (Date.now() < deadline) {
     if (await checkIfDaemonRunningAndCleanupStaleState()) {

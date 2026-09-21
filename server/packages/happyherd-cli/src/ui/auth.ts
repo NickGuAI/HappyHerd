@@ -40,7 +40,7 @@ export async function doAuth(): Promise<Credentials | null> {
             supportsV2: true
         }, {
             headers: {
-                'X-HappyHerd-Client': `cli/${configuration.currentCliVersion}`
+                'X-Happy-Client': `cli/${configuration.currentCliVersion}`
             }
         });
         if (process.env.DEBUG) {
@@ -165,7 +165,7 @@ async function waitForAuthentication(keypair: tweetnacl.BoxKeyPair): Promise<Cre
                     supportsV2: true
                 }, {
                     headers: {
-                        'X-HappyHerd-Client': `cli/${configuration.currentCliVersion}`
+                        'X-Happy-Client': `cli/${configuration.currentCliVersion}`
                     }
                 });
                 if (response.data.state === 'authorized') {

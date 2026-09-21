@@ -96,7 +96,7 @@ export class PushNotificationClient {
                         headers: {
                             'Authorization': `Bearer ${this.token}`,
                             'Content-Type': 'application/json',
-                            'X-HappyHerd-Client': `cli-daemon/${configuration.currentCliVersion}`
+                            'X-Happy-Client': `cli-daemon/${configuration.currentCliVersion}`
                         }
                     }
                 )
@@ -292,7 +292,7 @@ export class PushNotificationClient {
                         headers: {
                             'Authorization': `Bearer ${this.token}`,
                             'Content-Type': 'application/json',
-                            'X-HappyHerd-Client': `cli-daemon/${configuration.currentCliVersion}`,
+                            'X-Happy-Client': `cli-daemon/${configuration.currentCliVersion}`,
                         },
                         timeout: 15000,
                     }

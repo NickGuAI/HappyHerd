@@ -473,13 +473,13 @@ export class ApiSessionClient extends EventEmitter {
 
     /**
      * Derive (and cache) the blob decryption key for this session.
-     * Legacy sessions use deriveKey(masterSecret, 'HappyHerd Blobs', ['master']).
-     * DataKey sessions use deriveKey(dataKey, 'HappyHerd Blobs', ['session']).
+     * Legacy sessions use deriveKey(masterSecret, 'Happy Blobs', ['master']).
+     * DataKey sessions use deriveKey(dataKey, 'Happy Blobs', ['session']).
      */
     async getBlobKey(): Promise<Uint8Array> {
         if (!this.blobKey) {
             const path = this.encryptionVariant === 'dataKey' ? ['session'] : ['master'];
-            this.blobKey = await deriveKey(this.encryptionKey, 'HappyHerd Blobs', path);
+            this.blobKey = await deriveKey(this.encryptionKey, 'Happy Blobs', path);
         }
         return this.blobKey;
     }
@@ -648,7 +648,7 @@ export class ApiSessionClient extends EventEmitter {
         return {
             'Authorization': `Bearer ${this.token}`,
             'Content-Type': 'application/json',
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
         };
     }
 

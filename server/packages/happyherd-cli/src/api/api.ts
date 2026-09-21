@@ -75,7 +75,7 @@ export class ApiClient {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
             'Content-Type': 'application/json',
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
           },
           timeout: 60000 // 1 minute timeout for very bad network connections
         }
@@ -157,7 +157,7 @@ export class ApiClient {
       {
         headers: {
           'Authorization': `Bearer ${this.credential.token}`,
-          'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
         },
         timeout: 60000,
       },
@@ -222,7 +222,7 @@ export class ApiClient {
         params: { before_seq: 2_147_483_647, limit: boundedLimit },
         headers: {
           'Authorization': `Bearer ${this.credential.token}`,
-          'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
         },
         timeout: 60000,
       },
@@ -272,7 +272,7 @@ export class ApiClient {
         headers: {
           'Authorization': `Bearer ${this.credential.token}`,
           'Content-Type': 'application/json',
-          'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
         },
         timeout: 60000,
       },
@@ -411,7 +411,7 @@ export class ApiClient {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
             'Content-Type': 'application/json',
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
           },
           timeout: 60000 // 1 minute timeout for very bad network connections
         }
@@ -523,7 +523,7 @@ export class ApiClient {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
             'Content-Type': 'application/json',
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
           },
           timeout: 5000
         }
@@ -552,7 +552,7 @@ export class ApiClient {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
             'Content-Type': 'application/json',
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
           },
           timeout: 5000
         }
@@ -643,7 +643,7 @@ export class ApiClient {
         {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
-            'X-HappyHerd-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+            'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
           },
           timeout: 3000,
         },

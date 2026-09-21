@@ -226,6 +226,25 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await client.close();
     });
 
+    // App Encryption.create/initializeSessions uses Happy Blobs with master/session.
+    // Fixed vectors use seed bytes 0..31 and secretbox nonce bytes 0..23.
+    it.each([
+        ['legacy', 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYX1qir+uhVCg1KjTovc2ypO/qLEXKdQKvqbbvqiy4HVGkk9+Vt'],
+        ['dataKey', 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXDlncucfSBXTcTLxIvIYAIjEQ0GrfQySBeJJ03Z8/7Re0G2NY'],
+    ] as const)('decrypts existing app attachment bytes for %s sessions', async (encryptionVariant, blob) => {
+        const client = new ApiSessionClient('fake-token', {
+            ...session,
+            encryptionVariant,
+            encryptionKey: Uint8Array.from({ length: 32 }, (_, index) => index),
+        });
+        try {
+            expect(decryptBlob(decodeBase64(blob), await client.getBlobKey()))
+                .toEqual(new TextEncoder().encode('persisted attachment'));
+        } finally {
+            await client.close();
+        }
+    });
+
     it('does not miss a socket connection between checking and subscribing', async () => {
         mockSocket.connected = false;
         let connectRegistrations = 0;

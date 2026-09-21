@@ -320,7 +320,7 @@ describe('Api server error handling', () => {
                 {
                     headers: {
                         'Authorization': 'Bearer fake-token',
-                        'X-HappyHerd-Client': 'cli-coding-session/1.0.0',
+                        'X-Happy-Client': 'cli-coding-session/1.0.0',
                     },
                     timeout: 60000,
                 },

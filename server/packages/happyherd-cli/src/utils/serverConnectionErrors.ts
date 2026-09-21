@@ -164,7 +164,7 @@ export function startOfflineReconnection<TSession>(
             timeout: 5000,
             validateStatus: (status) => status < 500, // 4xx = server is up, 5xx = server error
             headers: {
-                'X-HappyHerd-Client': `cli-daemon/${configuration.currentCliVersion}`
+                'X-Happy-Client': `cli-daemon/${configuration.currentCliVersion}`
             }
         });
     };
