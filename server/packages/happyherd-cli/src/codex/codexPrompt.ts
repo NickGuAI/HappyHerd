@@ -8,7 +8,7 @@ import {
 } from '@/userSafeguard/userSafeguard';
 
 import type { ReasoningEffort } from './codexAppServerTypes';
-import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
+import type { HappyHerdHeartbeatMessageMarker } from '@happyherd/wire';
 
 export interface CodexEnhancedMode {
     permissionMode: PermissionMode;

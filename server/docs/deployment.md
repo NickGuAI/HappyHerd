@@ -1,6 +1,6 @@
 # Deployment
 
-This document describes how to deploy the Happy backend (`packages/happy-server`) and the infrastructure it expects.
+This document describes how to deploy the HappyHerd backend (`packages/happyherd-server`) and the infrastructure it expects.
 
 ## Runtime overview
 - **App server:** Node.js running `tsx ./sources/main.ts` (Fastify + Socket.IO).
@@ -17,7 +17,7 @@ This document describes how to deploy the Happy backend (`packages/happy-server`
 2. **Redis**
    - Required by startup (`redis.ping()` is called).
    - Configure via `REDIS_URL`.
-   - Managed by this repo: `packages/happy-server/deploy/happy-redis.yaml` (StatefulSet + redis-exporter sidecar).
+   - Managed by this repo: `packages/happyherd-server/deploy/happyherd-redis.yaml` (StatefulSet + redis-exporter sidecar).
 
 3. **S3-compatible storage**
    - Used for avatars and other uploaded assets.
@@ -56,9 +56,9 @@ Key notes:
 - The image includes FFmpeg and Python for media processing.
 
 ## Kubernetes manifests
-Example manifests live in `packages/happy-server/deploy`:
+Example manifests live in `packages/happyherd-server/deploy`:
 - `handy.yaml`: Deployment + Service + ExternalSecrets for the server.
-- `happy-redis.yaml`: Redis StatefulSet + Service + ConfigMap.
+- `happyherd-redis.yaml`: Redis StatefulSet + Service + ConfigMap.
 
 The deployment config expects:
 - Prometheus scraping annotations on port `9090`.
@@ -67,7 +67,7 @@ The deployment config expects:
 
 ## Production deployment order
 
-The `Lab_HappyServer` TeamCity build runs Build, Push, and its private Deploy
+The `Lab_HappyHerdServer` TeamCity build runs Build, Push, and its private Deploy
 recipe in order. The recipe runs `prisma migrate deploy` in a one-off
 Kubernetes Job using the new image and `handy-secrets`, then applies
 `handy.yaml` and waits for the rollout. A failed migration exits before apply.
@@ -79,15 +79,15 @@ expand/contract deployment.
 
 ## Local dev helpers
 The server package includes scripts for local infrastructure:
-- `pnpm --filter ./packages/happy-server --fail-if-no-match db` (Postgres in Docker)
-- `pnpm --filter ./packages/happy-server --fail-if-no-match redis`
-- `pnpm --filter ./packages/happy-server --fail-if-no-match s3` + `s3:init`
+- `pnpm --filter ./packages/happyherd-server --fail-if-no-match db` (Postgres in Docker)
+- `pnpm --filter ./packages/happyherd-server --fail-if-no-match redis`
+- `pnpm --filter ./packages/happyherd-server --fail-if-no-match s3` + `s3:init`
 
 Use `.env`/`.env.dev` to load local settings when running
-`pnpm --filter ./packages/happy-server --fail-if-no-match dev`.
+`pnpm --filter ./packages/happyherd-server --fail-if-no-match dev`.
 
 ## Implementation references
-- Entrypoint: `packages/happy-server/sources/main.ts`
+- Entrypoint: `packages/happyherd-server/sources/main.ts`
 - Dockerfile: `Dockerfile.server`
-- Kubernetes manifests: `packages/happy-server/deploy`
-- Env usage: `packages/happy-server/sources` (`rg -n "process.env"`)
+- Kubernetes manifests: `packages/happyherd-server/deploy`
+- Env usage: `packages/happyherd-server/sources` (`rg -n "process.env"`)

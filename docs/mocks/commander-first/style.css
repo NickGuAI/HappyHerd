@@ -1,4 +1,4 @@
-@font-face { font-family: Plex; src: url('../../../server/packages/happy-app/sources/assets/fonts/IBMPlexSans-Regular.ttf'); }
+@font-face { font-family: Plex; src: url('../../../server/packages/happyherd-app/sources/assets/fonts/IBMPlexSans-Regular.ttf'); }
 :root { color-scheme: dark; font-family: Plex, system-ui, sans-serif; color: #f3f3f3; background: #111; --muted: #a8a8b1; --line: #353538; --accent: #71d4e9; }
 * { box-sizing: border-box; }
 body { margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }

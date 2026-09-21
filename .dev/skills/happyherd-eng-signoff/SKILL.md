@@ -53,7 +53,7 @@ Classify from the exact diff and live ownership, not from the task title.
 | Lane | Required evidence | Activation rule |
 |---|---|---|
 | `.dev`, skill, or documentation only | Link/frontmatter/skill validation and applicable repository checks | No runtime deployment or process restart. Perform a selective skill reinstall only when separately authorized. |
-| Web/frontend | Happy app checks and production Web export | Never restart the daemon. Deploy/restart only the selected server/Web artifact when explicitly authorized. |
+| Web/frontend | HappyHerd app checks and production Web export | Never restart the daemon. Deploy/restart only the selected server/Web artifact when explicitly authorized. |
 | Central server | Server checks and selected image/build evidence | Deploy and restart only the server lane, and only with explicit authority. |
 | One-shot CLI | CLI checks plus installation read-back for the selected source or package | Install only when authorized; do not restart the daemon because no running process loads the change. |
 | Daemon-resident CLI | CLI checks, install-path prerequisites, and pre-restart state | Use the maintained stop → upgrade → start sequence only when reload is needed and the exact host restart is authorized. |
@@ -86,7 +86,7 @@ environment while the existing daemon remains available. Then follow the
 maintained stop → upgrade → start sequence. Restart only when the running
 process must reload that change and the exact host restart is authorized. If
 the preflight fails, leave the daemon running. Preserve the same host account,
-Happy home, environment, machine identity, and provider sessions, then read
+HappyHerd home, environment, machine identity, and provider sessions, then read
 daemon and session state back through the supported interface.
 
 ## Combined authorized activation
@@ -104,7 +104,7 @@ commands. A server/Web plus one-shot CLI change does not enter this sequence:
 5. refresh the Web client and verify the existing machine identity, online
    state, paths, provider catalogs, and applicable Human journey.
 
-If server activation fails, leave the daemon unchanged. Never replace a Happy
+If server activation fails, leave the daemon unchanged. Never replace a HappyHerd
 home, delete a machine, kill provider sessions, or edit runtime databases as a
 restart shortcut.
 

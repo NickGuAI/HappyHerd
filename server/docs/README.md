@@ -1,6 +1,6 @@
-# Happy Docs
+# HappyHerd Docs
 
-This folder documents how Happy works internally, with a focus on protocol, backend architecture, deployment, and the CLI tool. Start here.
+This folder documents how HappyHerd works internally, with a focus on protocol, backend architecture, deployment, and the CLI tool. Start here.
 
 ## Index
 - protocol.md: Wire protocol (WebSocket), payload formats, sequencing, and concurrency rules.
@@ -16,7 +16,7 @@ This folder documents how Happy works internally, with a focus on protocol, back
 - session-protocol-claude.md: Claude-specific session-protocol flow (local vs remote launchers, dedupe/restarts).
 - plans/provider-envelope-redesign.md: Proposed replacement for the current provider/session envelope design.
 - permission-resolution.md: State-based permission mode resolution across app and CLI (including sandbox behavior).
-- happy-wire.md: Shared wire schemas/types package and migration notes.
+- happyherd-wire.md: Shared wire schemas/types package and migration notes.
 - voice-architecture.md: ElevenLabs voice assistant integration, session routing, context batching, and VAD detection.
 - commander-onboarding.md: Session-native Commander creation and the host-local atomic scaffold contract.
 - research/: general research notes and exploratory writeups.
@@ -24,5 +24,5 @@ This folder documents how Happy works internally, with a focus on protocol, back
 - competition/AGENTS.md: structure and rules for storing competitor research results without committing raw checkouts.
 
 ## Conventions
-- Paths and field names reflect the current implementation in `packages/happy-server`.
+- Paths and field names reflect the current implementation in `packages/happyherd-server`.
 - Examples are illustrative; the canonical source is the code.

@@ -12,17 +12,17 @@ Source of truth:
 
 ## Layer 2
 
-Layer 2 is full Happy product validation.
+Layer 2 is full HappyHerd product validation.
 
 Source of truth:
 
 - `./product.md`
 
-## happy-agent spawn
+## happyherd-control-agent spawn
 
-`happy-agent spawn` is product-layer validation work.
+`happyherd-control-agent spawn` is product-layer validation work.
 
 Source of truth:
 
-- `./happy-agent.md`
-- `packages/happy-agent/src/happy-agent.integration.test.ts`
+- `./happyherd-control-agent.md`
+- `packages/happyherd-control-agent/src/happyherd-control-agent.integration.test.ts`

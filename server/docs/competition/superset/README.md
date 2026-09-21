@@ -23,9 +23,9 @@ coordinates via git worktrees.
 - Superset is the strongest reference for **orchestration-layer design** —
   how to coordinate multiple agents without owning their protocols.
 - Their host-service extraction pattern (injectable providers, no Electron
-  awareness) is worth studying for Happy's own server/CLI split.
+  awareness) is worth studying for HappyHerd's own server/CLI split.
 - The Electric SQL cloud-to-local sync is a real production pattern worth
-  understanding for Happy's sync story.
+  understanding for HappyHerd's sync story.
 - Ship velocity is remarkable — they're actively doing a v2 refactor while
   shipping features daily.
 
@@ -140,16 +140,16 @@ is how the desktop knows when agents need attention.
 - **~5–7 commits/day** with substantive features
 - Currently doing a v2 architectural refactor while shipping daily
 
-## Happy takeaways
+## HappyHerd takeaways
 
 - The host-service extraction pattern (injectable providers, zero Electron
-  awareness, manifest-based durability) is directly relevant to how Happy
+  awareness, manifest-based durability) is directly relevant to how HappyHerd
   structures its CLI/server split.
 - Electric SQL for cloud-to-local sync is a production-proven pattern worth
-  evaluating against Happy's current sync approach.
+  evaluating against HappyHerd's current sync approach.
 - The cloud DB command queue for CLI→desktop control is clever — no direct
   connection needed, works across networks.
 - The "don't parse agent output, just observe lifecycle" philosophy is the
   opposite of what OpenCode/Claude do — worth understanding the tradeoffs.
 - Pane layout as a standalone package with Zustand is a good reference for
-  any layout engine work in Happy.
+  any layout engine work in HappyHerd.

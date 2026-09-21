@@ -17,7 +17,7 @@ const CURRENT_ENV_PATH = path.join(ENVIRONMENTS_DATA_DIR, "current.json");
 const LAB_RAT_PROJECT_TEMPLATE_DIR = path.join(ENVIRONMENTS_ROOT, "lab-rat-todo-project");
 
 // ============================================================================
-// Name generation (expanded from packages/happy-app/sources/utils/generateWorktreeName.ts)
+// Name generation (expanded from packages/happyherd-app/sources/utils/generateWorktreeName.ts)
 // ============================================================================
 
 const adjectives = [
@@ -303,12 +303,12 @@ export async function createEnvironment(opts?: { noSwitch?: boolean }): Promise<
 
     console.log(`Running database migration for ${name}...`);
     const migrationEnv = buildEnvVars(envDir, serverPort, expoPort);
-    const standaloneTs = path.join(REPO_ROOT, "packages", "happy-server", "sources", "standalone.ts");
+    const standaloneTs = path.join(REPO_ROOT, "packages", "happyherd-server", "sources", "standalone.ts");
     const result = spawnSync(
         "tsx",
         [standaloneTs, "migrate"],
         {
-            cwd: path.join(REPO_ROOT, "packages", "happy-server"),
+            cwd: path.join(REPO_ROOT, "packages", "happyherd-server"),
             env: { ...process.env, ...migrationEnv },
             stdio: "inherit",
         }
@@ -354,7 +354,7 @@ export async function startEnvironmentServices(name: string): Promise<void> {
     const serverLogFile = path.join(envDir, "server", "stdout.log");
     console.log(`Starting server on port ${config.serverPort}...`);
     const serverPid = spawnService("pnpm", ["standalone", "serve"], {
-        cwd: path.join(REPO_ROOT, "packages", "happy-server"),
+        cwd: path.join(REPO_ROOT, "packages", "happyherd-server"),
         env: mergedEnv,
         logFile: serverLogFile,
     });
@@ -375,7 +375,7 @@ export async function startEnvironmentServices(name: string): Promise<void> {
     fs.mkdirSync(path.join(envDir, "web"), { recursive: true });
     console.log(`Starting web on port ${config.expoPort}...`);
     const webPid = spawnService("pnpm", ["web", "--port", String(config.expoPort)], {
-        cwd: path.join(REPO_ROOT, "packages", "happy-app"),
+        cwd: path.join(REPO_ROOT, "packages", "happyherd-app"),
         env: { ...mergedEnv, BROWSER: "none" },
         logFile: webLogFile,
     });
@@ -469,8 +469,8 @@ export async function seedEnvironment(name: string): Promise<void> {
     const daemonEnv = { ...process.env, ...envVars };
     delete daemonEnv.CLAUDECODE;
 
-    const happyBin = path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs");
-    const daemon = spawn("node", [happyBin, "daemon", "start"], {
+    const happyherdBin = path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs");
+    const daemon = spawn("node", [happyherdBin, "daemon", "start"], {
         env: daemonEnv,
         stdio: "ignore",
         detached: true,
@@ -658,7 +658,7 @@ function commandRun(service: string, serviceArgs: string[] = []) {
                 "pnpm",
                 ["standalone", "serve"],
                 {
-                    cwd: path.join(REPO_ROOT, "packages", "happy-server"),
+                    cwd: path.join(REPO_ROOT, "packages", "happyherd-server"),
                     env: mergedEnv,
                     stdio: "inherit",
                 }
@@ -672,7 +672,7 @@ function commandRun(service: string, serviceArgs: string[] = []) {
                 "pnpm",
                 ["web", "--port", String(config.expoPort)],
                 {
-                    cwd: path.join(REPO_ROOT, "packages", "happy-app"),
+                    cwd: path.join(REPO_ROOT, "packages", "happyherd-app"),
                     // Expo treats `--web` as "open in browser". Disable that for env-managed runs.
                     env: { ...mergedEnv, BROWSER: "none" },
                     stdio: "inherit",
@@ -687,7 +687,7 @@ function commandRun(service: string, serviceArgs: string[] = []) {
                 "pnpm",
                 ["ios"],
                 {
-                    cwd: path.join(REPO_ROOT, "packages", "happy-app"),
+                    cwd: path.join(REPO_ROOT, "packages", "happyherd-app"),
                     env: mergedEnv,
                     stdio: "inherit",
                 }
@@ -701,7 +701,7 @@ function commandRun(service: string, serviceArgs: string[] = []) {
                 "pnpm",
                 ["android"],
                 {
-                    cwd: path.join(REPO_ROOT, "packages", "happy-app"),
+                    cwd: path.join(REPO_ROOT, "packages", "happyherd-app"),
                     env: mergedEnv,
                     stdio: "inherit",
                 }
@@ -749,7 +749,7 @@ function buildEnvVars(envDir: string, serverPort: number, expoPort: number): Rec
 
         // App (Expo)
         EXPO_PUBLIC_SERVER_URL: `http://localhost:${serverPort}`,
-        EXPO_PUBLIC_HAPPY_SERVER_URL: `http://localhost:${serverPort}`,
+        EXPO_PUBLIC_HAPPYHERD_SERVER_URL: `http://localhost:${serverPort}`,
         EXPO_PUBLIC_LOG_SERVER_URL: "http://localhost:8787",
         EXPO_PORT: String(expoPort),
 
@@ -770,7 +770,7 @@ function buildEnvVars(envDir: string, serverPort: number, expoPort: number): Rec
 export function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: number): string {
     const vars = buildEnvVars(envDir, serverPort, expoPort);
     const lines: string[] = [
-        `# Happy Dev Environment: ${name}`,
+        `# HappyHerd Dev Environment: ${name}`,
         `# Generated by environments/environments.ts`,
         `# Source this file in your terminal: source ${path.join(envDir, "env.sh")}`,
         "",
@@ -789,7 +789,7 @@ export function buildEnvSh(name: string, envDir: string, serverPort: number, exp
 
     lines.push("# App (Expo)");
     lines.push(`export EXPO_PUBLIC_SERVER_URL="${vars.EXPO_PUBLIC_SERVER_URL}"`);
-    lines.push(`export EXPO_PUBLIC_HAPPY_SERVER_URL="${vars.EXPO_PUBLIC_HAPPY_SERVER_URL}"`);
+    lines.push(`export EXPO_PUBLIC_HAPPYHERD_SERVER_URL="${vars.EXPO_PUBLIC_HAPPYHERD_SERVER_URL}"`);
     lines.push(`export EXPO_PUBLIC_LOG_SERVER_URL="${vars.EXPO_PUBLIC_LOG_SERVER_URL}"`);
     if (vars.EXPO_PUBLIC_DEV_TOKEN && vars.EXPO_PUBLIC_DEV_SECRET) {
         lines.push(`export EXPO_PUBLIC_DEV_TOKEN="${vars.EXPO_PUBLIC_DEV_TOKEN}"`);
@@ -809,7 +809,7 @@ export function buildEnvSh(name: string, envDir: string, serverPort: number, exp
     lines.push("");
     lines.push("# Commands exposed by this env");
     lines.push("# - happyherd");
-    lines.push("# - happy-agent");
+    lines.push("# - happyherd-control-agent");
     lines.push("");
 
     return lines.join("\n");
@@ -825,8 +825,8 @@ function writeEnvCommands(envDir: string): void {
             entrypoint: path.join(REPO_ROOT, "packages", "happyherd-cli", "bin", "happyherd.mjs"),
         },
         {
-            name: "happy-agent",
-            entrypoint: path.join(REPO_ROOT, "packages", "happy-agent", "bin", "happy-agent.mjs"),
+            name: "happyherd-control-agent",
+            entrypoint: path.join(REPO_ROOT, "packages", "happyherd-control-agent", "bin", "happyherd-control-agent.mjs"),
         },
     ];
 
@@ -1034,7 +1034,7 @@ async function main(): Promise<void> {
             commandTailscale();
             break;
         default:
-            console.log(`Happy Environment Manager
+            console.log(`HappyHerd Environment Manager
 
 Usage:
   pnpm env:up --template <t>  Create + start everything (templates: ${VALID_TEMPLATES.join(", ")})

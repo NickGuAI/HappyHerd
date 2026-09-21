@@ -102,7 +102,7 @@ Lifecycle commands include list, status, stop, close, and reopen; inspect
 
 If the supported HappyHerd launch or resume surface is unavailable, the one
 fallback is a provider-native subagent. State that fallback and the unavailable
-surface in the handoff. Do not use `happy-agent`, start an untracked
+surface in the handoff. Do not use `happyherd-control-agent`, start an untracked
 top-level provider process, or fabricate a session, ID, or link.
 
 ## Boundaries

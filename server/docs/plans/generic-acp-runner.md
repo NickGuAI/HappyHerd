@@ -11,7 +11,7 @@ This enables support for Gemini, OpenCode, and any future ACP agent without writ
 - **Existing AcpBackend** (`agent/acp/AcpBackend.ts`) already handles process spawning, ACP JSON-RPC, permissions, and tool tracking. Reused as-is.
 - **Existing runGemini.ts** (~1300 lines) is vendor-specific. Stays untouched; migration happens later.
 - **Codex already uses new session protocol** via `mapCodexMcpMessageToSessionEnvelopes()` — reference pattern.
-- **Session protocol types** in `@slopus/happy-wire` (`SessionEnvelope`, `createEnvelope()`).
+- **Session protocol types** in `@happyherd/wire` (`SessionEnvelope`, `createEnvelope()`).
 - **AgentMessage** is the event type emitted by `AcpBackend.onMessage()`.
 - The runner does NOT resolve credentials, API keys, OAuth tokens, or environment variables. The user's shell environment is inherited as-is. If `gemini` needs `GEMINI_API_KEY`, the user sets it before running.
 
@@ -152,7 +152,7 @@ async function runAcp(opts: {
 
 **What it does** (simplified flow):
 1. Create API session (same pattern as runGemini but simpler)
-2. Start Happy MCP server for tool bridge
+2. Start HappyHerd MCP server for tool bridge
 3. Create AcpBackend with DefaultTransport (no vendor-specific transport)
 4. Create AcpSessionMapper
 5. Wire: `backend.onMessage(msg => mapper.mapMessage(msg).forEach(env => session.sendSessionProtocolMessage(env)))`
@@ -174,7 +174,7 @@ async function runAcp(opts: {
 
 ### Task 3: Register agents and add CLI commands
 
-Wire the generic runner into the CLI so users can run `happy acp gemini` or `happy acp opencode` or `happy acp -- custom-agent --flag`.
+Wire the generic runner into the CLI so users can run `happyherd acp gemini` or `happyherd acp opencode` or `happyherd acp -- custom-agent --flag`.
 
 **Files**:
 - `packages/happyherd-cli/src/index.ts` — add CLI command routing
@@ -191,7 +191,7 @@ const KNOWN_ACP_AGENTS: Record<string, { command: string; args: string[] }> = {
 No env vars, no API keys, no model config. Just command + args.
 
 - [ ] Define known ACP agent configs (command + args only)
-- [ ] Add CLI routing for `happy acp <agent-name>` and `happy acp -- <cmd> [args]`
+- [ ] Add CLI routing for `happyherd acp <agent-name>` and `happyherd acp -- <cmd> [args]`
 - [ ] Wire to `runAcp()` with resolved config
 - [ ] Write tests for agent config resolution
 - [ ] Run tests - must pass before next task

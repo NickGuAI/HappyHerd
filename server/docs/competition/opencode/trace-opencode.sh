@@ -11,7 +11,7 @@
 #   flows: permission, media, subtask, question, todo, all (default: all)
 #
 # Prerequisites:
-#   - OpenCode source checkout at ../happy-adjacent/research/opencode
+#   - OpenCode source checkout at ../happyherd-adjacent/research/opencode
 #   - bun installed
 #   - Auth file at ~/.local/share/opencode/auth.json (with at least one provider key)
 #
@@ -27,7 +27,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OPENCODE_SRC="${OPENCODE_SRC:-$REPO_ROOT/../happy-adjacent/research/opencode}"
+OPENCODE_SRC="${OPENCODE_SRC:-$REPO_ROOT/../happyherd-adjacent/research/opencode}"
 AUTH_SOURCE="${AUTH_SOURCE:-$HOME/.local/share/opencode/auth.json}"
 LAB_RAT_DIR="$REPO_ROOT/environments/lab-rat-todo-project"
 PORT="${OPENCODE_TRACE_PORT:-0}"

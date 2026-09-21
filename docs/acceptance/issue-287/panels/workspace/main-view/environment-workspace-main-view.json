@@ -79,7 +79,7 @@
     "@/components/ProviderIcon",
     "@/components/StatusDot",
     "@/hooks/useSessionQuickActions",
-    "@/hooks/useHappyAction",
+    "@/hooks/useHappyHerdAction",
     "@/sync/ops",
     "@/utils/errors",
     "@/track",

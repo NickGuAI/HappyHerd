@@ -127,7 +127,7 @@ class MemoryObserverTest(unittest.TestCase):
         )
         self.assertTrue(kwargs["check"])
         self.assertTrue(kwargs["text"])
-        self.assertEqual(kwargs["env"]["HAPPY_HOME_DIR"], memory_observer.HAPPY_HOME)
+        self.assertEqual(kwargs["env"]["HAPPYHERD_HOME_DIR"], memory_observer.HAPPYHERD_HOME)
         self.assertIn("2026-06-01 through 2026-06-07", kwargs["input"])
 
     @mock.patch.object(memory_observer.shutil, "which", return_value="/usr/bin/codex")

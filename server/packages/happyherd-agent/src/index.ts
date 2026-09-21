@@ -5,7 +5,7 @@ import { GovernedSkillBroker } from './broker';
 import { CapabilityRegistry } from './capabilities';
 import { loadBridgeConfig, readSecretFile, verifyDiscordTokenRotationReceipt } from './config';
 import { DiscordGateway } from './discord';
-import { HappyHerdRuntime } from './happy';
+import { HappyHerdRuntime } from './happyherd';
 import { BridgeHttpServer } from './httpServer';
 import { loadHappyHerdAgentManifest } from './manifest';
 import { BridgeStore } from './store';
@@ -44,7 +44,7 @@ export async function startHappyHerdAgent(): Promise<void> {
     agentId: config.agentId,
     signingSecret,
   });
-  const happy = new HappyHerdRuntime(config, manifest);
+  const happyherd = new HappyHerdRuntime(config, manifest);
   const broker = new GovernedSkillBroker({
     capabilities,
     apiBaseUrl: config.serviceApiBaseUrl,
@@ -55,7 +55,7 @@ export async function startHappyHerdAgent(): Promise<void> {
     store,
     authorizer,
     capabilities,
-    happy,
+    happyherd,
     discord,
     logger: log,
   });
@@ -67,7 +67,7 @@ export async function startHappyHerdAgent(): Promise<void> {
     transportSecret,
     readiness: async () => ({
       discord: discord.isReady(),
-      happyMachine: await happy.isMachineReady(),
+      happyherdMachine: await happyherd.isMachineReady(),
       state: true,
       broker: true,
     }),

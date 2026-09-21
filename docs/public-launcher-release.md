@@ -31,7 +31,7 @@ It selects one of these assets:
 Each archive contains the built `@happyherd/cli`, self-host server and Web app,
 platform tools, and a bundled Node runtime. The installer puts program files in
 `$HOME/.local/share/happyherd`, writes the `happyherd` command to
-`$HOME/.local/bin`, and preserves any unrelated `happy` command.
+`$HOME/.local/bin`, and preserves any unrelated `happyherd` command.
 
 The default command needs a stable GitHub Release that contains these four
 assets. The first new stable tagged release must be published before that
@@ -49,10 +49,10 @@ curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh 
 ```
 
 The choice is saved in `~/.happyherd/settings.json`. Users do not need to
-export `HAPPY_SERVER_URL` or `HAPPY_WEBAPP_URL`.
+export `HAPPYHERD_SERVER_URL` or `HAPPYHERD_WEBAPP_URL`.
 
 The localhost choice starts the bundled self-host server and the ordinary
-detached Happy daemon. On a fresh noninteractive install, authentication is
+detached HappyHerd daemon. On a fresh noninteractive install, authentication is
 deferred and the installer prints the next command:
 
 ```sh

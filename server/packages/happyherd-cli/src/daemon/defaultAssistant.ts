@@ -1,4 +1,4 @@
-import type { HappyHerdCommanderSummary, HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
+import type { HappyHerdCommanderSummary, HappyHerdMachineSessionSettings } from '@happyherd/wire';
 import type { DefaultAssistantApi } from '@/api/defaultAssistant';
 import type { MachineMetadata, Metadata, Session } from '@/api/types';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';

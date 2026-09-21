@@ -3,13 +3,13 @@ name: Expo App TypeScript typecheck
 on:
     pull_request:
         paths:
-            - 'packages/happy-app/**'
+            - 'packages/happyherd-app/**'
             - '.github/workflows/typecheck.yml'
     push:
         branches:
             - main
         paths:
-            - 'packages/happy-app/**'
+            - 'packages/happyherd-app/**'
             - '.github/workflows/typecheck.yml'
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: TypeScript typecheck
-              run: pnpm --filter happy-app typecheck
+              run: pnpm --filter happyherd-app typecheck
 
             - name: Validate i18n catalogs and generated contracts
-              run: pnpm --filter happy-app i18n:check
+              run: pnpm --filter happyherd-app i18n:check

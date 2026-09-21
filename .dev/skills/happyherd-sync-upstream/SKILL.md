@@ -27,7 +27,7 @@ and every owned HappyHerd behavior.
   range-diff and passes patch-discipline verification.
 - `server/packages/happyherd-cli` remains the in-place CLI implementation and
   history path, with public package `@happyherd/cli` and binary `happyherd`.
-  Upstream changes do not recreate a wrapper package or legacy `happy` package.
+  Upstream changes do not recreate a wrapper package or legacy `happyherd` package.
 - The selected checks in `.dev/VERIFY.md`, the contract suite, required PR
   checks, and post-merge main workflows all pass.
 

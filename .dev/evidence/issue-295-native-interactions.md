@@ -41,7 +41,7 @@ plan rendering. There is no new storage service or ACP question protocol.
 ## Executed checks
 
 - Frozen-lockfile install passed without a manifest/lockfile change. The
-  existing `happy-agent` build was required before CLI typecheck could resolve
+  existing `happyherd-control-agent` build was required before CLI typecheck could resolve
   its exported declarations.
 - CLI/app typechecks passed.
 - Full app suite: **287 files passed; 2,883 tests passed, 1 skipped**.
@@ -85,7 +85,7 @@ check was disabled or changed to conceal these failures. The aggregate suite
 stops at the app package; Linux CI must establish the full contract result.
 
 Remaining package gates were executed separately on that exact source revision:
-wire **80**, happy-agent **252**, happyherd-agent **52**, CLI **1,813**, and server
+wire **80**, happyherd-control-agent **252**, happyherd-agent **52**, CLI **1,813**, and server
 **176** tests passed. Server typecheck/build passed. Server tests require UTC
 for an existing date-bucket assertion (the initial New York run failed that
 one assertion); rerunning the unchanged tests with UTC passed all 31 files.
@@ -118,7 +118,7 @@ All other 24 captures matched with zero differing pixels. Reviewed all four
 actual images against the prior changelog and the checked-in release-note text;
 the intended inserted entry accounts for the changed content and vertical flow.
 
-Ran `pnpm --filter happy-app golden:update` to obtain the exact-head Linux
+Ran `pnpm --filter happyherd-app golden:update` to obtain the exact-head Linux
 captures from artifact `kilv-golden-35546920734`. Only those four baseline PNGs
 changed. No production source, comparator, mask, threshold, timeout or test
 assertion changed. The comparator still includes antialiasing and requires

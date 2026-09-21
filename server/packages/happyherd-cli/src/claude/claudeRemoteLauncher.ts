@@ -19,7 +19,7 @@ import { getAskUserQuestionToolCallIds } from "./utils/questionNotification";
 import { launchFailureMessage } from "./utils/launchFailureMessage";
 import { cleanupStdinAfterInk } from "@/utils/terminalStdinCleanup";
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources';
-import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
+import type { HappyHerdHeartbeatMessageMarker } from '@happyherd/wire';
 import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import {

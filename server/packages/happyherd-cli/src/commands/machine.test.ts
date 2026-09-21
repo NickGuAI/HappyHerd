@@ -3,13 +3,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DecryptedMachine, DecryptedSession } from 'happy-agent/control';
-import { authLogout, authStatus } from 'happy-agent/auth';
+import type { DecryptedMachine, DecryptedSession } from 'happyherd-control-agent/control';
+import { authLogout, authStatus } from 'happyherd-control-agent/auth';
 import {
   HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
   type HappyHerdCommanderListResponse,
   type HappyHerdCommanderSummary,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import type { AgentCapabilityCatalog, MachineMetadata } from '@/api/types';
 import { configuration } from '@/configuration';
@@ -644,7 +644,7 @@ describe('remote tracked session creation', () => {
   it('keeps retained auth commands private and explains explicit directory approval', async () => {
     const authFailure = fakeClient();
     authFailure.listMachines.mockRejectedValueOnce(
-      new Error('Authentication expired. Run `happy-agent auth login` to re-authenticate.'),
+      new Error('Authentication expired. Run `happyherd-control-agent auth login` to re-authenticate.'),
     );
     await expect(handleSessionCommand(['create', ...sessionArgs()], {
       createClient: async () => authFailure.client,

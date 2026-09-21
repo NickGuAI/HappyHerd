@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="/.github/logotype-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="/.github/logotype-light.png">
-    <img src="/.github/logotype-dark.png" width="400" alt="Happy">
+    <img src="/.github/logotype-dark.png" width="400" alt="HappyHerd">
   </picture>
 </div>
 
@@ -42,7 +42,7 @@ npm install -g @happyherd/cli@latest
 HappyHerd preserves the full history of upstream Happy. The upstream project
 previously migrated from `happy-coder`; thanks to
 [@franciscop](https://github.com/franciscop) for donating its historical
-`happy` package name.
+`happyherd` package name.
 
 <h3 align="center">
 Step 3: Start using `happyherd` instead of `claude` or `codex`
@@ -70,14 +70,14 @@ Step 4 (optional): Get the desktop app
 </div>
 
 <p align="center">
-Prefer a native app over the terminal? <a href="https://github.com/slopus/happy-desktop/releases/latest"><b>Download Happy for macOS</b></a> — conversations beside the files, diffs, terminals, and previews your work actually touches.
+Prefer a native app over the terminal? <a href="https://github.com/slopus/happy-desktop/releases/latest"><b>Download HappyHerd for macOS</b></a> — conversations beside the files, diffs, terminals, and previews your work actually touches.
 </p>
 
 ## How does it work?
 
 On your computer, run `happyherd` instead of `claude` or `happyherd codex` instead of `codex` to start your AI through our wrapper. When you want to control your coding agent from your phone, it restarts the session in remote mode. To switch back to your computer, just press any key on your keyboard.
 
-## 🔥 Why Happy Coder?
+## 🔥 Why HappyHerd Coder?
 
 - 📱 **Mobile access to Claude Code and Codex** - Check what your AI is building while away from your desk
 - 🔔 **Push notifications** - Get alerted when Claude Code and Codex needs permission or encounters errors  
@@ -87,19 +87,19 @@ On your computer, run `happyherd` instead of `claude` or `happyherd codex` inste
 
 ## 📦 Project Components
 
-- **[Happy Desktop](https://github.com/slopus/happy-desktop)** - Native macOS app ([download](https://github.com/slopus/happy-desktop/releases/latest))
-- **[Happy App](https://github.com/slopus/happy/tree/main/packages/happy-app)** - Web UI + mobile client (Expo)
+- **[HappyHerd Desktop](https://github.com/slopus/happy-desktop)** - Native macOS app ([download](https://github.com/slopus/happy-desktop/releases/latest))
+- **[HappyHerd App](https://github.com/slopus/happy/tree/main/packages/happy-app)** - Web UI + mobile client (Expo)
 - **[HappyHerd CLI](https://github.com/NickGuAI/HappyHerd/tree/main/server/packages/happyherd-cli)** - Command-line interface for Claude Code and Codex
-- **[Happy Agent](https://github.com/slopus/happy/tree/main/packages/happy-agent)** - Remote agent control CLI (create, send, monitor sessions)
-- **[Happy Server](https://github.com/slopus/happy/tree/main/packages/happy-server)** - Backend server for encrypted sync
+- **[HappyHerd Agent](https://github.com/slopus/happy/tree/main/packages/happy-agent)** - Remote agent control CLI (create, send, monitor sessions)
+- **[HappyHerd Server](https://github.com/slopus/happy/tree/main/packages/happy-server)** - Backend server for encrypted sync
 
 ## 🏠 Who We Are
 
-We're engineers scattered across Bay Area coffee shops and hacker houses, constantly checking how our AI coding agents are progressing on our pet projects during lunch breaks. Happy Coder was born from the frustration of not being able to peek at our AI coding tools building our side hustles while we're away from our keyboards. We believe the best tools come from scratching your own itch and sharing with the community.
+We're engineers scattered across Bay Area coffee shops and hacker houses, constantly checking how our AI coding agents are progressing on our pet projects during lunch breaks. HappyHerd Coder was born from the frustration of not being able to peek at our AI coding tools building our side hustles while we're away from our keyboards. We believe the best tools come from scratching your own itch and sharing with the community.
 
 ## 📚 Documentation & Contributing
 
-- **[Documentation Website](https://happy.engineering/docs/)** - Learn how to use Happy Coder effectively
+- **[Documentation Website](https://happy.engineering/docs/)** - Learn how to use HappyHerd Coder effectively
 - **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute, PR guidelines, and development setup
 - **[Edit docs at github.com/slopus/slopus.github.io](https://github.com/slopus/slopus.github.io)** - Help improve our documentation and guides
 

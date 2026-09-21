@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement `docs/session-protocol.md` as the new message format for Codex sessions in the CLI, and add client-side support in `happy-app` to parse, normalize, and render these messages alongside existing legacy formats (output, codex, acp).
+Implement `docs/session-protocol.md` as the new message format for Codex sessions in the CLI, and add client-side support in `happyherd-app` to parse, normalize, and render these messages alongside existing legacy formats (output, codex, acp).
 
 **Key decisions from planning:**
 - CLI (Codex only): Emit session-protocol events **instead of** current codex/acp format to the server
@@ -32,7 +32,7 @@ Implement `docs/session-protocol.md` as the new message format for Codex session
 - `src/codex/runCodex.ts` — convert from `sendCodexMessage()` to session-protocol events
 - `src/codex/utils/reasoningProcessor.ts` — emit thinking events
 
-**App (happy-app):**
+**App (happyherd-app):**
 - `sources/sync/typesRaw.ts` — new Zod schema for session-protocol envelope + events, new normalizer branch
 - `sources/sync/reducer/reducer.ts` — turn tracking (optional, for grouping)
 - `sources/sync/reducer/messageToEvent.ts` — handle session-protocol `turn-start`/`turn-end`
@@ -56,7 +56,7 @@ Implement `docs/session-protocol.md` as the new message format for Codex session
 - Mark completed items with `[x]` immediately when done
 - Add newly discovered tasks with ➕ prefix
 - Document issues/blockers with ⚠️ prefix
-- ⚠️ `packages/happyherd-cli` and `packages/happy-app` do not define a `lint` script; verification used full test suites plus `yarn typecheck` in both packages.
+- ⚠️ `packages/happyherd-cli` and `packages/happyherd-app` do not define a `lint` script; verification used full test suites plus `yarn typecheck` in both packages.
 - ⚠️ In app normalization for `content.type === 'session'`, `uuid` uses envelope `id` (not `turn`) to keep message identity unique while `invoke` handles sidechain linkage.
 - ⚠️ `ReasoningProcessor` and `DiffProcessor` still emit legacy internal shapes; Codex now maps those outputs to session-protocol envelopes in `sessionProtocolMapper.ts` before sending.
 
@@ -160,7 +160,7 @@ The reducer already handles `NormalizedMessage` well. Minor updates for the new 
 - [x] Verify app still handles legacy formats (output, codex, acp) correctly
 - [x] Verify subagent nesting works via invoke field
 - [x] Verify turn lifecycle (turn-start/turn-end) works correctly
-- [x] Run full test suite — `yarn test` in happyherd-cli, happy-app
+- [x] Run full test suite — `yarn test` in happyherd-cli, happyherd-app
 - [x] Run linter — all issues must be fixed
 
 ### Task 8: [Final] Update documentation

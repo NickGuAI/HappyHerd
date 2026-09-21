@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createId, isCuid } from '@paralleldrive/cuid2';
-import { createEnvelope } from '@slopus/happy-wire';
+import { createEnvelope } from '@happyherd/wire';
 import { RawJSONLinesSchema } from '../types';
 import {
     closeClaudeTurnWithStatus,

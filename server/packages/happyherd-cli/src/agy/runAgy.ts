@@ -15,7 +15,7 @@ import { render, type Instance as InkInstance } from 'ink';
 import { ApiClient } from '@/api/api';
 import type { ApiSessionClient } from '@/api/apiSession';
 import { AcpSessionManager } from '@/agent/acp/AcpSessionManager';
-import type { SessionEnvelope } from '@slopus/happy-wire';
+import type { SessionEnvelope } from '@happyherd/wire';
 import { logger } from '@/ui/logger';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { configureHappyHerdSessionReconnect, loadOrCreateHappyHerdSession } from '@/utils/sessionReconnect';

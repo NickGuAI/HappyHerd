@@ -1,4 +1,4 @@
-import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
+import type { HappyHerdMachineSessionSettings } from '@happyherd/wire';
 import { isAgyPermissionMode, type AgyPermissionMode } from './cliArgs';
 
 export type AgyTurnMode = {

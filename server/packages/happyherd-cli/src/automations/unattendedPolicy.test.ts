@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HappyHerdAutomationAgentRailSchema } from '@slopus/happy-wire';
+import { HappyHerdAutomationAgentRailSchema } from '@happyherd/wire';
 import { automationUnattendedPermissionMode } from './unattendedPolicy';
 
 describe('automation unattended permission policy', () => {

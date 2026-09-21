@@ -4,30 +4,30 @@
 
 **Goal:** Add safe attachment upload/download diagnostics that identify the failing storage leg without leaking presigned URLs, refs, tokens, local file paths, or attachment bytes.
 
-**Architecture:** Add one pure diagnostics module under `packages/happy-app/sources/sync` and route attachment API failures through it. Keep the current direct-to-storage transfer behavior unchanged, then update upload/download render logs to print the structured diagnostic payload instead of full transfer URLs.
+**Architecture:** Add one pure diagnostics module under `packages/happyherd-app/sources/sync` and route attachment API failures through it. Keep the current direct-to-storage transfer behavior unchanged, then update upload/download render logs to print the structured diagnostic payload instead of full transfer URLs.
 
-**Tech Stack:** TypeScript, Vitest, React Native/Expo, Happy encrypted attachment APIs, browser/native `fetch`, S3 presigned POST/GET.
+**Tech Stack:** TypeScript, Vitest, React Native/Expo, HappyHerd encrypted attachment APIs, browser/native `fetch`, S3 presigned POST/GET.
 
 ---
 
 ## File Structure
 
-- Create `packages/happy-app/sources/sync/attachmentDiagnostics.ts`: typed diagnostic model, safe URL host extraction, transfer-target classification, diagnostic error wrapper, and log serialization.
-- Create `packages/happy-app/sources/sync/attachmentDiagnostics.test.ts`: pure unit tests for sanitization, target classification, safe serialization, and diagnostic error extraction.
-- Create `packages/happy-app/sources/sync/apiAttachments.test.ts`: unit tests for upload/download API wrappers and blob transfer failure classification.
-- Modify `packages/happy-app/sources/sync/apiAttachments.ts`: wrap request-upload, blob-upload, request-download, and blob-download failures in `AttachmentDiagnosticError` without changing successful transfer behavior.
-- Modify `packages/happy-app/sources/sync/sync.ts`: log upload failures with safe diagnostic payloads and stop logging attachment filenames or raw Error objects for diagnostic-aware failures.
-- Modify `packages/happy-app/sources/hooks/useAttachmentImage.ts`: log download and decrypt/render failures with the same safe diagnostic format.
+- Create `packages/happyherd-app/sources/sync/attachmentDiagnostics.ts`: typed diagnostic model, safe URL host extraction, transfer-target classification, diagnostic error wrapper, and log serialization.
+- Create `packages/happyherd-app/sources/sync/attachmentDiagnostics.test.ts`: pure unit tests for sanitization, target classification, safe serialization, and diagnostic error extraction.
+- Create `packages/happyherd-app/sources/sync/apiAttachments.test.ts`: unit tests for upload/download API wrappers and blob transfer failure classification.
+- Modify `packages/happyherd-app/sources/sync/apiAttachments.ts`: wrap request-upload, blob-upload, request-download, and blob-download failures in `AttachmentDiagnosticError` without changing successful transfer behavior.
+- Modify `packages/happyherd-app/sources/sync/sync.ts`: log upload failures with safe diagnostic payloads and stop logging attachment filenames or raw Error objects for diagnostic-aware failures.
+- Modify `packages/happyherd-app/sources/hooks/useAttachmentImage.ts`: log download and decrypt/render failures with the same safe diagnostic format.
 
 ### Task 1: Diagnostic Model
 
 **Files:**
-- Create: `packages/happy-app/sources/sync/attachmentDiagnostics.ts`
-- Create: `packages/happy-app/sources/sync/attachmentDiagnostics.test.ts`
+- Create: `packages/happyherd-app/sources/sync/attachmentDiagnostics.ts`
+- Create: `packages/happyherd-app/sources/sync/attachmentDiagnostics.test.ts`
 
 - [ ] **Step 1: Write the failing diagnostics tests**
 
-Create `packages/happy-app/sources/sync/attachmentDiagnostics.test.ts`:
+Create `packages/happyherd-app/sources/sync/attachmentDiagnostics.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -59,11 +59,11 @@ describe('sanitizeAttachmentUrlHost', () => {
 });
 
 describe('classifyAttachmentTransferTarget', () => {
-    it('classifies URLs on the Happy API host as happy-api', () => {
+    it('classifies URLs on the HappyHerd API host as happyherd-api', () => {
         expect(classifyAttachmentTransferTarget(
             'https://api.cluster-fluster.com/v1/sessions/abc/attachments/blob',
             'https://api.cluster-fluster.com',
-        )).toBe('happy-api');
+        )).toBe('happyherd-api');
     });
 
     it('classifies other valid hosts as external-storage', () => {
@@ -113,7 +113,7 @@ describe('attachment diagnostic serialization', () => {
         expect(serialized).toContain('"host":"files.cluster-fluster.com"');
         expect(serialized).toContain('"platform":"web"');
         expect(serialized).toContain('"client":"web/1.2.3"');
-        expect(serialized).not.toContain('/happy/sessions/ref');
+        expect(serialized).not.toContain('/happyherd/sessions/ref');
         expect(serialized).not.toContain('X-Amz-Signature');
         expect(serialized).not.toContain('policy');
         expect(serialized).not.toContain('secret');
@@ -164,7 +164,7 @@ describe('AttachmentDiagnosticError', () => {
 
         const serialized = `${error.message} ${JSON.stringify(error.diagnostic)}`;
         expect(serialized).not.toContain('X-Amz-Signature');
-        expect(serialized).not.toContain('/happy/ref');
+        expect(serialized).not.toContain('/happyherd/ref');
     });
 
     it('returns null for ordinary errors', () => {
@@ -179,14 +179,14 @@ describe('AttachmentDiagnosticError', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts
 ```
 
 Expected: FAIL with an import error because `attachmentDiagnostics.ts` does not exist.
 
 - [ ] **Step 3: Add the diagnostics module**
 
-Create `packages/happy-app/sources/sync/attachmentDiagnostics.ts`:
+Create `packages/happyherd-app/sources/sync/attachmentDiagnostics.ts`:
 
 ```ts
 export type AttachmentDiagnosticLeg =
@@ -196,7 +196,7 @@ export type AttachmentDiagnosticLeg =
     | 'blob-download'
     | 'decrypt-render';
 
-export type AttachmentTransferTarget = 'happy-api' | 'external-storage' | 'unknown';
+export type AttachmentTransferTarget = 'happyherd-api' | 'external-storage' | 'unknown';
 
 export type AttachmentDiagnosticMethod = 'GET' | 'POST' | 'PUT';
 
@@ -261,7 +261,7 @@ export function classifyAttachmentTransferTarget(
     if (!host || !serverHost) {
         return 'unknown';
     }
-    return host === serverHost ? 'happy-api' : 'external-storage';
+    return host === serverHost ? 'happyherd-api' : 'external-storage';
 }
 
 export function errorMessageFromUnknown(error: unknown): string {
@@ -327,7 +327,7 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T): T {
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts
 ```
 
 Expected: PASS.
@@ -335,19 +335,19 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add packages/happy-app/sources/sync/attachmentDiagnostics.ts packages/happy-app/sources/sync/attachmentDiagnostics.test.ts
+git add packages/happyherd-app/sources/sync/attachmentDiagnostics.ts packages/happyherd-app/sources/sync/attachmentDiagnostics.test.ts
 git commit -m "test: add attachment diagnostics model"
 ```
 
 ### Task 2: API Attachment Failure Classification
 
 **Files:**
-- Create: `packages/happy-app/sources/sync/apiAttachments.test.ts`
-- Modify: `packages/happy-app/sources/sync/apiAttachments.ts`
+- Create: `packages/happyherd-app/sources/sync/apiAttachments.test.ts`
+- Modify: `packages/happyherd-app/sources/sync/apiAttachments.ts`
 
 - [ ] **Step 1: Write failing API attachment diagnostics tests**
 
-Create `packages/happy-app/sources/sync/apiAttachments.test.ts`:
+Create `packages/happyherd-app/sources/sync/apiAttachments.test.ts`:
 
 ```ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -448,7 +448,7 @@ describe('api attachment diagnostics', () => {
             leg: 'request-upload',
             method: 'POST',
             host: 'api.cluster-fluster.com',
-            target: 'happy-api',
+            target: 'happyherd-api',
             status: 500,
             statusText: 'Internal Server Error',
         });
@@ -475,7 +475,7 @@ describe('api attachment diagnostics', () => {
             leg: 'request-upload',
             method: 'POST',
             host: 'api.cluster-fluster.com',
-            target: 'happy-api',
+            target: 'happyherd-api',
             status: 413,
         });
     });
@@ -487,7 +487,7 @@ describe('api attachment diagnostics', () => {
             method: 'POST',
             uploadUrl: 'https://files.cluster-fluster.com/happy/session-1/ref?X-Amz-Signature=secret&policy=secret',
             formFields: {
-                key: 'happy/session-1/ref',
+                key: 'happyherd/session-1/ref',
                 policy: 'secret-policy',
             },
         }, new Uint8Array([1, 2, 3]), credentials));
@@ -505,7 +505,7 @@ describe('api attachment diagnostics', () => {
         const serialized = serializedError(error);
         expect(serialized).not.toContain('X-Amz-Signature');
         expect(serialized).not.toContain('secret-policy');
-        expect(serialized).not.toContain('/happy/session-1/ref');
+        expect(serialized).not.toContain('/happyherd/session-1/ref');
     });
 
     it('classifies POST blob upload HTTP failures', async () => {
@@ -518,7 +518,7 @@ describe('api attachment diagnostics', () => {
         const error = await captureError(() => uploadEncryptedBlob({
             method: 'POST',
             uploadUrl: 'https://files.cluster-fluster.com/happy/ref?X-Amz-Credential=secret',
-            formFields: { key: 'happy/ref' },
+            formFields: { key: 'happyherd/ref' },
         }, new Uint8Array([1, 2, 3]), credentials));
 
         expect((error as Error).message).toBe('Blob upload (POST) failed: 403 Forbidden');
@@ -533,7 +533,7 @@ describe('api attachment diagnostics', () => {
         expect(serializedError(error)).not.toContain('X-Amz-Credential');
     });
 
-    it('classifies PUT blob upload network failures on the Happy API host', async () => {
+    it('classifies PUT blob upload network failures on the HappyHerd API host', async () => {
         vi.mocked(global.fetch).mockRejectedValue(new Error('Network request failed'));
 
         const error = await captureError(() => uploadEncryptedBlob({
@@ -546,7 +546,7 @@ describe('api attachment diagnostics', () => {
             leg: 'blob-upload',
             method: 'PUT',
             host: 'api.cluster-fluster.com',
-            target: 'happy-api',
+            target: 'happyherd-api',
             message: 'Network request failed',
         });
         expect(serializedError(error)).not.toContain('token=secret');
@@ -562,7 +562,7 @@ describe('api attachment diagnostics', () => {
         const error = await captureError(() => downloadEncryptedAttachment(
             credentials,
             'session-1',
-            'happy/session-1/ref',
+            'happyherd/session-1/ref',
         ));
 
         expect((error as Error).message).toBe('request-download failed: 404');
@@ -570,11 +570,11 @@ describe('api attachment diagnostics', () => {
             leg: 'request-download',
             method: 'POST',
             host: 'api.cluster-fluster.com',
-            target: 'happy-api',
+            target: 'happyherd-api',
             status: 404,
             statusText: 'Not Found',
         });
-        expect(serializedError(error)).not.toContain('happy/session-1/ref');
+        expect(serializedError(error)).not.toContain('happyherd/session-1/ref');
     });
 
     it('classifies blob-download network failures without leaking presigned URL data', async () => {
@@ -591,7 +591,7 @@ describe('api attachment diagnostics', () => {
         const error = await captureError(() => downloadEncryptedAttachment(
             credentials,
             'session-1',
-            'happy/session-1/ref',
+            'happyherd/session-1/ref',
         ));
 
         expect((error as Error).message).toBe('Attachment download network error: Failed to fetch');
@@ -603,7 +603,7 @@ describe('api attachment diagnostics', () => {
             message: 'Failed to fetch',
         });
         expect(serializedError(error)).not.toContain('X-Amz-Signature');
-        expect(serializedError(error)).not.toContain('/happy/session-1/ref');
+        expect(serializedError(error)).not.toContain('/happyherd/session-1/ref');
     });
 
     it('classifies blob-download HTTP failures', async () => {
@@ -624,7 +624,7 @@ describe('api attachment diagnostics', () => {
         const error = await captureError(() => downloadEncryptedAttachment(
             credentials,
             'session-1',
-            'happy/session-1/ref',
+            'happyherd/session-1/ref',
         ));
 
         expect((error as Error).message).toBe('Attachment download failed: 403 Forbidden');
@@ -646,14 +646,14 @@ describe('api attachment diagnostics', () => {
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/apiAttachments.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/apiAttachments.test.ts
 ```
 
 Expected: FAIL because `apiAttachments.ts` still throws ordinary `Error` objects and includes full transfer URLs in blob-upload/download messages.
 
 - [ ] **Step 3: Import diagnostics in `apiAttachments.ts`**
 
-In `packages/happy-app/sources/sync/apiAttachments.ts`, add:
+In `packages/happyherd-app/sources/sync/apiAttachments.ts`, add:
 
 ```ts
 import {
@@ -856,7 +856,7 @@ Replace the blob-download `catch` and non-OK block with:
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/apiAttachments.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/apiAttachments.test.ts
 ```
 
 Expected: PASS.
@@ -864,7 +864,7 @@ Expected: PASS.
 Run the diagnostics test again:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts
 ```
 
 Expected: PASS.
@@ -872,18 +872,18 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add packages/happy-app/sources/sync/apiAttachments.ts packages/happy-app/sources/sync/apiAttachments.test.ts
+git add packages/happyherd-app/sources/sync/apiAttachments.ts packages/happyherd-app/sources/sync/apiAttachments.test.ts
 git commit -m "fix: classify attachment transfer failures"
 ```
 
 ### Task 3: Upload Failure Logging
 
 **Files:**
-- Modify: `packages/happy-app/sources/sync/sync.ts`
+- Modify: `packages/happyherd-app/sources/sync/sync.ts`
 
 - [ ] **Step 1: Add diagnostic logging imports**
 
-In `packages/happy-app/sources/sync/sync.ts`, add:
+In `packages/happyherd-app/sources/sync/sync.ts`, add:
 
 ```ts
 import {
@@ -907,7 +907,7 @@ with:
                 if (diagnostic) {
                     console.error('[attachments] Failed to upload image attachment:', formatAttachmentDiagnosticForLog(diagnostic, {
                         platform: Platform.OS,
-                        client: getHappyClientId(),
+                        client: getHappyHerdClientId(),
                     }));
                 } else {
                     const message = err instanceof Error ? err.message : String(err);
@@ -915,7 +915,7 @@ with:
                         leg: 'blob-upload',
                         message,
                         platform: Platform.OS,
-                        client: getHappyClientId(),
+                        client: getHappyHerdClientId(),
                     });
                 }
 ```
@@ -927,7 +927,7 @@ This removes the attachment filename from the failure log and avoids serializing
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
 ```
 
 Expected: PASS.
@@ -935,7 +935,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS.
@@ -945,18 +945,18 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add packages/happy-app/sources/sync/sync.ts
+git add packages/happyherd-app/sources/sync/sync.ts
 git commit -m "fix: log safe attachment upload diagnostics"
 ```
 
 ### Task 4: Download And Decrypt/Render Logging
 
 **Files:**
-- Modify: `packages/happy-app/sources/hooks/useAttachmentImage.ts`
+- Modify: `packages/happyherd-app/sources/hooks/useAttachmentImage.ts`
 
 - [ ] **Step 1: Add imports and helper**
 
-In `packages/happy-app/sources/hooks/useAttachmentImage.ts`, add these imports:
+In `packages/happyherd-app/sources/hooks/useAttachmentImage.ts`, add these imports:
 
 ```ts
 import { Platform } from 'react-native';
@@ -1056,7 +1056,7 @@ with:
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts
 ```
 
 Expected: PASS.
@@ -1064,7 +1064,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS.
@@ -1074,7 +1074,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add packages/happy-app/sources/hooks/useAttachmentImage.ts
+git add packages/happyherd-app/sources/hooks/useAttachmentImage.ts
 git commit -m "fix: log safe attachment download diagnostics"
 ```
 
@@ -1082,14 +1082,14 @@ git commit -m "fix: log safe attachment download diagnostics"
 
 **Files:**
 - No new files.
-- Verify behavior in `packages/happy-app`.
+- Verify behavior in `packages/happyherd-app`.
 
 - [ ] **Step 1: Run the complete targeted test set**
 
 Run:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
 ```
 
 Expected: PASS.
@@ -1099,7 +1099,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS.
@@ -1109,7 +1109,7 @@ Expected: PASS.
 Run:
 
 ```bash
-pnpm --dir packages/happy-app web:test
+pnpm --dir packages/happyherd-app web:test
 ```
 
 Expected: Expo starts a web server and prints a local URL.
@@ -1122,7 +1122,7 @@ Expected:
 
 - The message sends.
 - The image appears inline after the message syncs back.
-- Browser console and app logs do not contain `X-Amz-Signature`, `X-Amz-Credential`, `policy`, `AWSAccessKeyId`, `Bearer`, full `files.cluster-fluster.com/happy/...` paths, local file paths, base64 payloads, or attachment refs.
+- Browser console and app logs do not contain `X-Amz-Signature`, `X-Amz-Credential`, `policy`, `AWSAccessKeyId`, `Bearer`, full `files.cluster-fluster.com/happyherd/...` paths, local file paths, base64 payloads, or attachment refs.
 
 - [ ] **Step 5: Verify blocked storage-host upload diagnostic**
 
@@ -1156,7 +1156,7 @@ Expected:
 
 - Existing upload-failed alert still appears.
 - Log line starts with `[attachments] Failed to upload image attachment:`.
-- Diagnostic object includes `leg: "request-upload"`, `host: "api.cluster-fluster.com"`, and `target: "happy-api"`.
+- Diagnostic object includes `leg: "request-upload"`, `host: "api.cluster-fluster.com"`, and `target: "happyherd-api"`.
 - Diagnostic object does not include bearer tokens, session attachment refs, bytes, or local file paths.
 
 - [ ] **Step 7: Verify blocked storage-host download diagnostic**
@@ -1180,7 +1180,7 @@ Run:
 
 ```bash
 git diff --check
-rg -n "uploadUrl|downloadUrl|X-Amz|AWSAccessKeyId|policy|Bearer|ref=|\\$\\{ref\\}|attachment\\.name" packages/happy-app/sources/sync/apiAttachments.ts packages/happy-app/sources/sync/sync.ts packages/happy-app/sources/hooks/useAttachmentImage.ts packages/happy-app/sources/sync/attachmentDiagnostics.ts
+rg -n "uploadUrl|downloadUrl|X-Amz|AWSAccessKeyId|policy|Bearer|ref=|\\$\\{ref\\}|attachment\\.name" packages/happyherd-app/sources/sync/apiAttachments.ts packages/happyherd-app/sources/sync/sync.ts packages/happyherd-app/sources/hooks/useAttachmentImage.ts packages/happyherd-app/sources/sync/attachmentDiagnostics.ts
 ```
 
 Expected:
@@ -1193,8 +1193,8 @@ Expected:
 If manual testing required code changes after Task 4, run the targeted tests and typecheck again:
 
 ```bash
-pnpm --dir packages/happy-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
-pnpm --dir packages/happy-app typecheck
+pnpm --dir packages/happyherd-app exec vitest run sources/sync/attachmentDiagnostics.test.ts sources/sync/apiAttachments.test.ts sources/sync/attachmentSupport.test.ts
+pnpm --dir packages/happyherd-app typecheck
 ```
 
 Expected: PASS for both commands.
@@ -1203,7 +1203,7 @@ Commit only the changed files:
 
 ```bash
 git status --short
-git add packages/happy-app/sources/sync/attachmentDiagnostics.ts packages/happy-app/sources/sync/attachmentDiagnostics.test.ts packages/happy-app/sources/sync/apiAttachments.ts packages/happy-app/sources/sync/apiAttachments.test.ts packages/happy-app/sources/sync/sync.ts packages/happy-app/sources/hooks/useAttachmentImage.ts
+git add packages/happyherd-app/sources/sync/attachmentDiagnostics.ts packages/happyherd-app/sources/sync/attachmentDiagnostics.test.ts packages/happyherd-app/sources/sync/apiAttachments.ts packages/happyherd-app/sources/sync/apiAttachments.test.ts packages/happyherd-app/sources/sync/sync.ts packages/happyherd-app/sources/hooks/useAttachmentImage.ts
 git commit -m "fix: harden attachment storage diagnostics"
 ```
 

@@ -34,8 +34,8 @@ A temporary diagnostic delayed React mounting by 650ms to reproduce a busy brows
 Run from `server/` with the repository's supported Node and pnpm versions:
 
 ```sh
-pnpm --filter happy-app exec vitest run sources/components/CredentialsSettingsView.browser.test.ts sources/components/ChatList.browser.test.ts
-pnpm --filter happy-app typecheck
+pnpm --filter happyherd-app exec vitest run sources/components/CredentialsSettingsView.browser.test.ts sources/components/ChatList.browser.test.ts
+pnpm --filter happyherd-app typecheck
 ```
 
 The final branch must also pass the complete local `scripts/contract-suite.sh` and all required GitHub checks after integrating current main. CI links and the exact final head are recorded in the PR description. Native and authenticated journey gaps in the existing acceptance matrix remain separate.

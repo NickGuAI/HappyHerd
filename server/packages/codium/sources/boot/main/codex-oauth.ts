@@ -14,7 +14,7 @@
  *      refresh tokens.
  *   6. Refresh transparently when the access_token is near expiry.
  *
- * Tokens are persisted to Codium's Happy home at `<Happy home>/codex-auth.json`,
+ * Tokens are persisted to Codium's HappyHerd home at `<HappyHerd home>/codex-auth.json`,
  * NOT `~/.codex/auth.json` - that file is owned by the CLI and we don't want
  * to step on it.
  * ──────────────────────────────────────────────────────────────────────── */

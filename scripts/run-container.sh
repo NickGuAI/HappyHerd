@@ -28,8 +28,8 @@ docker_args=(
     --env PGLITE_DIR=/data/pglite
     --env PUBLIC_URL="$HAPPYHERD_PUBLIC_URL"
     --env HANDY_MASTER_SECRET="$master_secret"
-    --env HAPPY_HOME_DIR=/happyherd-cli
-    --env "HAPPY_INJECT_HTML_CONFIG={\"serverUrl\":\"$HAPPYHERD_PUBLIC_URL\",\"disableAnalytics\":true}"
+    --env HAPPYHERD_HOME_DIR=/happyherd-cli
+    --env "HAPPYHERD_INJECT_HTML_CONFIG={\"serverUrl\":\"$HAPPYHERD_PUBLIC_URL\",\"disableAnalytics\":true}"
 )
 
 if [[ -n "${HAPPYHERD_OPENAI_API_KEY_FILE:-}" ]]; then

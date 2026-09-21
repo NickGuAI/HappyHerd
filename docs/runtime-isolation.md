@@ -52,10 +52,10 @@ sudo -u ec2-user \
 ```
 
 Replace `ec2-user` with the actual account that owns the configured
-`HAPPY_HOME_DIR` and provider credentials. The bootstrap initializes an empty
-Happy home to `http://127.0.0.1:3005`; otherwise the ordinary daemon keeps the
+`HAPPYHERD_HOME_DIR` and provider credentials. The bootstrap initializes an empty
+HappyHerd home to `http://127.0.0.1:3005`; otherwise the ordinary daemon keeps the
 server selection already persisted there. The template does not require
-`HAPPY_SERVER_URL` or `HAPPY_WEBAPP_URL` exports.
+`HAPPYHERD_SERVER_URL` or `HAPPYHERD_WEBAPP_URL` exports.
 
 The Linux cron entry is only a boot-time availability adapter. It calls the
 maintained HappyHerd CLI's native detached `daemon start` lifecycle and exits. The
@@ -69,7 +69,7 @@ owned by the existing wire/API contract and component tests.
 ## Governed Discord agent
 
 `@happyherd/happyherd-agent` is optional and has its own build/install lane. It
-composes `happy-agent/control` with Discord and a policy-bounded organization
+composes `happyherd-control-agent/control` with Discord and a policy-bounded organization
 service broker. Install it only when that component changes:
 
 ```bash
@@ -85,7 +85,7 @@ sudo /usr/local/lib/happyherd-agent-support/scripts/validate-happyherd-agent-run
 ```
 
 Two unprivileged identities keep bridge credentials apart from the dedicated
-Happy/Codex runtime. Codex receives an opaque short-lived capability and the
+HappyHerd/Codex runtime. Codex receives an opaque short-lived capability and the
 loopback broker URL, not the Discord token or organization-service credential.
 The `/mcp` listener remains loopback-only.
 

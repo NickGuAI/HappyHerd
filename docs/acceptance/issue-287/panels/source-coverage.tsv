@@ -1,119 +1,119 @@
 production_source	state	panels	evidence_types
-server/packages/happy-app/sources/-session/SessionView.tsx	screenshot	chat/session	component-fixture
-server/packages/happy-app/sources/app/(app)/_layout.tsx	screenshot	production/landing	production-export
-server/packages/happy-app/sources/app/(app)/artifacts/[id].tsx	screenshot	routes/artifact	component-fixture
-server/packages/happy-app/sources/app/(app)/artifacts/edit/[id].tsx	screenshot	routes/artifact-edit	component-fixture
-server/packages/happy-app/sources/app/(app)/artifacts/index.tsx	screenshot	routes/artifacts	component-fixture
-server/packages/happy-app/sources/app/(app)/artifacts/new.tsx	screenshot	routes/artifact-new	component-fixture
-server/packages/happy-app/sources/app/(app)/automations/index.tsx	screenshot	workspace/automations-list; workspace/automation-create	component-fixture
-server/packages/happy-app/sources/app/(app)/friends/index.tsx	screenshot	routes/friends	component-fixture
-server/packages/happy-app/sources/app/(app)/friends/search.tsx	screenshot	routes/friend-search	component-fixture
-server/packages/happy-app/sources/app/(app)/inbox/index.tsx	screenshot	routes/inbox	component-fixture
-server/packages/happy-app/sources/app/(app)/index.tsx	screenshot	production/landing; workspace/signed-out	component-fixture; production-export
-server/packages/happy-app/sources/app/(app)/machine/[id].tsx	screenshot	routes/machine	component-fixture
-server/packages/happy-app/sources/app/(app)/new/index.tsx	screenshot	workspace/new-session; workspace/new-session-path	component-fixture
-server/packages/happy-app/sources/app/(app)/restore/index.tsx	screenshot	production/restore-device	production-export
-server/packages/happy-app/sources/app/(app)/restore/manual.tsx	screenshot	production/restore-key	production-export
-server/packages/happy-app/sources/app/(app)/server.tsx	screenshot	production/server-config	production-export
-server/packages/happy-app/sources/app/(app)/session/[id]/info.tsx	screenshot	routes/session-info	component-fixture
-server/packages/happy-app/sources/app/(app)/session/recent.tsx	screenshot	routes/recent	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/account.tsx	screenshot	routes/account	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/agents.tsx	screenshot	routes/agents	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/appearance.tsx	screenshot	routes/appearance	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/connect/claude.tsx	screenshot	routes/claude	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/features.tsx	screenshot	routes/features	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/language.tsx	screenshot	routes/language	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/voice.tsx	screenshot	routes/voice	component-fixture
-server/packages/happy-app/sources/app/(app)/settings/voice/language.tsx	screenshot	routes/voice-language	component-fixture
-server/packages/happy-app/sources/app/(app)/terminal/connect.tsx	screenshot	routes/terminal	component-fixture
-server/packages/happy-app/sources/app/(app)/text-selection.tsx	screenshot	routes/text-selection	component-fixture
-server/packages/happy-app/sources/app/(app)/user/[id].tsx	screenshot	routes/user	component-fixture
-server/packages/happy-app/sources/app/+html.tsx	screenshot	production/landing	production-export
-server/packages/happy-app/sources/app/_layout.tsx	screenshot	production/landing	production-export
-server/packages/happy-app/sources/components/AccountKeyPanel.tsx	screenshot	routes/account-key	component-fixture
-server/packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx	screenshot	workspace/session-workspace-groups	component-fixture
-server/packages/happy-app/sources/components/AgentGoalBar.tsx	screenshot	chat/goal-work-queue	component-fixture
-server/packages/happy-app/sources/components/AgentInput.tsx	screenshot	chat/session; chat/composer	component-fixture
-server/packages/happy-app/sources/components/AgentQuestionModal.tsx	screenshot	chat/question	component-fixture
-server/packages/happy-app/sources/components/AgentWorkGroupHeader.tsx	screenshot	chat/goal-work-queue	component-fixture
-server/packages/happy-app/sources/components/AttachmentInputMenu.tsx	screenshot	chat/attachment-menu	component-fixture
-server/packages/happy-app/sources/components/ChatList.tsx	screenshot	chat/chat-list; chat/session	component-fixture
-server/packages/happy-app/sources/components/CodeEditor.tsx	screenshot	chat/native-editor	component-fixture
-server/packages/happy-app/sources/components/CodeEditor.web.tsx	screenshot	workspace/code-editor	component-fixture
-server/packages/happy-app/sources/components/CodeView.tsx	screenshot	chat/native-text	component-fixture
-server/packages/happy-app/sources/components/CommandPalette/CommandPalette.tsx	screenshot	workspace/command-palette	component-fixture
-server/packages/happy-app/sources/components/CommandPalette/CommandPaletteInput.tsx	screenshot	workspace/command-palette	component-fixture
-server/packages/happy-app/sources/components/CommandPalette/CommandPaletteItem.tsx	screenshot	workspace/command-palette	component-fixture
-server/packages/happy-app/sources/components/CommandPalette/CommandPaletteModal.tsx	screenshot	workspace/command-palette	component-fixture
-server/packages/happy-app/sources/components/CommandPalette/CommandPaletteResults.tsx	screenshot	workspace/command-palette	component-fixture
-server/packages/happy-app/sources/components/CommandView.tsx	screenshot	chat/native-text	component-fixture
-server/packages/happy-app/sources/components/CommanderAvatarSettings.tsx	screenshot	routes/commanders	component-fixture
-server/packages/happy-app/sources/components/CompactGitStatus.tsx	screenshot	workspace/git-status	component-fixture
-server/packages/happy-app/sources/components/ConnectButton.tsx	screenshot	workspace/connect-terminal	component-fixture
-server/packages/happy-app/sources/components/CredentialsSettingsView.tsx	screenshot	routes/credentials	component-fixture
-server/packages/happy-app/sources/components/DesktopFileWorkspace.tsx	screenshot	workspace/workspace-markdown; workspace/workspace-source; workspace/workspace-live	component-fixture
-server/packages/happy-app/sources/components/DuplicateSheet.tsx	screenshot	workspace/duplicate-session	component-fixture
-server/packages/happy-app/sources/components/EmptyMainScreen.tsx	screenshot	workspace/empty-onboarding	component-fixture
-server/packages/happy-app/sources/components/EmptyMessages.tsx	screenshot	chat/empty	component-fixture
-server/packages/happy-app/sources/components/EmptySessionsTablet.tsx	screenshot	workspace/empty-tablet	component-fixture
-server/packages/happy-app/sources/components/FABWide.tsx	screenshot	workspace/navigation-bars	component-fixture
-server/packages/happy-app/sources/components/FileViewPanel.tsx	screenshot	workspace/workspace-markdown; workspace/workspace-source; workspace/workspace-link	component-fixture
-server/packages/happy-app/sources/components/FilesSidebar.tsx	screenshot	workspace/files-sidebar	component-fixture
-server/packages/happy-app/sources/components/FlatSessionRow.tsx	screenshot	workspace/sidebar-projects; workspace/project-detail	component-fixture
-server/packages/happy-app/sources/components/GitStatusBadge.tsx	screenshot	workspace/git-status	component-fixture
-server/packages/happy-app/sources/components/HappyHerdAutomationCard.tsx	screenshot	workspace/automation-card	component-fixture
-server/packages/happy-app/sources/components/HappyHerdAutomationDetail.tsx	screenshot	workspace/automation-detail	component-fixture
-server/packages/happy-app/sources/components/HomeDock.tsx	screenshot	workspace/home-dock	component-fixture
-server/packages/happy-app/sources/components/InlineCommentReview.web.tsx	screenshot	workspace/inline-comment-review	component-fixture
-server/packages/happy-app/sources/components/Item.tsx	screenshot	chat/controls	component-fixture
-server/packages/happy-app/sources/components/ItemGroup.tsx	screenshot	production/server-config; chat/controls	component-fixture; production-export
-server/packages/happy-app/sources/components/LocalhostLiveView.web.tsx	screenshot	workspace/workspace-live	component-fixture
-server/packages/happy-app/sources/components/MachinePathBrowser.tsx	screenshot	workspace/new-session-path	component-fixture
-server/packages/happy-app/sources/components/MainView.tsx	screenshot	workspace/main-view	component-fixture
-server/packages/happy-app/sources/components/MessageView.tsx	screenshot	chat/chat-list; chat/messages; chat/session	component-fixture
-server/packages/happy-app/sources/components/OAuthView.tsx	unproved	-	-
-server/packages/happy-app/sources/components/ProjectGitStatus.tsx	screenshot	workspace/git-status	component-fixture
-server/packages/happy-app/sources/components/ProjectGroup.tsx	screenshot	workspace/session-workspace-groups	component-fixture
-server/packages/happy-app/sources/components/ProviderContinuationLinks.tsx	screenshot	chat/continuation	component-fixture
-server/packages/happy-app/sources/components/ProviderContinuationSheet.tsx	screenshot	chat/continuation	component-fixture
-server/packages/happy-app/sources/components/QueuedMessagesPanel.tsx	screenshot	chat/goal-work-queue	component-fixture
-server/packages/happy-app/sources/components/RoundButton.tsx	screenshot	production/landing; chat/controls	component-fixture; production-export
-server/packages/happy-app/sources/components/SearchableListSelector.tsx	screenshot	chat/selector	component-fixture
-server/packages/happy-app/sources/components/SessionActionsPopover.tsx	screenshot	chat/session-actions	component-fixture
-server/packages/happy-app/sources/components/SessionStatusBar.tsx	screenshot	chat/status	component-fixture
-server/packages/happy-app/sources/components/SessionsListWrapper.tsx	screenshot	workspace/empty-onboarding	component-fixture
-server/packages/happy-app/sources/components/SettingsView.tsx	screenshot	routes/settings	component-fixture
-server/packages/happy-app/sources/components/ShimmerView.tsx	screenshot	chat/status	component-fixture
-server/packages/happy-app/sources/components/SideChatPanel.tsx	screenshot	workspace/side-chat-panel	component-fixture
-server/packages/happy-app/sources/components/SidebarNavigationButton.tsx	screenshot	workspace/sidebar-projects	component-fixture
-server/packages/happy-app/sources/components/SidebarView.tsx	screenshot	workspace/sidebar-projects	component-fixture
-server/packages/happy-app/sources/components/TabBar.tsx	screenshot	workspace/navigation-bars	component-fixture
-server/packages/happy-app/sources/components/UserSearchResult.tsx	screenshot	routes/friend-search	component-fixture
-server/packages/happy-app/sources/components/VoiceAssistantStatusBar.tsx	screenshot	chat/status	component-fixture
-server/packages/happy-app/sources/components/WorkspaceFeedbackComposer.tsx	screenshot	workspace/workspace-link	component-fixture
-server/packages/happy-app/sources/components/WorkspaceLinkViewer.tsx	screenshot	workspace/workspace-link	component-fixture
-server/packages/happy-app/sources/components/diff/PierreDiffView.tsx	screenshot	workspace/workspace-source	component-fixture
-server/packages/happy-app/sources/components/markdown/MarkdownView.tsx	screenshot	chat/native-text	component-fixture
-server/packages/happy-app/sources/components/markdown/MarkdownView.web.tsx	screenshot	production/changelog; workspace/workspace-markdown; workspace/workspace-link	component-fixture; production-export
-server/packages/happy-app/sources/components/navigation/Header.tsx	screenshot	production/landing; workspace/navigation-bars	component-fixture; production-export
-server/packages/happy-app/sources/components/tools/PermissionFooter.tsx	screenshot	chat/tool-states	component-fixture
-server/packages/happy-app/sources/components/tools/ToolError.tsx	screenshot	chat/tool-states	component-fixture
-server/packages/happy-app/sources/components/tools/ToolFullView.tsx	screenshot	chat/tool-full	component-fixture
-server/packages/happy-app/sources/components/tools/ToolSectionView.tsx	screenshot	chat/tool-states	component-fixture
-server/packages/happy-app/sources/components/tools/ToolStatusIndicator.tsx	screenshot	chat/tool-states	component-fixture
-server/packages/happy-app/sources/components/tools/ToolView.tsx	screenshot	chat/tool-shells	component-fixture
-server/packages/happy-app/sources/components/tools/views/CodexBashView.tsx	screenshot	chat/tool-shells	component-fixture
-server/packages/happy-app/sources/components/tools/views/CodexPatchView.tsx	screenshot	chat/tool-patch	component-fixture
-server/packages/happy-app/sources/components/tools/views/FileView.tsx	screenshot	chat/tool-file	component-fixture
-server/packages/happy-app/sources/components/tools/views/GeminiExecuteView.tsx	screenshot	chat/tool-shells	component-fixture
-server/packages/happy-app/sources/components/tools/views/InlineQuestionForm.tsx	screenshot	chat/tool-question	component-fixture
-server/packages/happy-app/sources/components/tools/views/MultiEditViewFull.tsx	screenshot	chat/tool-patch	component-fixture
-server/packages/happy-app/sources/components/tools/views/SubagentView.tsx	screenshot	chat/tool-agents	component-fixture
-server/packages/happy-app/sources/components/tools/views/TaskView.tsx	screenshot	chat/tool-agents	component-fixture
-server/packages/happy-app/sources/components/tools/views/TodoView.tsx	screenshot	chat/tool-agents	component-fixture
-server/packages/happy-app/sources/components/usage/UsageBar.tsx	screenshot	routes/voice; routes/usage	component-fixture
-server/packages/happy-app/sources/components/usage/UsageChart.tsx	screenshot	routes/usage	component-fixture
-server/packages/happy-app/sources/components/usage/UsagePanel.tsx	screenshot	routes/usage	component-fixture
-server/packages/happy-app/sources/modal/components/BaseModal.tsx	screenshot	chat/alert; chat/prompt	component-fixture
-server/packages/happy-app/sources/modal/components/WebAlertModal.tsx	screenshot	chat/alert	component-fixture
-server/packages/happy-app/sources/modal/components/WebPromptModal.tsx	screenshot	chat/prompt	component-fixture
+server/packages/happyherd-app/sources/-session/SessionView.tsx	screenshot	chat/session	component-fixture
+server/packages/happyherd-app/sources/app/(app)/_layout.tsx	screenshot	production/landing	production-export
+server/packages/happyherd-app/sources/app/(app)/artifacts/[id].tsx	screenshot	routes/artifact	component-fixture
+server/packages/happyherd-app/sources/app/(app)/artifacts/edit/[id].tsx	screenshot	routes/artifact-edit	component-fixture
+server/packages/happyherd-app/sources/app/(app)/artifacts/index.tsx	screenshot	routes/artifacts	component-fixture
+server/packages/happyherd-app/sources/app/(app)/artifacts/new.tsx	screenshot	routes/artifact-new	component-fixture
+server/packages/happyherd-app/sources/app/(app)/automations/index.tsx	screenshot	workspace/automations-list; workspace/automation-create	component-fixture
+server/packages/happyherd-app/sources/app/(app)/friends/index.tsx	screenshot	routes/friends	component-fixture
+server/packages/happyherd-app/sources/app/(app)/friends/search.tsx	screenshot	routes/friend-search	component-fixture
+server/packages/happyherd-app/sources/app/(app)/inbox/index.tsx	screenshot	routes/inbox	component-fixture
+server/packages/happyherd-app/sources/app/(app)/index.tsx	screenshot	production/landing; workspace/signed-out	component-fixture; production-export
+server/packages/happyherd-app/sources/app/(app)/machine/[id].tsx	screenshot	routes/machine	component-fixture
+server/packages/happyherd-app/sources/app/(app)/new/index.tsx	screenshot	workspace/new-session; workspace/new-session-path	component-fixture
+server/packages/happyherd-app/sources/app/(app)/restore/index.tsx	screenshot	production/restore-device	production-export
+server/packages/happyherd-app/sources/app/(app)/restore/manual.tsx	screenshot	production/restore-key	production-export
+server/packages/happyherd-app/sources/app/(app)/server.tsx	screenshot	production/server-config	production-export
+server/packages/happyherd-app/sources/app/(app)/session/[id]/info.tsx	screenshot	routes/session-info	component-fixture
+server/packages/happyherd-app/sources/app/(app)/session/recent.tsx	screenshot	routes/recent	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/account.tsx	screenshot	routes/account	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/agents.tsx	screenshot	routes/agents	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/appearance.tsx	screenshot	routes/appearance	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/connect/claude.tsx	screenshot	routes/claude	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/features.tsx	screenshot	routes/features	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/language.tsx	screenshot	routes/language	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/voice.tsx	screenshot	routes/voice	component-fixture
+server/packages/happyherd-app/sources/app/(app)/settings/voice/language.tsx	screenshot	routes/voice-language	component-fixture
+server/packages/happyherd-app/sources/app/(app)/terminal/connect.tsx	screenshot	routes/terminal	component-fixture
+server/packages/happyherd-app/sources/app/(app)/text-selection.tsx	screenshot	routes/text-selection	component-fixture
+server/packages/happyherd-app/sources/app/(app)/user/[id].tsx	screenshot	routes/user	component-fixture
+server/packages/happyherd-app/sources/app/+html.tsx	screenshot	production/landing	production-export
+server/packages/happyherd-app/sources/app/_layout.tsx	screenshot	production/landing	production-export
+server/packages/happyherd-app/sources/components/AccountKeyPanel.tsx	screenshot	routes/account-key	component-fixture
+server/packages/happyherd-app/sources/components/ActiveSessionsGroupCompact.tsx	screenshot	workspace/session-workspace-groups	component-fixture
+server/packages/happyherd-app/sources/components/AgentGoalBar.tsx	screenshot	chat/goal-work-queue	component-fixture
+server/packages/happyherd-app/sources/components/AgentInput.tsx	screenshot	chat/session; chat/composer	component-fixture
+server/packages/happyherd-app/sources/components/AgentQuestionModal.tsx	screenshot	chat/question	component-fixture
+server/packages/happyherd-app/sources/components/AgentWorkGroupHeader.tsx	screenshot	chat/goal-work-queue	component-fixture
+server/packages/happyherd-app/sources/components/AttachmentInputMenu.tsx	screenshot	chat/attachment-menu	component-fixture
+server/packages/happyherd-app/sources/components/ChatList.tsx	screenshot	chat/chat-list; chat/session	component-fixture
+server/packages/happyherd-app/sources/components/CodeEditor.tsx	screenshot	chat/native-editor	component-fixture
+server/packages/happyherd-app/sources/components/CodeEditor.web.tsx	screenshot	workspace/code-editor	component-fixture
+server/packages/happyherd-app/sources/components/CodeView.tsx	screenshot	chat/native-text	component-fixture
+server/packages/happyherd-app/sources/components/CommandPalette/CommandPalette.tsx	screenshot	workspace/command-palette	component-fixture
+server/packages/happyherd-app/sources/components/CommandPalette/CommandPaletteInput.tsx	screenshot	workspace/command-palette	component-fixture
+server/packages/happyherd-app/sources/components/CommandPalette/CommandPaletteItem.tsx	screenshot	workspace/command-palette	component-fixture
+server/packages/happyherd-app/sources/components/CommandPalette/CommandPaletteModal.tsx	screenshot	workspace/command-palette	component-fixture
+server/packages/happyherd-app/sources/components/CommandPalette/CommandPaletteResults.tsx	screenshot	workspace/command-palette	component-fixture
+server/packages/happyherd-app/sources/components/CommandView.tsx	screenshot	chat/native-text	component-fixture
+server/packages/happyherd-app/sources/components/CommanderAvatarSettings.tsx	screenshot	routes/commanders	component-fixture
+server/packages/happyherd-app/sources/components/CompactGitStatus.tsx	screenshot	workspace/git-status	component-fixture
+server/packages/happyherd-app/sources/components/ConnectButton.tsx	screenshot	workspace/connect-terminal	component-fixture
+server/packages/happyherd-app/sources/components/CredentialsSettingsView.tsx	screenshot	routes/credentials	component-fixture
+server/packages/happyherd-app/sources/components/DesktopFileWorkspace.tsx	screenshot	workspace/workspace-markdown; workspace/workspace-source; workspace/workspace-live	component-fixture
+server/packages/happyherd-app/sources/components/DuplicateSheet.tsx	screenshot	workspace/duplicate-session	component-fixture
+server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx	screenshot	workspace/empty-onboarding	component-fixture
+server/packages/happyherd-app/sources/components/EmptyMessages.tsx	screenshot	chat/empty	component-fixture
+server/packages/happyherd-app/sources/components/EmptySessionsTablet.tsx	screenshot	workspace/empty-tablet	component-fixture
+server/packages/happyherd-app/sources/components/FABWide.tsx	screenshot	workspace/navigation-bars	component-fixture
+server/packages/happyherd-app/sources/components/FileViewPanel.tsx	screenshot	workspace/workspace-markdown; workspace/workspace-source; workspace/workspace-link	component-fixture
+server/packages/happyherd-app/sources/components/FilesSidebar.tsx	screenshot	workspace/files-sidebar	component-fixture
+server/packages/happyherd-app/sources/components/FlatSessionRow.tsx	screenshot	workspace/sidebar-projects; workspace/project-detail	component-fixture
+server/packages/happyherd-app/sources/components/GitStatusBadge.tsx	screenshot	workspace/git-status	component-fixture
+server/packages/happyherd-app/sources/components/HappyHerdAutomationCard.tsx	screenshot	workspace/automation-card	component-fixture
+server/packages/happyherd-app/sources/components/HappyHerdAutomationDetail.tsx	screenshot	workspace/automation-detail	component-fixture
+server/packages/happyherd-app/sources/components/HomeDock.tsx	screenshot	workspace/home-dock	component-fixture
+server/packages/happyherd-app/sources/components/InlineCommentReview.web.tsx	screenshot	workspace/inline-comment-review	component-fixture
+server/packages/happyherd-app/sources/components/Item.tsx	screenshot	chat/controls	component-fixture
+server/packages/happyherd-app/sources/components/ItemGroup.tsx	screenshot	production/server-config; chat/controls	component-fixture; production-export
+server/packages/happyherd-app/sources/components/LocalhostLiveView.web.tsx	screenshot	workspace/workspace-live	component-fixture
+server/packages/happyherd-app/sources/components/MachinePathBrowser.tsx	screenshot	workspace/new-session-path	component-fixture
+server/packages/happyherd-app/sources/components/MainView.tsx	screenshot	workspace/main-view	component-fixture
+server/packages/happyherd-app/sources/components/MessageView.tsx	screenshot	chat/chat-list; chat/messages; chat/session	component-fixture
+server/packages/happyherd-app/sources/components/OAuthView.tsx	unproved	-	-
+server/packages/happyherd-app/sources/components/ProjectGitStatus.tsx	screenshot	workspace/git-status	component-fixture
+server/packages/happyherd-app/sources/components/ProjectGroup.tsx	screenshot	workspace/session-workspace-groups	component-fixture
+server/packages/happyherd-app/sources/components/ProviderContinuationLinks.tsx	screenshot	chat/continuation	component-fixture
+server/packages/happyherd-app/sources/components/ProviderContinuationSheet.tsx	screenshot	chat/continuation	component-fixture
+server/packages/happyherd-app/sources/components/QueuedMessagesPanel.tsx	screenshot	chat/goal-work-queue	component-fixture
+server/packages/happyherd-app/sources/components/RoundButton.tsx	screenshot	production/landing; chat/controls	component-fixture; production-export
+server/packages/happyherd-app/sources/components/SearchableListSelector.tsx	screenshot	chat/selector	component-fixture
+server/packages/happyherd-app/sources/components/SessionActionsPopover.tsx	screenshot	chat/session-actions	component-fixture
+server/packages/happyherd-app/sources/components/SessionStatusBar.tsx	screenshot	chat/status	component-fixture
+server/packages/happyherd-app/sources/components/SessionsListWrapper.tsx	screenshot	workspace/empty-onboarding	component-fixture
+server/packages/happyherd-app/sources/components/SettingsView.tsx	screenshot	routes/settings	component-fixture
+server/packages/happyherd-app/sources/components/ShimmerView.tsx	screenshot	chat/status	component-fixture
+server/packages/happyherd-app/sources/components/SideChatPanel.tsx	screenshot	workspace/side-chat-panel	component-fixture
+server/packages/happyherd-app/sources/components/SidebarNavigationButton.tsx	screenshot	workspace/sidebar-projects	component-fixture
+server/packages/happyherd-app/sources/components/SidebarView.tsx	screenshot	workspace/sidebar-projects	component-fixture
+server/packages/happyherd-app/sources/components/TabBar.tsx	screenshot	workspace/navigation-bars	component-fixture
+server/packages/happyherd-app/sources/components/UserSearchResult.tsx	screenshot	routes/friend-search	component-fixture
+server/packages/happyherd-app/sources/components/VoiceAssistantStatusBar.tsx	screenshot	chat/status	component-fixture
+server/packages/happyherd-app/sources/components/WorkspaceFeedbackComposer.tsx	screenshot	workspace/workspace-link	component-fixture
+server/packages/happyherd-app/sources/components/WorkspaceLinkViewer.tsx	screenshot	workspace/workspace-link	component-fixture
+server/packages/happyherd-app/sources/components/diff/PierreDiffView.tsx	screenshot	workspace/workspace-source	component-fixture
+server/packages/happyherd-app/sources/components/markdown/MarkdownView.tsx	screenshot	chat/native-text	component-fixture
+server/packages/happyherd-app/sources/components/markdown/MarkdownView.web.tsx	screenshot	production/changelog; workspace/workspace-markdown; workspace/workspace-link	component-fixture; production-export
+server/packages/happyherd-app/sources/components/navigation/Header.tsx	screenshot	production/landing; workspace/navigation-bars	component-fixture; production-export
+server/packages/happyherd-app/sources/components/tools/PermissionFooter.tsx	screenshot	chat/tool-states	component-fixture
+server/packages/happyherd-app/sources/components/tools/ToolError.tsx	screenshot	chat/tool-states	component-fixture
+server/packages/happyherd-app/sources/components/tools/ToolFullView.tsx	screenshot	chat/tool-full	component-fixture
+server/packages/happyherd-app/sources/components/tools/ToolSectionView.tsx	screenshot	chat/tool-states	component-fixture
+server/packages/happyherd-app/sources/components/tools/ToolStatusIndicator.tsx	screenshot	chat/tool-states	component-fixture
+server/packages/happyherd-app/sources/components/tools/ToolView.tsx	screenshot	chat/tool-shells	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/CodexBashView.tsx	screenshot	chat/tool-shells	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/CodexPatchView.tsx	screenshot	chat/tool-patch	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/FileView.tsx	screenshot	chat/tool-file	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/GeminiExecuteView.tsx	screenshot	chat/tool-shells	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/InlineQuestionForm.tsx	screenshot	chat/tool-question	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/MultiEditViewFull.tsx	screenshot	chat/tool-patch	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/SubagentView.tsx	screenshot	chat/tool-agents	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/TaskView.tsx	screenshot	chat/tool-agents	component-fixture
+server/packages/happyherd-app/sources/components/tools/views/TodoView.tsx	screenshot	chat/tool-agents	component-fixture
+server/packages/happyherd-app/sources/components/usage/UsageBar.tsx	screenshot	routes/voice; routes/usage	component-fixture
+server/packages/happyherd-app/sources/components/usage/UsageChart.tsx	screenshot	routes/usage	component-fixture
+server/packages/happyherd-app/sources/components/usage/UsagePanel.tsx	screenshot	routes/usage	component-fixture
+server/packages/happyherd-app/sources/modal/components/BaseModal.tsx	screenshot	chat/alert; chat/prompt	component-fixture
+server/packages/happyherd-app/sources/modal/components/WebAlertModal.tsx	screenshot	chat/alert	component-fixture
+server/packages/happyherd-app/sources/modal/components/WebPromptModal.tsx	screenshot	chat/prompt	component-fixture

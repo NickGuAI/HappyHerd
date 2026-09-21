@@ -67,7 +67,7 @@ subsequent implementation and verification stage under #300.
 These existing owners were inspected to ground the preview; they are not imported
 or modified by it:
 
-- `server/packages/happy-app/sources/app/(app)/settings/features.tsx`: experimental
+- `server/packages/happyherd-app/sources/app/(app)/settings/features.tsx`: experimental
   settings entry and existing setting hooks.
 - `sources/components/CommandPalette/CommandPaletteProvider.tsx` and
   `sources/app/(app)/new/index.tsx` (relative to the app package): current Create

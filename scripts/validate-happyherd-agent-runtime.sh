@@ -33,9 +33,13 @@ set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
+# rename:preserve
+export HAPPYHERD_SERVER_URL="${HAPPYHERD_SERVER_URL:-${HAPPY_SERVER_URL:-}}"
+export HAPPYHERD_HOME_DIR="${HAPPYHERD_HOME_DIR:-${HAPPY_HOME_DIR:-}}"
+# /rename:preserve
 
 for name in \
-    NODE_ENV HAPPY_SERVER_URL HAPPY_HOME_DIR \
+    NODE_ENV HAPPYHERD_SERVER_URL HAPPYHERD_HOME_DIR \
     HAPPYHERD_AGENT_DISCORD_APPLICATION_ID HAPPYHERD_AGENT_DISCORD_TOKEN_FILE \
     HAPPYHERD_AGENT_DISCORD_TOKEN_ROTATION_RECEIPT_FILE HAPPYHERD_AGENT_DISCORD_TOKEN_NOT_BEFORE \
     HAPPYHERD_AGENT_TOOL_MANIFEST_FILE HAPPYHERD_AGENT_SERVICE_API_URL \
@@ -50,14 +54,14 @@ done
 [[ "$NODE_ENV" == production ]] || die 'NODE_ENV must be production'
 [[ "$HAPPYHERD_AGENT_CODEX_PERMISSION_MODE" == read-only ]] || die 'agent Codex must be read-only'
 [[ "$HAPPYHERD_AGENT_COMMANDER_ID" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || die 'agent Commander ID is invalid'
-[[ "$HAPPY_HOME_DIR" == "$BRIDGE_ROOT/happy-agent" ]] || die 'bridge Happy home is not isolated'
+[[ "$HAPPYHERD_HOME_DIR" == "$BRIDGE_ROOT/happy-agent" ]] || die 'bridge HappyHerd home is not isolated'
 [[ "$HAPPYHERD_AGENT_WORKSPACE" == "$AGENT_ROOT/workspace" ]] || die 'agent workspace is not isolated'
 [[ "$HAPPYHERD_AGENT_STATE_DIR" == "$BRIDGE_ROOT/state" ]] || die 'bridge state is not isolated'
 [[ "$HAPPYHERD_AGENT_HOST" == 127.0.0.1 ]] || die 'bridge broker must bind to loopback'
 [[ "$HAPPYHERD_AGENT_BROKER_URL" == "http://happyherd-agent-broker.localhost:$HAPPYHERD_AGENT_PORT/mcp" ]] || \
     die 'broker URL must use the sandbox-proxied loopback alias'
 [[ "$HAPPYHERD_AGENT_SERVICE_API_URL" == https://* ]] || die 'service API must use HTTPS'
-[[ "$HAPPY_SERVER_URL" == https://* ]] || die 'HappyHerd server must use HTTPS'
+[[ "$HAPPYHERD_SERVER_URL" == https://* ]] || die 'HappyHerd server must use HTTPS'
 [[ "${HAPPYHERD_AGENT_AUTHORIZATION_PATH:-/api/internal/discord/authorize}" == /api/internal/discord/authorize ]] || \
     die 'unexpected service authorization path'
 [[ "$HAPPYHERD_AGENT_TOOL_MANIFEST_FILE" == /etc/happyherd-agent/agent-manifest.json ]] || \
@@ -65,7 +69,7 @@ done
 node -e 'const value=Date.parse(process.argv[1]); if(!Number.isFinite(value)) process.exit(1)' \
     "$HAPPYHERD_AGENT_DISCORD_TOKEN_NOT_BEFORE" || die 'Discord token cutoff must be an ISO-8601 timestamp'
 
-for candidate in "$HAPPY_HOME_DIR" "$HAPPYHERD_AGENT_WORKSPACE" "$HAPPYHERD_AGENT_STATE_DIR"; do
+for candidate in "$HAPPYHERD_HOME_DIR" "$HAPPYHERD_AGENT_WORKSPACE" "$HAPPYHERD_AGENT_STATE_DIR"; do
     case "$candidate" in
         /home/*|*/.happy|*/.happy/*|*/.happyherd|*/.happyherd/*|*/.herd|*/.herd/*|*/App|*/App/*)
             die "personal runtime path is forbidden: $candidate"
@@ -102,7 +106,7 @@ fi
 [[ "$(id -u)" -eq 0 ]] || die 'runtime validation must run as root'
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap is required for the agent Codex sandbox'
 command -v socat >/dev/null 2>&1 || die 'socat is required for sandbox network mediation'
-[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'Happy CLI bundled ripgrep is required by the agent Codex sandbox runtime'
+[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'HappyHerd CLI bundled ripgrep is required by the agent Codex sandbox runtime'
 for user_name in "$BRIDGE_USER" "$AGENT_USER"; do
     id "$user_name" >/dev/null 2>&1 || die "service user is missing: $user_name"
 done
@@ -131,7 +135,7 @@ for path in "${!secret_paths[@]}"; do
     check_secret_file "$path"
 done
 
-for directory in "$BRIDGE_ROOT" "$HAPPY_HOME_DIR" "$HAPPYHERD_AGENT_STATE_DIR"; do
+for directory in "$BRIDGE_ROOT" "$HAPPYHERD_HOME_DIR" "$HAPPYHERD_AGENT_STATE_DIR"; do
     [[ -d "$directory" ]] || die "bridge directory is missing: $directory"
     [[ "$(stat -c '%U' "$directory")" == "$BRIDGE_USER" ]] || die "bridge directory has the wrong owner: $directory"
 done
@@ -140,10 +144,10 @@ for directory in "$AGENT_ROOT" "$AGENT_ROOT/codex-home" "$AGENT_ROOT/happy-home"
     [[ "$(stat -c '%U' "$directory")" == "$AGENT_USER" ]] || die "agent directory has the wrong owner: $directory"
 done
 
-[[ -f "$HAPPY_HOME_DIR/agent.key" ]] || die 'bridge Happy account key is missing'
-[[ "$(stat -c '%a:%U' "$HAPPY_HOME_DIR/agent.key")" == "600:$BRIDGE_USER" ]] || die 'bridge Happy account key has unsafe permissions'
-[[ -f "$AGENT_ROOT/happy-home/access.key" ]] || die 'daemon Happy account key is missing'
-[[ "$(stat -c '%a:%U' "$AGENT_ROOT/happy-home/access.key")" == "600:$AGENT_USER" ]] || die 'daemon Happy account key has unsafe permissions'
+[[ -f "$HAPPYHERD_HOME_DIR/agent.key" ]] || die 'bridge HappyHerd account key is missing'
+[[ "$(stat -c '%a:%U' "$HAPPYHERD_HOME_DIR/agent.key")" == "600:$BRIDGE_USER" ]] || die 'bridge HappyHerd account key has unsafe permissions'
+[[ -f "$AGENT_ROOT/happy-home/access.key" ]] || die 'daemon HappyHerd account key is missing'
+[[ "$(stat -c '%a:%U' "$AGENT_ROOT/happy-home/access.key")" == "600:$AGENT_USER" ]] || die 'daemon HappyHerd account key has unsafe permissions'
 [[ -f "$AGENT_ROOT/codex-home/auth.json" ]] || die 'dedicated Codex authentication is missing'
 [[ "$(stat -c '%a:%U' "$AGENT_ROOT/codex-home/auth.json")" == "600:$AGENT_USER" ]] || die 'Codex authentication has unsafe permissions'
 if ! runuser -u "$AGENT_USER" -- env -i \
@@ -158,10 +162,10 @@ if ! runuser -u "$AGENT_USER" -- env -i \
     HOME="$AGENT_ROOT" \
     PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:/usr/local/bin:/usr/bin:/bin" \
     rg --version >/dev/null 2>&1; then
-    die 'Happy CLI bundled ripgrep is unusable by the dedicated agent'
+    die 'HappyHerd CLI bundled ripgrep is unusable by the dedicated agent'
 fi
 
-export HAPPYHERD_AGENT_VALIDATION_AGENT_KEY="$HAPPY_HOME_DIR/agent.key"
+export HAPPYHERD_AGENT_VALIDATION_AGENT_KEY="$HAPPYHERD_HOME_DIR/agent.key"
 export HAPPYHERD_AGENT_VALIDATION_DAEMON_KEY="$AGENT_ROOT/happy-home/access.key"
 export HAPPYHERD_AGENT_VALIDATION_DAEMON_ROOT="$DAEMON_ROOT"
 node <<'NODE'
@@ -277,7 +281,7 @@ NODE
 unset HAPPYHERD_AGENT_VALIDATION_SETTINGS HAPPYHERD_AGENT_VALIDATION_MACHINE_ID HAPPYHERD_AGENT_VALIDATION_WORKSPACE
 
 [[ -f "$AGENT_INSTALL_ROOT/dist/index.mjs" ]] || die 'installed bridge package is missing'
-[[ -x "$DAEMON_ROOT/bin/happyherd.mjs" ]] || die 'installed Happy CLI is missing'
+[[ -x "$DAEMON_ROOT/bin/happyherd.mjs" ]] || die 'installed HappyHerd CLI is missing'
 [[ -x "$DAEMON_ROOT/bin/happyherd-agent-codex-policy.mjs" ]] || die 'agent Codex policy hook is missing'
 
 daemon_state="$AGENT_ROOT/happy-home/daemon.state.json"

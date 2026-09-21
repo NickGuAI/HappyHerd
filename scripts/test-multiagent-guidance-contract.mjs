@@ -77,7 +77,7 @@ for (const alias of ['inspect', 'pause', 'resume']) {
   );
 }
 
-const appOps = read('server/packages/happy-app/sources/sync/ops.ts');
+const appOps = read('server/packages/happyherd-app/sources/sync/ops.ts');
 assert(!appOps.includes('spawnSideChat'), 'the app must not expose a generic side-chat spawn helper');
 assert(!appOps.includes('isSideChat?: boolean'), 'generic app spawn options must not accept isSideChat');
 const machineCreateSideChatStart = appOps.indexOf('export async function machineCreateSideChat');
@@ -146,15 +146,15 @@ for (const path of canonicalCommandFiles) {
     `${path} must use the canonical happyherd side-chat command`,
   );
   assert(
-    !content.includes('happy session side-chat'),
+    !content.includes(/* rename:preserve */ 'happy session side-chat' /* /rename:preserve */),
     `${path} must not advertise the retired side-chat command surface`,
   );
 }
 
 for (const path of [
-  'deploy/happyherd-agent-runtime/happy-home/AGENTS.md',
+  'deploy/happyherd-agent-runtime/happyherd-home/AGENTS.md',
   'deploy/happyherd-agent-runtime/workspace/AGENTS.md',
-  'examples/pmai-happyherd-agent/happy-home/AGENTS.md',
+  'examples/pmai-happyherd-agent/happyherd-home/AGENTS.md',
   'examples/pmai-happyherd-agent/workspace/AGENTS.md',
 ]) {
   const content = read(path);
@@ -163,8 +163,8 @@ for (const path of [
 }
 
 for (const path of [
-  'deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md',
-  'examples/pmai-happyherd-agent/happy-home/agentcontext/USER.md',
+  'deploy/happyherd-agent-runtime/happyherd-home/agentcontext/USER.md',
+  'examples/pmai-happyherd-agent/happyherd-home/agentcontext/USER.md',
 ]) {
   assert(read(path).includes('The Human is'), `${path} must name the person as Human`);
 }

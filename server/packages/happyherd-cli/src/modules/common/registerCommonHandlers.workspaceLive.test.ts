@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MAX_WORKSPACE_LIVE_BODY_BASE64_LENGTH, MAX_WORKSPACE_LIVE_BODY_BYTES } from '@slopus/happy-wire';
+import { MAX_WORKSPACE_LIVE_BODY_BASE64_LENGTH, MAX_WORKSPACE_LIVE_BODY_BYTES } from '@happyherd/wire';
 import { registerCommonHandlers } from './registerCommonHandlers';
 
 type Handler = (params: unknown) => Promise<any>;

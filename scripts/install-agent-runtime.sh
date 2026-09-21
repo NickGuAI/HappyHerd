@@ -13,7 +13,7 @@ die() {
 
 [[ "$(id -u)" -eq 0 ]] || die 'install-agent-runtime.sh must run as root'
 [[ -x "$CLI_TARGET/bin/happyherd.mjs" ]] || \
-    die 'install the Happy CLI independently before installing the governed agent'
+    die 'install the HappyHerd CLI independently before installing the governed agent'
 
 if command -v pnpm >/dev/null 2>&1; then
     PNPM=(pnpm)
@@ -42,7 +42,7 @@ run_build() {
 
 # Build only the governed-agent component and its own package dependency. A
 # root installation delegates source-tree builds to the checkout owner.
-(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter happy-agent --fail-if-no-match build)
+(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter happyherd-control-agent --fail-if-no-match build)
 (cd "$ROOT/server" && run_build "${PNPM[@]}" --filter @happyherd/happyherd-agent --fail-if-no-match build)
 stage="$(mktemp -d /tmp/happyherd-agent.stage.XXXXXX)"
 chown "$BUILD_USER:$BUILD_GROUP" "$stage"
@@ -58,9 +58,9 @@ trap - EXIT
 
 install -d -o root -g root -m 0755 \
     "$SUPPORT_TARGET/scripts" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/agentcontext" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/rules/learnings" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/commanders/team-agent" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/workspace"
 install -o root -g root -m 0755 \
     "$ROOT/scripts/health-happyherd-agent.sh" \
@@ -81,17 +81,17 @@ install -o root -g root -m 0644 \
     "$ROOT/deploy/happyherd-agent-runtime/settings.template.json" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/"
 install -o root -g root -m 0644 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/AGENTS.md" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/AGENTS.md"
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/AGENTS.md" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/AGENTS.md"
 install -o root -g root -m 0644 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md"
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/USER.md" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/USER.md"
 install -o root -g root -m 0644 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md"
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md"
 install -o root -g root -m 0644 \
-    "$ROOT/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md" \
-    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md"
+    "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/commanders/team-agent/COMMANDER.md" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happyherd-home/commanders/team-agent/COMMANDER.md"
 install -o root -g root -m 0644 \
     "$ROOT/deploy/happyherd-agent-runtime/workspace/AGENTS.md" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/workspace/AGENTS.md"

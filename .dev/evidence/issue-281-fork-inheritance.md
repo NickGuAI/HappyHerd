@@ -53,11 +53,11 @@ temporary-path assertions; the supported Node/canonical-path run passed.
 | App fork ops suite | 14 passed, including two previously failing provider rows |
 | Daemon continuity suite | 66 passed, including five inherited-provider rows and explicit override validation |
 | Full CLI `pnpm --filter @happyherd/cli test` | 170 files / 1,690 tests passed; includes CLI build |
-| App and CLI typechecks | Pass; built `happy-agent` first for its exported type declarations |
-| Full app `pnpm --filter happy-app test --run --maxWorkers=4` | 275 files passed, one failed; 2,774 tests passed, three failed, one skipped |
-| `pnpm --filter happy-app i18n:check` | Pass after regenerating inventory fingerprints |
+| App and CLI typechecks | Pass; built `happyherd-control-agent` first for its exported type declarations |
+| Full app `pnpm --filter happyherd-app test --run --maxWorkers=4` | 275 files passed, one failed; 2,774 tests passed, three failed, one skipped |
+| `pnpm --filter happyherd-app i18n:check` | Pass after regenerating inventory fingerprints |
 | Production Expo Web export to `dist-ci` | Pass |
-| `pnpm --filter happy-app web:smoke` | Pass; production React mounted |
+| `pnpm --filter happyherd-app web:smoke` | Pass; production React mounted |
 | Changelog parser | 134 entries; newest: `September 17 — Forked session settings` |
 | `git diff --check`, root source lint | Pass |
 

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MAX_WORKSPACE_UPLOAD_BYTES } from '@slopus/happy-wire';
+import { MAX_WORKSPACE_UPLOAD_BYTES } from '@happyherd/wire';
 import { registerCommonHandlers } from './registerCommonHandlers';
 
 describe('machine workspace upload', () => {

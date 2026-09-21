@@ -134,14 +134,14 @@ jobs:
       - name: Typecheck production packages
         working-directory: server
         run: |
-          pnpm --filter happy-app --fail-if-no-match typecheck
-          pnpm --filter @slopus/happy-wire --fail-if-no-match build
-          pnpm --filter happy-agent --fail-if-no-match build
+          pnpm --filter happyherd-app --fail-if-no-match typecheck
+          pnpm --filter @happyherd/wire --fail-if-no-match build
+          pnpm --filter happyherd-control-agent --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match typecheck
-          pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
+          pnpm --filter ./packages/happyherd-server --fail-if-no-match typecheck
       - name: Enforce interface inventory and localization
         working-directory: server
-        run: pnpm --filter happy-app --fail-if-no-match i18n:check
+        run: pnpm --filter happyherd-app --fail-if-no-match i18n:check
 
   unit-tests:
     name: Unit tests
@@ -166,11 +166,11 @@ jobs:
       - name: Run unit suites
         working-directory: server
         run: |
-          pnpm --filter happy-app --fail-if-no-match test --run
-          pnpm --filter @slopus/happy-wire --fail-if-no-match test
-          pnpm --filter happy-agent --fail-if-no-match test
+          pnpm --filter happyherd-app --fail-if-no-match test --run
+          pnpm --filter @happyherd/wire --fail-if-no-match test
+          pnpm --filter happyherd-control-agent --fail-if-no-match test
           pnpm --filter @happyherd/cli --fail-if-no-match test
-          pnpm --filter ./packages/happy-server --fail-if-no-match test
+          pnpm --filter ./packages/happyherd-server --fail-if-no-match test
 
   production-build:
     name: Production build
@@ -196,18 +196,18 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build production Web client
         working-directory: server
-        run: APP_ENV=production pnpm --filter happy-app exec expo export --platform web --output-dir dist-ci
+        run: APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir dist-ci
       - name: Verify built browser title
-        run: grep -F '<title>HappyHerd</title>' server/packages/happy-app/dist-ci/index.html
+        run: grep -F '<title>HappyHerd</title>' server/packages/happyherd-app/dist-ci/index.html
       - name: Execute built browser client
         working-directory: server
-        run: pnpm --filter happy-app --fail-if-no-match web:smoke
+        run: pnpm --filter happyherd-app --fail-if-no-match web:smoke
       # Bounded gate: production landing, restore-key, restore-device (offline),
       # server-config, changelog; fixture appearance and terminal.
       # All seven panels: desktop/mobile x light/dark = 28 committed baselines.
       - name: Install pinned golden browser
         working-directory: server
-        run: pnpm --filter happy-app exec playwright-core install --with-deps chromium
+        run: pnpm --filter happyherd-app exec playwright-core install --with-deps chromium
       - name: Compare KILV golden images
         env:
           GOLDEN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.golden_mode || 'compare' }}
@@ -231,7 +231,7 @@ jobs:
       - name: Build daemon and server runtime
         working-directory: server
         run: |
-          pnpm --filter @slopus/happy-wire --fail-if-no-match build
-          pnpm --filter happy-agent --fail-if-no-match build
+          pnpm --filter @happyherd/wire --fail-if-no-match build
+          pnpm --filter happyherd-control-agent --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match build
-          pnpm --filter ./packages/happy-server --fail-if-no-match build
+          pnpm --filter ./packages/happyherd-server --fail-if-no-match build

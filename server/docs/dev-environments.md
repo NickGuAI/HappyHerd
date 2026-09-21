@@ -12,10 +12,10 @@ This document covers the local environment manager in [`environments/environment
 
 Each environment injects its own:
 
-- `HAPPY_HOME_DIR`
-- `HAPPY_SERVER_URL`
-- `HAPPY_WEBAPP_URL`
-- `HAPPY_PROJECT_DIR`
+- `HAPPYHERD_HOME_DIR`
+- `HAPPYHERD_SERVER_URL`
+- `HAPPYHERD_WEBAPP_URL`
+- `HAPPYHERD_PROJECT_DIR`
 - Expo/server port settings
 - dev auth values when seeded
 

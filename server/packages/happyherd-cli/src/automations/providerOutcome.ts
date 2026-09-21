@@ -4,7 +4,7 @@ import {
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdHeartbeatDeliveryReceipt,
   type HappyHerdHeartbeatMessageMarker,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import type { AgentGoalStatus, AgentState, Metadata } from '@/api/types';
 import type { HappyHerdAutomationBootstrap } from './sessionBootstrap';

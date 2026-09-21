@@ -39,7 +39,7 @@ import {
     type WorkspaceLiveHttpRequest,
     type WorkspaceLiveHttpResponse,
     type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
 import { run as runDifftastic } from '@/modules/difftastic/index';
 import { RpcHandlerManager } from '../../api/rpc/RpcHandlerManager';

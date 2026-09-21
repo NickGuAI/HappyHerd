@@ -355,9 +355,9 @@ sequenceDiagram
 ```
 
 Relevant files:
-- `packages/happy-app/sources/sync/typesRaw.ts`
-- `packages/happy-app/sources/sync/reducer/reducerTracer.ts`
-- `packages/happy-app/sources/sync/reducer/reducer.spec.ts` (subagent-sidechain tests)
+- `packages/happyherd-app/sources/sync/typesRaw.ts`
+- `packages/happyherd-app/sources/sync/reducer/reducerTracer.ts`
+- `packages/happyherd-app/sources/sync/reducer/reducer.spec.ts` (subagent-sidechain tests)
 
 ## Duplicate Handling and Restarts
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@slopus/happy-wire';
+import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@happyherd/wire';
 import {
     machineSessionSettingsEnvironment,
     machineSessionSettingsMetadataFromEnvironment,

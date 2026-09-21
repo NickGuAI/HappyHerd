@@ -125,7 +125,7 @@ function OptionMenu<T extends string>({
 export function ComposerOptions({ onSelect }: ComposerOptionsProps) {
     const [project, setProject] = useState('utopia')
     const [recentProjects, setRecentProjects] = useState<string[]>([
-        'utopia', 'happy', 'codex',
+        'utopia', 'happyherd', 'codex',
     ])
     const [mode, setMode] = useState<typeof MODE_OPTIONS[number]>('Work locally')
     const [branch, setBranch] = useState<typeof BRANCH_OPTIONS[number]>('main')

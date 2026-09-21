@@ -25,7 +25,7 @@
       "width": 1440,
       "height": 900
     },
-    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "textExcerpt": "HappyHerd\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
     "pageErrors": [],
     "captureSceneId": "signed-out",
     "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
@@ -57,7 +57,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "textExcerpt": "HappyHerd\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
     "pageErrors": [],
     "captureSceneId": "signed-out",
     "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
@@ -89,7 +89,7 @@
       "width": 1440,
       "height": 900
     },
-    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "textExcerpt": "HappyHerd\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
     "pageErrors": [],
     "captureSceneId": "signed-out",
     "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",
@@ -121,7 +121,7 @@
       "width": 390,
       "height": 844
     },
-    "textExcerpt": "Happy\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
+    "textExcerpt": "HappyHerd\n\nCodex and Claude Code mobile client\nEnd-to-end encrypted and your account is stored only on your device.\nCreate account\nRestore with Secret Key\nLogin with mobile app",
     "pageErrors": [],
     "captureSceneId": "signed-out",
     "fixtureSource": "sources/components/SignedOutLanding.browser.test.ts",

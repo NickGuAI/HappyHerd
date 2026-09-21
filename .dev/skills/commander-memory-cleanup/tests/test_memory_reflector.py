@@ -677,16 +677,16 @@ class DiscoveryAndCommandTests(unittest.TestCase):
             memory_reflector.shutil, "which", return_value="/usr/local/bin/happyherd"
         ) as which:
             self.assertEqual(
-                memory_reflector.default_happy_command(), ["/usr/local/bin/happyherd"]
+                memory_reflector.default_happyherd_command(), ["/usr/local/bin/happyherd"]
             )
             which.assert_called_once_with("happyherd")
 
     def test_explicit_command_override_keeps_precedence(self) -> None:
         with mock.patch.dict(
-            os.environ, {"HAPPY_CLI_BIN": "/test/bin/owner-selected-cli"}, clear=True
+            os.environ, {"HAPPYHERD_CLI_BIN": "/test/bin/owner-selected-cli"}, clear=True
         ), mock.patch.object(memory_reflector.shutil, "which") as which:
             self.assertEqual(
-                memory_reflector.default_happy_command(), ["/test/bin/owner-selected-cli"]
+                memory_reflector.default_happyherd_command(), ["/test/bin/owner-selected-cli"]
             )
             which.assert_not_called()
 
@@ -695,11 +695,11 @@ class DiscoveryAndCommandTests(unittest.TestCase):
             memory_reflector.shutil, "which", return_value=None
         ), mock.patch.object(memory_reflector.Path, "home", return_value=Path("/home/test")):
             self.assertEqual(
-                memory_reflector.default_happy_command(),
+                memory_reflector.default_happyherd_command(),
                 ["node", "/home/test/App/apps/happyherd/server/packages/happyherd-cli/bin/happyherd.mjs"],
             )
 
-    def test_roster_comes_from_supported_happy_cli_and_is_sorted(self) -> None:
+    def test_roster_comes_from_supported_happyherd_cli_and_is_sorted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary) / ".happyherd"
             second = create_commander(home, "b-id", "Beta")
@@ -719,15 +719,15 @@ class DiscoveryAndCommandTests(unittest.TestCase):
                 ]
             }
             completed = subprocess.CompletedProcess(
-                ["happy"], 0, stdout=json.dumps(payload).encode("utf-8")
+                ["happyherd"], 0, stdout=json.dumps(payload).encode("utf-8")
             )
             with mock.patch.object(
                 memory_reflector.subprocess, "run", return_value=completed
             ) as run:
-                commanders = memory_reflector.discover_commanders(["happy"], home)
+                commanders = memory_reflector.discover_commanders(["happyherd"], home)
 
             self.assertEqual([item.commander_id for item in commanders], ["a-id", "b-id"])
-            self.assertEqual(run.call_args.args[0], ["happy", "commander", "list", "--json"])
+            self.assertEqual(run.call_args.args[0], ["happyherd", "commander", "list", "--json"])
 
     def test_roster_rejects_intermediate_memory_directory_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -747,13 +747,13 @@ class DiscoveryAndCommandTests(unittest.TestCase):
                 ]
             }
             completed = subprocess.CompletedProcess(
-                ["happy"], 0, stdout=json.dumps(payload).encode("utf-8")
+                ["happyherd"], 0, stdout=json.dumps(payload).encode("utf-8")
             )
 
             with mock.patch.object(
                 memory_reflector.subprocess, "run", return_value=completed
             ), self.assertRaises(memory_reflector.LauncherError) as raised:
-                memory_reflector.discover_commanders(["happy"], home)
+                memory_reflector.discover_commanders(["happyherd"], home)
 
             self.assertEqual(raised.exception.code, "commander_path_invalid")
 
@@ -796,7 +796,7 @@ class DiscoveryAndCommandTests(unittest.TestCase):
         )
         self.assertNotIn("sandbox_workspace_write.exclude_slash_tmp=true", read_only)
 
-    def test_codex_environment_scrubs_session_and_happy_runtime_state(self) -> None:
+    def test_codex_environment_scrubs_session_and_happyherd_runtime_state(self) -> None:
         source = {
             "PATH": "/safe/bin",
             "CODEX_BIN": "/safe/codex",
@@ -805,11 +805,11 @@ class DiscoveryAndCommandTests(unittest.TestCase):
             "GEMINI_API_KEY": "remove",
             "GOG_KEYRING_PASSWORD": "remove",
             "HAPPYHERD_SESSION": "remove",
-            "HAPPY_RECONNECT_TOKEN": "remove",
-            "HAPPY_FORKED_FROM": "remove",
-            "HAPPY_HOME_DIR": "/private/home",
-            "HAPPY_CLI_BIN": "/private/happy",
-            "HAPPY_SIDE_CHAT": "remove",
+            "HAPPYHERD_RECONNECT_TOKEN": "remove",
+            "HAPPYHERD_FORKED_FROM": "remove",
+            "HAPPYHERD_HOME_DIR": "/private/home",
+            "HAPPYHERD_CLI_BIN": "/private/happyherd",
+            "HAPPYHERD_SIDE_CHAT": "remove",
             "CODEX_THREAD_ID": "remove",
             "CODEX_GOAL_ID": "remove",
             "CODEX_SESSION_ID": "remove",
@@ -2945,7 +2945,7 @@ class ConcurrencyAndNoTimeoutTests(unittest.TestCase):
                 )
 
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector, "discover_commanders", return_value=commanders
             ), mock.patch.object(
@@ -3062,7 +3062,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
                 )
 
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector, "discover_commanders", return_value=commanders
             ), mock.patch.object(
@@ -3118,7 +3118,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
                 return success_result(commander)
 
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector, "discover_commanders", return_value=commanders
             ), mock.patch.object(
@@ -3165,7 +3165,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
                 return success_result(commander)
 
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector, "discover_commanders", return_value=commanders
             ), mock.patch.object(
@@ -3188,7 +3188,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
             first = create_commander(home, "a-id", "Alpha")
             added = create_commander(home, "b-id", "Beta")
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector,
                 "discover_commanders",
@@ -3218,7 +3218,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
                 findings=[blocking_finding("a-id")],
             )
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector,
                 "discover_commanders",
@@ -3261,7 +3261,7 @@ class FleetBudgetAndCorrectionTests(unittest.TestCase):
                 findings=[blocking_finding("a-id")],
             )
             with mock.patch.dict(
-                memory_reflector.os.environ, {"HAPPY_HOME_DIR": str(home)}
+                memory_reflector.os.environ, {"HAPPYHERD_HOME_DIR": str(home)}
             ), mock.patch.object(
                 memory_reflector, "discover_commanders", return_value=commanders
             ), mock.patch.object(

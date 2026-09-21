@@ -66,8 +66,8 @@ The relevant owners are
 `server/packages/happyherd-cli/src/codex/resumeExistingThread.ts`,
 `server/packages/happyherd-cli/src/daemon/run.ts`,
 `server/packages/happyherd-cli/src/resume/handleResumeCommand.ts`,
-`server/packages/happy-app/sources/utils/sessionResume.ts`, and
-`server/packages/happy-app/sources/hooks/useSessionQuickActions.ts`.
+`server/packages/happyherd-app/sources/utils/sessionResume.ts`, and
+`server/packages/happyherd-app/sources/hooks/useSessionQuickActions.ts`.
 
 ## Verification focus
 
@@ -91,7 +91,7 @@ receipts and the transcript join. This is independent of command approval.
 `turn/plan/updated` contains `{ step, status }` with native `inProgress`.
 `item/plan/delta` streams text; `ThreadItem { type: 'plan', id, text }` owns
 restorable plan bodies. Native history does not expose old progress snapshots;
-Happy's transcript retains those. See the [interaction playbook](../../../playbooks/native-plan-question-interactions.md)
+HappyHerd's transcript retains those. See the [interaction playbook](../../../playbooks/native-plan-question-interactions.md)
 for mapping, recovery and explicit authenticated-proof gaps.
 
 ## Known gaps

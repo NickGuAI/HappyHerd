@@ -114,7 +114,7 @@ export function decryptLegacy(data: Uint8Array, secret: Uint8Array): any | null 
 /**
  * Encrypt a binary blob with NaCl crypto_secretbox (XSalsa20-Poly1305).
  * Wire format: [nonce (24 bytes)] [ciphertext + auth tag (16 bytes + data)]
- * Matches the app-side encryptBlob() in packages/happy-app/sources/encryption/blob.ts.
+ * Matches the app-side encryptBlob() in packages/happyherd-app/sources/encryption/blob.ts.
  */
 export function encryptBlob(data: Uint8Array, key: Uint8Array): Uint8Array {
   const nonce = getRandomBytes(tweetnacl.secretbox.nonceLength);
@@ -130,7 +130,7 @@ export function encryptBlob(data: Uint8Array, key: Uint8Array): Uint8Array {
 /**
  * Decrypt a binary blob encrypted with NaCl crypto_secretbox (XSalsa20-Poly1305).
  * Wire format: [nonce (24 bytes)] [ciphertext + auth tag (16 bytes + data)]
- * Matches the app-side encryptBlob() in packages/happy-app/sources/encryption/blob.ts.
+ * Matches the app-side encryptBlob() in packages/happyherd-app/sources/encryption/blob.ts.
  */
 export function decryptBlob(bundle: Uint8Array, key: Uint8Array): Uint8Array | null {
   if (bundle.length < tweetnacl.secretbox.nonceLength + 16) {

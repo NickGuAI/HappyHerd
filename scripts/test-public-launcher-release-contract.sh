@@ -92,8 +92,8 @@ grep -Fq 'gh release create' "$release_workflow"
 grep -Fq 'release_flags+=(--prerelease)' "$release_workflow"
 grep -Fq 'node-version: 24' "$release_workflow"
 grep -Fq -- '--filter @happyherd/cli --fail-if-no-match build' "$asset_builder"
-grep -Fq -- '--filter happy-server-self-host --fail-if-no-match build' "$asset_builder"
-grep -Fq -- '--filter happy-server-self-host --fail-if-no-match bundle:webapp' "$asset_builder"
+grep -Fq -- '--filter happyherd-server-self-host --fail-if-no-match build' "$asset_builder"
+grep -Fq -- '--filter happyherd-server-self-host --fail-if-no-match bundle:webapp' "$asset_builder"
 grep -Fq 'node/bin/node' "$asset_builder"
 grep -Fq 'pwd -P' "$asset_builder"
 grep -Fq -- "-name '*musl*'" "$asset_builder"
@@ -132,16 +132,16 @@ trap cleanup_fixture EXIT
 asset_root="$fixture/asset-root/happyherd"
 mkdir -p "$asset_root/node/bin" "$asset_root/runtime/bin" \
   "$asset_root/runtime/tools/unpacked" \
-  "$asset_root/runtime/node_modules/happy-server-self-host/webapp"
+  "$asset_root/runtime/node_modules/happyherd-server-self-host/webapp"
 cp "$(command -v node)" "$asset_root/node/bin/node"
 chmod 755 "$asset_root/node/bin/node"
 printf 'Node runtime license fixture\n' > "$asset_root/node/LICENSE"
 printf '#!/bin/sh\n' > "$asset_root/runtime/tools/unpacked/rg"
 chmod 755 "$asset_root/runtime/tools/unpacked/rg"
-printf '{"name":"happy-server-self-host"}\n' \
-  > "$asset_root/runtime/node_modules/happy-server-self-host/package.json"
+printf '{"name":"happyherd-server-self-host"}\n' \
+  > "$asset_root/runtime/node_modules/happyherd-server-self-host/package.json"
 printf '<!doctype html><title>HappyHerd</title>\n' \
-  > "$asset_root/runtime/node_modules/happy-server-self-host/webapp/index.html"
+  > "$asset_root/runtime/node_modules/happyherd-server-self-host/webapp/index.html"
 cat > "$asset_root/runtime/bin/happyherd.mjs" <<'JS'
 #!/usr/bin/env node
 import fs from 'node:fs';
@@ -222,7 +222,7 @@ grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/latest/download/happyh
 [[ -x "$home/.local/bin/happyherd" ]] || fail 'installer did not expose happyherd'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] || fail 'installer replaced an existing Happy command'
 [[ -x "$home/.local/share/happyherd/node/bin/node" ]]
-[[ -f "$home/.local/share/happyherd/runtime/node_modules/happy-server-self-host/package.json" ]]
+[[ -f "$home/.local/share/happyherd/runtime/node_modules/happyherd-server-self-host/package.json" ]]
 [[ ! -e "$home/.local/share/happyherd/source" && ! -e "$home/.local/share/happyherd/tooling" ]]
 "$home/.local/share/happyherd/node/bin/node" -e '
   const s = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));

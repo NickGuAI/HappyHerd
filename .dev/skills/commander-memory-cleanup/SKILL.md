@@ -25,7 +25,7 @@ invocation, inventory, and verification.
 `$ARGUMENTS` must resolve exactly one Commander:
 
 - `commander-id` or `commander-dir` identifies
-  `$HAPPY_HOME_DIR/commanders/<id>/`. `HAPPY_HOME_DIR` defaults to
+  `$HAPPYHERD_HOME_DIR/commanders/<id>/`. `HAPPYHERD_HOME_DIR` defaults to
   `$HOME/.happyherd`.
 - `--mode observer` produces a read-only classification report.
 - `--mode reflector` may rewrite that Commander's L2 and L3 and apply only the
@@ -54,20 +54,20 @@ subset.
 The only memory targets this skill may edit are:
 
 ```text
-$HAPPY_HOME_DIR/commanders/<id>/agentcontext/memory/0-observations.jsonl  # reflector only
-$HAPPY_HOME_DIR/commanders/<id>/agentcontext/memory/1-working-memory.md
-$HAPPY_HOME_DIR/commanders/<id>/agentcontext/memory/2-long-term-memory.md
+$HAPPYHERD_HOME_DIR/commanders/<id>/agentcontext/memory/0-observations.jsonl  # reflector only
+$HAPPYHERD_HOME_DIR/commanders/<id>/agentcontext/memory/1-working-memory.md
+$HAPPYHERD_HOME_DIR/commanders/<id>/agentcontext/memory/2-long-term-memory.md
 ```
 
 Use these sources as needed:
 
 ```text
-$HAPPY_HOME_DIR/AGENTS.md
-$HAPPY_HOME_DIR/agentcontext/USER.md
-$HAPPY_HOME_DIR/agentcontext/rules/WORKSPACE.md
-$HAPPY_HOME_DIR/agentcontext/rules/learnings/COMMANDER_GUIDE.md
-$HAPPY_HOME_DIR/commanders/<id>/COMMANDER.md
-$HAPPY_HOME_DIR/commanders/<id>/agentcontext/memory/0-observations.jsonl
+$HAPPYHERD_HOME_DIR/AGENTS.md
+$HAPPYHERD_HOME_DIR/agentcontext/USER.md
+$HAPPYHERD_HOME_DIR/agentcontext/rules/WORKSPACE.md
+$HAPPYHERD_HOME_DIR/agentcontext/rules/learnings/COMMANDER_GUIDE.md
+$HAPPYHERD_HOME_DIR/commanders/<id>/COMMANDER.md
+$HAPPYHERD_HOME_DIR/commanders/<id>/agentcontext/memory/0-observations.jsonl
 ```
 
 Read relevant shared learnings/skills, Commander-private rules, project guides,

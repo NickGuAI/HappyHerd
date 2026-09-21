@@ -6,7 +6,7 @@
 import {
   DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema,
   type DevicePairingCreateResponse, type DevicePairingCancelResponse,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';

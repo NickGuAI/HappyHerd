@@ -7,7 +7,7 @@ import { claudeRemoteLauncher } from "./claudeRemoteLauncher"
 import { ApiClient } from "@/lib"
 import type { JsRuntime } from "./runClaude"
 import type { SandboxConfig } from "@/persistence"
-import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire'
+import type { HappyHerdHeartbeatMessageMarker } from '@happyherd/wire'
 
 // Re-export permission mode type from api/types
 // Cross-provider modes are mapped at each provider SDK boundary.

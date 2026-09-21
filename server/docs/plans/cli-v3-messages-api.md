@@ -21,7 +21,7 @@ This replaces the current fire-and-forget `socket.emit('message', ...)` (5 separ
 - **Known bug**: Messages silently lost when socket disconnected (see TODO in `sendCodexMessage` line 275)
 - **Encryption**: `encrypt(key, variant, data)` → Uint8Array → `encodeBase64()` → string (same format v3 POST expects as `content`)
 - **HTTP client**: axios (not fetch) — used throughout the codebase
-- **InvalidateSync**: Available in `src/utils/sync.ts` (identical to happy-app's version)
+- **InvalidateSync**: Available in `src/utils/sync.ts` (identical to happyherd-app's version)
 - **AsyncLock**: Available in `src/utils/lock.ts`
 - **Tests**: vitest with mocked socket.io-client in `apiSession.test.ts`
 

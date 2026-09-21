@@ -1,7 +1,7 @@
 ---
 name: dev
 description: >
-  Local development guide for the Happy monorepo. How to build, install,
+  Local development guide for the HappyHerd monorepo. How to build, install,
   test, and run the CLI, server, mobile app, and desktop (Tauri) locally.
   Use when the user types /dev, asks how to "build", "start dev", "install
   locally", or "run the ___ package".
@@ -9,7 +9,7 @@ description: >
 
 # /dev - Local Development
 
-Happy is a pnpm monorepo. Everything uses pnpm workspaces — do not use `npm` or `yarn` directly.
+HappyHerd is a pnpm monorepo. Everything uses pnpm workspaces — do not use `npm` or `yarn` directly.
 
 ## First-time setup
 
@@ -27,10 +27,10 @@ To undo: `npm unlink -g @happyherd/cli && npm install -g @happyherd/cli@latest`.
 ## Packages
 
     packages/happyherd-cli     # the `happyherd` CLI and daemon, published as @happyherd/cli
-    packages/happy-server  # Node + Prisma server, deployed via TeamCity
-    packages/happy-app     # Expo app: iOS, Android, web, Tauri desktop
-    packages/happy-agent   # agent runtime
-    packages/happy-wire    # shared Zod schemas + wire types
+    packages/happyherd-server  # Node + Prisma server, deployed via TeamCity
+    packages/happyherd-app     # Expo app: iOS, Android, web, Tauri desktop
+    packages/happyherd-control-agent   # agent runtime
+    packages/happyherd-wire    # shared Zod schemas + wire types
 
 ## happyherd-cli
 
@@ -68,35 +68,35 @@ Integration tests hit real APIs and are flaky — run on demand, never in the re
 
 ### Dev data sandbox (optional)
 
-`happyherd` reads `HAPPY_HOME_DIR` to override `~/.happyherd/`. To run two versions side-by-side without touching your prod auth:
+`happyherd` reads `HAPPYHERD_HOME_DIR` to override `~/.happyherd/`. To run two versions side-by-side without touching your prod auth:
 
 ```bash
-HAPPY_HOME_DIR=~/.happy-dev happyherd daemon start
-HAPPY_HOME_DIR=~/.happy-dev happyherd auth
+HAPPYHERD_HOME_DIR=~/.happyherd-dev happyherd daemon start
+HAPPYHERD_HOME_DIR=~/.happyherd-dev happyherd auth
 ```
 
 Point at a local server the same way:
 
 ```bash
-HAPPY_SERVER_URL=http://localhost:3005 happyherd daemon start
+HAPPYHERD_SERVER_URL=http://localhost:3005 happyherd daemon start
 ```
 
-## happy-server
+## happyherd-server
 
 ```bash
-pnpm --filter happy-server standalone:dev   # localhost:3005, embedded PGlite, no Docker
+pnpm --filter happyherd-server standalone:dev   # localhost:3005, embedded PGlite, no Docker
 ```
 
-App auto-reloads on source changes. Point the CLI or the Expo app at it with `HAPPY_SERVER_URL=http://localhost:3005` / `EXPO_PUBLIC_HAPPY_SERVER_URL=...`.
+App auto-reloads on source changes. Point the CLI or the Expo app at it with `HAPPYHERD_SERVER_URL=http://localhost:3005` / `EXPO_PUBLIC_HAPPYHERD_SERVER_URL=...`.
 
-## happy-app (Expo)
+## happyherd-app (Expo)
 
 ```bash
-pnpm --filter happy-app start           # expo start (Metro bundler)
-pnpm --filter happy-app ios:dev         # iOS simulator, development variant
-pnpm --filter happy-app android:dev
-pnpm --filter happy-app web             # web build, served locally
-pnpm --filter happy-app tauri:dev       # macOS desktop app
+pnpm --filter happyherd-app start           # expo start (Metro bundler)
+pnpm --filter happyherd-app ios:dev         # iOS simulator, development variant
+pnpm --filter happyherd-app android:dev
+pnpm --filter happyherd-app web             # web build, served locally
+pnpm --filter happyherd-app tauri:dev       # macOS desktop app
 ```
 
 Variants:
@@ -111,28 +111,28 @@ When the user asks to "rebuild the desktop app", "kill the running one and reins
 
 Variants → product name → build script:
 
-    production    Happy.app           pnpm --filter happy-app tauri:build:production
-    preview       Happy (preview).app pnpm --filter happy-app tauri:build:preview
-    dev           Happy (dev).app     pnpm --filter happy-app tauri:build:dev
+    production    HappyHerd.app           pnpm --filter happyherd-app tauri:build:production
+    preview       HappyHerd (preview).app pnpm --filter happyherd-app tauri:build:preview
+    dev           HappyHerd (dev).app     pnpm --filter happyherd-app tauri:build:dev
 
 Build output for all variants:
 
-    packages/happy-app/src-tauri/target/release/bundle/macos/<ProductName>.app
+    packages/happyherd-app/src-tauri/target/release/bundle/macos/<ProductName>.app
 
-If the variant is ambiguous, check what's running with `ps aux | grep "/Applications/.*Happy" | grep -v grep` and match. Production is the default.
+If the variant is ambiguous, check what's running with `ps aux | grep "/Applications/.*HappyHerd" | grep -v grep` and match. Production is the default.
 
-Steps (substitute `$NAME` with the product name, e.g. `Happy` or `Happy (dev)`):
+Steps (substitute `$NAME` with the product name, e.g. `HappyHerd` or `HappyHerd (dev)`):
 
 ```bash
 # 1. build (slow: ~3–10 min, expo web export then cargo release build)
-pnpm --filter happy-app tauri:build:production
+pnpm --filter happyherd-app tauri:build:production
 
 # 2. quit the running app gracefully (no-op if not running)
 osascript -e 'tell application "$NAME" to quit' || true
 
 # 3. replace the installed bundle
 rm -rf "/Applications/$NAME.app"
-cp -R "packages/happy-app/src-tauri/target/release/bundle/macos/$NAME.app" /Applications/
+cp -R "packages/happyherd-app/src-tauri/target/release/bundle/macos/$NAME.app" /Applications/
 
 # 4. relaunch
 open -a "$NAME"
@@ -144,14 +144,14 @@ Notes:
 - Do NOT skip the `rm -rf` before `cp` — `cp -R` over an existing `.app` merges directories and leaves stale files.
 - If macOS Gatekeeper complains on relaunch, `xattr -dr com.apple.quarantine "/Applications/$NAME.app"` clears it. Local builds are unsigned.
 
-## happy-app-logs (remote log receiver)
+## happyherd-app-logs (remote log receiver)
 
 ```bash
-pnpm --filter happy-app-logs dev       # starts on http://0.0.0.0:8787
+pnpm --filter happyherd-app-logs dev       # starts on http://0.0.0.0:8787
 ```
 
 Receives POST requests to `/logs` from the mobile app's patched console (see `consoleLogging.ts`).
-Logs to stdout and `~/.happy/app-logs/<timestamp>.log`.
+Logs to stdout and `~/.happyherd/app-logs/<timestamp>.log`.
 
 To connect: set the log server URL in the app's dev settings to `http://<LAN_IP>:8787`.
 The app's `consoleLogging.ts` sends all console.log/warn/error to this endpoint when configured.
@@ -162,7 +162,7 @@ togglable from the dev settings screen).
 ## Cross-cutting
 
 - **Hoisted deps:** pnpm hoists node_modules to the repo root. `packages/*/node_modules/` is mostly empty. Node's resolution walks up, so imports work transparently.
-- **Workspace deps:** `"@slopus/happy-wire": "workspace:*"` resolves to `packages/happy-wire/` — edits are picked up live.
+- **Workspace deps:** `"@happyherd/wire": "workspace:*"` resolves to `packages/happyherd-wire/` — edits are picked up live.
 - **`$npm_execpath`:** legacy; happyherd-cli uses `pnpm` literally. Windows cmd.exe doesn't expand `$VAR`.
 - **Build before tests:** tests spawn the built CLI binary (for daemon integration), so `pnpm test` runs `build` first. Do not remove.
 
@@ -183,4 +183,4 @@ Do not publish by hand. Use `/release` — it handles npm publish, git tags, Git
 - Never use `npm install` or `yarn install` — only pnpm.
 - Never add a `dev` / `cli` tsx-based script back to happyherd-cli. The build step is not optional — daemon spawns the built binary and would desync.
 - Never bring back `release-it`. Releases go through `/release`.
-- Never introduce `~/.happy-dev` as a default. It exists as an opt-in via `HAPPY_HOME_DIR`, nothing more.
+- Never introduce `~/.happyherd-dev` as a default. It exists as an opt-in via `HAPPYHERD_HOME_DIR`, nothing more.

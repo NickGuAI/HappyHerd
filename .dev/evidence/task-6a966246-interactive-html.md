@@ -52,8 +52,8 @@
 
 - Focused Vitest: 3 files and 19 tests passed.
 - Production-component `desktopWorkspace` browser suite: 8 tests passed.
-- Full `happy-app` suite: 197 files and 1,858 tests passed.
-- `happy-app` TypeScript typecheck: passed.
+- Full `happyherd-app` suite: 197 files and 1,858 tests passed.
+- `happyherd-app` TypeScript typecheck: passed.
 - Localization guard: validated 1,370 English, Chinese, and German keys;
   verified 36 routes, 251 surfaces, and 72 smoke cases; and found zero
   production hardcoded-copy exceptions across 251 UI owners.

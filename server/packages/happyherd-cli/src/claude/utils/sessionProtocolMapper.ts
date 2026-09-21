@@ -11,7 +11,7 @@ import {
     type SessionEnvelope,
     type SessionUsage,
     type SessionTurnEndStatus,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 export type ClaudeSessionProtocolState = {
     currentTurnId: string | null;

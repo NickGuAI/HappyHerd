@@ -4,7 +4,7 @@ Status: **DRAFT — v2 (OpenCode-derived)**
 
 Previous version of this doc proposed `user-message` + `agent-event` as two flat
 payload kinds. This revision replaces that with OpenCode's message+parts model,
-adapted for Happy's encrypted storage and with permissions/questions unified into
+adapted for HappyHerd's encrypted storage and with permissions/questions unified into
 tool state instead of side-channel events.
 
 ## Why this exists
@@ -21,7 +21,7 @@ Today the app must normalize multiple plaintext payload families after decryptio
 - modern `role: "session"` envelopes
 
 That fan-in is visible in
-[`packages/happy-app/sources/sync/typesRaw.ts`](../../packages/happy-app/sources/sync/typesRaw.ts),
+[`packages/happyherd-app/sources/sync/typesRaw.ts`](../../packages/happyherd-app/sources/sync/typesRaw.ts),
 and it is the real source of the complexity.
 
 The problem is not transport. Transport is fine (encrypted blobs, ordered
@@ -724,7 +724,7 @@ type Todo = {
 
 Rules come from three sources, merged in order:
 
-1. **Project config** — `.happy/config.json` or equivalent
+1. **Project config** — `.happyherd/config.json` or equivalent
 2. **Session creation** — passed when session is created
 3. **Runtime approvals** — accumulated "always" decisions during the session
 
@@ -748,9 +748,9 @@ tools in the same session also error (cascade reject — same as OpenCode).
 
 ## Storage model
 
-### Happy's constraint: encrypted storage
+### HappyHerd's constraint: encrypted storage
 
-OpenCode stores plaintext rows in SQLite and patches them freely. Happy stores
+OpenCode stores plaintext rows in SQLite and patches them freely. HappyHerd stores
 opaque encrypted blobs.
 
 We choose **patchable canonical messages**:
@@ -762,7 +762,7 @@ We choose **patchable canonical messages**:
 - Refetch returns latest state without replay
 - No append-only event log as primary storage
 
-This matches Happy's existing message delivery model. The inner plaintext
+This matches HappyHerd's existing message delivery model. The inner plaintext
 shape changes; the storage/sync envelope does not.
 
 ### What does NOT change

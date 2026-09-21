@@ -52,6 +52,11 @@ const lintableExtensions = new Set([
 ]);
 const conflictMarker = /^(<{7}|={7}|>{7})(?:\s|$)/m;
 const failures = [];
+// A path-only move does not newly introduce malformed historical fixtures or
+// JSONC configuration. Only exact (100%) Git renames qualify; edited JSON is
+// still parsed below, even when its directory moved.
+const unchangedRenames = new Set(base ? lines(git(['diff', '--name-status', '--find-renames=100%', base]))
+  .filter(line => line.startsWith('R100\t')).map(line => line.split('\t')[2]) : []);
 
 for (const relativePath of [...changed].sort()) {
   if (!lintableExtensions.has(extname(relativePath))) continue;
@@ -63,7 +68,7 @@ for (const relativePath of [...changed].sort()) {
   if (conflictMarker.test(contents)) {
     failures.push(`${relativePath}: unresolved merge-conflict marker`);
   }
-  if (extname(relativePath) === '.json') {
+  if (extname(relativePath) === '.json' && !unchangedRenames.has(relativePath)) {
     try {
       JSON.parse(contents);
     } catch (error) {
@@ -76,7 +81,7 @@ try {
   if (base) {
     execFileSync('git', ['-C', repoRoot, 'diff', '--check', `${base}...HEAD`], { stdio: 'inherit' });
   }
-  execFileSync('git', ['-C', repoRoot, 'diff', '--check'], { stdio: 'inherit' });
+  execFileSync('git', ['-C', repoRoot, 'diff', '--check', 'HEAD'], { stdio: 'inherit' });
 } catch {
   failures.push('git diff --check failed');
 }

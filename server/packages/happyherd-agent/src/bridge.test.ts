@@ -7,7 +7,7 @@ import { DiscordAgentBridge, parseLinkCommand } from './bridge';
 import { CapabilityRegistry } from './capabilities';
 import type { BridgeConfig } from './config';
 import type { DiscordReplyTransport } from './discord';
-import type { HappySessionRuntime } from './happy';
+import type { HappyHerdSessionRuntime } from './happyherd';
 import { BridgeStore } from './store';
 import type { AuthorizationDecision, NormalizedDiscordMessage, SurfaceBinding } from './types';
 
@@ -25,8 +25,8 @@ function config(): BridgeConfig {
     agentId: 'example-agent',
     serviceSigningSecretFile: '/var/lib/example/secrets/signing',
     transportSecretFile: '/var/lib/example/secrets/transport',
-    happyHomeDir: '/var/lib/example/happy',
-    happyMachineId: 'machine-1',
+    happyHomeDir: '/var/lib/example/happyherd',
+    happyherdMachineId: 'machine-1',
     agentWorkspace: '/var/lib/example/workspace',
     commanderId: 'example-team-agent',
     stateDir: '/var/lib/example/state',
@@ -72,10 +72,10 @@ function allowed(input: NormalizedDiscordMessage, mode: 'personal' | 'shared-rea
   };
 }
 
-class FakeHappy implements HappySessionRuntime {
+class FakeHappyHerd implements HappyHerdSessionRuntime {
   readonly bindings: SurfaceBinding[] = [];
   readonly turns: Array<{ sessionId: string; localId: string; text: string; sourceMessageId: string }> = [];
-  recovered: Awaited<ReturnType<HappySessionRuntime['recoverTurn']>> = { result: null, userMessageExists: false };
+  recovered: Awaited<ReturnType<HappyHerdSessionRuntime['recoverTurn']>> = { result: null, userMessageExists: false };
 
   async ensureSession(binding: SurfaceBinding) {
     this.bindings.push(binding);
@@ -140,7 +140,7 @@ describe('DiscordAgentBridge', () => {
 
   it('fails closed for malformed link attempts without authorizing or creating a session', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const authorize = vi.fn(async (input: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
       allowed(input, mode)
@@ -151,7 +151,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize, link },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
@@ -161,8 +161,8 @@ describe('DiscordAgentBridge', () => {
 
     expect(authorize).not.toHaveBeenCalled();
     expect(link).not.toHaveBeenCalled();
-    expect(happy.bindings).toHaveLength(0);
-    expect(happy.turns).toHaveLength(0);
+    expect(happyherd.bindings).toHaveLength(0);
+    expect(happyherd.turns).toHaveLength(0);
     expect(discord.replies.map((reply) => reply.content)).toEqual([
       'Invalid account-link command. Send `link CODE` with one code token.',
       'Invalid account-link command. Send `link CODE` with one code token.',
@@ -172,7 +172,7 @@ describe('DiscordAgentBridge', () => {
 
   it('links in DM without creating a HappyHerd session or persisting message text', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const authorizer: ActorAuthorizer = {
       authorize: vi.fn(async (input, mode) => allowed(input, mode)),
@@ -183,7 +183,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer,
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
     const input = message({ content: 'link EXAMPLE-CODE-1234' });
@@ -192,15 +192,15 @@ describe('DiscordAgentBridge', () => {
 
     expect(authorizer.authorize).not.toHaveBeenCalled();
     expect(authorizer.link).toHaveBeenCalledWith(input, 'EXAMPLE-CODE-1234');
-    expect(happy.bindings).toHaveLength(0);
-    expect(happy.turns).toHaveLength(0);
+    expect(happyherd.bindings).toHaveLength(0);
+    expect(happyherd.turns).toHaveLength(0);
     expect(discord.replies[0]).toMatchObject({ content: 'Account connected.' });
     expect(JSON.stringify(state.getInbound(input.sourceMessageId))).not.toContain('EXAMPLE-CODE-1234');
   });
 
   it('does not create a session when linking is unconfigured or attempted outside DM', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const authorize = vi.fn(async (input: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
       allowed(input, mode)
@@ -210,7 +210,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
@@ -226,8 +226,8 @@ describe('DiscordAgentBridge', () => {
     }));
 
     expect(authorize).not.toHaveBeenCalled();
-    expect(happy.bindings).toHaveLength(0);
-    expect(happy.turns).toHaveLength(0);
+    expect(happyherd.bindings).toHaveLength(0);
+    expect(happyherd.turns).toHaveLength(0);
     expect(discord.replies.map((reply) => reply.content)).toEqual([
       'Account linking is not configured for this agent.',
       'Send the account-link command in a direct message to this bot.',
@@ -236,7 +236,7 @@ describe('DiscordAgentBridge', () => {
 
   it('retries interrupted link delivery without consuming the one-time code twice', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     discord.failuresRemaining = 1;
     const link = vi.fn(async () => ({
@@ -251,7 +251,7 @@ describe('DiscordAgentBridge', () => {
         link,
       },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
@@ -274,13 +274,13 @@ describe('DiscordAgentBridge', () => {
       status: 'delivered',
       deliveryKind: 'link',
     });
-    expect(happy.bindings).toHaveLength(0);
-    expect(happy.turns).toHaveLength(0);
+    expect(happyherd.bindings).toHaveLength(0);
+    expect(happyherd.turns).toHaveLength(0);
   });
 
   it('routes one inbound message through one isolated HappyHerd turn and delivers once', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const authorizer: ActorAuthorizer = {
       authorize: vi.fn(async (input, mode) => allowed(input, mode)),
@@ -290,7 +290,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer,
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
     const input = message();
@@ -298,13 +298,13 @@ describe('DiscordAgentBridge', () => {
     await bridge.handle(input);
     await bridge.handle(input);
 
-    expect(happy.turns).toHaveLength(1);
-    expect(happy.turns[0]).toMatchObject({
+    expect(happyherd.turns).toHaveLength(1);
+    expect(happyherd.turns[0]).toMatchObject({
       sessionId: 'session:dm:discord-user-1',
       localId: 'discord:source-1',
     });
-    expect(happy.turns[0].text).toContain('untrusted user input');
-    expect(happy.turns[0].text).toContain('What is my onboarding status?');
+    expect(happyherd.turns[0].text).toContain('untrusted user input');
+    expect(happyherd.turns[0].text).toContain('What is my onboarding status?');
     expect(discord.replies).toEqual([{ channelId: 'dm-channel-1', content: 'Ready.', sourceMessageId: 'source-1' }]);
     expect(state.getInbound('source-1')).toMatchObject({ status: 'delivered', replyMessageIds: ['reply-1'] });
     expect(state.getSurface('dm:discord-user-1')).toMatchObject({
@@ -315,14 +315,14 @@ describe('DiscordAgentBridge', () => {
 
   it('keeps two members in separate DM surfaces, sessions, and capabilities', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const bridge = new DiscordAgentBridge({
       config: config(),
       store: state,
       authorizer: { authorize: async (input, mode) => allowed(input, mode) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
     await bridge.handle(message());
@@ -333,7 +333,7 @@ describe('DiscordAgentBridge', () => {
       surfaceKey: 'dm:discord-user-2',
     }));
 
-    expect(happy.turns.map((turn) => turn.sessionId)).toEqual([
+    expect(happyherd.turns.map((turn) => turn.sessionId)).toEqual([
       'session:dm:discord-user-1',
       'session:dm:discord-user-2',
     ]);
@@ -345,18 +345,18 @@ describe('DiscordAgentBridge', () => {
 
   it('denies an unlinked member before HappyHerd session creation', async () => {
     const state = await store();
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const bridge = new DiscordAgentBridge({
       config: config(),
       store: state,
       authorizer: { authorize: async () => ({ decision: 'deny', code: 'not_linked', safeMessage: 'Link first.' }) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
     await bridge.handle(message());
-    expect(happy.bindings).toHaveLength(0);
+    expect(happyherd.bindings).toHaveLength(0);
     expect(discord.replies[0].content).toBe('Link first.');
     expect(state.getInbound('source-1')?.status).toBe('denied');
   });
@@ -370,8 +370,8 @@ describe('DiscordAgentBridge', () => {
       happySessionId: 'session-1',
       baselineSequence: 5,
     });
-    const happy = new FakeHappy();
-    happy.recovered = {
+    const happyherd = new FakeHappyHerd();
+    happyherd.recovered = {
       result: { turnId: 'turn-1', status: 'completed', text: 'Recovered.', messageIds: ['root'] },
       userMessageExists: true,
     };
@@ -381,7 +381,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
     await bridge.reconcile();
@@ -393,7 +393,7 @@ describe('DiscordAgentBridge', () => {
     const state = await store();
     const input = message();
     await state.claimInbound(input);
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     discord.sourceMessages.set(`${input.channelId}:${input.sourceMessageId}`, input);
     const bridge = new DiscordAgentBridge({
@@ -401,13 +401,13 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
     await bridge.reconcile();
 
-    expect(happy.turns).toHaveLength(1);
+    expect(happyherd.turns).toHaveLength(1);
     expect(discord.replies[0]).toMatchObject({ content: 'Ready.', sourceMessageId: 'source-1' });
     expect(state.getInbound('source-1')).toMatchObject({ status: 'delivered', deliveryKind: 'answer' });
   });
@@ -421,7 +421,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy: new FakeHappy(),
+      happyherd: new FakeHappyHerd(),
       discord,
     });
 
@@ -439,7 +439,7 @@ describe('DiscordAgentBridge', () => {
       status: 'delivering',
       deliveryKind: 'denial',
     });
-    const happy = new FakeHappy();
+    const happyherd = new FakeHappyHerd();
     const discord = new FakeDiscord();
     const authorize = vi.fn(async (candidate: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
       allowed(candidate, mode)
@@ -449,22 +449,22 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
     await bridge.reconcile();
 
     expect(authorize).not.toHaveBeenCalled();
-    expect(happy.turns).toHaveLength(0);
+    expect(happyherd.turns).toHaveLength(0);
     expect(discord.replies[0].sourceMessageId).toBe('source-1:denied');
     expect(state.getInbound('source-1')).toMatchObject({ status: 'denied', deliveryKind: 'denial' });
   });
 
   it('retries an answer interrupted during Discord delivery without replacing it with a failure', async () => {
     const state = await store();
-    const happy = new FakeHappy();
-    happy.recovered = {
+    const happyherd = new FakeHappyHerd();
+    happyherd.recovered = {
       result: { turnId: 'turn:source-1', status: 'completed', text: 'Ready.', messageIds: ['root-1'] },
       userMessageExists: true,
     };
@@ -475,7 +475,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 
@@ -507,7 +507,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy: new FakeHappy(),
+      happyherd: new FakeHappyHerd(),
       discord,
     });
 
@@ -529,8 +529,8 @@ describe('DiscordAgentBridge', () => {
       happySessionId: 'session-1',
       baselineSequence: 5,
     });
-    const happy = new FakeHappy();
-    happy.recovered = {
+    const happyherd = new FakeHappyHerd();
+    happyherd.recovered = {
       result: { turnId: 'turn-1', status: 'failed', text: 'Unverified partial text.', messageIds: ['root'] },
       userMessageExists: true,
     };
@@ -540,7 +540,7 @@ describe('DiscordAgentBridge', () => {
       store: state,
       authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
       capabilities: new CapabilityRegistry(),
-      happy,
+      happyherd,
       discord,
     });
 

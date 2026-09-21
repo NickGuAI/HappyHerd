@@ -13,7 +13,7 @@ Expo bridge. Each local endpoint has a random 256-bit capability path.
 
 ## Status and compatibility
 
-Unpublished, experimental `0.1.0`. Developed independently of `happy-app`.
+Unpublished, experimental `0.1.0`. Developed independently of `happyherd-app`.
 The initial compatibility target is Expo SDK 55, React Native 0.83, iOS 15.1+
 (the host Expo app may require newer), and Android API 26+ with arm64-v8a and
 x86_64 binaries. Expo Go, web, 32-bit Android and background VPN operation are
@@ -148,7 +148,7 @@ pnpm --dir example install --ignore-workspace --frozen-lockfile --ignore-scripts
 pnpm --dir example exec expo prebuild --no-install
 ```
 
-`example/` is a tiny standalone Expo app; it does not install or build Happy.
+`example/` is a tiny standalone Expo app; it does not install or build HappyHerd.
 Start the private fixture (`go run ./cmd/fixture` from `go/`), then run the
 example in a native build. Android uses `adb reverse tcp:18081 tcp:18081` and
 `adb reverse tcp:18443 tcp:18443`. Never expose the test fixture outside loopback:

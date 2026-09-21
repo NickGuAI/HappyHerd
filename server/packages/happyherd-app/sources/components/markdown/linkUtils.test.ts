@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+import {
+    isHttpMarkdownLink,
+    isWorkspaceRelativeMarkdownLink,
+    normalizeExternalMarkdownLink,
+} from './linkUtils';
+
+describe('isHttpMarkdownLink', () => {
+    it('accepts http and https links', () => {
+        expect(isHttpMarkdownLink('http://example.com')).toBe(true);
+        expect(isHttpMarkdownLink('https://example.com/docs')).toBe(true);
+        expect(isHttpMarkdownLink(' HTTPS://example.com/docs ')).toBe(true);
+    });
+
+    it('rejects non-http schemes and path-like targets', () => {
+        expect(isHttpMarkdownLink('mailto:test@example.com')).toBe(false);
+        expect(isHttpMarkdownLink('data:text/plain,hello')).toBe(false);
+        expect(isHttpMarkdownLink('/Users/me/project/file.ts')).toBe(false);
+        expect(isHttpMarkdownLink('packages/happyherd-app/index.tsx')).toBe(false);
+    });
+
+    it('accepts only workspace-relative image candidates', () => {
+        expect(isWorkspaceRelativeMarkdownLink('images/chart.png')).toBe(true);
+        expect(isWorkspaceRelativeMarkdownLink('./images/My Chart.jpg "Chart"')).toBe(true);
+        expect(isWorkspaceRelativeMarkdownLink('images\\chart.svg')).toBe(true);
+
+        for (const target of [
+            'https://example.com/chart.png',
+            '//example.com/chart.png',
+            '/tmp/chart.png',
+            'C:\\tmp\\chart.png',
+            '\\\\server\\share\\chart.png',
+            '~/chart.png',
+            'data:image/png;base64,AAAA',
+            'file:///tmp/chart.png',
+            'javascript:alert(1)',
+            '#chart',
+            '?chart',
+        ]) {
+            expect(isWorkspaceRelativeMarkdownLink(target)).toBe(false);
+        }
+    });
+
+    it('normalizes scheme-relative web links without claiming local paths', () => {
+        expect(normalizeExternalMarkdownLink('//example.com/docs')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('//example.com/docs "Docs"')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('<//example.com/docs>')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('<https://example.com/docs> "Docs"')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink(' HTTPS://example.com/docs ')).toBe('HTTPS://example.com/docs');
+        expect(normalizeExternalMarkdownLink('///workspace/file.ts')).toBeNull();
+        expect(normalizeExternalMarkdownLink('/workspace/file.ts')).toBeNull();
+        expect(normalizeExternalMarkdownLink('\\\\server\\share\\file.ts')).toBeNull();
+    });
+});

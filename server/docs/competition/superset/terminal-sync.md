@@ -179,10 +179,10 @@ in the same CWD. Handled by `useTerminalColdRestore` hook.
 - `apps/desktop/src/renderer/lib/terminal/terminal-ws-transport.ts` — V2 WebSocket transport
 - `packages/panes/src/core/store/store.ts` — pane layout store
 
-## Happy takeaways
+## HappyHerd takeaways
 
 - The V1 subprocess isolation pattern (PTY in child process, frame protocol
-  over stdout) is worth considering if Happy ever runs PTY directly — keeps
+  over stdout) is worth considering if HappyHerd ever runs PTY directly — keeps
   the main process responsive.
 - HeadlessEmulator for faithful TUI restoration is clever — `@xterm/headless`
   + `@xterm/addon-serialize` enables restoring vim/htop state including
@@ -191,6 +191,6 @@ in the same CWD. Handled by `useTerminalColdRestore` hook.
   pattern — no complex journaling, just buffer recent output and replay on
   reconnect.
 - PTY lifetime decoupled from UI lifetime is the right design — matches
-  how Happy's daemon already works.
+  how HappyHerd's daemon already works.
 - localStorage for renderer-side scrollback persistence across pane
   remounts is a cheap win.

@@ -3,7 +3,7 @@
  * Provides endpoints for listing sessions, stopping sessions, and daemon shutdown
  */
 
-import { DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema } from '@slopus/happy-wire';
+import { DevicePairingCreateResponseSchema, DevicePairingCancelResponseSchema } from '@happyherd/wire';
 import type { DevicePairingService } from './devicePairing';
 import fastify, { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -18,7 +18,7 @@ import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import type { DefaultAssistantReceipt } from './defaultAssistant';
-import { HappyHerdMachineSessionProviderSchema, HappyHerdMachineSessionSettingsSchema } from '@slopus/happy-wire';
+import { HappyHerdMachineSessionProviderSchema, HappyHerdMachineSessionSettingsSchema } from '@happyherd/wire';
 import {
   LocalSessionSendRequestSchema, LocalSessionSendReceiptSchema,
   LocalSessionInspectRequestSchema, LocalSessionInspectReceiptSchema,

@@ -1,7 +1,7 @@
 # HappyHerd
 
 HappyHerd is a maintained distribution of
-[Happy](https://github.com/slopus/happy). It preserves Happy's complete upstream
+[HappyHerd](https://github.com/slopus/happy). It preserves HappyHerd's complete upstream
 history under `server/` and layers independently reviewable product,
 governance, release, and agent-runtime contracts on top.
 
@@ -26,7 +26,7 @@ upstream Happy. If HappyHerd is useful to you, you can
 
 ## Repository layout
 
-- `server/` — full-history Happy subtree plus HappyHerd-owned runtime changes.
+- `server/` — full-history HappyHerd subtree plus HappyHerd-owned runtime changes.
 - `branding/` — HappyHerd-owned brand assets.
 - `deploy/` — generic, secret-free deployment templates.
 - `examples/` — explicitly named organization integrations.
@@ -36,7 +36,7 @@ upstream Happy. If HappyHerd is useful to you, you can
 ## Self-host deployment
 
 The self-host server intentionally includes the Web bundle, matching upstream
-Happy. It is built and deployed independently of the CLI/daemon, mobile app,
+HappyHerd. It is built and deployed independently of the CLI/daemon, mobile app,
 and governed agent:
 
 ```sh
@@ -71,7 +71,7 @@ workaround.
 An interactive first run asks for a server endpoint. Press Enter for the local
 default, `http://127.0.0.1:3005`, or enter a remote URL. The choice is stored in
 `~/.happyherd/settings.json`, so no server URL environment variables are
-needed. The local default starts the bundled server and ordinary detached Happy
+needed. The local default starts the bundled server and ordinary detached HappyHerd
 daemon. A noninteractive fresh install prints the authentication command to run
 next.
 

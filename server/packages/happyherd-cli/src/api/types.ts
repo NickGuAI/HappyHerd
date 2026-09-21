@@ -7,7 +7,7 @@ import {
   type HappyHerdMachineSessionSettings,
   type Update,
   type UpdateMachineBody,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
 import type { ProviderUsageReport, UsageCounterSnapshot } from '@/usage/providerUsage'
@@ -19,7 +19,7 @@ export {
   UpdateMachineBodySchema,
   UpdateSchema,
   UpdateSessionBodySchema,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 export type {
   SessionMessage,
   SessionMessageContent,
@@ -27,7 +27,7 @@ export type {
   UpdateBody,
   UpdateMachineBody,
   UpdateSessionBody,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 /**
  * Permission mode type - includes both Claude and Codex modes

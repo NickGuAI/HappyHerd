@@ -22,9 +22,9 @@ ACP is the cleanest part of the Claude stack.
 
 Primary source files:
 
-- `../happy-adjacent/research/agent-client-protocol/src/agent.rs`
-- `../happy-adjacent/research/agent-client-protocol/src/client.rs`
-- `../happy-adjacent/research/agent-client-protocol/src/tool_call.rs`
+- `../happyherd-adjacent/research/agent-client-protocol/src/agent.rs`
+- `../happyherd-adjacent/research/agent-client-protocol/src/client.rs`
+- `../happyherd-adjacent/research/agent-client-protocol/src/tool_call.rs`
 
 ## Claude ACP adapter behavior
 
@@ -35,12 +35,12 @@ The Claude ACP adapter maps Claude Code behavior into ACP.
 - additional workspace scope is passed through `_meta.additionalRoots`
 - session create, load, resume, replay, and fork are implemented in the adapter layer
 
-This is important for Happy because it shows where clean protocol stops and provider-specific behavior begins.
+This is important for HappyHerd because it shows where clean protocol stops and provider-specific behavior begins.
 
 Primary source files:
 
-- `../happy-adjacent/research/claude-code-acp/src/acp-agent.ts`
-- `../happy-adjacent/research/claude-code-acp/src/settings.ts`
+- `../happyherd-adjacent/research/claude-code-acp/src/acp-agent.ts`
+- `../happyherd-adjacent/research/claude-code-acp/src/settings.ts`
 
 ## Hook/event protocol
 
@@ -55,8 +55,8 @@ This is one of the best pieces of Claude's design: event interception is explici
 
 Primary source files:
 
-- `../happy-adjacent/research/claude-code/plugins/plugin-dev/skills/hook-development/SKILL.md`
-- `../happy-adjacent/research/claude-code/CHANGELOG.md`
+- `../happyherd-adjacent/research/claude-code/plugins/plugin-dev/skills/hook-development/SKILL.md`
+- `../happyherd-adjacent/research/claude-code/CHANGELOG.md`
 
 ## Subagents and task tracking
 
@@ -68,12 +68,12 @@ Claude is strongest here at the product level, but the state lives in several pl
 - local task queue state lives under `~/.claude/tasks/`
 - subagent conversation chains live under `~/.claude/projects/.../subagents/`
 
-The main lesson for Happy is not to copy the hidden-file layout. The lesson is to
+The main lesson for HappyHerd is not to copy the hidden-file layout. The lesson is to
 keep agent identity, team membership, and task lifecycle explicit.
 
 Primary source files:
 
-- `../happy-adjacent/research/claude-code/plugins/plugin-dev/skills/agent-development/SKILL.md`
+- `../happyherd-adjacent/research/claude-code/plugins/plugin-dev/skills/agent-development/SKILL.md`
 - `docs/research/agent-teams-claude-code.md`
 - `~/.claude/teams/`
 - `~/.claude/tasks/`
@@ -88,13 +88,13 @@ Claude treats this as real state, not a prompt-only convention.
 - plan mode is a real runtime mode, not just different wording
 - custom agents can carry their own permission mode
 
-This is a strong pattern for Happy: mode and permission state should be first-class and inspectable.
+This is a strong pattern for HappyHerd: mode and permission state should be first-class and inspectable.
 
 Primary source files:
 
-- `../happy-adjacent/research/claude-code/examples/settings/settings-strict.json`
-- `../happy-adjacent/research/claude-code/plugins/plugin-dev/skills/hook-development/SKILL.md`
-- `../happy-adjacent/research/claude-code/CHANGELOG.md`
+- `../happyherd-adjacent/research/claude-code/examples/settings/settings-strict.json`
+- `../happyherd-adjacent/research/claude-code/plugins/plugin-dev/skills/hook-development/SKILL.md`
+- `../happyherd-adjacent/research/claude-code/CHANGELOG.md`
 
 ## Sandbox and workspace controls
 
@@ -109,9 +109,9 @@ This is less unified than Codex's sandbox policy, but still better than pretendi
 
 Primary source files:
 
-- `../happy-adjacent/research/claude-code/examples/settings/README.md`
-- `../happy-adjacent/research/claude-code/examples/settings/settings-bash-sandbox.json`
-- `../happy-adjacent/research/claude-code/CHANGELOG.md`
+- `../happyherd-adjacent/research/claude-code/examples/settings/README.md`
+- `../happyherd-adjacent/research/claude-code/examples/settings/settings-bash-sandbox.json`
+- `../happyherd-adjacent/research/claude-code/CHANGELOG.md`
 
 ## Resume, fork, and lifecycle
 
@@ -123,7 +123,7 @@ Claude clearly treats session lifecycle as a product priority.
 - sessions support naming and named resume
 - local per-session state is often keyed by `session_id`
 
-This is a reminder for Happy that resume correctness is not a small detail; it is a protocol feature.
+This is a reminder for HappyHerd that resume correctness is not a small detail; it is a protocol feature.
 
 ## Remote and sync implications
 
@@ -134,9 +134,9 @@ Claude is the weakest clean reference here.
 - MCP networking is well-documented
 - but the richest team and subagent state still lives in local files under `~/.claude/`
 
-So Claude is useful as a workflow reference, but not the best single source for Happy's own sync protocol.
+So Claude is useful as a workflow reference, but not the best single source for HappyHerd's own sync protocol.
 
-## What Happy should steal
+## What HappyHerd should steal
 
 - first-class mode and permission state
 - typed event interception around tools and lifecycle

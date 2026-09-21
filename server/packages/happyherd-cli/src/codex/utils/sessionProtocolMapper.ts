@@ -8,7 +8,7 @@ import {
     type CreateEnvelopeOptions,
     type SessionEnvelope,
     type SessionUsage,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 import type { Thread, ThreadItem, ThreadTurn } from '../codexAppServerTypes';
 import { stripHappyHerdSystemBlocks } from '../codexPrompt';
 import { codexPlanBody, codexPlanSnapshot } from './nativePlans';

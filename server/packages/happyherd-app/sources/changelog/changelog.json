@@ -1,0 +1,795 @@
+{
+  "entries": [
+    {
+      "title": "September 20 — HappyHerd app and server naming",
+      "summary": "",
+      "markdown": "- App, desktop, server and shared components now consistently use HappyHerd naming, including development and self-host build paths.\n- Existing accounts, session history, encryption keys and device storage retain their identities. Historical configuration and pairing links remain usable, and both current and historical title-change tools display session title events."
+    },
+    {
+      "title": "September 20 — HappyHerd CLI naming",
+      "summary": "",
+      "markdown": "- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.\n- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed.\n- Pairing QR codes and manual links remain compatible with existing app versions."
+    },
+    {
+      "title": "September 20 — Native plans and recoverable answers",
+      "summary": "",
+      "markdown": "- Codex questions now offer one inline form for choices and written answers, with cancellation and protection against answering an interrupted or replaced request.\n- Native Codex plans stay visible while streaming and when restoring provider history. Codex and ACP plan snapshots replace the current list, including explicit empty clears; ACP history replay retains plans when the provider supplies them.\n- Claude question answers now remain visible after reconnecting or reloading. Unsupported question payloads retain their generic content and supported cancellation controls."
+    },
+    {
+      "title": "September 20 — Managed account login refresh",
+      "summary": "",
+      "markdown": "- Successful provider logins now refresh managed account rows immediately and close the add-account form, including when submitting a verification code completes the login.\n- Logging in again refreshes the account's credential version so subsequent account changes work without reloading Settings."
+    },
+    {
+      "title": "September 20 — Grok terminal account login",
+      "summary": "",
+      "markdown": "- Connecting a named Grok account from the terminal now preserves existing credentials when `GROK_AUTH_PATH` is set and registers and selects the newly signed-in account under its requested nickname."
+    },
+    {
+      "title": "September 20 — Grok account login",
+      "summary": "",
+      "markdown": "- Managed Grok login now accepts the native scoped OAuth credential format and preserves its refresh metadata, while retaining support for legacy login credentials."
+    },
+    {
+      "title": "September 20 — Resume with the saved provider account",
+      "summary": "",
+      "markdown": "- Manual or scheduled command and agent automations can run again once a previous run completes or fails, including quota or preparation failures. Active runs still prevent overlapping runs.\n- Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.\n- Codex sessions using native authentication, including unmanaged side chats, keep that authentication on terminal and daemon resume even when a managed account pool is configured or fully limited."
+    },
+    {
+      "title": "September 20 — Claude model-specific usage limits",
+      "summary": "",
+      "markdown": "- Sonnet sessions no longer rotate accounts just because Opus usage is exhausted. All model usage windows remain visible, and actual Claude quota rejections still trigger quota handling."
+    },
+    {
+      "title": "September 20 — Claude quota recovery",
+      "summary": "",
+      "markdown": "- Claude conversations using native sign-in now accept a new message after a quota reset instead of waiting indefinitely for an account switch. The failed turn remains visible and is not automatically retried."
+    },
+    {
+      "title": "September 20 — Session delivery and upstream reliability",
+      "summary": "",
+      "markdown": "- New sessions retain their first message and photos while encryption finishes syncing. Retry uses the already-created session, and late replies cannot clear a newer draft or send it to a different destination.\n- Happy Agent sessions that advertise message receipts show pending and rejected sends accurately. Shared-session messages identify other participants and align separately from your own messages.\n- Encrypted session pictures sync independently of project artwork, while sessions without a picture retain their bot, Commander, and provider identities.\n- iPhone photos are resized to a maximum 3072-pixel edge and checked after JPEG conversion, including encrypted upload overhead.\n- Parallel resume requests share one process owner, closed sessions stop reconnecting, and Codex continuation output keeps its turn identity.\n- CLI logout clears only CLI credentials and machine identity, preserving shared-home data and session history. CLI pairing and releases remain independent.\n- Computers without a runnable agent offer setup help while keeping unavailable agent choices visible."
+    },
+    {
+      "title": "September 20 — HappyHerd header title",
+      "summary": "",
+      "markdown": "- The signed-out landing and home header now show HappyHerd instead of Happy."
+    },
+    {
+      "title": "September 20 — Codex context meter",
+      "summary": "",
+      "markdown": "- The context meter now stays tied to the main Codex session while subagents are working."
+    },
+    {
+      "title": "September 19 — Device codes for existing account machines",
+      "summary": "",
+      "markdown": "- Open Settings → Connections to identify a running target daemon with an eight-digit device code, confirm its identity, and use the existing machine for sessions and files.\n- Codes require the same account and server and do not change machine ownership, credentials, encryption, or existing sessions. Generate a code with `happyherd machine pair` on an updated, already running daemon.\n- Connection status reflects daemon verification, with recovery for unavailable targets and invalid, expired, cancelled, or used codes."
+    },
+    {
+      "title": "September 19 — Native app distribution and Commander creation",
+      "summary": "",
+      "markdown": "- Native iOS users can choose Create Commander in New Session and start the same guided onboarding while retaining their selected machine, provider, and session settings.\n- Commander creation appears after the available Commanders on all platforms, with accessible labels and hints and room for larger text.\n- iOS builds exclude development tests, and native releases use this distribution's app identities instead of upstream Happy's signing, submission, or update accounts. Push notifications and over-the-air updates require a separately configured Expo project."
+    },
+    {
+      "title": "September 19 — Terminal pairing layout",
+      "summary": "",
+      "markdown": "- Pasted terminal authentication URLs stay within their input card, keeping the confirmation control visible while retaining readable 16px text."
+    },
+    {
+      "title": "September 19 — Native build reliability",
+      "summary": "",
+      "markdown": "- Native app builds no longer treat development tests as screens, avoiding failures caused by test-only Node.js dependencies."
+    },
+    {
+      "title": "September 19 — KILV interface",
+      "summary": "",
+      "markdown": "- Light and dark themes now use warm paper, lifted slate panels, amber actions, and consistent borders across navigation, settings, sessions, and Workspace.\n- Space Grotesk and JetBrains Mono make interface text, code, paths, and status easier to distinguish.\n- The welcome screen uses KILV artwork, while chat replies and choices share a warm dark surface. Mobile input text stays at least 16px, and existing session, account, and automation behavior is preserved."
+    },
+    {
+      "title": "September 17 — Mobile browser layout",
+      "summary": "",
+      "markdown": "- Active-session controls now stay above expanding mobile browser toolbars instead of being hidden behind them."
+    },
+    {
+      "title": "September 17 — System scroll direction",
+      "summary": "",
+      "markdown": "- Web chat scrolling now follows your system's mouse and trackpad scroll direction while keeping the latest messages anchored at the bottom.\n- Horizontal and Shift-wheel gestures no longer get redirected into vertical chat scrolling."
+    },
+    {
+      "title": "September 17 — Forked session settings",
+      "summary": "",
+      "markdown": "- Forking or duplicating a Claude or Codex session now retains the parent session's permission mode and Commander in its original directory.\n- New side chats inherit their parent's Commander and provider permission policy; an explicitly selected child permission mode still takes precedence. Side-chat inheritance requires an updated daemon."
+    },
+    {
+      "title": "HappyHerd Release - September 19, 2026",
+      "summary": "",
+      "markdown": "- Named-account transitions keep each account's credentials isolated while preserving native provider sessions, homes, and conversation history.\n- Interrupted queued work remains in its existing session queue and continues through its normal path after an account switch, without duplicating prior prompts or introducing synthetic replay."
+    },
+    {
+      "title": "September 17 — Preserve interrupted Claude requests",
+      "summary": "",
+      "markdown": "- Claude quota rejections no longer mark an interrupted queued request complete or claim the next request while the daemon switches accounts.\n- The existing session and request queue are retained; this change adds no continuation prompts or new account-selection behavior."
+    },
+    {
+      "title": "September 17 — Reliable Claude login code submission",
+      "summary": "",
+      "markdown": "- Submitting a Claude authorization code no longer reopens the code-entry form merely because the terminal redraws its original sign-in link.\n- Code entry and Enter are delivered separately to the native terminal. A broken input stream ends the attempt with a clear failure so Retry can begin a fresh sign-in."
+    },
+    {
+      "title": "September 17 — Plan snapshots and answerable question forms",
+      "summary": "",
+      "markdown": "- Supported ACP plan snapshots reach the conversation, and compact tool display no longer hides their content.\n- Question forms support written answers and retain the original approval controls when a native payload cannot be rendered. Codex native question transport and complete restored-plan coverage remain separate unfinished work."
+    },
+    {
+      "title": "September 17 — Consistent upstream integration",
+      "summary": "",
+      "markdown": "- Keep provider tool titles intact during late updates and retain HappyHerd’s separate error details, folder-first chat headers, and single Workspace navigation.\n- Restore localized diff controls and their checked state, off-thread syntax generation, and compatible model defaults without replacing saved model choices."
+    },
+    {
+      "title": "September 13 — Automation launch recovery",
+      "summary": "",
+      "markdown": "- Scheduled automations now record launches rejected before a provider process starts as failed, allowing the next scheduled tick to run instead of remaining stuck as active.\n- Uncertain provider starts remain active until reconciled, preserving protection against duplicate execution."
+    },
+    {
+      "title": "September 13 — Upstream integration and responsive changes",
+      "summary": "",
+      "markdown": "- Happy Agent changes use the branch comparison with origin/main inside the existing Workspace, with lazy file loading, image comparisons, whitespace controls, and bounded diff work.\n- Native chat presses prepare messages without taking focus; watched tool groups stay expanded until the conversation is left or the app is backgrounded.\n- Diff and terminal syntax preparation runs off the rendering thread, with shared file presentation and stable detail headers.\n- Happy Agent model choices put Astra first; explicit saved choices are retained. Offline launch guidance distinguishes Happy Agent from HappyHerd CLI, and daemon health checks allow five seconds.\n- Codium remains available. The experimental expo-tailcat module is included as a standalone package; this update does not enable tunnels, publish a package, or activate a native release pipeline."
+    },
+    {
+      "title": "September 13 — Credentials & Accounts Management",
+      "summary": "",
+      "markdown": "- Open **Settings > Credentials & Accounts** to list, add or log in again, rename, select defaults, and remove machine-local named Claude, Codex, and Grok accounts. Removing an account locally does not revoke access with the provider or stop active sessions.\n- Manage saved credentials that are encrypted on the HappyHerd server, masked by default, and explicitly revealable. Add, edit, or delete credentials with labels for Skills, Browser, and MCP to document their intended use without automatic secret injection.\n- Claude, Codex, and Grok remain visible on the Credentials & Accounts page even when a selected machine has no HappyHerd-managed named accounts, and Claude browser authorization now displays the provider link and accepts the returned one-time code, keeping the distinction from native provider CLI sign-ins honest."
+    },
+    {
+      "title": "September 12 — Workspace file and folder deletion",
+      "summary": "",
+      "markdown": "- Delete individual files and folders including contents from standalone or in-chat Workspace with explicit confirmation\n- Folder deletion available on machines running updated HappyHerd daemon"
+    },
+    {
+      "title": "September 12 — Stable chat images",
+      "summary": "",
+      "markdown": "- Unchanged chat images now remain visible when chat updates arrive, preventing repeated loading indicators and layout jumps.\n- Initial loading, source changes, and error retry actions remain supported."
+    },
+    {
+      "title": "September 12 — Mobile PDF page fitting",
+      "summary": "",
+      "markdown": "- Opening a PDF on mobile Web now fits the entire page within the reader area at the correct aspect ratio.\n- Added zoom, pinch, pan, page navigation, download, and fit reset controls."
+    },
+    {
+      "title": "September 10 — Persistent HappyHerd Assistant",
+      "summary": "",
+      "markdown": "- Automatically creates a persistent HappyHerd Assistant once the authenticated machine and supported provider are ready, allowing one account entry to be reused across restarts or another machine, which stays pinned on the web desktop or mobile beyond the recent list window.\n- Local session creation, task delivery, and response inspection use the existing daemon login without an additional account-control link."
+    },
+    {
+      "title": "September 10 — Sidebar Layout & Session Grouping Updates",
+      "summary": "",
+      "markdown": "- Local machine pairing works after binary installation.\n- Fixed packaged self-host server startup on Amazon Linux 2023.\n- Added project session lists and project grouping, with compact sidebar navigation."
+    },
+    {
+      "title": "September 10 — Workspace Layout Restoration",
+      "summary": "",
+      "markdown": "- Fixed a layout bug where the device selectors and path bars stretched vertically when displaying a missing directory, restoring the intended compact design."
+    },
+    {
+      "title": "September 9 — Bot Sync and Session Management",
+      "summary": "",
+      "markdown": "- Streamlined the Session Info panel to put Quick Actions first, with Changes opening the existing Workspace, and removed the duplicate large avatar, name, and status block.\n- Grouped mode displays Bots before Projects and includes distinct bot names, avatars, and owning machine details, while default flat mode preserves activity order.\n- Bot sessions use Archive on the connected owning machine and keep their conversation history. Delete is unavailable in the app, and failed archive requests remain visible for retry."
+    },
+    {
+      "title": "September 9 — Projects, Session UI, and Prepared Installer Bundles",
+      "summary": "",
+      "markdown": "- Wider Web Desktop New Session panel uses 16px rows and inputs and has a Show hidden toggle, Web Mobile touch gestures reach final folder and recent paths, and HTML/PDF previews fill the Workspace pane while Markdown, editor, and diff views retain reading width.\n- The Web Desktop session side panel has a draggable divider starting at 360px (up to 75% width) which preserves its width within the mounted view when reopened or changing tabs.\n- Create and rename independent account-owned Projects to organize and assign sessions across devices, using existing encrypted metadata while maintaining machine or path grouping for unassigned sessions.\n- Pin a configured Super Session to the top of session lists to reopen the same assistant session, supported by CLI option `--super-session` which requires a commander and machine path.\n- Prepare installer bundles for macOS and Linux requiring curl/tar to download assets, which need no local Node or source build and preserve server choice and state through upgrades."
+    },
+    {
+      "title": "September 8 — Side-chat permissions",
+      "summary": "",
+      "markdown": "- Added `--permission` alongside `--model` and `--effort` in `happyherd session side-chat create` and its parent-id shorthand. The owning daemon validates the permission against the parent's machine catalog before forking or starting, and creation receipts report the confirmed provider, model, effort, and permission."
+    },
+    {
+      "title": "September 7 — Open hosted pages directly from chat",
+      "summary": "",
+      "markdown": "- Click an agent's localhost page link to open it directly in the existing Workspace, beside your chat on desktop or full-screen on mobile Web. Copying and pasting into the URL field is no longer necessary.\n- Links use the originating Main Agent or Side chat's machine, not your browser's localhost or a previously selected machine. Ordinary website links and native behavior are unchanged."
+    },
+    {
+      "title": "September 6 — Enhanced Diff Views & Model Grouping",
+      "summary": "",
+      "markdown": "- **Enhanced Diff Viewer**: Files now start collapsed, highlighting code syntax and loading huge differences in smooth, manageable segments.\n- **Whitespace and Image Options**: Toggle whitespace ignore (initially off), expand hidden context with a click, and compare raster image changes side-by-side.\n- **Comment & Activity Improvements**: Inline preview comments are fully preserved, and the flattened activity list expands upward with support for hiding, attachments, and subagents.\n- **Organized Model Selection**: Models are grouped by provider, unavailable saved selections are disabled dynamically, and legacy configuration choices remain supported.\n- Agy now defaults to Gemini 3.8 Flash with medium effort and offers four logical models. Optional Claude Fable 5.1 supports a 1M context and low-to-max effort; Opus 5 remains the Claude default.\n- **Robust Connection Updates**: See clearer model provider errors and the current reported CLI version after reconnecting to your machine."
+    },
+    {
+      "title": "September 5 — Optimize font sizes and layout alignment on mobile web views",
+      "summary": "",
+      "markdown": "- Updated web editor and source preview fonts to exactly 16px and optimized gutter alignment for tighter mobile layouts."
+    },
+    {
+      "title": "September 5 — Workspace comment reliability",
+      "summary": "",
+      "markdown": "- Comment drafts and input focus now survive ordinary Workspace updates.\n- Editing a comment while sending preserves the unsent revision. Failed feedback sends retain text and images for retry.\n- Each chat retains its own Workspace comments, and open files keep feedback drafts and images when you switch tabs or browse folders. Delayed links respect newer navigation.\n- Files opened from cross-chat links retain reviews through temporary refresh failures, and feedback preserves the linked line and column."
+    },
+    {
+      "title": "September 5 — Preview and commenting enhancements",
+      "summary": "",
+      "markdown": "- Markdown and source previews on Web Desktop and Web Mobile now use consistent comment styling and spacing, with preserved inline threads and improved draft retention.\n- Deep links now scroll directly to highlighted source lines, and comment buttons follow hovered lines even while another comment is open.\n- Code-block comment buttons now remain clickable when code blocks scroll horizontally."
+    },
+    {
+      "title": "September 5 — Markdown review gutters and DSH mobile attachments",
+      "summary": "",
+      "markdown": "- Commentable rendered Markdown on Web Desktop and Web Mobile now displays a source-code-style gutter with the source line number followed by the comment `+` and rendered block, replacing the old yellow inline badge while preserving anchored Seam threads and batch sending.\n- Active DSH sessions on Web Mobile now expose one top-level **Attachments** row that opens the existing **Photos** and **Device files** choices; DSH Web Desktop, other providers, native surfaces, New Session, and HomeDock retain their existing attachment controls, while DSH uploads keep their exact selected-machine host paths."
+    },
+    {
+      "title": "September 4 — HappyHerd Web Workspace Comments Update",
+      "summary": "",
+      "markdown": "- Code and rendered Markdown comments now open at selected lines as visually anchored Seam threads, while Canvas-node and selected-machine localhost comments remain docked.\n- Pinned comments can be edited or removed, and a bottom review bar sends them as a single structured batch that is preserved on send failure, with light and dark theme support for Web Desktop and 390px Web Mobile (native surfaces unchanged)."
+    },
+    {
+      "title": "September 4 — DSH session resume",
+      "summary": "",
+      "markdown": "- HappyHerd now resumes retained DSH sessions on the same machine and working directory through ACP `session/resume`, while legacy ACP load-only providers still use `session/load`."
+    },
+    {
+      "title": "September 4 — Quota exhaustion rotation and service fallback",
+      "summary": "",
+      "markdown": "- Automatic switching still occurs when a usable alternate exists; otherwise a provider-named service row persists in the active conversation."
+    },
+    {
+      "title": "September 3 — Side chats across every supported provider",
+      "summary": "",
+      "markdown": "- Create same-provider side chats from Claude, Codex, Gemini, Grok, DSH, and Agy sessions. Claude and Codex retain native forks; delegated CLI creation gives the other providers a bounded visible-context handoff, while close and reopen preserve the same Happy side chat without claiming provider-native continuation where it is unavailable."
+    },
+    {
+      "title": "September 3 — Explicit side-chat model and effort",
+      "summary": "",
+      "markdown": "- `happyherd session side-chat create` now accepts optional `--model` and `--effort` selections, validates them on the owning daemon before spawning, and fails unsupported combinations instead of silently substituting another setting."
+    },
+    {
+      "title": "September 3 — Side-chat resource receipts",
+      "summary": "",
+      "markdown": "- Side-chat creation receipts now include a one-time snapshot of the owning machine's CPU, load averages, RAM, and swap at creation, so orchestrators can gate new work against current host pressure without adding a background monitor."
+    },
+    {
+      "title": "September 3 — dsh workspace attachments",
+      "summary": "",
+      "markdown": "- Attach Photos and Device files to dsh from Full New Session, native HomeDock, or an active Session; the next initial, follow-up, or queued message now includes their exact host paths for dsh file tools.\n- Files use the existing selected-machine workspace uploader, including its 20 MiB size limit, item limit, progress, cancel, retry, and failure behavior. They are not sent as inline binary prompts, and attachment behavior for Claude, Codex, Grok, and Rig is unchanged."
+    },
+    {
+      "title": "September 3 — dsh launch permission presets",
+      "summary": "",
+      "markdown": "- Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.\n- The active composer shows the daemon-confirmed launch preset as read-only status, so a running dsh session never implies an unsupported live permission switch."
+    },
+    {
+      "title": "September 3 — Sidebar collapse icon",
+      "summary": "",
+      "markdown": "- On Web Desktop, the sidebar boundary toggle now shows a standard sidebar-collapse icon when open and its mirrored expand icon when collapsed, while its clicking behavior, accessibility labels, position, rounded bordered control geometry, hover/pressed styling, and all other header/sidebar controls remain unchanged."
+    },
+    {
+      "title": "September 3 — Sidebar back control",
+      "summary": "",
+      "markdown": "- On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged."
+    },
+    {
+      "title": "September 3 — Truthful multi-provider usage totals",
+      "summary": "",
+      "markdown": "- Settings → Usage now tracks provider-native usage as idempotent provider events instead of overwriting Claude session snapshots; totals and charts count canonical usage once, and the provider breakdown reconciles the usage each provider actually reports.\n- Cost uses only provider-reported USD or provider per-model estimates. Missing provider token or cost fields and pre-upgrade legacy snapshots are labeled partial or unavailable instead of silently appearing complete."
+    },
+    {
+      "title": "September 3 — Localhost page review in Workspace",
+      "summary": "",
+      "markdown": "- Preview and comment directly on web pages running on the selected chat machine's localhost, 127.0.0.1, or [::1]; each element comment includes its HTML/CSS and a cropped screenshot sent to the active chat."
+    },
+    {
+      "title": "September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment",
+      "summary": "",
+      "markdown": "- The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.\n- A line-linked Markdown link (for example the `corrections.md` line-15 reproduction) now stays in the rendered, commentable **Preview** and reveals the matching rendered review unit — including the exact table row — instead of switching to a raw source surface. Raw text/code keeps its read-only line-commentable Preview.\n- Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.\n- On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.\n- Updated the Privacy Policy link in **Settings > About** to point to https://flern.co/privacy.\n- Updated the Terms of Service row in **Settings > About** to open https://flern.co/terms instead of the upstream GitHub TERMS.md URL.\n- Updated the Web version's **Settings > Support us** row to open the Buy Me a Coffee page with its original visual appearance and placement preserved, while native builds retain their existing voluntary-support paywall behavior.\n- Removed the HappyHerd descriptive footer paragraph in English, Chinese, and German from **Settings > About**, keeping every existing row and layout unchanged.\n- Updated the Settings > About screen to display the correct HappyHerd package version (1.2.2) alongside the build runtime.\n- Updated the GitHub row in **Settings > About** to display `NickGuAI/HappyHerd` and link directly to `https://github.com/NickGuAI/HappyHerd` in default builds.\n- In commentable rendered Markdown previews on Web Desktop and 390×844 Web Mobile, the 20×20 line-comment `+` now stays fully inside the Workspace gutter and matches the existing Pierre source-code comment button, while retaining hover/focus visibility on desktop and persistent visibility on touch."
+    },
+    {
+      "title": "September 2 — Project picker, chat presentation, and mobile layout enhancements",
+      "summary": "",
+      "markdown": "- On the New Session screen, tapping a recently visited project or path selects its exact canonical path, visually distinguishes named projects by their path, closes the picker, and launches there immediately.\n- Human message text is now centered, and wide Markdown tables preserve readable columns and horizontal touch or trackpad scrolling while vertical chat scrolling and exact-line comments remain fully functional.\n- On phone Web, all visible Chat and New Session text and text-entry controls—including dynamically shown modal content—now compute to at least 16 CSS pixels in both portrait and landscape orientations to prevent automatic iPhone focus zoom, without shrinking larger headings."
+    },
+    {
+      "title": "September 2 — Restored Markdown presentation and line comments",
+      "summary": "",
+      "markdown": "- Chat suggestion chips on desktop and mobile again use their established design without list bullets, indentation, or browser-default button styling; one tap or click sends exactly one option.\n- Shared Markdown is readable again in dark mode across text, links, quotes, code, syntax highlighting, tables, and chips, while the existing light appearance is unchanged.\n- In line-numbered Markdown and code previews, any visible line—including blank and long lines—can be tapped or clicked to pin an exact-line comment; comments still send together to the current chat without editing the file or blocking horizontal scrolling."
+    },
+    {
+      "title": "September 2 — Web load reliability and transfer optimization",
+      "summary": "",
+      "markdown": "- Fixed an issue where reloading the web application could result in a blank screen, ensuring that the interface and retained sessions now load reliably.\n- Reduced the initial transfer size of core application bundles by at least 70 percent through compression negotiation on self-hosted JavaScript assets."
+    },
+    {
+      "title": "September 2 — HappyHerd file viewer enhancements",
+      "summary": "",
+      "markdown": "- Relative links in Markdown file previews now open from the viewed file's directory without changing the originating session or machine.\n- Web file previews can pin line and canvas-node comments, then send all pinned feedback to the active chat in one message.\n- Web can open JSON Canvas 1.0 files as read-only interactive canvases with pan, zoom, selection, file links, and labeled edges."
+    },
+    {
+      "title": "September 2 — dsh sessions",
+      "summary": "",
+      "markdown": "- Start first-class dsh ACP sessions from Web Desktop or Web Mobile with the installed CLI's live model and reasoning-effort choices, existing one-shot Human tool approvals, exact validation before the first prompt, and an actionable error when capability discovery fails."
+    },
+    {
+      "title": "September 1 — Reliable Codex Side Chats",
+      "summary": "",
+      "markdown": "- Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory."
+    },
+    {
+      "title": "September 1 — Hidden navigation toggle no longer obstructs the visible session path",
+      "summary": "",
+      "markdown": "- On Web Desktop, when navigation is hidden through collapse or Zen mode, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background remains transparent, while hover, pressed, expand, collapse, and Zen behaviors remain."
+    },
+    {
+      "title": "September 1 — Interactive HTML preview",
+      "summary": "",
+      "markdown": "- Run inline JavaScript within HTML review artifacts directly inside the workspace iframe using a new explicit HTML mode, while keeping remote subresources, form submissions, nested frames, same-origin access, and popup or top navigation completely disabled."
+    },
+    {
+      "title": "September 1 — One Workspace for every chat",
+      "summary": "",
+      "markdown": "- Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.\n- Add existing files and folders directly to that chat's next message without uploading, copying, moving, or switching sessions; reply file links outside the current directory remain available in the same Workspace."
+    },
+    {
+      "title": "September 1 — User Safeguard",
+      "summary": "",
+      "markdown": "- Added an account-synced, default-off User Safeguard that applies happyherd-user-safeguard only to HappyHerd app-sent Human turns; direct terminal turns, scheduled jobs, memory maintenance, and heartbeats bypass it."
+    },
+    {
+      "title": "September 1 — File link workspace integration",
+      "summary": "",
+      "markdown": "- Absolute file links in agent chat responses now open directly in the existing workspace even if outside its working directory, allowing desktop and mobile web users to preview, edit, save, and submit feedback without altering the active workspace; Delete remains available on its existing supported desktop surface."
+    },
+    {
+      "title": "September 1 — Grok images render inline",
+      "summary": "",
+      "markdown": "- Grok-generated PNG and JPEG images now render inline in new replies and existing affected session history, while ordinary workspace images continue to use the connected machine."
+    },
+    {
+      "title": "September 1 — Unified Web composer actions",
+      "summary": "",
+      "markdown": "- Web Desktop and Web Mobile Main Agent and Side chats now share the plus composer menu while microphone and Send remain direct controls.\n- The menu now has one Attachments action and no Device files action, while Machine Workspace keeps arbitrary-file upload and narrow file feedback wraps without covering Send."
+    },
+    {
+      "title": "August 31 — One HappyHerd CLI command",
+      "summary": "",
+      "markdown": "- The public CLI now installs from `@happyherd/cli` and uses `happyherd` as its only primary command. Upgrades remove only the exact previously managed `happy` launcher and preserve unrelated commands."
+    },
+    {
+      "title": "August 31 — Scheduled Executables",
+      "summary": "",
+      "markdown": "- Users can schedule a fixed executable with exact arguments in HappyHerd, inspect success/failure history, and no agent session is created."
+    },
+    {
+      "title": "August 31 — Cross-Agent Session Handover",
+      "summary": "",
+      "markdown": "- Claude sessions can continue into a fresh linked Codex session (and Codex into Claude) on the exact same machine, workspace path/worktree, and Commander, leaving the original session available.\n- Source and target sessions are connected via navigation links, with a bounded set of recent visible conversation text delivered through the normal message path."
+    },
+    {
+      "title": "August 31 — Session Commander assignment from the CLI",
+      "summary": "",
+      "markdown": "- Support session creation with `create --commander` (validated on the target daemon), plus reassignment or detachment via `set-commander` (resolving IDs on the owning machine's canonical registry or using `none` to detach). Reassignment or detachment takes effect on next resume without altering live context."
+    },
+    {
+      "title": "August 31 — Machine Workspace routing and consolidated mobile actions",
+      "summary": "",
+      "markdown": "- Machine Workspace opened from an active Main Agent or Side chat now starts on the exact session machine and current working directory even in non-Git folders, though explicit deep links still take precedence and normal browsing remains available.\n- On Web Mobile, session workspace, permission, model, and effort settings, stop, queue, and attachment actions are consolidated into a single bottom-left plus menu, while the microphone and Send remain direct controls and Send remains send-only."
+    },
+    {
+      "title": "August 31 — Inline workspace images recover and retry",
+      "summary": "",
+      "markdown": "- Inline workspace images now automatically retry on temporary read failures, with an option to manually retry in-place if a failure persists."
+    },
+    {
+      "title": "August 31 — Credential pool follow-ups",
+      "summary": "",
+      "markdown": "- When automatic rotation resumes a replacement account, the quota panel clears the previous account's data and then shows only updates from the selected account.\n- After the replacement account successfully resumes the same conversation, chat shows one localized system notice naming the provider and the account switch.\n- `happyherd connect` now rejects malformed account options before authentication and keeps Claude's browser sign-in instructions from repeating while it waits."
+    },
+    {
+      "title": "August 31 — Workspace access and resizing stay consistent",
+      "summary": "",
+      "markdown": "- Changes, Chat Workspace, and Machine Workspace are now visibly accessible from sessions on Web Desktop and Web Mobile, and machine files open in the current chat's existing tabs.\n- Embedded Machine Workspace fills its chat workspace host, while the desktop divider can expand the workspace to 75% without replacing the mounted chat or unsaved file state."
+    },
+    {
+      "title": "August 31 — Unified Chat and Machine Workspaces",
+      "summary": "",
+      "markdown": "- Renamed the session file picker to Chat Workspace and added Machine Workspace so connected-machine files open in the same tabbed workspace.\n- File links from the current session, including line and column locations, remain in that workspace; feedback now sends the active file position to the Main Agent.\n- Removed the composer workspace shortcut to keep file access in the workspace controls."
+    },
+    {
+      "title": "August 31 — Resizable linked file workspace",
+      "summary": "",
+      "markdown": "- Files opened from a Main Agent conversation now use the same deduplicated tabs, file picker, and visibly draggable workspace as All Files instead of a second linked-file panel and feedback composer; narrow Web layouts use the same compact full-screen file workspace.\n- File viewing modes are now labeled Preview and Edit on desktop and mobile, with Delete remaining a separate action."
+    },
+    {
+      "title": "August 30 — Enhanced file workspaces",
+      "summary": "",
+      "markdown": "- Desktop file workspaces now feature a boundary sidebar toggle, a pointer-draggable divider, and focused Source, Edit, and Delete controls."
+    },
+    {
+      "title": "August 30 — Side chats open reliably",
+      "summary": "",
+      "markdown": "- Clicking the Side chats count now opens the selected parent session's newest Side chat on Web Desktop, even when another session remains loaded in the background.\n- Switching Side chats and collapsing the panel now behave consistently across Web Desktop and Web Mobile without creating an extra chat."
+    },
+    {
+      "title": "August 30 — Provider permissions stay consistent",
+      "summary": "",
+      "markdown": "- Claude `bypassPermissions` no longer prompts for executable tool approvals, including `ExitPlanMode`, while `AskUserQuestion` remains interactive input. `dontAsk` is available only when the exact machine advertises it and denies escalation without prompting; selecting explicit `default` exits bypass mode.\n- Codex permission, model, and effort choices survive app or terminal resume after exact-machine validation. Permission-changing followups submitted during active turns queue, `read-only` and `safe-yolo` deny late callbacks without approval UI, and `yolo` allows them without prompting.\n- GrokBuild, Antigravity, and retired Gemini permission displays remain aligned after an abort, and retired Gemini `yolo` no longer presents approval UI."
+    },
+    {
+      "title": "August 30 — Web Mobile session back navigation",
+      "summary": "",
+      "markdown": "- On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history."
+    },
+    {
+      "title": "August 30 — Side-by-side file workspace and tabbed navigation",
+      "summary": "",
+      "markdown": "- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.\n- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.\n- Viewing Changes or All Files temporarily replaces the file pane without unmounting open tabs or losing unsaved edits; closing Changes restores the active file, and choosing a file from All Files collapses the temporary navigation and focuses the selected tab.\n- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode."
+    },
+    {
+      "title": "August 30 — Dedicated dictation beside Send",
+      "summary": "",
+      "markdown": "- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.\n- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.\n- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured."
+    },
+    {
+      "title": "August 30 — Edit workspace files",
+      "summary": "",
+      "markdown": "- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path. Unsaved edits stay in place through transient refresh failures and require confirmation before leaving the file."
+    },
+    {
+      "title": "August 30 — Streamlined Automations Experience",
+      "summary": "",
+      "markdown": "- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.\n- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls."
+    },
+    {
+      "title": "August 29 — Side chats open consistently",
+      "summary": "",
+      "markdown": "- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.\n- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
+    },
+    {
+      "title": "August 29 — Chat microphone dictation drafts",
+      "summary": "",
+      "markdown": "- Updated the active chat composer microphone to perform OpenAI speech-to-text dictation using the configured OpenAI key instead of launching a separate realtime voice conversation, appending transcripts directly to existing message drafts for editing before sending while preserving recording controls, progress feedback, error handling, and retry support."
+    },
+    {
+      "title": "August 29 — Named provider accounts and automatic failover",
+      "summary": "",
+      "markdown": "- Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.\n- HappyHerd switches to the next available provider account upon reaching rate limits or hard quotas without losing transcript history or runtime context, using reactive and lazy selection without background quota polling.\n- When all accounts are limited, execution pauses and resumes automatically after the earliest account reset window elapses."
+    },
+    {
+      "title": "August 29 — Side chats carry bounded delegation briefs",
+      "summary": "",
+      "markdown": "- Main Agent creation runs through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.\n- Human one-click app creation and six-field Main Agent CLI creation both enter the dedicated daemon lifecycle; only the Main Agent path delivers a brief, and generic `spawn-happy-session` still rejects `isSideChat` before provider launch.\n- The CLI and daemon loopback API accept `inspect` for `status`, `pause` for `stop`, and `resume` for `reopen`, while receipts retain canonical action names and provider-native subagents remain the default inline fan-out."
+    },
+    {
+      "title": "August 29 — Attachment selection",
+      "summary": "",
+      "markdown": "- Attachment choices now appear in styled in-app surfaces (anchored popovers on desktop and web, safe-area bottom sheets on mobile) rather than system alert dialogs, while leaving system photo and file pickers unchanged."
+    },
+    {
+      "title": "August 29 — Projects, conversation controls, and voice polish",
+      "summary": "HappyHerd brings in the approved upstream project and conversation improvements without changing its provider defaults or self-hosted service boundary.",
+      "markdown": "- Home can switch between the existing flat inbox and Group by Project, with encrypted project details, project avatars, live Git changes, and archive gestures.\n- Provider-native permission choices, remembered grants, configured Claude models, Opus 5, and Happy Agent workspaces now flow through their owning runtimes while HappyHerd keeps its existing launch defaults.\n- Switch Grok permission modes during active sessions without losing your conversation history, path, or queued messages.\n- The composer retains one attachment menu, queued follow-ups, Workspace context, and response images while adding steadier scroll anchoring, compact Git and usage details, and clearer tool-group expansion.\n- Voice calls show a live duration and end when the call pill is tapped; the Features switch remains authoritative, calls stay on the configured HappyHerd server, and no upgrade prompt is shown.\n- Settings, empty states, recovery actions, subprocess behavior, and local source installs include the approved upstream fixes while the Features page and configurable session status bar remain available.\n- Sending a prompt from an archived session now resumes the original conversation on its original machine and working directory, preserving existing history and delivering your message as the next turn."
+    },
+    {
+      "title": "August 28 — Side chats have a complete CLI lifecycle",
+      "summary": "",
+      "markdown": "- The native CLI can now list, inspect, stop, close, reopen, or close every exact child side chat, with stable human and JSON receipts that identify partial failures.\n- Stopped and archived children remain discoverable after daemon restarts; close waits for provider shutdown and server state before encrypted archival, while reopen preserves the same conversation and parent lineage."
+    },
+    {
+      "title": "August 28 — GrokBuild permissions and tool details stay accurate",
+      "summary": "",
+      "markdown": "- GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.\n- GrokBuild and other ACP tool calls retain the provider's title, category, input, result, error, and call identity, so unfamiliar tools render meaningfully without provider-specific display entries."
+    },
+    {
+      "title": "August 28 — Commander pictures load only when enabled",
+      "summary": "",
+      "markdown": "- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls."
+    },
+    {
+      "title": "August 28 — Agent images and one attachment menu",
+      "summary": "",
+      "markdown": "- PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.\n- New and active chats now use one attachment button for Photos and Device files while keeping workspace browsing separate."
+    },
+    {
+      "title": "August 28 — Child-agent outcomes stay accurate",
+      "summary": "",
+      "markdown": "- Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.\n- When no child terminal evidence arrives, the activity timer ends as unknown instead of being mislabeled as interrupted; late and replayed provider outcomes correct the same child card without duplicates."
+    },
+    {
+      "title": "August 28 — Scheduled automations run without approval stalls",
+      "summary": "",
+      "markdown": "- Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.\n- Unexpected interactive permission requests fail the exact automation run without leaving an unanswerable approval, so later schedules can continue.\n- Operators can stop an exact daemon-tracked run or explicitly abandon a confirmed legacy orphan while preserving its history."
+    },
+    {
+      "title": "August 27 — One-command local HappyHerd install",
+      "summary": "",
+      "markdown": "- macOS and Linux users can install from source with one copy/paste command into their own home directory; no issuer, release manifest, checksum, privileged broker, credential vault, helper identity, or environment export is required.\n- First-run server selection defaults to the existing local Happy server at `http://127.0.0.1:3005`, persists an explicitly selected remote URL in normal Happy settings, and starts the ordinary detached daemon.\n- `happyherd` is now an exact alias for Happy. Existing Happy authentication, encrypted sessions, provider login, server state, and the separate governed-agent product remain unchanged.\n- Uninstall removes only managed program files. A separate legacy cleanup removes retired #98 broker/vault/helper artifacts while preserving `~/.happyherd`, provider homes, sessions, and user-managed Skills."
+    },
+    {
+      "title": "August 26 — Child side chats from the command line",
+      "summary": "",
+      "markdown": "- Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.\n- Side-chat creation now reuses the parent machine's already-authenticated local daemon; it no longer asks for a second account-control link or QR approval.\n- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible side-chat view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly."
+    },
+    {
+      "title": "August 26 — Start sessions on a selected machine",
+      "summary": "",
+      "markdown": "- The native `happy` CLI can link account-wide machine control through the Happy app, list linked-account machines, and create a tracked session on an exact machine ID or unambiguous hostname.\n- Machine control uses only its dedicated `agent.key`; native-session credentials cannot silently authorize machine commands.\n- Remote session creation requires a target-machine absolute path, keeps directory creation opt-in, and validates provider, model, effort, and permission choices again on the target daemon immediately before launch; providers without a mode catalog can still launch with their defaults.\n- New daemons advertise target-confirmed session protocol support; the CLI rejects older targets before sending a spawn request, while retained legacy callers remain compatible with their original settings-free receipts.\n- Success receipts report the target-confirmed effective settings after the new session persists them, rather than echoing the caller's requested overrides.\n- Session creation is explicitly limited to native Happy CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.\n- `happyherd` exposes the maintained commands through its unchanged native-command passthrough, including stable JSON receipts for automation."
+    },
+    {
+      "title": "August 26 — Agent Defaults cover every supported provider",
+      "summary": "",
+      "markdown": "- Agent Defaults now includes Claude Code, Codex, GrokBuild, Antigravity, and Happy, with each provider's preferences stored and cleared independently.\n- Agent Defaults now names and lets you change the exact machine supplying GrokBuild and Happy controls; unavailable providers show a clear machine-selection action instead of a blank card or borrowed choices.\n- New Session and Home clear provider-specific modes when switching providers, revalidate machine-owned defaults immediately before launch, and pass valid Happy defaults through its provider-native session request."
+    },
+    {
+      "title": "August 26 — Workspace images render in agent responses",
+      "summary": "",
+      "markdown": "- Workspace-relative Markdown images in main-agent and subagent responses now render inline from the originating session's machine and remain openable in Workspace.\n- Missing provenance, unavailable or oversized files, traversal outside the originating workspace, unsafe schemes, and content that does not match its image type stay inert or show the existing image failure state."
+    },
+    {
+      "title": "August 26 — Voice settings use your OpenAI key",
+      "summary": "",
+      "markdown": "- Voice settings no longer offers a voice upgrade; supported dictation transcription uses the configured OpenAI API key."
+    },
+    {
+      "title": "August 26 — Commander lists stay usable on narrow screens",
+      "summary": "",
+      "markdown": "- Start New Session now keeps long Commander lists inside a bounded, scrollable picker on narrow Web screens, so search and selection stay usable and every Commander remains reachable."
+    },
+    {
+      "title": "August 26 — Retired agent integration removed",
+      "summary": "",
+      "markdown": "- The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets."
+    },
+    {
+      "title": "August 26 — Commander pictures appear after upload",
+      "summary": "",
+      "markdown": "- Commander pictures up to 10 MiB now fit through the live machine connection after upload, so the session list shows the saved picture instead of falling back to initials."
+    },
+    {
+      "title": "August 26 — GrokBuild launch permissions",
+      "summary": "",
+      "markdown": "- New GrokBuild sessions list all permission modes advertised by the installed CLI: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, and `plan`.\n- Happy forwards the selected mode to GrokBuild's process launch without mixing it with ACP per-tool permissions, plan/build operating mode, or sandbox controls.\n- Active GrokBuild sessions no longer suggest that their launch permission can be switched mid-session."
+    },
+    {
+      "title": "August 25 — GrokBuild, session heartbeats, and completion-owned automations",
+      "summary": "",
+      "markdown": "- Automations no longer impose a run deadline: the provider owns completion, while historical timed-out runs remain visible as failed history.\n- Private, bounded `/automations` profiling separates route, RPC, daemon, and render time without recording user content or claiming a performance fix before production evidence exists.\n- `happyherd` forwards native Happy commands while its governed commands keep precedence.\n- GrokBuild sessions use the existing ACP runtime, with models, reasoning effort, permissions, and original-machine resume driven by the connected provider.\n- One exact-session heartbeat can return a recurring instruction to the same resumable Claude or Codex conversation through the existing queued-message path."
+    },
+    {
+      "title": "August 25 — Machine status stays steady and Archive responds immediately",
+      "summary": "",
+      "markdown": "- A page-load machine snapshot can no longer overwrite newer live presence, so sessions do not blink offline before the daemon's next heartbeat.\n- Archive on Session Info shows progress immediately and blocks repeat taps while the existing archive request finishes."
+    },
+    {
+      "title": "August 25 — Existing sessions keep their context after updates",
+      "summary": "",
+      "markdown": "- Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.\n- Codex resumes the original thread from the provider state home that created it, even when the replacement daemon starts with a different home.\n- An already-pruned local record can be rebuilt from its original local legacy key while preserving the same Happy session and machine."
+    },
+    {
+      "title": "August 25.5 — Quick fixes",
+      "summary": "",
+      "markdown": "- **Better backwards compatibility** — older CLIs work better, but for the best experience we recommend running `npm i -g happy` on your machines."
+    },
+    {
+      "title": "August 25 — Your list, your way",
+      "summary": "Thank you [@qqshDA](https://github.com/qqshDA) and [@theflysurfer](https://github.com/theflysurfer) for speaking up for layout choice—we are listening.",
+      "markdown": "- **Your layout** — choose Flat List or Group by Project from the sessions screen; the choice syncs across devices.\n- **Project view, rebuilt** — project avatars, live branch changes, and status dots make grouped sessions easier to scan.\n- **Avatar styles are back** — Brutalist, Pixelated, Gradient, and Black & White.\n- **\"Don't ask again\" sticks** — permission grants are remembered.\n- **On a Mac?** Native desktop app: [Happy Desktop](https://github.com/slopus/happy-desktop)."
+    },
+    {
+      "title": "August 24 — HappyHerd decision inbox",
+      "summary": "Home now keeps every conversation in one machine-exact decision inbox, with the Commander avatar itself carrying session state.",
+      "markdown": "- **One decision inbox** — sessions are ordered by real activity across projects, with search, worktree, exact daemon, activity time, Git changes, drafts, unread work, and action requests visible in one flat list; Archive remains separate.\n- **Commander status avatars** — the Commander picture (or provider identity and initials fallback) is wrapped by one accessible status ring for action required, unread, thinking, waiting, disconnected, or idle state.\n- **Exact daemon ownership** — model, permission, effort, path, and launch choices stay bound to the selected daemon registration; stale choices remain visible only for recovery and never route to another daemon.\n- **Provider-native controls** — Codex keeps Yolo as HappyHerd's default while supporting Auto, current 5.6 models, model-advertised effort levels, and provider-specific Default forwarding.\n- **Upstream improvements** — question cards, copy actions, composer controls, reconnect refresh, first-message recovery, Markdown fixes, and current deployment documentation arrive without weakening Workspace Links or queued-message ownership."
+    },
+    {
+      "title": "August 24 — Back to basics",
+      "summary": "Your sessions in one flat, colorful list — plus polish everywhere.",
+      "markdown": "- **One list** — every session in a single colorful column, active ones on top, project and worktree on each row. Archive is a tap away.\n- **Android** — model, effort, and permission pickers are readable again.\n- **Composer** — pick your agent and permission mode right where you type. Modes are one clear word, Auto first.\n- **Copy** — tap the icon next to an agent reply to copy it; long-press your own message.\n- **Gemini 3.6 Flash** — new in the Antigravity model picker.\n- Thank you to the community who merged fixes and improvements for this update: [@chphch](https://github.com/chphch), [@abhisheksoni27](https://github.com/abhisheksoni27), [@charliezong18](https://github.com/charliezong18)"
+    },
+    {
+      "title": "August 23 — Conversation links open the live machine Workspace",
+      "summary": "Explicit Markdown links to files and folders now open their live path on the machine that owns the conversation.",
+      "markdown": "- Relative links resolve from the conversation's working directory, while absolute paths and line or column hints stay attached to the originating machine and session.\n- Wide desktop layouts keep the conversation beside the Viewer; smaller layouts open the same machine-bound view full screen, with clear offline, missing-path, permission, and read-error states.\n- Text, dictated transcripts, and image feedback from the Viewer return to the originating conversation as one ordered message without exposing file contents in the transcript."
+    },
+    {
+      "title": "August 22 — Machine Workspace edits text files regardless of their names",
+      "summary": "Machine Workspace now opens and edits every regular UTF-8 text file the connected daemon user can access, including dotfiles and files whose extensions previously looked binary.",
+      "markdown": "- `.xxenv`, `.mcp.json`, extensionless configuration files, and UTF-8 text with arbitrary extensions follow the same read, edit, and save flow.\n- Native iOS and Android use a multiline editor instead of remaining on a loading indicator, while Web retains its code-aware editor.\n- Saves compare the file's exact bytes and preserve a UTF-8 byte-order mark; actual binary content, oversized files, and paths denied by the host operating system remain protected."
+    },
+    {
+      "title": "August 22 — Commander profile pictures are configurable per machine",
+      "summary": "Commander profile pictures are now an opt-in experimental feature with safe configuration on each HappyHerd machine.",
+      "markdown": "- Enable Commander Profile Pictures in Settings → Features, then choose a PNG, JPEG, or WebP image up to 2 MiB for a listed Commander—no machine IDs or file paths need to be typed.\n- Replacements are uploaded in bounded chunks and published atomically only when the existing `avatar.png` is still the version that was selected, including repair of an invalid existing image.\n- Enabled conversation lists show the machine-scoped picture and reuse the existing activity pulse while work is running; disabling the feature restores the original unread, draft, and activity indicators.\n- Machines that need a newer replacement protocol show an upgrade message without changing the current image."
+    },
+    {
+      "title": "August 22 — Machine switching now lives inside each automation project",
+      "summary": "The Automations page now follows the Project → Machine → Automation hierarchy without duplicating machine controls.",
+      "markdown": "- Each project contains its own machine selector and shows automation cards only for that project's selected machine.\n- Project selections remain independent, so switching machines in one project does not change another project.\n- Creating an automation exposes its target machine in the form, while editing stays pinned to the machine that owns the automation."
+    },
+    {
+      "title": "August 22 — Independent component deployment",
+      "summary": "HappyHerd operators can now update the component that changed without rebuilding or synchronizing the whole product.",
+      "markdown": "- The self-host server and bundled Web UI publish ordinary GHCR tags and deploy with one command plus a `/health` check.\n- The Happy CLI and host daemon install independently and retain Happy's native detached daemon lifecycle; server restarts do not own or interrupt Claude Code or Codex provider processes.\n- Mobile, governed-agent, and public-launcher releases remain independent lanes and run only when their own source changes.\n- Cross-host SHA locks, digest-only activation, generated release trees and receipts, deterministic all-component archives, and automatic rollback have been removed; an operator can redeploy any older server tag manually."
+    },
+    {
+      "title": "August 22 — Automations refresh only when their configuration can change",
+      "summary": "The Automations page now stays stable between meaningful machine or configuration changes.",
+      "markdown": "- Routine machine heartbeats keep online status current without repeatedly reloading every connected machine's automation and Commander configuration.\n- Automations reload when the page regains focus, a machine joins or leaves, daemon capabilities change, or an automation action completes.\n- An always-visible guide explains how to expand an automation, edit its project tags one per line, and place one automation in multiple project groups."
+    },
+    {
+      "title": "August 21 — Files and folders as message context",
+      "summary": "Machine Workspace now provides a complete create, upload, and context flow for both new and current conversations.",
+      "markdown": "- Create one safe child folder in the directory you are browsing, then navigate into it immediately.\n- Upload selection failures are reported, attachment limits are enforced before writing, in-flight batches stay pinned to their original machine and directory, and names containing spaces, `+`, `%`, `#`, or Unicode remain exact.\n- Select files or folders as context from Workspace or New Session; active Chat keeps their file/folder identity visible in the composer.\n- Text files are embedded within bounded untrusted-data markers, binary files remain exact host-path references, and folders contribute a deterministic bounded one-level listing."
+    },
+    {
+      "title": "August 21 — Queued messages stay visibly queued",
+      "summary": "Queue Msg follow-ups now appear in an ordered queue above the composer instead of looking like messages that already entered the conversation.",
+      "markdown": "- Waiting text and attachments stay together in a read-only queue panel and move into the conversation only when the owning runtime starts that work.\n- Batched follow-ups preserve their individual order and identity across Claude Code, Codex, reconnects, and message catch-up.\n- Failed local sends cannot leave ghost queue counts, while sessions on older runtimes retain their established transcript behavior."
+    },
+    {
+      "title": "August 21 — Automations grouped by project and machine",
+      "summary": "Automations now appear in a Project → Machine → Automation hierarchy across every online HappyHerd host.",
+      "markdown": "- Add one or more project tags while creating or editing an automation; multi-tag automations appear in each matching project and definitions without tags stay under Untagged.\n- One failed or offline machine no longer hides automations loaded from the other connected machines, and every action still targets the machine that owns that automation.\n- Older daemons continue to load their existing definitions safely as Untagged and show an upgrade prompt before tags can be edited.\n- The shared Automations route provides the same organization and tag controls on Web, mobile, and native iOS."
+    },
+    {
+      "title": "August 21 — Commander identity in every conversation",
+      "summary": "Compact conversation lists now show the selected Commander's profile image next to the conversation title.",
+      "markdown": "- Commander images are loaded from the owning machine and cached by machine plus Commander, so identities cannot cross between hosts.\n- Missing, invalid, oversized, or unavailable profile images fall back to the same deterministic generated avatar instead of hiding the conversation.\n- Conversations without a Commander retain their existing unread, draft, and activity indicators."
+    },
+    {
+      "title": "August 21 — Codex sessions recover from stale turns",
+      "summary": "Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.",
+      "markdown": "- HappyHerd retires stale local turn state only when Codex definitively reports that there is no active turn to steer.\n- The untouched follow-up, including its permissions, model settings, instructions, effort, and attachments, is queued exactly once as the next turn.\n- Ambiguous timeouts and transport errors are never replayed, and late lifecycle events cannot close a newer turn."
+    },
+    {
+      "title": "August 21 — One standalone AgentContext authority",
+      "summary": "HappyHerd session instructions now come from one canonical home without predecessor migration or compatibility state.",
+      "markdown": "- `HAPPY_HOME_DIR` is the sole HappyHerd instruction authority; one-time migration tooling and its frozen manifest are gone.\n- Commander identity requires the supported frontmatter contract instead of retired header parsing.\n- Intentional runtime-isolation checks still reject unsafe personal state paths."
+    },
+    {
+      "title": "August 17 — Install, connect, and verify HappyHerd locally",
+      "summary": "HappyHerd now ships a generic end-user launcher and traceable installers for macOS, Windows, and Linux.",
+      "markdown": "- `happyherd doctor` verifies the installed runtime, supported platform, Node.js, and operating-system secret-store adapter.\n- `happyherd connect <issuer>` discovers an organization through a standard well-known document and completes a ten-minute, one-time browser approval with PKCE and device proof.\n- Long-lived organization credentials stay in Keychain, Credential Manager, or Secret Service; there is no plaintext fallback and credentials never enter agent prompts or URLs.\n- `happyherd install-skills` verifies the ZIP, raw manifest, declared file inventory, minimum version, and canonical content digest before atomically publishing a generic bundle.\n- Verified Skills appear in both local Claude and Codex discovery roots through owned receipts; HappyHerd refuses collisions with user-managed Skills and blocks launch if a managed copy becomes stale.\n- `happyherd run-tool` re-verifies a manifest-declared script and supplies the issuer credential only to that child as `HAPPYHERD_ACCESS_TOKEN`, never to the agent session, arguments, registry, or receipts.\n- `happyherd launch claude` and `happyherd launch codex` use the bundled maintained Happy runtime.\n- Bundled Node.js and Python runtimes keep installation independent of host-language runtimes, while pinned offline installation accepts only an explicit local manifest and matching platform asset.\n- Isolated Windows tools run on a protected per-launch desktop inside the broker's service-specific noninteractive window station; temporary station access is removed after the contained process exits, and tools never receive access to the interactive desktop.\n- macOS installation and removal verify hidden service identities through structured Directory Service records, including paths and ownership markers that contain spaces.\n- Native uninstallers wait for the restarted broker to pass signed installation health checks before purging OS-store credentials.\n- Per-owner broker capabilities, isolated tool identities, bounded output, operation locks, provider-tree integrity checks, and detached-child containment keep organization access outside agent prompts and unrelated user sessions.\n- `happyherd upgrade` checks a source-traceable release manifest and reports the verified platform installer without replacing a running session.\n- Tagged `happyherd-v*` releases publish five native-platform assets, two installers, `SHA256SUMS`, and a manifest tied to the exact Git source SHA; SemVer prereleases are explicitly marked as prereleases instead of stable/latest releases."
+    },
+    {
+      "title": "August 16 — Governed agents without organization lock-in",
+      "summary": "HappyHerd now provides a manifest-driven Discord agent runtime that any organization can configure without adding its identity or provider routes to generic core code.",
+      "markdown": "- Claude, Codex, Automation, and governed-agent sessions now default to maximum available reasoning effort across the app, CLI, and deployment profiles.\n- Ordinary and governed Codex sessions can delegate proactively; governed child agents inherit the exact same read-only sandbox and manifest-only tool boundary.\n- Commander sessions automatically receive the selected `COMMANDER.md`, bounded L2 working memory, bounded L3 long-term memory, and nearest project guidance; L1 evidence remains on demand.\n- `/goal OBJECTIVE` now sets the Codex goal and immediately starts one normal turn for that objective, while `/goal clear` remains state-only.\n- Automation sessions are one-shot: they close only after authoritative provider and goal completion, preserve exact run provenance across daemon handoff, and automatically recycle after verified completion, failure, or timeout without touching ordinary sessions.\n- Daemon upgrades now preserve independent provider processes, rebuild only transient live registration, accept provider re-registration, and verify the exact release SHA before readiness.\n- `happy --version` is a pure query with immutable release identity, and unit tests no longer inherit Commander, reconnect, automation, or session state from the invoking shell.\n- Each deployment declares its own named tools, operation paths, scopes, shared-read policy, and write behavior in a validated manifest.\n- Every Discord surface maps to an encrypted HappyHerd Codex session carrying only an actor-bound capability and the declared tool descriptions.\n- Personal reads and confirmed writes stay in DM; guild conversations remain mention-gated and read-only.\n- Shell, filesystem mutation, arbitrary web access, undeclared connectors, and missing or expired authorization fail closed.\n- Dedicated bridge and agent service accounts keep Discord, service, HappyHerd, and Codex credentials separate from operator runtimes.\n- A first-time member can now send an exact one-time `link CODE` command in the bot DM; the runtime verifies it through the organization service without creating an agent session or retaining the code.\n- Organization authorization signatures now bind the configured agent ID together with the timestamp, replay nonce, and exact request-body hash.\n- Public-boundary verification now rejects embedded personal paths, private infrastructure, secret material, and organization-specific logic outside named examples."
+    },
+    {
+      "title": "August 15 — Focused automations and memory observation",
+      "summary": "Automations stay in their own workflow, while historical observation remains bounded and reviewable.",
+      "markdown": "- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.\n- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.\n- Automation-created sessions stay out of Home and Web Recent even when only part of their provenance is available; open successful runs from Automation History instead.\n- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers."
+    },
+    {
+      "title": "August 13 — Guided Commander onboarding",
+      "summary": "Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.",
+      "markdown": "- The Command Palette and the touch-accessible Commander picker on Web start the same localized onboarding session on the selected machine.\n- The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.\n- A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.\n- The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service."
+    },
+    {
+      "title": "August 13 — Upload into real workspaces",
+      "summary": "Files can now move from the phone or browser directly into a connected machine workspace.",
+      "markdown": "- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.\n- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.\n- Every batch reports per-file progress, can be cancelled after the current atomic host write, and retries only the unfinished files without reopening the picker.\n- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.\n- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store."
+    },
+    {
+      "title": "August 13 — Live conversation catch-up",
+      "summary": "Returning to a conversation now catches up without a manual browser refresh.",
+      "markdown": "- Visible sessions reconcile immediately when the browser regains network access.\n- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.\n- “Jump to latest” returns to the live edge in one action on mobile and desktop."
+    },
+    {
+      "title": "August 11 — Full access follows through",
+      "summary": "Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.",
+      "markdown": "- Explicit `full access` / `yolo` sessions keep Codex's approval request channel open.\n- HappyHerd automatically accepts those requests through its existing host approval bridge, so external actions authorized by full access can run.\n- Read-only, workspace-sandboxed, and ask-first modes keep their existing permission boundaries."
+    },
+    {
+      "title": "August 10 — Consistent sidebar actions",
+      "summary": "Machine Workspace and Automations now use the same compact sidebar control as New Session.",
+      "markdown": "- Primary sidebar destinations share one width, height, spacing, typography, and pressed state.\n- Navigation controls no longer stretch vertically when the session list is short or empty."
+    },
+    {
+      "title": "August 10 — Lean runtime state",
+      "summary": "HappyHerd's persistent home now contains durable user state instead of disposable provider transport files.",
+      "markdown": "- `agentcontext/` and `commanders/` remain the canonical AgentContext stores.\n- Generated Commander prompt bundles use the operating system's temporary directory and are removed after delivery.\n- Claude hook settings also use isolated operating-system temporary directories with automatic cleanup.\n- Codex's image cache remains available for local-image inputs and thread-history previews."
+    },
+    {
+      "title": "August 10 — Compact automation cards",
+      "summary": "Automation lists stay scannable while full controls remain one tap away.",
+      "markdown": "- Automation cards now default to a compact name-and-status summary.\n- Open any card to inspect its schedule, type, instruction, provider, workspace, actions, and run history.\n- Each card expands independently with accessible controls across mobile, desktop, light, and dark themes."
+    },
+    {
+      "title": "August 10 — Flexible machine setup",
+      "summary": "Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.",
+      "markdown": "- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.\n- Missing providers stay unavailable for new sessions instead of blocking the whole machine.\n- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.\n- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged."
+    },
+    {
+      "title": "August 9 — HappyHerd dogfood foundation",
+      "summary": "HappyHerd's owned product features are now recorded alongside the Happy updates we inherit.",
+      "markdown": "- Create or restore a self-hosted account with one visible, reusable account key.\n- Browse host-machine workspaces, preview images, PDFs, HTML, and Markdown, edit supported files, and attach workspace files to a session.\n- Use Claude Code and Codex subscriptions with canonical model choices, remembered effort, native steering, explicit queued messages, and provider-native resume.\n- Choose a Commander identity when starting a session; canonical `AGENTS.md` instructions and visible heartbeat or scheduled automations follow that identity.\n- Start sessions with text, images, or gated OpenAI voice dictation from the same composer capabilities used in chat.\n- Returning tabs and reconnected clients reconcile new conversation messages automatically; subagent activity is grouped and collapsed by default.\n- English, Simplified Chinese, and German UI catalogs are checked against a generated route, panel, modal, state, and accessibility inventory.\n- HappyHerd support links, reproducible releases, rollback contracts, and detached host-daemon lifecycle are maintained independently from upstream Happy."
+    },
+    {
+      "title": "August 9 — Rich agent replies",
+      "summary": "Agent and subagent replies now render safe Markdown and responsive images.",
+      "markdown": "- Main-agent and subagent replies share the same Markdown renderer.\n- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.\n- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.\n- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged."
+    },
+    {
+      "title": "August 7 — Gemini 3.6 Flash, Rig sessions",
+      "summary": "A new Gemini model, Rig as a first-class agent, and web scrolling fixes.",
+      "markdown": "- Gemini 3.6 Flash in the Antigravity model picker — High, Medium, and Low effort.\n- Start and manage native Rig sessions from Happy — connected Rig machines offer their models, permission modes, and effort levels right in the composer.\n- New sessions no longer launch with a stale agent after switching machines.\n- On web, wide tables and code blocks in chat scroll sideways with the trackpad.\n- Community Credits: [@abhisheksoni27](https://github.com/abhisheksoni27), [@charliezong18](https://github.com/charliezong18)"
+    },
+    {
+      "title": "August 3 — Composer and tool calls",
+      "summary": "Shorter tool output and a composer that behaves again.",
+      "markdown": "- Tool calls show as one-line rows you can open for details - turn it off with Compact Tool Calls in Settings → Appearance.\n- The mic is back in the send button - voice when the composer is empty, send once you've typed, stop while the agent works.\n- Model and effort sit together next to the send button, and no longer get cut off when you switch.\n- Model, effort, and permission pickers are legible again on iOS 26.\n- The send button is visible again on the light theme.\n- Composer pickers stay tappable while the keyboard is open."
+    },
+    {
+      "title": "July 28 - Liquid glass, Opus 5",
+      "summary": "A full mobile refresh and a new top model.",
+      "markdown": "- Liquid-glass mobile UI - glass surfaces across navigation, headers, modals, and session lists.\n- Opus 5 in the Claude model picker.\n- Side chats - fork a parallel conversation right next to your session.\n- Redesigned new-session screen - prompt, attachments, voice, model, effort, and permissions in one place. Drafts are preserved.\n- Pick your own sidebar panels, with keyboard shortcuts.\n- Session launch and resume are more reliable."
+    },
+    {
+      "title": "July 11 - GPT-5.6, Antigravity, bugfixes",
+      "summary": "New models, a new agent, and live subagent rendering.",
+      "markdown": "- GPT-5.6 Sol, Terra, and Luna in the Codex model picker.\n- New agent: Antigravity (agy) - Google's CLI (update the CLI first: `npm i -g happy`).\n- Claude and Codex subagents render live in chat.\n- Codex yolo actually stops asking for permissions.\n- New status bar - branch, model, effort, context. Tap to switch model or effort.\n- Your first machine appears immediately during onboarding.\n- Resuming phone-created sessions works reliably.\n- Message bubble colors in Settings → Appearance.\n- Model/permission/effort picks reset once - they now sync across devices."
+    },
+    {
+      "title": "July 2 - Fable in Claude Code",
+      "summary": "Fable is available from the Claude Code model picker.",
+      "markdown": ""
+    },
+    {
+      "title": "June 22 - Goals and cleaner commands",
+      "summary": "Agent goals and slash commands are easier to follow, with steadier remote sessions.",
+      "markdown": "- Active goals appear above the composer for supported Claude and Codex sessions.\n- `/goal` and skill commands render cleanly in chat instead of showing raw command internals.\n- Codex skills now appear in the slash-command menu.\n- Remote sessions handle first messages and resumed transcripts more reliably."
+    },
+    {
+      "title": "May 15 - Cleaner, steadier chat",
+      "summary": "Less clutter in the conversation, fewer stuck states, smoother scrolling.",
+      "markdown": "- Slash commands render as a clean chip - no more raw command markup or duplicated text.\n- Skill runs no longer dump a wall of raw instructions into the chat.\n- Chats pick up their real title instead of staying stuck on \"New chat\".\n- The view stays put while the agent streams - no more scroll jumps when you've scrolled up to read.\n- \"Permission required\" prompts clear properly after a session is interrupted.\n- Resumed sessions no longer replay your whole history as duplicate messages.\n- Slash-command and file autocomplete shows more results and keeps the highlighted item in view."
+    },
+    {
+      "title": "May 13 - Faster long chats",
+      "summary": "Long sessions open instantly. Messages load latest-first with older history streaming in on scroll.",
+      "markdown": "- Parallel decryption - no more freezing on sessions with thousands of messages.\n- Backward pagination - scroll up to load history on demand."
+    },
+    {
+      "title": "May 7 - Session retention, new sidebar, code editor, session branching",
+      "summary": "Desktop got a full refresh with a file browser, built-in editor, and zen mode. Sessions can now be branched or rewound.",
+      "markdown": "**Session retention: 2 months.** Older sessions are cleaned up automatically to keep storage costs manageable.\n\n## Features and fixes\n\n- Thinking effort selection bug fixed.\n- Smarter push notifications - suppressed when you're already in the app.\n- Unread dots persist on sessions until you open them.\n- Redesigned sidebar with file browser, code editor, and zen mode.\n- Fixed stale sessions refusing to load, blank screen on launch, dual cursors in remote mode, `claude --resume` not finding Happy sessions.\n\n## Experimental\n\nEnable in Settings → Features:\n\n- File diffs sidebar - see git changes next to chat on desktop.\n- Session fork & rewind - branch off any session or roll back to any message."
+    },
+    {
+      "title": "April 26 - Voice fixes, diffs, scroll",
+      "summary": "Voice actually works reliably now, plus better content rendering.",
+      "markdown": "- Voice calls no longer break on second session.\n- Tables and code blocks scroll horizontally.\n- New diff viewer with syntax highlighting and unified/split toggle.\n- Model and effort choices persist on mobile.\n- Permission prompts no longer get lost.\n- Settings stop randomly resetting during sync.\n- Scroll-to-bottom button in chat.\n- Delete machines from settings."
+    },
+    {
+      "title": "April 8 - Gemini models, voice onboarding, CLI fixes",
+      "summary": "New models, smoother onboarding, fewer CLI hangs.",
+      "markdown": "- Latest Gemini models in the picker.\n- Better voice onboarding - clearer first-run prompts.\n- CLI plan approval buttons actually show up now.\n- CLI background tasks and Codex turns no longer hang."
+    },
+    {
+      "title": "March 19 - New session screen, git worktrees, more agents",
+      "summary": "Completely new way to start sessions, plus worktree support and more agents.",
+      "markdown": "- New session composer - pick machine, worktree, draft persists.\n- Git worktree management from the app. Auto-cleanup on delete.\n- Auto plan mode when your agent enters planning.\n- Session quick actions, resume, delete from info screen.\n- \"Bypass\" renamed to \"yolo\"."
+    },
+    {
+      "title": "December 22 - Agent updates, voice changes, tables",
+      "summary": "Agent config changes and voice pricing heads-up.",
+      "markdown": "- Gemini support coming via ACP.\n- Model config removed from app - use CLI defaults.\n- Voice going subscription after 3 free trials.\n- Markdown tables render properly now."
+    },
+    {
+      "title": "September 12 - Codex, daemon mode, one-tap launch",
+      "summary": "Sessions start instantly now. No more manual CLI startup.",
+      "markdown": "- Codex support for code completion and generation.\n- Daemon mode - sessions start instantly without manual CLI startup.\n- One-tap launch from mobile.\n- Connect Anthropic and GPT accounts."
+    },
+    {
+      "title": "August 29 - GitHub integration",
+      "summary": "Your GitHub identity in Happy.",
+      "markdown": "- Connect your GitHub account via OAuth.\n- Avatar, name, and bio sync to the app.\n- Encrypted token storage."
+    },
+    {
+      "title": "June 26 - QR login, dark mode, voice",
+      "summary": "Link devices instantly, look good doing it.",
+      "markdown": "- QR code auth for instant device linking.\n- Dark theme with system preference detection.\n- Faster voice responses.\n- Modified file indicators in session list.\n- 15+ languages for voice."
+    },
+    {
+      "title": "May 12 - Hello world",
+      "summary": "First release. Everything is new.",
+      "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
+    }
+  ],
+  "latestTitle": "September 20 — HappyHerd app and server naming"
+}

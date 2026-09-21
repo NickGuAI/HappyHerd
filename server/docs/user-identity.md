@@ -1,8 +1,8 @@
 # User Identity Across Systems
 
-How a single Happy user is identified across every external service.
+How a single HappyHerd user is identified across every external service.
 
-## Primary ID: Happy Account CUID
+## Primary ID: HappyHerd Account CUID
 
 - **Type:** CUID (collision-resistant unique ID, string)
 - **Created:** On first auth via public-key signature verification (`Account.upsert` by `publicKey`)
@@ -13,7 +13,7 @@ How a single Happy user is identified across every external service.
 ## Identity Map
 
 ```
-Happy Account CUID (e.g. cm4x7k2...)
+HappyHerd Account CUID (e.g. cm4x7k2...)
 │
 ├─► ElevenLabs ── u_{base64url(HMAC-SHA256(CUID, MASTER_SECRET))}
 │                 Derived on every request, never stored.
@@ -56,17 +56,17 @@ Server extracts CUID from JWT via app.authenticate decorator
 
 | System | ID Type | Why |
 |--------|---------|-----|
-| ElevenLabs | HMAC-derived | Privacy — raw Happy ID never sent to ElevenLabs |
+| ElevenLabs | HMAC-derived | Privacy — raw HappyHerd ID never sent to ElevenLabs |
 | RevenueCat | Pass-through | Direct correlation needed for subscription API calls |
 | GitHub | Stored foreign key | Enables profile linking and account recovery via OAuth |
 | AI vendors | Stored encrypted | User-owned keys, need to be retrievable |
 
 ## Local Scripting
 
-To derive an ElevenLabs user ID from a Happy CUID locally:
+To derive an ElevenLabs user ID from a HappyHerd CUID locally:
 
 ```python
 import hmac, hashlib, base64
-digest = hmac.new(MASTER_SECRET.encode(), happy_cuid.encode(), hashlib.sha256).digest()
+digest = hmac.new(MASTER_SECRET.encode(), happyherd_cuid.encode(), hashlib.sha256).digest()
 eleven_id = "u_" + base64.b64encode(digest).decode().replace("+","-").replace("/","_").rstrip("=")
 ```

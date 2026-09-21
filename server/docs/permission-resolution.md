@@ -18,7 +18,7 @@ This document explains how permission mode is resolved for session messages, dep
 ## App-Side Resolution
 
 ### 1) Session state load/merge
-`packages/happy-app/sources/sync/storage.ts`
+`packages/happyherd-app/sources/sync/storage.ts`
 
 When sessions are merged, the app resolves `session.permissionMode` using this order:
 1. Existing in-memory session mode (if non-`default`)
@@ -29,14 +29,14 @@ When sessions are merged, the app resolves `session.permissionMode` using this o
    - Otherwise: `default`
 
 ### 2) New-session draft fallback
-`packages/happy-app/sources/sync/persistence.ts`
+`packages/happyherd-app/sources/sync/persistence.ts`
 
 If draft permission mode is missing:
 - Draft default: `default`
 
 ### 3) New session UI defaults
-`packages/happy-app/sources/app/(app)/new/index.tsx`
-`packages/happy-app/sources/components/NewSessionWizard.tsx`
+`packages/happyherd-app/sources/app/(app)/new/index.tsx`
+`packages/happyherd-app/sources/components/NewSessionWizard.tsx`
 
 Default selection:
 - `default`
@@ -44,7 +44,7 @@ Default selection:
 If selected mode is invalid for the currently selected agent, UI resets to agent default above.
 
 ### 4) Outbound message mode
-`packages/happy-app/sources/sync/sync.ts`
+`packages/happyherd-app/sources/sync/sync.ts`
 
 On send:
 - If `session.permissionMode` is non-`default`, send it.

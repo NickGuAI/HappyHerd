@@ -24,7 +24,7 @@ the provider and back.
    - GrokBuild: `references/grokbuild.md`
    - dsh: `references/dsh.md`
    - Antigravity: `references/antigravity.md`
-   - Happy provider: `references/happy.md`
+   - HappyHerd provider: `references/happyherd.md`
    - Retired Gemini compatibility: `references/gemini.md`
    - Generic ACP or OpenCode: `references/generic-acp.md`
 

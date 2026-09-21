@@ -107,7 +107,7 @@
     "@/utils/openExternalUrl",
     "@/sync/apiSocket",
     "expo-clipboard",
-    "@/hooks/useHappyAction",
+    "@/hooks/useHappyHerdAction",
     "expo-localization",
     "@/sync/persistence",
     "expo-font"

@@ -18,8 +18,8 @@ transport.
 
 Primary source files:
 
-- `../happy-adjacent/research/codex/codex-rs/app-server/README.md`
-- `../happy-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server/README.md`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 
 ## Transcript and live notifications
 
@@ -30,7 +30,7 @@ Codex leans heavily on typed notifications.
 - live streaming is done with dedicated delta notifications rather than a single text stream
 - the README explicitly warns that initial thread or turn payloads may be sparse; live notifications are the canonical source of active state
 
-This is a good reminder for Happy: a list endpoint and a stream endpoint should not be the same thing.
+This is a good reminder for HappyHerd: a list endpoint and a stream endpoint should not be the same thing.
 
 ## Subagents and collaboration
 
@@ -41,11 +41,11 @@ Codex models subagents as typed items, not hidden side effects.
 - thread metadata can indicate subagent origin and carry agent nickname/role
 - thread status and collab-agent state are explicit typed fields
 
-This is a good template for representing delegated work inside Happy without losing identity.
+This is a good template for representing delegated work inside HappyHerd without losing identity.
 
 Primary source files:
 
-- `../happy-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 
 ## Approval model
 
@@ -56,12 +56,12 @@ Codex's approval model is one of the best things in the repo.
 - the server later emits resolution notifications so UI state can clear correctly
 - reviewer identity can be the user or a guardian subagent
 
-Happy should copy this structure: normal event stream for state, explicit server requests for blocking decisions.
+HappyHerd should copy this structure: normal event stream for state, explicit server requests for blocking decisions.
 
 Primary source files:
 
-- `../happy-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/common.rs`
-- `../happy-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/common.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 
 ## Modes and model switching
 
@@ -82,7 +82,7 @@ Codex clearly wins on sandbox expressiveness.
 - there are Windows-specific setup flows for sandbox support
 - some commands are explicitly unsandboxed, which is documented rather than hidden
 
-This is a strong reference for Happy's server-side permission and sandbox contract.
+This is a strong reference for HappyHerd's server-side permission and sandbox contract.
 
 ## Resume, fork, and lifecycle
 
@@ -106,15 +106,15 @@ Codex is more serious than the others about backpressure and client capability d
 - slow websocket clients can be disconnected cleanly
 - notification filtering and experimental field gating exist per connection
 
-Happy should take this seriously if it wants robust mobile or multi-client session control.
+HappyHerd should take this seriously if it wants robust mobile or multi-client session control.
 
 Primary source files:
 
-- `../happy-adjacent/research/codex/codex-rs/app-server/src/lib.rs`
-- `../happy-adjacent/research/codex/codex-rs/app-server/src/transport.rs`
-- `../happy-adjacent/research/codex/codex-rs/app-server/src/thread_state.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server/src/lib.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server/src/transport.rs`
+- `../happyherd-adjacent/research/codex/codex-rs/app-server/src/thread_state.rs`
 
-## What Happy should steal
+## What HappyHerd should steal
 
 - explicit `thread` / `turn` / `item` protocol model
 - server-initiated approval requests

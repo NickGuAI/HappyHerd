@@ -32,7 +32,7 @@ PMAI Access API ──→ guide / CRM / Discord / Luma / member-owned Canva
 ```
 
 To adapt this example, copy `agent.env.example`, `agent-manifest.json`, and the
-`happy-home/` and `workspace/` context into an operator-owned deployment
+`happyherd-home/` and `workspace/` context into an operator-owned deployment
 profile. Replace every placeholder, install secrets as separate mode-0600
 files, and keep all organization-specific material outside the generic
 `packages/`, `scripts/`, and `deploy/` contracts.

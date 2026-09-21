@@ -22,7 +22,7 @@ import {
 } from './codex-oauth'
 import { registerAgentIpc } from './agent-worker/host'
 import { registerChatStoreIpc } from './chat-store'
-import { registerHappyIpc } from './happy-worker/host'
+import { registerHappyHerdIpc } from './happyherd-worker/host'
 import { projectWorkspacesDir, workspacesRootDir } from './app-storage'
 import {
     chooseVersionedName,
@@ -45,7 +45,7 @@ app.on('second-instance', () => {
 
 registerAgentIpc()
 registerChatStoreIpc()
-registerHappyIpc()
+registerHappyHerdIpc()
 
 const execFileAsync = promisify(execFile)
 

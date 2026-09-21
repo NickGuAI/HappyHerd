@@ -26,7 +26,7 @@ export const virtualModules = {
  const friend={id:'friend-review',firstName:'Robin',lastName:'Chen',username:'robin-review',avatar:null,bio:'Building thoughtful interfaces',status:'friend',relationship:'friend'};
  const request={...friend,id:'friend-request',firstName:'Sam',lastName:'Lane',username:'sam-review',status:'pending',relationship:'pending'};
  const friends=[friend],requests=[request];
- export const artifact={id:'fixture-id',title:'Interface review notes',body:'# KILV interface review\\n\\nWarm materials and clear hierarchy.\\n\\n- Review typography and contrast\\n- Check desktop and mobile layouts\\n\\n## Sample command\\n\\n~~~sh\\npnpm --filter happy-app test\\n~~~\\n',isDecrypted:true,headerVersion:1,bodyVersion:1,seq:1,createdAt:now-86400000,updatedAt:now};
+ export const artifact={id:'fixture-id',title:'Interface review notes',body:'# KILV interface review\\n\\nWarm materials and clear hierarchy.\\n\\n- Review typography and contrast\\n- Check desktop and mobile layouts\\n\\n## Sample command\\n\\n~~~sh\\npnpm --filter happyherd-app test\\n~~~\\n',isDecrypted:true,headerVersion:1,bodyVersion:1,seq:1,createdAt:now-86400000,updatedAt:now};
  const artifacts=[artifact,{...artifact,id:'second-artifact',title:'Release checklist',body:'Review notes'}];
  const settings={...settingsDefaults,experiments:true,avatarStyle:'brutalist',commanderProfilePictures:true,preferredLanguage:'en',voiceAssistantLanguage:'en'};
  const local={themePreference:new URLSearchParams(location.search).get('theme')||'light',devModeEnabled:false};
@@ -45,7 +45,7 @@ export const virtualModules = {
  '@/sync/apiServices': `export const disconnectService=async()=>{};export const connectService=async()=>{};`,
  '@/sync/apiPush': `export const fetchPushTokens=async()=>[];`,
  '@/sync/apiVoice': `export const fetchVoiceUsage=async()=>({usedSeconds:245,limitSeconds:3600,conversationCount:4,conversationLimit:30});export const fetchVoiceTranscriptionKeyStatus=async()=>({configured:true,source:'user'});export const configureVoiceTranscriptionKey=async()=>({configured:true,source:'user'});export const removeVoiceTranscriptionKey=async()=>({configured:false,source:null});export const testVoiceTranscriptionKey=async()=>{};`,
- '@/sync/persistence': `export const retrieveTempText=()=> 'KILV interface review\\n\\nSelect and copy this sample text.\\n\\npnpm --filter happy-app test\\n\\nTypography stays readable on desktop and mobile.';export const getVoiceLocalCounters=()=>({dictationCount:12,dictationSeconds:245,voiceAssistantCount:4,voiceAssistantSeconds:245});export const resetVoiceLocalCounters=()=>{};export const loadSettings=()=>({settings:{preferredLanguage:'en'}});`,
+ '@/sync/persistence': `export const retrieveTempText=()=> 'KILV interface review\\n\\nSelect and copy this sample text.\\n\\npnpm --filter happyherd-app test\\n\\nTypography stays readable on desktop and mobile.';export const getVoiceLocalCounters=()=>({dictationCount:12,dictationSeconds:245,voiceAssistantCount:4,voiceAssistantSeconds:245});export const resetVoiceLocalCounters=()=>{};export const loadSettings=()=>({settings:{preferredLanguage:'en'}});`,
  '@/hooks/useConnectAccount': `export const useConnectAccount=()=>({connectAccount:async()=>{},isConnecting:false});`,
  '@/hooks/useConnectTerminal': `export const useConnectTerminal=()=>({connectTerminal:async()=>{},isConnecting:false});`,
  '@/hooks/useNavigateToSession': `export const useNavigateToSession=()=>()=>{};`,
@@ -53,7 +53,7 @@ export const virtualModules = {
  '@/hooks/useSessionQuickActions': `export const useSessionQuickActions=()=>({onArchive:async()=>{},onResume:async()=>{},onDuplicate:async()=>{},isArchiving:false,isResuming:false,isDuplicating:false});`,
  '@/utils/copySessionMetadataToClipboard': `export const copySessionMetadataToClipboard=async()=>{};export const copySessionMetadataAndLogsToClipboard=async()=>{};`,
  '@/sync/serverConfig': `export const getServerUrl=()=>location.origin;export const isUsingCustomServer=()=>false;`,
- '@/sync/apiSocket': `export const getHappyClientId=()=> 'fixture';export const apiSocket={on(){},off(){},emit(){},connected:true,machineRPC:async()=>({}),sessionRPC:async()=>({})};`,
+ '@/sync/apiSocket': `export const getHappyHerdClientId=()=> 'fixture';export const apiSocket={on(){},off(){},emit(){},connected:true,machineRPC:async()=>({}),sessionRPC:async()=>({})};`,
  '@/utils/commanderAvatarUpload': `export class CommanderAvatarUploadError extends Error{};export const uploadCommanderAvatar=async()=>({});`,
  '@/utils/readFileBytes': `export const readFileBytes=async()=>new Uint8Array();`,
  '@/hooks/useCommanderAvatar': `export const useCommanderAvatar=()=>null;`,

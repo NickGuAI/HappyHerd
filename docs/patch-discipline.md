@@ -1,6 +1,6 @@
 # Owned patch discipline
 
-HappyHerd remains a reviewable distribution over Happy. The immutable tag
+HappyHerd remains a reviewable distribution over HappyHerd. The immutable tag
 `happyherd-owned-baseline-2026-08-02` identifies the pristine subtree boundary;
 its `server/` tree is byte-identical to `happy-upstream-base-2026-08-02`.
 

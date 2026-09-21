@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createEnvelope, type SessionEnvelope } from '@slopus/happy-wire';
+import { createEnvelope, type SessionEnvelope } from '@happyherd/wire';
 import { readPlanEntries } from '@/sessionProtocol/planEntries';
 
 /** Native plan bodies are content, not ExitPlanMode permission requests. */

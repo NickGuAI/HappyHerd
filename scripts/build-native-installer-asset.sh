@@ -129,14 +129,14 @@ deploy_locked() {
 
 (
   cd "$repo_root/server"
-  pnpm --filter @slopus/happy-wire --fail-if-no-match build
-  pnpm --filter happy-agent --fail-if-no-match build
+  pnpm --filter @happyherd/wire --fail-if-no-match build
+  pnpm --filter happyherd-control-agent --fail-if-no-match build
   pnpm --filter @happyherd/cli --fail-if-no-match build
-  pnpm --filter happy-server-self-host --fail-if-no-match build
-  pnpm --filter happy-server-self-host --fail-if-no-match bundle:webapp
+  pnpm --filter happyherd-server-self-host --fail-if-no-match build
+  pnpm --filter happyherd-server-self-host --fail-if-no-match bundle:webapp
 )
 deploy_locked @happyherd/cli "$runtime_stage"
-deploy_locked happy-server-self-host "$server_stage"
+deploy_locked happyherd-server-self-host "$server_stage"
 node "$repo_root/server/patches/fix-pglite-prisma-bytes.cjs" "$server_stage"
 
 [[ -f "$runtime_stage/bin/happyherd.mjs" ]] || { echo 'error: CLI deployment is incomplete' >&2; exit 1; }
@@ -174,10 +174,10 @@ node "$deployment_helper" \
   --phase finalize \
   --payload "$server_stage" \
   --server-root "$repo_root/server" \
-  --package-name happy-server-self-host
+  --package-name happyherd-server-self-host
 
 mkdir -p "$runtime_stage/node_modules"
-mv "$server_stage" "$runtime_stage/node_modules/happy-server-self-host"
+mv "$server_stage" "$runtime_stage/node_modules/happyherd-server-self-host"
 
 mkdir -p "$asset_root/node/bin"
 mv "$runtime_stage" "$asset_root/runtime"

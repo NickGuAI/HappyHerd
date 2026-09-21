@@ -286,14 +286,14 @@ stale statement for compatibility with this context.
   `bypassPermissions` still displayed approval prompts and that Grok tool calls
   rendered as `unknown`.
 - **Evidence inputs:** baseline `3eac2e3c`; installed `grok 1.0.5` help;
-  Happy wire and app schemas; CLI message admission, capability discovery,
+  HappyHerd wire and app schemas; CLI message admission, capability discovery,
   daemon spawn, ACP launch, permission handling, raw session-update mapping,
   backend-neutral messages, session-protocol mapping, app normalization,
   reducer, and generic tool rendering; ACP 0.14.1 schema; and Grok
   launch-permission commit `c56cef2c`.
 - **Observed causal chain:** Grok's launch mode reached the child process, but
   the generic ACP permission handler received no selected launch policy and
-  converted every callback into a pending Happy request. Independently, ACP
+  converted every callback into a pending HappyHerd request. Independently, ACP
   mapping discarded the required display `title` and `rawInput`, treated
   optional `kind` as identity, replaced the provider call ID, dropped outcome
   data at the wire boundary, and did not retain the initial descriptor for
@@ -337,7 +337,7 @@ stale statement for compatibility with this context.
   quota is cleared before a replacement provider loop, and partial updates merge
   only within one account. Rejected typed quota windows of any ID rotate through
   the existing reactive pool, with a narrow provider-marked API-error fallback;
-  warnings do not rotate. After the same Happy session successfully resumes, one
+  warnings do not rotate. After the same HappyHerd session successfully resumes, one
   encrypted provider/from/to event with a stable incident ID is persisted and
   rendered as a localized system row.
 - **Deterministic evidence:** focused connect, Claude remote/run, usage merge,

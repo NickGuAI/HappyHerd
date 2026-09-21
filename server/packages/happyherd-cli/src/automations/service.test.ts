@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { HappyHerdAutomationService, runHappyHerdExecCommand } from './service';
 import type { HappyHerdAutomationStore } from './store';
-import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
+import type { HappyHerdAutomationRun } from '@happyherd/wire';
 import type { Session } from '@/api/types';
 
 let root: string;

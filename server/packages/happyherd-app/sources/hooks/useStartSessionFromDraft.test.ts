@@ -1,0 +1,1538 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+    machines: [] as Array<{
+        id: string;
+        online: boolean;
+        metadata?: any;
+    }>,
+    sessions: [] as any[],
+    defaultOverrides: {},
+    experiments: true,
+    draft: null as any,
+    navigateToSession: vi.fn(),
+    machineSpawnNewSession: vi.fn(),
+    sessionSetAgentModes: vi.fn(),
+    refreshSessions: vi.fn(),
+    ensureSessionReady: vi.fn(),
+    sendMessage: vi.fn(),
+    createWorktree: vi.fn(),
+    machineStopSession: vi.fn(),
+    sessionKill: vi.fn(),
+    sessionArchive: vi.fn(),
+    alert: vi.fn(),
+    confirm: vi.fn(),
+    delay: vi.fn(),
+    getMachineAdvertisedPermissionModes: vi.fn(),
+    getMachineAdvertisedModels: vi.fn(),
+    getMachineAdvertisedEffortLevels: vi.fn(),
+    addWorkspaceContextEntry: vi.fn(),
+    buildWorkspaceContextMessage: vi.fn(),
+    clearWorkspaceContextFiles: vi.fn(),
+    uuidCount: 0,
+}));
+
+// Counts up so a test can tell a reused idempotency key from a fresh one.
+vi.mock('expo-crypto', () => ({ randomUUID: () => `rig-request-${++mocks.uuidCount}` }));
+
+vi.mock('react', () => ({
+    useState: <T,>(value: T) => [value, vi.fn()] as const,
+    useRef: <T,>(value: T) => ({ current: value }),
+    useCallback: <T,>(callback: T) => callback,
+    useEffect: (effect: () => void | (() => void)) => { effect(); },
+}));
+
+vi.mock('@/sync/storage', () => ({
+    useAllMachines: () => mocks.machines,
+    useSessions: () => mocks.sessions,
+    useSetting: (key: string) => key === 'experiments' ? mocks.experiments : mocks.defaultOverrides,
+    storage: {
+        getState: () => ({
+            machines: Object.fromEntries(mocks.machines.map((machine) => [machine.id, machine])),
+        }),
+    },
+}));
+
+vi.mock('@/sync/agentDefaults', () => ({
+    getCodeAgentDefaults: (agentType: string) => ({
+        permissionMode: agentType === 'claude' ? 'bypassPermissions' : 'yolo',
+        modelMode: 'default',
+        effortLevel: null,
+    }),
+    resolveAgentDefaultConfig: (
+        overrides: Record<string, unknown>,
+        agentType: string,
+    ) => overrides[agentType] ?? ({
+        permissionMode: 'default',
+        modelMode: 'default',
+        effortLevel: null,
+    }),
+    resolveAgentDefaultEffortLevel: (
+        overrides: Record<string, any>,
+        flavor: string,
+        efforts: Array<{ key: string }>,
+    ) => {
+        const configured = overrides?.[flavor]?.effortLevel;
+        if (configured && efforts.some((effort) => effort.key === configured)) return configured;
+        return flavor === 'claude' || flavor === 'codex' ? efforts.at(-1)?.key ?? null : null;
+    },
+}));
+
+vi.mock('@/sync/ops', () => ({
+    machineSpawnNewSession: mocks.machineSpawnNewSession,
+    sessionSetAgentModes: mocks.sessionSetAgentModes,
+    machineStopSession: mocks.machineStopSession,
+    sessionKill: mocks.sessionKill,
+    sessionArchive: mocks.sessionArchive,
+}));
+
+vi.mock('@/sync/sync', () => ({
+    sync: {
+        refreshSessions: mocks.refreshSessions,
+        ensureSessionReady: mocks.ensureSessionReady,
+        sendMessage: mocks.sendMessage,
+    },
+}));
+
+vi.mock('@/sync/workspaceContext', () => ({
+    addWorkspaceContextEntry: mocks.addWorkspaceContextEntry,
+    buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles: mocks.clearWorkspaceContextFiles,
+}));
+
+vi.mock('@/hooks/useNewSessionDraft', () => ({
+    useNewSessionDraft: {
+        getState: () => mocks.draft,
+    },
+}));
+
+vi.mock('@/hooks/useNavigateToSession', () => ({
+    useNavigateToSession: () => mocks.navigateToSession,
+}));
+
+vi.mock('@/utils/machineUtils', () => ({
+    isMachineOnline: (machine: { online: boolean }) => machine.online,
+}));
+
+vi.mock('@/utils/pathUtils', () => ({
+    resolveAbsolutePath: (path: string) => `/absolute/${path.replace(/^~\/?/, '')}`,
+}));
+
+vi.mock('@/utils/worktree', () => ({
+    createWorktree: mocks.createWorktree,
+}));
+
+vi.mock('@/utils/time', () => ({ delay: mocks.delay }));
+
+vi.mock('@/components/modelModeOptions', () => ({
+    getHardcodedPermissionModes: () => [
+        { key: 'auto', name: 'Auto', sinceCliVersion: '1.2.1-beta.2' },
+        { key: 'default', name: 'Default' },
+        { key: 'safe-yolo', name: 'Safe YOLO' },
+        { key: 'yolo', name: 'YOLO' },
+    ],
+    filterPermissionModesForCli: (
+        modes: Array<{ sinceCliVersion?: string }>,
+        cliVersion?: string,
+    ) => cliVersion === '1.2.0'
+        ? modes.filter((mode) => !mode.sinceCliVersion)
+        : modes,
+    getHardcodedModelModes: () => [
+        { key: 'default', name: 'Default' },
+        { key: 'opus', name: 'Opus' },
+    ],
+    getEffortLevelsForModel: () => [
+        { key: 'medium', name: 'Medium' },
+    ],
+    getMachineAdvertisedPermissionModes: mocks.getMachineAdvertisedPermissionModes,
+    getMachineAdvertisedModels: mocks.getMachineAdvertisedModels,
+    getMachineAdvertisedEffortLevels: mocks.getMachineAdvertisedEffortLevels,
+    getSupportsWorktree: (agentType: string) => agentType !== 'rig',
+    getAdvertisedDefaultOptionKey: (options: Array<{ key: string; isDefault?: boolean }>) => (
+        options.find((option) => option.isDefault)?.key ?? null
+    ),
+    includeConfiguredModel: (
+        flavor: string,
+        models: Array<{ key: string; name: string }>,
+        configuredModelKey?: string | null,
+    ) => flavor === 'codex'
+        && configuredModelKey
+        && configuredModelKey !== 'default'
+        && !models.some((model) => model.key === configuredModelKey)
+        ? [...models, { key: configuredModelKey, name: configuredModelKey, disabled: true, unavailable: true }]
+        : models,
+}));
+
+vi.mock('@/modal', () => ({
+    Modal: {
+        alert: mocks.alert,
+        confirm: mocks.confirm,
+    },
+}));
+
+vi.mock('@/text', () => ({
+    t: (key: string) => key,
+}));
+
+import { completeSpawnRequest, releaseSpawnedSession } from '@/sync/spawnRequestId';
+import { useStartSessionFromDraft } from './useStartSessionFromDraft';
+
+function createRigMachine(metadata: Record<string, unknown> = {}) {
+    return {
+        id: 'machine-1',
+        online: true,
+        metadata: {
+            homeDir: '/Users/dev',
+            machineKind: 'rig',
+            rigOnly: true,
+            cliAvailability: {
+                rig: true,
+                claude: false,
+                codex: false,
+                gemini: false,
+                detectedAt: 1,
+            },
+            capabilities: { newSession: true, resume: false, worktrees: false },
+            defaults: {
+                providerId: 'codex', modelId: 'model', permissionMode: 'auto', effort: 'high',
+            },
+            models: [{
+                providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+            }],
+            operatingModes: [{
+                code: 'auto', value: 'Auto', description: 'Automatic review', kind: 'safe-yolo',
+            }],
+            ...metadata,
+        },
+    };
+}
+
+function createPairedMachines() {
+    return [
+        {
+            id: 'cli-machine',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                host: 'laptop.local',
+                cliAvailability: {
+                    claude: true,
+                    codex: true,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+            },
+        },
+        {
+            ...createRigMachine({
+                host: 'laptop.local',
+                siblingMachineId: 'cli-machine',
+            }),
+            id: 'rig-machine',
+        },
+    ];
+}
+
+function createDraft(overrides: Record<string, unknown> = {}) {
+    return {
+        input: ' Start the implementation ',
+        attachments: [{ uri: 'file:///image.jpg' }],
+        selectedMachineId: 'machine-1',
+        selectedPath: '~/project',
+        agentType: 'codex',
+        permissionMode: null,
+        modelMode: null,
+        effortLevel: null,
+        sessionType: 'simple',
+        worktreeKey: null,
+        setInput: vi.fn(),
+        setAttachments: vi.fn(),
+        ...overrides,
+    };
+}
+
+function createDshMachine() {
+    return {
+        id: 'machine-1',
+        online: true,
+        metadata: {
+            homeDir: '/Users/dev',
+            cliAvailability: { dsh: true, detectedAt: 1 },
+            agentCapabilities: {
+                dsh: {
+                    detectedAt: 1,
+                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'dsh-profile' },
+                    models: [],
+                    effortLevels: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
+                    acp: { loadSession: false, prompt: { image: false } },
+                },
+            },
+        },
+    };
+}
+
+describe('useStartSessionFromDraft', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.uuidCount = 0;
+        completeSpawnRequest();
+        mocks.defaultOverrides = {};
+        mocks.sessions = [];
+        mocks.experiments = true;
+        mocks.machines = [{ id: 'machine-1', online: true, metadata: { homeDir: '/Users/dev' } }];
+        mocks.draft = createDraft();
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-1' });
+        mocks.refreshSessions.mockResolvedValue(undefined);
+        mocks.ensureSessionReady.mockResolvedValue(undefined);
+        mocks.sendMessage.mockResolvedValue(true);
+        mocks.confirm.mockResolvedValue(false);
+        mocks.machineStopSession.mockResolvedValue({ success: true });
+        mocks.sessionKill.mockResolvedValue({ success: true });
+        mocks.sessionArchive.mockResolvedValue({ success: true });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([]);
+        mocks.buildWorkspaceContextMessage.mockResolvedValue({
+            promptText: 'Start the implementation',
+            displayText: 'Start the implementation',
+        });
+    });
+
+    it('creates and opens the session directly from the home draft', async () => {
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'codex',
+            permissionMode: 'default',
+            modelMode: undefined,
+            effortLevel: 'medium',
+        });
+        expect(mocks.ensureSessionReady).toHaveBeenCalledWith('session-1');
+        expect(mocks.draft.setInput).toHaveBeenCalledWith('');
+        expect(mocks.draft.setAttachments).toHaveBeenCalledWith([]);
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('session-1');
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            { source: 'new_session', attachments: mocks.draft.attachments, signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
+        );
+        expect(mocks.navigateToSession.mock.invocationCallOrder[0])
+            .toBeGreaterThan(mocks.sendMessage.mock.invocationCallOrder[0]);
+    });
+
+    it('submits the visible Codex code default when an old CLI filters saved Auto', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: { homeDir: '/Users/dev', happyCliVersion: '1.2.0' },
+        }];
+        mocks.defaultOverrides = {
+            codex: {
+                permissionMode: 'auto',
+                modelMode: 'default',
+                effortLevel: null,
+            },
+        };
+        mocks.draft = createDraft({ permissionMode: 'auto' });
+
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            permissionMode: 'yolo',
+        }));
+    });
+
+    it('refuses a custom model that is not advertised for a new Codex session', async () => {
+        mocks.defaultOverrides = {
+            codex: {
+                permissionMode: 'default',
+                modelMode: 'my-workspace-model',
+                effortLevel: 'medium',
+            },
+        };
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+    });
+
+    it('does not spawn a stale Claude draft when the machine only has Codex', async () => {
+        mocks.defaultOverrides = {
+            codex: {
+                permissionMode: 'safe-yolo',
+                modelMode: 'default',
+                effortLevel: 'medium',
+            },
+        };
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: {
+                    claude: false,
+                    codex: true,
+                    gemini: false,
+                },
+            },
+        }];
+        mocks.draft = createDraft({
+            agentType: 'claude',
+            permissionMode: 'yolo',
+            modelMode: 'opus',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            name: 'uses dontAsk when the exact Claude machine advertises the saved default',
+            permissionModes: [
+                { key: 'dontAsk', name: 'Deny' },
+                { key: 'bypassPermissions', name: 'Yolo' },
+            ],
+            expected: 'dontAsk',
+        },
+        {
+            name: 'falls back when the exact Claude machine does not advertise the saved default',
+            permissionModes: [
+                { key: 'bypassPermissions', name: 'Yolo' },
+                { key: 'default', name: 'Default' },
+            ],
+            expected: 'bypassPermissions',
+        },
+    ])('$name', async ({ permissionModes, expected }) => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { claude: true, codex: true, gemini: false },
+                agentCapabilities: {
+                    claude: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            claude: {
+                permissionMode: 'dontAsk',
+                modelMode: 'claude-model',
+                effortLevel: 'high',
+            },
+        };
+        mocks.draft = createDraft({ agentType: 'claude' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue(permissionModes);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'claude-model', name: 'Claude' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'high', name: 'High' }]);
+
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'claude',
+            permissionMode: expected,
+        }));
+    });
+
+    it('starts GrokBuild only from the selected machine capability catalog', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: {
+                    claude: false,
+                    codex: false,
+                    grok: true,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                        acp: {
+                            loadSession: true,
+                            prompt: { image: false },
+                        },
+                    },
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'default', name: 'default', isDefault: true },
+            { key: 'acceptEdits', name: 'acceptEdits' },
+            { key: 'auto', name: 'auto' },
+            { key: 'dontAsk', name: 'dontAsk' },
+            { key: 'bypassPermissions', name: 'bypassPermissions' },
+            { key: 'plan', name: 'plan' },
+        ]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'grok-fast', name: 'Grok Fast' },
+            { key: 'grok-build', name: 'Grok Build', isDefault: true },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'quick', name: 'Quick' },
+            { key: 'deep', name: 'Deep', isDefault: true },
+        ]);
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            permissionMode: 'default',
+            modelMode: 'grok-build',
+            effortLevel: 'deep',
+        });
+        expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('session-1', {
+            permissionMode: 'default',
+            modelMode: 'grok-build',
+            effortLevel: 'deep',
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            { source: 'new_session', attachments: [], signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
+        );
+    });
+
+    it('starts dsh with its exact catalog defaults and keeps permission receipt-owned', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'deepseek-v4-flash', name: 'deepseek-v4-flash', isDefault: true },
+            { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro' },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'off', name: 'off' },
+            { key: 'low', name: 'low' },
+            { key: 'high', name: 'high', isDefault: true },
+            { key: 'max', name: 'max' },
+        ]);
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'read-only', name: 'read-only' },
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+            { key: 'danger-full-access', name: 'danger-full-access' },
+        ]);
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'dsh',
+            permissionMode: 'workspace-write',
+            modelMode: 'deepseek-v4-flash',
+            effortLevel: 'high',
+        });
+        expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('session-1', {
+            modelMode: 'deepseek-v4-flash',
+            effortLevel: 'high',
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            { source: 'new_session', attachments: [], signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function) },
+        );
+    });
+
+    it('binds HomeDock dsh workspace uploads to the exact initial message paths', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+        ]);
+        const workspaceEntries = [
+            {
+                path: '/absolute/project/photo.jpg',
+                kind: 'file' as const,
+                source: { kind: 'machine' as const, machineId: 'machine-1' },
+            },
+            {
+                path: '/absolute/project/report.pdf',
+                kind: 'file' as const,
+                source: { kind: 'machine' as const, machineId: 'machine-1' },
+            },
+        ];
+        mocks.buildWorkspaceContextMessage.mockResolvedValue({
+            promptText: 'Start the implementation\n\nUse exact files:\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+            displayText: 'Start the implementation\n\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession(workspaceEntries)).resolves.toBe(true);
+        expect(mocks.addWorkspaceContextEntry.mock.calls).toEqual([
+            ['session-1', workspaceEntries[0]],
+            ['session-1', workspaceEntries[1]],
+        ]);
+        expect(mocks.buildWorkspaceContextMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            workspaceEntries,
+            { machineFilesAsReferences: true },
+        );
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation\n\nUse exact files:\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+            {
+                source: 'new_session',
+                attachments: [],
+                displayText: 'Start the implementation\n\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+                signal: expect.any(AbortSignal), isCurrent: expect.any(Function), onAccepted: expect.any(Function),
+            },
+        );
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('session-1');
+    });
+
+    it('stops an opened session when HomeDock Stop wins a pending workspace-context read', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+        ]);
+        const workspaceEntries = [{
+            path: '/absolute/project/photo.jpg',
+            kind: 'file' as const,
+            source: { kind: 'machine' as const, machineId: 'machine-1' },
+        }];
+        mocks.buildWorkspaceContextMessage.mockReturnValue(new Promise(() => { }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession(workspaceEntries);
+        await vi.waitFor(() => expect(mocks.buildWorkspaceContextMessage).toHaveBeenCalledOnce());
+        cancelStart();
+
+        await expect(starting).resolves.toBe(false);
+        await vi.waitFor(() => {
+            expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+        });
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('session-1');
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+    });
+
+    it('omits GrokBuild launch dimensions that the exact machine does not expose', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            permissionMode: undefined,
+            modelMode: undefined,
+            effortLevel: undefined,
+        });
+    });
+
+    it('does not start GrokBuild without an advertised ACP catalog', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                grokCapabilityError: 'GrokBuild capability discovery failed. Run `grok login`.',
+                cliAvailability: {
+                    claude: false,
+                    codex: false,
+                    grok: true,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'GrokBuild capability discovery failed. Run `grok login`.',
+        );
+    });
+
+    it('shows the dsh discovery error instead of reusing a GrokBuild error when its catalog is missing', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                grokCapabilityError: 'GrokBuild capability discovery failed. Run `grok login`.',
+                dshCapabilityError: 'dsh capability discovery failed. Verify `dsh --profile acp` starts.',
+                cliAvailability: { dsh: true, detectedAt: 1 },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'dsh capability discovery failed. Verify `dsh --profile acp` starts.',
+        );
+    });
+
+    it('retries creation after the user approves a new directory', async () => {
+        mocks.machineSpawnNewSession
+            .mockResolvedValueOnce({ type: 'requestToApproveDirectoryCreation', directory: '/absolute/project' })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'session-2' });
+        mocks.confirm.mockResolvedValue(true);
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            approvedNewDirectoryCreation: false,
+        }));
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            approvedNewDirectoryCreation: true,
+        }));
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('session-2');
+    });
+
+    it('revalidates the exact GrokBuild catalog after directory approval', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            grok: { permissionMode: 'grok-mode', modelMode: 'grok-model', effortLevel: 'grok-effort' },
+        };
+        mocks.draft = createDraft({ agentType: 'grok' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([{ key: 'grok-mode', name: 'Mode' }]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'grok-model', name: 'Model' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'grok-effort', name: 'Effort' }]);
+        mocks.machineSpawnNewSession.mockResolvedValueOnce({
+            type: 'requestToApproveDirectoryCreation',
+            directory: '/absolute/project',
+        });
+        mocks.confirm.mockImplementation(async () => {
+            mocks.getMachineAdvertisedModels.mockReturnValue([
+                { key: 'replacement-model', name: 'Replacement' },
+            ]);
+            return true;
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('revalidates the exact dsh catalog after directory approval', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'deepseek-v4-flash', name: 'deepseek-v4-flash', isDefault: true },
+            { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro' },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'high', name: 'high', isDefault: true },
+        ]);
+        mocks.machineSpawnNewSession.mockResolvedValueOnce({
+            type: 'requestToApproveDirectoryCreation',
+            directory: '/absolute/project',
+        });
+        mocks.confirm.mockImplementation(async () => {
+            mocks.getMachineAdvertisedModels.mockReturnValue([
+                { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro', isDefault: true },
+            ]);
+            return true;
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('creates a Rig session from its machine catalog and retries pending idempotently', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                machineKind: 'rig',
+                rigOnly: true,
+                cliAvailability: {
+                    rig: true,
+                    claude: false,
+                    codex: false,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+                capabilities: { newSession: true, resume: false, worktrees: false },
+                defaults: {
+                    providerId: 'codex',
+                    modelId: 'gpt-5.6-sol',
+                    permissionMode: 'auto',
+                    effort: 'high',
+                },
+                models: [{
+                    providerId: 'codex',
+                    id: 'gpt-5.6-sol',
+                    name: 'GPT-5.6 Sol',
+                    providerName: 'OpenAI Codex',
+                    thinkingLevels: ['low', 'high'],
+                    defaultThinkingLevel: 'high',
+                }],
+                operatingModes: [{
+                    code: 'auto',
+                    value: 'Auto',
+                    description: 'Reviews elevated actions.',
+                    kind: 'safe-yolo',
+                }],
+            },
+        }];
+        mocks.draft = createDraft({
+            agentType: 'rig',
+        });
+        mocks.machineSpawnNewSession
+            .mockResolvedValueOnce({ type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 0 })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'rig-session-1' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+
+        const expected = expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+            clientRequestId: 'rig-request-1',
+            directory: '/absolute/project',
+            providerId: 'codex',
+            modelId: 'gpt-5.6-sol',
+            permissionMode: 'auto',
+            effort: 'high',
+        });
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(1, expected);
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(2, expected);
+        expect(mocks.delay).toHaveBeenCalledWith(250);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('rig-session-1');
+    });
+
+    it('refuses a normal Rig worktree when no worktree-capable daemon exists', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith('common.error', 'uiCopy.failedToCreateWorktree');
+    });
+
+    it('routes a paired-computer HappyHerd Agent draft to the Rig daemon', async () => {
+        mocks.machines = createPairedMachines();
+        // Home stores the canonical computer id, which is the HappyHerd CLI half.
+        mocks.draft = createDraft({
+            selectedMachineId: 'cli-machine',
+            agentType: 'rig',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'rig-machine',
+            agent: 'rig',
+        }));
+    });
+
+    it('uses paired HappyHerd CLI for a normal Rig worktree and still spawns on Rig', async () => {
+        mocks.machines = createPairedMachines();
+        mocks.draft = createDraft({
+            selectedMachineId: 'cli-machine',
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+        mocks.createWorktree.mockResolvedValue({
+            success: true,
+            worktreePath: '/worktrees/feature',
+            branchName: 'feature',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.createWorktree).toHaveBeenCalledWith('cli-machine', '/absolute/project');
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'rig-machine',
+            agent: 'rig',
+            directory: '/worktrees/feature',
+        }));
+    });
+
+    it('keeps an ordinary code-agent draft on the paired HappyHerd CLI daemon', async () => {
+        mocks.machines = createPairedMachines();
+        mocks.draft = createDraft({
+            selectedMachineId: 'rig-machine',
+            agentType: 'claude',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'cli-machine',
+            agent: 'claude',
+        }));
+    });
+
+    it('creates a HappyHerd Agent workspace through its native durable target', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.sessions = [{
+            id: 'project-session',
+            metadata: {
+                machineId: 'machine-1',
+                path: '~/project',
+                project: { id: 'project-1', kind: 'regular', name: 'happyherd' },
+            },
+        }];
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+        mocks.machineSpawnNewSession
+            .mockResolvedValueOnce({ type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 250 })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'rig-session-1' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(2);
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+            directory: '/absolute/project',
+            clientRequestId: 'rig-request-1',
+            happyherdAgentTarget: { kind: 'newWorkspace', projectId: 'project-1' },
+        }));
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            happyherdAgentTarget: { kind: 'newWorkspace', projectId: 'project-1' },
+            clientRequestId: 'rig-request-1',
+        }));
+    });
+
+    it('honors synchronized Rig defaults in the native spawn payload', async () => {
+        mocks.machines = [createRigMachine({
+            models: [
+                {
+                    providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                    thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+                },
+                {
+                    providerId: 'claude', id: 'alternate', name: 'Alternate', providerName: 'Claude',
+                    thinkingLevels: ['low', 'max'], defaultThinkingLevel: 'low',
+                },
+            ],
+            operatingModes: [
+                { code: 'auto', value: 'Auto', description: 'Automatic review', kind: 'safe-yolo' },
+                { code: 'careful', value: 'Careful', description: 'Ask first', kind: 'default' },
+            ],
+        })];
+        mocks.defaultOverrides = {
+            rig: {
+                permissionMode: 'careful',
+                modelMode: 'claude:alternate',
+                effortLevel: 'max',
+            },
+        };
+        mocks.draft = createDraft({ agentType: 'rig' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+            providerId: 'claude',
+            modelId: 'alternate',
+            permissionMode: 'careful',
+            effort: 'max',
+        }));
+    });
+
+    it('revalidates a GrokBuild model against the exact machine after worktree creation', async () => {
+        let finishWorktree!: (result: any) => void;
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            grok: { permissionMode: 'grok-mode', modelMode: 'grok-model', effortLevel: 'grok-effort' },
+        };
+        mocks.draft = createDraft({
+            agentType: 'grok',
+            sessionType: 'worktree',
+            worktreeKey: '__new__',
+        });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([{ key: 'grok-mode', name: 'Mode' }]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'grok-model', name: 'Model' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'grok-effort', name: 'Effort' }]);
+        mocks.createWorktree.mockReturnValue(new Promise((resolve) => { finishWorktree = resolve; }));
+
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        expect(mocks.createWorktree).toHaveBeenCalledOnce();
+
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'replacement-model', name: 'Replacement' }]);
+        finishWorktree({ success: true, worktreePath: '/worktree', branchName: 'branch' });
+
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('revalidates Rig defaults against the exact machine after worktree creation', async () => {
+        let finishWorktree!: (result: any) => void;
+        const machine = createRigMachine({
+            capabilities: { newSession: true, worktrees: true },
+            models: [
+                {
+                    providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                    thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+                },
+                {
+                    providerId: 'claude', id: 'alternate', name: 'Alternate', providerName: 'Claude',
+                    thinkingLevels: ['max'], defaultThinkingLevel: 'max',
+                },
+            ],
+        });
+        mocks.machines = [machine];
+        mocks.defaultOverrides = {
+            rig: { permissionMode: 'auto', modelMode: 'claude:alternate', effortLevel: 'max' },
+        };
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: '__new__',
+        });
+        mocks.createWorktree.mockReturnValue(new Promise((resolve) => { finishWorktree = resolve; }));
+
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        expect(mocks.createWorktree).toHaveBeenCalledOnce();
+
+        mocks.machines = [createRigMachine({
+            capabilities: { newSession: true, worktrees: true },
+            models: [machine.metadata.models[0]],
+        })];
+        finishWorktree({ success: true, worktreePath: '/worktree', branchName: 'branch' });
+
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('stops polling when a created Rig session remains pending', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                machineKind: 'rig',
+                rigOnly: true,
+                cliAvailability: {
+                    rig: true,
+                    claude: false,
+                    codex: false,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+                capabilities: { newSession: true, resume: false, worktrees: false },
+                defaults: {
+                    providerId: 'codex', modelId: 'model', permissionMode: 'auto', effort: 'high',
+                },
+                models: [{
+                    providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                    thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+                }],
+                operatingModes: [{
+                    code: 'auto', value: 'Auto', description: 'Automatic review', kind: 'safe-yolo',
+                }],
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'rig' });
+        mocks.machineSpawnNewSession.mockResolvedValue({
+            type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 2_000,
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(4);
+        expect(mocks.delay).toHaveBeenCalledTimes(3);
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappyHerd',
+        );
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+    });
+
+    it('degrades instead of crashing when a Rig machine publishes no operating modes', async () => {
+        mocks.machines = [createRigMachine({ operatingModes: [] })];
+        mocks.draft = createDraft({ agentType: 'rig' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+    });
+
+    it('routes an explicitly selected HappyHerd harness to that exact daemon', async () => {
+        mocks.experiments = false;
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({ agentType: 'rig' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+        }));
+    });
+
+    it('reuses the idempotency key when the user retries the same spawn', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({ agentType: 'rig' });
+        mocks.machineSpawnNewSession.mockResolvedValue({
+            type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 250,
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        // Rig stayed pending past the retry budget, so the user presses Start again.
+        await expect(startSession()).resolves.toBe(false);
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'rig-session-1' });
+        await expect(startSession()).resolves.toBe(true);
+
+        const requestIds = mocks.machineSpawnNewSession.mock.calls
+            .map(([options]) => options.clientRequestId);
+        expect(new Set(requestIds)).toEqual(new Set(['rig-request-1']));
+
+        // The spawn succeeded, so the next one is a genuinely new session.
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenLastCalledWith(expect.objectContaining({
+            clientRequestId: 'rig-request-2',
+        }));
+    });
+
+    // A machine that has gone quiet never answers, and the composer cannot be
+    // held hostage by it: Stop has to be the end of the wait, not a request to
+    // be considered once the machine gets around to replying.
+    it('gives the composer back the moment Stop is pressed, even mid-worktree', async () => {
+        mocks.draft = createDraft({ sessionType: 'worktree', worktreeKey: '__new__' });
+        mocks.createWorktree.mockReturnValue(new Promise(() => { }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession();
+        cancelStart();
+
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+    });
+
+    it('stops the session that lands after Stop was already pressed', async () => {
+        let landSpawn!: (result: unknown) => void;
+        mocks.machineSpawnNewSession.mockReturnValue(new Promise((resolve) => {
+            landSpawn = resolve;
+        }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession();
+        cancelStart();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+        // The machine was already spawning when Stop landed; nobody is on the
+        // screen any more, so the session is put down without them.
+        landSpawn({ type: 'success', sessionId: 'session-late' });
+        await vi.waitFor(() => {
+            expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-late');
+        });
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+    });
+
+    it('archives an abandoned session the daemon and the session both refuse', async () => {
+        mocks.machineStopSession.mockResolvedValue({ success: false });
+        mocks.sessionKill.mockResolvedValue({ success: false });
+        let landSpawn!: (result: unknown) => void;
+        mocks.machineSpawnNewSession.mockReturnValue(new Promise((resolve) => {
+            landSpawn = resolve;
+        }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession();
+        cancelStart();
+        await expect(starting).resolves.toBe(false);
+
+        landSpawn({ type: 'success', sessionId: 'session-late' });
+        await vi.waitFor(() => {
+            expect(mocks.sessionArchive).toHaveBeenCalledWith('session-late');
+        });
+    });
+
+    // The failure this guards against: an await that never returns held the
+    // flow open, so the composer stayed stuck and every later Start was
+    // refused as "already starting". Stop must let go of the flow itself, not
+    // ask the flow to notice and let go on its way past.
+    it('frees the composer for a new Start even while the old one never settles', async () => {
+        mocks.draft = createDraft({ sessionType: 'worktree', worktreeKey: '__new__' });
+        mocks.createWorktree.mockReturnValueOnce(new Promise(() => { }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const abandoned = startSession();
+        cancelStart();
+        await expect(abandoned).resolves.toBe(false);
+
+        // Nothing ever answered the first attempt — it is still sitting on that
+        // promise — and the next Start still goes through.
+        mocks.createWorktree.mockResolvedValue({
+            success: true, worktreePath: '/absolute/project/.dev/worktree/w', branchName: 'w',
+        });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('session-1');
+    });
+
+    // A step of the abandoned attempt finishing late must not raise a spinner
+    // over a composer that has already been handed back.
+    it('lets a late step of a canceled attempt touch nothing', async () => {
+        let finishWorktree!: (result: unknown) => void;
+        mocks.draft = createDraft({ sessionType: 'worktree', worktreeKey: '__new__' });
+        mocks.createWorktree.mockReturnValueOnce(new Promise((resolve) => {
+            finishWorktree = resolve;
+        }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const abandoned = startSession();
+        cancelStart();
+        await expect(abandoned).resolves.toBe(false);
+
+        finishWorktree({
+            success: true, worktreePath: '/absolute/project/.dev/worktree/late', branchName: 'late',
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+    });
+
+    it('gives the next Start a fresh key after a Stop', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({ agentType: 'rig' });
+        mocks.machineSpawnNewSession.mockReturnValue(new Promise(() => { }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession();
+        cancelStart();
+        await expect(starting).resolves.toBe(false);
+
+        // The stopped session's key is spent — reusing it would dedupe the
+        // retry straight back onto the session just killed.
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'rig-session-2' });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenLastCalledWith(expect.objectContaining({
+            clientRequestId: 'rig-request-2',
+        }));
+    });
+
+    // Stop hands the composer back synchronously, so a retry can be pressed
+    // before the canceled attempt has resumed even once. If the key were still
+    // pending at that moment the machine would dedupe the retry straight onto
+    // the session the cancel is busy killing.
+    it('does not hand the canceled key to a Start pressed on the same tick', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({ agentType: 'rig' });
+        let landFirstSpawn!: (result: unknown) => void;
+        mocks.machineSpawnNewSession.mockReturnValueOnce(new Promise((resolve) => {
+            landFirstSpawn = resolve;
+        }));
+
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const abandoned = startSession();
+        cancelStart();
+
+        // No await in between: the canceled attempt has not resumed yet.
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'rig-session-2' });
+        const retry = startSession();
+
+        await expect(abandoned).resolves.toBe(false);
+        await expect(retry).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenLastCalledWith(expect.objectContaining({
+            clientRequestId: 'rig-request-2',
+        }));
+
+        // The first attempt's session still gets put down, and the retry's is
+        // left alone.
+        landFirstSpawn({ type: 'success', sessionId: 'rig-session-1' });
+        await vi.waitFor(() => {
+            expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'rig-session-1');
+        });
+        expect(mocks.machineStopSession).not.toHaveBeenCalledWith('machine-1', 'rig-session-2');
+    });
+
+    it('backs off with the published delay when a pending result omits one', async () => {
+        mocks.machines = [createRigMachine({
+            sessionCreation: {
+                idempotencyKey: 'clientRequestId',
+                pendingRetryAfterMs: 4_000,
+                resultKinds: ['success', 'pending'],
+            },
+        })];
+        mocks.draft = createDraft({ agentType: 'rig' });
+        mocks.machineSpawnNewSession
+            .mockResolvedValueOnce({ type: 'pending', clientRequestId: 'rig-request-1' })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'rig-session-1' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.delay).toHaveBeenCalledWith(4_000);
+    });
+
+    it('keeps the draft in place when creation fails', async () => {
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'error', errorMessage: 'Machine rejected the request' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+
+        expect(mocks.alert).toHaveBeenCalledWith('common.error', 'Machine rejected the request');
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('preserves text and attachments on failed placement, and retries the already-created CLI session', async () => {
+        mocks.sendMessage.mockResolvedValueOnce(false).mockResolvedValue(true);
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(mocks.sendMessage.mock.calls.map(call => call[0])).toEqual(['session-1', 'session-1']);
+    });
+
+    it('does not clear a newer draft edited during first-message placement', async () => {
+        let finish!: (accepted: boolean) => void;
+        mocks.sendMessage.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+        const originalDraft = mocks.draft;
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledOnce());
+        mocks.draft = createDraft({ input: 'new text', attachments: [] });
+        finish(true);
+        await expect(starting).resolves.toBe(true);
+        expect(originalDraft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+    });
+
+    it('cleans up a created unsent session when retry changes destination', async () => {
+        mocks.sendMessage.mockResolvedValueOnce(false).mockResolvedValue(true);
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        mocks.draft = createDraft({ selectedPath: '~/different' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-2' });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+        expect(mocks.machineStopSession).not.toHaveBeenCalledWith('machine-1', 'session-2');
+        expect(mocks.sendMessage.mock.calls[1][0]).toBe('session-2');
+    });
+
+    it('Stop during hydration prevents a late first send', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        cancelStart();
+        await expect(starting).resolves.toBe(false);
+        finish();
+        await Promise.resolve();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+    });
+
+    it('changing the destination during hydration cancels the first send without consuming the draft', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        mocks.draft = createDraft({ selectedPath: '~/different' });
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-1');
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+    });
+
+    it.each(['target-change', 'stop'])('never kills a session adopted while hydration is pending: %s', async (action) => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        releaseSpawnedSession('session-1');
+        if (action === 'stop') cancelStart();
+        else mocks.draft = createDraft({ selectedPath: '~/different' });
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).not.toHaveBeenCalled();
+        expect(mocks.sessionKill).not.toHaveBeenCalled();
+        expect(mocks.sessionArchive).not.toHaveBeenCalled();
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+    });
+
+    it('Stop after outbox acceptance cannot turn an accepted prompt into an unsent draft', async () => {
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        mocks.sendMessage.mockImplementation(async (_id, _text, options) => {
+            options.onAccepted();
+            cancelStart();
+            return true;
+        });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.draft.setInput).toHaveBeenCalledWith('');
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('session-1');
+        expect(mocks.machineStopSession).not.toHaveBeenCalled();
+    });
+});

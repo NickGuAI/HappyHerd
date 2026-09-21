@@ -335,7 +335,9 @@ function currentOwnedPaths() {
   let changed = [];
   try {
     git(['rev-parse', '--verify', `${baselineTag}^{commit}`]);
-    changed = nulList(git(['diff', '--name-only', '-z', baselineTag, '--']));
+    // Exact path-only relocations retain already-public upstream bytes. Any
+    // content edit makes the destination an addition and receives the full scan.
+    changed = nulList(git(['diff', '--find-renames=100%', '--diff-filter=ACMT', '--name-only', '-z', baselineTag, '--']));
   } catch {
     changed = tracked;
   }
@@ -373,7 +375,7 @@ function historyEntries() {
   }
   const entries = [];
   for (const commit of commits) {
-    const paths = nulList(git(['diff-tree', '--no-commit-id', '--name-only', '--diff-filter=AMCR', '-r', '-z', commit]));
+    const paths = nulList(git(['diff-tree', '--find-renames=100%', '--no-commit-id', '--name-only', '--diff-filter=AMC', '-r', '-z', commit]));
     for (const path of paths) {
       let buffer;
       try {

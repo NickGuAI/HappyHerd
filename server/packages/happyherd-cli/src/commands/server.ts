@@ -20,7 +20,7 @@ const PRISMA_QUERY_ENGINE_FILES: Record<string, string> = {
     'x64-linux': 'libquery_engine-debian-openssl-3.0.x.so.node',
     'x64-win32': 'query_engine-windows.dll.node',
 };
-const SERVER_PACKAGE_NAME = 'happy-server-self-host';
+const SERVER_PACKAGE_NAME = 'happyherd-server-self-host';
 const SETTINGS_WRITE_CONFIRM_FLAG = '--i-understand-this-will-modify-default-happyherd-settings';
 
 interface ServerOptions {
@@ -81,11 +81,11 @@ export async function handleServerCommand(args: string[]): Promise<void> {
 
     const artifacts = resolveServerArtifacts();
     if (!artifacts) {
-        console.error(chalk.red('Could not locate happy-server.'));
+        console.error(chalk.red('Could not locate happyherd-server.'));
         console.error(chalk.gray('  Expected one of:'));
         console.error(chalk.gray(`    - installed ${SERVER_PACKAGE_NAME} package`));
         console.error(chalk.gray(`    - legacy bundled binary at ${path.join(__dirname, '..', '..', 'tools', 'server', currentPlatform(), bundledBinaryName())}`));
-        console.error(chalk.gray('    - sibling packages/happy-server/sources/standalone.ts in the monorepo'));
+        console.error(chalk.gray('    - sibling packages/happyherd-server/sources/standalone.ts in the monorepo'));
         console.error(chalk.gray(`  For npm installs, run: npm install -g ${SERVER_PACKAGE_NAME}`));
         process.exit(1);
     }
@@ -152,7 +152,7 @@ export async function handleServerCommand(args: string[]): Promise<void> {
     const child = spawnBackground(artifacts, env, ['serve']);
 
     console.log();
-    console.log(chalk.green.bold(`✓ happy-server starting at ${serverUrl}`));
+    console.log(chalk.green.bold(`✓ happyherd-server starting at ${serverUrl}`));
     if (staticDir) {
         console.log(chalk.green(`  Open ${serverUrl} in your browser.`));
     }
@@ -170,7 +170,7 @@ export async function handleServerCommand(args: string[]): Promise<void> {
 
     const exitCode = await new Promise<number>(resolve => {
         child.on('exit', code => {
-            console.log(chalk.gray(`\nhappy-server exited (code ${code ?? 0})`));
+            console.log(chalk.gray(`\nhappyherd-server exited (code ${code ?? 0})`));
             resolve(code ?? 0);
         });
     });
@@ -331,7 +331,7 @@ function resolveToolsPath(name: string): string {
 }
 
 function bundledBinaryName(): string {
-    return process.platform === 'win32' ? 'happy-server.exe' : 'happy-server';
+    return process.platform === 'win32' ? 'happyherd-server.exe' : 'happyherd-server';
 }
 
 function ensureExecutable(file: string): void {
@@ -353,12 +353,12 @@ function serverArtifactMode(artifacts: ServerArtifacts): string {
 }
 
 /**
- * Resolves the artifacts needed to spawn happy-server.
+ * Resolves the artifacts needed to spawn happyherd-server.
  *
  * Order:
- *   1. happy-server-self-host package (npm-installed local server artifact)
- *   2. Legacy bundled binary at tools/server/<platform>/happy-server
- *   3. Source-mode fallback for monorepo dev: ../happy-server/sources/standalone.ts via tsx
+ *   1. happyherd-server-self-host package (npm-installed local server artifact)
+ *   2. Legacy bundled binary at tools/server/<platform>/happyherd-server
+ *   3. Source-mode fallback for monorepo dev: ../happyherd-server/sources/standalone.ts via tsx
  */
 function resolveServerArtifacts(): ServerArtifacts | undefined {
     const packageArtifact = resolveInstalledServerPackage();
@@ -413,10 +413,10 @@ function resolveInstalledServerPackage(): ServerArtifacts | undefined {
 
 function findSourceStandalone(): string | undefined {
     const candidates = [
-        path.resolve(__dirname, '../../../happy-server/sources/standalone.ts'),
-        path.resolve(__dirname, '../../happy-server/sources/standalone.ts'),
-        path.resolve(process.cwd(), 'packages/happy-server/sources/standalone.ts'),
-        path.resolve(process.cwd(), '../happy-server/sources/standalone.ts'),
+        path.resolve(__dirname, '../../../happyherd-server/sources/standalone.ts'),
+        path.resolve(__dirname, '../../happyherd-server/sources/standalone.ts'),
+        path.resolve(process.cwd(), 'packages/happyherd-server/sources/standalone.ts'),
+        path.resolve(process.cwd(), '../happyherd-server/sources/standalone.ts'),
     ];
     for (const c of candidates) {
         if (existsSync(c)) return c;
@@ -429,9 +429,9 @@ function findWebappDir(): string | undefined {
     if (existsSync(path.join(bundled, 'index.html'))) return bundled;
 
     const candidates = [
-        path.resolve(__dirname, '../../../happy-app/dist'),
-        path.resolve(__dirname, '../../happy-app/dist'),
-        path.resolve(process.cwd(), 'packages/happy-app/dist'),
+        path.resolve(__dirname, '../../../happyherd-app/dist'),
+        path.resolve(__dirname, '../../happyherd-app/dist'),
+        path.resolve(process.cwd(), 'packages/happyherd-app/dist'),
     ];
     for (const c of candidates) {
         if (existsSync(path.join(c, 'index.html'))) return c;
@@ -454,7 +454,7 @@ async function spawnAndWait(art: ServerArtifacts, env: NodeJS.ProcessEnv, args: 
         child.on('error', reject);
         child.on('exit', code => {
             if (code === 0) resolve();
-            else reject(new Error(`happy-server ${args[0]} exited with code ${code}`));
+            else reject(new Error(`happyherd-server ${args[0]} exited with code ${code}`));
         });
     });
 }

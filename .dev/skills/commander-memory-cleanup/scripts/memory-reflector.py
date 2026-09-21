@@ -211,8 +211,8 @@ def write_control_json(path: Path, value: Any) -> None:
     path.write_bytes(canonical_json(value) + b"\n")
 
 
-def default_happy_command() -> list[str]:
-    configured = os.environ.get("HAPPY_CLI_BIN")
+def default_happyherd_command() -> list[str]:
+    configured = os.environ.get("HAPPYHERD_CLI_BIN")
     if configured:
         return [configured]
     installed = shutil.which("happyherd")
@@ -264,9 +264,9 @@ def validate_codex_cli(codex_command: Sequence[str]) -> None:
         raise LauncherError("codex_cli_canary_failed")
 
 
-def _safe_child_env(happy_home: Path) -> dict[str, str]:
+def _safe_child_env(happyherd_home: Path) -> dict[str, str]:
     env = os.environ.copy()
-    env["HAPPY_HOME_DIR"] = str(happy_home)
+    env["HAPPYHERD_HOME_DIR"] = str(happyherd_home)
     return env
 
 
@@ -315,15 +315,15 @@ def _canonical_file_below_real_root(path: Path, root: Path) -> Path:
 
 
 def discover_commanders(
-    happy_command: Sequence[str], happy_home: Path, timeout_seconds: int = 60
+    happyherd_command: Sequence[str], happyherd_home: Path, timeout_seconds: int = 60
 ) -> list[Commander]:
     try:
         completed = subprocess.run(
-            [*happy_command, "commander", "list", "--json"],
+            [*happyherd_command, "commander", "list", "--json"],
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env=_safe_child_env(happy_home),
+            env=_safe_child_env(happyherd_home),
             timeout=timeout_seconds,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -341,11 +341,11 @@ def discover_commanders(
     commanders: list[Commander] = []
     seen: set[str] = set()
     try:
-        canonical_happy_home = happy_home.resolve(strict=True)
+        canonical_happyherd_home = happyherd_home.resolve(strict=True)
     except OSError as exc:
         raise LauncherError("commander_path_invalid") from exc
     registry_root = _canonical_real_directory(
-        canonical_happy_home / "commanders", canonical_happy_home
+        canonical_happyherd_home / "commanders", canonical_happyherd_home
     )
     for raw in raw_commanders:
         if not isinstance(raw, dict):
@@ -3749,9 +3749,9 @@ def _run_commander_batch(
 
 
 def _verify_roster(
-    happy_command: Sequence[str], happy_home: Path, expected: Sequence[Commander]
+    happyherd_command: Sequence[str], happyherd_home: Path, expected: Sequence[Commander]
 ) -> None:
-    if discover_commanders(happy_command, happy_home) != list(expected):
+    if discover_commanders(happyherd_command, happyherd_home) != list(expected):
         raise LauncherError("commander_roster_changed")
 
 
@@ -3796,16 +3796,16 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         if args.no_timeout
         else time.monotonic() + args.fleet_timeout_seconds
     )
-    happy_home = Path(
-        os.environ.get("HAPPY_HOME_DIR", str(Path.home() / ".happyherd"))
+    happyherd_home = Path(
+        os.environ.get("HAPPYHERD_HOME_DIR", str(Path.home() / ".happyherd"))
     ).expanduser().resolve()
     staging_root = (
         Path(args.staging_root).expanduser().resolve() if args.staging_root else None
     )
     if staging_root is not None and not staging_root.is_dir():
         raise LauncherError("staging_root_invalid")
-    happy_command = default_happy_command()
-    commanders = discover_commanders(happy_command, happy_home)
+    happyherd_command = default_happyherd_command()
+    commanders = discover_commanders(happyherd_command, happyherd_home)
     if (
         args.mode == "migration"
         and args.expected_count is not None
@@ -3836,7 +3836,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     initial_memory = _initial_memory_snapshot(commanders)
     expected_memory = _initial_expected_hashes(initial_memory)
     reserve_for_audit = args.audit_timeout_seconds
-    _verify_roster(happy_command, happy_home, commanders)
+    _verify_roster(happyherd_command, happyherd_home, commanders)
     _verify_expected_memory(commanders, expected_memory)
     initial_results = _run_commander_batch(
         commanders,
@@ -3857,7 +3857,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     correction_rounds: list[list[str]] = []
     audit = CodexResult(False, "aggregate_audit_not_run", None)
     for audit_round in range(args.max_correction_rounds + 1):
-        _verify_roster(happy_command, happy_home, commanders)
+        _verify_roster(happyherd_command, happyherd_home, commanders)
         _verify_expected_memory(commanders, expected_memory)
         _verify_protected_inputs(
             commanders,
@@ -3900,7 +3900,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             inventory_input_hash,
         )
         _verify_expected_memory(commanders, expected_memory)
-        _verify_roster(happy_command, happy_home, commanders)
+        _verify_roster(happyherd_command, happyherd_home, commanders)
         if (
             not audit.success
             or audit.message is None
@@ -3920,7 +3920,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         correction_rounds.append(correction_ids)
         by_id = {item.commander_id: item for item in commanders}
         correction_commanders = [by_id[item] for item in correction_ids]
-        _verify_roster(happy_command, happy_home, commanders)
+        _verify_roster(happyherd_command, happyherd_home, commanders)
         _verify_expected_memory(commanders, expected_memory)
         corrected_results = _run_commander_batch(
             correction_commanders,
@@ -3941,9 +3941,9 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         for corrected in corrected_results:
             results_by_id[corrected.commander_id] = corrected
         _verify_expected_memory(commanders, expected_memory)
-        _verify_roster(happy_command, happy_home, commanders)
+        _verify_roster(happyherd_command, happyherd_home, commanders)
 
-    _verify_roster(happy_command, happy_home, commanders)
+    _verify_roster(happyherd_command, happyherd_home, commanders)
     _verify_expected_memory(commanders, expected_memory)
     _verify_protected_inputs(
         commanders,

@@ -1,6 +1,6 @@
 # expo-tailcat
 
-This is a standalone Expo module, not an integration into happy-app.
+This is a standalone Expo module, not an integration into happyherd-app.
 
 - Never publish or create a release without an explicit user request.
 - Run cheap JS/package checks and local Go tests before native CI.

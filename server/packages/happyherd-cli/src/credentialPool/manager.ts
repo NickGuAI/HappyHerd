@@ -4,7 +4,7 @@ import type {
   CredentialLoginFlow,
   CredentialLoginStartRequest,
   ManagedProviderAccountSummary,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import {
   defaultCredentialPoolPaths,

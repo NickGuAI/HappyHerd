@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as QRCode from 'qrcode'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Page } from '@/app/components/Page'
-import { happyClient, useHappyState } from '@/happy/client'
+import { happyherdClient, useHappyHerdState } from '@/happyherd/client'
 import { pluginHost, usePlugin } from '@/plugins'
 import './Plugins.css'
 
@@ -98,8 +98,8 @@ export function PluginDetailPage() {
 
                 <section className="plugin-detail__section">
                     <h3 className="plugins-section__heading">Authentication</h3>
-                    {plugin.id === 'happy' ? (
-                        <HappyAuthPanel />
+                    {plugin.id === 'happyherd' ? (
+                        <HappyHerdAuthPanel />
                     ) : auth.status === 'connected' ? (
                         <div className="plugin-detail__row">
                             <span className="plugin-card__status plugin-card__status--good">
@@ -191,8 +191,8 @@ export function PluginDetailPage() {
     )
 }
 
-function HappyAuthPanel() {
-    const state = useHappyState()
+function HappyHerdAuthPanel() {
+    const state = useHappyHerdState()
     const [busy, setBusy] = useState<string | null>(null)
     const [secretKey, setSecretKey] = useState('')
     const [qrDataUrl, setQrDataUrl] = useState('')
@@ -227,7 +227,7 @@ function HappyAuthPanel() {
     }
 
     if (state.status === 'starting') {
-        return <small className="plugin-detail__help">Loading Happy state…</small>
+        return <small className="plugin-detail__help">Loading HappyHerd state…</small>
     }
 
     if (state.status === 'authenticated') {
@@ -241,7 +241,7 @@ function HappyAuthPanel() {
                     <button
                         type="button"
                         className="plugins-page__action"
-                        onClick={() => run('logout', () => happyClient.logout())}
+                        onClick={() => run('logout', () => happyherdClient.logout())}
                         disabled={busy !== null}
                     >
                         Disconnect
@@ -254,16 +254,16 @@ function HappyAuthPanel() {
     if (state.status === 'authenticating' && authUrl) {
         return (
             <div className="plugin-detail__row plugin-detail__row--column">
-                <div className="happy-auth__qr-wrap">
+                <div className="happyherd-auth__qr-wrap">
                     {qrDataUrl ? (
-                        <img className="happy-auth__qr" src={qrDataUrl} alt="Happy authentication QR code" />
+                        <img className="happyherd-auth__qr" src={qrDataUrl} alt="HappyHerd authentication QR code" />
                     ) : (
-                        <div className="happy-auth__qr happy-auth__qr--empty" />
+                        <div className="happyherd-auth__qr happyherd-auth__qr--empty" />
                     )}
                 </div>
-                <div className="happy-auth__url-row">
+                <div className="happyherd-auth__url-row">
                     <input
-                        className="plugin-detail__input happy-auth__url"
+                        className="plugin-detail__input happyherd-auth__url"
                         value={authUrl}
                         readOnly
                         spellCheck={false}
@@ -280,7 +280,7 @@ function HappyAuthPanel() {
                     <button
                         type="button"
                         className="plugins-page__action"
-                        onClick={() => run('cancel', () => happyClient.cancelAuth())}
+                        onClick={() => run('cancel', () => happyherdClient.cancelAuth())}
                         disabled={busy !== null}
                     >
                         Cancel
@@ -301,7 +301,7 @@ function HappyAuthPanel() {
                 <button
                     type="button"
                     className="plugins-page__action plugins-page__action--primary"
-                    onClick={() => run('create', () => happyClient.createAccount())}
+                    onClick={() => run('create', () => happyherdClient.createAccount())}
                     disabled={busy !== null}
                 >
                     {busy === 'create' ? 'Creating…' : 'Create account'}
@@ -309,14 +309,14 @@ function HappyAuthPanel() {
                 <button
                     type="button"
                     className="plugins-page__action"
-                    onClick={() => run('link', () => happyClient.startLinkDevice())}
+                    onClick={() => run('link', () => happyherdClient.startLinkDevice())}
                     disabled={busy !== null}
                 >
                     {busy === 'link' ? 'Starting…' : 'Link device'}
                 </button>
             </div>
             <label className="plugin-detail__label">Secret key</label>
-            <div className="happy-auth__url-row">
+            <div className="happyherd-auth__url-row">
                 <input
                     type="password"
                     className="plugin-detail__input"
@@ -329,7 +329,7 @@ function HappyAuthPanel() {
                 <button
                     type="button"
                     className="plugins-page__action"
-                    onClick={() => run('restore', () => happyClient.restoreSecret(secretKey))}
+                    onClick={() => run('restore', () => happyherdClient.restoreSecret(secretKey))}
                     disabled={busy !== null || secretKey.trim().length === 0}
                 >
                     {busy === 'restore' ? 'Restoring…' : 'Restore'}

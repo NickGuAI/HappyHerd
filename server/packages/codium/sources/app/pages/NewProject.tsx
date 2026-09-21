@@ -63,7 +63,7 @@ export function NewProjectPage() {
                 <div className="new-project__panel">
                     <h2 className="new-project__title">Choose a project folder</h2>
                     <p className="new-project__copy">
-                        Codium opens chats and terminals inside a project workspace. Worktree projects create local git worktrees in the Happy workspace folder; plain projects create lightweight sections in the same folder.
+                        Codium opens chats and terminals inside a project workspace. Worktree projects create local git worktrees in the HappyHerd workspace folder; plain projects create lightweight sections in the same folder.
                     </p>
                     <div className="new-project__mode" role="tablist" aria-label="Project type">
                         <button

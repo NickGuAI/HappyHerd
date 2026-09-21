@@ -3,7 +3,7 @@
 ## Bottom line
 
 OpenCode has the cleanest transcript shape of the three systems reviewed so far.
-If Happy wants a strong protocol reference for app + server + session UI, this is
+If HappyHerd wants a strong protocol reference for app + server + session UI, this is
 the one to steal from first.
 
 ## Core transcript model
@@ -17,8 +17,8 @@ The key design is: message envelope first, typed parts second.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
-- `../happy-adjacent/research/opencode/packages/sdk/js/src/v2/gen/types.gen.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/message-v2.ts`
+- `../happyherd-adjacent/research/opencode/packages/sdk/js/src/v2/gen/types.gen.ts`
 
 ## Live event model
 
@@ -29,13 +29,13 @@ OpenCode separates full transcript state from incremental transport events.
 - later `message.part.updated` events can replace or supersede earlier deltas
 - the UI reducer explicitly merges stream events into cached transcript state
 
-This is a very good pattern for Happy: use events for freshness, not as the only
+This is a very good pattern for HappyHerd: use events for freshness, not as the only
 source of truth.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/index.ts`
-- `../happy-adjacent/research/opencode/packages/app/src/context/global-sync/event-reducer.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/app/src/context/global-sync/event-reducer.ts`
 
 ## Subagents and task delegation
 
@@ -46,13 +46,13 @@ OpenCode models delegation as child sessions, not inline mystery behavior.
 - subagent intent is visible in the parent transcript as a tool call and related subtask part
 - tool permissions for subagents are intentionally constrained
 
-This is much closer to what Happy should want than flattening delegated work into
+This is much closer to what HappyHerd should want than flattening delegated work into
 one chat thread without identity.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/agent/agent.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/tool/task.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/agent/agent.ts`
 
 ## Task tracking / todos
 
@@ -63,12 +63,12 @@ Todos are a first-class session store.
 - schema is intentionally tiny: `content`, `status`, `priority`
 - UI gets a proper todo dock instead of scraping plans from text
 
-This is a strong design signal for Happy: todos should be their own state channel.
+This is a strong design signal for HappyHerd: todos should be their own state channel.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/tool/todo.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/session/todo.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/tool/todo.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/session/todo.ts`
 
 ## Modes, models, and permissions
 
@@ -80,14 +80,14 @@ OpenCode treats these as explicit state, not just prompt flavor.
 - decisions can be `once`, `always`, or `reject`
 - permission rules are pattern-based and support auto-unblocking pending matching requests
 
-This is a good reference for Happy's app model even if Happy keeps its own policy
+This is a good reference for HappyHerd's app model even if HappyHerd keeps its own policy
 engine.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/permission/evaluate.ts`
-- `../happy-adjacent/research/opencode/packages/app/src/context/permission.tsx`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/permission/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/permission/evaluate.ts`
+- `../happyherd-adjacent/research/opencode/packages/app/src/context/permission.tsx`
 
 ## Sandbox and isolation
 
@@ -98,13 +98,13 @@ OpenCode is weaker on true sandboxing than Codex.
 - the server routes operations by workspace directory
 - there is not much evidence here of strong OS-level sandbox policy comparable to Codex
 
-Takeaway for Happy: copy the workspace isolation ideas, not the lack of a deeper
+Takeaway for HappyHerd: copy the workspace isolation ideas, not the lack of a deeper
 sandbox layer.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/worktree/index.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/control-plane/workspace.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/worktree/index.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/control-plane/workspace.ts`
 
 ## Sync and server architecture
 
@@ -116,14 +116,14 @@ This is probably the most valuable follow-up topic.
 - the client batches and coalesces updates instead of repainting on every raw event
 - the control plane already looks ready for non-local workspace adaptors later
 
-This is a much better direction for Happy than a single opaque message pipeline.
+This is a much better direction for HappyHerd than a single opaque message pipeline.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/opencode/src/control-plane/workspace-server/routes.ts`
-- `../happy-adjacent/research/opencode/packages/opencode/src/control-plane/sse.ts`
-- `../happy-adjacent/research/opencode/packages/app/src/context/global-sync.tsx`
-- `../happy-adjacent/research/opencode/packages/app/src/context/sync.tsx`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/control-plane/workspace-server/routes.ts`
+- `../happyherd-adjacent/research/opencode/packages/opencode/src/control-plane/sse.ts`
+- `../happyherd-adjacent/research/opencode/packages/app/src/context/global-sync.tsx`
+- `../happyherd-adjacent/research/opencode/packages/app/src/context/sync.tsx`
 
 ## Context debug surface
 
@@ -133,14 +133,14 @@ The user feedback here is correct and important.
 - that tab shows a useful breakdown of model/provider/context usage
 - it also exposes raw message-plus-parts state, effectively a built-in protocol debugger
 
-Happy should copy this idea.
+HappyHerd should copy this idea.
 
 Primary source files:
 
-- `../happy-adjacent/research/opencode/packages/app/src/components/session-context-usage.tsx`
-- `../happy-adjacent/research/opencode/packages/app/src/components/session/session-context-tab.tsx`
+- `../happyherd-adjacent/research/opencode/packages/app/src/components/session-context-usage.tsx`
+- `../happyherd-adjacent/research/opencode/packages/app/src/components/session/session-context-tab.tsx`
 
-## What Happy should steal
+## What HappyHerd should steal
 
 - envelope + typed-parts transcript structure
 - child-session subagent model with resumable IDs

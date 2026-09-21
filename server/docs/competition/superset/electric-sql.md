@@ -225,7 +225,7 @@ Superset validates it works in production at scale.
 | Best for | Structured data sync | Full control | Notifications | Mobile offline | Collaborative editing |
 | Complexity | Low | High | Medium | Medium | High |
 
-## Relevance for Happy
+## Relevance for HappyHerd
 
 **Strong fit:**
 - Read-heavy pattern (streaming agent state to UI) maps perfectly

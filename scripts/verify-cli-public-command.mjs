@@ -36,28 +36,28 @@ assert(cliSmokeWorkflow.includes('%NPM_PREFIX%\\happy.cmd'), 'Windows pack smoke
 assert(!cliSmokeWorkflow.includes('command -v happy >/dev/null'), 'Linux smoke must preserve unrelated happy commands');
 assert(!cliSmokeWorkflow.includes('where happy >nul'), 'Windows smoke must preserve unrelated happy commands');
 assert.equal(
-  cliSmokeWorkflow.match(/pnpm --filter happy-agent --fail-if-no-match build/g)?.length,
+  cliSmokeWorkflow.match(/pnpm --filter happyherd-control-agent --fail-if-no-match build/g)?.length,
   2,
   'Linux and Windows pack smoke must build the CLI workspace dependency',
 );
 assert(
   qualityWorkflow.includes(
-    'pnpm --filter @slopus/happy-wire --fail-if-no-match build\n' +
-      '          pnpm --filter happy-agent --fail-if-no-match build\n' +
+    'pnpm --filter @happyherd/wire --fail-if-no-match build\n' +
+      '          pnpm --filter happyherd-control-agent --fail-if-no-match build\n' +
       '          pnpm --filter @happyherd/cli --fail-if-no-match typecheck',
   ),
   'clean quality typecheck must build CLI workspace dependencies in dependency order',
 );
 assert(
   qualityWorkflow.includes(
-    'pnpm --filter @slopus/happy-wire --fail-if-no-match build\n' +
-      '          pnpm --filter happy-agent --fail-if-no-match build\n' +
+    'pnpm --filter @happyherd/wire --fail-if-no-match build\n' +
+      '          pnpm --filter happyherd-control-agent --fail-if-no-match build\n' +
       '          pnpm --filter @happyherd/cli --fail-if-no-match build',
   ),
   'clean production build must build CLI workspace dependencies in dependency order',
 );
 assert(
-  hostInstaller.includes('--filter happy-agent --fail-if-no-match build'),
+  hostInstaller.includes('--filter happyherd-control-agent --fail-if-no-match build'),
   'host CLI installation must build the CLI workspace dependency',
 );
 
@@ -77,10 +77,10 @@ const scanRoots = [
   'server/package.json',
   'server/pnpm-workspace.yaml',
   'server/README.md',
-  'server/packages/happy-agent/src',
-  'server/packages/happy-app/sources',
+  'server/packages/happyherd-control-agent/src',
+  'server/packages/happyherd-app/sources',
   'server/packages/happyherd-cli',
-  'server/packages/happy-server-self-host/README.md',
+  'server/packages/happyherd-server-self-host/README.md',
   'server/packages/happyherd-agent/README.md',
 ];
 const textExtensions = new Set(['.cjs', '.js', '.json', '.md', '.mjs', '.sh', '.ts', '.tsx', '.yml', '.yaml']);
@@ -93,8 +93,8 @@ const excluded = [
   /^server\/docs\/plans\//,
   /^server\/docs\/superpowers\//,
   /^server\/packages\/happy-cli\/docs\//,
-  /^server\/packages\/happy-app\/CHANGELOG\.md$/,
-  /^server\/packages\/happy-app\/sources\/changelog\/changelog\.json$/,
+  /^server\/packages\/happyherd-app\/CHANGELOG\.md$/,
+  /^server\/packages\/happyherd-app\/sources\/changelog\/changelog\.json$/,
 ];
 const oldPackage = /npm\s+(?:i|install|upgrade|update|unlink)\s+(?:-g|--global)\s+happy(?:@[A-Za-z0-9_.-]+)?(?=\s|`|$)/g;
 const oldFilter = /pnpm\s+--filter\s+happy(?=\s|$)/g;

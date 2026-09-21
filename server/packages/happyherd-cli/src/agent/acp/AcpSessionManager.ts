@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
-import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope } from '@slopus/happy-wire';
+import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope } from '@happyherd/wire';
 import type { AgentMessage } from '@/agent/core';
 import { readPlanEntries } from '@/sessionProtocol/planEntries';
 

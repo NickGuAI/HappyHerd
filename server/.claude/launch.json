@@ -2,9 +2,9 @@
     "version": "0.0.1",
     "configurations": [
         {
-            "name": "happy-app-web",
+            "name": "happyherd-app-web",
             "runtimeExecutable": "pnpm",
-            "runtimeArgs": ["--dir", "packages/happy-app", "web"],
+            "runtimeArgs": ["--dir", "packages/happyherd-app", "web"],
             "port": 8081
         }
     ]

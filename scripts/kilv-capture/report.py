@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = ROOT / 'docs/acceptance/issue-287/panels'
 UI_BASE = '189c504b5ab16eea7fa16e3c2fb33e98d147390d'
 UI_HEAD = 'a38fae51c2f99d34bc4d81b24ccfd4c7aa611b05'
-PREFIX = 'server/packages/happy-app/sources/'
+PREFIX = 'server/packages/happyherd-app/sources/'
 GROUPS = ['production', 'routes', 'chat', 'workspace']
 
 

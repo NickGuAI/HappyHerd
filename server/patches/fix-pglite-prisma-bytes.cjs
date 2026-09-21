@@ -18,8 +18,8 @@ const root = require.main === module && process.argv[2]
 const files = [
     'node_modules/pglite-prisma-adapter/dist/index.mjs',
     'node_modules/pglite-prisma-adapter/dist/index.cjs',
-    'packages/happy-server/node_modules/pglite-prisma-adapter/dist/index.mjs',
-    'packages/happy-server/node_modules/pglite-prisma-adapter/dist/index.cjs',
+    'packages/happyherd-server/node_modules/pglite-prisma-adapter/dist/index.mjs',
+    'packages/happyherd-server/node_modules/pglite-prisma-adapter/dist/index.cjs',
 ];
 
 let patched = 0;

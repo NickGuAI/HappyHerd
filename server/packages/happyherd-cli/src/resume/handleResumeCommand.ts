@@ -16,7 +16,7 @@ import { machineSessionSettingsEnvironment } from '@/daemon/sessionLaunchSetting
 import {
     HappyHerdMachineSessionSettingsSchema,
     type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveHappyHerdSession, type ReconnectableHappyHerdSession, type ResumableHappyHerdSession } from './resolveHappyHerdSession';

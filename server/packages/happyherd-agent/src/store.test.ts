@@ -62,7 +62,7 @@ describe('BridgeStore', () => {
     expect(reopened.getInbound('message-1')).toMatchObject({
       status: 'turn-pending',
       happySessionId: 'session-1',
-      happyLocalId: 'discord:message-1',
+      happyherdLocalId: 'discord:message-1',
     });
     const raw = await readFile(join(directory, 'bridge-state.json'), 'utf8');
     expect(raw).not.toContain('hello');

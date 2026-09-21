@@ -9,20 +9,20 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY scripts ./scripts
 COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-wire
+RUN mkdir -p packages/happyherd-app packages/happyherd-wire
 
-COPY packages/happy-app/package.json packages/happy-app/
-COPY packages/happy-wire/package.json packages/happy-wire/
+COPY packages/happyherd-app/package.json packages/happyherd-app/
+COPY packages/happyherd-wire/package.json packages/happyherd-wire/
 
 # Workspace postinstall requirements
-COPY packages/happy-app/patches packages/happy-app/patches
-COPY packages/happy-app/scripts/setup-pdfjs-web.mjs packages/happy-app/scripts/setup-pdfjs-web.mjs
+COPY packages/happyherd-app/patches packages/happyherd-app/patches
+COPY packages/happyherd-app/scripts/setup-pdfjs-web.mjs packages/happyherd-app/scripts/setup-pdfjs-web.mjs
 
 # The repo defaults to a hoisted linker for local development. Keep this Docker
 # install isolated so unrelated workspace native deps do not get built here.
-RUN SKIP_HAPPY_WIRE_BUILD=1 pnpm install \
+RUN SKIP_HAPPYHERD_WIRE_BUILD=1 pnpm install \
     --frozen-lockfile \
-    --filter happy-app... \
+    --filter happyherd-app... \
     --config.node-linker=isolated \
     --config.shamefully-hoist=false
 
@@ -31,28 +31,28 @@ FROM deps AS builder
 
 ARG POSTHOG_API_KEY=""
 ARG REVENUE_CAT_STRIPE=""
-ARG HAPPY_SERVER_URL=""
-ARG HAPPY_BUILD_COMMIT_SHA=""
-ARG HAPPY_BUILD_COMMIT_TIMESTAMP=""
+ARG HAPPYHERD_SERVER_URL=""
+ARG HAPPYHERD_BUILD_COMMIT_SHA=""
+ARG HAPPYHERD_BUILD_COMMIT_TIMESTAMP=""
 
 ENV NODE_ENV=production
 ENV APP_ENV=production
 ENV EXPO_PUBLIC_POSTHOG_API_KEY=$POSTHOG_API_KEY
 ENV EXPO_PUBLIC_REVENUE_CAT_STRIPE=$REVENUE_CAT_STRIPE
-ENV EXPO_PUBLIC_HAPPY_SERVER_URL=$HAPPY_SERVER_URL
-ENV HAPPY_BUILD_COMMIT_SHA=$HAPPY_BUILD_COMMIT_SHA
-ENV HAPPY_BUILD_COMMIT_TIMESTAMP=$HAPPY_BUILD_COMMIT_TIMESTAMP
+ENV EXPO_PUBLIC_HAPPYHERD_SERVER_URL=$HAPPYHERD_SERVER_URL
+ENV HAPPYHERD_BUILD_COMMIT_SHA=$HAPPYHERD_BUILD_COMMIT_SHA
+ENV HAPPYHERD_BUILD_COMMIT_TIMESTAMP=$HAPPYHERD_BUILD_COMMIT_TIMESTAMP
 
-COPY packages/happy-wire ./packages/happy-wire
-COPY packages/happy-app ./packages/happy-app
+COPY packages/happyherd-wire ./packages/happyherd-wire
+COPY packages/happyherd-app ./packages/happyherd-app
 
-RUN pnpm --filter @slopus/happy-wire build
-RUN pnpm --filter happy-app exec expo export --platform web --output-dir dist
+RUN pnpm --filter @happyherd/wire build
+RUN pnpm --filter happyherd-app exec expo export --platform web --output-dir dist
 
 # Stage 3: runtime with Nginx
 FROM nginx:alpine AS runner
 
-COPY --from=builder /repo/packages/happy-app/dist /usr/share/nginx/html
+COPY --from=builder /repo/packages/happyherd-app/dist /usr/share/nginx/html
 
 # Remove default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf

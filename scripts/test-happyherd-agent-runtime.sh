@@ -16,6 +16,15 @@ fail() {
 }
 
 "$VALIDATOR" "$ROOT/deploy/happyherd-agent.env.example" template >/dev/null
+# rename:preserve
+sed -e 's/^HAPPYHERD_SERVER_URL=/HAPPY_SERVER_URL=/' \
+    -e 's/^HAPPYHERD_HOME_DIR=/HAPPY_HOME_DIR=/' \
+    "$ROOT/deploy/happyherd-agent.env.example" > "$TMP_ROOT/legacy.env"
+env -u HAPPYHERD_SERVER_URL -u HAPPYHERD_HOME_DIR "$VALIDATOR" "$TMP_ROOT/legacy.env" template >/dev/null
+cp "$ROOT/deploy/happyherd-agent.env.example" "$TMP_ROOT/precedence.env"
+printf '\nHAPPY_SERVER_URL=http://invalid.example\nHAPPY_HOME_DIR=/invalid\n' >> "$TMP_ROOT/precedence.env"
+"$VALIDATOR" "$TMP_ROOT/precedence.env" template >/dev/null
+# /rename:preserve
 
 cp "$ROOT/deploy/happyherd-agent.env.example" "$TMP_ROOT/bad-personal.env"
 sed -i 's#HAPPYHERD_AGENT_WORKSPACE=/var/lib/happyherd-agent-runtime/workspace#HAPPYHERD_AGENT_WORKSPACE=/home/example-user/App#' "$TMP_ROOT/bad-personal.env"
@@ -34,14 +43,14 @@ grep -Fq 'happyherd-agent-runtime' "$ROOT/deploy/happyherd-agent-daemon.cron" ||
 grep -Fq 'HAPPYHERD_AGENT_CODEX_PERMISSION_MODE=read-only' "$ROOT/deploy/happyherd-agent.env.example" || fail 'bridge does not lock Codex read-only'
 grep -Fq 'HAPPYHERD_AGENT_DISCORD_TOKEN_ROTATION_RECEIPT_FILE=' "$ROOT/deploy/happyherd-agent.env.example" || fail 'token rotation receipt is not required'
 grep -Fq 'HAPPYHERD_AGENT_BROKER_URL=http://happyherd-agent-broker.localhost:3210/mcp' "$ROOT/deploy/happyherd-agent.env.example" || fail 'bridge does not use the sandbox broker alias'
-grep -Fq 'Happy CLI bundled ripgrep is missing' "$ROOT/scripts/prepare-happyherd-agent-runtime.sh" || fail 'runtime preparation does not require CLI-bundled ripgrep'
-grep -Fq 'Happy CLI bundled ripgrep is unusable' "$ROOT/scripts/validate-happyherd-agent-runtime.sh" || fail 'runtime validator does not execute CLI-bundled ripgrep as the agent user'
+grep -Fq 'HappyHerd CLI bundled ripgrep is missing' "$ROOT/scripts/prepare-happyherd-agent-runtime.sh" || fail 'runtime preparation does not require CLI-bundled ripgrep'
+grep -Fq 'HappyHerd CLI bundled ripgrep is unusable' "$ROOT/scripts/validate-happyherd-agent-runtime.sh" || fail 'runtime validator does not execute CLI-bundled ripgrep as the agent user'
 grep -Fq 'command -v rg' "$ROOT/scripts/test-happyherd-agent-sandbox.sh" || fail 'sandbox canary does not preflight ripgrep'
 grep -Fq 'provision-happyherd-agent-account.sh' "$ROOT/docs/runtime-isolation.md" || fail 'dedicated HappyHerd account provisioning is undocumented'
 grep -Fq 'HAPPYHERD_AGENT_TOOL_MANIFEST_FILE=' "$ROOT/deploy/happyherd-agent.env.example" || fail 'tool manifest is not configured'
 [[ -f "$ROOT/deploy/happyherd-agent-runtime/agent-manifest.example.json" ]] || fail 'generic tool manifest example is missing'
 [[ -x "$ROOT/scripts/provision-happyherd-agent-account.sh" ]] || fail 'dedicated HappyHerd account provisioner is missing'
-[[ -f "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" ]] || fail 'chat file surface SOP template is missing'
+[[ -f "$ROOT/deploy/happyherd-agent-runtime/happyherd-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" ]] || fail 'chat file surface SOP template is missing'
 grep -Fq 'agentcontext/rules/learnings/CHAT_FILE_SURFACE.md' "$ROOT/scripts/prepare-happyherd-agent-runtime.sh" || fail 'runtime preparation does not install the chat file surface SOP'
 grep -Fq 'agentcontext/rules/learnings/CHAT_FILE_SURFACE.md' "$ROOT/scripts/validate-happyherd-agent-runtime.sh" || fail 'runtime validation does not require the chat file surface SOP'
 

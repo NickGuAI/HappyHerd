@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 OPERATOR_HOME = Path(os.environ.get("HAPPYHERD_OPERATOR_HOME", Path.home())).resolve()
 WORKSPACE = str(Path(os.environ.get("HAPPYHERD_WORKSPACE_ROOT", OPERATOR_HOME)).resolve())
-HAPPY_HOME = str(Path(os.environ.get("HAPPY_HOME_DIR", OPERATOR_HOME / ".happyherd")).resolve())
+HAPPYHERD_HOME = str(Path(os.environ.get("HAPPYHERD_HOME_DIR", OPERATOR_HOME / ".happyherd")).resolve())
 CLAUDE_SESSIONS = str(OPERATOR_HOME / ".claude" / "projects" / "**" / "*.jsonl")
 CODEX_SESSIONS = str(OPERATOR_HOME / ".codex" / "sessions" / "**" / "*.jsonl")
 NEW_YORK = ZoneInfo("America/New_York")
@@ -117,7 +117,7 @@ Scan both native conversation stores, semantically extract the material daily
 observation trail at all three tiers, and append it directly to the owning
 HappyHerd Commander's L1:
 
-`{HAPPY_HOME}/commanders/<commander-id>/agentcontext/memory/0-observations.jsonl`
+`{HAPPYHERD_HOME}/commanders/<commander-id>/agentcontext/memory/0-observations.jsonl`
 
 This is Observer mode. Write L1 only. L1 is the daily evidence layer, not
 distilled memory: it intentionally includes material short-lived work at `low`
@@ -127,11 +127,11 @@ collection.
 
 ## Required context and discovery
 
-1. Read `{HAPPY_HOME}/AGENTS.md`,
-   `{HAPPY_HOME}/agentcontext/USER.md`, the workspace router, and
+1. Read `{HAPPYHERD_HOME}/AGENTS.md`,
+   `{HAPPYHERD_HOME}/agentcontext/USER.md`, the workspace router, and
    the installed `commander-memory-cleanup` skill.
 2. Discover the live roster from
-   `{HAPPY_HOME}/commanders/*/COMMANDER.md`. Do not use a hard-coded
+   `{HAPPYHERD_HOME}/commanders/*/COMMANDER.md`. Do not use a hard-coded
    Commander list, name list, topic dictionary, or keyword classifier.
 3. Process one provider and one Commander at a time. Keep working context
    bounded; never load an entire history or all raw messages into model context.
@@ -329,7 +329,7 @@ def run_codex(window: EvidenceWindow, codex_binary: str = "codex") -> None:
         raise FileNotFoundError(f"Codex executable not found: {codex_binary}")
 
     environment = os.environ.copy()
-    environment["HAPPY_HOME_DIR"] = HAPPY_HOME
+    environment["HAPPYHERD_HOME_DIR"] = HAPPYHERD_HOME
     print(
         f"Starting HappyHerd Observer for {window.label} "
         f"({window.days} day{'s' if window.days != 1 else ''})",

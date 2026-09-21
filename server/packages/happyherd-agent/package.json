@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "discord.js": "^14.27.0",
-    "happy-agent": "workspace:*"
+    "happyherd-control-agent": "workspace:*"
   },
   "devDependencies": {
     "@types/node": ">=20",

@@ -17,9 +17,9 @@ describe('worktree names', () => {
     })
 
     it('adds v suffixes when a project name clashes', () => {
-        expect(chooseVersionedName('happy', [])).toBe('happy')
-        expect(chooseVersionedName('happy', ['happy'])).toBe('happy-v2')
-        expect(chooseVersionedName('happy', ['happy', 'happy-v2'])).toBe('happy-v3')
+        expect(chooseVersionedName('happyherd', [])).toBe('happyherd')
+        expect(chooseVersionedName('happyherd', ['happyherd'])).toBe('happyherd-v2')
+        expect(chooseVersionedName('happyherd', ['happyherd', 'happyherd-v2'])).toBe('happyherd-v3')
     })
 
     it('slugifies project path segments', () => {

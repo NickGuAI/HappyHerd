@@ -36,7 +36,7 @@ Reviewed on 2026-04-08.
 
 ## Research files in this directory
 
-- `README.md` — architecture overview, key findings, Happy takeaways
+- `README.md` — architecture overview, key findings, HappyHerd takeaways
 - `sources.md` — this file
 - `sync-architecture.md` — full state ownership map, all data flow paths
 - `terminal-sync.md` — terminal state sync (V1 daemon + V2 WebSocket architectures)

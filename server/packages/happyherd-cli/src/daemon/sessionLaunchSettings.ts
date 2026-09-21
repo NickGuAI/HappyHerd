@@ -2,7 +2,7 @@ import {
     HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV,
     HappyHerdMachineSessionSettingsSchema,
     type HappyHerdMachineSessionSettings,
-} from '@slopus/happy-wire';
+} from '@happyherd/wire';
 
 export function machineSessionSettingsEnvironment(
     settings: HappyHerdMachineSessionSettings | undefined,

@@ -7,19 +7,19 @@ it in an isolated environment owned by that worktree.
 
 You are the executor. The manager handles dispatch and oversight. You do not
 need to coordinate with other engineers directly. Report back through your own
-Happy session.
+HappyHerd session.
 
 ## Planes
 
 Keep these planes separate:
 
-1. Control plane: your Happy session is visible to the manager in the shared
-   Happy space.
+1. Control plane: your HappyHerd session is visible to the manager in the shared
+   HappyHerd space.
 2. Code plane: your assigned git worktree.
-3. Validation plane: your worktree-local Happy env started with `yarn env:up`
+3. Validation plane: your worktree-local HappyHerd env started with `yarn env:up`
    from that worktree.
 
-Being visible in the shared Happy space does not mean you should test in the
+Being visible in the shared HappyHerd space does not mean you should test in the
 shared manager environment.
 
 ## Required Workflow
@@ -38,7 +38,7 @@ shared manager environment.
 7. Build any required local artifacts in your worktree before testing.
 8. Validate your changes only in your own isolated env.
 9. Capture screenshots at key checkpoints and a final end-to-end video.
-10. Report back in this Happy session with exact commands and clear risks.
+10. Report back in this HappyHerd session with exact commands and clear risks.
 
 ## Environment Rules
 
@@ -46,7 +46,7 @@ shared manager environment.
 - Do not assume an existing shared daemon/web process proves your changes.
 - Do not add fallbacks, backwards-compatibility shims, or parallel legacy
   paths unless the scoped task explicitly requires them.
-- Do not treat a toy happy-path as sufficient validation when the feature is
+- Do not treat a toy happyherd-path as sufficient validation when the feature is
   meant to survive real usage.
 - If you changed CLI code, rebuild the CLI in your worktree before daemon or
   CLI validation.
@@ -59,7 +59,7 @@ shared manager environment.
 
 The manager is specifically looking for realistic validation, not shallow proof.
 
-- Exercise the feature under conditions closer to real Happy usage: longer
+- Exercise the feature under conditions closer to real HappyHerd usage: longer
   chats, multiple steps, navigation, reload/resume, multiple artifacts, and
   realistic project state where relevant.
 - Fully exercise the feature, not just the first obvious success path.
@@ -85,7 +85,7 @@ When the task is UI-facing and the manager asks for design options:
 
 ## Communication Rules
 
-- Report only through your own Happy session.
+- Report only through your own HappyHerd session.
 - Do not rely on other engineers to explain your state.
 - Be skeptical. Say exactly what remains untested.
 

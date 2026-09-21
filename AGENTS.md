@@ -23,23 +23,24 @@ live source remain authoritative.
   integration, verification, and final delivery.
 - The Git remote named `upstream` always points to `slopus/happy`.
 - Do not copy changes from the dirty reference checkout at
-  `App/external-projects/happy` without reviewing and recommitting them as an
+  `App/external-projects/happyherd` without reviewing and recommitting them as an
   explicit HappyHerd patch.
-- Do not rename the Happy product during G0/A1-A6. Apply only the approved
-  Hervald logo mark.
+- G0/A1-A6 retained upstream branding. The later approved #297 (CLI) and #307
+  (non-CLI) rename scope is documented in `docs/non-cli-renaming.md`; retain the
+  approved Hervald mark and all compatibility/provenance exceptions.
 - Never commit account keys, provider credentials, master secrets, runtime
   databases, logs, or CLI homes.
 - Each roadmap item lands as a topical commit and must carry acceptance
   evidence before the owning GitHub issue is closed.
 - Local reconnect-record age alone must never invalidate a session across
   service updates or daemon restarts. Actual resume depends on retained server,
-  provider, and recovery state; when available, preserve the Happy ID, original
+  provider, and recovery state; when available, preserve the HappyHerd ID, original
   machine/path, encryption, provider session/thread and state home, prior
   context, and ability to accept the next turn.
 - Do not add a HappyHerd-only guard, gate, approval flow, version or source
   lock, fail-closed refusal, automatic rollback, process supervisor, or
   isolation layer without explicit human approval recorded in the owning
-  issue and pull request. Upstream Happy behavior is the default.
+  issue and pull request. Upstream HappyHerd behavior is the default.
 
 ## Multiagent roles and delegation
 
@@ -74,7 +75,7 @@ session spawn must not set `isSideChat` or bypass the dedicated lifecycle.
 
 ## Package manager and verification
 
-Run Happy commands from `server/` and use the pinned `pnpm` version declared by
+Run HappyHerd commands from `server/` and use the pinned `pnpm` version declared by
 upstream. Prefer package-scoped tests during iteration; run the repository
 contract suite before release.
 
@@ -86,8 +87,8 @@ contract suite before release.
   and agent content byte-faithful; localize only surrounding product copy.
 - When routes or UI-owning modules change, regenerate the source-derived
   `ui-surface-inventory.json` and `ui-tree.html` with
-  `pnpm --filter happy-app ui:inventory:generate`.
-- `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
+  `pnpm --filter happyherd-app ui:inventory:generate`.
+- `pnpm --filter happyherd-app i18n:check` is the required guardrail for catalog
   parity, semantic exemptions, AST copy scanning, the route inventory, and
   the critical locale/viewport/theme smoke matrix.
 - All top-level desktop sidebar destinations must use the shared
@@ -101,12 +102,12 @@ contract suite before release.
 ## Product changelog
 
 - Every user-visible HappyHerd change must update
-  `server/packages/happy-app/CHANGELOG.md` in the same pull request. Do not rely
+  `server/packages/happyherd-app/CHANGELOG.md` in the same pull request. Do not rely
   on upstream Happy release notes to describe HappyHerd-owned behavior.
 - Keep HappyHerd entries alongside retained upstream entries in reverse
   chronological order. Write for users: describe the observable outcome and
   any important compatibility or security boundary, not internal iteration
   history.
 - After editing the Markdown source, regenerate
-  `server/packages/happy-app/sources/changelog/changelog.json` with the existing
+  `server/packages/happyherd-app/sources/changelog/changelog.json` with the existing
   changelog parser and verify that the newest title and entry count match.

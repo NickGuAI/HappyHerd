@@ -13,7 +13,7 @@ const path = require('path');
 
 const candidates = [
     path.resolve(__dirname, '..', 'node_modules/@expo/metro-config/build/serializer/exportHermes.js'),
-    path.resolve(__dirname, '..', 'packages/happy-app/node_modules/@expo/metro-config/build/serializer/exportHermes.js'),
+    path.resolve(__dirname, '..', 'packages/happyherd-app/node_modules/@expo/metro-config/build/serializer/exportHermes.js'),
 ];
 
 const randomImportAnchor = 'const path_1 = __importDefault(require("path"));';
