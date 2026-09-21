@@ -48,7 +48,7 @@ install -d -o root -g root -m 0751 "$CONFIG_ROOT"
 install -d -o "$BRIDGE_USER" -g "$BRIDGE_USER" -m 0700 \
     "$CONFIG_ROOT/secrets" \
     "$BRIDGE_ROOT" \
-    "$BRIDGE_ROOT/happyherd-control-agent" \
+    "$BRIDGE_ROOT/happy-agent" \
     "$BRIDGE_ROOT/state"
 install -d -o "$AGENT_USER" -g "$AGENT_USER" -m 0700 \
     "$AGENT_ROOT" \

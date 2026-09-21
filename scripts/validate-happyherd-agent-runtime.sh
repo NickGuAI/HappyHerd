@@ -33,6 +33,10 @@ set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
+# rename:preserve
+export HAPPYHERD_SERVER_URL="${HAPPYHERD_SERVER_URL:-${HAPPY_SERVER_URL:-}}"
+export HAPPYHERD_HOME_DIR="${HAPPYHERD_HOME_DIR:-${HAPPY_HOME_DIR:-}}"
+# /rename:preserve
 
 for name in \
     NODE_ENV HAPPYHERD_SERVER_URL HAPPYHERD_HOME_DIR \
@@ -50,7 +54,7 @@ done
 [[ "$NODE_ENV" == production ]] || die 'NODE_ENV must be production'
 [[ "$HAPPYHERD_AGENT_CODEX_PERMISSION_MODE" == read-only ]] || die 'agent Codex must be read-only'
 [[ "$HAPPYHERD_AGENT_COMMANDER_ID" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || die 'agent Commander ID is invalid'
-[[ "$HAPPYHERD_HOME_DIR" == "$BRIDGE_ROOT/happyherd-control-agent" ]] || die 'bridge HappyHerd home is not isolated'
+[[ "$HAPPYHERD_HOME_DIR" == "$BRIDGE_ROOT/happy-agent" ]] || die 'bridge HappyHerd home is not isolated'
 [[ "$HAPPYHERD_AGENT_WORKSPACE" == "$AGENT_ROOT/workspace" ]] || die 'agent workspace is not isolated'
 [[ "$HAPPYHERD_AGENT_STATE_DIR" == "$BRIDGE_ROOT/state" ]] || die 'bridge state is not isolated'
 [[ "$HAPPYHERD_AGENT_HOST" == 127.0.0.1 ]] || die 'bridge broker must bind to loopback'
@@ -67,7 +71,7 @@ node -e 'const value=Date.parse(process.argv[1]); if(!Number.isFinite(value)) pr
 
 for candidate in "$HAPPYHERD_HOME_DIR" "$HAPPYHERD_AGENT_WORKSPACE" "$HAPPYHERD_AGENT_STATE_DIR"; do
     case "$candidate" in
-        /home/*|*/.happyherd|*/.happyherd/*|*/.happyherd|*/.happyherd/*|*/.herd|*/.herd/*|*/App|*/App/*)
+        /home/*|*/.happy|*/.happy/*|*/.happyherd|*/.happyherd/*|*/.herd|*/.herd/*|*/App|*/App/*)
             die "personal runtime path is forbidden: $candidate"
             ;;
     esac

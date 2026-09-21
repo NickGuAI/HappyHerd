@@ -16,6 +16,15 @@ fail() {
 }
 
 "$VALIDATOR" "$ROOT/deploy/happyherd-agent.env.example" template >/dev/null
+# rename:preserve
+sed -e 's/^HAPPYHERD_SERVER_URL=/HAPPY_SERVER_URL=/' \
+    -e 's/^HAPPYHERD_HOME_DIR=/HAPPY_HOME_DIR=/' \
+    "$ROOT/deploy/happyherd-agent.env.example" > "$TMP_ROOT/legacy.env"
+env -u HAPPYHERD_SERVER_URL -u HAPPYHERD_HOME_DIR "$VALIDATOR" "$TMP_ROOT/legacy.env" template >/dev/null
+cp "$ROOT/deploy/happyherd-agent.env.example" "$TMP_ROOT/precedence.env"
+printf '\nHAPPY_SERVER_URL=http://invalid.example\nHAPPY_HOME_DIR=/invalid\n' >> "$TMP_ROOT/precedence.env"
+"$VALIDATOR" "$TMP_ROOT/precedence.env" template >/dev/null
+# /rename:preserve
 
 cp "$ROOT/deploy/happyherd-agent.env.example" "$TMP_ROOT/bad-personal.env"
 sed -i 's#HAPPYHERD_AGENT_WORKSPACE=/var/lib/happyherd-agent-runtime/workspace#HAPPYHERD_AGENT_WORKSPACE=/home/example-user/App#' "$TMP_ROOT/bad-personal.env"

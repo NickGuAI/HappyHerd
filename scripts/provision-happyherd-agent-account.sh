@@ -27,6 +27,9 @@ set -a
 # shellcheck disable=SC1090
 source "$BRIDGE_ENV"
 set +a
+# rename:preserve
+export HAPPYHERD_SERVER_URL="${HAPPYHERD_SERVER_URL:-${HAPPY_SERVER_URL:-}}"
+# /rename:preserve
 [[ "${HAPPYHERD_SERVER_URL:-}" == https://* ]] || die 'HAPPYHERD_SERVER_URL must use HTTPS'
 
 export HAPPYHERD_AGENT_PROVISION_HAPPYHERD_SERVER_URL="$HAPPYHERD_SERVER_URL"

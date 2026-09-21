@@ -33,6 +33,7 @@ export function planProductRename(root, from, to, scope) {
       ...(before.match(/https?:\/\/[^\s<>"'`)]+/g) ?? []),
       ...(before.match(/<!-- rename:preserve -->[\s\S]*?<!-- \/rename:preserve -->/g) ?? []),
       ...(before.match(/\/\* rename:preserve \*\/[\s\S]*?\/\* \/rename:preserve \*\//g) ?? []),
+      ...(before.match(/^# rename:preserve\n[\s\S]*?^# \/rename:preserve/gm) ?? []),
       ...(before.match(/(?:Copyright|copyright)[^\n]*/g) ?? []),
     ];
     if (/\/app-storage(?:\.test)?\.ts$/.test(path)) protectedValues.push("'Happy'", "'happy'");

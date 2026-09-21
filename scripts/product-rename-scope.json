@@ -4,7 +4,7 @@
   "stable": [
     "happy-dev-secret", "happy-upstream-base-", "happy-auth.json",
     "/var/lib/happyherd-agent-runtime/happy-home", "$AGENT_ROOT/happy-home",
-    "/var/lib/happyherd-agent-bridge/happy-agent",
+    "/var/lib/happyherd-agent-bridge/happy-agent", "$BRIDGE_ROOT/happy-agent",
     "\"clever\", \"happy\", \"swift\"", "'clever', 'happy', 'swift'",
     ":happy:", "S3_BUCKET=happy\n", "S3_BUCKET: happy\n", "\"/data/happy\"",
     "value: happy\n", "postgresql://happy:happy@", ":5432/happy",
@@ -16,6 +16,6 @@
     "X-Happy-Client", "x-happy-client", "mcp__happy__change_title", "mcp__happy_cli__change_title", "mcp__happy-cli__change_title",
     "com.slopus.happy", "com.ex3ndr.happy", "'.happy'", "\".happy\"", "'.happy-dev'", "\".happy-dev\"", "'.happy-server'", "\".happy-server\"",
     "happy-server-tokens", "github-happy", "--from Happy --to HappyHerd",
-    "HAPPY_RECONNECT_*|HAPPY_FORKED_*|HAPPY_SIDE_CHAT"
+    "HAPPY_RECONNECT_*|HAPPY_FORKED_*|HAPPY_SIDE_CHAT", "*/.happy|*/.happy/*"
   ]
 }
