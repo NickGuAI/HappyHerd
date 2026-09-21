@@ -836,7 +836,7 @@ describe('daemon session continuity', () => {
     { managed: false, limited: true },
   ])('resumes Codex with saved authentication (managed=$managed, limited=$limited)', async ({ managed, limited }) => {
     const store = await vi.importActual<typeof import('@/credentialPool/store')>('@/credentialPool/store');
-    const root = await mkdtemp(join(tmpdir(), 'happy-daemon-resume-auth-'));
+    const root = await mkdtemp(join(tmpdir(), 'happyherd-daemon-resume-auth-'));
     temporaryDirectories.push(root);
     const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
     const account = await store.upsertCredentialAccount({
@@ -872,19 +872,19 @@ describe('daemon session continuity', () => {
       session: { id: sessionId, active: false, metadata, ...encryption },
       persisted: { ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'), metadata, savedAt: Date.now() },
     });
-    mocks.spawnHappyCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 4321, kill: vi.fn(), on: vi.fn() });
     daemonRun = startDaemon();
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
     const control = mocks.controlHandlers as CapturedControlHandlers;
     const resume = rpc.resumeSession(sessionId);
-    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
-    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    control.onHappyHerdSessionWebhook(sessionId, { ...metadata, hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings }, encryption);
     await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
-    const [args, { env }] = mocks.spawnHappyCLI.mock.calls[0];
+    const [args, { env }] = mocks.spawnHappyHerdCLI.mock.calls[0];
     expect(args).toEqual(expect.arrayContaining(['--resume', 'same-native-thread']));
     expect(env.CODEX_HOME).toBe(root);
-    expect(env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(sessionId);
     if (managed) {
       expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
         preferred: 'account-a', preferredId: account.id,

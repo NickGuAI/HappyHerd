@@ -26,7 +26,7 @@ const modules: Record<string, string> = {
     `,
     '@/sync/storage': `
         import React from 'react';
-        import native from '../../../happy-cli/src/codex/fixtures/native-question.json';
+        import native from '../../../happyherd-cli/src/codex/fixtures/native-question.json';
         import { readCodexQuestions } from '@native-question-parser';
         import { selectAgentFormCommunication } from '@/sync/agentCommunications';
         const listeners = new Set();
@@ -77,8 +77,8 @@ const plugin: Plugin = {
                 key = '@/' + resolve(dirname(args.importer), key).slice(resolve(appRoot, 'sources').length + 1);
             }
             if (modules[key]) return { path: key, namespace: 'fixture' };
-            if (args.path === '@native-question-parser') return { path: resolve(appRoot, '../happy-cli/src/codex/userInput.ts') };
-            if (args.path.includes('happy-cli/src/codex/fixtures')) return { path: resolve(appRoot, '../happy-cli/src/codex/fixtures/native-question.json') };
+            if (args.path === '@native-question-parser') return { path: resolve(appRoot, '../happyherd-cli/src/codex/userInput.ts') };
+            if (args.path.endsWith('/src/codex/fixtures/native-question.json')) return { path: resolve(appRoot, '../happyherd-cli/src/codex/fixtures/native-question.json') };
             if (args.path.startsWith('@/')) {
                 const source = resolve(appRoot, 'sources', args.path.slice(2));
                 const path = [source + '.web.tsx', source + '.ts', source + '.tsx', source].find(existsSync);

@@ -346,7 +346,7 @@ describe('formatResumeHelp', () => {
 
 describe('handleResumeCommand', () => {
     it.each(['local', 'legacy'] as const)('preserves a renamed managed account by stable ID through %s resume and still rotates on quota', async (source) => {
-        const root = await mkdtemp(join(tmpdir(), 'happy-resume-identity-'));
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-resume-identity-'));
         const paths = { stateFile: join(root, 'pool.json'), accountsDir: join(root, 'accounts') };
         try {
             const account = await upsertCredentialAccount({
@@ -366,13 +366,13 @@ describe('handleResumeCommand', () => {
             if (source === 'local') {
                 mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
             } else {
-                mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
-                mocks.mockResolveHappySession.mockResolvedValue(session);
+                mocks.mockHasLocalHappyHerdAgentAuth.mockReturnValue(true);
+                mocks.mockResolveHappyHerdSession.mockResolvedValue(session);
             }
             vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', 'stale-parent-id');
 
             await handleResumeCommand([session.id]);
-            const [args, { env }] = mocks.mockSpawnHappyCLI.mock.calls[0];
+            const [args, { env }] = mocks.mockSpawnHappyHerdCLI.mock.calls[0];
             expect(args).not.toContain('--provider-account-mode');
             expect(env.HAPPYHERD_PROVIDER_ACCOUNT_ID).toBe(account.id);
             expect(env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
@@ -398,8 +398,8 @@ describe('handleResumeCommand', () => {
         if (source === 'local') {
             mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
         } else {
-            mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
-            mocks.mockResolveHappySession.mockResolvedValue(session);
+            mocks.mockHasLocalHappyHerdAgentAuth.mockReturnValue(true);
+            mocks.mockResolveHappyHerdSession.mockResolvedValue(session);
         }
         vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT', 'ambient-managed');
         vi.stubEnv('HAPPYHERD_PROVIDER_ACCOUNT_ID', 'ambient-managed-id');
@@ -407,7 +407,7 @@ describe('handleResumeCommand', () => {
 
         await handleResumeCommand([session.id]);
 
-        const [args, { env }] = mocks.mockSpawnHappyCLI.mock.calls[0];
+        const [args, { env }] = mocks.mockSpawnHappyHerdCLI.mock.calls[0];
         expect(args).toEqual(expect.arrayContaining(['--provider-account-mode', 'unmanaged']));
         expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT');
         expect(env).not.toHaveProperty('HAPPYHERD_PROVIDER_ACCOUNT_ID');
