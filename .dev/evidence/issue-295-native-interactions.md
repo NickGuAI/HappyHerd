@@ -103,6 +103,28 @@ belong to the final PR handoff; no green CI is presumed here.
 
 ## Review and activation boundary
 
+### PR CI follow-through
+
+On `c5df026746fe50fc76409d23683dcb660118803c`, GitHub's
+[Contract suite](https://github.com/NickGuAI/HappyHerd/actions/runs/35546920758/job/106174406946)
+and [Unit tests](https://github.com/NickGuAI/HappyHerd/actions/runs/35546920734/job/106174742212)
+passed, resolving the combined-suite proof gap left by local macOS teardown
+timeouts. Clean install, Lint, Typecheck and the server/Web image also passed.
+
+[Production build](https://github.com/NickGuAI/HappyHerd/actions/runs/35546920734/job/106174742263)
+failed only the strict golden-image comparison: the four Desktop/Mobile,
+light/dark changelog captures contain this issue's newly required release note.
+All other 24 captures matched with zero differing pixels. Reviewed all four
+actual images against the prior changelog and the checked-in release-note text;
+the intended inserted entry accounts for the changed content and vertical flow.
+
+Ran `pnpm --filter happy-app golden:update` to obtain the exact-head Linux
+captures from artifact `kilv-golden-35546920734`. Only those four baseline PNGs
+changed. No production source, comparator, mask, threshold, timeout or test
+assertion changed. The comparator still includes antialiasing and requires
+zero changed pixels. Final-head CI results will be reported in the PR handoff;
+authenticated interaction acceptance remains separate and unproved.
+
 Changed lanes: provider-session CLI runtime, shared app UI/state and developer
 documentation. The server storage/API and permission policy are unchanged.
 Reviewed exact supported call sites include direct Codex resume, existing native
