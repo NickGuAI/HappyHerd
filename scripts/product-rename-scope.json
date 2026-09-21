@@ -15,6 +15,7 @@
     "happyCliVersion", "happyHomeDir", "happyLibDir", "happyToolsDir", "happySessionId", "requiresHappyAgentAuth", "happyAgentAuthenticated", "spawn-happy-session", "resume-happy-session",
     "X-Happy-Client", "x-happy-client", "mcp__happy__change_title", "mcp__happy_cli__change_title", "mcp__happy-cli__change_title",
     "com.slopus.happy", "com.ex3ndr.happy", "'.happy'", "\".happy\"", "'.happy-dev'", "\".happy-dev\"", "'.happy-server'", "\".happy-server\"",
-    "happy-server-tokens", "github-happy"
+    "happy-server-tokens", "github-happy", "--from Happy --to HappyHerd",
+    "HAPPY_RECONNECT_*|HAPPY_FORKED_*|HAPPY_SIDE_CHAT"
   ]
 }
