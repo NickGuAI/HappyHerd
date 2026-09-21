@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+CLI_RENAME_TRACKING	accepted	fix(cli): retain tracked ignored files through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_GOLDENS	accepted	test(cli): refresh changelog goldens from reviewed CI capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 CLI_RENAME_PAIRING	accepted	fix(cli): preserve the shipped app pairing protocol	scripts/test-native-installer-auth.mjs
 CLI_RENAME_CHANGELOG	accepted	docs(cli): preserve historical changelog during renames	scripts/cli-rename-scope.json

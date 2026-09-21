@@ -23,7 +23,8 @@ test('full baseline repository supports two consecutive tracked renames with bin
     execFileSync('tar', ['-xf', archive, '-C', temp]);
     rmSync(archive);
     execFileSync('git', ['init', '-q'], { cwd: temp });
-    execFileSync('git', ['add', '.'], { cwd: temp });
+    // git archive contains tracked files, including files matched by ignore rules.
+    execFileSync('git', ['add', '--force', '.'], { cwd: temp });
     mkdirSync(join(temp, 'scripts'), { recursive: true });
     writeFileSync(join(temp, 'scripts/cli-rename-scope.json'), readFileSync(join(root, 'scripts/cli-rename-scope.json')));
     const run = (from, to) => execFileSync(process.execPath, [join(root, 'scripts/rename-cli.mjs'), '--root', temp, '--from', from, '--to', to, '--apply']);
@@ -32,6 +33,9 @@ test('full baseline repository supports two consecutive tracked renames with bin
     // Assert every packaged binary, not just text snapshots.
     const binaries = execFileSync('git', ['ls-files', 'server/packages/happy-cli/tools'], { cwd: temp, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
     const bytes = binaries.map((path) => [path, readFileSync(join(temp, path))]);
+    const ignoredTracked = execFileSync('git', ['ls-files', '--cached', '--ignored', '--exclude-standard', 'server/packages/happy-cli'], { cwd: temp, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+    assert(ignoredTracked.includes('server/packages/happy-cli/CLAUDE.md'));
+    assert(ignoredTracked.includes('server/packages/happy-cli/.env.dev'));
     run('Happy', 'HappyHerd');
     assert(existsSync(join(temp, 'server/packages/happyherd-cli/bin/happyherd.mjs')));
     assert(!existsSync(join(temp, 'server/packages/happyherd-cli/bin/happy.mjs')));
@@ -39,6 +43,8 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert.equal(manifest.name, '@happyherd/cli');
     assert.deepEqual(Object.keys(manifest.bin).sort(), ['happyherd', 'happyherd-agent-codex-policy', 'happyherd-agent-mcp', 'happyherd-mcp']);
     execFileSync('git', ['add', '-A'], { cwd: temp });
+    const firstTracked = execFileSync('git', ['ls-files'], { cwd: temp, encoding: 'utf8' }).split('\n');
+    for (const path of ignoredTracked) assert(firstTracked.includes(path.replace('/happy-cli/', '/happyherd-cli/')), path);
     run('HappyHerd', 'Meadow');
     assert(existsSync(join(temp, 'server/packages/meadow-cli/bin/meadow.mjs')));
     assert.equal(JSON.parse(readFileSync(join(temp, 'server/packages/meadow-cli/package.json'))).name, '@meadow/cli');
@@ -47,6 +53,13 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert.deepEqual(readFileSync(join(temp, 'server/packages/happy-app/CHANGELOG.md')), originalChangelog);
     for (const [path, expected] of bytes) assert.deepEqual(readFileSync(join(temp, path.replace('/happy-cli/', '/meadow-cli/'))), expected);
     execFileSync('git', ['add', '-A'], { cwd: temp });
+    const secondTracked = execFileSync('git', ['ls-files'], { cwd: temp, encoding: 'utf8' }).split('\n');
+    for (const path of ignoredTracked) {
+      const destination = path.replace('/happy-cli/', '/meadow-cli/');
+      assert(secondTracked.includes(destination), destination);
+      assert(existsSync(join(temp, destination)), destination);
+      assert(!existsSync(join(temp, path.replace('/happy-cli/', '/happyherd-cli/'))), path);
+    }
     const idempotent = execFileSync(process.execPath, [join(root, 'scripts/rename-cli.mjs'), '--root', temp, '--from', 'HappyHerd', '--to', 'Meadow', '--check'], { encoding: 'utf8' });
     assert.match(idempotent, /0 files need renaming/);
   } finally {

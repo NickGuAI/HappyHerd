@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Tracked source only: never traverse runtime homes, dependencies or build output.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, lstatSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { readFileSync, existsSync, lstatSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,7 +89,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (args.includes('--apply')) {
     for (const { path, destination, after } of changes) {
       mkdirSync(dirname(resolve(root, destination)), { recursive: true });
-      if (path !== destination) renameSync(resolve(root, path), resolve(root, destination));
+      // Keep tracked ignored files discoverable on subsequent rename passes.
+      if (path !== destination) execFileSync('git', ['mv', '--', path, destination], { cwd: root });
       writeFileSync(resolve(root, destination), after);
     }
     console.log(`Renamed ${changes.length} tracked files`);
