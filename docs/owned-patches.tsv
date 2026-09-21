@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NON_CLI_VALIDATION_RECEIPT	accepted	docs(product): record migration validation and exact-head review	docs/acceptance/issue-307.md
 NON_CLI_DESKTOP_IDENTITY	accepted	refactor(product): separate desktop symbols from persisted home names	server/packages/codium/sources/boot/main/app-storage.test.ts
 NON_CLI_CI_DERIVED	accepted	fix(product): finalize migration boundaries and generated contracts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 NON_CLI_BRIDGE_ENV	accepted	fix(product): retain deployed bridge environment compatibility	scripts/test-happyherd-agent-runtime.sh
