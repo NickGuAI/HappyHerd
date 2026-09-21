@@ -33,6 +33,7 @@ import type { Credentials } from './credentials';
 import type { RawSession, RawMessage, DecryptedSession, EncryptionVariant } from './api';
 import { resolveSessionEncryption } from './api';
 import { formatSessionTable, formatSessionStatus, formatMessageHistory, formatJson } from './output';
+import { testCliEnvironment } from './test-support/cliEnvironment';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const binPath = resolve(__dirname, '..', 'bin', 'happy-agent.mjs');
@@ -49,11 +50,7 @@ function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: 
             ...args,
         ], {
             encoding: 'utf-8',
-            env: {
-                ...process.env,
-                HAPPYHERD_HOME_DIR: home,
-                /* rename:preserve */ HAPPY_HOME_DIR: home /* /rename:preserve */,
-            },
+            env: testCliEnvironment(home, 'http://127.0.0.1:1'),
         });
         return { stdout, stderr: '', exitCode: 0 };
     } catch (err: unknown) {
