@@ -67,6 +67,26 @@ function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | 'grok' | 'dsh' 
     return null;
 }
 
+export function isUnmanagedCodexSession(metadata: Metadata): boolean {
+    // Native-auth sessions (including explicitly unmanaged side chats) have no
+    // saved pool identity. A newly configured default must not claim them.
+    return resolveFlavor(metadata) === 'codex' && !metadata.providerAccount && !metadata.providerAccountId;
+}
+
+async function savedProviderResumeEnvironment(metadata: Metadata): Promise<NodeJS.ProcessEnv> {
+    const provider = resolveFlavor(metadata);
+    const codexHome = await resolveCodexHomeForResume(metadata);
+    const grokHome = provider === 'grok' ? metadata.grokHome?.trim() || undefined : undefined;
+    return {
+        ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+        ...(grokHome ? { GROK_HOME: grokHome } : {}),
+        ...(provider && (metadata.providerAccount || metadata.providerAccountId)
+            ? { HAPPYHERD_PROVIDER_ACCOUNT_TYPE: provider } : {}),
+        ...(metadata.providerAccount ? { HAPPYHERD_PROVIDER_ACCOUNT: metadata.providerAccount } : {}),
+        ...(metadata.providerAccountId ? { HAPPYHERD_PROVIDER_ACCOUNT_ID: metadata.providerAccountId } : {}),
+    };
+}
+
 export function buildResumeLaunch(session: ResumableHappySession, options: ResumeLaunchOptions = {}): ResumeLaunch {
     const { metadata } = session;
     const flavor = resolveFlavor(metadata);
@@ -76,6 +96,9 @@ export function buildResumeLaunch(session: ResumableHappySession, options: Resum
             throw new Error(`Happy session ${session.id} is missing its Codex thread ID.`);
         }
         const args = ['codex', '--resume', metadata.codexThreadId];
+        if (isUnmanagedCodexSession(metadata)) {
+            args.push('--provider-account-mode', 'unmanaged');
+        }
         if (options.startedBy) {
             args.push('--started-by', options.startedBy);
         }
@@ -139,15 +162,10 @@ async function buildReconnectEnv(
     settings?: HappyHerdMachineSessionSettings,
 ): Promise<NodeJS.ProcessEnv> {
     const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
-    const codexHome = await resolveCodexHomeForResume(session.metadata);
-    const grokHome = session.metadata.flavor === 'grok'
-        ? session.metadata.grokHome?.trim() || undefined
-        : undefined;
     return buildSessionChildEnvironment(process.env, {
         ...contextEnvironment(contextBundle),
-        ...(codexHome ? { CODEX_HOME: codexHome } : {}),
-        ...(grokHome ? { GROK_HOME: grokHome } : {}),
         ...machineSessionSettingsEnvironment(settings),
+        ...await savedProviderResumeEnvironment(session.metadata),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
         HAPPY_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,
@@ -280,7 +298,10 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
 
     const exitCode = await spawnResumeChild(
         launch,
-        buildSessionChildEnvironment(process.env, machineSessionSettingsEnvironment(launch.settings)),
+        buildSessionChildEnvironment(process.env, {
+            ...machineSessionSettingsEnvironment(launch.settings),
+            ...await savedProviderResumeEnvironment(session.metadata),
+        }),
     );
     if (typeof exitCode === 'number' && exitCode !== 0) {
         process.exit(exitCode);

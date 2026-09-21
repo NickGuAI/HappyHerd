@@ -1,3 +1,8 @@
+# September 20 — Resume with the saved provider account
+
+- Resuming a session keeps its saved managed account even after the default account changes or the saved account is renamed. Quota-limited accounts can still rotate to an available account.
+- Codex sessions using native authentication, including unmanaged side chats, keep that authentication on terminal and daemon resume even when a managed account pool is configured or fully limited.
+
 # September 20 — Claude model-specific usage limits
 
 - Sonnet sessions no longer rotate accounts just because Opus usage is exhausted. All model usage windows remain visible, and actual Claude quota rejections still trigger quota handling.

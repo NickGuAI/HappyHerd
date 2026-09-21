@@ -1,5 +1,7 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+RESUME_PROVIDER_IDENTITY_GOLDENS	accepted	test(app): refresh changelog goldens for resume account fix	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+RESUME_PROVIDER_IDENTITY	accepted	fix(sessions): preserve provider account identity on resume	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
 CLAUDE_QUOTA_CHANGELOG_GOLDENS	accepted	test(app): refresh quota fix changelog golden images	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 CLAUDE_MODEL_QUOTA	accepted	fix(claude): keep usage snapshots out of quota rotation	server/packages/happy-cli/src/claude/claudeRemote.test.ts
 CLAUDE_QUOTA_CHANGELOG_GOLDENS	accepted	test(app): refresh Claude quota recovery changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
