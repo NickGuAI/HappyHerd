@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+GROK_SCOPED_OAUTH_GOLDENS	accepted	test(app): refresh Grok login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 GROK_SCOPED_OAUTH	accepted	fix(grok): accept native scoped OAuth login credentials	server/packages/happy-cli/src/credentialPool/loginManager.test.ts
 RESUME_PROVIDER_IDENTITY_GOLDENS	accepted	test(app): refresh changelog goldens for resume account fix	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 RESUME_PROVIDER_IDENTITY	accepted	fix(sessions): preserve provider account identity on resume	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
