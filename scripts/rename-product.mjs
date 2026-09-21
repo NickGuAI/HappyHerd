@@ -37,6 +37,8 @@ export function planProductRename(root, from, to, scope) {
       ...(before.match(/^# rename:preserve\n[\s\S]*?^# \/rename:preserve/gm) ?? []),
       ...(before.match(/(?:Copyright|copyright)[^\n]*/g) ?? []),
     ];
+    // Preserve the serialized auth key, while internal client symbols still rename.
+    if (/\/(?:sync\/apiSocket(?:\.test)?|app\/api\/socket\.test)\.ts$/.test(path)) protectedValues.push('happyClient:');
     if (storageModule) protectedValues.push("'Happy'", "'happy'", ...(before.match(/['"][^'"\n]*\/(?:Happy|happy)['"]/g) ?? []));
     if (/\/storageTypes\.ts$/.test(path)) protectedValues.push("'happy-app'", "'happy-cli'");
     if (path.endsWith('/dev/input-styles.tsx')) protectedValues.push('name="happy"', 'name="happy-outline"');

@@ -115,7 +115,8 @@ export function startSocket(app: Fastify) {
         socket.data.clientType = clientType;
         socket.data.sessionId = sessionId;
         socket.data.machineId = machineId;
-        socket.data.happyherdClient = socket.handshake.auth.happyherdClient as string
+        // The handshake key is a mixed-version wire contract, not product branding.
+        socket.data.happyherdClient = socket.handshake.auth.happyClient as string
             || socket.handshake.headers['x-happy-client'] as string
             || undefined;
         next();

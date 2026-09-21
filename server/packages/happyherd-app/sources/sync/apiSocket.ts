@@ -103,7 +103,7 @@ class ApiSocket {
             auth: (cb) => cb({
                 token: this.config!.token,
                 clientType: 'user-scoped' as const,
-                happyherdClient: getHappyHerdClientId(),
+                happyClient: getHappyHerdClientId(),
                 appState: getCurrentAppState(),
             }),
             transports: ['websocket'],

@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NON_CLI_SOCKET_IDENTITY	accepted	fix(product): preserve established socket client identity across renames	server/packages/happyherd-server/sources/app/api/socket.test.ts
 NON_CLI_RENAME_INTEGRATION	accepted	fix(product): retain integrated session and provider contracts through rename	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
 NON_CLI_VALIDATION_RECEIPT	accepted	docs(product): record migration validation and exact-head review	docs/acceptance/issue-307.md
 NON_CLI_DESKTOP_IDENTITY	accepted	refactor(product): separate desktop symbols from persisted home names	server/packages/codium/sources/boot/main/app-storage.test.ts

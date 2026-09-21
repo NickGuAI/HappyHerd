@@ -35,6 +35,10 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     const destination = path => first.find(change => change.path === path)?.destination ?? path;
     const binaryBytes = first.filter(change => change.before.includes(0));
     applyProductRename(temp, first);
+    assert.match(read('server/packages/happyherd-app/sources/sync/apiSocket.ts').toString(), /\bhappyClient:/);
+    assert.match(read('server/packages/happyherd-server/sources/app/api/socket.ts').toString(), /handshake\.auth\.happyClient\b/);
+    assert.match(read('server/packages/happyherd-server/sources/app/api/socket.ts').toString(), /socket\.data\.happyherdClient\b/);
+    assert.match(read('server/packages/codium/sources/happyherd/client.ts').toString(), /export const happyherdClient\b/);
     for (const [path, bytes] of original) assert.deepEqual(read(destination(path)), bytes, path);
     for (const change of binaryBytes) assert.deepEqual(read(change.destination), change.before, change.path);
     assert.equal(JSON.parse(read('server/packages/happyherd-cli/package.json')).name, '@happyherd/cli');
@@ -48,6 +52,10 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert.equal(planProductRename(temp, 'Happy', 'HappyHerd', scope).length, 0);
     const second = planProductRename(temp, 'HappyHerd', 'Meadow', scope);
     applyProductRename(temp, second);
+    assert.match(read('server/packages/meadow-app/sources/sync/apiSocket.ts').toString(), /\bhappyClient:/);
+    assert.match(read('server/packages/meadow-server/sources/app/api/socket.ts').toString(), /handshake\.auth\.happyClient\b/);
+    assert.match(read('server/packages/meadow-server/sources/app/api/socket.ts').toString(), /socket\.data\.meadowClient\b/);
+    assert.match(read('server/packages/codium/sources/meadow/client.ts').toString(), /export const meadowClient\b/);
     const nextDestination = path => second.find(change => change.path === destination(path))?.destination ?? destination(path);
     for (const [path, bytes] of original) assert.deepEqual(read(nextDestination(path)), bytes, path);
     for (const change of binaryBytes) {
