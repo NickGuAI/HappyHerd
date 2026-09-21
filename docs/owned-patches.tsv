@@ -433,3 +433,4 @@ ISSUE_287_GOLDEN_RASTER	code-ready	test(app): stabilize golden screenshot raster
 ISSUE_287_GOLDEN_FULL_RASTER	code-ready	test(app): refresh full-raster appearance golden	docs/acceptance/issue-287/golden/routes-appearance-populated-dark-390.png
 AUTOMATION_ADMISSION_GOLDENS	accepted	test(app): refresh automation recovery changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_297_SOCKET_WIRE_IDENTITY	code-ready	fix(cli): preserve established socket client identity through renames	server/packages/happyherd-cli/src/api/apiSession.test.ts
+ISSUE_297_TITLE_EVENT_CONTINUITY	code-ready	fix(app): recognize canonical CLI title events across rename stages	server/packages/happy-app/sources/sync/reducer/messageToEvent.test.ts

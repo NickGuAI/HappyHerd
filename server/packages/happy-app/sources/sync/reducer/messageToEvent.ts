@@ -44,8 +44,13 @@ export function parseMessageAsEvent(msg: NormalizedMessage): AgentEvent | null {
                 
             }
             
-            // Check for mcp__happy__change_title tool calls
-            if (content.type === 'tool-call' && content.name === 'mcp__happy__change_title') {
+            // Current CLI tools and retained messages from historical clients.
+            if (content.type === 'tool-call' && [
+                'mcp__happyherd__change_title',
+                'mcp__happy__change_title',
+                'mcp__happy_cli__change_title',
+                'mcp__happy-cli__change_title',
+            ].includes(content.name)) {
                 const title = content.input?.title;
                 if (typeof title === 'string') {
                     return {
