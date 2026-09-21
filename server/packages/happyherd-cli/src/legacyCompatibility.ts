@@ -5,6 +5,10 @@ import { join } from 'node:path';
 const legacyPrefix = 'HAPPY_';
 const currentPrefix = 'HAPPYHERD_';
 
+// Shared pairing protocol: shipped apps still parse this exact URI scheme.
+// Switch the emitted scheme only after app readers support both generations.
+export const TERMINAL_PAIRING_URI_PREFIX = 'happy://terminal?';
+
 export function canonicalEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     const result = { ...env };
     for (const [key, value] of Object.entries(env)) {

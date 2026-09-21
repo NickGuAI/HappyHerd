@@ -3,7 +3,7 @@
     {
       "title": "September 20 — HappyHerd CLI naming",
       "summary": "",
-      "markdown": "- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.\n- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed."
+      "markdown": "- The CLI and its MCP helper now consistently use `happyherd` and `happyherd-mcp`, with updated help, configuration examples and development paths.\n- Existing home directories, machine identities, credentials and session history remain usable. New `HAPPYHERD_*` settings take precedence over compatible older environment inputs; no user data is copied or renamed.\n- Pairing QR codes and manual links remain compatible with existing app versions."
     },
     {
       "title": "September 20 — Native plans and recoverable answers",

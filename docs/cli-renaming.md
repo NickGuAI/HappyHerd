@@ -74,6 +74,10 @@ Retain these wire/stored-data spellings until both readers and writers migrate:
 records; they are schema boundaries rather than installed CLI branding.
 `Happy EnCoder` is a cryptographic derivation domain and must remain byte-exact.
 The historical shutdown-source enum `happy-cli` also remains a wire value.
+Pairing QR/manual URLs retain `happy://terminal?` in `legacyCompatibility.ts`:
+the shipped app's `sources/hooks/useConnectTerminal.ts` only accepts that
+scheme. #307 must add dual-scheme readers before switching the CLI's emitted
+scheme; renaming just the installer test parser would hide broken app pairing.
 The CLI now emits `mcp__happyherd__change_title`; #307 must teach the app's
 `sources/sync/reducer/messageToEvent.ts` to recognize both old and new title
 tool names so historical turns retain their specialized presentation.

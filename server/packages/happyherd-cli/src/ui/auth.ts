@@ -1,5 +1,6 @@
 import { decodeBase64, encodeBase64, encodeBase64Url } from "@/api/encryption";
 import { configuration } from "@/configuration";
+import { TERMINAL_PAIRING_URI_PREFIX } from '@/legacyCompatibility';
 import { randomBytes } from "node:crypto";
 import tweetnacl from 'tweetnacl';
 import axios from 'axios';
@@ -99,7 +100,7 @@ async function doMobileAuth(keypair: tweetnacl.BoxKeyPair): Promise<Credentials 
     console.log('\nMobile Authentication\n');
     console.log('Scan this QR code with your HappyHerd mobile app:\n');
 
-    const authUrl = 'happyherd://terminal?' + encodeBase64Url(keypair.publicKey);
+    const authUrl = TERMINAL_PAIRING_URI_PREFIX + encodeBase64Url(keypair.publicKey);
     displayQRCode(authUrl);
 
     console.log('\nOr manually enter this URL:');
