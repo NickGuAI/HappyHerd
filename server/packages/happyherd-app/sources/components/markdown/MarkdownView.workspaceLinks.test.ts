@@ -129,6 +129,7 @@ vi.mock('@/utils/markdownWorkspaceLink', () => ({
 vi.mock('@/-session/workspaceLinkNavigation', () => ({ useWorkspaceLinkPress: () => null }));
 
 import { MarkdownView } from './MarkdownView';
+import { parseSafeguardReminder } from '../safeguardReminder';
 import { lightTheme, darkTheme } from '@/theme';
 import { FontFamilies } from '@/constants/Typography';
 
@@ -149,6 +150,31 @@ beforeEach(() => {
 });
 
 describe('MarkdownView workspace-link opt-in', () => {
+    it.each([
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.\n</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.',
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.\n\n</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="revise">\n\n<quote>Publish it</quote>\n<suggestion>Choose a destination.</suggestion>',
+    ])('keeps the native plan and approval option visible after malformed reminder markup: %s', (prefix) => {
+        const source = `${prefix}\n**Plan remains visible**\n<options>\n<option>Approve implementation</option>\n</options>`;
+        const parsed = parseSafeguardReminder(source);
+        expect(parsed.reminder).toBeNull();
+        const onOptionPress = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, { markdown: parsed.text, onOptionPress }));
+        });
+        expect(renderer.root.findAllByType('span').some((node: any) => node.children.includes('Plan remains visible'))).toBe(true);
+        const chip = renderer.root.findAllByType('button' as any).find((candidate: any) => (
+            candidate.findAll((node: any) => node.type === 'span' && node.children.includes('Approve implementation')).length > 0
+        ));
+        expect(chip).toBeDefined();
+        expect(onOptionPress).not.toHaveBeenCalled();
+        act(() => chip!.props.onPress());
+        expect(onOptionPress).toHaveBeenCalledExactlyOnceWith({ title: 'Approve implementation' });
+        act(() => renderer.unmount());
+    });
+
     it.each([
         ['short Latin', 'Read the email'],
         ['multiline Latin', 'Read the email\nThen summarize it'],

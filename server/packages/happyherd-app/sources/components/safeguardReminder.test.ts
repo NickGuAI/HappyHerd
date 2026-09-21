@@ -49,13 +49,15 @@ describe('parseSafeguardReminder', () => {
     });
 
     it.each([ready, revise, `<${tag}\nstatus = 'ready' >Clear scope.</${tag}>`])(
-        'preserves every incomplete streaming prefix without emitting a card: %s',
+        'preserves the content of every incomplete streaming prefix without emitting a card: %s',
         (complete) => {
             for (let length = 1; length < complete.length; length += 1) {
-                expect(parseSafeguardReminder(complete.slice(0, length)), `prefix length ${length}`)
-                    .toEqual({ reminder: null, text: complete.slice(0, length) });
-                expect(parseSafeguardReminder(` \n${complete.slice(0, length)}`), `whitespace prefix length ${length}`)
-                    .toEqual({ reminder: null, text: ` \n${complete.slice(0, length)}` });
+                for (const prefix of ['', ' \n']) {
+                    const text = prefix + complete.slice(0, length);
+                    const parsed = parseSafeguardReminder(text);
+                    expect(parsed.reminder, `prefix length ${length}`).toBeNull();
+                    expect(parsed.text.replace('&lt;', '<'), `prefix length ${length}`).toBe(text);
+                }
             }
             expect(parseSafeguardReminder(complete).reminder).not.toBeNull();
         },
@@ -87,8 +89,12 @@ describe('parseSafeguardReminder', () => {
         `<${tag} status="revise"><quote><b>Target</b></quote><suggestion>Choose one.</suggestion></${tag}>`,
         `<${tag} status="revise"><quote>Target</quote>Other text<suggestion>Choose one.</suggestion></${tag}>`,
         `<${tag} status="revise"><quote>Target</quote><suggestion>Choose one.</suggestion><extra>More</extra></${tag}>`,
-    ])('preserves invalid complete structures without emitting a reminder: %s', (text) => {
-        expect(parseSafeguardReminder(text)).toEqual({ reminder: null, text });
+        `<${tag} status="unknown`,
+        `<${tag} data=`,
+    ])('keeps invalid structures literal without emitting a reminder: %s', (text) => {
+        const parsed = parseSafeguardReminder(text);
+        expect(parsed.reminder).toBeNull();
+        expect(parsed.text.replace('&lt;', '<')).toBe(text);
     });
 
     it.each([
@@ -97,8 +103,6 @@ describe('parseSafeguardReminder', () => {
         'Normal **Markdown** with [a link](https://example.com).',
         `<not-a-reminder>Text</not-a-reminder>`,
         `<${tag}-example status="ready">Clear scope.</${tag}-example>`,
-        `<${tag} status="unknown`,
-        `<${tag} data=`,
         '```xml\n' + ready + '\n```',
         '~~~xml\n' + ready + '\n~~~',
         '`' + ready + '`',
@@ -124,11 +128,28 @@ describe('parseSafeguardReminder', () => {
         'preserves the plan and options when the closing tag is absent or malformed: %s',
         (ending) => {
             const text = `<${tag} status="ready">No obvious issues.${ending}\n\n**Plan**\n\n<options>\n<option>Approve</option>\n</options>`;
-            expect(parseSafeguardReminder(text)).toEqual({ reminder: null, text });
+            const expected = { reminder: null, text: '&lt;' + text.slice(1) };
+            expect(parseSafeguardReminder(text)).toEqual(expected);
             const reopened = JSON.parse(JSON.stringify({ text }));
-            expect(parseSafeguardReminder(reopened.text)).toEqual({ reminder: null, text });
+            expect(parseSafeguardReminder(reopened.text)).toEqual(expected);
         },
     );
+
+    it('escapes protocol HTML block starts while leaving ordinary Markdown and options intact', () => {
+        const prefix = `<${tag} status="revise">\n\n<quote>Publish it</quote>\n<suggestion>Choose a destination.</suggestion>\n</${tag}r>`;
+        const suffix = '\n**Plan**\n<options>\n<option>Approve</option>\n</options>';
+        expect(parseSafeguardReminder(prefix + suffix)).toEqual({
+            reminder: null,
+            text: `&lt;${tag} status="revise">\n\n&lt;quote>Publish it</quote>\n&lt;suggestion>Choose a destination.</suggestion>\n&lt;/${tag}r>` + suffix,
+        });
+    });
+
+    it.each(['```xml', '~~~~xml'])('preserves code examples after a malformed reminder: %s', (openingFence) => {
+        const closingFence = openingFence.replace('xml', '');
+        const prefix = `<${tag} status="ready">Still checking`;
+        const suffix = `\n\n${openingFence}\n${ready}\n<quote>Example</quote>\n${closingFence}\n\n    ${ready}\n\nInline \`${ready}\` and [reference](https://example.com).`;
+        expect(parseSafeguardReminder(prefix + suffix)).toEqual({ reminder: null, text: '&lt;' + prefix.slice(1) + suffix });
+    });
 
     it('extracts only the first leading block', () => {
         expect(parseSafeguardReminder(ready + '\n' + revise)).toEqual({

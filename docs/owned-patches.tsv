@@ -460,3 +460,4 @@ PRODUCT_FINAL_CHANGELOG_GOLDENS	accepted	test(product): refresh final integrated
 USER_SAFEGUARD_ASSESSMENT	accepted	feat(safeguard): assess prompts and render concise reminders	server/packages/happyherd-app/sources/components/safeguardReminder.test.ts
 USER_SAFEGUARD_MALFORMED_REPLY	accepted	fix(safeguard): preserve incomplete replies and verify KILV rendering	server/packages/happyherd-app/sources/components/safeguardReminder.test.ts
 SAFEGUARD_CONCISE_ASSESSMENT	accepted	docs(safeguard): require short prompt quotes and actionable suggestions	.dev/skills/happyherd-user-safeguard/SKILL.md
+SAFEGUARD_NATIVE_MALFORMED_MARKUP	accepted	fix(safeguard): keep malformed reminders from hiding reply content	server/packages/happyherd-app/sources/components/markdown/MarkdownView.workspaceLinks.test.ts

@@ -35,6 +35,7 @@ vi.mock('@/modal', () => ({ Modal: { alert: mocks.modalAlert, show: mocks.modalS
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
 import { MarkdownView } from './MarkdownView.web';
+import { parseSafeguardReminder } from '../safeguardReminder';
 
 beforeAll(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,6 +51,28 @@ beforeEach(() => {
 });
 
 describe('MarkdownView web parity', () => {
+    it.each([
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.\n</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.',
+        '<happyherd-safeguard-reminder status="ready">\nNo obvious issues.\n\n</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="revise">\n\n<quote>Publish it</quote>\n<suggestion>Choose a destination.</suggestion>',
+    ])('keeps Web Markdown and approval options after malformed reminder markup: %s', (prefix) => {
+        const parsed = parseSafeguardReminder(`${prefix}\n**Plan remains visible**\n<options>\n<option>Approve implementation</option>\n</options>`);
+        expect(parsed.reminder).toBeNull();
+        const onOptionPress = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, { markdown: parsed.text, onOptionPress }));
+        });
+        expect(renderer.root.findByType('strong').children).toEqual(['Plan remains visible']);
+        const chip = renderer.root.findByProps({ className: 'hh-markdown-option' });
+        expect(chip.children).toEqual(['Approve implementation']);
+        expect(onOptionPress).not.toHaveBeenCalled();
+        act(() => chip.props.onClick());
+        expect(onOptionPress).toHaveBeenCalledExactlyOnceWith({ title: 'Approve implementation' });
+        act(() => renderer.unmount());
+    });
+
     it('applies explicit block alignment at the rendered Web root', () => {
         let renderer: any;
         act(() => {
