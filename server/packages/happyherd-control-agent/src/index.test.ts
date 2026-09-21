@@ -31,7 +31,7 @@ function runCli(...args: string[]): { stdout: string; stderr: string; exitCode: 
     }
 }
 
-describe('happy-agent CLI', () => {
+describe('happyherd-control-agent CLI', () => {
     it.each(['status', 'create', 'logout'])('isolates %s from inherited authenticated homes', (command) => {
         const home = mkdtempSync(join(tmpdir(), 'control-parent-home-'));
         const credential = join(home, 'agent.key');
@@ -47,7 +47,7 @@ describe('happy-agent CLI', () => {
             if (command === 'create') {
                 const result = runCli('create', '--tag', 'isolated-test');
                 expect(result.exitCode).not.toBe(0);
-                expect(result.stderr).toContain('happy-agent auth login');
+                expect(result.stderr).toContain('happyherd-control-agent auth login');
             } else {
                 const result = runCli('auth', command);
                 expect(result.exitCode).toBe(0);

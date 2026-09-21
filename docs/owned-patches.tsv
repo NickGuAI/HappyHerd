@@ -446,12 +446,13 @@ ISSUE_287_GOLDEN_RASTER	code-ready	test(app): stabilize golden screenshot raster
 ISSUE_287_GOLDEN_FULL_RASTER	code-ready	test(app): refresh full-raster appearance golden	docs/acceptance/issue-287/golden/routes-appearance-populated-dark-390.png
 AUTOMATION_ADMISSION_GOLDENS	accepted	test(app): refresh automation recovery changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_297_SOCKET_WIRE_IDENTITY	code-ready	fix(cli): preserve established socket client identity through renames	server/packages/happyherd-cli/src/api/apiSession.test.ts
-ISSUE_297_TITLE_EVENT_CONTINUITY	code-ready	fix(app): recognize canonical CLI title events across rename stages	server/packages/happy-app/sources/sync/reducer/messageToEvent.test.ts
-ISSUE_297_CONTROL_ENV_CONTINUITY	code-ready	fix(control): honor canonical CLI environment without losing legacy state	server/packages/happy-agent/src/config.test.ts
+ISSUE_297_TITLE_EVENT_CONTINUITY	code-ready	fix(app): recognize canonical CLI title events across rename stages	server/packages/happyherd-app/sources/sync/reducer/messageToEvent.test.ts
+ISSUE_297_CONTROL_ENV_CONTINUITY	code-ready	fix(control): honor canonical CLI environment without losing legacy state	server/packages/happyherd-control-agent/src/config.test.ts
 RENAME_PEER_COMPATIBILITY	accepted	fix(cli): preserve established attachment and peer protocols	server/packages/happyherd-cli/src/api/apiSession.test.ts
 CLI_RENAME_AUTOMATION_OWNER	accepted	fix(cli): retain automation ownership through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_MCP_IDENTITY	accepted	fix(cli): retain the title tool peer namespace through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_PEER_SOP	accepted	docs(cli): document preserved peer identities through repeated renames	docs/cli-renaming.md
-CONTROL_SMOKE_HOME_ISOLATION	accepted	test(control): isolate smoke commands from inherited homes	server/packages/happy-agent/src/cli-smoke.test.ts
-CONTROL_TEST_ENV_ISOLATION	accepted	test(control): isolate all CLI test homes and servers	server/packages/happy-agent/src/test-support/cliEnvironment.test.ts
-CLI_SHARED_RECOVERY_ARTIFACTS	accepted	chore(cli): reconcile generated artifacts after shared recovery integration	server/packages/happy-app/sources/text/ui-surface-inventory.json
+CONTROL_SMOKE_HOME_ISOLATION	accepted	test(control): isolate smoke commands from inherited homes	server/packages/happyherd-control-agent/src/cli-smoke.test.ts
+CONTROL_TEST_ENV_ISOLATION	accepted	test(control): isolate all CLI test homes and servers	server/packages/happyherd-control-agent/src/test-support/cliEnvironment.test.ts
+CLI_SHARED_RECOVERY_ARTIFACTS	accepted	chore(cli): reconcile generated artifacts after shared recovery integration	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+PRODUCT_FINAL_CLI_CONTINUITY	accepted	fix(product): retain final CLI continuity repairs after integration	server/packages/happyherd-cli/src/automations/service.test.ts
