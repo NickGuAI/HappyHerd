@@ -14,6 +14,7 @@
  */
 
 import { execSync, type ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { spawn as crossSpawn } from 'cross-spawn';
 import { createInterface, type Interface as ReadlineInterface } from 'node:readline';
 import { logger } from '@/ui/logger';
@@ -95,6 +96,13 @@ function isNoActiveTurnToSteerError(error: unknown): error is CodexAppServerRpcE
 }
 
 export type CodexSteerTurnResult = 'steered' | 'turn-not-active';
+
+export type NativeUserInputRequest = {
+    id: string;
+    params: Record<string, unknown>;
+    signal: AbortSignal;
+    respond: (answers: Record<string, { answers: string[] }>) => void;
+};
 
 type LegacyPatchChanges = Record<string, Record<string, unknown>>;
 
@@ -306,6 +314,12 @@ export class CodexAppServerClient {
     // Handlers set by the consumer (runCodex.ts)
     private eventHandler: ((msg: EventMsg) => void) | null = null;
     private approvalHandler: ApprovalHandler | null = null;
+    private userInputHandler: ((request: NativeUserInputRequest) => void) | null = null;
+    private userInputs = new Map<string, { controller: AbortController; threadId: unknown; turnId: unknown; itemId: unknown }>();
+    private seenUserInputs = new Set<string>();
+    private planSnapshots = new Map<string, string>();
+    private planBodies = new Map<string, string>();
+    private planTime = 0;
 
     constructor(sandboxConfig?: SandboxConfig, options: {
         agentPolicyEntrypoint?: string;
@@ -343,6 +357,18 @@ export class CodexAppServerClient {
 
     setApprovalHandler(handler: ApprovalHandler): void {
         this.approvalHandler = handler;
+    }
+
+    setUserInputHandler(handler: (request: NativeUserInputRequest) => void): void {
+        this.userInputHandler = handler;
+    }
+
+    private retireUserInputs(matches: (request: { threadId: unknown; turnId: unknown; itemId: unknown }) => boolean = () => true): void {
+        for (const [key, request] of this.userInputs) {
+            if (!matches(request)) continue;
+            this.userInputs.delete(key);
+            request.controller.abort();
+        }
     }
 
     private extractTurnId(params: any): string | null {
@@ -462,6 +488,27 @@ export class CodexAppServerClient {
     }
 
     private handleRawNotification(method: string, params: any): boolean {
+        if (method === 'turn/plan/updated') {
+            if (this.isRootThreadNotification(params) && !this.shouldIgnoreTurnLifecycle(this.extractTurnId(params), method)) {
+                const key = JSON.stringify([params.threadId, params.turnId]);
+                const signature = JSON.stringify(params.plan);
+                if (this.planSnapshots.get(key) !== signature) {
+                    this.planSnapshots.set(key, signature);
+                    this.planTime = Math.max(this.planTime + 2, Date.now());
+                    this.eventHandler?.({ ...params, type: 'native_plan', time: this.planTime, snapshotId: randomUUID() });
+                }
+            }
+            return true;
+        }
+        if (method === 'item/plan/delta' && typeof params?.delta === 'string') {
+            if (!this.isRootThreadNotification(params) || this.shouldIgnoreTurnLifecycle(this.extractTurnId(params), method)) return true;
+            const key = JSON.stringify([params.threadId, params.turnId, params.itemId]);
+            const text = (this.planBodies.get(key) ?? '') + params.delta;
+            this.planBodies.set(key, text);
+            this.planTime = Math.max(this.planTime + 2, Date.now());
+            this.eventHandler?.({ type: 'native_plan_item', item: { id: params.itemId, text }, turnId: params.turnId, completed: false, time: this.planTime });
+            return true;
+        }
         if (!this.shouldHandleRawNotification(method)) {
             return false;
         }
@@ -496,6 +543,7 @@ export class CodexAppServerClient {
         }
 
         if (method === 'turn/completed') {
+            this.retireUserInputs(request => request.threadId === params?.threadId && request.turnId === params?.turn?.id);
             if (!this.isRootThreadNotification(params)) {
                 const childThreadId = this.extractThreadId(params);
                 if (childThreadId) {
@@ -573,6 +621,17 @@ export class CodexAppServerClient {
         const item = params?.item;
         if (!item || typeof item !== 'object') {
             return method.startsWith('item/');
+        }
+
+        if (method === 'item/completed') {
+            this.retireUserInputs(request => request.threadId === params?.threadId && request.itemId === item.id);
+        }
+        if (method === 'item/completed' && item.type === 'plan') {
+            if (!this.isRootThreadNotification(params)) return true;
+            this.planBodies.delete(JSON.stringify([params.threadId, params.turnId, item.id]));
+            this.planTime = Math.max(this.planTime + 2, Date.now());
+            this.eventHandler?.({ type: 'native_plan_item', item, time: this.planTime, turnId: params.turnId, threadId: params.threadId, ...this.childThreadScope(params) });
+            return true;
         }
 
         if (method === 'item/completed' && item.type === 'reasoning') {
@@ -878,6 +937,10 @@ export class CodexAppServerClient {
         logger.debug(`[CodexAppServer] Spawning: ${command} ${args.join(' ')}`);
 
         const epoch = ++this.processEpoch;
+        this.retireUserInputs();
+        this.seenUserInputs.clear();
+        this.planBodies.clear();
+        this.planSnapshots.clear();
         // Use cross-spawn so npm-installed wrappers (codex.cmd / codex.ps1) resolve on Windows.
         // Native child_process.spawn fails with ENOENT for .cmd shims (issues #980, #1016).
         const proc = crossSpawn(command, args, {
@@ -900,6 +963,7 @@ export class CodexAppServerClient {
                 return;
             }
             this.connected = false;
+            this.retireUserInputs();
             // Reject all pending requests
             for (const [id, req] of this.pending) {
                 if (req.epoch !== epoch) continue;
@@ -968,6 +1032,10 @@ export class CodexAppServerClient {
     }
 
     private async disconnectInternal(opts?: { preserveThreadState?: boolean }): Promise<void> {
+        this.retireUserInputs();
+        this.seenUserInputs.clear();
+        this.planBodies.clear();
+        this.planSnapshots.clear();
         if (!this.connected && !this.process) return;
 
         const proc = this.process;
@@ -1091,6 +1159,7 @@ export class CodexAppServerClient {
     }
 
     async resumeThread(opts?: {
+        replayPlans?: boolean;
         threadId?: string;
         model?: string;
         cwd?: string;
@@ -1131,6 +1200,18 @@ export class CodexAppServerClient {
             developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
+        // Native history exposes plan bodies, not past turn/plan/updated snapshots.
+        // Stable turn/item IDs join replay with the existing live transcript.
+        for (const turn of opts?.replayPlans === false ? [] : result.thread.turns ?? []) {
+            for (const item of turn.items ?? []) {
+                if (item.type !== 'plan') continue;
+                // A recovered final body supersedes a persisted partial stream,
+                // even when native history has only second-resolution times.
+                // Already-finalized bodies deduplicate by their stable envelope IDs.
+                this.planTime = Math.max(this.planTime + 2, Date.now());
+                this.eventHandler?.({ type: 'native_plan_item', item, turnId: turn.id, time: this.planTime });
+            }
+        }
         return { threadId: result.thread.id, model: result.model };
     }
 
@@ -1542,6 +1623,7 @@ export class CodexAppServerClient {
     }
 
     async interruptTurn(opts?: { timeoutMs?: number }): Promise<void> {
+        this.retireUserInputs();
         if (!this._threadId) return;
         if (!this._turnId) {
             logger.debug('[CodexAppServer] interruptTurn: no active turnId, skipping');
@@ -1572,6 +1654,9 @@ export class CodexAppServerClient {
     }
 
     clearThreadState(): void {
+        this.retireUserInputs();
+        this.planBodies.clear();
+        this.planSnapshots.clear();
         logger.debug(
             `[CodexAppServer] Clearing thread state: thread=${this._threadId ?? 'none'} turn=${this._turnId ?? 'none'}`,
         );
@@ -1647,14 +1732,14 @@ export class CodexAppServerClient {
         logger.debug(`[CodexAppServer] → ${method} (notification)`);
     }
 
-    private respond(id: number, result: unknown): void {
+    private respond(id: number | string, result: unknown): void {
         if (!this.process?.stdin?.writable) return;
         const msg: JsonRpcResponse = { jsonrpc: '2.0', id, result };
         this.process.stdin.write(JSON.stringify(msg) + '\n');
         logger.debug(`[CodexAppServer] → response (id=${id})`);
     }
 
-    private respondError(id: number, message: string): void {
+    private respondError(id: number | string, message: string): void {
         if (!this.process?.stdin?.writable) return;
         const msg: JsonRpcResponse = {
             jsonrpc: '2.0',
@@ -1797,11 +1882,40 @@ export class CodexAppServerClient {
     }
 
     private async handleServerRequest(
-        id: number,
+        id: number | string,
         method: string,
         params: any,
         sourceEpoch: number = this.processEpoch,
     ): Promise<void> {
+        if (method === 'item/tool/requestUserInput') {
+            const key = JSON.stringify([sourceEpoch, id]);
+            if (this.seenUserInputs.has(key)) return;
+            this.seenUserInputs.add(key);
+            if (params?.threadId === this._threadId && typeof params?.turnId === 'string'
+                && this.shouldIgnoreTurnLifecycle(params.turnId, method)) {
+                this.respond(id, { answers: {} });
+                return;
+            }
+            const sourceProcess = this.process;
+            const controller = new AbortController();
+            const request = { controller, threadId: params?.threadId, turnId: params?.turnId, itemId: params?.itemId };
+            this.userInputs.set(key, request);
+            const respond = (answers: Record<string, { answers: string[] }>) => {
+                if (this.userInputs.get(key) !== request || this.processEpoch !== sourceEpoch
+                    || this.process !== sourceProcess || !sourceProcess?.stdin?.writable) {
+                    throw new Error('Codex question is no longer pending');
+                }
+                // Retire before writing: duplicate UI replies cannot settle twice.
+                this.userInputs.delete(key);
+                this.respond(id, { answers });
+            };
+            if (this.userInputHandler) {
+                this.userInputHandler({ id: `codex-question:${randomUUID()}`, params: params ?? {}, signal: controller.signal, respond });
+            } else {
+                respond({});
+            }
+            return;
+        }
         if (method === 'account/chatgptAuthTokens/refresh') {
             const sourceProcess = this.process;
             const isCurrentGeneration = (): boolean => (
@@ -1954,6 +2068,15 @@ export class CodexAppServerClient {
     }
 
     private handleNotification(method: string, params: any): void {
+        if (method === 'serverRequest/resolved') {
+            const key = JSON.stringify([this.processEpoch, params?.requestId]);
+            const request = this.userInputs.get(key);
+            if (request && request.threadId === params?.threadId) {
+                this.userInputs.delete(key);
+                request.controller.abort();
+            }
+            return;
+        }
         if (method === 'account/rateLimits/updated') {
             this.eventHandler?.({
                 type: 'account_rate_limits_updated',

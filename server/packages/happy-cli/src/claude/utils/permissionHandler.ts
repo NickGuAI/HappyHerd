@@ -441,7 +441,7 @@ export class PermissionHandler {
             this.responses.set(id, { ...message, receivedAt: Date.now() });
 
             // Move processed request to completedRequests
-            this.session.client.updateAgentState((currentState) => {
+            await this.session.client.updateAgentState((currentState) => {
                 const request = currentState.requests?.[id];
                 if (!request) return currentState;
                 let r = { ...currentState.requests };
@@ -453,6 +453,11 @@ export class PermissionHandler {
                         ...currentState.completedRequests,
                         [id]: {
                             ...request,
+                            // Retain the native question-text keys and custom answers
+                            // in the existing durable receipt read by the app.
+                            arguments: message.approved && pending.toolName === 'AskUserQuestion' && message.updatedInput
+                                ? { ...request.arguments, ...message.updatedInput }
+                                : request.arguments,
                             completedAt: Date.now(),
                             status: message.approved ? 'approved' : 'denied',
                             reason: message.reason,

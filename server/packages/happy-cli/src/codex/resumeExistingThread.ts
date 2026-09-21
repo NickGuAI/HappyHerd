@@ -3,6 +3,7 @@ import type { ApprovalPolicy, SandboxMode } from './codexAppServerTypes';
 
 type ResumeThreadClient = {
     resumeThread: (opts: {
+        replayPlans?: boolean;
         threadId: string;
         model?: string;
         cwd: string;
@@ -42,6 +43,7 @@ export async function resumeExistingThread(opts: {
 }): Promise<{ threadId: string; model: string }> {
     try {
         const resumedThread = await opts.client.resumeThread({
+            ...(opts.announce === false ? { replayPlans: false } : {}),
             threadId: opts.threadId,
             ...(opts.model ? { model: opts.model } : {}),
             cwd: opts.cwd,

@@ -11,6 +11,7 @@ import {
 } from '@slopus/happy-wire';
 import type { Thread, ThreadItem, ThreadTurn } from '../codexAppServerTypes';
 import { stripHappySystemBlocks } from '../codexPrompt';
+import { codexPlanBody, codexPlanSnapshot } from './nativePlans';
 
 export type CodexTurnState = {
     currentTurnId: string | null;
@@ -839,6 +840,8 @@ export function mapCodexThreadItemToSessionEnvelopes(
     const collabToolByCall = getCollabToolByCall(mappingState);
 
     switch (item.type) {
+        case 'plan':
+            return codexPlanBody(turn.id, { id: item.id, text: item.text }, completedAt);
         case 'userMessage': {
             const text = textFromInputItems(item.content);
             const visibleText = text ? visibleCodexMessageText(text) : null;
@@ -1216,6 +1219,19 @@ function mapCodexMcpMessageToSessionEnvelopesInner(message: Record<string, unkno
     const collabReceiverThreadIdsByCall = getCollabReceiverThreadIdsByCall(state);
     const collabTurnIdsByCall = getCollabTurnIdsByCall(state);
     const collabToolByCall = getCollabToolByCall(state);
+
+    if (type === 'native_plan' || type === 'native_plan_item') {
+        const item = message.item as { id: string; text: unknown } | undefined;
+        const turn = typeof message.turnId === 'string' ? message.turnId : state.currentTurnId;
+        const time = typeof message.time === 'number' ? message.time : Date.now();
+        return {
+            currentTurnId: state.currentTurnId, lastTurnId, startedSubagents, activeSubagents,
+            subagentTurnIds, subagentStops, providerSubagentToSessionSubagent, subagentTitles,
+            collabReceiverThreadIdsByCall, collabTurnIdsByCall, collabToolByCall,
+            envelopes: type === 'native_plan' ? codexPlanSnapshot(message, time)
+                : turn && item ? codexPlanBody(turn, item, time, message.completed !== false) : [],
+        };
+    }
 
     if (type === 'task_started') {
         const turnId = pickString(message.turn_id ?? message.turnId) ?? createId();

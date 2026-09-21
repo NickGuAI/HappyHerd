@@ -508,7 +508,29 @@ export type AgentGoalStatus = {
     }
 );
 
+export type AgentQuestion = {
+  id: string;
+  header: string;
+  question: string;
+  options: Array<{ label: string; description?: string }>;
+  allowCustom: boolean;
+  isSecret: boolean;
+};
+export type AgentQuestionAnswer = { options: string[]; custom?: string };
+export type AgentCommunication = {
+  kind: string;
+  createdAt: number;
+  toolUseId?: string;
+  form?: { questions: AgentQuestion[] };
+};
+
 export type AgentState = {
+  communications?: Record<string, AgentCommunication>;
+  completedCommunications?: Record<string, AgentCommunication & {
+    completedAt: number;
+    status: 'answered' | 'cancelled';
+    answers?: Record<string, AgentQuestionAnswer>;
+  }>;
   controlledByUser?: boolean | null | undefined
   /**
    * Ephemeral plan rate-limit windows reported by the agent backend.

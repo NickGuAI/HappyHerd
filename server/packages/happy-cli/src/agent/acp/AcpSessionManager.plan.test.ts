@@ -36,6 +36,18 @@ function nativePlan(update: Parameters<typeof handlePlanUpdate>[0]): AgentMessag
 }
 
 describe('ACP native plan delivery', () => {
+    it('retains provider-replayed snapshots only during the explicit load/resume scope', () => {
+        const mapper = new AcpSessionManager();
+        mapper.setPlanReplay(true);
+        for (const snapshot of [entries, []]) {
+            const envelopes = nativePlan({ sessionUpdate: 'plan', entries: snapshot }).flatMap(message => mapper.mapMessage(message));
+            expect(envelopes.map(envelope => envelope.ev.t)).toEqual(['turn-start', 'tool-call-start', 'tool-call-end', 'turn-end']);
+            expect(envelopes[2].ev).toMatchObject({ result: { newTodos: snapshot } });
+            expect(new Set(envelopes.map(envelope => envelope.turn)).size).toBe(1);
+        }
+        mapper.setPlanReplay(false);
+        expect(mapper.mapMessage({ type: 'event', name: 'plan', payload: { entries } })).toEqual([]);
+    });
     it('admits the standard discriminated update, not only a legacy nested plan', () => {
         const update = { sessionUpdate: 'plan', entries };
         expect(nativePlan(update)).toEqual([{ type: 'event', name: 'plan', payload: update }]);

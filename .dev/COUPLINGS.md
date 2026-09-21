@@ -279,6 +279,19 @@ failure. Known-tool registries may enrich presentation, but correctness cannot
 depend on a provider-specific registry entry: a valid unfamiliar tool with a
 title must not render as `unknown`.
 
+### Native plan and question recovery
+
+See [native-plan-question-interactions](playbooks/native-plan-question-interactions.md).
+Codex's client owns the exact JSON-RPC response and process generation;
+`codex/userInput.ts` joins a unique communication to one transcript tool and
+persists answer/cancellation receipts in existing encrypted agent state. App
+form selectors own the inline-versus-modal split. Claude instead retains
+native answers in completed permission arguments. ACP has plan snapshots but
+no newly introduced question protocol. Codex progress snapshots use TodoWrite;
+streamed and restored plan bodies share turn/item tool identity. ACP load/resume
+replay has an explicit adapter-owned presentation scope. Provider-supported
+history and Happy's retained transcript are distinct recovery authorities.
+
 ### Session heartbeat delivery
 
 ```text

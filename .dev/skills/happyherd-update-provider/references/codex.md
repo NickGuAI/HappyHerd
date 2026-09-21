@@ -78,6 +78,22 @@ The relevant owners are
 - Prove all tuple dimensions use the correct per-field precedence in both app
   and terminal resume, and prove the returned daemon receipt is displayed.
 
+## Native plan and question contract (#295)
+
+Protocol shapes rechecked with installed Codex CLI **0.154.0** using
+`app-server generate-ts --experimental`. `item/tool/requestUserInput` uses
+string or numeric request IDs, thread/turn/item scope and questions with
+`id/header/question/isOther/isSecret/options`. Answers map native question IDs
+to `{ answers: string[] }`; cancellation is an empty answer map. The client
+owns native response lifetime; `codex/userInput.ts` owns encrypted communication
+receipts and the transcript join. This is independent of command approval.
+
+`turn/plan/updated` contains `{ step, status }` with native `inProgress`.
+`item/plan/delta` streams text; `ThreadItem { type: 'plan', id, text }` owns
+restorable plan bodies. Native history does not expose old progress snapshots;
+Happy's transcript retains those. See the [interaction playbook](../../../playbooks/native-plan-question-interactions.md)
+for mapping, recovery and explicit authenticated-proof gaps.
+
 ## Known gaps
 
 A live authenticated resume smoke was not completed during the 2026-08-30

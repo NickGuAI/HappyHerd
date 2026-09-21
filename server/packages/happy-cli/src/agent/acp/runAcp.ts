@@ -1356,7 +1356,8 @@ export async function runAcp(opts: {
   });
 
   try {
-    const started = await backend.startSession();
+    sessionManager.setPlanReplay(true);
+    const started = await backend.startSession().finally(() => sessionManager.setPlanReplay(false));
     acpSessionId = started.sessionId;
     const providerUsageSessionId = started.providerSessionId ?? started.sessionId;
     const reportAcpTurnUsage = async (

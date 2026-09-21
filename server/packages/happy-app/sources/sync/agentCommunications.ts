@@ -124,11 +124,12 @@ export function selectAgentFormCommunication(
     return null;
 }
 
-/** Option-bearing forms can live directly in chat; text-only forms keep the modal fallback. */
+/** Only anchored forms have a transcript owner; all other requests use the modal. */
 export function canRenderAgentFormInline(communication: PendingAgentCommunication): boolean {
     return communication.kind === 'form'
+        && Boolean(communication.toolUseId)
         && communication.questions.length > 0
-        && communication.questions.every(question => question.options.length > 0);
+        && communication.questions.every(question => question.options.length > 0 || question.allowCustom !== false);
 }
 
 /**

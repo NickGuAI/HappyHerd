@@ -123,6 +123,13 @@ describe('PermissionHandler', () => {
                 answers: { 'Continue?': 'Yes' },
             },
         });
+        const restored = JSON.parse(JSON.stringify(getState()));
+        expect(restored.requests.toolu_question).toBeUndefined();
+        expect(restored.completedRequests.toolu_question.arguments).toEqual({
+            questions: [{ question: 'Continue?' }], answers: { 'Continue?': 'Yes' },
+        });
+        await getPermissionResponseHandler(handlers)({ id: 'toolu_question', approved: true, updatedInput: { answers: { 'Continue?': 'late' } } });
+        expect(getState().completedRequests.toolu_question.arguments.answers).toEqual({ 'Continue?': 'Yes' });
     });
 
     it.each(['default', 'auto'] as const)('%s keeps executable callbacks interactive', async (permissionMode) => {

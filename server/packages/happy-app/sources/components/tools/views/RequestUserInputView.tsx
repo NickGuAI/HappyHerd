@@ -49,8 +49,8 @@ export const RequestUserInputView = React.memo<ToolViewProps>(({ tool, sessionId
         await sessionCancelCommunication(sessionId, communication.id, communication.kind);
     }, [communication, sessionId]);
 
-    // Text-only forms retain the modal fallback so an unanchored request cannot
-    // lose its only answer surface.
+    // Unanchored forms retain the modal fallback; anchored text-only questions
+    // share this single inline owner with option-bearing questions.
     if (!communication || !canRenderAgentFormInline(communication)) return null;
 
     return (

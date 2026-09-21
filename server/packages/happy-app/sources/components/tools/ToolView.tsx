@@ -52,7 +52,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const hasQuestionForm = tool.name === 'AskUserQuestion' && readClaudeQuestions(tool.input) !== null;
     const hasSpecializedContent = tool.name === 'AskUserQuestion' ? hasQuestionForm
         : tool.name === 'request_user_input' ? communication !== null && canRenderAgentFormInline(communication)
-        : tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode' ? hasPlanBody(tool.input)
+        : tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode' || tool.name === 'CodexPlan' ? hasPlanBody(tool.input)
         : true;
 
     // For file-editing tools, navigate to file route instead of message detail
@@ -206,7 +206,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const needsApprovalInput = tool.permission?.status === 'pending' && SpecificToolView === null;
     const needsExpandedContent = tool.name === 'TodoWrite'
         || tool.name === 'AskUserQuestion' || tool.name === 'request_user_input'
-        || tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode';
+        || tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode' || tool.name === 'CodexPlan';
     const isCompactActivityTool = !needsExpandedContent && !needsApprovalInput
         && (shouldUseCompactToolRow(tool, compactToolCalls, SpecificToolView !== null)
         || minimal

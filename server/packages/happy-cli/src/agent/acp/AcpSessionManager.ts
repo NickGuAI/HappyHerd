@@ -31,6 +31,12 @@ function parseThinkingPayload(payload: unknown): { text: string; streaming: bool
 
 export class AcpSessionManager {
   private currentTurnId: string | null = null;
+  private replayingPlans = false;
+
+  /** ACP load/resume can replay snapshots before any prompt turn exists. */
+  setPlanReplay(active: boolean): void {
+    this.replayingPlans = active;
+  }
 
   /** Monotonic clock: max(lastTime + 1, Date.now()) */
   private lastTime = 0;
@@ -94,20 +100,24 @@ export class AcpSessionManager {
   mapMessage(msg: AgentMessage): SessionEnvelope[] {
     if (msg.type === 'event' && msg.name === 'plan') {
       const todos = readPlanEntries(msg.payload);
-      if (todos === null || !this.currentTurnId) return [];
+      if (todos === null || (!this.currentTurnId && !this.replayingPlans)) return [];
+      const replay = !this.currentTurnId;
+      const turnId = this.currentTurnId ?? createId();
       // ACP plans are full replacements, including an empty plan. Reuse the
       // existing TodoWrite transcript and latest-todos reducer, not a new store.
       const flushed = this.flush();
       const call = createId();
       return [
         ...flushed,
+        ...(replay ? [createEnvelope('agent', { t: 'turn-start' }, { turn: turnId, time: this.nextTime() })] : []),
         createEnvelope('agent', {
           t: 'tool-call-start', call, name: 'TodoWrite',
           title: 'Plan', description: 'Plan', args: { todos },
-        }, turnOptions(this.currentTurnId, this.nextTime())),
+        }, turnOptions(turnId, this.nextTime())),
         createEnvelope('agent', {
           t: 'tool-call-end', call, result: { newTodos: todos },
-        }, turnOptions(this.currentTurnId, this.nextTime())),
+        }, turnOptions(turnId, this.nextTime())),
+        ...(replay ? [createEnvelope('agent', { t: 'turn-end', status: 'completed' }, { turn: turnId, time: this.nextTime() })] : []),
       ];
     }
 

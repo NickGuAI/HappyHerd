@@ -47,6 +47,7 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     search_replace: EditView,
     TodoWrite: TodoView,
     ExitPlanMode: ExitPlanToolView,
+    CodexPlan: ExitPlanToolView,
     exit_plan_mode: ExitPlanToolView,
     MultiEdit: MultiEditView,
     Task: TaskView,
