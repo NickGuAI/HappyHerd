@@ -2056,7 +2056,7 @@ function NewSessionScreen() {
             const existingSessionId = getSpawnedSessionId(clientRequestId);
             let spawnDirectory = absolutePath;
             const worktreeMachine = machine;
-            if (!existingSessionId && worktreeSelection === '__new__' && !happyAgentTarget) {
+            if (!existingSessionId && worktreeSelection === '__new__' && !happyherdAgentTarget) {
                 const worktreeResult = await createWorktree(worktreeMachine.id, absolutePath);
                 if (!worktreeResult.success) {
                     Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));

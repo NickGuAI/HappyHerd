@@ -150,7 +150,7 @@ const sessionEventSchema = z.discriminatedUnion('t', [
 
 // Who wrote a user-role envelope, when the producer knows. Travels inside the
 // encrypted session blob like everything else here. `owner` marks the account
-// this Happy session belongs to — the one reading it on this device — so the
+// this HappyHerd session belongs to — the one reading it on this device — so the
 // app can tell its own messages from another participant's without having to
 // reconcile user-id spaces.
 const sessionAuthorSchema = z.object({
@@ -606,7 +606,7 @@ export type NormalizedMessage = ({
     claudeUuid?: string,
     codexItemId?: string,
     /**
-     * Who sent a user-role envelope (Happy sessions only). Absent on the
+     * Who sent a user-role envelope (HappyHerd sessions only). Absent on the
      * device owner's own messages from older daemons; see `SessionAuthor`.
      */
     author?: SessionAuthor,

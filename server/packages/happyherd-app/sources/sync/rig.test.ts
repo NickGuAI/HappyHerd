@@ -23,7 +23,7 @@ import {
 } from './rig';
 
 describe('Rig metadata', () => {
-    it('holds messages only when a Happy Agent daemon explicitly advertises receipts', () => {
+    it('holds messages only when a HappyHerd Agent daemon explicitly advertises receipts', () => {
         const supported = MetadataSchema.parse({
             ...rigMetadataFixture,
             capabilities: { ...rigMetadataFixture.capabilities!, messageReceipts: true },

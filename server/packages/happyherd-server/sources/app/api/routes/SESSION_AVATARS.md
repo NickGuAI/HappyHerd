@@ -20,7 +20,7 @@ Under `/v1/sessions/:sessionId/avatar`:
 
 All routes require the session owner's authentication. Local storage uses authenticated
 PUT/GET routes at `/avatar/:avatarFile`; S3 uses a bounded POST policy and expiring GET
-URL. Never send the Happy bearer token to a different upload/download origin. Encrypted
+URL. Never send the HappyHerd bearer token to a different upload/download origin. Encrypted
 images are limited to 10 MB, encrypted previews to 4 KB, upload grants to 60 per minute
 per account per process. Old/incomplete uploads are retained until session deletion,
 when avatar storage is cleaned alongside attachments. Removal does not delete a prefix
@@ -40,7 +40,7 @@ Bot producers publish the bot's picture here without creating a synthetic projec
 
 An avatar belongs to the conversation being displayed, not necessarily to its project.
 The session-level field also leaves room for distinct conversation pictures later, without
-requiring independently editable avatars in Happy Agent's direct API today.
+requiring independently editable avatars in HappyHerd Agent's direct API today.
 
 We considered a relay-only project for each bot to reuse project avatar storage. Older
 clients would treat those records as normal projects and offer invalid new-session/worktree

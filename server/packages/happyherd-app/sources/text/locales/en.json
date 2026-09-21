@@ -1906,8 +1906,8 @@
   },
   "upstreamSync": {
     "harnessSetupHelp": "Agent setup help",
-    "loadFailed": "Could not load changes from Happy Agent.",
-    "agentUpdate": "Update Happy Agent on your computer to view changes in this session.",
+    "loadFailed": "Could not load changes from HappyHerd Agent.",
+    "agentUpdate": "Update HappyHerd Agent on your computer to view changes in this session.",
     "comparisonUnavailable": "A comparison with origin/main is not available for this workspace.",
     "contentsMatch": "File contents match the comparison base.",
     "truncatedFiles": "Showing {shown} of {total} changed files. Open the workspace on your computer to see the full list.",

@@ -5,7 +5,7 @@ import type { AuthCredentials } from "@/auth/tokenStorage";
 import type { Encryption } from "./encryption/encryption";
 import type { ProjectAvatar } from "./projectTypes";
 import type { SessionAvatarDescriptor } from "./sessionAvatarTypes";
-import { getHappyClientId } from "./apiSocket";
+import { getHappyHerdClientId } from "./apiSocket";
 import { getServerUrl, rewriteLoopbackHost } from "./serverConfig";
 
 const previewSchema = z.object({
@@ -31,7 +31,7 @@ export async function loadSessionAvatar(
   const serverUrl = getServerUrl();
   const headers = {
     Authorization: `Bearer ${credentials.token}`,
-    "X-Happy-Client": getHappyClientId(),
+    "X-Happy-Client": getHappyHerdClientId(),
   };
   const grant = await fetch(
     `${serverUrl}/v1/sessions/${encodeURIComponent(sessionId)}/avatar/request-download`,

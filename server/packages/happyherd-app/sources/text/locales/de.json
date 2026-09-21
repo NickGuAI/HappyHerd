@@ -1906,8 +1906,8 @@
   },
   "upstreamSync": {
     "harnessSetupHelp": "Hilfe zur Agent-Einrichtung",
-    "loadFailed": "Änderungen von Happy Agent konnten nicht geladen werden.",
-    "agentUpdate": "Aktualisiere Happy Agent auf deinem Computer, um die Änderungen dieser Sitzung anzuzeigen.",
+    "loadFailed": "Änderungen von HappyHerd Agent konnten nicht geladen werden.",
+    "agentUpdate": "Aktualisiere HappyHerd Agent auf deinem Computer, um die Änderungen dieser Sitzung anzuzeigen.",
     "comparisonUnavailable": "Für diesen Arbeitsbereich ist kein Vergleich mit origin/main verfügbar.",
     "contentsMatch": "Der Dateiinhalt entspricht der Vergleichsbasis.",
     "truncatedFiles": "Es werden {shown} von {total} geänderten Dateien angezeigt. Öffne den Arbeitsbereich auf deinem Computer, um die vollständige Liste zu sehen.",

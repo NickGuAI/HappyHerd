@@ -227,7 +227,7 @@ export function createReducer(): ReducerState {
 /**
  * How this session treats a message the user just sent.
  *
- * Only Happy Agent sessions report back when a message actually enters the
+ * Only HappyHerd Agent sessions report back when a message actually enters the
  * agent's context, so only they can honestly show a message as not-yet-seen.
  * Everywhere else a message commits the moment it is sent, exactly as before.
  */

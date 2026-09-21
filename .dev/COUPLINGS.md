@@ -39,7 +39,7 @@ files, and `happyherd-server-self-host/scripts/build-runtime.cjs`.
 
 Issue #296 adds two distinct acceptance boundaries: the app's first-send flow
 waits for metadata and session/blob keys, then commits to the existing outbox;
-Happy Agent's advertised `messageReceipts` capability additionally controls
+HappyHerd Agent's advertised `messageReceipts` capability additionally controls
 provider-acceptance presentation. A POST ACK joins local and server message IDs
 but cannot advance the unread stream cursor. Receipt settlement updates the
 existing bubble without repeating voice announcements. `spawnRequestId.ts`
@@ -290,7 +290,7 @@ native answers in completed permission arguments. ACP has plan snapshots but
 no newly introduced question protocol. Codex progress snapshots use TodoWrite;
 streamed and restored plan bodies share turn/item tool identity. ACP load/resume
 replay has an explicit adapter-owned presentation scope. Provider-supported
-history and Happy's retained transcript are distinct recovery authorities.
+history and HappyHerd's retained transcript are distinct recovery authorities.
 
 ### Session heartbeat delivery
 

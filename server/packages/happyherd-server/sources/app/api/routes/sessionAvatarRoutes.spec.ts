@@ -78,7 +78,7 @@ describe("session avatar transport", () => {
     Object.assign(fixture.session, { avatarRef: null, avatarPreview: null, avatarVersion: 0 });
     fixture.objects.clear();
     fixture.local = false;
-    fixture.directory = await mkdtemp(join(tmpdir(), "happy-session-avatar-"));
+    fixture.directory = await mkdtemp(join(tmpdir(), "happyherd-session-avatar-"));
     vi.clearAllMocks();
     const instance = fastify();
     instance.setValidatorCompiler(validatorCompiler);

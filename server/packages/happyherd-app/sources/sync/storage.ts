@@ -51,7 +51,7 @@ import { mergeMachineSnapshot } from './machinePresence';
 import { t } from '@/text';
 import type { Project } from './projectTypes';
 import { resolveSessionAvatar } from './resolveSessionAvatar';
-import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
+import { getSessionProjectId, isHappyHerdAgentSession } from './projectTypes';
 import { selectSideChatSessions } from './sideChatSessions';
 import { selectProviderContinuationSessions } from '@/utils/providerContinuation';
 import { selectSuperSession } from './superSession';
@@ -227,7 +227,7 @@ function buildSessionRowData(
     const projectId = getSessionProjectId(session);
     const linkedProject = projectId ? projects[projectId] : undefined;
     const metadataProject = session.metadata?.project;
-    const projectAvatar = isHappyAgentSession(session) ? linkedProject?.avatar : null;
+    const projectAvatar = isHappyHerdAgentSession(session) ? linkedProject?.avatar : null;
     const avatar = resolveSessionAvatar(session, projects);
     return {
         botId: session.metadata?.bot?.id ?? null,
@@ -883,7 +883,7 @@ export const storage = create<StorageState>()((set, get) => {
                 // Messages are already normalized, no need to process them again
                 const normalizedMessages = messages;
 
-                // Run reducer with agentState. A Happy Agent daemon that advertises
+                // Run reducer with agentState. A HappyHerd Agent daemon that advertises
                 // receipts reports when a message actually reaches the agent, so
                 // there a just-sent message waits rather than claiming a place the
                 // agent has not read yet. Daemons without the capability commit

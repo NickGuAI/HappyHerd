@@ -248,7 +248,7 @@ describe('pending user messages', () => {
     );
 
     it('settles from the receipt the daemon actually puts on the wire', () => {
-        // Byte-for-byte the envelope mapHappyMessages emits: no `turn`, agent role,
+        // Byte-for-byte the envelope mapHappyHerdMessages emits: no `turn`, agent role,
         // a `rig:`-prefixed localId, and a ref naming the phone's own server message.
         const wire = normalizeRawMessage('server-receipt-1', 'rig:accepted:msg-1', 4000, {
             role: 'session',

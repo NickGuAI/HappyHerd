@@ -1,4 +1,4 @@
-import { createEnvelope } from '@slopus/happy-wire';
+import { createEnvelope } from '@happyherd/wire';
 import type { ApiSessionClient } from '@/api/apiSession';
 import type { AgentCommunication, AgentQuestion, AgentQuestionAnswer } from '@/api/types';
 import type { CodexAppServerClient, NativeUserInputRequest } from './codexAppServerClient';

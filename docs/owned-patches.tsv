@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+NON_CLI_RENAME_INTEGRATION	accepted	fix(product): retain integrated session and provider contracts through rename	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
 NON_CLI_VALIDATION_RECEIPT	accepted	docs(product): record migration validation and exact-head review	docs/acceptance/issue-307.md
 NON_CLI_DESKTOP_IDENTITY	accepted	refactor(product): separate desktop symbols from persisted home names	server/packages/codium/sources/boot/main/app-storage.test.ts
 NON_CLI_CI_DERIVED	accepted	fix(product): finalize migration boundaries and generated contracts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
@@ -7,7 +8,7 @@ NON_CLI_BRIDGE_ENV	accepted	fix(product): retain deployed bridge environment com
 NON_CLI_HOST_BOUNDARY	accepted	fix(product): preserve cli-owned host migration checks	scripts/test-component-deployment-contract.sh
 NON_CLI_RENAME_CONTRACT	accepted	test(product): verify rename contracts and refresh branded goldens	docs/acceptance/issue-307.md
 NON_CLI_RENAME_EVIDENCE	accepted	fix(product): refresh renamed evidence and verification contracts	scripts/rename-product.test.mjs
-CLI_RENAME_PROVIDER_INTEGRATION	accepted	fix(cli): integrate refreshed provider and native interaction contracts	server/packages/happy-app/sources/components/nativeQuestions.browser.test.ts
+CLI_RENAME_PROVIDER_INTEGRATION	accepted	fix(cli): integrate refreshed provider and native interaction contracts	server/packages/happyherd-app/sources/components/nativeQuestions.browser.test.ts
 CLI_RENAME_UPSTREAM_CONTINUITY	accepted	fix(cli): apply canonical names to upstream continuity changes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 CLI_RENAME_TRACKING	accepted	fix(cli): retain tracked ignored files through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_GOLDENS	accepted	test(cli): refresh changelog goldens from reviewed CI capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
@@ -20,7 +21,7 @@ COMMANDER_FIRST_MOCK	accepted	docs(mock): prototype Commander-first mode for iss
 NATIVE_INTERACTION_CHANGELOG_GOLDENS	accepted	test(app): refresh issue 295 changelog golden images	.dev/evidence/issue-295-native-interactions.md
 NATIVE_PLAN_QUESTION_RECOVERY	accepted	feat(providers): persist native plans and question answers	.dev/evidence/issue-295-native-interactions.md
 MANAGED_LOGIN_CHANGELOG_GOLDENS	accepted	test(app): refresh managed login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
-MANAGED_LOGIN_REFRESH	accepted	fix(app): refresh managed accounts after every login success	server/packages/happy-app/sources/components/CredentialsSettingsView.browser.test.ts
+MANAGED_LOGIN_REFRESH	accepted	fix(app): refresh managed accounts after every login success	server/packages/happyherd-app/sources/components/CredentialsSettingsView.browser.test.ts
 GROK_TERMINAL_LOGIN_GOLDENS	accepted	test(app): refresh Grok terminal login changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 GROK_TERMINAL_LOGIN	accepted	fix(grok): isolate terminal login from inherited auth paths	server/packages/happyherd-cli/src/commands/connect.credentialFiles.test.ts
 AUTOMATION_ADMISSION_HANDOFF	accepted	fix(automations): release admission after persisting active runs	server/packages/happyherd-cli/src/automations/service.test.ts
@@ -35,7 +36,7 @@ CLAUDE_UNMANAGED_QUOTA	accepted	fix(claude): release unmanaged turns after quota
 UPSTREAM_296_GOLDENS	code-ready	test(upstream): refresh exact-head changelog golden captures	docs/upstream-sync-37e94799.md
 UPSTREAM_296_INTEGRATION	code-ready	fix(upstream): finalize pinned integration contracts and evidence	docs/upstream-sync-37e94799.md
 UPSTREAM_296_REHEARSAL	code-ready	docs(upstream): record pinned 37e94799 conflict evidence	docs/upstream-sync-37e94799.md
-KILV_CHILD_WORKSPACE_HYDRATION	accepted	test(app): await side-chat workspace path hydration	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+KILV_CHILD_WORKSPACE_HYDRATION	accepted	test(app): await side-chat workspace path hydration	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 KILV_GOLDEN_PIXEL_EVIDENCE	accepted	test(app): restore golden gate after one-pixel CI proof	docs/acceptance/issue-287/golden/README.md
 KILV_GOLDEN_PIXEL_PROBE	accepted	test(app): exercise one-pixel failure through PR CI	scripts/kilv-golden.mjs
 KILV_GOLDEN_BASELINES	accepted	test(app): commit Linux golden baselines and await workspace hydration	docs/acceptance/issue-287/golden/README.md

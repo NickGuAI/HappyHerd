@@ -8,7 +8,7 @@ export type TurnAssignable = {
     /** Sent but not yet accepted by the agent; never starts a turn. */
     pending?: boolean;
     sendError?: string;
-    /** Session-protocol turn id, present on agent rows from Happy sessions. */
+    /** Session-protocol turn id, present on agent rows from HappyHerd sessions. */
     turn?: string;
 };
 

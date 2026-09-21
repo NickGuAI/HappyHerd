@@ -1906,8 +1906,8 @@
   },
   "upstreamSync": {
     "harnessSetupHelp": "代理设置帮助",
-    "loadFailed": "无法从 Happy Agent 加载更改。",
-    "agentUpdate": "请更新电脑上的 Happy Agent，以查看此会话的更改。",
+    "loadFailed": "无法从 HappyHerd Agent 加载更改。",
+    "agentUpdate": "请更新电脑上的 HappyHerd Agent，以查看此会话的更改。",
     "comparisonUnavailable": "此工作区无法与 origin/main 进行比较。",
     "contentsMatch": "文件内容与比较基准一致。",
     "truncatedFiles": "正在显示 {total} 个更改文件中的 {shown} 个。请在电脑上打开工作区查看完整列表。",

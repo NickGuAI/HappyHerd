@@ -65,7 +65,7 @@ export type UserTextMessage = {
      */
     sortAt?: number;
     /**
-     * Who sent this message, for Happy sessions with more than one participant.
+     * Who sent this message, for HappyHerd sessions with more than one participant.
      * Absent on this account's own messages from daemons that predate it, so
      * "no author" and "author.owner" both render as the reader's own bubble.
      */

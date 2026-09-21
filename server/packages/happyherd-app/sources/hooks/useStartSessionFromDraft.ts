@@ -399,7 +399,7 @@ export function useStartSessionFromDraft() {
         try {
             const existingSessionId = getSpawnedSessionId(clientRequestId);
             let spawnDirectory = absolutePath;
-            if (!existingSessionId && worktreeSelection === '__new__' && !happyAgentTarget) {
+            if (!existingSessionId && worktreeSelection === '__new__' && !happyherdAgentTarget) {
                 if (!worktreeCreationMachine) {
                     Modal.alert(t('common.error'), t("uiCopy.failedToCreateWorktree"));
                     return false;
