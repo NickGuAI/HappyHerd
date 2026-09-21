@@ -687,7 +687,7 @@ export class ApiMachineClient {
                 token: this.token,
                 clientType: 'machine-scoped' as const,
                 machineId: this.machine.id,
-                happyherdClient: `cli-daemon/${configuration.currentCliVersion}`
+                happyClient: `cli-daemon/${configuration.currentCliVersion}`
             },
             path: '/v1/updates',
             reconnection: false,

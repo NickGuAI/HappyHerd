@@ -160,6 +160,16 @@ describe('ApiMachineClient socket reconnection', () => {
         vi.restoreAllMocks();
     });
 
+    it('sends the established client identity key to existing servers', () => {
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        client.connect();
+        expect(mockIo.mock.calls[0][1].auth).toEqual({
+            token: 'fake-token', clientType: 'machine-scoped', machineId: 'test-machine-id',
+            happyClient: 'cli-daemon/test',
+        });
+        client.shutdown();
+    });
+
     it('retries after initial socket connection error', async () => {
         vi.useFakeTimers();
 

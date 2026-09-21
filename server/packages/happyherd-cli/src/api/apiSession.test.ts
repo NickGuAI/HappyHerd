@@ -217,6 +217,15 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockSocket.connect).toHaveBeenCalledTimes(1);
     });
 
+    it('sends the established client identity key to existing servers', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        expect(mockIo.mock.calls[0][1].auth).toEqual({
+            token: 'fake-token', clientType: 'session-scoped', sessionId: session.id,
+            happyClient: `cli-coding-session/${configuration.currentCliVersion}`,
+        });
+        await client.close();
+    });
+
     it('does not miss a socket connection between checking and subscribing', async () => {
         mockSocket.connected = false;
         let connectRegistrations = 0;

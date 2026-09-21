@@ -37,6 +37,9 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert(ignoredTracked.includes('server/packages/happy-cli/CLAUDE.md'));
     assert(ignoredTracked.includes('server/packages/happy-cli/.env.dev'));
     run('Happy', 'HappyHerd');
+    for (const file of ['apiMachine.ts', 'apiSession.ts']) {
+      assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/api', file), 'utf8'), /\bhappyClient:/);
+    }
     assert(existsSync(join(temp, 'server/packages/happyherd-cli/bin/happyherd.mjs')));
     assert(!existsSync(join(temp, 'server/packages/happyherd-cli/bin/happy.mjs')));
     const manifest = JSON.parse(readFileSync(join(temp, 'server/packages/happyherd-cli/package.json')));
@@ -46,6 +49,9 @@ test('full baseline repository supports two consecutive tracked renames with bin
     const firstTracked = execFileSync('git', ['ls-files'], { cwd: temp, encoding: 'utf8' }).split('\n');
     for (const path of ignoredTracked) assert(firstTracked.includes(path.replace('/happy-cli/', '/happyherd-cli/')), path);
     run('HappyHerd', 'Meadow');
+    for (const file of ['apiMachine.ts', 'apiSession.ts']) {
+      assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/api', file), 'utf8'), /\bhappyClient:/);
+    }
     assert(existsSync(join(temp, 'server/packages/meadow-cli/bin/meadow.mjs')));
     assert.equal(JSON.parse(readFileSync(join(temp, 'server/packages/meadow-cli/package.json'))).name, '@meadow/cli');
     assert.match(readFileSync(join(temp, 'AGENTS.md'), 'utf8'), /https:\/\/github.com\/slopus\/happy.git/);
