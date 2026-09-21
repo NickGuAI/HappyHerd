@@ -807,7 +807,10 @@ beforeEach(() => {
     mocks.sessionSetAgentModes.mockReset();
     mocks.sessionVisible.mockReset();
     mocks.sendMessage.mockReset();
-    mocks.sendMessage.mockResolvedValue(undefined);
+    mocks.sendMessage.mockImplementation(async (_id, _text, options) => {
+        options?.onAccepted?.();
+        return { localId: 'sent-message' };
+    });
     mocks.startRealtimeSession.mockReset();
     mocks.voiceAvailable = false;
     mocks.voiceCanRetry = false;
@@ -1503,6 +1506,7 @@ describe('SessionView side-chat integration', () => {
                 source: 'chat',
                 attachments: undefined,
                 displayText: 'Inspect these files\n\n/srv/project/photo.jpg\n/srv/project/report.pdf',
+                isCurrent: expect.any(Function), onAccepted: expect.any(Function),
                 ...(deliveryMode ? { deliveryMode } : {}),
                 awaitDelivery: false,
             },
@@ -1590,8 +1594,11 @@ describe('SessionView side-chat integration', () => {
         mocks.voiceAvailable = true;
         mocks.sessions.parent.draft = 'Send this draft';
         let acceptDelivery!: () => void;
-        mocks.sendMessage.mockImplementation(() => new Promise<void>((resolve) => {
-            acceptDelivery = resolve;
+        mocks.sendMessage.mockImplementation((_id, _text, options) => new Promise((resolve) => {
+            acceptDelivery = () => {
+                options?.onAccepted?.();
+                resolve({ localId: 'sent-message' });
+            };
         }));
         const renderer = renderParent();
         const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (

@@ -1170,6 +1170,9 @@
     "deleteFailed": "Failed to delete machine."
   },
   "message": {
+    "sendFailed": "Message not accepted: {reason}",
+    "sendsAfterThisTurn": "Sends after this turn",
+    "sending": "Sending…",
     "switchedToMode": "Switched to {mode} mode",
     "providerAccountSwitched": "Quota exhaustion on {provider} triggered an account switch from {fromAccount} to {toAccount}.",
     "providerQuotaExhausted": "Quota exhaustion on {provider}.",
@@ -1902,6 +1905,7 @@
     "bots": "Bots"
   },
   "upstreamSync": {
+    "harnessSetupHelp": "Agent setup help",
     "loadFailed": "Could not load changes from Happy Agent.",
     "agentUpdate": "Update Happy Agent on your computer to view changes in this session.",
     "comparisonUnavailable": "A comparison with origin/main is not available for this workspace.",

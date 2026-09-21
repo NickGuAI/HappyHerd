@@ -1,6 +1,6 @@
 {
   "name": "@happyherd/cli",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "The official command-line interface for HappyHerd, published as @happyherd/cli.",
   "author": "Kirill Dubovitskiy",
   "license": "MIT",

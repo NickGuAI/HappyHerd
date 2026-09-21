@@ -85,7 +85,7 @@ beforeEach(() => {
     mocks.resolveMessageModeMeta.mockReset();
     mocks.refetch.mockClear();
     mocks.alert.mockClear();
-    sync.encryption = { getSessionEncryption: mocks.getSessionEncryption } as any;
+    sync.encryption = { getSessionEncryption: mocks.getSessionEncryption, getSessionBlobKey: () => new Uint8Array(32) } as any;
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 afterEach(() => vi.restoreAllMocks());

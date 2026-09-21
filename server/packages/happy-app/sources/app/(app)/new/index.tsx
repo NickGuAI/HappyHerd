@@ -106,6 +106,8 @@ import {
 import {
     buildSpawnRequestSignature,
     completeSpawnRequest,
+    getSpawnedSessionId,
+    rememberSpawnedSession,
     resolveSpawnRequestId,
 } from '@/sync/spawnRequestId';
 import {
@@ -1016,6 +1018,7 @@ function NewSessionScreen() {
     const [modelIndex, setModelIndex] = React.useState(0);
     const [effortIndex, setEffortIndex] = React.useState(0);
     const [isSpawning, setIsSpawning] = React.useState(false);
+    const sendingRef = React.useRef<AbortController | null>(null);
     const [activePicker, setActivePicker] = React.useState<PickerType | null>(null);
     const [composerSettingsPage, setComposerSettingsPage] = React.useState<ComposerSettingPickerType | null>(null);
     const [mobileComposerHeight, setMobileComposerHeight] = React.useState(NATIVE_COMPOSER_RESERVED_HEIGHT);
@@ -2010,6 +2013,24 @@ function NewSessionScreen() {
             ? '__none__'
             : requestedWorktree;
 
+        const controller = new AbortController();
+        if (sendingRef.current) return;
+        let ownsCreatedSession = true;
+        const originalDraft = useNewSessionDraft.getState();
+        const isCurrentTarget = () => {
+            const latest = useNewSessionDraft.getState();
+            return ownsCreatedSession && isMountedRef.current
+                && latest.agentType === originalDraft.agentType
+                && latest.selectedMachineId === originalDraft.selectedMachineId
+                && latest.selectedPath === originalDraft.selectedPath
+                && latest.selectedCommanderId === originalDraft.selectedCommanderId
+                && latest.sessionType === originalDraft.sessionType
+                && latest.worktreeKey === originalDraft.worktreeKey
+                && latest.modelMode === originalDraft.modelMode
+                && latest.permissionMode === originalDraft.permissionMode
+                && latest.effortLevel === originalDraft.effortLevel;
+        };
+        sendingRef.current = controller;
         setIsSpawning(true);
         try {
             const pathToUse = trimPathInput(selectedPath) || '~';
@@ -2027,12 +2048,14 @@ function NewSessionScreen() {
                 modelKey: selectedModelKey,
                 permissionMode: permissionKey,
                 effort: currentEffort?.key ?? null,
+                commanderId: selectedCommanderId,
             }));
 
             // Handle worktree selection
+            const existingSessionId = getSpawnedSessionId(clientRequestId);
             let spawnDirectory = absolutePath;
             const worktreeMachine = machine;
-            if (worktreeSelection === '__new__' && !happyAgentTarget) {
+            if (!existingSessionId && worktreeSelection === '__new__' && !happyAgentTarget) {
                 const worktreeResult = await createWorktree(worktreeMachine.id, absolutePath);
                 if (!worktreeResult.success) {
                     Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
@@ -2089,7 +2112,9 @@ function NewSessionScreen() {
                     effortLevel: currentEffort?.key,
                     commanderId: selectedCommanderId ?? undefined,
                 };
-            let result = await machineSpawnNewSession(spawnOptions);
+            let result = existingSessionId
+                ? { type: 'success' as const, sessionId: existingSessionId }
+                : await machineSpawnNewSession(spawnOptions);
             let pendingResults = 0;
             while (result.type === 'pending' && pendingResults < MAX_RIG_PENDING_RESULTS) {
                 pendingResults += 1;
@@ -2100,13 +2125,29 @@ function NewSessionScreen() {
                 if (!isMountedRef.current) return;
                 result = await machineSpawnNewSession(spawnOptions);
             }
-            if (!isMountedRef.current) return;
-
             switch (result.type) {
                 case 'success':
-                    // The idempotency key did its job; the next Start is a new session.
-                    completeSpawnRequest();
-                    await sync.refreshSessions();
+                    const createdSessionId = result.sessionId;
+                    const abandonSession = () => {
+                        controller.abort();
+                        if (!ownsCreatedSession) return;
+                        ownsCreatedSession = false;
+                        void (async () => {
+                            const stopped = await machineStopSession(machine.id, createdSessionId);
+                            if (!stopped.success && !(await sessionKill(createdSessionId)).success) {
+                                await sessionArchive(createdSessionId);
+                            }
+                        })().catch(error => console.error('Failed to stop abandoned session:', error));
+                    };
+                    rememberSpawnedSession(clientRequestId, createdSessionId, abandonSession, () => { ownsCreatedSession = false; });
+                    if (controller.signal.aborted) return;
+                    await sync.ensureSessionReady(result.sessionId);
+                    if (controller.signal.aborted) return;
+                    if (!isCurrentTarget()) {
+                        completeSpawnRequest(clientRequestId);
+                        abandonSession();
+                        return;
+                    }
 
                     // GrokBuild permission is launch-only, so every session
                     // keeps the exact policy its process started with. Other
@@ -2142,7 +2183,7 @@ function NewSessionScreen() {
                     // re-render the screen on every keystroke). Keep both text
                     // and attachments intact until the initial message is
                     // accepted by the synchronized outbox.
-                    const draftState = useNewSessionDraft.getState();
+                    const draftState = originalDraft;
                     const trimmedPrompt = draftState.input.trim();
                     const attachments = supportsImageAttachmentsForFlavor(
                         agentType,
@@ -2173,16 +2214,21 @@ function NewSessionScreen() {
 
                     // Send initial message if provided
                     if (initialPrompt || attachments.length > 0) {
-                        await sync.sendMessage(result.sessionId, initialPrompt, {
+                        const receipt = await sync.sendMessage(result.sessionId, initialPrompt, {
                             source: 'new_session',
                             attachments,
                             displayText: initialDisplayText,
+                            signal: controller.signal,
+                            isCurrent: isCurrentTarget,
                         });
+                        if (!receipt) return;
                     }
 
+                    completeSpawnRequest(clientRequestId);
                     setWorkspaceEntries([]);
-                    draftState.setInput('');
-                    draftState.setAttachments([]);
+                    const latestDraft = useNewSessionDraft.getState();
+                    if (latestDraft.input === draftState.input) latestDraft.setInput('');
+                    if (latestDraft.attachments === draftState.attachments) latestDraft.setAttachments([]);
 
                     router.back();
                     navigateToSession(result.sessionId);
@@ -2196,6 +2242,7 @@ function NewSessionScreen() {
                     if (approved) {
                         // The request is unchanged, so the retry resolves to the
                         // same clientRequestId.
+                        sendingRef.current = null;
                         await handleSend(true);
                     }
                     break;
@@ -2216,6 +2263,7 @@ function NewSessionScreen() {
                 : t('uiCopy.failedToStartSession');
             Modal.alert(t('common.error'), errorMessage);
         } finally {
+            if (sendingRef.current === controller) sendingRef.current = null;
             if (isMountedRef.current) setIsSpawning(false);
         }
     }, [agentWorkspaces, selectedProjectId, selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, dshUploadBusy, worktreeKey, workspaceEntries]);
@@ -3853,3 +3901,4 @@ const pickerStyles = StyleSheet.create((theme) => ({
 }));
 
 export default React.memo(NewSessionScreen);
+import { machineStopSession, sessionKill, sessionArchive } from '@/sync/ops';

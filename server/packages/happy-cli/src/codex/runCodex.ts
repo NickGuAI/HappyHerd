@@ -871,16 +871,18 @@ export async function runCodex(opts: {
     };
     reasoningProcessor = new ReasoningProcessor((message) => {
         enqueueCodexProtocolWork(() => {
-            const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
-            for (const envelope of envelopes) {
+            const mapped = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
+            currentTurnId = mapped.currentTurnId;
+            for (const envelope of mapped.envelopes) {
                 session.sendSessionProtocolMessage(envelope);
             }
         });
     });
     const diffProcessor = new DiffProcessor((message) => {
         enqueueCodexProtocolWork(() => {
-            const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
-            for (const envelope of envelopes) {
+            const mapped = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
+            currentTurnId = mapped.currentTurnId;
+            for (const envelope of mapped.envelopes) {
                 session.sendSessionProtocolMessage(envelope);
             }
         });

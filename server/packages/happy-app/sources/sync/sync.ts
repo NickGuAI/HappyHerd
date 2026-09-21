@@ -73,7 +73,7 @@ import { encryptBlob } from '@/encryption/blob';
 import { readFileBytes } from '@/utils/readFileBytes';
 import { Modal } from '@/modal';
 import { t } from '@/text';
-import { isRigMetadataV1, rigCanUseAttachments, usesControlledSessionUi } from './rig';
+import { isRigMetadataV1, rigCanUseAttachments, rigSendsMessageReceipts, usesControlledSessionUi } from './rig';
 import {
     requestVisibleSessionReconciliation,
     type VisibleSessionReconciliationTrigger,
@@ -107,6 +107,10 @@ import {
 import type { Project, ProjectAvatar } from './projectTypes';
 import { SessionMessagePreloader } from './sessionMessagePreloader';
 import { messagePlanMode } from './messagePlanMode';
+import { loadSessionAvatar } from './sessionAvatars';
+import { SessionAvatarHydrator } from './SessionAvatarHydrator';
+import { sessionAvatarDescriptorSchema, sessionAvatarRevisionSchema, sameSessionAvatar } from './sessionAvatarTypes';
+import { releaseSpawnedSession } from './spawnRequestId';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -131,6 +135,7 @@ type V3PostSessionMessagesResponse = {
 };
 
 type OutboxMessage = {
+    kind: 'user' | 'attachment';
     localId: string;
     content: string;
     batchId: string;
@@ -153,6 +158,12 @@ export type SendMessageOptions = {
     deliveryMode?: 'queue';
     /** Wait until the outbox reaches the server before resolving. */
     awaitDelivery?: boolean;
+    /** Cancel before outbox acceptance; queued messages are not recalled. */
+    signal?: AbortSignal;
+    /** Synchronous commit notification, before a caller can cancel its UI flow. */
+    onAccepted?: () => void;
+    /** Re-check the composer's destination after asynchronous preparation. */
+    isCurrent?: () => boolean;
 };
 
 export type SendMessageReceipt = {
@@ -208,6 +219,16 @@ class Sync {
     // Project data keys are account secrets and remain private to Sync. They
     // are intentionally never copied into Zustand or row/display data.
     private projectDataKeys = new Map<string, Uint8Array | null>();
+    private readonly sessionAvatars = new SessionAvatarHydrator({
+        read: (id) => storage.getState().sessions[id],
+        load: async (id, descriptor, signal) => this.credentials
+            ? await loadSessionAvatar(this.credentials, this.encryption, id, descriptor, signal)
+            : null,
+        publish: (id, avatar) => {
+            const session = storage.getState().sessions[id];
+            if (session) storage.getState().applySessions([{ ...session, avatar }]);
+        },
+    });
     private projectAvatarCache = new Map<string, ProjectAvatar>();
     private projectAvatarInFlight = new Map<string, Promise<ProjectAvatar | null>>();
     private projectAvatarDescriptors = new Map<string, string>();
@@ -328,6 +349,7 @@ class Sync {
     }
 
     async create(credentials: AuthCredentials, encryption: Encryption) {
+        this.sessionAvatars.clear();
         this.credentials = credentials;
         this.encryption = encryption;
         this.anonID = encryption.anonID;
@@ -345,6 +367,7 @@ class Sync {
     }
 
     async restore(credentials: AuthCredentials, encryption: Encryption) {
+        this.sessionAvatars.clear();
         // NOTE: No awaiting anything here, we're restoring from a disk (ie app restarted)
         // Purchases sync is invalidated in #init() and will complete asynchronously
         this.credentials = credentials;
@@ -415,6 +438,7 @@ class Sync {
 
 
     onSessionVisible = (sessionId: string) => {
+        releaseSpawnedSession(sessionId);
         this.historyPrefetchSessions.add(sessionId);
         this.refreshSessionData(sessionId);
         // Also cover focus arriving while the speculative first page is still
@@ -831,6 +855,18 @@ class Sync {
         return { uploaded, failed };
     }
 
+    /** A visible row alone is not enough to safely encrypt a first message. */
+    async ensureSessionReady(sessionId: string): Promise<void> {
+        const isReady = () => !!(storage.getState().sessions[sessionId]?.metadata
+            && this.encryption.getSessionEncryption(sessionId)
+            && this.encryption.getSessionBlobKey(sessionId));
+        for (let attempt = 0; !isReady() && attempt < 3; attempt++) {
+            if (attempt > 0) await delay(300 * attempt);
+            await Promise.race([this.sessionsSync.invalidateAndAwait(), delay(4000)]);
+        }
+        if (!isReady()) throw new Error(t('errors.sessionNotFinishedSyncing'));
+    }
+
     async sendMessage(
         sessionId: string,
         text: string,
@@ -843,38 +879,20 @@ class Sync {
     ): Promise<SendMessageReceipt | undefined>;
     async sendMessage(sessionId: string, text: string, options?: SendMessageOptions): Promise<SendMessageReceipt | undefined> {
 
-        // The session and its encryption key both come from the sessions list.
-        // A session spawned seconds ago can still be missing from the last
-        // fetch, and awaitQueue() returns at once when no sync is in flight —
-        // so waiting on it dropped the first message of a new session without a
-        // word. Force real refetches instead, then say so if it is still absent.
-        let encryption = this.encryption.getSessionEncryption(sessionId);
-        let session = storage.getState().sessions[sessionId];
-        for (let attempt = 0; (!encryption || !session) && attempt < 3; attempt++) {
-            if (attempt > 0) {
-                await delay(300 * attempt);
-            }
-            // The sessions sync retries a failed fetch forever, so each wait is
-            // bounded: a message that cannot be placed has to say so rather
-            // than leave the send hanging on a network that is not coming back.
-            await Promise.race([this.sessionsSync.invalidateAndAwait(), delay(4000)]);
-            encryption = this.encryption.getSessionEncryption(sessionId);
-            session = storage.getState().sessions[sessionId];
-        }
-        if (!encryption || !session) {
-            console.error(`Session ${sessionId} not found after sync`, {
-                hasEncryption: !!encryption,
-                hasSession: !!session,
-            });
-            if (options?.requireAllAttachments) {
-                throw new Error(t('errors.sessionNotFinishedSyncing'));
-            }
-            Modal.alert(
-                t('common.error'),
-                t('errors.sessionNotFinishedSyncing'),
-            );
+        const accountEncryption = this.encryption;
+        const canSend = () => !options?.signal?.aborted && this.encryption === accountEncryption
+            && (options?.isCurrent?.() ?? true);
+        if (!canSend()) throw new Error(t('happyHerd.composer.sendFailedBody'));
+        try {
+            await this.ensureSessionReady(sessionId);
+        } catch (error) {
+            if (options?.requireAllAttachments) throw error;
+            if (canSend()) Modal.alert(t('common.error'), t('errors.sessionNotFinishedSyncing'));
             return;
         }
+        if (!canSend()) throw new Error(t('happyHerd.composer.sendFailedBody'));
+        const encryption = this.encryption.getSessionEncryption(sessionId)!;
+        const session = storage.getState().sessions[sessionId];
 
         const currentState = storage.getState();
         const settings = currentState.settings;
@@ -939,7 +957,7 @@ class Sync {
             && (attachments?.length ?? 0) > (effectiveAttachments?.length ?? 0);
 
         if (!hasCompleteRequiredAttachmentBatch({
-            requireAllAttachments,
+            requireAllAttachments: requireAllAttachments || source === 'new_session',
             requestedCount: attachments?.length ?? 0,
             effectiveCount: effectiveAttachments?.length ?? 0,
         })) {
@@ -973,11 +991,11 @@ class Sync {
             const { uploaded, failed } = await this.uploadAttachmentsForSession(
                 sessionId,
                 effectiveAttachments,
-                requireAllAttachments,
+                requireAllAttachments || source === 'new_session',
             );
 
             if (failed > 0) {
-                if (requireAllAttachments) {
+                if (requireAllAttachments || source === 'new_session') {
                     throw new Error(t('imageUpload.uploadFailedMessage', { count: failed }));
                 }
                 Modal.alert(
@@ -988,12 +1006,6 @@ class Sync {
             }
 
             if (uploaded.length > 0) {
-                let pending: OutboxMessage[] | null = null;
-                if (deliveryMode !== 'queue' && !requireAllAttachments) {
-                    pending = this.pendingOutbox.get(sessionId) ?? [];
-                    this.pendingOutbox.set(sessionId, pending);
-                }
-
                 const prepareAttachment = async (att: UploadedAttachment) => {
                     const fileRecord: RawRecord = {
                         role: 'session',
@@ -1048,20 +1060,7 @@ class Sync {
                 } else {
                     for (const att of uploaded) {
                         const prepared = await prepareAttachment(att);
-                        if (deliveryMode === 'queue') {
-                            preparedAttachments.push(prepared);
-                            continue;
-                        }
-                        const { normalized, localId: fileLocalId, content: encryptedFileRecord } = prepared;
-                        if (normalized) {
-                            this.enqueueMessages(sessionId, [normalized]);
-                        }
-                        pending!.push({
-                            localId: fileLocalId,
-                            content: encryptedFileRecord,
-                            batchId: localId,
-                            batchPolicy: 'background-fail-fast',
-                        });
+                        preparedAttachments.push(prepared);
                     }
                 }
             }
@@ -1093,6 +1092,7 @@ class Sync {
             },
             meta: {
                 sentFrom,
+                ...(rigSendsMessageReceipts(session.metadata) ? { expectsAcceptance: true } : {}),
                 appendSystemPrompt: systemPrompt,
                 ...userSafeguardMessageMeta(flavor, settings.userSafeguardEnabled),
                 ...(modeMeta.permissionMode !== undefined ? { permissionMode: modeMeta.permissionMode } : {}),
@@ -1106,6 +1106,11 @@ class Sync {
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
+
+        if (!canSend() || !storage.getState().sessions[sessionId]
+            || this.encryption.getSessionEncryption(sessionId) !== encryption) {
+            throw new Error(t('happyHerd.composer.sendFailedBody'));
+        }
 
         // Strict Viewer feedback stages every record in memory, but its
         // preparation awaits can interleave with remote session deletion or
@@ -1170,6 +1175,7 @@ class Sync {
                     },
                     appendOutbox: (messages) => pending.push(...messages.map((message) => ({
                         ...message,
+                        kind: message.localId === localId ? 'user' as const : 'attachment' as const,
                         batchId: localId,
                         batchPolicy: 'retain-until-server-accepted' as const,
                     }))),
@@ -1180,6 +1186,7 @@ class Sync {
                         this.enqueueMessages(sessionId, [attachment.normalized]);
                     }
                     pending.push({
+                        kind: 'attachment',
                         localId: attachment.localId,
                         content: attachment.content,
                         batchId: localId,
@@ -1190,6 +1197,7 @@ class Sync {
                     this.enqueueMessages(sessionId, [normalizedMessage]);
                 }
                 pending.push({
+                    kind: 'user',
                     localId,
                     content: encryptedRawRecord,
                     batchId: localId,
@@ -1213,6 +1221,10 @@ class Sync {
             }
             throw error;
         }
+        releaseSpawnedSession(sessionId);
+        // Local acceptance prevents Stop from racing a committed batch. Strict
+        // callers still await server acceptance below before clearing drafts.
+        options?.onAccepted?.();
         trackMessageSent(source, session.metadata);
 
         // Stamp local activity time so the (opt-in) activity sort bubbles this session
@@ -1603,6 +1615,7 @@ class Sync {
 
     private fetchSessions = async () => {
         if (!this.credentials) return;
+        const avatarsBeforeFetch = storage.getState().sessions;
 
         const API_ENDPOINT = getServerUrl();
         const response = await fetch(`${API_ENDPOINT}/v1/sessions`, {
@@ -1628,6 +1641,8 @@ class Sync {
             agentStateVersion: number;
             dataEncryptionKey: string | null;
             projectId?: string | null;
+            avatar?: unknown;
+            avatarVersion?: unknown;
             active: boolean;
             activeAt: number;
             createdAt: number;
@@ -1662,15 +1677,25 @@ class Sync {
             }
 
             // Decrypt metadata using session-specific encryption
-            let metadata = await sessionEncryption.decryptMetadata(session.metadataVersion, session.metadata);
-
-            // Decrypt agent state using session-specific encryption
-            let agentState = await sessionEncryption.decryptAgentState(session.agentStateVersion, session.agentState);
+            let metadata: Session['metadata'];
+            let agentState: Session['agentState'];
+            try {
+                metadata = await sessionEncryption.decryptMetadata(session.metadataVersion, session.metadata);
+                agentState = await sessionEncryption.decryptAgentState(session.agentStateVersion, session.agentState);
+            } catch {
+                // One malformed record must not prevent every valid session
+                // (including a just-created one) from becoming visible.
+                console.error(`Failed to decrypt session ${session.id}`);
+                continue;
+            }
 
             // Put it all together. Thinking placeholders are overwritten just
             // before applySessions below.
             const processedSession = {
                 ...session,
+                avatarDescriptor: sessionAvatarDescriptorSchema.safeParse(session.avatar).data ?? null,
+                avatarRevision: sessionAvatarRevisionSchema.safeParse(session.avatarVersion).data,
+                avatar: null,
                 thinking: false,
                 thinkingAt: 0,
                 metadata,
@@ -1694,6 +1719,13 @@ class Sync {
         const current = storage.getState().sessions;
         this.applySessions(decryptedSessions.map(s => ({
             ...s,
+            // A live replacement or removal received during this fetch wins over its snapshot.
+            ...((current[s.id]?.avatarRevision !== undefined && s.avatarRevision !== undefined
+                ? current[s.id].avatarRevision! > s.avatarRevision
+                : current[s.id]?.avatarUpdateSeq !== avatarsBeforeFetch[s.id]?.avatarUpdateSeq)
+                ? { avatarDescriptor: current[s.id]?.avatarDescriptor, avatar: current[s.id]?.avatar, avatarRevision: current[s.id]?.avatarRevision }
+                : { avatar: sameSessionAvatar(s.avatarDescriptor, current[s.id]?.avatarDescriptor) ? current[s.id]?.avatar ?? null : null }),
+            avatarUpdateSeq: current[s.id]?.avatarUpdateSeq,
             thinking: s.active ? (current[s.id]?.thinking ?? false) : false,
             thinkingAt: s.active ? (current[s.id]?.thinkingAt ?? 0) : 0,
         })));
@@ -2564,14 +2596,16 @@ class Sync {
                 );
                 this.settleStrictOutboxBatches(sessionId, batch);
                 if (Array.isArray(data.messages) && data.messages.length > 0) {
-                    const currentLastSeq = this.sessionLastSeq.get(sessionId) ?? 0;
-                    let maxSeq = currentLastSeq;
-                    for (const message of data.messages) {
-                        if (message.seq > maxSeq) {
-                            maxSeq = message.seq;
-                        }
+                    const userLocalIds = new Set(batch.filter((message) => message.kind === 'user').map((message) => message.localId));
+                    const pairs = data.messages.flatMap((message) =>
+                        message.localId && userLocalIds.has(message.localId)
+                            ? [{ serverId: message.id, localId: message.localId }] : []);
+                    if (pairs.length > 0) {
+                        storage.getState().applyUserMessageServerIds(sessionId, pairs);
                     }
-                    this.sessionLastSeq.set(sessionId, maxSeq);
+                    // POST acknowledgement must not skip unread receipts or
+                    // other participants preceding it in the message stream.
+                    this.getMessagesSync(sessionId).invalidate();
                 }
             }
         } catch (error) {
@@ -3015,6 +3049,7 @@ class Sync {
         } else if (updateData.body.t === 'delete-session') {
             log.log('🗑️ Delete session update received');
             const sessionId = updateData.body.sid;
+            this.sessionAvatars.cancel(sessionId);
 
             // Remove session from storage
             storage.getState().deleteSession(sessionId);
@@ -3079,8 +3114,19 @@ class Sync {
                 const nextProjectId = updateData.body.projectId !== undefined
                     ? updateData.body.projectId
                     : session.projectId;
+                const latestAvatar = storage.getState().sessions[session.id] ?? session;
+                const incomingAvatarRevision = updateData.body.avatarVersion ?? updateData.body.avatar?.version;
+                const avatarChanged = updateData.body.avatar !== undefined && (incomingAvatarRevision !== undefined && latestAvatar.avatarRevision !== undefined
+                    ? incomingAvatarRevision > latestAvatar.avatarRevision
+                    : updateData.seq > (latestAvatar.avatarUpdateSeq ?? -1));
+                if (updateData.body.avatar !== undefined && !avatarChanged && !updateData.body.metadata && !updateData.body.agentState && updateData.body.projectId === undefined) return;
+                const nextAvatarDescriptor = avatarChanged ? updateData.body.avatar : latestAvatar.avatarDescriptor;
                 this.applySessions([{
                     ...session,
+                    avatarDescriptor: nextAvatarDescriptor,
+                    avatar: sameSessionAvatar(nextAvatarDescriptor, latestAvatar.avatarDescriptor) ? latestAvatar.avatar : null,
+                    avatarUpdateSeq: avatarChanged ? updateData.seq : latestAvatar.avatarUpdateSeq,
+                    avatarRevision: avatarChanged ? incomingAvatarRevision : latestAvatar.avatarRevision,
                     agentState,
                     agentStateVersion: updateData.body.agentState
                         ? updateData.body.agentState.version
@@ -3552,8 +3598,14 @@ class Sync {
             }
             return;
         }
+        // Settle-only changes re-render an existing row; announcing one to
+        // voice would repeat "User sent message" when its receipt arrives.
+        const settledOnly = new Set(result.settledMessageIds);
         let m: Message[] = [];
         for (let messageId of result.changed) {
+            if (settledOnly.has(messageId)) {
+                continue;
+            }
             const message = storage.getState().sessionMessages[sessionId].messagesMap[messageId];
             if (message) {
                 m.push(message);
@@ -3578,6 +3630,7 @@ class Sync {
     })[]) => {
         const active = storage.getState().getActiveSessions();
         storage.getState().applySessions(sessions);
+        for (const session of sessions) this.sessionAvatars.refresh(session.id);
         const newActive = storage.getState().getActiveSessions();
         this.applySessionDiff(active, newActive);
     }

@@ -625,6 +625,9 @@ export type TranslationKey =
     | "markdown.openImageFullSize"
     | "message.providerAccountSwitched"
     | "message.providerQuotaExhausted"
+    | "message.sendFailed"
+    | "message.sending"
+    | "message.sendsAfterThisTurn"
     | "message.sentAsGoal"
     | "message.switchedToMode"
     | "message.unknownEvent"
@@ -1479,6 +1482,7 @@ export type TranslationKey =
     | "upstreamSync.cliOffline"
     | "upstreamSync.comparisonUnavailable"
     | "upstreamSync.contentsMatch"
+    | "upstreamSync.harnessSetupHelp"
     | "upstreamSync.loadFailed"
     | "upstreamSync.mergeConflicts"
     | "upstreamSync.noFileDetails"
@@ -1662,6 +1666,7 @@ export interface TranslationParamsByKey {
     "machineLauncher.showAll": { count: number };
     "message.providerAccountSwitched": { fromAccount: string; provider: string; toAccount: string };
     "message.providerQuotaExhausted": { provider: string };
+    "message.sendFailed": { reason: string };
     "message.switchedToMode": { mode: string };
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };

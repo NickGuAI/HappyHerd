@@ -89,6 +89,7 @@ import { StatusDot } from './StatusDot';
 import { Shaker, type ShakeInstance } from './Shaker';
 import { hapticsError } from './haptics';
 import { HARNESS_ORDER, getHarnessName } from '@/utils/harnessCatalog';
+import { openExternalUrl } from '@/utils/openExternalUrl';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
 import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
@@ -130,6 +131,7 @@ const MOBILE_HOME_DOCK_TOP_PADDING = 8;
 // Sits in the gap the focused dock already leaves above the composer, so it
 // costs no layout: showing it must not move the pickers or the composer.
 const START_PROGRESS_ROW_HEIGHT = 18;
+const HARNESS_SETUP_HELP_URL = 'https://github.com/NickGuAI/HappyHerd#installation';
 // Matches Shaker's own keyframes so a refused picker reads the same as every
 // other refusal in the app.
 const SHAKE_KEYFRAMES = [3, -3, 3, -3, 0];
@@ -945,6 +947,7 @@ export const HomeDock = React.memo(({
                 };
         })
     ), [harnessKeys, selectedChoice]);
+    const hasAvailableHarness = availableAgents.some((agent) => !agent.disabled);
     React.useEffect(() => {
         if (agentType !== 'grok' && agentType !== 'dsh') return;
         if (availableAgents.some((agent) => agent.key === agentType && !agent.disabled)) return;
@@ -1386,11 +1389,11 @@ export const HomeDock = React.memo(({
         },
         { page: 'agent', label: t("uiCopy.agent_1wzwjl"), value: currentAgent.name, icon: 'hardware-chip-outline' },
     ];
-    const agentRows: SettingsRow[] = [
+    const agentRows: SettingsRow[] = hasAvailableHarness ? [
         ...(currentModel ? [{ page: 'model', label: t('agentInput.model.title'), value: currentModel.name, icon: 'cube-outline' as const }] : []),
         ...(currentPermission ? [{ page: 'permission', label: t('agentInput.permissionMode.title'), value: permissionLabel ?? currentPermission.name, icon: 'shield-outline' as const }] : []),
         ...(currentEffort ? [{ page: 'effort', label: t('agentInput.effort.title'), value: currentEffort.name, icon: 'speedometer-outline' as const }] : []),
-    ];
+    ] : [];
 
     type PickerConfig = {
         title: string;
@@ -1419,6 +1422,11 @@ export const HomeDock = React.memo(({
                 setPath(selectedCustomPath);
             }
         })();
+    };
+
+    const openHarnessSetupHelp = () => {
+        Keyboard.dismiss();
+        void openExternalUrl(HARNESS_SETUP_HELP_URL);
     };
 
     const getEnvironmentPickerConfig = (setting: EnvironmentSetting): PickerConfig => {
@@ -1562,6 +1570,22 @@ export const HomeDock = React.memo(({
     );
 
     const renderPickerRow = (row: SettingsRow, config: PickerConfig, compact: boolean) => {
+        if (row.page === 'agent' && !hasAvailableHarness) {
+            return (
+                <View key={row.page}>
+                <Pressable onPress={() => setSheetPage('agent')} accessibilityRole="button" accessibilityLabel={`${row.label}: ${row.value}`}>
+                    {renderPickerRowContent(row, compact)}
+                </Pressable>
+                <Pressable
+                    onPress={openHarnessSetupHelp}
+                    accessibilityRole="link"
+                    accessibilityLabel={t('upstreamSync.harnessSetupHelp')}
+                >
+                    <Text>{t('upstreamSync.harnessSetupHelp')}</Text>
+                </Pressable>
+                </View>
+            );
+        }
         if (!useNativeMenus) {
             return (
                 <Pressable

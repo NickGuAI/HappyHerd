@@ -139,16 +139,20 @@ const EMPTY_GROUP_TOGGLES = {
 export function windowEndForTurn(messages: Message[], desiredEnd: number, hasMoreOlder: boolean): number {
     if (messages.length === 0) return 0;
     let end = Math.min(desiredEnd, messages.length);
-    while (end < messages.length && messages[end - 1].kind !== 'user-text') {
+    while (end < messages.length) {
+        const message = messages[end - 1];
+        if (message.kind === 'user-text' && !message.pending && message.sendError === undefined) break;
         end++;
     }
     // The store's tail is itself a mid-turn cut while older pages are still on
     // the server, so rendering it has the same reshape problem. Hold the
     // incomplete turn back until its opener arrives; the reader reaching the
     // top sees it via the loading spinner, not a lurch.
-    if (end === messages.length && hasMoreOlder && messages[end - 1].kind !== 'user-text') {
+    const oldest = messages[end - 1];
+    if (end === messages.length && hasMoreOlder && (oldest.kind !== 'user-text' || oldest.pending || oldest.sendError !== undefined)) {
         for (let i = end - 1; i >= 0; i--) {
-            if (messages[i].kind === 'user-text') return i + 1;
+            const message = messages[i];
+            if (message.kind === 'user-text' && !message.pending && message.sendError === undefined) return i + 1;
         }
     }
     return end;
@@ -427,7 +431,7 @@ const ChatListInternal = React.memo((props: {
 
     const currentTurnUserMessageId = React.useMemo(() => {
         for (const message of windowedMessages) {
-            if (message.kind === 'user-text') return message.id;
+            if (message.kind === 'user-text' && !message.pending && message.sendError === undefined) return message.id;
         }
         return null;
     }, [windowedMessages]);

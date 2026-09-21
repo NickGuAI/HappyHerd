@@ -1911,12 +1911,27 @@ export function SessionViewLoaded({
     // re-create on every keystroke. Both delivery paths use the same encrypted
     // outbox; the optional metadata only tells an active Codex turn to retain
     // this input in its existing provider queue rather than steer it now.
+    const sendingSessionsRef = React.useRef(new Set<string>());
+    const currentSessionIdRef = React.useRef<string | null>(sessionId);
+    React.useEffect(() => {
+        currentSessionIdRef.current = sessionId;
+        return () => { currentSessionIdRef.current = null; };
+    }, [sessionId]);
     const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
         if (dshUploadBusy) return;
+        if (sendingSessionsRef.current.has(sessionId)) return;
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
         if (!liveMessage.trim() && !(expImageUpload && canUseAttachments && selectedImages.length > 0) && selectedContextEntries.length === 0) {
             return;
         }
+        sendingSessionsRef.current.add(sessionId);
+        const isCurrent = () => currentSessionIdRef.current === sessionId;
+        const clearAcceptedDraft = () => {
+            if (!isCurrent()) return;
+            composerHandleRef.current?.clearSentMessage(liveMessage);
+            if (expImageUpload && canUseAttachments) selectedImages.forEach(image => removeImage(image.id));
+            clearWorkspaceContextFiles(sessionId);
+        };
         try {
             const heartbeatCommand = await HEARTBEAT_COMMAND.dispatch({
                 text: liveMessage,
@@ -1946,7 +1961,7 @@ export function SessionViewLoaded({
             );
             const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
-            await deliverSessionTurn({
+            const receipt = await deliverSessionTurn({
                 isDisconnected,
                 canResume,
                 sessionLifecycleState: session.metadata?.lifecycleState,
@@ -1958,12 +1973,12 @@ export function SessionViewLoaded({
                     ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
                     ...(continuation.deliveryMode ? { deliveryMode: continuation.deliveryMode } : {}),
                     awaitDelivery: continuation.awaitDelivery,
+                    isCurrent,
+                    onAccepted: clearAcceptedDraft,
                 }),
                 resume: resumeSessionWithQueuedTurn,
             });
-            composerHandleRef.current?.clearSentMessage(liveMessage);
-            if (expImageUpload && canUseAttachments) clearImages();
-            clearWorkspaceContextFiles(sessionId);
+            if (!receipt) return;
             const dismissals = await Promise.allSettled(communicationsToDismiss.map((communication) => (
                 sessionCancelCommunication(sessionId, communication.id, communication.kind)
             )));
@@ -1977,6 +1992,8 @@ export function SessionViewLoaded({
                 t('happyHerd.composer.sendFailedTitle'),
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
+        } finally {
+            sendingSessionsRef.current.delete(sessionId);
         }
     }, [
         sessionId,
@@ -1987,7 +2004,7 @@ export function SessionViewLoaded({
         selectedContextEntries,
         dshUploadBusy,
         flavor,
-        clearImages,
+        removeImage,
         pendingCommunications,
         isDisconnected,
         canResume,

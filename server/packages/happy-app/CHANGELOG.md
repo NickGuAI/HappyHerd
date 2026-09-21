@@ -1,3 +1,13 @@
+# September 20 — Session delivery and upstream reliability
+
+- New sessions retain their first message and photos while encryption finishes syncing. Retry uses the already-created session, and late replies cannot clear a newer draft or send it to a different destination.
+- Happy Agent sessions that advertise message receipts show pending and rejected sends accurately. Shared-session messages identify other participants and align separately from your own messages.
+- Encrypted session pictures sync independently of project artwork, while sessions without a picture retain their bot, Commander, and provider identities.
+- iPhone photos are resized to a maximum 3072-pixel edge and checked after JPEG conversion, including encrypted upload overhead.
+- Parallel resume requests share one process owner, closed sessions stop reconnecting, and Codex continuation output keeps its turn identity.
+- CLI logout clears only CLI credentials and machine identity, preserving shared-home data and session history. CLI pairing and releases remain independent.
+- Computers without a runnable agent offer setup help while keeping unavailable agent choices visible.
+
 # September 20 — HappyHerd header title
 
 - The signed-out landing and home header now show HappyHerd instead of Happy.

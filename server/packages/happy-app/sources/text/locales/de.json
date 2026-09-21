@@ -1170,6 +1170,9 @@
     "deleteFailed": "Maschine konnte nicht gelöscht werden."
   },
   "message": {
+    "sendFailed": "Nachricht nicht angenommen: {reason}",
+    "sendsAfterThisTurn": "Wird nach dieser Runde gesendet",
+    "sending": "Wird gesendet…",
     "switchedToMode": "In den {mode}-Modus gewechselt",
     "providerAccountSwitched": "Die Quotenüberschreitung bei {provider} hat einen Kontowechsel von {fromAccount} zu {toAccount} ausgelöst.",
     "providerQuotaExhausted": "Quotenüberschreitung bei {provider}.",
@@ -1902,6 +1905,7 @@
     "bots": "Bots"
   },
   "upstreamSync": {
+    "harnessSetupHelp": "Hilfe zur Agent-Einrichtung",
     "loadFailed": "Änderungen von Happy Agent konnten nicht geladen werden.",
     "agentUpdate": "Aktualisiere Happy Agent auf deinem Computer, um die Änderungen dieser Sitzung anzuzeigen.",
     "comparisonUnavailable": "Für diesen Arbeitsbereich ist kein Vergleich mit origin/main verfügbar.",

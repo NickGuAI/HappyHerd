@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useReducedMotion } from 'react-native-reanimated';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -48,6 +49,8 @@ export function SessionStatusAvatar({
     providerLabel,
     size = 60,
     state,
+    imageUrl,
+    thumbhash,
 }: {
     active: boolean;
     botId?: string | null;
@@ -64,9 +67,12 @@ export function SessionStatusAvatar({
     providerLabel?: string | null;
     size?: number;
     state: SessionState;
+    imageUrl?: string | null;
+    thumbhash?: string | null;
 }) {
     const { theme } = useUnistyles();
     const reduceMotion = useReducedMotion();
+    const [failedImageUrl, setFailedImageUrl] = React.useState<string | null>(null);
     const commanderProfilePictures = useSetting('commanderProfilePictures');
     const presentation = resolveSessionStatusAvatar({
         active,
@@ -111,7 +117,12 @@ export function SessionStatusAvatar({
         statusLabel(presentation.state),
     ].filter(Boolean).join(', ');
 
-    const identity = isBot ? (
+    const identity = imageUrl && imageUrl !== failedImageUrl ? (
+        <Image source={{ uri: imageUrl }} placeholder={thumbhash ? { thumbhash } : undefined}
+            cachePolicy="memory" contentFit="cover" accessible={false}
+            onError={() => setFailedImageUrl(imageUrl)}
+            style={{ width: innerSize, height: innerSize, borderRadius: innerSize / 2 }} />
+    ) : isBot ? (
         <View
             accessible={false}
             style={[

@@ -210,6 +210,50 @@ describe('useGroupedMessages', () => {
         ]);
     });
 
+    it('keeps the running turn expanded under a pending message', () => {
+        // Steering mid-turn parks the new message below the work still streaming
+        // above it. That work is the live turn — the message has not started one
+        // yet — so it must not collapse the way a finished turn would.
+        const messages: Message[] = [
+            {
+                kind: 'user-text',
+                id: 'user-pending',
+                localId: 'local-1',
+                createdAt: 2,
+                text: 'actually, do this instead',
+                pending: true,
+                sortAt: Number.MAX_SAFE_INTEGER,
+            },
+            {
+                kind: 'agent-text',
+                id: 'agent-streaming',
+                localId: null,
+                createdAt: 5,
+                text: 'still working',
+            },
+            toolMessage('tool-latest', 4),
+            toolMessage('tool-earliest', 3),
+            {
+                kind: 'user-text',
+                id: 'user',
+                localId: null,
+                createdAt: 1,
+                text: 'run tools',
+            },
+        ];
+
+        const items = groupMessagesForDisplay(messages, true, { collapseCurrentTurn: false });
+
+        expect(items.map((item) => item.id)).toEqual([
+            'user',
+            'tool-earliest',
+            'tool-latest',
+            'agent-streaming',
+            'user-pending',
+        ]);
+        expect(items.every((item) => item.type === 'message')).toBe(true);
+    });
+
     it('never groups adjacent tool calls outside a work group', () => {
         // A turn without a final agent text has no work group; its tools stay
         // flat instead of being folded into a run.
