@@ -1,3 +1,8 @@
+# September 20 — Managed account login refresh
+
+- Successful provider logins now refresh managed account rows immediately and close the add-account form, including when submitting a verification code completes the login.
+- Logging in again refreshes the account's credential version so subsequent account changes work without reloading Settings.
+
 # September 20 — Grok terminal account login
 
 - Connecting a named Grok account from the terminal now preserves existing credentials when `GROK_AUTH_PATH` is set and registers and selects the newly signed-in account under its requested nickname.
