@@ -458,3 +458,4 @@ CLI_SHARED_RECOVERY_ARTIFACTS	accepted	chore(cli): reconcile generated artifacts
 PRODUCT_FINAL_CLI_CONTINUITY	accepted	fix(product): retain final CLI continuity repairs after integration	server/packages/happyherd-cli/src/automations/service.test.ts
 PRODUCT_FINAL_CHANGELOG_GOLDENS	accepted	test(product): refresh final integrated changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 USER_SAFEGUARD_ASSESSMENT	accepted	feat(safeguard): assess prompts and render concise reminders	server/packages/happyherd-app/sources/components/safeguardReminder.test.ts
+USER_SAFEGUARD_MALFORMED_REPLY	accepted	fix(safeguard): preserve incomplete replies and verify KILV rendering	server/packages/happyherd-app/sources/components/safeguardReminder.test.ts

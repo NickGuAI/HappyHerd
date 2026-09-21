@@ -2,37 +2,9 @@ export type SafeguardReminder =
     | { status: 'ready'; summary: string }
     | { status: 'revise'; issues: Array<{ quote: string; suggestion: string }> };
 
-const openingTag = '<happyherd-safeguard-reminder';
 const closingTag = '</happyherd-safeguard-reminder>';
 const openingPattern = /^<happyherd-safeguard-reminder\s+status\s*=\s*(["'])(ready|revise)\1\s*>/;
 const entities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
-
-// Accept only prefixes that can still complete the finite opening-tag grammar.
-function isPendingOpening(text: string): boolean {
-    if (openingTag.startsWith(text)) return true;
-    if (!text.startsWith(openingTag)) return false;
-
-    const attributes = text.slice(openingTag.length);
-    if (!/^\s/.test(attributes)) return false;
-    const attribute = attributes.trimStart();
-    if ('status'.startsWith(attribute)) return true;
-    if (!attribute.startsWith('status')) return false;
-
-    const assignment = attribute.slice('status'.length).trimStart();
-    if (assignment === '') return true;
-    if (!assignment.startsWith('=')) return false;
-    const value = assignment.slice(1).trimStart();
-    if (value === '') return true;
-    const quote = value[0];
-    if (quote !== '"' && quote !== "'") return false;
-
-    const status = value.slice(1);
-    return ['ready', 'revise'].some((candidate) => {
-        const ending = candidate + quote;
-        return ending.startsWith(status)
-            || (status.startsWith(ending) && /^\s*$/.test(status.slice(ending.length)));
-    });
-}
 
 function plainText(text: string): string | null {
     // Decode once. Escaped markup remains text and must never become UI elements.
@@ -49,13 +21,12 @@ export function parseSafeguardReminder(text: string): { reminder: SafeguardRemin
     if (leadingText === '') return unchanged;
 
     const opening = openingPattern.exec(leadingText);
-    if (!opening) {
-        return isPendingOpening(leadingText) ? { reminder: null, text: '' } : unchanged;
-    }
+    if (!opening) return unchanged;
 
     const closingIndex = leadingText.indexOf(closingTag, opening[0].length);
-    // A recognized streaming block remains hidden until its closing tag arrives.
-    if (closingIndex === -1) return { reminder: null, text: '' };
+    // Text has no completion signal. Preserve incomplete/malformed replies so
+    // an interrupted stream or a closing-tag typo cannot hide the plan/options.
+    if (closingIndex === -1) return unchanged;
 
     const body = leadingText.slice(opening[0].length, closingIndex);
     let reminder: SafeguardReminder;

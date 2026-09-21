@@ -49,13 +49,13 @@ describe('parseSafeguardReminder', () => {
     });
 
     it.each([ready, revise, `<${tag}\nstatus = 'ready' >Clear scope.</${tag}>`])(
-        'suppresses every incomplete streaming prefix without emitting a card: %s',
+        'preserves every incomplete streaming prefix without emitting a card: %s',
         (complete) => {
             for (let length = 1; length < complete.length; length += 1) {
                 expect(parseSafeguardReminder(complete.slice(0, length)), `prefix length ${length}`)
-                    .toEqual({ reminder: null, text: '' });
+                    .toEqual({ reminder: null, text: complete.slice(0, length) });
                 expect(parseSafeguardReminder(` \n${complete.slice(0, length)}`), `whitespace prefix length ${length}`)
-                    .toEqual({ reminder: null, text: '' });
+                    .toEqual({ reminder: null, text: ` \n${complete.slice(0, length)}` });
             }
             expect(parseSafeguardReminder(complete).reminder).not.toBeNull();
         },
@@ -119,6 +119,16 @@ describe('parseSafeguardReminder', () => {
         expect(parseSafeguardReminder(ready + suffix).text).toBe(suffix);
         expect(parseSafeguardReminder(revise + suffix).text).toBe(suffix);
     });
+
+    it.each(['', '</happyherd-safeguard-reminderr>'])(
+        'preserves the plan and options when the closing tag is absent or malformed: %s',
+        (ending) => {
+            const text = `<${tag} status="ready">No obvious issues.${ending}\n\n**Plan**\n\n<options>\n<option>Approve</option>\n</options>`;
+            expect(parseSafeguardReminder(text)).toEqual({ reminder: null, text });
+            const reopened = JSON.parse(JSON.stringify({ text }));
+            expect(parseSafeguardReminder(reopened.text)).toEqual({ reminder: null, text });
+        },
+    );
 
     it('extracts only the first leading block', () => {
         expect(parseSafeguardReminder(ready + '\n' + revise)).toEqual({

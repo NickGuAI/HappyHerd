@@ -33,9 +33,14 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
+        import { Text } from 'react-native';
+        import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = Icon;
+        export const Ionicons = (props) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard
+            ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
+                glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
+            : React.createElement(Icon, props);
         export const Octicons = Icon;
         export const MaterialCommunityIcons = Icon;
     `,
@@ -1414,11 +1419,21 @@ describe('Side chats browser interaction', () => {
             await responseHeld;
             await route.fulfill({ json: { text: responseText } });
         });
-        await page.addInitScript((partial) => {
+        const fonts = [
+            'SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold',
+            'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold',
+        ].map((family) => ({ family, data: readFileSync(resolve(appRoot, `sources/assets/fonts/${family}.ttf`)).toString('base64') }));
+        fonts.push({ family: 'ionicons', data: readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')).toString('base64') });
+        await page.addInitScript(({ partial, fonts }) => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { safeguard: { partial } };
-        }, partial);
+            for (const { family, data } of fonts) document.fonts.add(new FontFace(family, `url(data:font/ttf;base64,${data})`));
+        }, { partial, fonts });
         try {
             await page.goto(`${origin}/?theme=${theme}`);
+            expect(await page.evaluate(async (families) => {
+                const loaded = await Promise.all(families.map((family) => document.fonts.load(`16px "${family}"`)));
+                return loaded.every((faces) => faces.length > 0 && faces.every((face) => face.status === 'loaded'));
+            }, fonts.map(({ family }) => family))).toBe(true);
             const foreground = page.getByTestId('foreground-session');
             const composer = foreground.locator('textarea').first();
             await composer.fill('Review this plan, then publish it everywhere.');
@@ -1465,7 +1480,7 @@ describe('Side chats browser interaction', () => {
             const screenshotDirectory = process.env.HAPPYHERD_SAFEGUARD_SCREENSHOT_DIR?.trim();
             if (screenshotDirectory) {
                 mkdirSync(screenshotDirectory, { recursive: true });
-                await page.screenshot({ path: resolve(screenshotDirectory, `safeguard-${status}-${theme}-${width}.png`), fullPage: true });
+                await card.locator('..').screenshot({ path: resolve(screenshotDirectory, `safeguard-${status}-${theme}-${width}.png`) });
             }
 
             await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).click();
@@ -1488,20 +1503,26 @@ describe('Side chats browser interaction', () => {
     it.each([
         '<happyherd-safeguard-reminder status="ready"></happyherd-safeguard-reminder>',
         '<happyherd-safeguard-reminder status="unknown">Proceed</happyherd-safeguard-reminder>',
+        '<happyherd-safeguard-reminder status="ready">No obvious issues.</happyherd-safeguard-reminderr>',
+        '<happyherd-safeguard-reminder status="ready">No obvious issues.',
     ])('never gives malformed safeguard output a ready card: %s', async (text) => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { safeguard: { partial: '<happyherd-safeguard-reminder' } };
         });
-        await page.route('**/fixture-safeguard-response', (route) => route.fulfill({ json: { text } }));
+        const responseText = text + '\n\n**Plan remains visible**\n\n<options>\n<option>Approve implementation</option>\n</options>';
+        await page.route('**/fixture-safeguard-response', (route) => route.fulfill({ json: { text: responseText } }));
         await page.goto(origin);
         const foreground = page.getByTestId('foreground-session');
         await foreground.locator('textarea').first().fill('Check the request.');
         await foreground.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last().click();
-        await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('safeguard-browser-messages') ?? '[]')[0]?.text)).toBe(text);
+        await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('safeguard-browser-messages') ?? '[]')[0]?.text)).toBe(responseText);
         expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
+        await foreground.getByText('Plan remains visible', { exact: true }).waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).waitFor({ state: 'visible' });
         await page.reload();
-        await foreground.locator('textarea').first().waitFor({ state: 'visible' });
+        await foreground.getByText('Plan remains visible', { exact: true }).waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Approve implementation', exact: true }).waitFor({ state: 'visible' });
         expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
         await page.close();
     }, 15_000);
