@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { planProductRename, applyProductRename } from './rename-product.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -47,6 +47,8 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     for (const [path, bytes] of original) assert.deepEqual(read(destination(path)), bytes, path);
     for (const change of binaryBytes) assert.deepEqual(read(change.destination), change.before, change.path);
     assert.equal(JSON.parse(read('server/packages/happyherd-cli/package.json')).name, '@happyherd/cli');
+    assert.match(read('.github/workflows/quality-gates.yml').toString(), /--filter @happyherd\/cli/);
+    assert.match(read('server/packages/happyherd-app/app.config.js').toString(), /\.\.\/happyherd-cli\/package\.json/);
     assert.equal(JSON.parse(read('server/packages/happyherd-wire/package.json')).name, '@happyherd/wire');
     assert(existsSync(join(temp, 'server/packages/happyherd-control-agent/src/control.ts')));
     assert(existsSync(join(temp, 'server/packages/happyherd-agent/src/index.ts')));
@@ -75,6 +77,14 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert.equal(JSON.parse(read('server/packages/meadow-app/package.json')).name, 'meadow-app');
     assert.equal(JSON.parse(read('server/packages/meadow-wire/package.json')).name, '@meadow/wire');
     assert.equal(JSON.parse(read('server/packages/happyherd-cli/package.json')).name, '@happyherd/cli');
+    assert.match(read('.github/workflows/quality-gates.yml').toString(), /--filter @happyherd\/cli/);
+    assert.doesNotMatch(read('.github/workflows/quality-gates.yml').toString(), /@meadow\/cli/);
+    assert.match(read('server/packages/meadow-app/app.config.js').toString(), /\.\.\/happyherd-cli\/package\.json/);
+    assert.match(read('scripts/install-agent-runtime.sh').toString(), /bin\/happyherd\.mjs/);
+    assert.match(JSON.parse(read('server/packages/meadow-app/sources/text/locales/en.json')).upstreamSync.cliOffline, /happyherd daemon start/);
+    assert.match(read('server/packages/meadow-control-agent/src/config.ts').toString(), /process\.env\.HAPPYHERD_SERVER_URL/);
+    assert.match(read('server/packages/meadow-control-agent/src/config.ts').toString(), /process\.env\.HAPPYHERD_HOME_DIR/);
+    assert.match(read('server/packages/happyherd-cli/src/configuration.ts').toString(), /process\.env\.HAPPYHERD_SERVER_URL/);
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.ts').toString(), /function meadowHomeDir/);
     assert.match(read('server/packages/codium/sources/boot/main/app-storage.test.ts').toString(), /meadowHomeDir\('linux'/);
     execFileSync('git', ['add', '-A'], { cwd: temp });
@@ -85,6 +95,51 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
       assert(!existsSync(join(temp, destination(path))), path);
     }
     assert.equal(planProductRename(temp, 'HappyHerd', 'Meadow', scope).length, 0);
+  } finally { rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('both product passes retain current CLI consumers and persisted automation identities', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'product-cli-title-'));
+  try {
+    for (const path of [
+      'server/packages/happyherd-app/sources/sync/reducer/messageToEvent.ts',
+      'server/packages/happyherd-control-agent/src/config.ts',
+      'server/packages/happyherd-cli/src/configuration.ts',
+      'server/packages/happyherd-cli/src/legacyCompatibility.ts',
+      'server/packages/happyherd-wire/src/automation.ts',
+      'server/packages/happyherd-wire/src/automation.test.ts',
+      'server/environments/environments.ts',
+    ]) {
+      mkdirSync(dirname(join(temp, path)), { recursive: true });
+      writeFileSync(join(temp, path), readFileSync(join(root, path)));
+    }
+    execFileSync('git', ['init', '-q'], { cwd: temp });
+    execFileSync('git', ['add', '.'], { cwd: temp });
+    const read = path => readFileSync(join(temp, path), 'utf8');
+    for (const [from, to] of [['Happy', 'HappyHerd'], ['HappyHerd', 'Meadow']]) {
+      applyProductRename(temp, planProductRename(temp, from, to, scope));
+      const product = to.toLowerCase();
+      const consumer = read(`server/packages/${product}-app/sources/sync/reducer/messageToEvent.ts`);
+      assert.match(consumer, /mcp__happyherd__change_title/);
+      assert.doesNotMatch(consumer, /mcp__meadow__change_title/);
+      const environment = read('server/environments/environments.ts');
+      assert.match(environment, /name: "happyherd",/);
+      assert.match(environment, /"happyherd-cli", "bin", "happyherd\.mjs"/);
+      const cliConfig = read('server/packages/happyherd-cli/src/configuration.ts');
+      for (const suffix of ['SERVER_URL', 'WEBAPP_URL', 'VARIANT']) {
+        assert(environment.includes(`export HAPPYHERD_${suffix}=`), suffix);
+        assert(cliConfig.includes(`process.env.HAPPYHERD_${suffix}`), suffix);
+      }
+      assert(environment.includes('export HAPPYHERD_HOME_DIR='));
+      assert.match(read('server/packages/happyherd-cli/src/legacyCompatibility.ts'), /canonicalEnvironment\(env\)\.HAPPYHERD_HOME_DIR/);
+      assert(environment.includes('export HAPPYHERD_PROJECT_DIR='));
+      const controlConfig = read(`server/packages/${product}-control-agent/src/config.ts`);
+      assert.match(controlConfig, /process\.env\.HAPPYHERD_SERVER_URL/);
+      assert.match(controlConfig, /process\.env\.HAPPYHERD_HOME_DIR/);
+      assert.match(read(`server/packages/${product}-wire/src/automation.ts`), /runtimeOwner: z\.literal\('happyherd'\)/);
+      assert.match(read(`server/packages/${product}-wire/src/automation.test.ts`), /runtimeOwner: 'happyherd'/);
+      execFileSync('git', ['add', '-A'], { cwd: temp });
+    }
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 

@@ -11,6 +11,10 @@
     "'happy-agent-spawn'", "type: 'happy-agent'", "sentFrom: 'happy-agent'"
   ],
   "preserve": [
+    "@happyherd/cli", "happyherd-cli", "HappyHerd CLI", "happyherd.mjs", "/bin/happyherd", "happyherd-mcp", "happyherd-agent-mcp", "happyherd-agent-codex-policy", "mcp__happyherd__change_title",
+    "happyherd auth", "happyherd connect", "happyherd daemon", "happyherd doctor", "happyherd machine", "happyherd session", "happyherd automation", "happyherd commander", "happyherd --",
+    "HAPPYHERD_SERVER_URL", "HAPPYHERD_HOME_DIR", "HAPPYHERD_WEBAPP_URL", "HAPPYHERD_PROJECT_DIR", "HAPPYHERD_VARIANT",
+    "runtimeOwner: 'happyherd'", "runtimeOwner: z.literal('happyherd')",
     "Happy EnCoder", "'Happy Coder'", "\"Happy Coder\"", "Happy Blobs", "upstream Happy", "slopus/happy", "happy.engineering", "happy-coder", "@slopus/happy-terminal", "happy-dom",
     "happyCliVersion", "happyHomeDir", "happyLibDir", "happyToolsDir", "happySessionId", "requiresHappyAgentAuth", "happyAgentAuthenticated", "spawn-happy-session", "resume-happy-session",
     "handshake.auth.happyClient", "X-Happy-Client", "x-happy-client", "mcp__happy__change_title", "mcp__happy_cli__change_title", "mcp__happy-cli__change_title",
