@@ -25,7 +25,8 @@ package. Self-host Web bundling still calls its `scripts/bundle-webapp.cjs`.
 ## Run the parameterized source transformation
 
 Use an isolated, clean worktree. The script enumerates Git-tracked regular files;
-it never traverses dependencies, build products, runtime homes or user databases.
+it preserves tracked symlink targets and never traverses dependencies, build
+products, runtime homes or user databases.
 Review/stage newly imported source first so Git can enumerate it.
 
 ```sh

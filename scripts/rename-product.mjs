@@ -29,14 +29,15 @@ export function planProductRename(root, from, to, scope) {
     const opaque = symbolic || buffer.includes(0) || !Buffer.from(before).equals(buffer);
     const cli = /server\/packages\/[^/]+-cli\//.test(path) || /^scripts\/[^/]*(?:cli|native-installer|public-launcher)[^/]*$/.test(path) || scope.cli.some(prefix => path.startsWith(prefix));
     const historical = /(?:CHANGELOG\.md|changelog\.json|LICENSE|NOTICE)$/.test(path) || /\/(?:__fixtures__|prisma\/migrations)\//.test(path) || /\/__testdata__\/.*\.(?:json|jsonl)$/.test(path) || /\/autocomplete\/(?:applySuggestion|findActiveWord)\.test\.ts$/.test(path);
-    const protectedValues = [...scope.preserve, ...(scope.stable ?? []),
+    const storageModule = /\/app-storage(?:\.test)?\.ts$/.test(path);
+    const protectedValues = [...scope.preserve.filter(value => !storageModule || value !== 'happyHomeDir'), ...(scope.stable ?? []),
       ...(before.match(/https?:\/\/[^\s<>"'`)]+/g) ?? []),
       ...(before.match(/<!-- rename:preserve -->[\s\S]*?<!-- \/rename:preserve -->/g) ?? []),
       ...(before.match(/\/\* rename:preserve \*\/[\s\S]*?\/\* \/rename:preserve \*\//g) ?? []),
       ...(before.match(/^# rename:preserve\n[\s\S]*?^# \/rename:preserve/gm) ?? []),
       ...(before.match(/(?:Copyright|copyright)[^\n]*/g) ?? []),
     ];
-    if (/\/app-storage(?:\.test)?\.ts$/.test(path)) protectedValues.push("'Happy'", "'happy'");
+    if (storageModule) protectedValues.push("'Happy'", "'happy'", ...(before.match(/['"][^'"\n]*\/(?:Happy|happy)['"]/g) ?? []));
     if (/\/storageTypes\.ts$/.test(path)) protectedValues.push("'happy-app'", "'happy-cli'");
     if (path.endsWith('/dev/input-styles.tsx')) protectedValues.push('name="happy"', 'name="happy-outline"');
     let after = before;

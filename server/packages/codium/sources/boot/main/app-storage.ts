@@ -6,7 +6,7 @@ export function happyherdHomeName(platform: NodeJS.Platform = process.platform):
     return platform === 'linux' ? 'happy' : 'Happy'
 }
 
-export function happyHomeDir(
+export function happyherdHomeDir(
     platform: NodeJS.Platform = process.platform,
     homeDir: string = homedir(),
 ): string {
@@ -14,7 +14,7 @@ export function happyHomeDir(
 }
 
 export function ensureHappyHerdHomeDir(): string {
-    const dir = happyHomeDir()
+    const dir = happyherdHomeDir()
     mkdirSync(dir, { recursive: true, mode: 0o700 })
     return dir
 }

@@ -42,6 +42,8 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert(existsSync(join(temp, 'server/packages/happyherd-control-agent/src/control.ts')));
     assert(existsSync(join(temp, 'server/packages/happyherd-agent/src/index.ts')));
     assert.match(read('server/packages/happyherd-app/app.config.js').toString(), /com\.ex3ndr\.happy/);
+    assert.match(read('server/packages/codium/sources/boot/main/app-storage.ts').toString(), /function happyherdHomeDir/);
+    assert.match(read('server/packages/codium/sources/boot/main/app-storage.test.ts').toString(), /\/home\/alice\/happy'/);
     execFileSync('git', ['add', '-A'], { cwd: temp });
     assert.equal(planProductRename(temp, 'Happy', 'HappyHerd', scope).length, 0);
     const second = planProductRename(temp, 'HappyHerd', 'Meadow', scope);
@@ -55,6 +57,8 @@ test('full repository: Happy → HappyHerd → Meadow, retaining CLI ownership, 
     assert.equal(JSON.parse(read('server/packages/meadow-app/package.json')).name, 'meadow-app');
     assert.equal(JSON.parse(read('server/packages/meadow-wire/package.json')).name, '@meadow/wire');
     assert.equal(JSON.parse(read('server/packages/happyherd-cli/package.json')).name, '@happyherd/cli');
+    assert.match(read('server/packages/codium/sources/boot/main/app-storage.ts').toString(), /function meadowHomeDir/);
+    assert.match(read('server/packages/codium/sources/boot/main/app-storage.test.ts').toString(), /meadowHomeDir\('linux'/);
     execFileSync('git', ['add', '-A'], { cwd: temp });
     assert.equal(planProductRename(temp, 'HappyHerd', 'Meadow', scope).length, 0);
   } finally { rmSync(temp, { recursive: true, force: true }); }
