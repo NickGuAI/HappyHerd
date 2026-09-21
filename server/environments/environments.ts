@@ -767,7 +767,7 @@ function buildEnvVars(envDir: string, serverPort: number, expoPort: number): Rec
     };
 }
 
-function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: number): string {
+export function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: number): string {
     const vars = buildEnvVars(envDir, serverPort, expoPort);
     const lines: string[] = [
         `# Happy Dev Environment: ${name}`,
