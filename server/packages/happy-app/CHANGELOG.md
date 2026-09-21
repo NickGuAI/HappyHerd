@@ -1,3 +1,7 @@
+# September 20 — Claude quota recovery
+
+- Claude conversations using native sign-in now accept a new message after a quota reset instead of waiting indefinitely for an account switch. The failed turn remains visible and is not automatically retried.
+
 # September 20 — Session delivery and upstream reliability
 
 - New sessions retain their first message and photos while encryption finishes syncing. Retry uses the already-created session, and late replies cannot clear a newer draft or send it to a different destination.

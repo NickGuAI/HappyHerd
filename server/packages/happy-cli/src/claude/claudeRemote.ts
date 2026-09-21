@@ -54,7 +54,7 @@ export async function claudeRemote(opts: {
     onUsageLimits?: (patch: UsageLimitsPatch) => void,
     /** One coalesced hard-limit signal for credential-pool rotation. Return false when delivery failed and may be retried. */
     onProviderHardLimit?: (limit: ProviderHardLimit) => boolean | void | Promise<boolean | void>,
-}) {
+}): Promise<'quota-exhausted' | void> {
 
     // Check if session is valid
     let startFrom = opts.sessionId;
@@ -446,6 +446,11 @@ export async function claudeRemote(opts: {
                 }
 
                 if (providerHardLimitObserved) {
+                    // Ambient auth has no account for the daemon to rotate.
+                    // End this failed query; the launcher can await a separately
+                    // initiated turn without completing this one successfully.
+                    // Drain trailing telemetry while ending the SDK's input.
+                    if (!providerAccount) messages.end();
                     // onReady completes the persisted queue batch and emits
                     // "done". Neither that nor claiming another batch is valid
                     // while the daemon is rotating this interrupted session.
@@ -516,7 +521,7 @@ export async function claudeRemote(opts: {
         // available through the existing controller; SIGTERM owns rotation.
         const signal = opts.signal;
         try {
-            if (providerHardLimitObserved && signal && !signal.aborted) {
+            if (providerHardLimitObserved && providerAccount && signal && !signal.aborted) {
                 await new Promise<void>((resolve) => {
                     signal.addEventListener('abort', () => resolve(), { once: true });
                 });
@@ -525,4 +530,5 @@ export async function claudeRemote(opts: {
             if (providerHardLimitRetryTimer) clearTimeout(providerHardLimitRetryTimer);
         }
     }
+    if (providerHardLimitObserved && !providerAccount) return 'quota-exhausted';
 }
