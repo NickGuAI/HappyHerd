@@ -58,7 +58,7 @@ Or, if no obvious issues:
 Rules for the tag:
 
 - Use only the status attribute (`revise` or `ready`).
-- For `revise`, provide one or more adjacent pairs of `<quote>` and `<suggestion>`. Do not use Markdown inside.
+- Require `revise` to contain one or more adjacent `<quote>` and `<suggestion>` pairs, where each quote captures only a short relevant prompt fragment and each suggestion provides one short actionable sentence, without any Markdown inside.
 - For `ready`, provide a concise, non-empty, plain-text qualified assessment (not a guarantee).
 - Keep tag structure literal. Escape `&`, `<`, and `>` inside text as `&amp;`, `&lt;`, and `&gt;`; `&quot;` and `&apos;` are also supported.
 - Never fence the tag in actual replies, and avoid duplicate reminders.
