@@ -28,6 +28,7 @@ test('full baseline repository supports two consecutive tracked renames with bin
     writeFileSync(join(temp, 'scripts/cli-rename-scope.json'), readFileSync(join(root, 'scripts/cli-rename-scope.json')));
     const run = (from, to) => execFileSync(process.execPath, [join(root, 'scripts/rename-cli.mjs'), '--root', temp, '--from', from, '--to', to, '--apply']);
     const originalLicense = readFileSync(join(temp, 'LICENSE'));
+    const originalChangelog = readFileSync(join(temp, 'server/packages/happy-app/CHANGELOG.md'));
     // Assert every packaged binary, not just text snapshots.
     const binaries = execFileSync('git', ['ls-files', 'server/packages/happy-cli/tools'], { cwd: temp, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
     const bytes = binaries.map((path) => [path, readFileSync(join(temp, path))]);
@@ -43,6 +44,7 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert.equal(JSON.parse(readFileSync(join(temp, 'server/packages/meadow-cli/package.json'))).name, '@meadow/cli');
     assert.match(readFileSync(join(temp, 'AGENTS.md'), 'utf8'), /https:\/\/github.com\/slopus\/happy.git/);
     assert.deepEqual(readFileSync(join(temp, 'LICENSE')), originalLicense);
+    assert.deepEqual(readFileSync(join(temp, 'server/packages/happy-app/CHANGELOG.md')), originalChangelog);
     for (const [path, expected] of bytes) assert.deepEqual(readFileSync(join(temp, path.replace('/happy-cli/', '/meadow-cli/'))), expected);
     execFileSync('git', ['add', '-A'], { cwd: temp });
     const idempotent = execFileSync(process.execPath, [join(root, 'scripts/rename-cli.mjs'), '--root', temp, '--from', 'HappyHerd', '--to', 'Meadow', '--check'], { encoding: 'utf8' });

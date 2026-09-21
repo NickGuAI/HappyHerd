@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happy-app/sources/utils/webRootViewport.test.ts
 # gate	state	subject	evidence
+CLI_RENAME_CHANGELOG	accepted	docs(cli): preserve historical changelog during renames	scripts/cli-rename-scope.json
 CLI_RENAME_LINT	accepted	chore(cli): normalize relocated source whitespace	server/packages/happyherd-cli/src/commands/connect.ts
 CLI_FULL_RENAME	accepted	refactor(cli): complete happyherd naming and preserve migration contracts	docs/cli-renaming.md
 COMMANDER_FIRST_MOCK	accepted	docs(mock): prototype Commander-first mode for issue 300	docs/mocks/commander-first/README.md

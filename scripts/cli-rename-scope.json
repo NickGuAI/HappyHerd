@@ -1,6 +1,6 @@
 {
   "owned": [".dev/skills/happyherd/", ".dev/skills/happyherd-session-archive/", "server/docs/cli-architecture.md"],
-  "exclude": ["scripts/rename-cli", "scripts/cli-rename-scope.json", "scripts/verify-patch-discipline.sh", "docs/upstream-sync-", "docs/cli-renaming.md", "docs/cli-upstream-sync.md"],
+  "exclude": ["scripts/rename-cli", "scripts/cli-rename-scope.json", "scripts/verify-patch-discipline.sh", "docs/upstream-sync-", "docs/cli-renaming.md", "docs/cli-upstream-sync.md", "server/packages/happy-app/CHANGELOG.md"],
   "preserve": [
     "Happy EnCoder", "upstream Happy", "`happy` package name", "HappyControlClient", "happy.engineering", "happy-coder", "@slopus/happy-terminal", "@slopus/happy-wire", "'happy-cli'",
     "happy-agent", "happy-app", "happy-server", "happy-wire", "happy-terminal",
