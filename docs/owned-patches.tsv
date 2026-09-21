@@ -438,3 +438,4 @@ ISSUE_297_CONTROL_ENV_CONTINUITY	code-ready	fix(control): honor canonical CLI en
 RENAME_PEER_COMPATIBILITY	accepted	fix(cli): preserve established attachment and peer protocols	server/packages/happyherd-cli/src/api/apiSession.test.ts
 CLI_RENAME_AUTOMATION_OWNER	accepted	fix(cli): retain automation ownership through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_MCP_IDENTITY	accepted	fix(cli): retain the title tool peer namespace through repeated renames	scripts/rename-cli.test.mjs
+CLI_RENAME_PEER_SOP	accepted	docs(cli): document preserved peer identities through repeated renames	docs/cli-renaming.md

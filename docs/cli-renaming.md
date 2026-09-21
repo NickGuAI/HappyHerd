@@ -67,20 +67,11 @@ CLI flags. Source renaming itself does not restart processes.
 
 ## Shared contract with #307
 
-Retain these wire/stored-data spellings until both readers and writers migrate:
-`happyCliVersion`, `happyHomeDir`, `happyLibDir`, `happyToolsDir`,
-`happySessionId`, `requiresHappyAgentAuth`, `happyAgentAuthenticated`, and
-`spawn-happy-session`. They support existing apps, daemons and encrypted
-records; they are schema boundaries rather than installed CLI branding.
-`Happy EnCoder` is a cryptographic derivation domain and must remain byte-exact.
-The historical shutdown-source enum `happy-cli` also remains a wire value.
-Pairing QR/manual URLs retain `happy://terminal?` in `legacyCompatibility.ts`:
-the shipped app's `sources/hooks/useConnectTerminal.ts` only accepts that
-scheme. #307 must add dual-scheme readers before switching the CLI's emitted
-scheme; renaming just the installer test parser would hide broken app pairing.
-The CLI now emits `mcp__happyherd__change_title`; #307 must teach the app's
-`sources/sync/reducer/messageToEvent.ts` to recognize both old and new title
-tool names so historical turns retain their specialized presentation.
+Retain metadata keys `happyCliVersion`, `happyHomeDir`, `happyLibDir`, `happyToolsDir`, `happySessionId`, `requiresHappyAgentAuth`, and `happyAgentAuthenticated`. RPC methods `spawn-happy-session` and `resume-happy-session`, socket authentication for `happyClient`, and the HTTP header `X-Happy-Client` must remain unchanged.
+
+Cryptographic domains `Happy EnCoder` and `Happy Blobs` must stay byte-exact, while the persisted `runtimeOwner` value `happyherd` and the `shutdown-source` enum `happy-cli` are preserved.
+
+The pairing URI must remain `happy://terminal?` to ensure compatibility with existing app readers, and the app must continue to recognize both the current `mcp__happyherd__change_title` and historical title tools. The existing `happyherd` MCP namespace serves as a shared protocol identity that must be preserved across subsequent CLI renames, even when underlying executable and package names change.
 
 The CLI consumes #307-owned `happy-agent` (`HappyControlClient` imported under
 a renamed local alias), `@slopus/happy-wire`, `happy-app`, `happy-server` and
