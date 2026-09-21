@@ -441,3 +441,4 @@ CLI_RENAME_MCP_IDENTITY	accepted	fix(cli): retain the title tool peer namespace 
 CLI_RENAME_PEER_SOP	accepted	docs(cli): document preserved peer identities through repeated renames	docs/cli-renaming.md
 CONTROL_SMOKE_HOME_ISOLATION	accepted	test(control): isolate smoke commands from inherited homes	server/packages/happy-agent/src/cli-smoke.test.ts
 CONTROL_TEST_ENV_ISOLATION	accepted	test(control): isolate all CLI test homes and servers	server/packages/happy-agent/src/test-support/cliEnvironment.test.ts
+CLI_SHARED_RECOVERY_ARTIFACTS	accepted	chore(cli): reconcile generated artifacts after shared recovery integration	server/packages/happy-app/sources/text/ui-surface-inventory.json
