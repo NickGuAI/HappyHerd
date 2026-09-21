@@ -436,3 +436,4 @@ ISSUE_297_SOCKET_WIRE_IDENTITY	code-ready	fix(cli): preserve established socket 
 ISSUE_297_TITLE_EVENT_CONTINUITY	code-ready	fix(app): recognize canonical CLI title events across rename stages	server/packages/happy-app/sources/sync/reducer/messageToEvent.test.ts
 ISSUE_297_CONTROL_ENV_CONTINUITY	code-ready	fix(control): honor canonical CLI environment without losing legacy state	server/packages/happy-agent/src/config.test.ts
 RENAME_PEER_COMPATIBILITY	accepted	fix(cli): preserve established attachment and peer protocols	server/packages/happyherd-cli/src/api/apiSession.test.ts
+CLI_RENAME_AUTOMATION_OWNER	accepted	fix(cli): retain automation ownership through repeated renames	scripts/rename-cli.test.mjs

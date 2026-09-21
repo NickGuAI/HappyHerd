@@ -5,6 +5,7 @@
     "Happy EnCoder", "Happy Blobs", "upstream Happy", "`happy` package name", "HappyControlClient", "happy.engineering", "happy-coder", "@slopus/happy-terminal", "@slopus/happy-wire", "'happy-cli'",
     "happy-agent", "happy-app", "happy-server", "happy-wire", "happy-terminal",
     "happyCliVersion", "happyHomeDir", "happyLibDir", "happyToolsDir", "happySessionId", "happyClient:",
+    "runtimeOwner: 'happyherd'",
     "requiresHappyAgentAuth", "happyAgentAuthenticated", "spawn-happy-session", "resume-happy-session", "X-Happy-Client", "x-happy-client",
     "HAPPY_STATIC_DIR", "HAPPY_INJECT_HTML_CONFIG"
   ]

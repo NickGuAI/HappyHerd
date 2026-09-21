@@ -40,6 +40,7 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/api/api.ts'), 'utf8'), /'X-Happy-Client':/);
     assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/api/apiSession.ts'), 'utf8'), /deriveKey\(this\.encryptionKey, 'Happy Blobs'/);
     assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/api/apiMachine.ts'), 'utf8'), /'resume-happy-session'/);
+    assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/automations/store.ts'), 'utf8'), /runtimeOwner: 'happyherd'/);
     for (const file of ['apiMachine.ts', 'apiSession.ts']) {
       assert.match(readFileSync(join(temp, 'server/packages/happyherd-cli/src/api', file), 'utf8'), /\bhappyClient:/);
     }
@@ -55,6 +56,7 @@ test('full baseline repository supports two consecutive tracked renames with bin
     assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/api/api.ts'), 'utf8'), /'X-Happy-Client':/);
     assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/api/apiSession.ts'), 'utf8'), /deriveKey\(this\.encryptionKey, 'Happy Blobs'/);
     assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/api/apiMachine.ts'), 'utf8'), /'resume-happy-session'/);
+    assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/automations/store.ts'), 'utf8'), /runtimeOwner: 'happyherd'/);
     for (const file of ['apiMachine.ts', 'apiSession.ts']) {
       assert.match(readFileSync(join(temp, 'server/packages/meadow-cli/src/api', file), 'utf8'), /\bhappyClient:/);
     }
