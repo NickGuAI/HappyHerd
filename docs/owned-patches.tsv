@@ -470,3 +470,4 @@ ISSUE_323_DOWNLOAD_VERIFICATION	code-ready	test(app): refresh workspace download
 CODEX_QUOTA_RECOVERY_REMINDERS	accepted	feat(app): add contextual Codex quota credential reminders	server/packages/happyherd-app/sources/components/CodexQuotaRecoveryActions.tsx
 CODEX_QUOTA_RECOVERY_BROWSER	accepted	test(credentials): cover Codex quota recovery browser journeys	server/packages/happyherd-app/sources/components/CredentialsSettingsView.browser.test.ts
 CODEX_QUOTA_KEY_EMPTY_USAGE	accepted	fix(credentials): omit empty saved credential usage detail	server/packages/happyherd-app/sources/components/CredentialsSettingsView.tsx
+CODEX_QUOTA_SAVE_CONFIRMATION	accepted	fix(credentials): clarify storage-only save confirmation	server/packages/happyherd-app/sources/text/locales/en.json

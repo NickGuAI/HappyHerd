@@ -1913,7 +1913,7 @@
     "originMachineUnavailable": "Das Original-Gerät für diese Sitzung ist nicht verfügbar, daher können Sie hier kein Codex-Konto verbinden. Sie können jedoch weiterhin einen OpenAI-API-Schlüssel in Ihrem Konto speichern.",
     "returnToSession": "Zurück zur Sitzung",
     "openAiKeyName": "OpenAI-API-Schlüssel",
-    "keySaved": "Ihr API-Schlüssel wurde im Konto gespeichert. Er ist nur gespeichert und nicht für Codex aktiv."
+    "keySaved": "Ihre Zugangsdaten wurden im Konto gespeichert. Sie sind nur gespeichert und nicht für Codex aktiv."
   },
   "superSession": {
     "pinned": "Super Session (Angeheftet)"

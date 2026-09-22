@@ -1913,7 +1913,7 @@
     "originMachineUnavailable": "The original machine for this session is not available, so you cannot connect a Codex account here. You can still save an OpenAI API key to your account.",
     "returnToSession": "Return to session",
     "openAiKeyName": "OpenAI API key",
-    "keySaved": "Your API key has been saved to your account. It is stored only and is not active for Codex."
+    "keySaved": "Your credential has been saved to your account. It is stored only and is not active for Codex."
   },
   "superSession": {
     "pinned": "Super Session (Pinned)"

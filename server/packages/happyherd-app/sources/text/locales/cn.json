@@ -1913,7 +1913,7 @@
     "originMachineUnavailable": "此会话的原始设备不可用，因此您无法在此连接 Codex 账号。您仍然可以将 OpenAI API 密钥保存到您的账号中。",
     "returnToSession": "返回会话",
     "openAiKeyName": "OpenAI API 密钥",
-    "keySaved": "您的 API 密钥已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
+    "keySaved": "您的凭据已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
   },
   "superSession": {
     "pinned": "Super Session（已置顶）"
