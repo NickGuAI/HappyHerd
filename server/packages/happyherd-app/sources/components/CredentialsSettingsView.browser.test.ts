@@ -54,6 +54,23 @@ const virtualModules: Record<string, string> = {
         export const Ionicons = ({ name }) => React.createElement('span', { 'data-icon': name });
     `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
+    'expo-router': `
+        export const router = {
+            push: (target) => globalThis.__NAVIGATE__('push', target),
+            dismissTo: (target) => globalThis.__NAVIGATE__('dismissTo', target),
+        };
+        export const useRouter = () => router;
+        export const useLocalSearchParams = () => globalThis.__FIXTURE_STATE__.route.params;
+    `,
+    './markdown/MarkdownView': `export const MarkdownView = () => null;`,
+    './tools/ToolView': `export const ToolView = () => null;`,
+    './LongPressCopyable': `export const LongPressCopyable = ({ children }) => children;`,
+    '@/sync/sync': `
+        export const sync = { sendMessage: (...args) => globalThis.__FIXTURE_STATE__.calls.push(['session-send', ...args]) };
+    `,
+    '@/sync/ops': `
+        export const resumeSession = (...args) => globalThis.__FIXTURE_STATE__.calls.push(['session-resume', ...args]);
+    `,
     '@/auth/AuthContext': `
         const credentials = { token: 'test-token', secret: 'test-secret' };
         export const useAuth = () => ({ credentials });
@@ -73,6 +90,8 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/storage': `
         import React from 'react';
+        export const useSetting = () => 'default';
+        export const useSession = () => globalThis.__FIXTURE_STATE__.session;
         export const useAllMachines = () => {
             const [machines, setMachines] = React.useState(globalThis.__FIXTURE_STATE__.machines);
             React.useEffect(() => {
@@ -357,6 +376,7 @@ const virtualModules: Record<string, string> = {
         };
     `,
     '@/text': `
+        import catalog from '@/text/locales/en.json';
         const labels = {
             'settingsCredentials.title': 'Credentials & Accounts',
             'settingsCredentials.subtitle': 'Manage connected providers and saved credentials',
@@ -435,7 +455,7 @@ const virtualModules: Record<string, string> = {
         };
         export const t = (key, params = {}) => Object.entries(params).reduce(
             (value, [name, replacement]) => value.replaceAll('{' + name + '}', String(replacement)),
-            labels[key] ?? key,
+            labels[key] ?? key.split('.').reduce((value, part) => value?.[part], catalog) ?? key,
         );
     `,
 };
@@ -482,9 +502,12 @@ describe('CredentialsSettingsView browser journeys', () => {
                     import React from 'react';
                     import { createRoot } from 'react-dom/client';
                     import { CredentialsSettingsView } from '@/components/CredentialsSettingsView';
+                    import CredentialsSettingsScreen from '@/app/(app)/settings/credentials';
+                    import { MessageView } from '@/components/MessageView';
                     const query = new URLSearchParams(location.search);
                     const scenario = query.get('scenario') ?? 'populated';
-                    const hasSecondMachine = scenario.startsWith('deferred-');
+                    const quotaJourney = scenario.startsWith('quota-');
+                    const hasSecondMachine = scenario.startsWith('deferred-') || quotaJourney;
                     const active = scenario !== 'offline';
                     const protocol = scenario === 'unsupported' ? undefined : 1;
                     globalThis.__DARK__ = query.get('theme') === 'dark';
@@ -551,6 +574,16 @@ describe('CredentialsSettingsView browser journeys', () => {
                             }];
                     globalThis.__FIXTURE_STATE__ = {
                         scenario,
+                        route: { pathname: '/session/[id]', params: { id: 'quota-session' } },
+                        navigation: [],
+                        session: {
+                            id: 'quota-session',
+                            metadata: {
+                                machineId: scenario === 'quota-missing' ? undefined
+                                    : scenario === 'quota-unavailable' ? 'machine-unavailable' : 'machine-1',
+                                flavor: 'codex',
+                            },
+                        },
                         calls: [],
                         opened: [],
                         loginPolls: 0,
@@ -565,11 +598,11 @@ describe('CredentialsSettingsView browser journeys', () => {
                         credentialSaveGate, releaseCredentialSave,
                         machines: scenario === 'none' ? [] : [
                             {
-                                id: 'machine-1', active, activeAt: Date.now(),
+                                id: 'machine-1', active: active && scenario !== 'quota-offline', activeAt: Date.now(),
                                 metadata: { host: 'Studio', displayName: 'Studio', credentialManagementProtocolVersion: protocol },
                             },
                             ...(hasSecondMachine ? [{
-                                id: 'machine-2', active: true, activeAt: Date.now() - 1,
+                                id: 'machine-2', active: true, activeAt: Date.now() + (quotaJourney ? 10000 : -1),
                                 metadata: { host: 'Laptop', displayName: 'Laptop', credentialManagementProtocolVersion: 1 },
                             }] : []),
                         ],
@@ -586,7 +619,30 @@ describe('CredentialsSettingsView browser journeys', () => {
                     };
                     const host = document.getElementById('root');
                     let root = createRoot(host);
-                    const render = () => root.render(React.createElement(CredentialsSettingsView));
+                    // The production quota row and Credentials route own the gestures.
+                    // Only navigation transport and the retained session draft are fixtures.
+                    function QuotaJourney() {
+                        const [route, setRoute] = React.useState(globalThis.__FIXTURE_STATE__.route);
+                        const [draft, setDraft] = React.useState('');
+                        globalThis.__NAVIGATE__ = (method, target) => {
+                            globalThis.__FIXTURE_STATE__.route = target;
+                            globalThis.__FIXTURE_STATE__.navigation.push([method, target]);
+                            setRoute(target);
+                        };
+                        if (route.pathname === '/settings/credentials') return React.createElement(CredentialsSettingsScreen);
+                        return React.createElement(React.Fragment, null,
+                            React.createElement(MessageView, {
+                                sessionId: 'quota-session', metadata: globalThis.__FIXTURE_STATE__.session.metadata,
+                                message: { id: 'quota-event', kind: 'agent-event', createdAt: 1,
+                                    event: { type: 'provider-quota-exhausted', provider: 'codex', incidentId: 'quota-incident' } },
+                            }),
+                            React.createElement('textarea', {
+                                'aria-label': 'Retained session draft', value: draft,
+                                onChange: (event) => setDraft(event.target.value),
+                            }),
+                        );
+                    }
+                    const render = () => root.render(React.createElement(quotaJourney ? QuotaJourney : CredentialsSettingsView));
                     globalThis.__ROOT__ = root;
                     globalThis.__REMOUNT__ = () => {
                         root.unmount();
@@ -659,6 +715,162 @@ describe('CredentialsSettingsView browser journeys', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([
+        ['desktop light', { width: 1440, height: 900 }, 'light'],
+        ['desktop dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile light', { width: 390, height: 844 }, 'light'],
+        ['mobile dark', { width: 390, height: 844 }, 'dark'],
+        ['compact mobile light', { width: 360, height: 800 }, 'light'],
+        ['compact mobile dark', { width: 360, height: 800 }, 'dark'],
+    ] as const)('opens both Codex quota recovery forms and returns to the retained session on %s', async (label, viewport, theme) => {
+        for (const action of ['connect-account', 'add-api-key'] as const) {
+            const page = await browser.newPage({ viewport });
+            const errors = recordErrors(page);
+            await page.goto(`${origin}/?scenario=quota-ready&theme=${theme}`);
+            await page.getByLabel('Retained session draft').fill('Keep this unsent message');
+            const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
+            if (action === 'connect-account') {
+                for (const name of ['Connect another Codex account', 'Add an OpenAI API key']) {
+                    const box = await page.getByRole('button', { name, exact: true }).boundingBox();
+                    expect(box!.height).toBeGreaterThanOrEqual(44);
+                    expect(box!.x).toBeGreaterThanOrEqual(0);
+                    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+                }
+                if (evidenceDir) {
+                    await mkdir(evidenceDir, { recursive: true });
+                    await page.screenshot({ path: resolve(evidenceDir, `quota-reminder-${label.replaceAll(' ', '-')}.png`), fullPage: true });
+                }
+            }
+            await page.getByRole('button', {
+                name: action === 'connect-account' ? 'Connect another Codex account' : 'Add an OpenAI API key',
+                exact: true,
+            }).click();
+
+            await page.getByRole('button', { name: 'Return to session', exact: true }).waitFor();
+            expect(await page.evaluate(() => (window as any).__FIXTURE_STATE__.navigation)).toEqual([
+                ['push', {
+                    pathname: '/settings/credentials',
+                    params: { quotaRecovery: action, sessionId: 'quota-session', machineId: 'machine-1' },
+                }],
+            ]);
+            if (action === 'connect-account') {
+                await page.getByLabel('Nickname', { exact: true }).waitFor();
+                expect(await page.getByLabel('Nickname', { exact: true }).inputValue()).toBe('');
+                await page.getByText(/This page cannot pick a specific account for this session/).waitFor();
+            } else {
+                expect(await page.getByLabel('Name', { exact: true }).inputValue()).toBe('OpenAI API key');
+                expect(await page.getByLabel('Service', { exact: true }).inputValue()).toBe('api.openai.com');
+                expect(await page.getByLabel('Secret', { exact: true }).inputValue()).toBe('');
+                expect(await page.getByText('Provider Accounts', { exact: true }).count()).toBe(0);
+                await page.getByText(/It is not connected to Codex right now/).waitFor();
+                await page.getByText(/your OpenAI API usage will be billed separately by OpenAI/).waitFor();
+            }
+            const beforeInput = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+            expect(beforeInput.some((call: unknown[]) => call[0] === 'account-list' && call[1] === 'machine-2')).toBe(false);
+            expect(beforeInput.filter((call: unknown[]) => !['account-list', 'credential-list'].includes(String(call[0])))).toEqual([]);
+            expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true);
+            if (evidenceDir) {
+                await mkdir(evidenceDir, { recursive: true });
+                await page.screenshot({ path: resolve(evidenceDir, `quota-${action}-${label.replaceAll(' ', '-')}.png`), fullPage: true });
+            }
+
+            await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+            await page.getByRole('button', { name: 'Return to session', exact: true }).click();
+            expect(await page.getByLabel('Retained session draft').inputValue()).toBe('Keep this unsent message');
+            expect(await page.evaluate(() => (window as any).__FIXTURE_STATE__.route)).toEqual({
+                pathname: '/session/[id]', params: { id: 'quota-session' },
+            });
+            const afterReturn = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+            expect(afterReturn.filter((call: unknown[]) => !['account-list', 'credential-list'].includes(String(call[0])))).toEqual([]);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 20_000);
+
+    it.each([
+        ['desktop', { width: 1440, height: 900 }],
+        ['mobile', { width: 390, height: 844 }],
+    ] as const)('keeps Codex quota recovery login and key saving explicit on %s', async (_label, viewport) => {
+        const page = await browser.newPage({ viewport });
+        const errors = recordErrors(page);
+        await page.goto(`${origin}/?scenario=quota-ready`);
+        await page.getByLabel('Retained session draft').fill('Resume only when I choose');
+        await page.getByRole('button', { name: 'Connect another Codex account', exact: true }).click();
+        await page.getByLabel('Nickname', { exact: true }).fill('quota-work');
+        await page.getByRole('button', { name: 'Log In', exact: true }).click();
+        await page.getByText('Account saved', { exact: true }).waitFor();
+        let calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(calls.filter((call: unknown[]) => call[0] === 'login-start')).toEqual([
+            ['login-start', 'machine-1', { provider: 'codex', name: 'quota-work' }],
+        ]);
+        expect(calls.filter((call: unknown[]) => ['account-use', 'session-resume', 'session-send'].includes(String(call[0])))).toEqual([]);
+        await page.getByRole('button', { name: 'Return to session', exact: true }).click();
+        expect(await page.getByLabel('Retained session draft').inputValue()).toBe('Resume only when I choose');
+
+        await page.getByRole('button', { name: 'Add an OpenAI API key', exact: true }).click();
+        await page.getByLabel('Secret', { exact: true }).fill('fixture-openai-key');
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await page.getByRole('button', { name: /OpenAI API key/ }).waitFor();
+        await page.getByText(/It is stored only and is not active for Codex/).waitFor();
+        calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(calls.filter((call: unknown[]) => call[0] === 'credential-save')).toEqual([
+            ['credential-save', expect.objectContaining({
+                name: 'OpenAI API key', type: 'token', service: 'api.openai.com', secret: '[redacted]', usage: [],
+            })],
+        ]);
+        expect(calls.filter((call: unknown[]) => ['account-use', 'session-resume', 'session-send'].includes(String(call[0])))).toEqual([]);
+        expect(await page.locator('body').innerText()).not.toContain('fixture-openai-key');
+        await page.getByRole('button', { name: 'Return to session', exact: true }).click();
+        expect(await page.getByLabel('Retained session draft').inputValue()).toBe('Resume only when I choose');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 25_000);
+
+    it('cancels a pending Codex recovery login before returning without resuming or sending', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const errors = recordErrors(page);
+        await page.goto(`${origin}/?scenario=quota-ready`);
+        await page.getByLabel('Retained session draft').fill('Still unsent after cancel');
+        await page.getByRole('button', { name: 'Connect another Codex account', exact: true }).click();
+        // Keep the mocked provider pending while exercising the real cancel control.
+        await page.evaluate(() => { (window as any).__FIXTURE_STATE__.scenario = 'success-submit'; });
+        await page.getByLabel('Nickname', { exact: true }).fill('canceled-account');
+        await page.getByRole('button', { name: 'Log In', exact: true }).click();
+        await page.getByText('Waiting for provider login', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Cancel Login', exact: true }).click();
+        await page.getByText('Login canceled', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Return to session', exact: true }).click();
+        expect(await page.getByLabel('Retained session draft').inputValue()).toBe('Still unsent after cancel');
+        const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+        expect(calls.filter((call: unknown[]) => call[0] === 'login-cancel')).toEqual([
+            ['login-cancel', 'machine-1', 'flow-1'],
+        ]);
+        expect(calls.filter((call: unknown[]) => ['account-use', 'session-resume', 'session-send'].includes(String(call[0])))).toEqual([]);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it.each(['quota-offline', 'quota-missing', 'quota-unavailable'])(
+        'does not replace the originating machine with a more recent machine for %s',
+        async (scenario) => {
+            const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+            const errors = recordErrors(page);
+            await page.goto(`${origin}/?scenario=${scenario}`);
+            await page.getByRole('button', { name: 'Connect another Codex account', exact: true }).click();
+            await page.getByRole('button', { name: 'Return to session', exact: true }).waitFor();
+            if (scenario === 'quota-offline') await page.getByText('This machine is offline', { exact: true }).waitFor();
+            else await page.getByText(/The original machine for this session is not available/).waitFor();
+            const calls = await page.evaluate(() => (window as any).__FIXTURE_STATE__.calls);
+            expect(calls.filter((call: unknown[]) => call[0] !== 'credential-list')).toEqual([]);
+            expect(await page.getByRole('button', { name: 'Log In', exact: true }).count()).toBe(0);
+            await page.getByRole('button', { name: 'Return to session', exact: true }).click();
+            await page.getByLabel('Retained session draft').waitFor();
+            expect(errors).toEqual([]);
+            await page.close();
+        },
+        15_000,
+    );
 
     it.each([
         ['desktop light', { width: 1440, height: 900 }, 'light'],

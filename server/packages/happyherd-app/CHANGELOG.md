@@ -1,3 +1,8 @@
+# September 22 — Codex quota reminders
+
+- Added navigation from quota messages to credentials forms for Codex accounts and OpenAI API keys.
+- The key form explains that saved OpenAI API keys are not yet connected to Codex. Credentials navigation preserves the originating session and machine.
+
 # September 22 — Workspace file downloads
 
 - Users can now download individual workspace files with original filenames and exact bytes directly from the desktop and mobile web interfaces.

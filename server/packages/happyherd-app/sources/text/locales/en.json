@@ -1185,6 +1185,10 @@
     "safeguard": {
       "revise": "Prompt check: suggested revision",
       "ready": "Prompt check: no obvious issues"
+    },
+    "codexQuotaRecovery": {
+      "connectAccount": "Connect another Codex account",
+      "addApiKey": "Add an OpenAI API key"
     }
   },
   "codex": {
@@ -1899,10 +1903,17 @@
     "loadFailed": "Could not load credentials",
     "noMachines": "No machines available",
     "selectMachine": "Select a Machine",
-    "accountHelp": "This page lists HappyHerd-managed accounts stored on the selected machine. Native provider CLI sign-ins are separate and are not shown here. The selected default applies only to future sessions for that provider. Local removal does not revoke provider access or stop active sessions.",
+    "accountHelp": "This page lists HappyHerd-managed accounts stored on the selected machine. Native provider CLI sign-ins are separate and are not shown here. The default is used for new sessions. Resuming an existing session may retain its previous account. Local removal does not revoke provider access or stop active sessions.",
     "credentialHelp": "Credentials are encrypted on the HappyHerd server. Usage labels describe intended use; they do not automatically inject a credential.",
     "credentialChanged": "The saved credential has been changed elsewhere. You must reload before editing again.",
-    "required": "Required"
+    "required": "Required",
+    "recoveryTitle": "Codex quota recovery",
+    "accountRecoveryHelp": "Connect another Codex account on this session’s machine. This page cannot pick a specific account for this session. Setting a default does not guarantee that resuming this session will use that account.",
+    "apiKeyRecoveryHelp": "Saving your OpenAI API key only stores it in your account. It is not connected to Codex right now, and saving it does not activate recovery or change your billing. If Codex uses this key in the future, your OpenAI API usage will be billed separately by OpenAI.",
+    "originMachineUnavailable": "The original machine for this session is not available, so you cannot connect a Codex account here. You can still save an OpenAI API key to your account.",
+    "returnToSession": "Return to session",
+    "openAiKeyName": "OpenAI API key",
+    "keySaved": "Your credential has been saved to your account. It is stored only and is not active for Codex."
   },
   "superSession": {
     "pinned": "Super Session (Pinned)"

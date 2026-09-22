@@ -1185,6 +1185,10 @@
     "safeguard": {
       "revise": "Prompt-Prüfung: Korrektur empfohlen",
       "ready": "Prompt-Prüfung: Keine offensichtlichen Probleme"
+    },
+    "codexQuotaRecovery": {
+      "connectAccount": "Anderes Codex-Konto verbinden",
+      "addApiKey": "Einen OpenAI-API-Schlüssel hinzufügen"
     }
   },
   "codex": {
@@ -1899,10 +1903,17 @@
     "loadFailed": "Anmeldedaten konnten nicht geladen werden",
     "noMachines": "Keine Maschinen verfügbar",
     "selectMachine": "Maschine auswählen",
-    "accountHelp": "Diese Seite listet die auf der ausgewählten Maschine gespeicherten, von HappyHerd verwalteten Konten auf. Native CLI-Anmeldungen des Anbieters sind separat und werden hier nicht angezeigt. Der ausgewählte Standard gilt nur für zukünftige Sitzungen dieses Anbieters. Lokales Entfernen widerruft weder den Anbieterzugriff noch stoppt es laufende Sitzungen.",
+    "accountHelp": "Diese Seite listet die auf der ausgewählten Maschine gespeicherten, von HappyHerd verwalteten Konten auf. Native CLI-Anmeldungen des Anbieters sind separat und werden hier nicht angezeigt. Das Standardkonto wird für neue Sitzungen verwendet. Beim Fortsetzen einer bestehenden Sitzung kann das bisherige Konto beibehalten werden. Lokales Entfernen widerruft weder den Anbieterzugriff noch stoppt es laufende Sitzungen.",
     "credentialHelp": "Anmeldedaten werden verschlüsselt auf dem HappyHerd-Server gespeichert. Verwendungszwecke beschreiben die geplante Nutzung; sie führen nicht automatisch Daten ein.",
     "credentialChanged": "Die gespeicherten Anmeldedaten wurden an anderer Stelle geändert. Sie müssen neu laden, bevor Sie sie erneut bearbeiten können.",
-    "required": "Erforderlich"
+    "required": "Erforderlich",
+    "recoveryTitle": "Codex-Kontingent wiederherstellen",
+    "accountRecoveryHelp": "Um ein anderes Codex-Konto zu verknüpfen, melden Sie sich auf dem Gerät dieser Sitzung an. Auf dieser Seite können Sie kein bestimmtes Konto für diese aktive Sitzung auswählen. Ein Standardkonto festzulegen garantiert nicht, dass diese Sitzung beim Fortsetzen dieses Konto verwendet.",
+    "apiKeyRecoveryHelp": "Das Speichern Ihres OpenAI-API-Schlüssels speichert diesen nur in Ihrem Konto. Er ist derzeit nicht mit Codex verbunden, und das Speichern aktiviert keine Wiederherstellung oder Abrechnung. Falls Codex diesen Schlüssel zukünftig nutzt, wird die OpenAI-API-Nutzung separat abgerechnet.",
+    "originMachineUnavailable": "Das Original-Gerät für diese Sitzung ist nicht verfügbar, daher können Sie hier kein Codex-Konto verbinden. Sie können jedoch weiterhin einen OpenAI-API-Schlüssel in Ihrem Konto speichern.",
+    "returnToSession": "Zurück zur Sitzung",
+    "openAiKeyName": "OpenAI-API-Schlüssel",
+    "keySaved": "Ihre Zugangsdaten wurden im Konto gespeichert. Sie sind nur gespeichert und nicht für Codex aktiv."
   },
   "superSession": {
     "pinned": "Super Session (Angeheftet)"

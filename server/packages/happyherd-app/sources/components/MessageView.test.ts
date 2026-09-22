@@ -4,6 +4,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const platform = vi.hoisted(() => ({ os: 'web', dark: false }));
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: routerPush }) }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
@@ -113,7 +115,7 @@ function renderSwitch(provider: 'claude' | 'codex' | 'grok'): ReactTestRenderer 
     return renderer;
 }
 
-function renderQuota(provider: 'claude' | 'codex' | 'grok' | 'dsh'): ReactTestRenderer {
+function renderQuota(provider: 'claude' | 'codex' | 'grok' | 'dsh', machineId?: string): ReactTestRenderer {
     let renderer!: ReactTestRenderer;
     act(() => {
         renderer = create(React.createElement(MessageView, {
@@ -127,7 +129,7 @@ function renderQuota(provider: 'claude' | 'codex' | 'grok' | 'dsh'): ReactTestRe
                     incidentId: 'quota-incident-1',
                 },
             },
-            metadata: null,
+            metadata: machineId ? { machineId } as any : null,
             sessionId: 'session-1',
         }));
     });
@@ -158,9 +160,34 @@ describe('MessageView provider quota receipt', () => {
         ['dsh', 'dsh'],
     ] as const)('renders a localized provider-named row for %s', (provider, providerName) => {
         const renderer = renderQuota(provider);
-        expect(renderer.root.findByType('Text' as any).children.join('')).toBe(
+        expect(renderer.root.findAllByType('Text' as any)[0].children.join('')).toBe(
             `Quota exhaustion on ${providerName}.`,
         );
+    });
+
+    it.each(['web', 'ios'])('offers only user-selected Credentials navigation for Codex on %s', (os) => {
+        platform.os = os;
+        routerPush.mockClear();
+        vi.mocked(sync.sendMessage).mockClear();
+        const renderer = renderQuota('codex', 'original-machine');
+        expect(routerPush).not.toHaveBeenCalled();
+        const buttons = renderer.root.findAllByType('Pressable' as any);
+        expect(buttons).toHaveLength(2);
+        act(() => buttons[0].props.onPress());
+        expect(routerPush).toHaveBeenLastCalledWith({
+            pathname: '/settings/credentials',
+            params: { quotaRecovery: 'connect-account', sessionId: 'session-1', machineId: 'original-machine' },
+        });
+        act(() => buttons[1].props.onPress());
+        expect(routerPush).toHaveBeenLastCalledWith({
+            pathname: '/settings/credentials',
+            params: { quotaRecovery: 'add-api-key', sessionId: 'session-1', machineId: 'original-machine' },
+        });
+        expect(sync.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it.each(['claude', 'grok', 'dsh'] as const)('does not offer Codex recovery on a %s event', (provider) => {
+        expect(renderQuota(provider).root.findAllByType('Pressable' as any)).toHaveLength(0);
     });
 });
 
