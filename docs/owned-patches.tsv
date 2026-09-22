@@ -474,3 +474,10 @@ CODEX_QUOTA_SAVE_CONFIRMATION	accepted	fix(credentials): clarify storage-only sa
 CODEX_QUOTA_RECOVERY_RESPONSIVE	accepted	test(credentials): verify quota actions across themes and mobile widths	server/packages/happyherd-app/sources/components/CredentialsSettingsView.browser.test.ts
 CODEX_QUOTA_CHANGELOG_GOLDENS	accepted	test(app): refresh Codex quota changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 CODEX_QUOTA_DEFAULT_COPY	accepted	fix(credentials): clarify account defaults when resuming sessions	server/packages/happyherd-app/sources/text/locales/en.json
+FOCUS_MODE_STATE	accepted	feat(focus): sync the active project timer through account settings	server/packages/happyherd-app/sources/sync/focusMode.test.ts
+FOCUS_MODE_UI	accepted	feat(focus): add the project focus setup and countdown	server/packages/happyherd-app/sources/components/FocusModeControl.tsx
+FOCUS_MODE_ARCHIVE_VISIBILITY	accepted	fix(focus): preserve the selected project archive control	server/packages/happyherd-app/sources/components/SessionsList.tsx
+FOCUS_MODE_BROWSER_JOURNEYS	accepted	test(focus): verify desktop and phone timer journeys	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FOCUS_MODE_WEB_ACCESSIBILITY	accepted	fix(focus): use web accessibility semantics for the tomato icon	server/packages/happyherd-app/sources/components/FocusModeControl.tsx
+FOCUS_MODE_EXISTING_FIXTURES	accepted	test(focus): adapt existing header and workspace fixtures	server/packages/happyherd-app/sources/components/HomeHeader.test.ts
+FOCUS_MODE_CHANGELOG_GOLDENS	accepted	test(focus): refresh the changelog visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

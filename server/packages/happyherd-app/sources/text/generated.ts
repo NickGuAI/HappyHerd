@@ -330,6 +330,17 @@ export type TranslationKey =
     | "files.summary"
     | "files.tryDifferentTerm"
     | "files.unstagedChanges"
+    | "focusMode.cancel"
+    | "focusMode.duration"
+    | "focusMode.durationOption"
+    | "focusMode.enter"
+    | "focusMode.exit"
+    | "focusMode.noProjects"
+    | "focusMode.project"
+    | "focusMode.remaining"
+    | "focusMode.selectProject"
+    | "focusMode.start"
+    | "focusMode.title"
     | "friends.accept"
     | "friends.acceptRequest"
     | "friends.addFriend"
@@ -1643,6 +1654,8 @@ export interface TranslationParamsByKey {
     "files.stagedChanges": { count: number };
     "files.summary": { staged: number; unstaged: number };
     "files.unstagedChanges": { count: number };
+    "focusMode.durationOption": { minutes: string };
+    "focusMode.remaining": { time: string };
     "friends.cancelRequestConfirm": { name: string };
     "friends.nowFriendsWith": { name: string };
     "friends.removeFriendConfirm": { name: string };

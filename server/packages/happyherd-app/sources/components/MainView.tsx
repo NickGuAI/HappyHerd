@@ -37,6 +37,7 @@ import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
 import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
+import { FocusModeControl } from './FocusModeControl';
 
 interface MainViewProps {
     variant: 'phone' | 'sidebar';
@@ -417,6 +418,7 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
         ? 0
         : safeArea.top
             + MOBILE_GLASS_HEADER_HEIGHT
+            + (activeTab === 'sessions' ? 44 : 0)
             + (realtimeStatus !== 'disconnected' ? 32 : 0);
     const topContentInset = topChromeInset + (Platform.OS === 'web' ? 0 : 12);
     const bottomContentInset = Platform.OS === 'web'
@@ -531,6 +533,10 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                 mobileTitleSurface="plain"
                 mobileTitleAlignment="center"
             />
+            {activeTab === 'sessions' && <View style={{ height: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 16, color: theme.colors.header.tint }}>{t('focusMode.enter')}</Text>
+                <FocusModeControl />
+            </View>}
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="full" />
             )}

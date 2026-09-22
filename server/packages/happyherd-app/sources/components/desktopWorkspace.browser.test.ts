@@ -84,6 +84,7 @@ const virtualModules: Record<string, string> = {
         const Animated = { View };
         export default Animated;
         export const useSharedValue = (value) => ({ value });
+        export const useReducedMotion = () => false;
         export const useAnimatedStyle = (factory) => factory();
         export const withTiming = (value) => value;
         export const Easing = { out: (value) => value, cubic: 'cubic' };
@@ -149,6 +150,7 @@ const virtualModules: Record<string, string> = {
         const settings = {
             navigationSidebarCollapsed: false,
             zenMode: false,
+            focusMode: null,
             machineWorkspace: true,
             recentMachinePaths: new URLSearchParams(window.location.search).has('workspace-browser') ? [
                 { machineId: 'machine-2', path: '/machine-root/deleted-worktree' },
@@ -184,6 +186,9 @@ const virtualModules: Record<string, string> = {
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
             (value) => { settings[key] = value; emit(); },
         ];
+        export const useSettingMutable = useLocalSettingMutable;
+        const projects = {};
+        export const useProjects = () => projects;
         export const useSession = (id) => sessions[id] ?? null;
         export const useSessionGitStatus = () => gitStatus;
         export const useSessionGitStatusFiles = () => gitStatusFiles;
@@ -739,6 +744,7 @@ describe('Desktop workspace browser interaction', () => {
             splitting: true,
             platform: 'browser',
             jsx: 'automatic',
+            resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
             define: { __DEV__: 'false' },
             alias: { 'react-native': 'react-native-web' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' },

@@ -17,6 +17,7 @@ import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
 import { canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
 import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
 import { Text } from './StyledText';
+import { FocusModeControl } from './FocusModeControl';
 import {
     DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
     DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
@@ -246,6 +247,10 @@ const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: {
                         <Ionicons name="chevron-back" size={20} color={theme.colors.header.tint} />
                     )}
                 </Pressable>
+            </View>
+            <View style={{ marginLeft: 24 }} pointerEvents="auto"
+                {...(inTauri ? { dataSet: { tauriDragRegion: 'false' } } : {})}>
+                <FocusModeControl />
             </View>
         </View>
     );

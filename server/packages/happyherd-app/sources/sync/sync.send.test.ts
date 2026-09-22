@@ -49,7 +49,7 @@ vi.mock('@/realtime/hooks/voiceHooks', () => ({ voiceHooks: { onSessionOnline: v
 import { sync } from './sync';
 import { Encryption } from './encryption/encryption';
 import { encodeBase64 } from '@/encryption/base64';
-import { settingsDefaults } from './settings';
+import { applySettings, settingsDefaults } from './settings';
 
 let engine: any;
 let writer: Encryption;
@@ -213,5 +213,73 @@ describe('first message session hydration', () => {
         })).resolves.toEqual({ localId: expect.any(String) });
         expect(onAccepted).toHaveBeenCalledOnce();
         expect(mocks.request.mock.calls[0][0]).toBe('/v3/sessions/new-session/messages');
+    });
+});
+
+describe('focus mode through encrypted account settings', () => {
+    beforeEach(() => {
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(engine.settingsSync, 'invalidate').mockImplementation(() => {});
+        mocks.state.settingsVersion = 0;
+        mocks.state.profile = {};
+        mocks.state.applyProfile = vi.fn();
+        mocks.state.applySettingsLocal = (delta: any) => {
+            mocks.state.settings = applySettings(mocks.state.settings, delta);
+        };
+        mocks.state.applySettings = (settings: any, version: number) => {
+            mocks.state.settings = settings;
+            mocks.state.settingsVersion = version;
+        };
+    });
+
+    it('uploads start and exit through the existing settings endpoint', async () => {
+        let encrypted: string | null = null;
+        let version = 0;
+        fetchMock.mockImplementation(async (url, options) => {
+            expect(url).toBe('https://example.invalid/v1/account/settings');
+            if (options.method === 'POST') {
+                const body = JSON.parse(options.body);
+                expect(body.expectedVersion).toBe(version);
+                encrypted = body.settings;
+                version++;
+                return { ok: true, json: async () => ({ success: true }) };
+            }
+            return { ok: true, json: async () => ({ settings: encrypted, settingsVersion: version }) };
+        });
+
+        const focusMode = { projectId: 'project-a', endsAt: Date.now() + 30 * 60_000 };
+        engine.applySettings({ focusMode });
+        await engine.syncSettings();
+        expect(await writer.decryptRaw(encrypted!)).toMatchObject({ focusMode });
+        expect(mocks.state.settings.focusMode).toEqual(focusMode);
+        expect(engine.pendingSettings).toEqual({});
+
+        engine.applySettings({ focusMode: null });
+        await engine.syncSettings();
+        expect(await writer.decryptRaw(encrypted!)).toMatchObject({ focusMode: null });
+        expect(mocks.state.settings.focusMode).toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('restores the original end time on open and receives another device’s start/exit', async () => {
+        const original = { projectId: 'project-a', endsAt: Date.now() + 15 * 60_000 };
+        const encrypted = await writer.encryptRaw({ focusMode: original });
+        fetchMock.mockResolvedValue({ ok: true, json: async () => ({ settings: encrypted, settingsVersion: 3 }) });
+        await engine.syncSettings();
+        expect(mocks.state.settings.focusMode).toEqual(original);
+
+        const replacement = { projectId: 'project-b', endsAt: Date.now() + 60 * 60_000 };
+        for (const [index, focusMode] of [replacement, null].entries()) {
+            await engine.handleUpdate({
+                id: `account-update-${index}`, seq: index + 1, createdAt: Date.now(),
+                body: { t: 'update-account', id: 'account', settings: {
+                    value: await writer.encryptRaw({ focusMode }), version: 4 + index,
+                } },
+            });
+            expect(mocks.state.settings.focusMode).toEqual(focusMode);
+        }
+        // Receiving account updates does not upload settings.
+        expect(fetchMock).toHaveBeenCalledOnce();
+        expect(engine.settingsSync.invalidate).not.toHaveBeenCalled();
     });
 });
