@@ -14,7 +14,8 @@ import { t } from '@/text';
 function TomatoIcon() {
     const { theme } = useUnistyles();
     return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessible={false}>
+        <Svg width={24} height={24} viewBox="0 0 24 24"
+            {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
             <Path d="M12 7C5 3 1 9 3 16c2 7 16 7 18 0 2-7-2-13-9-9Z" fill={theme.colors.textDestructive} />
             <Path d="m12 9-6-3 5 1-1-4 3 3 4-2-2 4 4 2-6-1-2 3Z" fill={theme.colors.kilv.olive} />
         </Svg>
