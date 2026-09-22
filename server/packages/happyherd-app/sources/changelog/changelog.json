@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 22 — HappyHerd Focus Mode",
+      "summary": "",
+      "markdown": "- Users can now start Focus Mode with 15, 30, 45, or 60 minutes and a project to instantly filter the sidebar, complete with a persistent countdown that synchronizes across devices on the same account."
+    },
+    {
       "title": "September 22 — Codex quota reminders",
       "summary": "",
       "markdown": "- Added navigation from quota messages to credentials forms for Codex accounts and OpenAI API keys.\n- The key form explains that saved OpenAI API keys are not yet connected to Codex. Credentials navigation preserves the originating session and machine."
@@ -806,5 +811,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 22 — Codex quota reminders"
+  "latestTitle": "September 22 — HappyHerd Focus Mode"
 }

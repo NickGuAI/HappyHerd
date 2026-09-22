@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "0aabadeb12c1b57d317fea2fee1aa8cc27656364645d932e868efcd03fe5de32",
+  "sourceFingerprint": "89a0ea95b02dfaa9c0554cbe49dec4311f769c984205f12303205b08a9f7102d",
   "routeCount": 41,
-  "surfaceCount": 281,
+  "surfaceCount": 282,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3647,6 +3647,29 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/FocusModeControl.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FocusModeControl"
+      ],
+      "translationKeys": [
+        "focusMode.cancel",
+        "focusMode.duration",
+        "focusMode.durationOption",
+        "focusMode.enter",
+        "focusMode.exit",
+        "focusMode.noProjects",
+        "focusMode.project",
+        "focusMode.remaining",
+        "focusMode.selectProject",
+        "focusMode.start",
+        "focusMode.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/GitLineChanges.tsx",
       "kind": "component",
       "route": null,
@@ -4126,6 +4149,7 @@
         "MainView"
       ],
       "translationKeys": [
+        "focusMode.enter",
         "happyHerd.automations.title",
         "sessionsFilter.appearanceSettings",
         "sessionsFilter.flatList",
@@ -4849,6 +4873,7 @@
       ],
       "translationKeys": [
         "projects.noProject",
+        "projects.project",
         "sessionHistory.empty",
         "sessions.bots",
         "sidebar.hideArchived",

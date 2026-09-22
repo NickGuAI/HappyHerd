@@ -15,6 +15,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { useIsTablet } from '@/utils/responsive';
 import {
     type SessionListViewItem,
@@ -38,6 +39,7 @@ import {
     type FlatSessionRowData,
 } from '@/utils/flatSessionList';
 import { buildSessionProjectDisplayGroups } from '@/utils/sessionDisplayOrder';
+import { buildProjectSessionList } from '@/utils/projectSessionList';
 import { requestReview } from '@/utils/requestReview';
 import { ActiveSessionsGroupCompact } from './ActiveSessionsGroupCompact';
 import { FlatSessionRow, flatListBackgroundColor } from './FlatSessionRow';
@@ -204,6 +206,7 @@ export function SessionsList({
     const flatSessionList = grouping === 'flat';
     const sessions = useAllSessions();
     const projects = useProjects();
+    const focus = useFocusMode();
     const machines = useAllMachines();
     const pathname = usePathname();
     const isTablet = useIsTablet();
@@ -223,6 +226,22 @@ export function SessionsList({
         const matchesSession = (session: FlatSessionRowData['session']) => (
             !normalizedQuery || sessionMatchesFlatListSearch(session, normalizedQuery)
         );
+        if (focus) {
+            const projectList = buildProjectSessionList(sourceData, focus.projectId);
+            const visible = projectList.sessions.filter(row => matchesSession(row.session));
+            const archived = projectList.archivedSessions.filter(row => matchesSession(row.session));
+            return [
+                { type: 'personal-project', group: {
+                    projectId: focus.projectId,
+                    name: projects[focus.projectId]?.name ?? t('projects.project'),
+                    sessions: visible.map(row => row.session),
+                } },
+                ...(projectList.archivedSessions.length > 0 ? [{ type: 'archive-toggle' as const, hidden: hideArchivedSessions }] : []),
+                ...(!hideArchivedSessions ? archived.map<SessionListDisplayItem>((row, index) => ({
+                    type: 'flat-session', row, archived: true, last: index === archived.length - 1,
+                })) : []),
+            ];
+        }
         const superSession = sourceData.find((item): item is Extract<SessionListViewItem, { type: 'super-session' }> => (
             item.type === 'super-session'
         ));
@@ -323,7 +342,7 @@ export function SessionsList({
             ...archiveToggle,
             ...archiveItems,
         ];
-    }, [flatSessionList, grouping, hasArchivedSessions, hideArchivedSessions, machines, projects, searchQuery, sessions, sourceData]);
+    }, [flatSessionList, focus, grouping, hasArchivedSessions, hideArchivedSessions, machines, projects, searchQuery, sessions, sourceData]);
 
     if (!data) {
         return <View style={[styles.container, flatSessionList && styles.containerFlat]} />;

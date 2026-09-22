@@ -1975,5 +1975,18 @@
     "identityMismatch": "设备身份发生变化。请重新输入新配对码，并再次核对目标设备身份。",
     "serverChanged": "服务器设置已更改。请重启此应用以重新连接，然后配对。",
     "activeServer": "当前连接的服务器：{server}"
+  },
+  "focusMode": {
+    "title": "重拾你的专注",
+    "enter": "专注模式",
+    "exit": "退出专注模式",
+    "duration": "时长",
+    "durationOption": "{minutes} 分钟",
+    "project": "项目",
+    "selectProject": "选择项目",
+    "start": "开始专注",
+    "cancel": "取消",
+    "noProjects": "创建一个项目以开始专注。",
+    "remaining": "剩余 {time}"
   }
 }

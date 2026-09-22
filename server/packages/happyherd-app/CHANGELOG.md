@@ -1,3 +1,7 @@
+# September 22 — HappyHerd Focus Mode
+
+- Users can now start Focus Mode with 15, 30, 45, or 60 minutes and a project to instantly filter the sidebar, complete with a persistent countdown that synchronizes across devices on the same account.
+
 # September 22 — Codex quota reminders
 
 - Added navigation from quota messages to credentials forms for Codex accounts and OpenAI API keys.

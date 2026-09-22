@@ -1975,5 +1975,18 @@
     "identityMismatch": "The device identity changed. Enter a fresh code and compare the target identity again.",
     "serverChanged": "The server setting changed. Restart this app to reconnect before pairing.",
     "activeServer": "Connected server: {server}"
+  },
+  "focusMode": {
+    "title": "Reclaim Your Focus",
+    "enter": "Focus mode",
+    "exit": "Exit focus mode",
+    "duration": "Duration",
+    "durationOption": "{minutes} min",
+    "project": "Project",
+    "selectProject": "Select a project",
+    "start": "Start focus",
+    "cancel": "Cancel",
+    "noProjects": "Create a project to start focusing.",
+    "remaining": "{time} remaining"
   }
 }
