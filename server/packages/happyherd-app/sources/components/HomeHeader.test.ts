@@ -61,6 +61,7 @@ vi.mock('./InboxView', () => ({ InboxView: () => null }));
 vi.mock('./SettingsViewWrapper', () => ({ SettingsViewWrapper: () => null }));
 vi.mock('./HomeDock', () => ({ HomeDock: () => null, MOBILE_HOME_DOCK_CONTENT_INSET: 150 }));
 vi.mock('./HeaderLogo', () => ({ HeaderLogo: () => null }));
+vi.mock('./FocusModeControl', () => ({ FocusModeControl: () => null }));
 vi.mock('./VoiceAssistantStatusBar', () => ({ VoiceAssistantStatusBar: () => null }));
 vi.mock('./SessionsListWrapper', async () => {
     const ReactModule = await import('react');
@@ -250,7 +251,8 @@ describe('home header connection status', () => {
         const header = home.root.findByType('Header' as any);
         expect(header.props).toMatchObject({ mobileTitleSurface: 'plain', mobileTitleAlignment: 'center' });
         expect(heading.props.children).toBe('tabs.sessions');
-        expect(insets).toMatchObject({ topContentInset: 123, scrollIndicatorTopInset: 111 });
+        // The phone's focus controls add 44px above the unchanged session list.
+        expect(insets).toMatchObject({ topContentInset: 167, scrollIndicatorTopInset: 155 });
 
         for (const status of ['connecting', 'error', 'disconnected', 'connected'] as const) {
             setSocketStatus(status);

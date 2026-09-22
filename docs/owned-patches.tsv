@@ -479,3 +479,4 @@ FOCUS_MODE_UI	accepted	feat(focus): add the project focus setup and countdown	se
 FOCUS_MODE_ARCHIVE_VISIBILITY	accepted	fix(focus): preserve the selected project archive control	server/packages/happyherd-app/sources/components/SessionsList.tsx
 FOCUS_MODE_BROWSER_JOURNEYS	accepted	test(focus): verify desktop and phone timer journeys	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
 FOCUS_MODE_WEB_ACCESSIBILITY	accepted	fix(focus): use web accessibility semantics for the tomato icon	server/packages/happyherd-app/sources/components/FocusModeControl.tsx
+FOCUS_MODE_EXISTING_FIXTURES	accepted	test(focus): adapt existing header and workspace fixtures	server/packages/happyherd-app/sources/components/HomeHeader.test.ts
