@@ -12,6 +12,36 @@ describe('settings', () => {
         expect(settingsParse({ sessionListGrouping: 'unknown-view' }).sessionListGrouping).toBe('flat');
     });
 
+    describe('focus mode sync', () => {
+        const focus = { projectId: 'project-1', endsAt: 1_800_001_800_000 };
+
+        it('defaults older settings to no active timer', () => {
+            expect(settingsDefaults.focusMode).toBeNull();
+            expect(settingsParse({}).focusMode).toBeNull();
+        });
+
+        it.each([focus, null])('preserves the start or exit value through account sync: %j', (focusMode) => {
+            const settings = applySettings(settingsDefaults, { focusMode });
+            const payload = settingsToSyncPayload(settings);
+            expect(payload.focusMode).toEqual(focusMode);
+            expect(settingsParse(JSON.parse(JSON.stringify(payload))).focusMode).toEqual(focusMode);
+        });
+
+        it('preserves unknown settings and focus fields through an unrelated update', () => {
+            const focusMode = { ...focus, futureField: 'keep-me' };
+            const settings = settingsParse({ focusMode, futureSetting: true });
+            const payload = settingsToSyncPayload(applySettings(settings, { viewInline: true }));
+            expect(payload.focusMode).toEqual(focusMode);
+            expect(payload).toHaveProperty('futureSetting', true);
+            expect(settingsParse(payload).focusMode).toEqual(focusMode);
+        });
+
+        it('rejects malformed timers using the existing settings default behavior', () => {
+            expect(settingsParse({ focusMode: { projectId: 'project-1' } }).focusMode).toBeNull();
+            expect(settingsParse({ focusMode: { ...focus, endsAt: 'later' } }).focusMode).toBeNull();
+        });
+    });
+
     describe('settingsParse', () => {
         it('should return defaults when given invalid input', () => {
             expect(settingsParse(null)).toEqual(settingsDefaults);
@@ -216,6 +246,7 @@ describe('settings', () => {
                 avatarStyle: 'brutalist',
                 avatarMonochrome: false,
                 sessionListGrouping: 'flat',
+                focusMode: null,
                 showFlavorIcons: false,
                 showHarnessIconInSessionHeader: true,
                 userMessageBubbleColor: 'gray',
