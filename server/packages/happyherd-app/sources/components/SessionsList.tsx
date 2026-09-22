@@ -22,6 +22,7 @@ import {
     useAllMachines,
     useAllSessions,
     useProjects,
+    useSessionListViewData,
     useSetting,
     useSettingMutable,
 } from '@/sync/storage';
@@ -200,6 +201,7 @@ export function SessionsList({
     const styles = stylesheet;
     const safeArea = useSafeAreaInsets();
     const sourceData = useVisibleSessionListViewData();
+    const allSourceData = useSessionListViewData();
     const hasArchivedSessions = useHasArchivedSessions();
     const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
     const grouping = useSetting('sessionListGrouping');
@@ -227,7 +229,7 @@ export function SessionsList({
             !normalizedQuery || sessionMatchesFlatListSearch(session, normalizedQuery)
         );
         if (focus) {
-            const projectList = buildProjectSessionList(sourceData, focus.projectId);
+            const projectList = buildProjectSessionList(allSourceData ?? [], focus.projectId);
             const visible = projectList.sessions.filter(row => matchesSession(row.session));
             const archived = projectList.archivedSessions.filter(row => matchesSession(row.session));
             return [
@@ -342,7 +344,7 @@ export function SessionsList({
             ...archiveToggle,
             ...archiveItems,
         ];
-    }, [flatSessionList, focus, grouping, hasArchivedSessions, hideArchivedSessions, machines, projects, searchQuery, sessions, sourceData]);
+    }, [allSourceData, flatSessionList, focus, grouping, hasArchivedSessions, hideArchivedSessions, machines, projects, searchQuery, sessions, sourceData]);
 
     if (!data) {
         return <View style={[styles.container, flatSessionList && styles.containerFlat]} />;

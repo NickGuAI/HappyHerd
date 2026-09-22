@@ -278,7 +278,7 @@ describe('focus mode through encrypted account settings', () => {
             });
             expect(mocks.state.settings.focusMode).toEqual(focusMode);
         }
-        // Receiving updates and rendering a timer do not upload settings.
+        // Receiving account updates does not upload settings.
         expect(fetchMock).toHaveBeenCalledOnce();
         expect(engine.settingsSync.invalidate).not.toHaveBeenCalled();
     });
