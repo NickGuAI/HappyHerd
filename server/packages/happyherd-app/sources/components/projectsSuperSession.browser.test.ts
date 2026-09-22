@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
-import { createServer, type Server } from 'node:http';
+import { createServer, type Server, type ServerResponse } from 'node:http';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,9 +32,26 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
-        const Icon = ({ name }) => React.createElement('span', { 'data-icon': name, 'aria-hidden': true }, '•');
+        const Icon = ({ name, color, size }) => React.createElement('span', {
+            'data-icon': name, 'aria-hidden': true, style: { color, fontSize: size },
+        }, name === 'close' ? '×' : '•');
         Icon.glyphMap = {};
-        export const Ionicons = Icon; export const MaterialCommunityIcons = Icon;
+        export const Ionicons = Icon; export const MaterialCommunityIcons = Icon; export const Octicons = Icon;
+    `,
+    'expo-router/drawer': `
+        import React from 'react';
+        export const Drawer = ({ drawerContent, screenOptions }) => React.createElement('aside', {
+            'data-testid': 'desktop-sidebar',
+            style: { ...screenOptions.drawerStyle, height: '100%', display: 'flex' },
+        }, drawerContent?.());
+    `,
+    '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
+    '@/utils/isTauri': `export const isTauri = () => false;`,
+    '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
+    '@/-session/sessionOverlayNav': `
+        const state = { canBack: false, back: () => false };
+        export const useOverlayNav = (selector) => selector(state);
+        useOverlayNav.getState = () => state;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'react-native-gesture-handler': `
@@ -134,6 +151,11 @@ const virtualModules: Record<string, string> = {
                 row('unassigned-session', 'Unassigned work', 750, null),
             ];
         }
+        if (new URLSearchParams(window.location.search).has('focus')) {
+            extraRows.push(row('archived-alpha', 'Archived Alpha work', 90, 'Project Alpha', {
+                active: false, archived: true, projectId: 'project-alpha', state: 'disconnected',
+            }));
+        }
         const superState = new URLSearchParams(window.location.search).get('super-state');
         if (superState) {
             superRow.active = false;
@@ -155,10 +177,22 @@ const virtualModules: Record<string, string> = {
             userMessageBubbleColor: 'blue', sessionStatusBarDisplay: 'above', avatarStyle: 'brutalist', preferredLanguage: 'en',
             machineWorkspace: true,
             commanderProfilePictures: true,
+            focusMode: null, zenMode: false, navigationSidebarCollapsed: false,
         };
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
+        const focusAccount = new URLSearchParams(window.location.search).get('focus-account');
+        if (focusAccount) {
+            const events = new EventSource('/fixture-focus?account=' + encodeURIComponent(focusAccount));
+            events.onmessage = (event) => {
+                settings.focusMode = JSON.parse(event.data);
+                window.__FOCUS_READY__ = true;
+                emit();
+            };
+            window.addEventListener('pagehide', () => events.close());
+        }
+        window.__FOCUS_VALUE__ = () => settings.focusMode;
         let listData = [];
         const rebuild = () => {
             const currentRows = rows.map((item) => ({ ...item, projectId: sessions[item.id].projectId,
@@ -189,9 +223,20 @@ const virtualModules: Record<string, string> = {
         export const useSetting = (key) => React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
         export const useSettingMutable = (key) => [
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
-            (value) => { settings[key] = value; if (key === 'sessionListGrouping') localStorage.setItem('fixture-grouping', value); emit(); },
+            (value) => {
+                settings[key] = value;
+                if (key === 'sessionListGrouping') localStorage.setItem('fixture-grouping', value);
+                if (key === 'focusMode') {
+                    window.__FOCUS_WRITES__ = [...(window.__FOCUS_WRITES__ ?? []), value];
+                    if (focusAccount) fetch('/fixture-focus?account=' + encodeURIComponent(focusAccount), {
+                        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value),
+                    });
+                }
+                emit();
+            },
         ];
         export const useLocalSettingMutable = useSettingMutable;
+        export const useLocalSetting = useSetting;
         export const useFriendRequests = () => [];
         export const useSocketStatus = () => ({ status: 'connected' });
         export const useSessionGitStatus = () => null;
@@ -248,9 +293,17 @@ const virtualModules: Record<string, string> = {
         };
     `,
     '@/text': `
+        import en from '@/text/locales/en.json';
+        import cn from '@/text/locales/cn.json';
+        import de from '@/text/locales/de.json';
+        const catalog = { en, cn, de }[new URLSearchParams(window.location.search).get('locale') ?? 'en'];
+        const focusText = (key, params) => {
+            const value = key.split('.').reduce((current, part) => current?.[part], catalog);
+            return typeof value === 'string' ? value.replace(/\\{(\\w+)\\}/g, (_match, name) => String(params?.[name] ?? '')) : key;
+        };
         export const getLanguageNativeName = () => 'English';
         export const resolveSupportedLanguage = () => 'en';
-        export const t = (key, params) => ({
+        export const t = (key, params) => key.startsWith('focusMode.') ? focusText(key, params) : ({
             'sidebar.newSession': 'New Session', 'sidebar.projects': 'Projects',
             'sidebar.showArchived': 'Show Archived', 'sidebar.hideArchived': 'Hide Archived',
             'workspace.title': 'Workspace', 'happyHerd.automations.title': 'Automations',
@@ -273,9 +326,10 @@ const virtualModules: Record<string, string> = {
             'sessionsFilter.groupingTitle': 'Grouping', 'sessionsFilter.flatList': 'Flat List',
             'sessionsFilter.groupByWorkspace': 'By workspace', 'sessionsFilter.groupByProject': 'By project',
             'sessionsFilter.noProject': 'No project', 'projects.noProject': 'No project',
-            'common.rename': 'Rename', 'common.error': 'Error',
+            'common.rename': 'Rename', 'common.error': 'Error', 'common.back': 'Back',
+            'navigation.expandSidebar': 'Expand sidebar', 'navigation.collapseSidebar': 'Collapse sidebar',
             'happyHerd.automations.unknownError': 'Something went wrong',
-        }[key] ?? key);
+        }[key] ?? focusText(key, params));
     `,
     '@/modal': `
         export const Modal = {
@@ -348,7 +402,7 @@ const virtualModules: Record<string, string> = {
     'expo-localization': `export const getLocales = () => [{ languageTag: 'en-US' }];`,
     'expo-system-ui': `export const setBackgroundColorAsync = async () => {};`,
     '@/utils/responsive': `
-        export const useHeaderHeight = () => 0;
+        export const useHeaderHeight = () => new URLSearchParams(window.location.search).has('focus') ? 56 : 0;
         export const useIsTablet = () => window.innerWidth >= 768;
         export const getDeviceType = () => window.innerWidth >= 768 ? 'tablet' : 'phone';
     `,
@@ -438,6 +492,8 @@ describe('Projects and Super Session production UI gestures', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
+    // Shared fixture transport proves UI propagation, not live encrypted account sync.
+    const focusAccounts = new Map<string, { value: { projectId: string; endsAt: number } | null; clients: Set<ServerResponse>; writes: number }>();
 
     beforeAll(async () => {
         const bundle = await build({
@@ -448,6 +504,7 @@ describe('Projects and Super Session production UI gestures', () => {
                     import { usePathname, routerFixture } from 'expo-router';
                     import { useSession } from '@/sync/storage';
                     import { SidebarView } from '@/components/SidebarView';
+                    import { SidebarNavigator } from '@/components/SidebarNavigator';
                     import { SessionsList } from '@/components/SessionsList';
                     import { MainView } from '@/components/MainView';
                     import AppearanceScreen from '@/app/(app)/settings/appearance';
@@ -473,6 +530,7 @@ describe('Projects and Super Session production UI gestures', () => {
                         else if (query.has('search')) content = React.createElement(SessionsList, { searchQuery: query.get('search'), bottomContentInset: 12 });
                         else content = query.get('mobile') === '1'
                             ? React.createElement(MainView, { variant: 'phone' })
+                            : query.has('focus') ? React.createElement(SidebarNavigator)
                             : React.createElement('aside', { 'data-testid': 'desktop-sidebar', style: { width: 'min(390px, 100vw)', height: '100%', display: 'flex' } }, React.createElement(SidebarView));
                         // This replaces Expo's stack host only. All project/list
                         // actions under test originate in production components.
@@ -496,10 +554,37 @@ describe('Projects and Super Session production UI gestures', () => {
                 'process.env.NODE_ENV': '"test"',
             },
             jsx: 'automatic',
+            loader: { '.png': 'dataurl' },
+            resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
-        server = createServer((_request, response) => {
+        server = createServer((request, response) => {
+            const url = new URL(request.url ?? '/', 'http://fixture.test');
+            if (url.pathname === '/fixture-focus') {
+                const accountId = url.searchParams.get('account') ?? '';
+                let account = focusAccounts.get(accountId);
+                if (!account) {
+                    account = { value: null, clients: new Set(), writes: 0 };
+                    focusAccounts.set(accountId, account);
+                }
+                if (request.method === 'POST') {
+                    let body = '';
+                    request.on('data', (chunk) => { body += chunk; });
+                    request.on('end', () => {
+                        account.value = JSON.parse(body);
+                        account.writes += 1;
+                        for (const client of account.clients) client.write('data: ' + JSON.stringify(account.value) + '\n\n');
+                        response.writeHead(204).end();
+                    });
+                } else {
+                    response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+                    response.write('data: ' + JSON.stringify(account.value) + '\n\n');
+                    account.clients.add(response);
+                    request.on('close', () => account.clients.delete(response));
+                }
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end(`<style>html,body,#root{height:100%;margin:0;font-family:Arial,sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
@@ -545,6 +630,172 @@ describe('Projects and Super Session production UI gestures', () => {
         await page.getByLabel('Projects', { exact: true }).click();
         await page.getByText('Create Project', { exact: true }).waitFor();
     }
+
+    async function openFocusPage(surface: typeof surfaces[number], query = '', account?: string) {
+        const page = await browser.newPage({ viewport: surface.viewport });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+        await page.clock.install({ time: new Date(1_800_000_000_000) });
+        await page.clock.pauseAt(new Date(1_800_000_000_000));
+        await page.goto(`${origin}/?${surface.query}focus=1&scenario=projects&${query}${account ? `&focus-account=${account}` : ''}`);
+        if (account) await page.waitForFunction(() => (window as any).__FOCUS_READY__);
+        await page.locator('[data-testid="focus-mode-enter"], [data-testid="focus-mode-timer"]').first().waitFor();
+        return { page, errors };
+    }
+
+    async function startFocus(page: Page, minutes: number, german = false, projectId = 'project-alpha') {
+        await page.getByTestId('focus-mode-enter').click();
+        await page.getByTestId('focus-mode-pixel-swap').waitFor();
+        await page.clock.runFor(1500);
+        const headline = german ? 'Fokus zurückgewinnen' : 'Reclaim Your Focus';
+        await page.getByRole('heading', { name: headline, exact: true }).waitFor();
+        expect(await page.getByTestId('focus-mode-pixel-swap').count()).toBe(0);
+        expect(await page.getByTestId('focus-mode-setup').evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(240, 220, 176)');
+        const start = page.getByRole('button', { name: german ? 'Fokus starten' : 'Start focus', exact: true });
+        expect(await start.isDisabled()).toBe(true);
+        await page.getByRole('combobox', { name: german ? 'Dauer' : 'Duration', exact: true }).selectOption(String(minutes));
+        await page.getByRole('combobox', { name: german ? 'Projekt' : 'Project', exact: true }).selectOption(projectId);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await screenshot(page, german ? 'focus-setup-mobile-german-dark' : 'focus-setup-desktop');
+        await start.click();
+        await page.getByTestId('focus-mode-timer').waitFor();
+    }
+
+    it('starts all four focus durations through the real desktop header and restores the list on exit', async () => {
+        const { page, errors } = await openFocusPage(surfaces[0]);
+        const [back, tomato, collapse] = await Promise.all([
+            page.getByRole('button', { name: 'Back', exact: true }).boundingBox(),
+            page.getByTestId('focus-mode-enter').boundingBox(),
+            page.getByTestId('navigation-sidebar-toggle').boundingBox(),
+        ]);
+        expect(tomato!.x).toBeGreaterThan(back!.x + back!.width);
+        expect(tomato!.x + tomato!.width).toBeLessThan(collapse!.x);
+        for (const minutes of [15, 30, 45, 60]) {
+            await startFocus(page, minutes);
+            expect(await page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);
+            expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__().endsAt - Date.now())).toBe(minutes * 60_000);
+            await page.getByText('Newest ordinary session', { exact: true }).waitFor();
+            await page.getByText('Remote project session', { exact: true }).waitFor();
+            await page.getByText('@builder-a · Alpha machine', { exact: true }).waitFor();
+            await page.getByText('Persistent assistant source title', { exact: true }).waitFor();
+            for (const text of ['Unassigned work', 'Same workspace different project', '@builder-b · Beta machine', 'Archived Alpha work', 'Roadmap']) {
+                expect(await page.getByText(text, { exact: true }).count()).toBe(0);
+            }
+            await page.clock.runFor(1000);
+            expect(await page.getByTestId('focus-mode-timer').innerText()).toBe(`${String(minutes - 1).padStart(2, '0')}:59`);
+            expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.filter((value: unknown) => value !== null).length)).toBe([15, 30, 45, 60].indexOf(minutes) + 1);
+            await screenshot(page, `focus-active-desktop-${minutes}`);
+            await page.getByTestId('focus-mode-exit').click();
+            await page.getByTestId('focus-mode-enter').waitFor();
+            await page.getByText('Unassigned work', { exact: true }).waitFor();
+            expect(await page.evaluate(() => (window as any).__PROJECT_ASSIGN_CALLS__ ?? [])).toEqual([]);
+        }
+        expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(8);
+        await startFocus(page, 15, false, 'empty-project');
+        await page.getByRole('heading', { name: 'Roadmap', exact: true }).waitFor();
+        for (const text of ['Persistent assistant source title', 'Super Session (Pinned)', 'Newest ordinary session', 'Build assistant', 'Unassigned work']) {
+            expect(await page.getByText(text, { exact: true }).count()).toBe(0);
+        }
+        await page.getByTestId('focus-mode-exit').click();
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('keeps selected-project archive access in focus and exits at zero without writing timer history', async () => {
+        const account = 'focus-expired-browser-test';
+        const { page, errors } = await openFocusPage(surfaces[0], '', account);
+        await page.getByRole('button', { name: 'Show Archived', exact: true }).first().click();
+        await page.getByText('Archived Alpha work', { exact: true }).waitFor();
+        await startFocus(page, 15);
+        await page.getByText('Archived Alpha work', { exact: true }).waitFor();
+        expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
+        await page.clock.fastForward(15 * 60_000);
+        await page.getByTestId('focus-mode-enter').waitFor();
+        expect(await page.getByTestId('focus-mode-timer').count()).toBe(0);
+        await page.getByText('Unassigned work', { exact: true }).waitFor();
+        await page.getByText('Retired assistant', { exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);
+        const expired = await page.evaluate(() => (window as any).__FOCUS_VALUE__());
+        await page.reload();
+        await page.waitForFunction(() => (window as any).__FOCUS_READY__);
+        await page.getByTestId('focus-mode-enter').waitFor();
+        expect(await page.getByTestId('focus-mode-timer').count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toEqual(expired);
+        expect(focusAccounts.get(account)?.writes).toBe(1);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('shows and hides selected-project archived sessions while focus is active on phone', async () => {
+        const { page, errors } = await openFocusPage(surfaces[1]);
+        await startFocus(page, 15);
+        expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            await page.getByRole('button', { name: 'Show Archived', exact: true }).click();
+            await page.getByText('Archived Alpha work', { exact: true }).waitFor();
+            expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
+            await page.getByRole('button', { name: 'Hide Archived', exact: true }).click();
+            expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
+        }
+        expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('shares one focus deadline between desktop and phone and reloads it through fixture account transport', async () => {
+        const account = 'focus-shared-browser-test';
+        const desktop = await openFocusPage(surfaces[0], '', account);
+        let phone = await openFocusPage(surfaces[1], '', account);
+        await startFocus(desktop.page, 30);
+        await phone.page.clock.runFor(1500);
+        await phone.page.getByTestId('focus-mode-timer').waitFor();
+        await phone.page.getByText('Remote project session', { exact: true }).waitFor();
+        expect(await phone.page.getByText('Unassigned work', { exact: true }).count()).toBe(0);
+        const original = await desktop.page.evaluate(() => (window as any).__FOCUS_VALUE__());
+        expect(await phone.page.evaluate(() => (window as any).__FOCUS_VALUE__())).toEqual(original);
+        expect(phone.errors).toEqual([]);
+        await phone.page.close();
+        await desktop.page.clock.fastForward(10 * 60_000);
+        // A fresh browser context opens the phone after the desktop timer started.
+        phone = await openFocusPage(surfaces[1], '', account);
+        await phone.page.clock.fastForward(10 * 60_000 + 1500);
+        await desktop.page.reload();
+        await phone.page.reload();
+        for (const { page } of [desktop, phone]) {
+            await page.waitForFunction(() => (window as any).__FOCUS_READY__);
+            await page.getByTestId('focus-mode-timer').waitFor();
+            expect(await page.getByTestId('focus-mode-timer').innerText()).toBe('20:00');
+            expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toEqual(original);
+        }
+        expect(focusAccounts.get(account)?.writes).toBe(1);
+        await phone.page.getByTestId('focus-mode-exit').click();
+        await desktop.page.getByTestId('focus-mode-enter').waitFor();
+        await desktop.page.getByText('Unassigned work', { exact: true }).waitFor();
+        expect(focusAccounts.get(account)?.writes).toBe(2);
+        expect(desktop.errors).toEqual([]);
+        expect(phone.errors).toEqual([]);
+        await desktop.page.close();
+        await phone.page.close();
+    }, 30_000);
+
+    it('keeps the German dark mobile focus setup readable without horizontal overflow', async () => {
+        const { page, errors } = await openFocusPage(surfaces[1], 'theme=dark&locale=de');
+        await page.setViewportSize({ width: 360, height: 800 });
+        await startFocus(page, 60, true);
+        expect(await page.getByTestId('focus-mode-timer').innerText()).toBe('60:00');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+        const timer = await page.getByTestId('focus-mode-timer').boundingBox();
+        const exit = await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).boundingBox();
+        expect(timer!.x).toBeGreaterThanOrEqual(0);
+        expect(exit!.x + exit!.width).toBeLessThanOrEqual(360);
+        expect(exit!.x).toBeGreaterThanOrEqual(timer!.x + timer!.width);
+        await screenshot(page, 'focus-active-mobile-german-dark');
+        await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).click();
+        await page.getByTestId('focus-mode-enter').waitFor();
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
 
     for (const surface of surfaces) {
         it(`keeps one pinned session first and opens the same stable ID repeatedly on ${surface.name}`, async () => {
