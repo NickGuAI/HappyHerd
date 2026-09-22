@@ -472,3 +472,4 @@ CODEX_QUOTA_RECOVERY_BROWSER	accepted	test(credentials): cover Codex quota recov
 CODEX_QUOTA_KEY_EMPTY_USAGE	accepted	fix(credentials): omit empty saved credential usage detail	server/packages/happyherd-app/sources/components/CredentialsSettingsView.tsx
 CODEX_QUOTA_SAVE_CONFIRMATION	accepted	fix(credentials): clarify storage-only save confirmation	server/packages/happyherd-app/sources/text/locales/en.json
 CODEX_QUOTA_RECOVERY_RESPONSIVE	accepted	test(credentials): verify quota actions across themes and mobile widths	server/packages/happyherd-app/sources/components/CredentialsSettingsView.browser.test.ts
+CODEX_QUOTA_CHANGELOG_GOLDENS	accepted	test(app): refresh Codex quota changelog screenshots	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
