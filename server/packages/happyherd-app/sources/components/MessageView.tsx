@@ -22,6 +22,7 @@ import { getHarnessName } from '@/utils/harnessCatalog';
 import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 import { parseSafeguardReminder } from './safeguardReminder';
 import { SafeguardReminderCard } from './SafeguardReminderCard';
+import { CodexQuotaRecoveryActions } from './CodexQuotaRecoveryActions';
 
 
 export const MessageView = React.memo((props: {
@@ -82,7 +83,7 @@ function RenderBlock(props: {
       />;
 
     case 'agent-event':
-      return <AgentEventBlock event={props.message.event} metadata={props.metadata} />;
+      return <AgentEventBlock event={props.message.event} metadata={props.metadata} sessionId={props.sessionId} />;
 
 
     default:
@@ -309,6 +310,7 @@ function MessageCopyButton(props: { text: string }) {
 function AgentEventBlock(props: {
   event: AgentEvent;
   metadata: Metadata | null;
+  sessionId: string;
 }) {
   if (props.event.type === 'switch') {
     return (
@@ -363,6 +365,9 @@ function AgentEventBlock(props: {
             provider: getHarnessName(props.event.provider),
           })}
         </Text>
+        {props.event.provider === 'codex' && (
+          <CodexQuotaRecoveryActions sessionId={props.sessionId} machineId={props.metadata?.machineId} />
+        )}
       </View>
     );
   }

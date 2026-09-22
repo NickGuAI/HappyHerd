@@ -51,6 +51,7 @@ import { openExternalUrl } from '@/utils/openExternalUrl';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { getMachineName } from '@/sync/machineChoices';
 import { formatLastSeen } from '@/utils/sessionUtils';
+import type { CodexQuotaRecoveryContext } from '@/utils/codexQuotaRecovery';
 
 const providers: ManagedCredentialProvider[] = ['claude', 'codex', 'grok'];
 const credentialTypes: ManagedCredentialType[] = ['login', 'token', 'connection'];
@@ -235,12 +236,15 @@ function InlinePanel({ children }: { children: React.ReactNode }) {
     );
 }
 
-export const CredentialsSettingsView = React.memo(function CredentialsSettingsView() {
+export const CredentialsSettingsView = React.memo(function CredentialsSettingsView({ quotaRecovery, onReturnToSession }: {
+    quotaRecovery?: CodexQuotaRecoveryContext;
+    onReturnToSession?: () => void;
+}) {
     const { theme } = useUnistyles();
     const auth = useAuth();
     const machines = useAllMachines({ includeOffline: true });
     const orderedMachines = React.useMemo(() => sortedMachines(machines), [machines]);
-    const [machineId, setMachineId] = React.useState<string | null>(null);
+    const [machineId, setMachineId] = React.useState<string | null>(quotaRecovery?.machineId ?? null);
     const [machinePickerExpanded, setMachinePickerExpanded] = React.useState(false);
     const selectedMachine = machines.find((machine) => machine.id === machineId) ?? null;
     const selectedMachineId = selectedMachine?.id ?? null;
@@ -259,8 +263,8 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
     const [accountBusy, setAccountBusy] = React.useState<string | null>(null);
     const [renameValue, setRenameValue] = React.useState('');
     const [renamingAccount, setRenamingAccount] = React.useState<string | null>(null);
-    const [addingAccount, setAddingAccount] = React.useState(false);
-    const [newProvider, setNewProvider] = React.useState<ManagedCredentialProvider>('claude');
+    const [addingAccount, setAddingAccount] = React.useState(quotaRecovery?.action === 'connect-account');
+    const [newProvider, setNewProvider] = React.useState<ManagedCredentialProvider>(quotaRecovery ? 'codex' : 'claude');
     const [newAccountName, setNewAccountName] = React.useState('');
     const [login, setLogin] = React.useState<CredentialLoginFlow | null>(null);
     const [loginMachineId, setLoginMachineId] = React.useState<string | null>(null);
@@ -274,7 +278,13 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
     const [credentials, setCredentials] = React.useState<SavedCredentialSummary[]>([]);
     const [credentialLoadState, setCredentialLoadState] = React.useState<LoadState>('loading');
     const [credentialError, setCredentialError] = React.useState<string | null>(null);
-    const [credentialDraft, setCredentialDraft] = React.useState<CredentialDraft | null>(null);
+    const newCredentialDraft = (): CredentialDraft => quotaRecovery?.action === 'add-api-key'
+        ? { ...emptyDraft(), name: t('settingsCredentials.openAiKeyName'), service: 'api.openai.com', usage: [] }
+        : emptyDraft();
+    const [credentialDraft, setCredentialDraft] = React.useState<CredentialDraft | null>(() => (
+        quotaRecovery?.action === 'add-api-key' ? newCredentialDraft() : null
+    ));
+    const [recoveryKeySaved, setRecoveryKeySaved] = React.useState(false);
     const [credentialBusy, setCredentialBusy] = React.useState(false);
     const [credentialConflict, setCredentialConflict] = React.useState(false);
     const [revealBusyId, setRevealBusyId] = React.useState<string | null>(null);
@@ -336,11 +346,14 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
     }, [cancelActiveLoginBestEffort]);
 
     React.useEffect(() => {
+        // A quota link belongs to its original machine, even while that machine
+        // is offline or absent from sync. Never silently choose another host.
+        if (quotaRecovery) return;
         if (machineId && machines.some((machine) => machine.id === machineId)) return;
         const fallbackId = orderedMachines[0]?.id ?? null;
         if (fallbackId === machineId) return;
         chooseMachine(fallbackId);
-    }, [chooseMachine, machineId, machines, orderedMachines]);
+    }, [chooseMachine, machineId, machines, orderedMachines, quotaRecovery]);
 
     const loadAccounts = React.useCallback(async () => {
         const targetMachineId = selectedMachineId;
@@ -631,6 +644,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
             await saveCredential(auth.credentials, request);
             if (generation !== credentialMutationGeneration.current) return;
             setCredentialDraft(null);
+            if (quotaRecovery?.action === 'add-api-key') setRecoveryKeySaved(true);
             await loadCredentials();
         } catch (error) {
             if (generation !== credentialMutationGeneration.current) return;
@@ -646,7 +660,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
         } finally {
             if (generation === credentialMutationGeneration.current) setCredentialBusy(false);
         }
-    }, [auth.credentials, credentialDraft, loadCredentials]);
+    }, [auth.credentials, credentialDraft, loadCredentials, quotaRecovery?.action]);
 
     const removeCredential = React.useCallback(async (credential: SavedCredentialSummary) => {
         if (!auth.credentials) return;
@@ -763,16 +777,40 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
             containerStyle={{ paddingBottom: 32 }}
             keyboardShouldPersistTaps="handled"
         >
+            {quotaRecovery && (
+                <ItemGroup title={t('settingsCredentials.recoveryTitle')}>
+                    <View style={{ padding: 16 }}>
+                        <Text style={{ color: theme.colors.text, lineHeight: 22 }}>
+                            {quotaRecovery.action === 'add-api-key'
+                                ? t('settingsCredentials.apiKeyRecoveryHelp')
+                                : t('settingsCredentials.accountRecoveryHelp')}
+                        </Text>
+                    </View>
+                    {recoveryKeySaved && (
+                        <View style={{ padding: 16 }}>
+                            <Text style={{ color: theme.colors.text, lineHeight: 22 }}>{t('settingsCredentials.keySaved')}</Text>
+                        </View>
+                    )}
+                    <Item
+                        title={t('settingsCredentials.returnToSession')}
+                        onPress={onReturnToSession}
+                        accessibilityRole="button"
+                        icon={<Ionicons name="arrow-back" size={24} color={theme.colors.textLink} />}
+                    />
+                </ItemGroup>
+            )}
             <ItemGroup title={t('settingsCredentials.machine')} footer={t('settingsCredentials.machineScope')}>
                 <Item
                     title={selectedMachine ? getMachineName(selectedMachine) : t('settingsCredentials.selectMachine')}
-                    subtitle={machineSubtitle}
+                    subtitle={quotaRecovery && !selectedMachine
+                        ? t('settingsCredentials.originMachineUnavailable')
+                        : machineSubtitle}
                     subtitleLines={0}
                     icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textLink} />}
-                    onPress={orderedMachines.length ? () => setMachinePickerExpanded((value) => !value) : undefined}
-                    showChevron={orderedMachines.length > 0}
-                    accessibilityRole={orderedMachines.length ? 'button' : undefined}
-                    accessibilityState={orderedMachines.length ? { expanded: machinePickerExpanded } : undefined}
+                    onPress={!quotaRecovery && orderedMachines.length ? () => setMachinePickerExpanded((value) => !value) : undefined}
+                    showChevron={!quotaRecovery && orderedMachines.length > 0}
+                    accessibilityRole={!quotaRecovery && orderedMachines.length ? 'button' : undefined}
+                    accessibilityState={!quotaRecovery && orderedMachines.length ? { expanded: machinePickerExpanded } : undefined}
                 />
                 {machinePickerExpanded && orderedMachines.map((machine) => (
                     <Item
@@ -793,7 +831,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                 ))}
             </ItemGroup>
 
-            <ItemGroup title={t('settingsCredentials.providerAccounts')} footer={t('settingsCredentials.accountHelp')}>
+            {quotaRecovery?.action !== 'add-api-key' && <ItemGroup title={t('settingsCredentials.providerAccounts')} footer={t('settingsCredentials.accountHelp')}>
                 {!selectedMachine ? (
                     <Item title={t('settingsCredentials.noMachines')} showChevron={false} />
                 ) : !machineOnline ? (
@@ -1071,7 +1109,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                         })}
                     </>
                 )}
-            </ItemGroup>
+            </ItemGroup>}
 
             <ItemGroup title={t('settingsCredentials.savedCredentials')} footer={t('settingsCredentials.credentialHelp')}>
                 <Item
@@ -1085,7 +1123,8 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                         setCredentialRowError(null);
                         setCredentialConflict(false);
                         setCredentialError(null);
-                        setCredentialDraft(emptyDraft());
+                        setRecoveryKeySaved(false);
+                        setCredentialDraft(newCredentialDraft());
                     }}
                     disabled={credentialInteractionDisabled}
                     showChevron={false}

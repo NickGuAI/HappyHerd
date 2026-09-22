@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e462b9b38586978113b01e8aa863b3e81534dd941854bfd164de0278ad8127ea",
+  "sourceFingerprint": "1a5975abc4eba9c4f43845d6aa251d6eb08456111682b92ed129ea40235deb8d",
   "routeCount": 41,
-  "surfaceCount": 280,
+  "surfaceCount": 281,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2060,9 +2060,7 @@
       "owner": "sources/app/(app)/settings/credentials.tsx",
       "kind": "route",
       "route": "/settings/credentials",
-      "exports": [
-        "CredentialsSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2856,6 +2854,20 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/CodexQuotaRecoveryActions.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodexQuotaRecoveryActions"
+      ],
+      "translationKeys": [
+        "message.codexQuotaRecovery.addApiKey",
+        "message.codexQuotaRecovery.connectAccount"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/CommanderAvatarSettings.tsx",
       "kind": "component",
       "route": null,
@@ -3112,8 +3124,10 @@
         "settingsCredentials.accountHelp",
         "settingsCredentials.accountNickname",
         "settingsCredentials.accountNicknamePlaceholder",
+        "settingsCredentials.accountRecoveryHelp",
         "settingsCredentials.addCredential",
         "settingsCredentials.addProviderAccount",
+        "settingsCredentials.apiKeyRecoveryHelp",
         "settingsCredentials.cancel",
         "settingsCredentials.cancelLogin",
         "settingsCredentials.connectProvider",
@@ -3129,6 +3143,7 @@
         "settingsCredentials.emptyCredentials",
         "settingsCredentials.hideSecret",
         "settingsCredentials.keepExistingSecret",
+        "settingsCredentials.keySaved",
         "settingsCredentials.limitedUntil",
         "settingsCredentials.loadFailed",
         "settingsCredentials.loading",
@@ -3146,8 +3161,11 @@
         "settingsCredentials.noMachines",
         "settingsCredentials.noManagedAccounts",
         "settingsCredentials.oneManagedAccount",
+        "settingsCredentials.openAiKeyName",
         "settingsCredentials.openProvider",
+        "settingsCredentials.originMachineUnavailable",
         "settingsCredentials.providerAccounts",
+        "settingsCredentials.recoveryTitle",
         "settingsCredentials.reload",
         "settingsCredentials.relogin",
         "settingsCredentials.removeLocal",
@@ -3156,6 +3174,7 @@
         "settingsCredentials.rename",
         "settingsCredentials.required",
         "settingsCredentials.retry",
+        "settingsCredentials.returnToSession",
         "settingsCredentials.save",
         "settingsCredentials.saveFailed",
         "settingsCredentials.savedCredentials",

@@ -1099,6 +1099,10 @@
     "safeguard": {
       "revise": "提示词检查：建议修改",
       "ready": "提示词检查：未发现明显问题"
+    },
+    "codexQuotaRecovery": {
+      "connectAccount": "连接另一个 Codex 账号",
+      "addApiKey": "添加 OpenAI API 密钥"
     }
   },
   "codex": {
@@ -1902,7 +1906,14 @@
     "accountHelp": "此页面列出了存储在所选机器上由 HappyHerd 管理的账户。原生的服务商 CLI 登录是独立的，不会在此显示。选定的默认账户仅适用于该服务商的未来会话。在本地移除账户既不会撤销服务商访问权限，也不会停止正在运行的会话。",
     "credentialHelp": "凭据会加密存储在 HappyHerd 服务器上。用途标签仅说明预期用途，不会自动注入凭据。",
     "credentialChanged": "已保存的凭据已在其他位置被修改。请重新加载后再编辑。",
-    "required": "必填"
+    "required": "必填",
+    "recoveryTitle": "Codex 配额恢复",
+    "accountRecoveryHelp": "如需绑定另一个 Codex 账号，请在此会话所属的设备上登录。此页面无法为当前会话选择特定账号，且设为默认值仅对未来的会话生效。",
+    "apiKeyRecoveryHelp": "保存您的 OpenAI API 密钥仅会将其存储在您的账号中。它目前未与 Codex 连接，保存它不会触发恢复或更改您的计费。如果 Codex 未来使用此密钥，您的 OpenAI API 使用费将由 OpenAI 单独计费。",
+    "originMachineUnavailable": "此会话的原始设备不可用，因此您无法在此连接 Codex 账号。您仍然可以将 OpenAI API 密钥保存到您的账号中。",
+    "returnToSession": "返回会话",
+    "openAiKeyName": "OpenAI API 密钥",
+    "keySaved": "您的 API 密钥已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
   },
   "superSession": {
     "pinned": "Super Session（已置顶）"
