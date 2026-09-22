@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
+import { MobileTypographyFloor } from '@/components/MobileTypographyFloor.web';
 import { FilesSidebar, type SidebarMode } from '@/components/FilesSidebar';
 import {
     closeDesktopFile,
@@ -333,21 +334,23 @@ function DownloadWorkspaceDemo({ compact }: { compact: boolean }) {
     });
 
     return (
-        <div data-testid="download-workspace" data-session-id={sessionId} style={{ width: compact ? 390 : 900, height: compact ? 844 : 640 }}>
-            <DesktopFileWorkspace
-                sessionId={sessionId}
-                paths={workspace.paths}
-                activePath={workspace.activePath}
-                references={workspace.references}
-                dirtyPaths={new Set()}
-                compact={compact}
-                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
-                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
-                onFileDeleted={() => undefined}
-                onClosePicker={() => undefined}
-                onDirtyChange={() => undefined}
-            />
-        </div>
+        <MobileTypographyFloor active={compact && params.has('mobile-typography')}>
+            <div data-testid="download-workspace" data-session-id={sessionId} style={{ width: compact ? 390 : 900, height: compact ? 844 : 640 }}>
+                <DesktopFileWorkspace
+                    sessionId={sessionId}
+                    paths={workspace.paths}
+                    activePath={workspace.activePath}
+                    references={workspace.references}
+                    dirtyPaths={new Set()}
+                    compact={compact}
+                    onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                    onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                    onFileDeleted={() => undefined}
+                    onClosePicker={() => undefined}
+                    onDirtyChange={() => undefined}
+                />
+            </div>
+        </MobileTypographyFloor>
     );
 }
 

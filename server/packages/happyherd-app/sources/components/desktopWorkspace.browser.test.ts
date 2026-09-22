@@ -523,7 +523,11 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
-        export const t = (key, params) => ({
+        import de from './sources/text/locales/de.json';
+        const german = (key) => key.split('.').reduce((value, part) => value?.[part], de);
+        export const t = (key, params) => new URLSearchParams(window.location.search).get('locale') === 'de'
+            ? german(key) ?? key
+            : ({
             'common.back': 'Back',
             'common.cancel': 'Cancel',
             'common.delete': 'Delete',
@@ -1881,6 +1885,53 @@ describe('Desktop workspace browser interaction', () => {
         }
 
         expect(await page.evaluate(() => (window as any).__SESSION_READ_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await browserContext.close();
+    }, 30_000);
+
+    it('keeps German compact file actions visible with the production mobile typography floor', async () => {
+        const browserContext = await browser.newContext({
+            viewport: { width: 390, height: 844 },
+            hasTouch: true,
+            isMobile: true,
+        });
+        const page = await browserContext.newPage();
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=mobile&download-text&mobile-typography&locale=de`);
+        await page.addStyleTag({
+            content: ['Regular', 'SemiBold'].map((weight) => (
+                `@font-face{font-family:SpaceGrotesk-${weight};src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, `sources/assets/fonts/SpaceGrotesk-${weight}.ttf`)).toString('base64')})}`
+            )).join(''),
+        });
+        await page.evaluate(async () => {
+            await document.fonts.ready;
+            await new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+        });
+
+        const workspace = page.getByTestId('download-workspace');
+        const header = workspace.getByTestId('desktop-file-workspace-fullscreen-header');
+        const download = workspace.getByRole('button', { name: 'Herunterladen', exact: true });
+        await download.waitFor();
+        expect(await download.isVisible()).toBe(true);
+        expect(await download.isEnabled()).toBe(true);
+        expect(await workspace.getByRole('button', { name: 'Vorschau', exact: true }).isVisible()).toBe(true);
+        expect(await workspace.getByRole('button', { name: 'Bearbeiten', exact: true }).isVisible()).toBe(true);
+
+        const layout = await page.evaluate(() => {
+            const actionButtons = Array.from(document.querySelectorAll('[data-testid="desktop-file-workspace-fullscreen-header"] [role="button"]:not([data-testid="desktop-file-workspace-picker-close"])'));
+            return {
+                viewport: window.innerWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                buttonRights: actionButtons.map((button) => button.getBoundingClientRect().right),
+                fontSizes: actionButtons.flatMap((button) => Array.from(button.querySelectorAll('*'))
+                    .filter((element) => Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())))
+                    .map((element) => Number.parseFloat(getComputedStyle(element).fontSize))),
+            };
+        });
+        expect(layout.documentWidth).toBe(layout.viewport);
+        expect(layout.buttonRights.every((right) => right <= layout.viewport)).toBe(true);
+        expect(layout.fontSizes.filter((size) => size > 0).every((size) => size >= 16)).toBe(true);
+        expect(await header.boundingBox()).toMatchObject({ width: 390 });
         expect(pageErrors).toEqual([]);
         await browserContext.close();
     }, 30_000);

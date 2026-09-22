@@ -464,3 +464,4 @@ SAFEGUARD_NATIVE_MALFORMED_MARKUP	accepted	fix(safeguard): keep malformed remind
 SAFEGUARD_FINAL_VERIFICATION_ARTIFACTS	accepted	chore(safeguard): align final parser verification artifacts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 SAFEGUARD_CHANGELOG_GOLDENS	accepted	test(safeguard): refresh integrated changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_323_WORKSPACE_DOWNLOAD	code-ready	feat(app): download individual workspace files on web	server/packages/happyherd-app/sources/components/FileViewPanel.tsx
+ISSUE_323_COMPACT_ACTIONS	code-ready	fix(app): keep compact workspace actions visible on mobile	server/packages/happyherd-app/sources/components/DesktopFileWorkspace.tsx,server/packages/happyherd-app/sources/components/__testdata__/desktopWorkspace.browser.fixture.tsx,server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
