@@ -717,14 +717,31 @@ describe('CredentialsSettingsView browser journeys', () => {
     }, 30_000);
 
     it.each([
-        ['desktop', { width: 1440, height: 900 }],
-        ['mobile', { width: 390, height: 844 }],
-    ] as const)('opens both Codex quota recovery forms and returns to the retained session on %s', async (label, viewport) => {
+        ['desktop light', { width: 1440, height: 900 }, 'light'],
+        ['desktop dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile light', { width: 390, height: 844 }, 'light'],
+        ['mobile dark', { width: 390, height: 844 }, 'dark'],
+        ['compact mobile light', { width: 360, height: 800 }, 'light'],
+        ['compact mobile dark', { width: 360, height: 800 }, 'dark'],
+    ] as const)('opens both Codex quota recovery forms and returns to the retained session on %s', async (label, viewport, theme) => {
         for (const action of ['connect-account', 'add-api-key'] as const) {
             const page = await browser.newPage({ viewport });
             const errors = recordErrors(page);
-            await page.goto(`${origin}/?scenario=quota-ready`);
+            await page.goto(`${origin}/?scenario=quota-ready&theme=${theme}`);
             await page.getByLabel('Retained session draft').fill('Keep this unsent message');
+            const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
+            if (action === 'connect-account') {
+                for (const name of ['Connect another Codex account', 'Add an OpenAI API key']) {
+                    const box = await page.getByRole('button', { name, exact: true }).boundingBox();
+                    expect(box!.height).toBeGreaterThanOrEqual(44);
+                    expect(box!.x).toBeGreaterThanOrEqual(0);
+                    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+                }
+                if (evidenceDir) {
+                    await mkdir(evidenceDir, { recursive: true });
+                    await page.screenshot({ path: resolve(evidenceDir, `quota-reminder-${label.replaceAll(' ', '-')}.png`), fullPage: true });
+                }
+            }
             await page.getByRole('button', {
                 name: action === 'connect-account' ? 'Connect another Codex account' : 'Add an OpenAI API key',
                 exact: true,
@@ -753,10 +770,9 @@ describe('CredentialsSettingsView browser journeys', () => {
             expect(beforeInput.some((call: unknown[]) => call[0] === 'account-list' && call[1] === 'machine-2')).toBe(false);
             expect(beforeInput.filter((call: unknown[]) => !['account-list', 'credential-list'].includes(String(call[0])))).toEqual([]);
             expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true);
-            const evidenceDir = process.env.HAPPYHERD_UI_EVIDENCE_DIR?.trim();
             if (evidenceDir) {
                 await mkdir(evidenceDir, { recursive: true });
-                await page.screenshot({ path: resolve(evidenceDir, `quota-${action}-${label}.png`), fullPage: true });
+                await page.screenshot({ path: resolve(evidenceDir, `quota-${action}-${label.replaceAll(' ', '-')}.png`), fullPage: true });
             }
 
             await page.getByRole('button', { name: 'Cancel', exact: true }).click();
