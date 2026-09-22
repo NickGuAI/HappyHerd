@@ -283,6 +283,8 @@ export type TranslationKey =
     | "files.deleted"
     | "files.detachedHead"
     | "files.diff"
+    | "files.download"
+    | "files.downloadError"
     | "files.editFile"
     | "files.failedToDelete"
     | "files.failedToRead"

@@ -62,7 +62,7 @@ vi.mock('react-native-unistyles', async () => {
     };
 });
 
-import { FileContentPanel, type FileContentPanelProps } from './FileViewPanel';
+import { fileNameForPath, FileContentPanel, type FileContentPanelProps } from './FileViewPanel';
 
 const originalConsoleError = console.error;
 
@@ -141,6 +141,12 @@ async function waitForEditor(renderer: ReactTestRenderer) {
 }
 
 describe('FileContentPanel native editing', () => {
+    it('uses the selected machine platform when deriving a download filename', () => {
+        expect(fileNameForPath('/workspace/quarter\\one.txt', 'linux')).toBe('quarter\\one.txt');
+        expect(fileNameForPath('C:\\Users\\agent\\notes.txt', 'win32')).toBe('notes.txt');
+        expect(fileNameForPath('C:/Users/agent/notes.txt', 'win32')).toBe('notes.txt');
+    });
+
     it('edits a plain .txt file through the shared Preview and Edit controls', async () => {
         const original = Buffer.from('before\n');
         const panel = await renderPanel({

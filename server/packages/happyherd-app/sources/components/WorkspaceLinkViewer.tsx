@@ -542,6 +542,7 @@ function WorkspaceLinkFile({
                     key={`${machineId}:${filePath}:${revision}`}
                     resourceKey={`machine:${machineId}`}
                     filePath={filePath}
+                    pathPlatform={machine?.metadata?.platform}
                     readFile={readFile}
                     writeFile={writeFile}
                     canWrite={canWrite}

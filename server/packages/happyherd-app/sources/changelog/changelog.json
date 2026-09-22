@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 22 — Workspace file downloads",
+      "summary": "",
+      "markdown": "- Users can now download individual workspace files with original filenames and exact bytes directly from the desktop and mobile web interfaces."
+    },
+    {
       "title": "September 21 — Safeguard prompt checks",
       "summary": "",
       "markdown": "- Adds a brief prompt assessment at the top of AI replies to suggest necessary revisions or indicate no obvious issues before requesting Human approval."
@@ -796,5 +801,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 21 — Safeguard prompt checks"
+  "latestTitle": "September 22 — Workspace file downloads"
 }

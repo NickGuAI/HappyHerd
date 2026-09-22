@@ -9,6 +9,7 @@ import {
     openDesktopFile,
     openDesktopLocalhost,
     selectDesktopFile,
+    type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
 import { SidebarNavigator } from '@/components/SidebarNavigator';
 import { useLocalSetting } from '@/sync/storage';
@@ -312,6 +313,44 @@ function FileWorkspaceDemo({ compact, testId }: { compact: boolean; testId: stri
     );
 }
 
+function DownloadWorkspaceDemo({ compact }: { compact: boolean }) {
+    const params = new URLSearchParams(window.location.search);
+    const context = params.get('download-context') === 'side-chat' ? 'side-chat' : 'main-agent';
+    const sessionId = `${context}-${compact ? 'mobile' : 'desktop'}`;
+    const reference = { machineId: 'machine-2', source: 'machine' as const };
+    const [workspace, setWorkspace] = React.useState<DesktopFileWorkspaceState>(() => {
+        const initialPath = params.has('download-text')
+            ? '/machine-root/download.txt'
+            : params.has('download-empty')
+                ? '/machine-root/empty.txt'
+                : '/machine-root/download.bin';
+        const binary = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/machine-root/download.bin', reference);
+        const withEmpty = openDesktopFile(binary, '/machine-root/empty.txt', reference);
+        const withText = params.has('download-text')
+            ? openDesktopFile(withEmpty, '/machine-root/download.txt', reference)
+            : withEmpty;
+        return openDesktopFile(withText, initialPath, reference);
+    });
+
+    return (
+        <div data-testid="download-workspace" data-session-id={sessionId} style={{ width: compact ? 390 : 900, height: compact ? 844 : 640 }}>
+            <DesktopFileWorkspace
+                sessionId={sessionId}
+                paths={workspace.paths}
+                activePath={workspace.activePath}
+                references={workspace.references}
+                dirtyPaths={new Set()}
+                compact={compact}
+                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                onFileDeleted={() => undefined}
+                onClosePicker={() => undefined}
+                onDirtyChange={() => undefined}
+            />
+        </div>
+    );
+}
+
 function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; testId: string }) {
     const reference = { machineId: 'machine-1', source: 'session' as const };
     const [workspace, setWorkspace] = React.useState(() => {
@@ -533,6 +572,7 @@ const fileReviewSurface = new URLSearchParams(window.location.search).get('file-
 const localhostLiveSurface = new URLSearchParams(window.location.search).get('localhost-live');
 const reviewNavigationSurface = new URLSearchParams(window.location.search).get('review-navigation');
 const workspaceBrowserSurface = new URLSearchParams(window.location.search).get('workspace-browser');
+const downloadSurface = new URLSearchParams(window.location.search).get('download');
 
 createRoot(document.getElementById('root')!).render(workspaceBrowserSurface ? (
     <div data-testid="workspace-browser-host" style={{ display: 'flex', flexDirection: 'column', width: workspaceBrowserSurface === 'embedded' ? 'min(100vw, 360px)' : '100vw', height: '100vh' }}>
@@ -559,6 +599,8 @@ createRoot(document.getElementById('root')!).render(workspaceBrowserSurface ? (
                 : fileReviewSurface.endsWith('markdown-source') ? 'markdown-source' : 'markdown'}
         testId={fileReviewSurface.startsWith('mobile') ? 'file-review-mobile' : 'file-review-desktop'}
     />
+) : downloadSurface ? (
+    <DownloadWorkspaceDemo compact={downloadSurface === 'mobile'} />
 ) : interactiveHtmlSurface ? (
     <InteractiveHtmlWorkspaceDemo
         compact={interactiveHtmlSurface === 'mobile'}

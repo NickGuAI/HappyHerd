@@ -50,7 +50,10 @@ file transport. Read failures render in the same host. Only cross-session links
 or a context that cannot host the current session Workspace may use the
 standalone `WorkspaceLinkViewer` fallback.
 
-Tabs remain unique by machine ID plus absolute path. Preview, Edit, supported
+Tabs remain unique by machine ID plus absolute path. On Web Desktop and Web
+Mobile, Download re-reads the current machine file and triggers a browser file
+download with the original filename and exact bytes; read failures remain
+visible and retryable. Preview, Edit, supported
 Delete, and feedback share the same file-content surface. Line and column are
 carried into the reference and feedback; a rendered Markdown `requestedLine`
 navigation is a mandatory shipped behavior that reveals the matching rendered

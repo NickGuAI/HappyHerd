@@ -875,6 +875,7 @@ export function MachineWorkspaceBrowser({
             <MachineFileViewer
                 machineId={selectedMachine.id}
                 filePath={selectedFile}
+                pathPlatform={selectedMachine.metadata?.platform}
                 canWrite={isMachineOnline(selectedMachine)}
                 onHeaderRightSlotChange={setHeaderRightSlot}
                 onDirtyChange={setFileDirty}
@@ -950,12 +951,14 @@ export function MachineWorkspaceBrowser({
 function MachineFileViewer({
     machineId,
     filePath,
+    pathPlatform,
     canWrite,
     onHeaderRightSlotChange,
     onDirtyChange,
 }: {
     machineId: string;
     filePath: string;
+    pathPlatform?: string;
     canWrite: boolean;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange: (dirty: boolean) => void;
@@ -975,6 +978,7 @@ function MachineFileViewer({
         <FileContentPanel
             resourceKey={`machine:${machineId}`}
             filePath={filePath}
+            pathPlatform={pathPlatform}
             readFile={readFile}
             writeFile={writeFile}
             canWrite={canWrite}
