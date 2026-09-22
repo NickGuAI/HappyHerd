@@ -1905,31 +1905,46 @@ describe('Desktop workspace browser interaction', () => {
         });
         await page.evaluate(async () => {
             await document.fonts.ready;
-            await new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+            await new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame())));
         });
 
         const workspace = page.getByTestId('download-workspace');
         const header = workspace.getByTestId('desktop-file-workspace-fullscreen-header');
+        const back = workspace.getByTestId('desktop-file-workspace-picker-close');
+        const filename = header.getByText('download.txt', { exact: true });
         const download = workspace.getByRole('button', { name: 'Herunterladen', exact: true });
         await download.waitFor();
         expect(await download.isVisible()).toBe(true);
         expect(await download.isEnabled()).toBe(true);
         expect(await workspace.getByRole('button', { name: 'Vorschau', exact: true }).isVisible()).toBe(true);
         expect(await workspace.getByRole('button', { name: 'Bearbeiten', exact: true }).isVisible()).toBe(true);
+        expect(await back.isVisible()).toBe(true);
+        expect(await filename.isVisible()).toBe(true);
 
         const layout = await page.evaluate(() => {
-            const actionButtons = Array.from(document.querySelectorAll('[data-testid="desktop-file-workspace-fullscreen-header"] [role="button"]:not([data-testid="desktop-file-workspace-picker-close"])'));
+            const header = document.querySelector('[data-testid="desktop-file-workspace-fullscreen-header"]');
+            if (!header) throw new Error('compact workspace header did not render');
+            const headerBox = header.getBoundingClientRect();
+            const actionButtons = Array.from(header.querySelectorAll('[role="button"]:not([data-testid="desktop-file-workspace-picker-close"])'));
             return {
                 viewport: window.innerWidth,
                 documentWidth: document.documentElement.scrollWidth,
-                buttonRights: actionButtons.map((button) => button.getBoundingClientRect().right),
+                headerLeft: headerBox.left,
+                headerRight: headerBox.right,
+                buttonBounds: actionButtons.map((button) => {
+                    const box = button.getBoundingClientRect();
+                    return { left: box.left, right: box.right };
+                }),
                 fontSizes: actionButtons.flatMap((button) => Array.from(button.querySelectorAll('*'))
                     .filter((element) => Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())))
                     .map((element) => Number.parseFloat(getComputedStyle(element).fontSize))),
             };
         });
-        expect(layout.documentWidth).toBe(layout.viewport);
-        expect(layout.buttonRights.every((right) => right <= layout.viewport)).toBe(true);
+        expect(layout.viewport).toBe(390);
+        expect(layout.documentWidth).toBe(390);
+        expect(layout.headerLeft).toBe(0);
+        expect(layout.headerRight).toBe(390);
+        expect(layout.buttonBounds.every(({ left, right }) => left >= layout.headerLeft && right <= layout.headerRight)).toBe(true);
         expect(layout.fontSizes.filter((size) => size > 0).every((size) => size >= 16)).toBe(true);
         expect(await header.boundingBox()).toMatchObject({ width: 390 });
         expect(pageErrors).toEqual([]);
