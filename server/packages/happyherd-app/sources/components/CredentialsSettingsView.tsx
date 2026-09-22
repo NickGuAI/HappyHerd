@@ -1251,7 +1251,7 @@ export const CredentialsSettingsView = React.memo(function CredentialsSettingsVi
                             <Item
                                 title={credential.name}
                                 subtitle={[credential.service, credential.username].filter(Boolean).join(' · ') || credentialTypeLabel(credential.type)}
-                                detail={credential.usage.map(usageLabel).join(', ')}
+                                detail={credential.usage.map(usageLabel).join(', ') || undefined}
                                 icon={<Ionicons name="key-outline" size={29} color={theme.colors.warning} />}
                                 onPress={() => {
                                     revealGeneration.current += 1;
