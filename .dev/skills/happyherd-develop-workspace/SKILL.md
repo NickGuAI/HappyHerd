@@ -37,7 +37,9 @@ change. When behavior changes, update both this skill and
   is writable, one **Edit**, with **Delete** only where already supported
   (Desk Workspace + capability gated). There is **no** Source mode and **no**
   separate HTML Interactive mode; HTML has exactly one safe scriptless
-  Preview. Raw text/code keeps the read-only Pierre renderer as the Preview
+  Preview. Web Desktop and Web Mobile also expose one **Download** action that
+  re-reads the current machine file and downloads its exact bytes with the
+  original filename; read failures remain visible and retryable. Raw text/code keeps the read-only Pierre renderer as the Preview
   implementation (arbitrary-line comment affordance) and is never published as
   a mode. Images, PDFs, and other non-editable formats show only applicable
   controls.

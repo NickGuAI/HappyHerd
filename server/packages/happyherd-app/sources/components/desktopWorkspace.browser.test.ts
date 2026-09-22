@@ -162,11 +162,18 @@ const virtualModules: Record<string, string> = {
         const emit = () => listeners.forEach((listener) => listener());
         const session = {
             id: 'ordinary-session',
-            metadata: { path: '/workspace', host: 'fixture', machineId: 'machine-1', flavor: 'claude' },
+            metadata: { path: '/workspace', host: 'fixture', machineId: 'machine-1', platform: 'linux', flavor: 'claude' },
+        };
+        const sessions = {
+            'ordinary-session': session,
+            'main-agent-desktop': { ...session, id: 'main-agent-desktop' },
+            'main-agent-mobile': { ...session, id: 'main-agent-mobile' },
+            'side-chat-desktop': { ...session, id: 'side-chat-desktop' },
+            'side-chat-mobile': { ...session, id: 'side-chat-mobile' },
         };
         const machines = [
-            { id: 'machine-1', active: true, metadata: { supportsFileDelete: true, homeDir: '/workspace', host: 'session' } },
-            { id: 'machine-2', active: true, metadata: { supportsFileDelete: true, homeDir: '/machine-root', host: 'remote' } },
+            { id: 'machine-1', active: true, metadata: { supportsFileDelete: true, homeDir: '/workspace', host: 'session', platform: 'linux' } },
+            { id: 'machine-2', active: true, metadata: { supportsFileDelete: true, homeDir: '/machine-root', host: 'remote', platform: 'linux' } },
         ];
         const gitStatus = { lastUpdatedAt: 'fixture', linesAdded: 0, linesRemoved: 0 };
         const gitStatusFiles = { stagedFiles: [], unstagedFiles: [] };
@@ -177,7 +184,7 @@ const virtualModules: Record<string, string> = {
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
             (value) => { settings[key] = value; emit(); },
         ];
-        export const useSession = (id) => id === session.id ? session : null;
+        export const useSession = (id) => sessions[id] ?? null;
         export const useSessionGitStatus = () => gitStatus;
         export const useSessionGitStatusFiles = () => gitStatusFiles;
         export const useSessionProjectFiles = () => projectFiles;
@@ -185,7 +192,7 @@ const virtualModules: Record<string, string> = {
         export const useAllMachines = () => machines;
         export const storage = { getState: () => ({
             settings,
-            sessions: { [session.id]: session },
+            sessions,
             machines: Object.fromEntries(machines.map((machine) => [machine.id, machine])),
             pathProjectFiles: { fixture: projectFiles },
             getSessionPathKey: () => 'fixture',
@@ -252,6 +259,9 @@ const virtualModules: Record<string, string> = {
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n\\n- First review line\\n- Second review line\\n\\n' + String.fromCharCode(96, 96, 96) + 'ts\\nconst answer = 42;\\n' + String.fromCharCode(96, 96, 96) + '\\n\\n[Open session relative](notes/session-child.md)\\n');
         const machineMarkdown = btoa('# Machine workspace\\n\\n[Open machine relative](notes/machine-child.md)\\n');
+        const downloadBinary = btoa(String.fromCharCode(0, 255, 1, 16, 128, 42, 10, 13));
+        const downloadEmpty = '';
+        const downloadText = btoa('on-disk bytes\\n');
         const sourceMarkdown = btoa('# Source review\\n\\n' + 'long-markdown-'.repeat(120));
         const source = btoa('const first = 1;\\n\\nconst longValue = "' + 'long-value-'.repeat(120) + '";\\nconst last = 2;');
         const navigationSource = btoa(Array.from({ length: 1200 }, (_, index) => 'const line' + (index + 1) + ' = ' + (index + 1) + ';').join('\\n'));
@@ -298,6 +308,19 @@ const virtualModules: Record<string, string> = {
         export const machineCreateDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
         export const machineReadFile = async (machineId, path) => {
             window.__MACHINE_READ_CALLS__ = [...(window.__MACHINE_READ_CALLS__ ?? []), { machineId, path }];
+            if (machineId === 'machine-2' && path === '/machine-root/download.bin') {
+                const attempts = (window.__DOWNLOAD_READ_ATTEMPTS__ = (window.__DOWNLOAD_READ_ATTEMPTS__ ?? 0) + 1);
+                if (new URLSearchParams(window.location.search).has('download-fail') && attempts <= 2) {
+                    return { success: false, error: 'File exceeds the 20 MiB read limit' };
+                }
+                return { success: true, content: downloadBinary };
+            }
+            if (machineId === 'machine-2' && path === '/machine-root/empty.txt') {
+                return { success: true, content: downloadEmpty };
+            }
+            if (machineId === 'machine-2' && path === '/machine-root/download.txt') {
+                return { success: true, content: downloadText };
+            }
             if (machineId === 'machine-2' && path === '/machine-root/machine.md') {
                 return { success: true, content: machineMarkdown };
             }
@@ -309,17 +332,20 @@ const virtualModules: Record<string, string> = {
         };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const machineReadFileWithinRoot = async () => ({ success: false, error: 'No image fixture' });
-        export const sessionReadFile = async (_sessionId, path) => ({
-            success: true,
-            content: path === '/workspace/task.html'
-                ? taskHtml
-                : path === '/workspace/review.canvas'
-                    ? canvas
-                    : path === '/workspace/review.ts'
-                        ? source
-                        : path === '/workspace/navigation.ts' ? navigationSource
-                            : path === '/workspace/source.md' ? sourceMarkdown : content,
-        });
+        export const sessionReadFile = async (_sessionId, path) => {
+            window.__SESSION_READ_CALLS__ = [...(window.__SESSION_READ_CALLS__ ?? []), { path }];
+            return {
+                success: true,
+                content: path === '/workspace/task.html'
+                    ? taskHtml
+                    : path === '/workspace/review.canvas'
+                        ? canvas
+                        : path === '/workspace/review.ts'
+                            ? source
+                            : path === '/workspace/navigation.ts' ? navigationSource
+                                : path === '/workspace/source.md' ? sourceMarkdown : content,
+            };
+        };
         export const sessionWriteFile = async (_sessionId, path, content) => {
             window.__SESSION_WRITE_CALLS__ = [...(window.__SESSION_WRITE_CALLS__ ?? []), { path, content }];
             return { success: true, hash: 'saved-hash' };
@@ -497,12 +523,17 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
-        export const t = (key, params) => ({
+        import de from './sources/text/locales/de.json';
+        const german = (key) => key.split('.').reduce((value, part) => value?.[part], de);
+        export const t = (key, params) => new URLSearchParams(window.location.search).get('locale') === 'de'
+            ? german(key) ?? key
+            : ({
             'common.back': 'Back',
             'common.cancel': 'Cancel',
             'common.delete': 'Delete',
             'common.error': 'Error',
             'common.loading': 'Sending',
+            'common.retry': 'Retry',
             'common.save': 'Save',
             'files.changes': 'Changes',
             'files.noChangesTitle': 'No changes',
@@ -512,6 +543,8 @@ const virtualModules: Record<string, string> = {
             'files.cannotDisplayBinary': 'Cannot display binary',
             'files.closeFileTab': 'Close ' + (params?.name ?? ''),
             'files.deleteFile': 'Delete',
+            'files.download': 'Download',
+            'files.downloadError': 'Could not download file',
             'files.deleteFileDescription': 'This permanently removes the selected file.',
             'files.deleteFileTitle': 'Delete file?',
             'files.editFile': 'Edit',
@@ -1815,6 +1848,183 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
         await context.close();
     }, 60_000);
+
+    it.each([
+        { context: 'main-agent', surface: 'desktop', width: 1440, height: 900, touch: false },
+        { context: 'main-agent', surface: 'mobile', width: 390, height: 844, touch: true },
+        { context: 'side-chat', surface: 'desktop', width: 1440, height: 900, touch: false },
+        { context: 'side-chat', surface: 'mobile', width: 390, height: 844, touch: true },
+    ])('downloads exact machine file bytes on Web $context $surface', async ({ context, surface, width, height, touch }) => {
+        const browserContext = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+        const page = await browserContext.newPage();
+        page.setDefaultTimeout(5_000);
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=${surface}&download-context=${context}`);
+        const workspace = page.getByTestId('download-workspace');
+        await expect(workspace.getAttribute('data-session-id')).resolves.toBe(`${context}-${surface}`);
+        const downloadButton = workspace.getByRole('button', { name: 'Download', exact: true });
+        await downloadButton.waitFor();
+
+        const binaryDownload = page.waitForEvent('download', { timeout: 5_000 });
+        await downloadButton.click();
+        const binary = await binaryDownload;
+        expect(binary.suggestedFilename()).toBe('download.bin');
+        const binaryPath = await binary.path();
+        expect(binaryPath).toBeTruthy();
+        expect(readFileSync(binaryPath!)).toEqual(Buffer.from([0, 255, 1, 16, 128, 42, 10, 13]));
+
+        if (!touch) {
+            await workspace.getByRole('tab', { name: 'Open empty.txt', exact: true }).click();
+            const emptyDownload = page.waitForEvent('download', { timeout: 5_000 });
+            await workspace.getByRole('button', { name: 'Download', exact: true }).click();
+            const empty = await emptyDownload;
+            expect(empty.suggestedFilename()).toBe('empty.txt');
+            const emptyPath = await empty.path();
+            expect(emptyPath).toBeTruthy();
+            expect(readFileSync(emptyPath!)).toHaveLength(0);
+        }
+
+        expect(await page.evaluate(() => (window as any).__SESSION_READ_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await browserContext.close();
+    }, 30_000);
+
+    it('keeps German compact file actions visible with the production mobile typography floor', async () => {
+        const browserContext = await browser.newContext({
+            viewport: { width: 390, height: 844 },
+            hasTouch: true,
+            isMobile: true,
+        });
+        const page = await browserContext.newPage();
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=mobile&download-text&mobile-typography&locale=de`);
+        await page.addStyleTag({
+            content: ['Regular', 'SemiBold'].map((weight) => (
+                `@font-face{font-family:SpaceGrotesk-${weight};src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, `sources/assets/fonts/SpaceGrotesk-${weight}.ttf`)).toString('base64')})}`
+            )).join(''),
+        });
+        await page.evaluate(async () => {
+            await document.fonts.ready;
+            await new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame())));
+        });
+
+        const workspace = page.getByTestId('download-workspace');
+        const header = workspace.getByTestId('desktop-file-workspace-fullscreen-header');
+        const back = workspace.getByTestId('desktop-file-workspace-picker-close');
+        const filename = header.getByText('download.txt', { exact: true });
+        const download = workspace.getByRole('button', { name: 'Herunterladen', exact: true });
+        await download.waitFor();
+        expect(await download.isVisible()).toBe(true);
+        expect(await download.isEnabled()).toBe(true);
+        expect(await workspace.getByRole('button', { name: 'Vorschau', exact: true }).isVisible()).toBe(true);
+        expect(await workspace.getByRole('button', { name: 'Bearbeiten', exact: true }).isVisible()).toBe(true);
+        expect(await back.isVisible()).toBe(true);
+        expect(await filename.isVisible()).toBe(true);
+
+        const layout = await page.evaluate(() => {
+            const header = document.querySelector('[data-testid="desktop-file-workspace-fullscreen-header"]');
+            if (!header) throw new Error('compact workspace header did not render');
+            const headerBox = header.getBoundingClientRect();
+            const actionButtons = Array.from(header.querySelectorAll('[role="button"]:not([data-testid="desktop-file-workspace-picker-close"])'));
+            return {
+                viewport: window.innerWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                headerLeft: headerBox.left,
+                headerRight: headerBox.right,
+                buttonBounds: actionButtons.map((button) => {
+                    const box = button.getBoundingClientRect();
+                    return { left: box.left, right: box.right };
+                }),
+                fontSizes: actionButtons.flatMap((button) => Array.from(button.querySelectorAll('*'))
+                    .filter((element) => Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())))
+                    .map((element) => Number.parseFloat(getComputedStyle(element).fontSize))),
+            };
+        });
+        expect(layout.viewport).toBe(390);
+        expect(layout.documentWidth).toBe(390);
+        expect(layout.headerLeft).toBe(0);
+        expect(layout.headerRight).toBe(390);
+        expect(layout.buttonBounds.every(({ left, right }) => left >= layout.headerLeft && right <= layout.headerRight)).toBe(true);
+        expect(layout.fontSizes.filter((size) => size > 0).every((size) => size >= 16)).toBe(true);
+        expect(await header.boundingBox()).toMatchObject({ width: 390 });
+        expect(pageErrors).toEqual([]);
+        await browserContext.close();
+    }, 30_000);
+
+    it.each([
+        { context: 'main-agent', surface: 'desktop', width: 1440, height: 900, touch: false },
+        { context: 'main-agent', surface: 'mobile', width: 390, height: 844, touch: true },
+        { context: 'side-chat', surface: 'desktop', width: 1440, height: 900, touch: false },
+        { context: 'side-chat', surface: 'mobile', width: 390, height: 844, touch: true },
+    ])('downloads an empty machine file on Web $context $surface', async ({ context, surface, width, height, touch }) => {
+        const browserContext = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+        const page = await browserContext.newPage();
+        page.setDefaultTimeout(5_000);
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=${surface}&download-context=${context}&download-empty`);
+        const workspace = page.getByTestId('download-workspace');
+        await expect(workspace.getAttribute('data-session-id')).resolves.toBe(`${context}-${surface}`);
+        const downloadPromise = page.waitForEvent('download', { timeout: 5_000 });
+        await workspace.getByRole('button', { name: 'Download', exact: true }).click();
+        const download = await downloadPromise;
+        expect(download.suggestedFilename()).toBe('empty.txt');
+        const path = await download.path();
+        expect(path).toBeTruthy();
+        expect(readFileSync(path!)).toHaveLength(0);
+        expect(await page.evaluate(() => (window as any).__SESSION_READ_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await browserContext.close();
+    }, 30_000);
+
+    it('downloads fresh on-disk text bytes while preserving an unsaved editor draft', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=desktop&download-text`);
+        const workspace = page.getByTestId('download-workspace');
+        const panel = workspace.getByTestId('desktop-file-panel:/machine-root/download.txt');
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = panel.getByTestId('code-editor');
+        await editor.fill('unsaved editor draft');
+
+        const downloadPromise = page.waitForEvent('download', { timeout: 5_000 });
+        await workspace.getByRole('button', { name: 'Download', exact: true }).click();
+        const download = await downloadPromise;
+        expect(download.suggestedFilename()).toBe('download.txt');
+        const path = await download.path();
+        expect(path).toBeTruthy();
+        expect(readFileSync(path!).toString()).toBe('on-disk bytes\n');
+        await expect(editor.inputValue()).resolves.toBe('unsaved editor draft');
+        expect(await page.evaluate(() => (window as any).__SESSION_READ_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('shows a truthful machine read error and retries the download without changing the file host', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?download=desktop&download-fail`);
+        const workspace = page.getByTestId('download-workspace');
+        const panel = workspace.getByTestId('desktop-file-panel:/machine-root/download.bin');
+        await workspace.getByRole('button', { name: 'Download', exact: true }).click();
+        const error = workspace.getByTestId('file-download-error').last();
+        await error.waitFor();
+        expect(await error.textContent()).toContain('File exceeds the 20 MiB read limit');
+
+        const retryDownload = page.waitForEvent('download', { timeout: 5_000 });
+        await error.getByRole('button', { name: 'Retry', exact: true }).evaluate((button) => (button as HTMLButtonElement).click());
+        const download = await retryDownload;
+        expect(download.suggestedFilename()).toBe('download.bin');
+        const path = await download.path();
+        expect(path).toBeTruthy();
+        expect(readFileSync(path!)).toEqual(Buffer.from([0, 255, 1, 16, 128, 42, 10, 13]));
+        await expect(workspace.getByTestId('file-download-error').count()).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).resolves.toHaveLength(4);
+        expect(await page.evaluate(() => (window as any).__SESSION_READ_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('retains every pinned Markdown thread after a failed batch send and clears them only after retry', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

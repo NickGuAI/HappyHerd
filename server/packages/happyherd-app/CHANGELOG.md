@@ -1,3 +1,7 @@
+# September 22 — Workspace file downloads
+
+- Users can now download individual workspace files with original filenames and exact bytes directly from the desktop and mobile web interfaces.
+
 # September 21 — Safeguard prompt checks
 
 - Adds a brief prompt assessment at the top of AI replies to suggest necessary revisions or indicate no obvious issues before requesting Human approval.

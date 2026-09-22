@@ -833,6 +833,8 @@
     "resizeWorkspace": "调整文件工作区大小",
     "editFile": "编辑",
     "deleteFile": "删除",
+    "download": "下载",
+    "downloadError": "无法下载文件",
     "deleteFileTitle": "删除文件？",
     "deleteFileDescription": "此操作将从工作区永久删除所选文件，且无法撤销。",
     "saveFile": "保存",

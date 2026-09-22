@@ -155,40 +155,44 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
         <View style={styles.container} testID="desktop-file-workspace">
             {compact ? (
                 <View style={styles.compactHeader} testID="desktop-file-workspace-fullscreen-header">
-                    <Pressable
-                        onPress={() => {
-                            if (machinePickerOpen) {
-                                onClosePicker();
-                            } else if (activePath) {
-                                onRequestClose(activePath);
-                            }
-                        }}
-                        accessibilityLabel={t('common.back')}
-                        testID="desktop-file-workspace-picker-close"
-                        hitSlop={8}
-                        style={({ pressed, hovered }: any) => [
-                            styles.compactBack,
-                            (pressed || hovered) && styles.tabCloseHovered,
-                        ]}
-                    >
-                        <Octicons name="chevron-left" size={18} color={theme.colors.text} />
-                    </Pressable>
-                    {!machinePickerOpen && activePath ? (
-                        isDesktopLocalhostReference(references[activePath])
-                            ? <Octicons name="globe" size={16} color={theme.colors.text} />
-                            : <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} />
-                    ) : null}
-                    <Text numberOfLines={1} style={styles.compactTitle}>
-                        {machinePickerOpen
-                            ? t('workspace.title')
-                            : activePath
-                                ? isDesktopLocalhostReference(references[activePath])
-                                    ? references[activePath].url
-                                    : fileName(desktopFilePath(activePath))
-                                : ''}
-                    </Text>
-                    <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                        {!machinePickerOpen && activePath ? headerSlots[headerKey(sessionId, activePath)] : null}
+                    <View style={styles.compactHeaderTop}>
+                        <Pressable
+                            onPress={() => {
+                                if (machinePickerOpen) {
+                                    onClosePicker();
+                                } else if (activePath) {
+                                    onRequestClose(activePath);
+                                }
+                            }}
+                            accessibilityLabel={t('common.back')}
+                            testID="desktop-file-workspace-picker-close"
+                            hitSlop={8}
+                            style={({ pressed, hovered }: any) => [
+                                styles.compactBack,
+                                (pressed || hovered) && styles.tabCloseHovered,
+                            ]}
+                        >
+                            <Octicons name="chevron-left" size={18} color={theme.colors.text} />
+                        </Pressable>
+                        {!machinePickerOpen && activePath ? (
+                            isDesktopLocalhostReference(references[activePath])
+                                ? <Octicons name="globe" size={16} color={theme.colors.text} />
+                                : <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} />
+                        ) : null}
+                        <Text numberOfLines={1} style={styles.compactTitle}>
+                            {machinePickerOpen
+                                ? t('workspace.title')
+                                : activePath
+                                    ? isDesktopLocalhostReference(references[activePath])
+                                        ? references[activePath].url
+                                        : fileName(desktopFilePath(activePath))
+                                    : ''}
+                        </Text>
+                    </View>
+                    <View style={styles.compactActions} pointerEvents="box-none">
+                        <View style={styles.activeHeaderSlot} pointerEvents="box-none">
+                            {!machinePickerOpen && activePath ? headerSlots[headerKey(sessionId, activePath)] : null}
+                        </View>
                     </View>
                 </View>
             ) : <View style={styles.tabBar}>
@@ -511,13 +515,22 @@ const styles = StyleSheet.create((theme) => ({
     },
     compactHeader: {
         minHeight: 48,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+        alignItems: 'stretch',
         paddingHorizontal: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: theme.colors.divider,
         backgroundColor: theme.colors.groupped.background,
+    },
+    compactHeaderTop: {
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    compactActions: {
+        width: '100%',
+        alignItems: 'flex-end',
+        paddingBottom: 8,
     },
     compactBack: {
         width: 30,

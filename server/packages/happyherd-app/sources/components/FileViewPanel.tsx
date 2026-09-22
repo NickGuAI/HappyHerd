@@ -75,6 +75,7 @@ export interface FileContentPanelProps {
     /** Changes whenever the backing transport/resource changes. */
     resourceKey: string;
     filePath: string;
+    pathPlatform?: string;
     readFile: (filePath: string) => Promise<FileContentReadResult>;
     writeFile?: (
         filePath: string,
@@ -99,6 +100,10 @@ export interface FileContentPanelProps {
     /** Optional deep-link position from a tool/session file link. */
     requestedLine?: number | null;
     requestedColumn?: number | null;
+}
+
+export function fileNameForPath(filePath: string, platform?: string): string {
+    return (platform === 'win32' ? filePath.split(/[\\/]/u) : filePath.split('/')).pop() || filePath;
 }
 
 type FileState =
@@ -214,6 +219,7 @@ async function computeSHA256Bytes(bytes: Uint8Array): Promise<string> {
 export const FileContentPanel = React.memo(function FileContentPanel({
     resourceKey,
     filePath,
+    pathPlatform,
     readFile,
     writeFile,
     deleteFile,
@@ -234,6 +240,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
     const [isDeleting, setIsDeleting] = React.useState(false);
+    const [isDownloading, setIsDownloading] = React.useState(false);
+    const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('preview');
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
@@ -248,7 +256,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         setReviewAnchor((current) => current?.line === anchor.line ? current : anchor);
     }, []);
 
-    const fileName = filePath.split('/').pop() || filePath;
+    const fileName = fileNameForPath(filePath, pathPlatform);
     const language = getFileLanguage(filePath);
     const isMarkdown = language === 'markdown';
     const previewKind = classifyFilePreview(filePath);
@@ -300,6 +308,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         let cancelled = false;
         setFileState({ kind: 'loading' });
         setSaveStatus('idle');
+        setDownloadError(null);
         setExternalChange(null);
         setShowConflictDiff(false);
 
@@ -530,6 +539,43 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }
     }, [canWrite, deleteFile, filePath, isDeleting, onDeleted]);
 
+    const handleDownload = React.useCallback(async () => {
+        if (Platform.OS !== 'web' || isDownloading) return;
+        setIsDownloading(true);
+        setDownloadError(null);
+
+        try {
+            const response = await readFile(filePath);
+            if (!response.success || typeof response.content !== 'string') {
+                setDownloadError(response.error || t('files.downloadError'));
+                return;
+            }
+
+            let bytes: Uint8Array;
+            try {
+                bytes = decodeBase64ToBytes(response.content);
+            } catch {
+                setDownloadError(t('files.downloadError'));
+                return;
+            }
+
+            const blobBytes = bytes.slice().buffer as ArrayBuffer;
+            const url = URL.createObjectURL(new Blob([blobBytes], { type: 'application/octet-stream' }));
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = fileName;
+            anchor.style.display = 'none';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 0);
+        } catch (error) {
+            setDownloadError(error instanceof Error && error.message ? error.message : t('files.downloadError'));
+        } finally {
+            setIsDownloading(false);
+        }
+    }, [fileName, filePath, isDownloading, readFile]);
+
     // Publish the focused Preview/Edit controls and the separate Delete action
     // into the host header. Internally, plain text still uses the read-only
     // source renderer for Preview; the user-facing mode remains Preview.
@@ -548,10 +594,13 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 canDelete={headerVariant === 'desktop-workspace' && canWrite && Boolean(deleteFile)}
                 deleting={isDeleting}
                 onDelete={handleDelete}
+                canDownload={Platform.OS === 'web'}
+                downloading={isDownloading}
+                onDownload={handleDownload}
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
+    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, handleDownload, headerVariant, isDeleting, isDownloading, isLoaded, onHeaderRightSlotChange]);
 
     const saveStatusLabel = isSaving
         ? t('uiCopy.saving')
@@ -634,6 +683,25 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     </Pressable>
                     <Pressable onPress={handleDismissWarning} hitSlop={8}>
                         <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
+                    </Pressable>
+                </View>
+            )}
+
+            {downloadError && (
+                <View
+                    accessibilityRole="alert"
+                    testID="file-download-error"
+                    style={[styles.downloadErrorBar, { backgroundColor: theme.colors.warning + '18', borderBottomColor: theme.colors.divider }]}
+                >
+                    <Ionicons name="alert-circle-outline" size={16} color={theme.colors.textDestructive} />
+                    <Text style={[styles.downloadErrorText, { color: theme.colors.text }]}>{downloadError}</Text>
+                    <Pressable
+                        accessibilityRole="button"
+                        onPress={handleDownload}
+                        disabled={isDownloading}
+                        style={({ pressed }) => [styles.warningAction, { borderColor: theme.colors.divider, opacity: isDownloading ? 0.5 : pressed ? 0.7 : 1 }]}
+                    >
+                        <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t('common.retry')}</Text>
                     </Pressable>
                 </View>
             )}
@@ -852,6 +920,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         <FileContentPanel
             resourceKey={`session:${sessionId}`}
             filePath={filePath}
+            pathPlatform={machine?.metadata?.platform}
             readFile={readFile}
             writeFile={writeFile}
             deleteFile={canDelete && headerVariant === 'desktop-workspace' ? deleteFile : undefined}
@@ -911,6 +980,7 @@ export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
         <FileContentPanel
             resourceKey={`machine:${machineId}`}
             filePath={filePath}
+            pathPlatform={machine?.metadata?.platform}
             readFile={readFile}
             writeFile={writeFile}
             deleteFile={machine?.metadata?.supportsFileDelete === true && headerVariant === 'desktop-workspace'
@@ -950,6 +1020,9 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     canDelete,
     deleting,
     onDelete,
+    canDownload,
+    downloading,
+    onDownload,
 }: {
     isLoaded: boolean;
     displayMode: FileDisplayMode;
@@ -958,9 +1031,12 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     canDelete: boolean;
     deleting: boolean;
     onDelete: () => void;
+    canDownload: boolean;
+    downloading: boolean;
+    onDownload: () => void;
 }) {
     const { theme } = useUnistyles();
-    const showControls = isLoaded || canDelete;
+    const showControls = isLoaded || canDelete || canDownload;
     const previewSelected = isLoaded && displayMode === 'preview';
     return (
         <>
@@ -1020,6 +1096,27 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             ]}>
                                 {t('files.deleteFile')}
                             </Text>
+                        </Pressable>
+                    )}
+                    {canDownload && (
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t('files.download')}
+                            disabled={downloading}
+                            onPress={onDownload}
+                            style={({ pressed }) => [
+                                styles.toggleButton,
+                                downloading && { opacity: 0.5 },
+                                pressed && !downloading && { opacity: 0.75 },
+                            ]}
+                        >
+                            {downloading ? (
+                                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                            ) : (
+                                <Text style={[styles.toggleText, { color: theme.colors.text }]}>
+                                    {t('files.download')}
+                                </Text>
+                            )}
                         </Pressable>
                     )}
                 </View>
@@ -1205,6 +1302,19 @@ const styles = StyleSheet.create((theme) => ({
     },
     warningActionText: {
         fontSize: 12,
+        ...Typography.default('semiBold'),
+    },
+    downloadErrorBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+    },
+    downloadErrorText: {
+        flex: 1,
+        fontSize: 13,
         ...Typography.default('semiBold'),
     },
     conflictHeader: {
