@@ -81,12 +81,14 @@ const virtualModules: Record<string, string> = {
     'react-native-reanimated': `
         import React from 'react';
         import { View } from 'react-native';
-        const Animated = { View };
+        const Animated = { View, createAnimatedComponent: (component) => component };
         export default Animated;
+        export const cancelAnimation = () => {};
         export const useSharedValue = (value) => ({ value });
         export const useReducedMotion = () => false;
         export const useAnimatedStyle = (factory) => factory();
         export const withTiming = (value) => value;
+        export const withSpring = (value) => value;
         export const Easing = { out: (value) => value, cubic: 'cubic' };
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,

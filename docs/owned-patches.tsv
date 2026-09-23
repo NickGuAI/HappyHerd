@@ -1,5 +1,6 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 FOCUS_MODE_KILV_CONTROLS	accepted	fix(app): align Focus Mode controls with KILV	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FOCUS_MODE_KILV_WORKSPACE_FIXTURE	accepted	test(focus): support shared controls in the workspace fixture	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 # gate	state	subject	evidence
 PRODUCT_RENAME_CLI_CONTRACT	accepted	docs(product): document shared cli identities retained by renaming	docs/non-cli-renaming.md
 PRODUCT_RENAME_CLI_BOUNDARY	accepted	fix(product): preserve cli ownership and persisted identities through repeated renames	scripts/rename-product.test.mjs
