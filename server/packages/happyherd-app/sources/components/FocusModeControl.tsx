@@ -87,7 +87,7 @@ function FocusChoice({ label, value, options, onSelect }: {
                 } : { marginHorizontal: 16, marginBottom: Math.max(safeArea.bottom, 16) }]}>
                     <ScrollView style={{ maxHeight: menuHeight }} keyboardShouldPersistTaps="handled">
                         {options.map((option, index) => <Item key={option.value} title={option.label}
-                            accessibilityLabel={option.label} accessibilityRole="radio" accessibilityState={{ checked: value === option.value }}
+                            accessibilityLabel={option.label} accessibilityRole="button" accessibilityState={{ selected: value === option.value }}
                             selected={value === option.value} showChevron={false} showDivider={index < options.length - 1}
                             rightElement={value === option.value ? <Ionicons name="checkmark" size={18} color={theme.colors.text} /> : undefined}
                             onPress={() => { onSelect(option.value); close(); }} />)}

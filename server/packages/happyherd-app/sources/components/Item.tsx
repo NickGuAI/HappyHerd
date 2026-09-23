@@ -312,7 +312,7 @@ export const Item = React.memo<ItemProps>((props) => {
                 accessibilityRole={accessibilityRole}
                 accessibilityState={accessibilityState}
                 aria-expanded={accessibilityState?.expanded}
-                aria-checked={accessibilityState?.checked}
+                aria-pressed={accessibilityRole === 'button' ? accessibilityState?.selected : undefined}
                 bubbleScale={1.012}
                 style={[
                     {
