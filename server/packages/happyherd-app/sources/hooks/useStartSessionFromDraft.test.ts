@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
     sessionSetAgentModes: vi.fn(),
     refreshSessions: vi.fn(),
     ensureSessionReady: vi.fn(),
+    assignSessionProject: vi.fn(),
+    focusMode: null as { projectId: string; endsAt: number } | null,
+    projects: {} as Record<string, { kind: string | null }>,
     sendMessage: vi.fn(),
     createWorktree: vi.fn(),
     machineStopSession: vi.fn(),
@@ -49,6 +52,8 @@ vi.mock('@/sync/storage', () => ({
     storage: {
         getState: () => ({
             machines: Object.fromEntries(mocks.machines.map((machine) => [machine.id, machine])),
+            settings: { focusMode: mocks.focusMode },
+            projects: mocks.projects,
         }),
     },
 }));
@@ -90,6 +95,7 @@ vi.mock('@/sync/sync', () => ({
     sync: {
         refreshSessions: mocks.refreshSessions,
         ensureSessionReady: mocks.ensureSessionReady,
+        assignSessionProject: mocks.assignSessionProject,
         sendMessage: mocks.sendMessage,
     },
 }));
@@ -248,6 +254,10 @@ function createDraft(overrides: Record<string, unknown> = {}) {
         worktreeKey: null,
         setInput: vi.fn(),
         setAttachments: vi.fn(),
+        selectedAccountProjectId: undefined,
+        setAccountProjectId: vi.fn((selectedAccountProjectId: string | null | undefined) => {
+            mocks.draft = { ...mocks.draft, selectedAccountProjectId };
+        }),
         ...overrides,
     };
 }
@@ -284,12 +294,15 @@ describe('useStartSessionFromDraft', () => {
         completeSpawnRequest();
         mocks.defaultOverrides = {};
         mocks.sessions = [];
+        mocks.focusMode = null;
+        mocks.projects = { focus: { kind: 'personal' }, other: { kind: 'personal' } };
         mocks.experiments = true;
         mocks.machines = [{ id: 'machine-1', online: true, metadata: { homeDir: '/Users/dev' } }];
         mocks.draft = createDraft();
         mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-1' });
         mocks.refreshSessions.mockResolvedValue(undefined);
         mocks.ensureSessionReady.mockResolvedValue(undefined);
+        mocks.assignSessionProject.mockResolvedValue(undefined);
         mocks.sendMessage.mockResolvedValue(true);
         mocks.confirm.mockResolvedValue(false);
         mocks.machineStopSession.mockResolvedValue({ success: true });
@@ -329,6 +342,155 @@ describe('useStartSessionFromDraft', () => {
         );
         expect(mocks.navigateToSession.mock.invocationCallOrder[0])
             .toBeGreaterThan(mocks.sendMessage.mock.invocationCallOrder[0]);
+    });
+
+    it('assigns the active Focus project after hydration and before the first message', async () => {
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.assignSessionProject).toHaveBeenCalledExactlyOnceWith('session-1', 'focus');
+        expect(mocks.assignSessionProject.mock.invocationCallOrder[0])
+            .toBeGreaterThan(mocks.ensureSessionReady.mock.invocationCallOrder[0]);
+        expect(mocks.sendMessage.mock.invocationCallOrder[0])
+            .toBeGreaterThan(mocks.assignSessionProject.mock.invocationCallOrder[0]);
+        expect(mocks.draft.setAccountProjectId.mock.calls).toEqual([['focus'], [undefined]]);
+        expect(mocks.machineSpawnNewSession.mock.calls[0][0]).not.toHaveProperty('projectId');
+    });
+
+    it.each([null, 'other'])('honors explicit account project choice %s during focus', async (selectedAccountProjectId) => {
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        mocks.draft = createDraft({ selectedAccountProjectId });
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.assignSessionProject).toHaveBeenCalledExactlyOnceWith('session-1', selectedAccountProjectId);
+    });
+
+    it('retains the draft and created session when assignment fails, then retries assignment before sending', async () => {
+        mocks.draft = createDraft({ selectedAccountProjectId: 'other' });
+        mocks.assignSessionProject.mockRejectedValueOnce(new Error('Project assignment failed'));
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.draft.setAccountProjectId).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.assignSessionProject.mock.calls).toEqual([
+            ['session-1', 'other'], ['session-1', 'other'],
+        ]);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.draft.setAccountProjectId).toHaveBeenCalledExactlyOnceWith(undefined);
+    });
+
+    it('keeps the Focus project and unsent draft while its catalog is loading, then retries the same session', async () => {
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        mocks.projects = {};
+        mocks.assignSessionProject.mockImplementation(async (_sessionId: string, projectId: string | null) => {
+            if (projectId !== null && !mocks.projects[projectId]) throw new Error('Project not found');
+        });
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.assignSessionProject).toHaveBeenCalledExactlyOnceWith('session-1', 'focus');
+        expect(mocks.draft.selectedAccountProjectId).toBe('focus');
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+
+        mocks.projects = { focus: { kind: 'personal' } };
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.assignSessionProject.mock.calls).toEqual([
+            ['session-1', 'focus'], ['session-1', 'focus'],
+        ]);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.draft.selectedAccountProjectId).toBeUndefined();
+    });
+
+    it('abandons the unsent session when a retry chooses a different account project', async () => {
+        mocks.draft = createDraft({ selectedAccountProjectId: 'focus' });
+        mocks.assignSessionProject.mockRejectedValueOnce(new Error('Project assignment failed'));
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        mocks.draft = createDraft({ selectedAccountProjectId: 'other' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'session-2' });
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(2);
+        expect(mocks.machineStopSession).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-1');
+        expect(mocks.assignSessionProject.mock.calls[1]).toEqual(['session-2', 'other']);
+        expect(mocks.sendMessage.mock.calls[0][0]).toBe('session-2');
+    });
+
+    it.each(['expired', 'stopped'] as const)('retries the same captured project and session after Focus %s following assignment failure', async (focusState) => {
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        mocks.assignSessionProject.mockRejectedValueOnce(new Error('Project assignment failed'));
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(false);
+        mocks.focusMode = focusState === 'stopped'
+            ? null
+            : { projectId: 'focus', endsAt: Date.now() - 1 };
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.assignSessionProject.mock.calls).toEqual([
+            ['session-1', 'focus'], ['session-1', 'focus'],
+        ]);
+        expect(mocks.machineStopSession).not.toHaveBeenCalled();
+        expect(mocks.draft.selectedAccountProjectId).toBeUndefined();
+    });
+
+    it('does not assign or send a stale project when the selection changes during hydration', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        mocks.draft = createDraft({ selectedAccountProjectId: 'focus' });
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        mocks.draft = createDraft({ selectedAccountProjectId: 'other' });
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.assignSessionProject).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setAccountProjectId).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-1');
+    });
+
+    it('keeps the captured Focus project when its timer expires during hydration', async () => {
+        let finish!: () => void;
+        mocks.ensureSessionReady.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.ensureSessionReady).toHaveBeenCalledOnce());
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() - 1 };
+        finish();
+        await expect(starting).resolves.toBe(true);
+        expect(mocks.assignSessionProject).toHaveBeenCalledExactlyOnceWith('session-1', 'focus');
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    });
+
+    it.each(['selection', 'stop'] as const)('does not send after %s changes during assignment', async (change) => {
+        let finish!: () => void;
+        mocks.assignSessionProject.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        mocks.focusMode = { projectId: 'focus', endsAt: Date.now() + 60_000 };
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+        const starting = startSession();
+        await vi.waitFor(() => expect(mocks.assignSessionProject).toHaveBeenCalledOnce());
+        if (change === 'stop') {
+            cancelStart();
+            await expect(starting).resolves.toBe(false);
+        } else {
+            mocks.draft = createDraft({ selectedAccountProjectId: null });
+        }
+        finish();
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAccountProjectId).not.toHaveBeenCalledWith(undefined);
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+        expect(mocks.machineStopSession).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-1');
     });
 
     it('submits the visible Codex code default when an old CLI filters saved Auto', async () => {

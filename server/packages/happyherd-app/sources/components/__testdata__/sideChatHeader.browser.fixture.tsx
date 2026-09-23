@@ -6,6 +6,8 @@ import NewSessionScreen from '@/app/(app)/new/index';
 import AgentDefaultsSettingsScreen from '@/app/(app)/settings/agents';
 import { FlatSessionRow } from '@/components/FlatSessionRow';
 import { HomeDock } from '@/components/HomeDock';
+import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
+import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { ProviderContinuationLinks } from '@/components/ProviderContinuationLinks';
 import { storage, useSession } from '@/sync/storage';
 
@@ -121,6 +123,7 @@ function BotActionMenuFixture() {
 
 function HomeDockFixture() {
     const [prompt, setPrompt] = React.useState('Inspect attachments');
+    const launch = useStartSessionFromDraft();
 
     return (
         <div data-testid="home-dock" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -128,6 +131,10 @@ function HomeDockFixture() {
                 prompt={prompt}
                 onPromptChange={setPrompt}
                 onSubmit={async (entries = []) => {
+                    if (fixtureOptions.accountProject) {
+                        useNewSessionDraft.getState().setInput(prompt);
+                        return launch.startSession(entries);
+                    }
                     (globalThis as any).__HOME_DOCK_SUBMITS__ = [
                         ...((globalThis as any).__HOME_DOCK_SUBMITS__ ?? []),
                         entries,

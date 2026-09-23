@@ -37,7 +37,7 @@ const virtualModules: Record<string, string> = {
         import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
@@ -240,7 +240,14 @@ const virtualModules: Record<string, string> = {
             sidebarSideChatSessionId: null,
             zenMode: fixtureOptions.zenMode ?? false,
         };
+        const projects = fixtureOptions.accountProject ? {
+            'focus-project': { id: 'focus-project', name: 'Focused work', kind: 'personal' },
+            'other-project': { id: 'other-project', name: 'Other work', kind: 'personal' },
+            'rig-project': { id: 'rig-project', name: 'Agent workspace', kind: 'rig' },
+        } : {};
         const settings = {
+            focusMode: fixtureOptions.accountProject && fixtureOptions.activeFocus !== false
+                ? { projectId: 'focus-project', endsAt: Date.now() + 30 * 60_000 } : null,
             agentDefaultOverrides: fixtureOptions.agentSettings
                 ? { agy: { modelMode: 'Gemini 3.6 Flash (High)' } }
                 : {},
@@ -311,6 +318,7 @@ const virtualModules: Record<string, string> = {
         const getState = () => ({
             localSettings,
             settings,
+            projects,
             sessions,
             machines: Object.fromEntries(machines.map((machine) => [machine.id, machine])),
             purchases: { entitlements: {} },
@@ -338,7 +346,7 @@ const virtualModules: Record<string, string> = {
         export const useIsDataReady = () => true;
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
-        export const useProjects = () => ({});
+        export const useProjects = () => projects;
         export const useAllMachines = () => machines;
         export const useSessions = () => sessionList;
         export const useRealtimeStatus = () => fixtureOptions.realtimeStatus ?? 'disconnected';
@@ -453,7 +461,12 @@ const virtualModules: Record<string, string> = {
     '@/components/FileIcon': `import React from 'react'; export const FileIcon = () => React.createElement('span');`,
     '@/text': `
         import en from '@/text/locales/en.json';
-        export const t = (key, params) => ({
+        const productText = (key, params) => {
+            const value = key.split('.').reduce((node, part) => node?.[part], en);
+            if (typeof value !== 'string') return null;
+            return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
+        };
+        export const t = (key, params) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -598,7 +611,11 @@ const virtualModules: Record<string, string> = {
             },
             refreshSessions: async () => {},
             ensureSessionReady: async () => {},
+            assignSessionProject: async (sessionId, projectId) => {
+                window.__NEW_SESSION_PROJECT_EVENTS__ = [...(window.__NEW_SESSION_PROJECT_EVENTS__ ?? []), { type: 'assign', sessionId, projectId }];
+            },
             sendMessage: async (sessionId, text, options) => {
+                window.__NEW_SESSION_PROJECT_EVENTS__ = [...(window.__NEW_SESSION_PROJECT_EVENTS__ ?? []), { type: 'send', sessionId }];
                 options?.onAccepted?.();
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
                 window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
@@ -785,13 +802,13 @@ const virtualModules: Record<string, string> = {
         const listeners = new Set();
         const draft = {
             input: 'Inspect attachments', attachments: [], selectedMachineId: 'machine-1', selectedPath: newSessionLayout ? '${newSessionProjectPath}' : '/work/project',
-            selectedCommanderId: null, agentType: modelPicker ? 'agy' : 'dsh', permissionMode: null,
+            selectedCommanderId: null, selectedAccountProjectId: undefined, agentType: modelPicker ? 'agy' : 'dsh', permissionMode: null,
             modelMode: newSessionLayout ? 'claude-sonnet-4-5' : modelPicker ? 'Gemini 3.6 Flash (High)' : null, effortLevel: null,
             sessionType: 'simple', worktreeKey: null,
         };
         for (const [setter, field] of Object.entries({
             setInput: 'input', setAttachments: 'attachments', setMachineId: 'selectedMachineId', setPath: 'selectedPath',
-            setCommanderId: 'selectedCommanderId', setAgentType: 'agentType', setPermissionMode: 'permissionMode',
+            setCommanderId: 'selectedCommanderId', setAccountProjectId: 'selectedAccountProjectId', setAgentType: 'agentType', setPermissionMode: 'permissionMode',
             setModelMode: 'modelMode', setEffortLevel: 'effortLevel', setSessionType: 'sessionType', setWorktreeKey: 'worktreeKey',
         })) {
             draft[setter] = (value) => {
@@ -1348,8 +1365,18 @@ describe('Side chats browser interaction', () => {
         const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
         const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
         server = createServer((_request, response) => {
+            if (_request.url === '/fonts/Ionicons.ttf') {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')));
+                return;
+            }
+            if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-Regular)\.ttf$/.test(_request.url ?? '')) {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
+                return;
+            }
             if (_request.url === '/side-chat.js') {
                 response.setHeader('content-type', 'text/javascript; charset=utf-8');
                 response.end(script);
@@ -1526,6 +1553,86 @@ describe('Side chats browser interaction', () => {
         expect(await foreground.locator('[data-testid^="safeguard-reminder-"]').count()).toBe(0);
         await page.close();
     }, 15_000);
+
+    it.each([
+        { width: 1440, theme: 'light', activeFocus: true, choice: undefined, expected: 'focus-project' },
+        { width: 390, theme: 'dark', activeFocus: true, choice: undefined, expected: 'focus-project' },
+        { width: 1440, theme: 'dark', activeFocus: true, choice: 'Other work', expected: 'other-project' },
+        { width: 390, theme: 'light', activeFocus: true, choice: 'Other work', expected: 'other-project' },
+        { width: 390, theme: 'dark', activeFocus: true, choice: 'No Project', expected: null },
+        { width: 1440, theme: 'light', activeFocus: false, choice: 'Other work', expected: 'other-project' },
+    ])('assigns the New Session account project before sending at $width px ($theme, $choice)', async ({ width, theme, activeFocus, choice, expected }) => {
+        const page = await browser.newPage({ viewport: { width, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript((activeFocus) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { newSession: true, accountProject: true, activeFocus };
+        }, activeFocus);
+        try {
+            await page.goto(origin + '?theme=' + theme);
+            const route = page.getByTestId('full-new-session');
+            const trigger = route.getByTestId('new-session-account-project');
+            await trigger.waitFor();
+            expect(await trigger.innerText()).toContain(activeFocus ? 'Focused work' : 'No Project');
+            if (choice) {
+                await trigger.click();
+                const option = page.getByText(choice, { exact: true }).filter({ visible: true }).last();
+                await option.waitFor();
+                expect(await page.getByText('Agent workspace', { exact: true }).count()).toBe(0);
+                const bounds = await option.boundingBox();
+                expect(bounds).not.toBeNull();
+                expect(bounds!.x).toBeGreaterThanOrEqual(0);
+                expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+                await page.evaluate(() => document.fonts.ready);
+                await page.screenshot({ path: '/tmp/happyherd-new-session-project-menu-' + width + '-' + theme + '.png', fullPage: true });
+                await option.click();
+                expect(await trigger.innerText()).toContain(choice);
+            }
+            await page.evaluate(() => document.fonts.ready);
+            await page.screenshot({ path: '/tmp/happyherd-new-session-project-' + width + '-' + theme + '-' + (expected ?? 'none') + '.png', fullPage: true });
+            await route.getByRole('button', { name: 'Send', exact: true }).click();
+            await page.waitForFunction(() => ((window as any).__COMPOSER_SENDS__ ?? []).length > 0);
+            const events = await page.evaluate(() => (window as any).__NEW_SESSION_PROJECT_EVENTS__);
+            expect(events).toEqual([
+                { type: 'assign', sessionId: 'target-session', projectId: expected },
+                { type: 'send', sessionId: 'target-session' },
+            ]);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 20_000);
+
+    it.each([
+        { width: 1440, theme: 'light', choice: 'Other work', expected: 'other-project' },
+        { width: 390, theme: 'dark', choice: 'No Project', expected: null },
+    ])('selects the HomeDock account project before starting at $width px', async ({ width, theme, choice, expected }) => {
+        const page = await browser.newPage({ viewport: { width, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { homeDock: true, accountProject: true };
+        });
+        try {
+            await page.goto(origin + '?theme=' + theme);
+            const dock = page.getByTestId('home-dock');
+            await dock.getByText('Inspect attachments', { exact: true }).filter({ visible: true }).click();
+            await page.getByRole('button', { name: 'Project: Focused work', exact: true }).filter({ visible: true }).click();
+            await page.getByText(choice, { exact: true }).filter({ visible: true }).last().click();
+            await page.getByRole('button', { name: 'Project: ' + choice, exact: true }).filter({ visible: true }).waitFor();
+            await page.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last().click();
+            await page.waitForFunction(() => ((window as any).__COMPOSER_SENDS__ ?? []).length > 0);
+            expect(await page.evaluate(() => (window as any).__NEW_SESSION_PROJECT_EVENTS__)).toEqual([
+                { type: 'assign', sessionId: 'target-session', projectId: expected },
+                { type: 'send', sessionId: 'target-session' },
+            ]);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 20_000);
 
     it.each([1440, 1920])('renders the production New Session route with a readable 720px panel at %ipx', async (width) => {
         const page = await browser.newPage({ viewport: { width, height: 900 } });

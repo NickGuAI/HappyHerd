@@ -12,7 +12,7 @@ vi.mock('react-native-mmkv', () => ({
     },
 }));
 
-const { loadNewSessionDraft, loadPendingSettings, savePendingSettings } = await import('./persistence');
+const { loadNewSessionDraft, saveNewSessionDraft, loadPendingSettings, savePendingSettings } = await import('./persistence');
 
 describe('loadNewSessionDraft', () => {
     beforeEach(() => store.clear());
@@ -35,6 +35,16 @@ describe('loadNewSessionDraft', () => {
         }));
 
         expect(loadNewSessionDraft()?.agentType).toBe('dsh');
+    });
+
+    it.each([undefined, null, 'personal-project'])('round trips account project choice %s without replacing No project with the focus default', (selectedAccountProjectId) => {
+        store.set('new-session-draft-v1', JSON.stringify({ selectedAccountProjectId }));
+        const draft = loadNewSessionDraft()!;
+        expect(draft.selectedAccountProjectId).toBe(selectedAccountProjectId);
+        saveNewSessionDraft(draft);
+        expect(loadNewSessionDraft()?.selectedAccountProjectId).toBe(selectedAccountProjectId);
+        saveNewSessionDraft({ ...draft, selectedAccountProjectId: undefined });
+        expect(loadNewSessionDraft()?.selectedAccountProjectId).toBeUndefined();
     });
 });
 

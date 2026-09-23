@@ -1,4 +1,12 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
+FOCUS_SESSION_FIRST_SEND_FIXTURE	accepted	test(focus): wire project selection into first-send fixtures	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
+FOCUS_SESSION_PROJECT_LOADING	accepted	fix(focus): retain the project while the catalog loads	server/packages/happyherd-app/sources/sync/newSessionProject.test.ts
+FOCUS_SESSION_PROJECT_CHOICE	accepted	feat(focus): choose account projects when starting sessions	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+FOCUS_MODE_KILV_GOLDENS	accepted	test(app): refresh Focus Mode changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+FOCUS_MODE_KEYBOARD_SELECTION	accepted	fix(app): retain keyboard selection in Focus Mode	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FOCUS_MODE_ICON_FIXTURE	accepted	test(app): preserve sidebar fixtures in focus captures	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FOCUS_MODE_KILV_CONTROLS	accepted	fix(app): align Focus Mode controls with KILV	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FOCUS_MODE_KILV_WORKSPACE_FIXTURE	accepted	test(focus): support shared controls in the workspace fixture	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 # gate	state	subject	evidence
 PRODUCT_RENAME_CLI_CONTRACT	accepted	docs(product): document shared cli identities retained by renaming	docs/non-cli-renaming.md
 PRODUCT_RENAME_CLI_BOUNDARY	accepted	fix(product): preserve cli ownership and persisted identities through repeated renames	scripts/rename-product.test.mjs

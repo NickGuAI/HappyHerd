@@ -20,6 +20,8 @@ export interface NewSessionDraft {
     selectedMachineId: string | null;
     selectedPath: string | null;
     selectedCommanderId: string | null;
+    /** Undefined follows the active Focus project; null explicitly selects No project. */
+    selectedAccountProjectId?: string | null;
     agentType: NewSessionAgentType;
     permissionMode: PermissionModeKey | null;
     modelMode: string | null;
@@ -164,6 +166,10 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
         const selectedMachineId = typeof parsed.selectedMachineId === 'string' ? parsed.selectedMachineId : null;
         const selectedPath = typeof parsed.selectedPath === 'string' ? parsed.selectedPath : null;
         const selectedCommanderId = typeof parsed.selectedCommanderId === 'string' ? parsed.selectedCommanderId : null;
+        const selectedAccountProjectId = parsed.selectedAccountProjectId === null
+            || typeof parsed.selectedAccountProjectId === 'string'
+            ? parsed.selectedAccountProjectId
+            : undefined;
         const agentType: NewSessionAgentType = parsed.agentType === 'codex' || parsed.agentType === 'grok' || parsed.agentType === 'dsh' || parsed.agentType === 'gemini' || parsed.agentType === 'agy' || parsed.agentType === 'rig'
             ? parsed.agentType
             : 'claude';
@@ -181,6 +187,7 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
             selectedMachineId,
             selectedPath,
             selectedCommanderId,
+            selectedAccountProjectId,
             agentType,
             permissionMode,
             modelMode,

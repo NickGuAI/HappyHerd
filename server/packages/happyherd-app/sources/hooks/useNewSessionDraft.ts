@@ -20,6 +20,7 @@ interface NewSessionDraftState {
     selectedMachineId: string | null;
     selectedPath: string | null;
     selectedCommanderId: string | null;
+    selectedAccountProjectId: string | null | undefined;
     agentType: NewSessionAgentType;
     permissionMode: PermissionModeKey | null;
     modelMode: string | null;
@@ -37,6 +38,7 @@ interface NewSessionDraftState {
     renameMachineId: (id: string | null) => void;
     setPath: (path: string | null) => void;
     setCommanderId: (id: string | null) => void;
+    setAccountProjectId: (id: string | null | undefined) => void;
     setAgentType: (agent: NewSessionAgentType) => void;
     setPermissionMode: (mode: PermissionModeKey | null) => void;
     setModelMode: (mode: string | null) => void;
@@ -51,6 +53,7 @@ function persist(state: NewSessionDraftState) {
         selectedMachineId: state.selectedMachineId,
         selectedPath: state.selectedPath,
         selectedCommanderId: state.selectedCommanderId,
+        selectedAccountProjectId: state.selectedAccountProjectId,
         agentType: state.agentType,
         permissionMode: state.permissionMode,
         modelMode: state.modelMode,
@@ -71,6 +74,7 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
     selectedMachineId: initial?.selectedMachineId ?? null,
     selectedPath: initial?.selectedPath ?? null,
     selectedCommanderId: initial?.selectedCommanderId ?? null,
+    selectedAccountProjectId: initial?.selectedAccountProjectId,
     agentType: initial?.agentType ?? 'claude',
     permissionMode: initial?.permissionMode ?? null,
     modelMode: initial?.modelMode ?? null,
@@ -96,6 +100,7 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
     renameMachineId: (id) => { set({ selectedMachineId: id }); persist(get()); },
     setPath: (path) => { set({ selectedPath: path, worktreeKey: null }); persist(get()); },
     setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
+    setAccountProjectId: (id) => { set({ selectedAccountProjectId: id }); persist(get()); },
     setAgentType: (agent) => {
         const previousAgent = get().agentType;
         set(previousAgent !== agent

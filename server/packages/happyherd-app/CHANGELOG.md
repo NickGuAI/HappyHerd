@@ -1,3 +1,8 @@
+# September 23 — Focus controls and session projects
+
+- Updated Focus Mode buttons, selection menus, and text to match HappyHerd.
+- Added a project selector when starting a session, which defaults to the active focused project.
+
 # September 22 — HappyHerd Focus Mode
 
 - Users can now start Focus Mode with 15, 30, 45, or 60 minutes and a project to instantly filter the sidebar, complete with a persistent countdown that synchronizes across devices on the same account.

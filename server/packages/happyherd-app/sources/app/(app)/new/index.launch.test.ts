@@ -2,6 +2,7 @@ import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { completeSpawnRequest } from '@/sync/spawnRequestId';
 
 const mocks = vi.hoisted(() => {
     (globalThis as typeof globalThis & { __DEV__?: boolean }).__DEV__ = false;
@@ -10,6 +11,8 @@ const mocks = vi.hoisted(() => {
         dimensions: { width: 844, height: 390 },
         renderMachines: [] as any[],
         liveMachines: {} as Record<string, any>,
+        projects: {} as Record<string, any>,
+        focusMode: null as { projectId: string; endsAt: number } | null,
         overrides: {} as Record<string, Record<string, string>>,
         draft: {} as any,
         machineSpawnNewSession: vi.fn(),
@@ -19,6 +22,7 @@ const mocks = vi.hoisted(() => {
         listWorktrees: vi.fn(),
         refreshSessions: vi.fn(),
         sendMessage: vi.fn(),
+        assignSessionProject: vi.fn(),
         alert: vi.fn(),
         confirm: vi.fn(),
         navigateToSession: vi.fn(),
@@ -71,6 +75,7 @@ vi.mock('react-native', async () => {
             dismiss: vi.fn(),
             addListener: () => ({ remove: vi.fn() }),
         },
+        AppState: { addEventListener: () => ({ remove: vi.fn() }) },
         LayoutAnimation: {
             configureNext: vi.fn(),
             Presets: { easeInEaseOut: {} },
@@ -240,7 +245,8 @@ vi.mock('@/sync/workspaceContext', () => ({
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.renderMachines,
     useSessions: () => mocks.emptyList,
-    useSetting: (key: string) => ({
+    useProjects: () => mocks.projects,
+    useSetting: (key: string) => key === 'focusMode' ? mocks.focusMode : ({
         agentInputEnterToSend: false,
         fileDiffsSidebar: false,
         expImageUpload: mocks.expImageUpload,
@@ -249,7 +255,7 @@ vi.mock('@/sync/storage', () => ({
         ? [mocks.overrides, vi.fn()]
         : [mocks.emptyList, mocks.setFavorites],
     useLocalSetting: () => false,
-    storage: { getState: () => ({ machines: mocks.liveMachines }) },
+    storage: { getState: () => ({ machines: mocks.liveMachines, projects: mocks.projects, settings: { focusMode: mocks.focusMode } }) },
 }));
 vi.mock('@/hooks/useNewSessionDraft', () => {
     const useNewSessionDraft = (selector: (state: any) => unknown) => selector(mocks.draft);
@@ -313,6 +319,7 @@ vi.mock('@/sync/sync', () => ({
         refreshSessions: mocks.refreshSessions,
         ensureSessionReady: mocks.refreshSessions,
         sendMessage: mocks.sendMessage,
+        assignSessionProject: mocks.assignSessionProject,
     },
 }));
 vi.mock('@/utils/worktree', () => ({
@@ -335,6 +342,8 @@ function createDraft(overrides: Record<string, unknown> = {}) {
         setMachineId: vi.fn(),
         selectedPath: '~/project',
         setPath: vi.fn(),
+        selectedAccountProjectId: undefined,
+        setAccountProjectId: vi.fn((value: string | null | undefined) => { mocks.draft.selectedAccountProjectId = value; }),
         selectedCommanderId: null,
         setCommanderId: vi.fn(),
         agentType: 'rig',
@@ -512,10 +521,13 @@ afterAll(() => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    completeSpawnRequest();
     mocks.platform = 'web';
     mocks.dimensions = { width: 844, height: 390 };
     mocks.overrides = {};
     mocks.places = [];
+    mocks.projects = {};
+    mocks.focusMode = null;
     mocks.expImageUpload = false;
     mocks.machineUploaderOptions = null;
     mocks.uploadPhase = 'idle';
@@ -529,6 +541,7 @@ beforeEach(() => {
     mocks.createWorktree.mockResolvedValue({ success: true, worktreePath: '/worktree', branchName: 'branch' });
     mocks.refreshSessions.mockResolvedValue(undefined);
     mocks.sendMessage.mockResolvedValue({ localId: 'first-message' });
+    mocks.assignSessionProject.mockResolvedValue(undefined);
     mocks.confirm.mockResolvedValue(false);
     mocks.pickImagesForUpload.mockResolvedValue([]);
     mocks.uploadAssets.mockResolvedValue([]);
@@ -688,6 +701,129 @@ describe('New Session Commander onboarding', () => {
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
         expect(renderer.root.findAllByType('BubblePressable' as any)
             .filter((item: any) => item.props.accessibilityLabel === 'happyHerd.commander.createTitle')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Full New Session account project selection', () => {
+    beforeEach(() => {
+        mocks.projects = {
+            'project-a': { id: 'project-a', name: 'Project Alpha', kind: 'personal' },
+            'project-b': { id: 'project-b', name: 'Project Beta', kind: 'personal' },
+            'system-project': { id: 'system-project', name: 'System Project', kind: 'system' },
+        };
+        mocks.focusMode = { projectId: 'project-a', endsAt: Date.now() + 60_000 };
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'new-session' });
+    });
+
+    it('shows the focused project and lets the user select another account project or no project', async () => {
+        const renderer = await renderScreen();
+        const findTrigger = () => renderer.root.findAllByType('BubblePressable' as any)
+            .find((node: any) => node.props.testID === 'new-session-account-project')!;
+        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'Project Alpha' });
+        await act(async () => findTrigger().props.onPress());
+        const options = renderer.root.findAllByType('BubblePressable' as any)
+            .filter((node: any) => node.props.accessibilityRole === 'radio');
+        expect(options.map((node: any) => node.props.accessibilityLabel)).toEqual([
+            'projects.noProject', 'Project Alpha', 'Project Beta',
+        ]);
+        await act(async () => options.find((node: any) => node.props.accessibilityLabel === 'Project Beta')!.props.onPress());
+        expect(mocks.draft.selectedAccountProjectId).toBe('project-b');
+        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'Project Beta' });
+        await act(async () => findTrigger().props.onPress());
+        const noProject = renderer.root.findAllByType('BubblePressable' as any)
+            .find((node: any) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'projects.noProject')!;
+        await act(async () => noProject.props.onPress());
+        expect(mocks.draft.selectedAccountProjectId).toBe(null);
+        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'projects.noProject' });
+        expect(mocks.draft.setPath).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('assigns the focus project after readiness and before the first message and navigation, independently of Rig routing', async () => {
+        const order: string[] = [];
+        mocks.places = [{ key: '~/project', path: '~/project', name: 'Rig Project', projectId: 'rig-project' }];
+        mocks.refreshSessions.mockImplementation(async () => { order.push('ready'); });
+        mocks.assignSessionProject.mockImplementation(async () => {
+            await Promise.resolve();
+            order.push('assigned');
+        });
+        mocks.sendMessage.mockImplementation(async () => { order.push('send'); return { localId: 'first-message' }; });
+        mocks.navigateToSession.mockImplementation(() => { order.push('navigate'); });
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            happyherdAgentTarget: { kind: 'project', id: 'rig-project' },
+        }));
+        expect(mocks.assignSessionProject).toHaveBeenCalledWith('new-session', 'project-a');
+        expect(order).toEqual(['ready', 'assigned', 'send', 'navigate']);
+        expect(mocks.draft.setAccountProjectId).toHaveBeenLastCalledWith(undefined);
+        act(() => renderer.unmount());
+    });
+
+    it.each([null, 'project-b'])('respects an explicit account project selection of %s', async (selectedAccountProjectId) => {
+        mocks.draft = createDraft({ selectedAccountProjectId });
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.assignSessionProject).toHaveBeenCalledWith('new-session', selectedAccountProjectId);
+        expect(mocks.draft.setAccountProjectId).toHaveBeenLastCalledWith(undefined);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the created session and selected project when assignment fails, focus expires, and the user retries', async () => {
+        mocks.assignSessionProject.mockRejectedValueOnce(new Error('Project assignment failed'));
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.alert).toHaveBeenCalledWith('common.error', 'Project assignment failed');
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.draft.input).toBe('Start the task');
+        expect(mocks.draft.selectedAccountProjectId).toBe('project-a');
+
+        mocks.focusMode = null;
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(1);
+        expect(mocks.assignSessionProject.mock.calls).toEqual([
+            ['new-session', 'project-a'], ['new-session', 'project-a'],
+        ]);
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+        expect(mocks.navigateToSession).toHaveBeenCalledWith('new-session');
+        expect(mocks.draft.selectedAccountProjectId).toBe(undefined);
+        act(() => renderer.unmount());
+    });
+
+    it('retains the launch project when Focus Mode ends while session readiness is pending', async () => {
+        mocks.refreshSessions.mockImplementation(async () => { mocks.focusMode = null; });
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.assignSessionProject).toHaveBeenCalledWith('new-session', 'project-a');
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+
+    it('does not assign or send if the user changes the account project before readiness', async () => {
+        mocks.refreshSessions.mockImplementation(async () => {
+            mocks.draft = { ...mocks.draft, selectedAccountProjectId: 'project-b' };
+        });
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.assignSessionProject).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.draft.selectedAccountProjectId).toBe('project-b');
+        act(() => renderer.unmount());
+    });
+
+    it('does not send or navigate if the account selection changes while assignment is pending', async () => {
+        mocks.assignSessionProject.mockImplementation(async () => {
+            mocks.draft = { ...mocks.draft, selectedAccountProjectId: null };
+        });
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+        expect(mocks.assignSessionProject).toHaveBeenCalledWith('new-session', 'project-a');
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.draft.selectedAccountProjectId).toBe(null);
         act(() => renderer.unmount());
     });
 });

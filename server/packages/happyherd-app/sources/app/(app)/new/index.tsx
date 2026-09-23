@@ -34,7 +34,7 @@ import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-
 import Constants from 'expo-constants';
 import { useDeviceType, useHeaderHeight } from '@/utils/responsive';
 import { t } from '@/text';
-import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
+import { useAllMachines, useLocalSetting, useProjects, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
@@ -45,6 +45,8 @@ import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useFocusMode } from '@/hooks/useFocusMode';
+import { resolveNewSessionProjectId } from '@/sync/newSessionProject';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useMachineFileUpload, type MachineFileUploadTarget } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
@@ -181,18 +183,19 @@ const ALL_AGENTS: { key: AgentKey; label: string }[] = [
 
 type PickerItem = NewSessionPickerItem & { dimmed?: boolean };
 
-type PickerType = 'machine' | 'path' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
+type PickerType = 'machine' | 'path' | 'accountProject' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
 const NATIVE_PICKER_TOP: Record<PickerType, number> = {
     machine: 48,
     path: 96,
-    commander: 144,
-    agent: 192,
-    model: 192,
-    effort: 192,
-    permission: 240,
-    settings: 192,
-    worktree: 192,
+    accountProject: 144,
+    commander: 192,
+    agent: 240,
+    model: 240,
+    effort: 240,
+    permission: 288,
+    settings: 240,
+    worktree: 240,
 };
 const NATIVE_PICKER_ESTIMATED_HEIGHT = 264;
 const MAX_RIG_PENDING_RESULTS = 3;
@@ -957,6 +960,8 @@ function NewSessionScreen() {
     // Real data sources
     const allMachines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
+    const accountProjects = useProjects();
+    const focusMode = useFocusMode();
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
@@ -979,6 +984,8 @@ function NewSessionScreen() {
         setMachineId: s.setMachineId,
         selectedPath: s.selectedPath,
         setPath: s.setPath,
+        selectedAccountProjectId: s.selectedAccountProjectId,
+        setAccountProjectId: s.setAccountProjectId,
         selectedCommanderId: s.selectedCommanderId,
         setCommanderId: s.setCommanderId,
         agentType: s.agentType,
@@ -1004,6 +1011,12 @@ function NewSessionScreen() {
     const setSelectedMachineId = draft.setMachineId;
     const selectedPath = draft.selectedPath;
     const setSelectedPath = draft.setPath;
+    const accountProjectId = resolveNewSessionProjectId(draft.selectedAccountProjectId, focusMode, accountProjects);
+    const accountProjectLabel = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.notFound') : t('projects.noProject');
+    const accountProjectItems = React.useMemo<PickerItem[]>(() => Object.values(accountProjects)
+        .filter(project => project.kind === 'personal')
+        .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
+        .map(project => ({ key: project.id, label: project.name })), [accountProjects]);
     const selectedCommanderId = draft.selectedCommanderId;
     const setSelectedCommanderId = draft.setCommanderId;
     const [worktreeKey, setWorktreeKey] = React.useState<string>(
@@ -1672,6 +1685,13 @@ function NewSessionScreen() {
     // Picker data derived from active picker type
     const pickerData = React.useMemo(() => {
         switch (activePicker) {
+            case 'accountProject':
+                return {
+                    title: t('projects.project'),
+                    fixedItems: [{ key: '__none__', label: t('projects.noProject') }],
+                    items: accountProjectItems,
+                    selectedKey: accountProjectId ?? '__none__',
+                };
             case 'machine':
                 return { title: t('machine.machineGroup'), items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: t('uiCopy.searchMachines') };
             case 'worktree':
@@ -1702,6 +1722,8 @@ function NewSessionScreen() {
         }
     }, [
         activePicker,
+        accountProjectId,
+        accountProjectItems,
         availableAgents,
         commanderItems,
         currentEffort?.key,
@@ -1749,6 +1771,9 @@ function NewSessionScreen() {
 
     const handlePickerSelect = React.useCallback((key: string) => {
         switch (activePicker) {
+            case 'accountProject':
+                draft.setAccountProjectId(key === '__none__' ? null : key);
+                break;
             case 'machine':
                 setSelectedMachineId(key);
                 break;
@@ -1823,6 +1848,7 @@ function NewSessionScreen() {
         availableAgents,
         commanders,
         closePicker,
+        draft.setAccountProjectId,
         draft.setEffortLevel,
         draft.setModelMode,
         draft.setPermissionMode,
@@ -2018,12 +2044,22 @@ function NewSessionScreen() {
         if (sendingRef.current) return;
         let ownsCreatedSession = true;
         const originalDraft = useNewSessionDraft.getState();
+        const selectedAccountProjectId = resolveNewSessionProjectId(
+            originalDraft.selectedAccountProjectId,
+            storage.getState().settings.focusMode,
+            storage.getState().projects,
+        );
+        // Keep retries bound to this launch's project even if Focus Mode ends.
+        if (originalDraft.selectedAccountProjectId === undefined) {
+            originalDraft.setAccountProjectId(selectedAccountProjectId);
+        }
         const isCurrentTarget = () => {
             const latest = useNewSessionDraft.getState();
             return ownsCreatedSession && isMountedRef.current
                 && latest.agentType === originalDraft.agentType
                 && latest.selectedMachineId === originalDraft.selectedMachineId
                 && latest.selectedPath === originalDraft.selectedPath
+                && latest.selectedAccountProjectId === selectedAccountProjectId
                 && latest.selectedCommanderId === originalDraft.selectedCommanderId
                 && latest.sessionType === originalDraft.sessionType
                 && latest.worktreeKey === originalDraft.worktreeKey
@@ -2050,6 +2086,7 @@ function NewSessionScreen() {
                 permissionMode: permissionKey,
                 effort: currentEffort?.key ?? null,
                 commanderId: selectedCommanderId,
+                selectedAccountProjectId,
             }));
 
             // Handle worktree selection
@@ -2149,6 +2186,13 @@ function NewSessionScreen() {
                         abandonSession();
                         return;
                     }
+                    await sync.assignSessionProject(result.sessionId, selectedAccountProjectId);
+                    if (controller.signal.aborted) return;
+                    if (!isCurrentTarget()) {
+                        completeSpawnRequest(clientRequestId);
+                        abandonSession();
+                        return;
+                    }
 
                     // GrokBuild permission is launch-only, so every session
                     // keeps the exact policy its process started with. Other
@@ -2230,6 +2274,7 @@ function NewSessionScreen() {
                     const latestDraft = useNewSessionDraft.getState();
                     if (latestDraft.input === draftState.input) latestDraft.setInput('');
                     if (latestDraft.attachments === draftState.attachments) latestDraft.setAttachments([]);
+                    if (latestDraft.selectedAccountProjectId === selectedAccountProjectId) latestDraft.setAccountProjectId(undefined);
 
                     router.back();
                     navigateToSession(result.sessionId);
@@ -2345,7 +2390,7 @@ function NewSessionScreen() {
 
         const content = type === 'path' ? (
             <PathPickerContent
-                title={t("uiCopy.project")}
+                title={t('sessionInfo.path')}
                 items={pathItems}
                 value={selectedPath}
                 homeDir={selectedHomeDir}
@@ -2422,7 +2467,7 @@ function NewSessionScreen() {
         )
     ) : activePicker === 'path' ? (
         <PathPickerContent
-            title={t("uiCopy.project")}
+            title={t('sessionInfo.path')}
             items={pathItems}
             value={selectedPath}
             homeDir={selectedHomeDir}
@@ -2458,7 +2503,8 @@ function NewSessionScreen() {
             );
         }
         if (
-            activePicker === 'commander'
+            activePicker === 'accountProject'
+            || activePicker === 'commander'
             || activePicker === 'agent'
             || activePicker === 'model'
             || activePicker === 'effort'
@@ -2506,6 +2552,28 @@ function NewSessionScreen() {
             anchorY - NATIVE_PICKER_ESTIMATED_HEIGHT - 8,
         );
     }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, safeArea.bottom, safeArea.top, windowHeight]);
+
+    const accountProjectPicker = (
+        <>
+            <BubblePressable
+                scaleFeedback={false}
+                testID="new-session-account-project"
+                style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
+                onPress={() => togglePicker('accountProject')}
+                accessibilityRole="button"
+                accessibilityLabel={t('projects.project')}
+                accessibilityValue={{ text: accountProjectLabel }}
+                accessibilityState={{ expanded: activePicker === 'accountProject' }}
+            >
+                <Ionicons name="albums-outline" size={15} color={theme.colors.textSecondary} />
+                <Text style={[styles.configLabel, styles.configValueText]} numberOfLines={1}>
+                    {accountProjectLabel}
+                </Text>
+                <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+            </BubblePressable>
+            {renderActivePickerPopover('accountProject')}
+        </>
+    );
 
     const configContent = (
         <>
@@ -2565,6 +2633,9 @@ function NewSessionScreen() {
                                 scaleFeedback={false}
                                 style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
                                 onPress={() => togglePicker('path')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('sessionInfo.path')}
+                                accessibilityValue={{ text: pathName }}
                             >
                                 <Ionicons name="folder-outline" size={15} color={theme.colors.textSecondary} />
                                 <Text style={[styles.configLabel, styles.configValueText]} numberOfLines={1}>
@@ -2573,6 +2644,7 @@ function NewSessionScreen() {
                                 <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
                             </BubblePressable>
                             {renderActivePickerPopover('path')}
+                            {accountProjectPicker}
 
                             <BubblePressable
                                 style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
@@ -2687,6 +2759,9 @@ function NewSessionScreen() {
                                 scaleFeedback={false}
                                 style={(p) => [styles.collapsedRow, { flex: 1 }, p.pressed && styles.configRowPressed]}
                                 onPress={() => togglePicker('path')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('sessionInfo.path')}
+                                accessibilityValue={{ text: pathName }}
                             >
                                 <Ionicons name="folder-outline" size={15} color={theme.colors.textSecondary} />
                                 <Text style={[styles.configLabel, { flex: 1 }]} numberOfLines={1}>
@@ -2702,6 +2777,7 @@ function NewSessionScreen() {
                             </BubblePressable>
                         </View>
                         {renderActivePickerPopover('path')}
+                        {accountProjectPicker}
 
                         <View style={styles.collapsedIconsRow}>
                             <BubblePressable
@@ -3142,7 +3218,7 @@ function NewSessionScreen() {
                 >
                     {activePicker === 'path' ? (
                         <PathPickerContent
-                            title={t("uiCopy.project")}
+                            title={t('sessionInfo.path')}
                             items={pathItems}
                             value={selectedPath}
                             homeDir={selectedHomeDir}

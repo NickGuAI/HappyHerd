@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 23 — Focus controls and session projects",
+      "summary": "",
+      "markdown": "- Updated Focus Mode buttons, selection menus, and text to match HappyHerd.\n- Added a project selector when starting a session, which defaults to the active focused project."
+    },
+    {
       "title": "September 22 — HappyHerd Focus Mode",
       "summary": "",
       "markdown": "- Users can now start Focus Mode with 15, 30, 45, or 60 minutes and a project to instantly filter the sidebar, complete with a persistent countdown that synchronizes across devices on the same account."
@@ -811,5 +816,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 22 — HappyHerd Focus Mode"
+  "latestTitle": "September 23 — Focus controls and session projects"
 }

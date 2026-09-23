@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import * as spawnLifecycle from './spawnRequestId';
+import { resolveNewSessionProjectId } from './newSessionProject';
 import { deliverSessionTurn } from '@/utils/sessionContinuation';
 
 vi.mock('expo-crypto', () => ({ randomUUID: () => crypto.randomUUID() }));
@@ -30,16 +31,24 @@ const newScreen = '../app/(app)/new/index.tsx';
 const chatScreen = '../-session/SessionView.tsx';
 
 function draft(input = 'original prompt') {
-    return { input, attachments: [{ id: 'old-image' }], selectedMachineId: 'machine', selectedPath: '/original', agentType: 'claude', setInput: vi.fn(), setAttachments: vi.fn() };
+    return {
+        input, attachments: [{ id: 'old-image' }], selectedMachineId: 'machine', selectedPath: '/original', agentType: 'claude',
+        selectedAccountProjectId: undefined as string | null | undefined,
+        setAccountProjectId: vi.fn<(id: string | null | undefined) => void>(), setInput: vi.fn(), setAttachments: vi.fn(),
+    };
 }
 
 function newScreenBoundary() {
     const machine = { id: 'machine', metadata: { homeDir: '/test' } };
     const state = { draft: draft() };
+    state.draft.setAccountProjectId.mockImplementation((selectedAccountProjectId) => {
+        state.draft = { ...state.draft, selectedAccountProjectId };
+    });
     const scope = {
         ...spawnLifecycle,
+        resolveNewSessionProjectId,
         dshUploadBusy: false, selectedMachine: machine, selectedCommanderId: null,
-        storage: { getState: () => ({ machines: { machine } }) },
+        storage: { getState: () => ({ machines: { machine }, settings: { focusMode: null }, projects: {} }) },
         currentModel: { key: 'default' }, effectiveAgentDefaults: { permissionMode: 'default', modelMode: 'default' }, effectiveEffortDefault: null,
         getHardcodedPermissionModes: () => [{ key: 'default' }], filterPermissionModesForCli: (v: unknown) => v,
         getHardcodedModelModes: () => [{ key: 'default' }], includeConfiguredModel: (_: unknown, v: unknown) => v,
@@ -57,7 +66,11 @@ function newScreenBoundary() {
         MAX_RIG_PENDING_RESULTS: 3, isMountedRef: { current: true },
         machineStopSession: vi.fn().mockResolvedValue({ success: true }),
         sessionKill: vi.fn().mockResolvedValue({ success: true }), sessionArchive: vi.fn(),
-        sync: { ensureSessionReady: vi.fn().mockResolvedValue(undefined), sendMessage: vi.fn().mockResolvedValue(true) },
+        sync: {
+            ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+            assignSessionProject: vi.fn().mockResolvedValue(undefined),
+            sendMessage: vi.fn().mockResolvedValue(true),
+        },
         sessionSetAgentModes: vi.fn(), router: { back: vi.fn() }, navigateToSession: vi.fn(),
         Modal: { alert: vi.fn(), confirm: vi.fn() }, t: (key: string) => key,
     };
