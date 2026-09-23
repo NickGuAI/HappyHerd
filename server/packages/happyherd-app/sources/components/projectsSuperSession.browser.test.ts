@@ -36,7 +36,8 @@ const virtualModules: Record<string, string> = {
             'data-icon': name, 'aria-hidden': true, style: { color, fontSize: size },
         }, name === 'close' ? '×' : '•');
         Icon.glyphMap = {};
-        export const Ionicons = Icon; export const MaterialCommunityIcons = Icon; export const Octicons = Icon;
+        export { default as Ionicons } from '@expo/vector-icons/build/Ionicons';
+        export const MaterialCommunityIcons = Icon; export const Octicons = Icon;
     `,
     'expo-router/drawer': `
         import React from 'react';
@@ -59,6 +60,7 @@ const virtualModules: Record<string, string> = {
         export const Swipeable = React.forwardRef(({ children }, _ref) => children);
     `,
     'react-native-reanimated': `export const useReducedMotion = () => false;`,
+    'expo-font': `export const isLoaded = () => true; export const loadAsync = async () => {};`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     'expo-router': `
         import React from 'react';
@@ -554,7 +556,7 @@ describe('Projects and Super Session production UI gestures', () => {
                 'process.env.NODE_ENV': '"test"',
             },
             jsx: 'automatic',
-            loader: { '.png': 'dataurl' },
+            loader: { '.png': 'dataurl', '.ttf': 'dataurl', '.js': 'jsx' },
             resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
             plugins: [fixturePlugin],
         });
@@ -585,8 +587,18 @@ describe('Projects and Super Session production UI gestures', () => {
                 }
                 return;
             }
+            if (url.pathname === '/fonts/Ionicons.ttf') {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')));
+                return;
+            }
+            if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-Regular)\.ttf$/.test(url.pathname)) {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(appRoot, 'sources/assets', url.pathname.slice(1))));
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0;font-family:Arial,sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(`<style>@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}html,body,#root{height:100%;margin:0;font-family:Arial,sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -623,6 +635,7 @@ describe('Projects and Super Session production UI gestures', () => {
         const directory = process.env.HAPPYHERD_PROJECTS_EVIDENCE_DIR?.trim();
         if (!directory) return;
         mkdirSync(resolve(directory), { recursive: true });
+        await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
     }
 
@@ -654,12 +667,62 @@ describe('Projects and Super Session production UI gestures', () => {
         expect(await page.getByTestId('focus-mode-setup').evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(240, 220, 176)');
         const start = page.getByRole('button', { name: german ? 'Fokus starten' : 'Start focus', exact: true });
         expect(await start.isDisabled()).toBe(true);
-        await page.getByRole('combobox', { name: german ? 'Dauer' : 'Duration', exact: true }).selectOption(String(minutes));
-        await page.getByRole('combobox', { name: german ? 'Projekt' : 'Project', exact: true }).selectOption(projectId);
+        expect(await page.getByTestId('focus-mode-setup').locator('select').count()).toBe(0);
+        expect(await start.evaluate(element => getComputedStyle(element).borderRadius)).toBe('4px');
+        expect(await page.getByRole('heading', { name: headline, exact: true }).evaluate(element => getComputedStyle(element).fontFamily)).toContain('SpaceGrotesk');
+        await page.getByRole('button', { name: german ? 'Dauer' : 'Duration', exact: true }).click();
+        await page.clock.runFor(50);
+        await screenshot(page, `focus-duration-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
+        await page.getByRole('radio', { name: `${minutes} ${german ? 'Min' : 'min'}`, exact: true }).click();
+        await page.getByRole('button', { name: german ? 'Projekt' : 'Project', exact: true }).click();
+        await page.clock.runFor(50);
+        const menuBox = await page.getByTestId('focus-mode-choices').boundingBox();
+        expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+        expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+        expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+        await screenshot(page, `focus-project-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
+        await page.getByRole('radio', { name: projectId === 'empty-project' ? 'Roadmap' : 'Project Alpha', exact: true }).first().click();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await screenshot(page, german ? 'focus-setup-mobile-german-dark' : 'focus-setup-desktop');
+        await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
         await page.getByTestId('focus-mode-timer').waitFor();
+    }
+
+    for (const surface of surfaces) {
+        for (const theme of ['light', 'dark']) {
+            it(`dismisses focus choices without starting a timer on ${surface.name} ${theme}`, async () => {
+                const { page, errors } = await openFocusPage(surface, `theme=${theme}`);
+                await page.getByTestId('focus-mode-enter').click();
+                await page.clock.runFor(1500);
+                const duration = page.getByRole('button', { name: 'Duration', exact: true });
+                await duration.click();
+                await page.clock.runFor(50);
+                await page.getByRole('dialog').filter({ has: page.getByTestId('focus-mode-choices') }).waitFor();
+                await page.getByRole('radio', { name: '30 min', exact: true }).waitFor();
+                await page.keyboard.press('Escape');
+                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
+                expect(await duration.getAttribute('aria-expanded')).toBe('false');
+                await duration.click();
+                await page.clock.runFor(50);
+                await page.getByRole('radio', { name: '45 min', exact: true }).click();
+                await page.getByRole('button', { name: 'Project', exact: true }).click();
+                await page.clock.runFor(50);
+                await screenshot(page, `focus-menu-${surface.name}-${theme}`);
+                await page.setViewportSize({ width: surface.viewport.width - 30, height: surface.viewport.height });
+                await page.clock.runFor(50);
+                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
+                await page.getByRole('button', { name: 'Project', exact: true }).click();
+                await page.clock.runFor(50);
+                await page.getByLabel('Cancel', { exact: true }).click({ position: { x: 8, y: 8 } });
+                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
+                await screenshot(page, `focus-cancel-${surface.name}-${theme}`);
+                await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+                await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
+                expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
+                expect(errors).toEqual([]);
+                await page.close();
+            }, 15_000);
+        }
     }
 
     it('starts all four focus durations through the real desktop header and restores the list on exit', async () => {
@@ -759,7 +822,7 @@ describe('Projects and Super Session production UI gestures', () => {
         await desktop.page.clock.fastForward(10 * 60_000);
         // A fresh browser context opens the phone after the desktop timer started.
         phone = await openFocusPage(surfaces[1], '', account);
-        await phone.page.clock.fastForward(10 * 60_000 + 1500);
+        await phone.page.clock.fastForward(await desktop.page.evaluate(() => Date.now()) - await phone.page.evaluate(() => Date.now()));
         await desktop.page.reload();
         await phone.page.reload();
         for (const { page } of [desktop, phone]) {

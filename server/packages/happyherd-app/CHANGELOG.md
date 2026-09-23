@@ -1,3 +1,7 @@
+# September 23 — Focus Mode controls
+
+- Updated Focus Mode buttons, selection menus, and text to match HappyHerd.
+
 # September 22 — HappyHerd Focus Mode
 
 - Users can now start Focus Mode with 15, 30, 45, or 60 minutes and a project to instantly filter the sidebar, complete with a persistent countdown that synchronizes across devices on the same account.

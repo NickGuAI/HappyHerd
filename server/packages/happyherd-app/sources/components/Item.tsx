@@ -311,6 +311,8 @@ export const Item = React.memo<ItemProps>((props) => {
                 accessibilityLabel={accessibilityLabel}
                 accessibilityRole={accessibilityRole}
                 accessibilityState={accessibilityState}
+                aria-expanded={accessibilityState?.expanded}
+                aria-checked={accessibilityState?.checked}
                 bubbleScale={1.012}
                 style={[
                     {

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useUnistyles } from 'react-native-unistyles';
@@ -10,6 +9,9 @@ import { useProjects, useSettingMutable } from '@/sync/storage';
 import { FOCUS_DURATIONS, formatFocusRemaining, getFocusRemainingSeconds } from '@/sync/focusMode';
 import { useFocusMode } from '@/hooks/useFocusMode';
 import { t } from '@/text';
+import { Typography } from '@/constants/Typography';
+import { Item } from './Item';
+import { RoundButton } from './RoundButton';
 
 function TomatoIcon() {
     const { theme } = useUnistyles();
@@ -47,6 +49,55 @@ function PixelTile({ index, size, columns, color }: {
     }} />;
 }
 
+function FocusChoice({ label, value, options, onSelect }: {
+    label: string;
+    value: string;
+    options: { value: string; label: string }[];
+    onSelect: (value: string) => void;
+}) {
+    const { theme } = useUnistyles();
+    const safeArea = useSafeAreaInsets();
+    const dimensions = useWindowDimensions();
+    const trigger = React.useRef<View>(null);
+    const [anchor, setAnchor] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
+    React.useEffect(() => setAnchor(null), [dimensions.width, dimensions.height]);
+    const menuHeight = Math.min(options.length * 56 + 2, dimensions.height * 0.45);
+    const surface = { backgroundColor: theme.colors.surface, borderColor: theme.colors.kilv.rimLine, borderWidth: 1, borderRadius: 6, overflow: 'hidden' as const };
+    const close = () => setAnchor(null);
+
+    return <View style={{ gap: 8 }}>
+        <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{label}</Text>
+        <View ref={trigger} collapsable={false} style={surface}>
+            <Item title={options.find(option => option.value === value)?.label ?? t('focusMode.selectProject')}
+                accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ expanded: anchor !== null, disabled: options.length === 0 }}
+                disabled={options.length === 0} showDivider={false}
+                rightElement={<Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />}
+                onPress={() => trigger.current?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }))} />
+        </View>
+        {anchor && <Modal transparent animationType="none" onRequestClose={close}>
+            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('focusMode.cancel')} onPress={close}
+                    style={{ position: 'absolute', inset: 0, backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.kilv.scrim }} />
+                <View testID="focus-mode-choices" style={[surface, Platform.OS === 'web' ? {
+                    position: 'absolute', width: anchor.width, left: anchor.x,
+                    top: anchor.y + anchor.height + menuHeight + 4 <= dimensions.height - 12
+                        ? anchor.y + anchor.height + 4 : Math.max(12, anchor.y - menuHeight - 4),
+                    shadowColor: theme.colors.shadow.color, shadowOpacity: theme.colors.shadow.opacity,
+                    shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+                } : { marginHorizontal: 16, marginBottom: Math.max(safeArea.bottom, 16) }]}>
+                    <ScrollView style={{ maxHeight: menuHeight }} keyboardShouldPersistTaps="handled">
+                        {options.map((option, index) => <Item key={option.value} title={option.label}
+                            accessibilityLabel={option.label} accessibilityRole="radio" accessibilityState={{ checked: value === option.value }}
+                            selected={value === option.value} showChevron={false} showDivider={index < options.length - 1}
+                            rightElement={value === option.value ? <Ionicons name="checkmark" size={18} color={theme.colors.text} /> : undefined}
+                            onPress={() => { onSelect(option.value); close(); }} />)}
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>}
+    </View>;
+}
+
 function FocusModeSetup({ onClose }: { onClose: () => void }) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
@@ -81,38 +132,26 @@ function FocusModeSetup({ onClose }: { onClose: () => void }) {
                 </View>}
                 {revealed && <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: safeArea.top + 40, paddingBottom: safeArea.bottom + 40 }}>
                     <View style={{ width: '100%', maxWidth: 540, alignSelf: 'center', gap: 24 }}>
-                        <Text accessibilityRole="header" style={{ fontSize: dimensions.width < 600 ? 36 : 56, lineHeight: dimensions.width < 600 ? 44 : 64, fontWeight: '600', color: ink }}>
+                        <Text accessibilityRole="header" style={{ fontSize: dimensions.width < 600 ? 36 : 56, lineHeight: dimensions.width < 600 ? 44 : 64, ...Typography.header(), color: ink }}>
                             {t('focusMode.title')}
                         </Text>
-                        <View style={{ gap: 8 }}>
-                            <Text style={{ fontSize: 16, color: ink }}>{t('focusMode.duration')}</Text>
-                            <Picker accessibilityLabel={t('focusMode.duration')} selectedValue={minutes} onValueChange={value => setMinutes(Number(value))}
-                                style={{ color: ink, backgroundColor: theme.colors.kilv.moltenCore, fontSize: 16, minHeight: 48 }} itemStyle={{ color: ink, fontSize: 18 }}>
-                                {FOCUS_DURATIONS.map(value => <Picker.Item key={value} value={value} label={t('focusMode.durationOption', { minutes: String(value) })} />)}
-                            </Picker>
+                        <View style={{ gap: 20, padding: 20, backgroundColor: theme.colors.surface, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.kilv.rimLine }}>
+                            <FocusChoice label={t('focusMode.duration')} value={String(minutes)}
+                                options={FOCUS_DURATIONS.map(value => ({ value: String(value), label: t('focusMode.durationOption', { minutes: String(value) }) }))}
+                                onSelect={value => setMinutes(Number(value))} />
+                            <FocusChoice label={t('focusMode.project')} value={projectId}
+                                options={projects.map(project => ({ value: project.id, label: project.name }))}
+                                onSelect={setProjectId} />
+                            {projects.length === 0 && <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{t('focusMode.noProjects')}</Text>}
+                            <View style={{ gap: 12 }}>
+                                <RoundButton title={t('focusMode.start')} disabled={!canStart} onPress={() => {
+                                    if (!canStart) return;
+                                    setFocusMode({ projectId, endsAt: Date.now() + minutes * 60_000 });
+                                    onClose();
+                                }} />
+                                <RoundButton title={t('focusMode.cancel')} display="inverted" onPress={onClose} />
+                            </View>
                         </View>
-                        <View style={{ gap: 8 }}>
-                            <Text style={{ fontSize: 16, color: ink }}>{t('focusMode.project')}</Text>
-                            <Picker accessibilityLabel={t('focusMode.project')} selectedValue={projectId} onValueChange={value => setProjectId(String(value))}
-                                style={{ color: ink, backgroundColor: theme.colors.kilv.moltenCore, fontSize: 16, minHeight: 48 }} itemStyle={{ color: ink, fontSize: 18 }}>
-                                <Picker.Item value="" label={t('focusMode.selectProject')} />
-                                {projects.map(project => <Picker.Item key={project.id} value={project.id} label={project.name} />)}
-                            </Picker>
-                            {projects.length === 0 && <Text style={{ fontSize: 16, color: ink }}>{t('focusMode.noProjects')}</Text>}
-                        </View>
-                        <Pressable accessibilityRole="button" accessibilityLabel={t('focusMode.start')} disabled={!canStart}
-                            onPress={() => {
-                                if (!canStart) return;
-                                setFocusMode({ projectId, endsAt: Date.now() + minutes * 60_000 });
-                                onClose();
-                            }}
-                            style={{ minHeight: 48, padding: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: ink, borderRadius: 6, opacity: canStart ? 1 : 0.4 }}>
-                            <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.kilv.moltenCore }}>{t('focusMode.start')}</Text>
-                        </Pressable>
-                        <Pressable accessibilityRole="button" accessibilityLabel={t('focusMode.cancel')} onPress={onClose}
-                            style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 16, color: ink }}>{t('focusMode.cancel')}</Text>
-                        </Pressable>
                     </View>
                 </ScrollView>}
             </View>
@@ -137,7 +176,7 @@ export function FocusModeControl() {
     return <>
         {focus ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text testID="focus-mode-timer" accessibilityLabel={t('focusMode.remaining', { time })}
-                style={{ color: theme.colors.header.tint, fontSize: 16, fontVariant: ['tabular-nums'] }}>{time}</Text>
+                style={{ ...Typography.mono(), color: theme.colors.header.tint, fontSize: 16, fontVariant: ['tabular-nums'] }}>{time}</Text>
             <Pressable testID="focus-mode-exit" accessibilityRole="button" accessibilityLabel={t('focusMode.exit')}
                 onPress={() => setFocusMode(null)} style={{ minWidth: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="close" size={22} color={theme.colors.header.tint} />
