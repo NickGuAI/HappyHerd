@@ -1012,7 +1012,7 @@ function NewSessionScreen() {
     const selectedPath = draft.selectedPath;
     const setSelectedPath = draft.setPath;
     const accountProjectId = resolveNewSessionProjectId(draft.selectedAccountProjectId, focusMode, accountProjects);
-    const accountProjectLabel = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.noProject') : t('projects.noProject');
+    const accountProjectLabel = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.notFound') : t('projects.noProject');
     const accountProjectItems = React.useMemo<PickerItem[]>(() => Object.values(accountProjects)
         .filter(project => project.kind === 'personal')
         .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))

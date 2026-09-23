@@ -13,10 +13,13 @@ describe('new session account project', () => {
         expect(resolveNewSessionProjectId(selection, focus, projects, 1_000)).toBe(selection);
     });
 
-    it('ignores absent, expired, missing and nonpersonal focus projects', () => {
+    it('preserves active Focus while its project catalog entry is still loading', () => {
+        expect(resolveNewSessionProjectId(undefined, focus, {}, 1_000)).toBe('focus');
+    });
+
+    it('ignores absent, expired and known nonpersonal focus projects', () => {
         expect(resolveNewSessionProjectId(undefined, null, projects, 1_000)).toBeNull();
         expect(resolveNewSessionProjectId(undefined, focus, projects, 2_000)).toBeNull();
-        expect(resolveNewSessionProjectId(undefined, focus, {}, 1_000)).toBeNull();
         expect(resolveNewSessionProjectId(undefined, { ...focus, projectId: 'agent' }, projects, 1_000)).toBeNull();
     });
 });

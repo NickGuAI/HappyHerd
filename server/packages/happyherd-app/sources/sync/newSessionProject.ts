@@ -10,5 +10,9 @@ export function resolveNewSessionProjectId(
 ): string | null {
     if (selection !== undefined) return selection;
     const focus = getActiveFocusMode(focusMode ?? null, now);
-    return focus && projects[focus.projectId]?.kind === 'personal' ? focus.projectId : null;
+    if (!focus) return null;
+    // Settings can arrive before the catalog; an unloaded name must not turn
+    // the active Focus selection into an explicit No project choice.
+    const project = projects[focus.projectId];
+    return !project || project.kind === 'personal' ? focus.projectId : null;
 }

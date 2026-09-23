@@ -1577,10 +1577,18 @@ describe('Side chats browser interaction', () => {
             expect(await trigger.innerText()).toContain(activeFocus ? 'Focused work' : 'No Project');
             if (choice) {
                 await trigger.click();
-                await page.getByText(choice, { exact: true }).filter({ visible: true }).last().click();
+                const option = page.getByText(choice, { exact: true }).filter({ visible: true }).last();
+                await option.waitFor();
+                expect(await page.getByText('Agent workspace', { exact: true }).count()).toBe(0);
+                const bounds = await option.boundingBox();
+                expect(bounds).not.toBeNull();
+                expect(bounds!.x).toBeGreaterThanOrEqual(0);
+                expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+                await page.evaluate(() => document.fonts.ready);
+                await page.screenshot({ path: '/tmp/happyherd-new-session-project-menu-' + width + '-' + theme + '.png', fullPage: true });
+                await option.click();
                 expect(await trigger.innerText()).toContain(choice);
             }
-            expect(await page.getByText('Agent workspace', { exact: true }).count()).toBe(0);
             await page.evaluate(() => document.fonts.ready);
             await page.screenshot({ path: '/tmp/happyherd-new-session-project-' + width + '-' + theme + '-' + (expected ?? 'none') + '.png', fullPage: true });
             await route.getByRole('button', { name: 'Send', exact: true }).click();

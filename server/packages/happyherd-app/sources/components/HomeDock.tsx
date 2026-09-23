@@ -719,7 +719,7 @@ export const HomeDock = React.memo(({
             .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
             .map(project => ({ key: project.id, name: project.name })),
     ], [accountProjects]);
-    const accountProjectName = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.noProject') : t('projects.noProject');
+    const accountProjectName = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.notFound') : t('projects.noProject');
     const sessionType = useNewSessionDraft((state) => state.sessionType);
     const worktreeKey = useNewSessionDraft((state) => state.worktreeKey);
     const permissionMode = useNewSessionDraft((state) => state.permissionMode);
