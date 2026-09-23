@@ -5,6 +5,7 @@ type Draft = {
     selectedMachineId: string | null;
     selectedPath: string | null;
     selectedCommanderId: string | null;
+    selectedAccountProjectId?: string | null;
     agentType: 'claude' | 'codex' | 'grok' | 'gemini' | 'agy' | 'rig';
     permissionMode: string | null;
     modelMode: string | null;
@@ -87,6 +88,23 @@ describe('useNewSessionDraft', () => {
 
         expect(useNewSessionDraft.getState().effortLevel).toBe('high');
         expect(mockPersistence.saved.at(-1)).toMatchObject({ effortLevel: 'high' });
+    });
+
+    it.each([undefined, null, 'personal-project'])('restores account project choice %s', async (selectedAccountProjectId) => {
+        mockPersistence.draft = persistedDraft({ selectedAccountProjectId });
+        const { useNewSessionDraft } = await import('./useNewSessionDraft');
+        expect(useNewSessionDraft.getState().selectedAccountProjectId).toBe(selectedAccountProjectId);
+    });
+
+    it.each([null, 'personal-project'])('keeps account project choice %s through machine and provider changes', async (selectedAccountProjectId) => {
+        const { useNewSessionDraft } = await import('./useNewSessionDraft');
+        useNewSessionDraft.getState().setAccountProjectId(selectedAccountProjectId);
+        useNewSessionDraft.getState().setMachineId('another-machine');
+        useNewSessionDraft.getState().setAgentType('codex');
+        expect(useNewSessionDraft.getState().selectedAccountProjectId).toBe(selectedAccountProjectId);
+        expect(mockPersistence.saved.at(-1)?.selectedAccountProjectId).toBe(selectedAccountProjectId);
+        useNewSessionDraft.getState().setAccountProjectId(undefined);
+        expect(mockPersistence.saved.at(-1)?.selectedAccountProjectId).toBeUndefined();
     });
 
     it.each([

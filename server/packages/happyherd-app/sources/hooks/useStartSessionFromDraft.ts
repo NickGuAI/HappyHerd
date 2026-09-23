@@ -57,6 +57,7 @@ import {
 import { validateNewSessionLaunchSelection } from '@/utils/newSessionModeSelection';
 import type { Session } from '@/sync/storageTypes';
 import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
+import { resolveNewSessionProjectId } from '@/sync/newSessionProject';
 import {
     HappyHerdAgentWorkspaceUnavailableError,
     resolveHappyHerdAgentSpawnTarget,
@@ -170,6 +171,12 @@ export function useStartSessionFromDraft() {
         if (activeRunRef.current) return false;
 
         const draft = useNewSessionDraft.getState();
+        const accountState = storage.getState();
+        const selectedAccountProjectId = resolveNewSessionProjectId(
+            draft.selectedAccountProjectId,
+            accountState.settings.focusMode,
+            accountState.projects,
+        );
         const agentType = draft.agentType;
         const selectedChoice = findMachineChoice(
             collectMachineChoices(machines),
@@ -335,6 +342,11 @@ export function useStartSessionFromDraft() {
             agentType,
             rigCreation?.supportsWorktrees ?? getSupportsWorktree(agentType),
         );
+        // Keep the resolved default on this draft so a retry still owns the
+        // same project and created session after Focus ends.
+        if (draft.selectedAccountProjectId === undefined) {
+            draft.setAccountProjectId(selectedAccountProjectId);
+        }
         // Reused across every retry of this exact request so a second press of
         // Start is deduped by Rig instead of spawning a second session.
         const clientRequestId = resolveSpawnRequestId(buildSpawnRequestSignature({
@@ -346,6 +358,7 @@ export function useStartSessionFromDraft() {
             permissionMode: permission?.key ?? null,
             effort: effort?.key ?? null,
             commanderId: draft.selectedCommanderId,
+            selectedAccountProjectId,
         }));
 
         const run = beginRun();
@@ -357,6 +370,7 @@ export function useStartSessionFromDraft() {
                 && latest.selectedMachineId === draft.selectedMachineId
                 && latest.selectedPath === draft.selectedPath
                 && latest.selectedCommanderId === draft.selectedCommanderId
+                && latest.selectedAccountProjectId === selectedAccountProjectId
                 && latest.sessionType === draft.sessionType
                 && latest.worktreeKey === draft.worktreeKey
                 && latest.modelMode === draft.modelMode
@@ -590,6 +604,16 @@ export function useStartSessionFromDraft() {
                 return false;
             }
 
+            if (await untilCanceled(sync.assignSessionProject(sessionId, selectedAccountProjectId)) === CANCELED) {
+                void stopAbandonedSession(sessionId);
+                return false;
+            }
+            if (!isCurrentTarget()) {
+                completeSpawnRequest(clientRequestId);
+                void stopAbandonedSession(sessionId);
+                return false;
+            }
+
             if (agentType !== 'rig') {
                 const modesPatch: SessionAgentModesPatch = {};
                 // GrokBuild permission is launch-only, so every session keeps
@@ -659,6 +683,9 @@ export function useStartSessionFromDraft() {
             const currentDraft = useNewSessionDraft.getState();
             if (currentDraft.input === draft.input) currentDraft.setInput('');
             if (currentDraft.attachments === attachments) currentDraft.setAttachments([]);
+            if (currentDraft.selectedAccountProjectId === selectedAccountProjectId) {
+                currentDraft.setAccountProjectId(undefined);
+            }
             navigateToSession(sessionId);
             return true;
         } catch (error) {

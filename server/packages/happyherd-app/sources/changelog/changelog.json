@@ -1,9 +1,9 @@
 {
   "entries": [
     {
-      "title": "September 23 — Focus Mode controls",
+      "title": "September 23 — Focus controls and session projects",
       "summary": "",
-      "markdown": "- Updated Focus Mode buttons, selection menus, and text to match HappyHerd."
+      "markdown": "- Updated Focus Mode buttons, selection menus, and text to match HappyHerd.\n- Added a project selector when starting a session, which defaults to the active focused project."
     },
     {
       "title": "September 22 — HappyHerd Focus Mode",
@@ -816,5 +816,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 23 — Focus Mode controls"
+  "latestTitle": "September 23 — Focus controls and session projects"
 }

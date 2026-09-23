@@ -60,6 +60,9 @@ describe('spawn request id', () => {
         expect(resolveSpawnRequestId(buildSpawnRequestSignature({
             ...baseInput, commanderId: 'different-commander',
         }))).toBe('request-4');
+        expect(resolveSpawnRequestId(buildSpawnRequestSignature({
+            ...baseInput, selectedAccountProjectId: 'personal-project',
+        }))).toBe('request-5');
     });
 
     it('retains a created session for the same attempt, and abandons it only on configuration change', () => {

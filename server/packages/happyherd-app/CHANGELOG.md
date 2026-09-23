@@ -1,6 +1,7 @@
-# September 23 — Focus Mode controls
+# September 23 — Focus controls and session projects
 
 - Updated Focus Mode buttons, selection menus, and text to match HappyHerd.
+- Added a project selector when starting a session, which defaults to the active focused project.
 
 # September 22 — HappyHerd Focus Mode
 

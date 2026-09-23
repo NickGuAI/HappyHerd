@@ -31,6 +31,7 @@ export type SpawnRequestSignatureInput = {
     permissionMode: string | null;
     effort: string | null;
     commanderId?: string | null;
+    selectedAccountProjectId?: string | null;
 };
 
 let pendingRequest: { signature: string; clientRequestId: string; sessionId?: string; abandon?: () => void; release?: () => void } | null = null;
@@ -46,6 +47,7 @@ export function buildSpawnRequestSignature(input: SpawnRequestSignatureInput): s
         input.permissionMode ?? '',
         input.effort ?? '',
         input.commanderId ?? '',
+        input.selectedAccountProjectId ?? '',
     ]);
 }
 

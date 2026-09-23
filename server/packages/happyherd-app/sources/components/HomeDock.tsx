@@ -29,7 +29,9 @@ import { Typography } from '@/constants/Typography';
 import { layout } from './layout';
 import { t } from '@/text';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
-import { useAllMachines, useSessions, useSetting, useSettingMutable } from '@/sync/storage';
+import { useFocusMode } from '@/hooks/useFocusMode';
+import { resolveNewSessionProjectId } from '@/sync/newSessionProject';
+import { useAllMachines, useProjects, useSessions, useSetting, useSettingMutable } from '@/sync/storage';
 import {
     getCodeAgentDefaults,
     resolveAgentDefaultConfig,
@@ -115,7 +117,7 @@ import {
 
 export const MOBILE_HOME_DOCK_CONTENT_INSET = 108;
 
-type EnvironmentSetting = 'machine' | 'project' | 'worktree';
+type EnvironmentSetting = 'machine' | 'project' | 'accountProject' | 'worktree';
 type AgentSetting = 'agent' | 'model' | 'permission' | 'effort';
 type PickerPage = EnvironmentSetting | AgentSetting;
 
@@ -705,6 +707,19 @@ export const HomeDock = React.memo(({
     const agentType = useNewSessionDraft((state) => state.agentType);
     const selectedMachineId = useNewSessionDraft((state) => state.selectedMachineId);
     const selectedPath = useNewSessionDraft((state) => state.selectedPath);
+    const selectedAccountProjectId = useNewSessionDraft((state) => state.selectedAccountProjectId);
+    const setAccountProjectId = useNewSessionDraft((state) => state.setAccountProjectId);
+    const accountProjects = useProjects();
+    const focusMode = useFocusMode();
+    const accountProjectId = resolveNewSessionProjectId(selectedAccountProjectId, focusMode, accountProjects);
+    const accountProjectOptions = React.useMemo<ModeOption[]>(() => [
+        { key: '__none__', name: t('projects.noProject') },
+        ...Object.values(accountProjects)
+            .filter(project => project.kind === 'personal')
+            .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
+            .map(project => ({ key: project.id, name: project.name })),
+    ], [accountProjects]);
+    const accountProjectName = accountProjectId ? accountProjects[accountProjectId]?.name ?? t('projects.noProject') : t('projects.noProject');
     const sessionType = useNewSessionDraft((state) => state.sessionType);
     const worktreeKey = useNewSessionDraft((state) => state.worktreeKey);
     const permissionMode = useNewSessionDraft((state) => state.permissionMode);
@@ -1376,12 +1391,11 @@ export const HomeDock = React.memo(({
         icon: React.ComponentProps<typeof Ionicons>['name'];
     };
 
-    // The rows stacked above the focused composer. The harness sits with
-    // machine/project/worktree because all four say where and with what the
-    // session runs, and all four are settled before anything is typed.
+    // Keep account organization separate from the machine path and workspace.
     const environmentRows: SettingsRow[] = [
         { page: 'machine', label: t("uiCopy.machine"), value: currentMachine?.name ?? 'Select machine', icon: 'desktop-outline' },
-        { page: 'project', label: t("uiCopy.project_olvgym"), value: currentProject?.name ?? '~', icon: 'folder-outline' },
+        { page: 'project', label: t('sessionInfo.path'), value: currentProject?.name ?? '~', icon: 'folder-outline' },
+        { page: 'accountProject', label: t('projects.project'), value: accountProjectName, icon: 'albums-outline' },
         {
             page: 'worktree',
             label: picksWorkspaces ? t('workspace.title') : t("uiCopy.worktree_sdajyg"),
@@ -1431,12 +1445,20 @@ export const HomeDock = React.memo(({
     };
 
     const getEnvironmentPickerConfig = (setting: EnvironmentSetting): PickerConfig => {
+        if (setting === 'accountProject') {
+            return {
+                title: t('projects.project'),
+                options: accountProjectOptions,
+                selectedKey: accountProjectId ?? '__none__',
+                onSelect: (key) => setAccountProjectId(key === '__none__' ? null : key),
+            };
+        }
         if (setting === 'machine') {
             return { title: t("machine.machineGroup"), options: machineOptions, selectedKey: currentMachine?.key, onSelect: setMachineId };
         }
         if (setting === 'project') {
             return {
-                title: t("uiCopy.project"),
+                title: t('sessionInfo.path'),
                 options: [
                     ...projectOptions,
                     {
@@ -1513,7 +1535,7 @@ export const HomeDock = React.memo(({
     const permissionSettingsGroup = agentSettingsGroups.find((group) => group.key === 'permission');
 
     const getPickerConfig = (page: PickerPage): PickerConfig => (
-        page === 'machine' || page === 'project' || page === 'worktree'
+        page === 'machine' || page === 'project' || page === 'accountProject' || page === 'worktree'
             ? getEnvironmentPickerConfig(page)
             : getAgentPickerConfig(page)
     );
@@ -1608,6 +1630,7 @@ export const HomeDock = React.memo(({
                 systemImage={{
                     machine: 'desktopcomputer',
                     project: 'folder',
+                    accountProject: 'square.stack',
                     worktree: 'arrow.triangle.branch',
                     agent: 'cpu',
                     model: 'cube',
