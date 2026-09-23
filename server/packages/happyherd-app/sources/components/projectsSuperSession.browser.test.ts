@@ -36,8 +36,7 @@ const virtualModules: Record<string, string> = {
             'data-icon': name, 'aria-hidden': true, style: { color, fontSize: size },
         }, name === 'close' ? '×' : '•');
         Icon.glyphMap = {};
-        export { default as Ionicons } from '@expo/vector-icons/build/Ionicons';
-        export const MaterialCommunityIcons = Icon; export const Octicons = Icon;
+        export const Ionicons = Icon; export const MaterialCommunityIcons = Icon; export const Octicons = Icon;
     `,
     'expo-router/drawer': `
         import React from 'react';
@@ -60,6 +59,7 @@ const virtualModules: Record<string, string> = {
         export const Swipeable = React.forwardRef(({ children }, _ref) => children);
     `,
     'react-native-reanimated': `export const useReducedMotion = () => false;`,
+    'focus-mode-icons': `export { default as Ionicons } from '@expo/vector-icons/build/Ionicons';`,
     'expo-font': `export const isLoaded = () => true; export const loadAsync = async () => {};`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     'expo-router': `
@@ -414,6 +414,9 @@ const fixturePlugin: Plugin = {
     name: 'projects-super-session-browser-fixture',
     setup(bundle) {
         bundle.onResolve({ filter: /.*/ }, (args) => {
+            if (args.path === '@expo/vector-icons' && args.importer.endsWith('/FocusModeControl.tsx')) {
+                return { path: 'focus-mode-icons', namespace: 'fixture-stub' };
+            }
             if (args.path.startsWith('react-native-unistyles/components/native/')) {
                 return { path: resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/components/native', `${args.path.split('/').at(-1)}.js`) };
             }
