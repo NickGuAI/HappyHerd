@@ -1,4 +1,5 @@
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
+FOCUS_SESSION_FIRST_SEND_FIXTURE	accepted	test(focus): wire project selection into first-send fixtures	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
 FOCUS_SESSION_PROJECT_LOADING	accepted	fix(focus): retain the project while the catalog loads	server/packages/happyherd-app/sources/sync/newSessionProject.test.ts
 FOCUS_SESSION_PROJECT_CHOICE	accepted	feat(focus): choose account projects when starting sessions	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 FOCUS_MODE_KILV_GOLDENS	accepted	test(app): refresh Focus Mode changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
