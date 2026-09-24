@@ -12,6 +12,7 @@ import {
     getClaudePermissionModes,
     getGeminiPermissionModes,
     getDefaultEffortKey,
+    getDefaultEffortKeyForModel,
     getDefaultModelKey,
     getEffortLevelsForModel,
     getDefaultPermissionModeKey,
@@ -584,6 +585,7 @@ describe('modelModeOptions', () => {
             'default',
             'claude-fable-5-1',
             'claude-fable-5',
+            'claude-opus-5-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
             'claude-opus-4-8',
@@ -596,6 +598,17 @@ describe('modelModeOptions', () => {
             name: 'claude-opus-4-6',
             description: null,
         });
+        expect(models.find((model) => model.key === 'claude-opus-5-5')?.effortLevels).toEqual([
+            { key: 'low', name: 'low' },
+            { key: 'medium', name: 'medium', isDefault: true },
+            { key: 'high', name: 'high' },
+            { key: 'xhigh', name: 'xhigh' },
+            { key: 'max', name: 'max' },
+        ]);
+        expect(getEffortLevelsForModel('claude', 'claude-opus-5-5')).toEqual(
+            models.find((model) => model.key === 'claude-opus-5-5')?.effortLevels,
+        );
+        expect(getDefaultEffortKeyForModel('claude', 'claude-opus-5-5')).toBe('medium');
     });
 
     it('shows a configured custom codex model only as an unavailable recovery value', () => {
@@ -640,7 +653,7 @@ describe('modelModeOptions', () => {
     it('offers claude the SDK effort union for every model', () => {
         // Claude's scale belongs to the SDK, not the model: an unreachable level
         // is silently downgraded, so all three models get the same list.
-        for (const model of ['claude-fable-5-1', 'claude-fable-5', 'claude-opus-5', 'claude-opus-5[1m]', 'claude-sonnet-5']) {
+        for (const model of ['claude-fable-5-1', 'claude-fable-5', 'claude-opus-5-5', 'claude-opus-5', 'claude-opus-5[1m]', 'claude-sonnet-5']) {
             const keys = getEffortLevelsForModel('claude', model).map((level) => level.key);
             expect(keys).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
             // Claude's floor is `low`; there is no off.

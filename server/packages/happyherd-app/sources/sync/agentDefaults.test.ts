@@ -46,6 +46,34 @@ describe('agent defaults', () => {
         ])).toBe('xhigh');
     });
 
+    it('uses a selected Claude model default when no saved effort preference exists', () => {
+        expect(resolveAgentDefaultEffortLevel(undefined, 'claude', [
+            { key: 'low' },
+            { key: 'medium', isDefault: true },
+            { key: 'high' },
+            { key: 'xhigh' },
+            { key: 'max' },
+        ])).toBe('medium');
+        expect(resolveAgentDefaultEffortLevel(undefined, 'claude', [
+            { key: 'low' },
+            { key: 'medium' },
+            { key: 'high' },
+            { key: 'xhigh' },
+            { key: 'max' },
+        ])).toBe('max');
+    });
+
+    it('keeps a saved Claude effort preference ahead of the selected model default', () => {
+        const overrides = setAgentDefaultOverride({}, 'claude', 'effortLevel', 'high');
+        expect(resolveAgentDefaultEffortLevel(overrides, 'claude', [
+            { key: 'low' },
+            { key: 'medium', isDefault: true },
+            { key: 'high' },
+            { key: 'xhigh' },
+            { key: 'max' },
+        ])).toBe('high');
+    });
+
     it('keeps a synchronized explicit Codex effort while the selected model supports it', () => {
         const overrides = setAgentDefaultOverride({}, 'codex', 'effortLevel', 'ultra');
 

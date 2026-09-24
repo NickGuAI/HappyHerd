@@ -5,9 +5,12 @@
  * a machine-readable model-list command. Keep the release catalog explicit so
  * UI labels and launch values cannot drift or be inferred from CLI help prose.
  */
+export const HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG = 'claude-opus-5-5';
+
 export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
     'claude-fable-5-1',
     'claude-fable-5',
+    HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
     'claude-opus-5',
     'claude-opus-5[1m]',
     'claude-opus-4-8',
@@ -15,6 +18,9 @@ export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
     'claude-sonnet-5',
     'claude-haiku-4-5',
 ] as const;
+
+export const HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export const HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT = 'medium';
 
 export const HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG = 'claude-opus-5';
 

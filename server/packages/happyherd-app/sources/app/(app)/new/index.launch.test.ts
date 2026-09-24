@@ -829,6 +829,62 @@ describe('Full New Session account project selection', () => {
 });
 
 describe('Full New Session provider launch', () => {
+    it('launches Claude Opus 5.5 with its exact-machine medium default', async () => {
+        const modelEfforts = ['low', 'medium', 'high', 'xhigh', 'max'].map((code) => ({
+            code,
+            value: code,
+            ...(code === 'medium' ? { isDefault: true } : {}),
+        }));
+        const machine = {
+            id: 'machine-1',
+            active: true,
+            activeAt: Date.now(),
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { claude: true },
+                agentCapabilities: {
+                    claude: {
+                        detectedAt: 1,
+                        sources: {
+                            models: 'happyherd-release-catalog',
+                            effortLevels: 'cli-help',
+                            permissionModes: 'daemon-defaults',
+                        },
+                        models: [
+                            { code: 'default', value: 'provider default' },
+                            { code: 'claude-opus-5-5', value: 'claude-opus-5-5', effortLevels: modelEfforts },
+                        ],
+                        effortLevels: [
+                            { code: 'low', value: 'low' },
+                            { code: 'medium', value: 'medium' },
+                            { code: 'high', value: 'high' },
+                            { code: 'xhigh', value: 'xhigh' },
+                            { code: 'max', value: 'max', isDefault: true },
+                        ],
+                        permissionModes: [
+                            { code: 'default', value: 'default' },
+                            { code: 'bypassPermissions', value: 'bypassPermissions', isDefault: true },
+                        ],
+                    },
+                },
+            },
+        };
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'claude', modelMode: 'claude-opus-5-5' });
+
+        const renderer = await renderScreen();
+        await pressSend(renderer);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'claude',
+            modelMode: 'claude-opus-5-5',
+            effortLevel: 'medium',
+        }));
+        act(() => renderer.unmount());
+    });
+
     it('sends synchronized Rig defaults in the provider-native payload', async () => {
         mocks.overrides = {
             rig: {

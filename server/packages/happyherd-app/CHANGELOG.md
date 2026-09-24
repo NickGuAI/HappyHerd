@@ -1,3 +1,7 @@
+# September 24 — Claude Opus 5.5 support
+
+- Added support for Claude Opus 5.5 featuring adaptive thinking with selectable effort levels (low, medium, high, xhigh, max), defaulting to medium.
+
 # September 24 — Automation status colors
 
 - Updated HappyHerd automation active workflow indicators to a clear green theme, and set inactive or paused statuses to neutral/muted colors across light and dark modes.

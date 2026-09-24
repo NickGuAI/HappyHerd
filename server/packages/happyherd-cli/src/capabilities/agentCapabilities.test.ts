@@ -210,6 +210,7 @@ describe('agent capability discovery', () => {
             'default',
             'claude-fable-5-1',
             'claude-fable-5',
+            'claude-opus-5-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
             'claude-opus-4-8',
@@ -228,6 +229,13 @@ describe('agent capability discovery', () => {
         ]);
         expect(catalog.effortLevels.filter((effort) => effort.isDefault)).toEqual([
             expect.objectContaining({ code: 'max' }),
+        ]);
+        expect(catalog.models.find((model) => model.code === 'claude-opus-5-5')?.effortLevels).toEqual([
+            { code: 'low', value: 'low' },
+            { code: 'medium', value: 'medium', isDefault: true },
+            { code: 'high', value: 'high' },
+            { code: 'xhigh', value: 'xhigh' },
+            { code: 'max', value: 'max' },
         ]);
     });
 
