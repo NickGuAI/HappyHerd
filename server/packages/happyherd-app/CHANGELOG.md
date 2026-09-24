@@ -1,3 +1,7 @@
+# September 24 — Automation status colors
+
+- Updated HappyHerd automation active workflow indicators to a clear green theme, and set inactive or paused statuses to neutral/muted colors across light and dark modes.
+
 # September 23 — Focus controls and session projects
 
 - Updated Focus Mode buttons, selection menus, and text to match HappyHerd.

@@ -128,7 +128,7 @@ export function HappyHerdAutomationDetail({
                         </Pressable>
                     )}
                     <View style={styles.headingCopy}>
-                        <Text style={[styles.statusLabel, { color: active ? theme.colors.success : theme.colors.textSecondary }]}>
+                        <Text style={[styles.statusLabel, { color: active ? theme.colors.diff.success : theme.colors.textSecondary }]}>
                             {statusLabel}
                         </Text>
                         <Text style={styles.title} numberOfLines={2}>{automation.name}</Text>
