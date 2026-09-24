@@ -960,7 +960,7 @@ export default function AutomationsScreen() {
                                                 styles.statusDot,
                                                 {
                                                     backgroundColor: automation.status === 'active'
-                                                        ? theme.colors.success
+                                                        ? theme.colors.diff.success
                                                         : theme.colors.textSecondary,
                                                 },
                                             ]}
@@ -971,7 +971,11 @@ export default function AutomationsScreen() {
                                                 {schedule} · {automation.timezone}
                                             </Text>
                                         </View>
-                                        <Text style={[styles.rowState, { color: theme.colors.textSecondary }]}>
+                                        <Text style={[styles.rowState, {
+                                            color: automation.status === 'active'
+                                                ? theme.colors.diff.success
+                                                : theme.colors.textSecondary,
+                                        }]}>
                                             {t(
                                                 automation.status === 'active'
                                                     ? 'happyHerd.automations.statusActive'

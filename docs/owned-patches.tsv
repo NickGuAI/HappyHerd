@@ -489,3 +489,5 @@ FOCUS_MODE_BROWSER_JOURNEYS	accepted	test(focus): verify desktop and phone timer
 FOCUS_MODE_WEB_ACCESSIBILITY	accepted	fix(focus): use web accessibility semantics for the tomato icon	server/packages/happyherd-app/sources/components/FocusModeControl.tsx
 FOCUS_MODE_EXISTING_FIXTURES	accepted	test(focus): adapt existing header and workspace fixtures	server/packages/happyherd-app/sources/components/HomeHeader.test.ts
 FOCUS_MODE_CHANGELOG_GOLDENS	accepted	test(focus): refresh the changelog visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+AUTOMATION_ACTIVE_GREEN	accepted	fix(app): restore green active automation indicators	server/packages/happyherd-app/sources/app/(app)/automations/index.tsx
+AUTOMATION_ACTIVE_GREEN_CHANGELOG_GOLDENS	accepted	test(app): refresh automation changelog visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@happyherd/wire';
 
+import { lightTheme } from '@/theme';
 import type { Machine } from '@/sync/storageTypes';
 
 const testState = vi.hoisted(() => ({
@@ -348,6 +349,41 @@ describe('AutomationsScreen refresh behavior', () => {
 });
 
 describe('AutomationsScreen master-detail behavior', () => {
+    it('colors active lifecycle indicators green and leaves paused indicators secondary', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 4,
+            automations: [
+                { ...automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Active workflow', []), status: 'active' },
+                automation('22222222-2222-4222-8222-222222222222', 'machine-a', 'Paused workflow', []),
+            ],
+        });
+
+        const renderer = await renderScreen();
+        const activeRow = renderer.root.findByProps({ accessibilityLabel: 'Open details for Active workflow' });
+        const pausedRow = renderer.root.findByProps({ accessibilityLabel: 'Open details for Paused workflow' });
+        const statusDot = (row: typeof activeRow) => row.findAll((node: any) => (
+            node.type === 'View'
+            && node.props.style?.flat?.().some((style: any) => style?.width === 8)
+        ))[0];
+        const statusLabel = (row: typeof activeRow, label: string) => row.findAllByType('Text' as any).find((node: any) => (
+            node.props.children === label
+        ));
+
+        expect(statusDot(activeRow).props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ backgroundColor: lightTheme.colors.diff.success }),
+        ]));
+        expect(statusDot(pausedRow).props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ backgroundColor: '#666666' }),
+        ]));
+        expect(statusLabel(activeRow, 'happyHerd.automations.statusActive')?.props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: lightTheme.colors.diff.success }),
+        ]));
+        expect(statusLabel(pausedRow, 'happyHerd.automations.statusPaused')?.props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: '#666666' }),
+        ]));
+    });
+
     it('uses one global machine selector and one deduplicated compact list', async () => {
         testState.machines = [machine('machine-a', 100), machine('machine-b', 100)];
         testState.listAutomations.mockImplementation(async (machineId: string) => ({

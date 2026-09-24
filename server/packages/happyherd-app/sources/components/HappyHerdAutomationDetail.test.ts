@@ -4,6 +4,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@happyherd/wire';
 
+import { lightTheme } from '@/theme';
+
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
@@ -170,6 +172,24 @@ function renderDetail(overrides: Partial<React.ComponentProps<typeof HappyHerdAu
 }
 
 describe('HappyHerdAutomationDetail', () => {
+    it('uses green for the active lifecycle label and secondary text when paused', () => {
+        const active = renderDetail().renderer;
+        const activeLabel = active.root.findAllByType('Text' as any).find((node: any) => (
+            node.props.children === 'happyHerd.automations.statusActive'
+        ));
+        expect(activeLabel?.props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: lightTheme.colors.diff.success }),
+        ]));
+
+        const paused = renderDetail({ automation: { ...automation, status: 'paused' } }).renderer;
+        const pausedLabel = paused.root.findAllByType('Text' as any).find((node: any) => (
+            node.props.children === 'happyHerd.automations.statusPaused'
+        ));
+        expect(pausedLabel?.props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: '#666666' }),
+        ]));
+    });
+
     it('keeps exactly one desktop header action and closes through it', () => {
         const { props, renderer } = renderDetail();
         const header = renderer.root.findByProps({ testID: 'automation-detail-header' });
