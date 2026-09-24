@@ -3,7 +3,12 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Options as ClaudeSdkOptions } from '@anthropic-ai/claude-agent-sdk';
-import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@happyherd/wire';
+import {
+    HAPPYHERD_CLAUDE_MODEL_SLUGS,
+    HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
+    HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS,
+    HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT,
+} from '@happyherd/wire';
 import { parseDocument } from 'yaml';
 
 import type { AgentCapabilityCatalog } from '@/api/types';
@@ -178,7 +183,17 @@ export function buildClaudeCapabilityCatalog(
         },
         models: [
             option('default', 'provider default', null),
-            ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]),
+            ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]).map((model) => model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+                ? {
+                    ...model,
+                    effortLevels: HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS.map((effort) => option(
+                        effort,
+                        effort,
+                        undefined,
+                        effort === HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT ? true : undefined,
+                    )),
+                }
+                : model),
         ],
         effortLevels: efforts,
         // `manual` is a Claude Code CLI-only value. HappyHerd executes Claude

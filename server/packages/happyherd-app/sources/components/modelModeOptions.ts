@@ -1,5 +1,14 @@
 import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
-import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_AGY_EFFORTS, HAPPYHERD_DEFAULT_AGY_MODEL, HAPPYHERD_CLAUDE_MODEL_SLUGS, HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS } from '@happyherd/wire';
+import {
+    HAPPYHERD_AGY_MODEL_NAMES,
+    HAPPYHERD_AGY_EFFORTS,
+    HAPPYHERD_DEFAULT_AGY_MODEL,
+    HAPPYHERD_CLAUDE_MODEL_SLUGS,
+    HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS,
+    HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS,
+    HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
+    HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT,
+} from '@happyherd/wire';
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
@@ -153,6 +162,15 @@ function releaseModelDetails(flavor: AgentFlavor, modelKey: string): Partial<Mod
             providerName: 'Anthropic',
             ...(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey]
                 ? { contextWindow: HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey] }
+                : {}),
+            ...(modelKey === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+                ? {
+                    effortLevels: HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS.map((key) => ({
+                        key,
+                        name: key,
+                        ...(key === HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT ? { isDefault: true } : {}),
+                    })),
+                }
                 : {}),
         };
     }
@@ -692,7 +710,7 @@ export function getEffortLevelsForModel(
     // Legacy/offline sessions use flavor fallbacks. Connected sessions use
     // the selected machine's model-specific provider catalog below.
     if (flavor === 'claude') {
-        return getClaudeEffortLevels();
+        return releaseModelDetails(flavor, modelKey).effortLevels ?? getClaudeEffortLevels();
     }
     if (flavor === 'codex') {
         return getCodexEffortLevels(modelKey);
@@ -789,6 +807,8 @@ export function getRigCurrentModelOptionKey(metadata: Metadata | null | undefine
 export function getDefaultEffortKeyForModel(flavor: AgentFlavor, modelKey: string): string | null {
     const levels = getEffortLevelsForModel(flavor, modelKey);
     if (levels.length === 0) return null;
+    const modelDefault = levels.find((level) => level.isDefault)?.key;
+    if (modelDefault) return modelDefault;
     return getCodeAgentDefaults(flavor).effortLevel ?? levels[levels.length - 1].key;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBaselineAgentCapabilities } from './agentCapabilities';
+import { buildBaselineAgentCapabilities, buildClaudeCapabilityCatalog } from './agentCapabilities';
 import type { MachineMetadata } from '@/api/types';
 import { persistedProviderPermissionMode, resolveEffectiveSessionSettings } from './sessionLaunchSettings';
 
@@ -216,6 +216,43 @@ describe('resolveEffectiveSessionSettings', () => {
             effort: null,
             permission: 'default',
         });
+    });
+
+    it('defaults Opus 5.5 to medium and validates every documented effort on the exact machine', () => {
+        const target = metadata();
+        target.cliAvailability = {
+            ...target.cliAvailability!,
+            codex: false,
+            claude: true,
+        };
+        target.agentCapabilities = {
+            claude: buildClaudeCapabilityCatalog(
+                '--effort <level> (low, medium, high, xhigh, max)',
+                1,
+            ),
+        };
+
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'claude',
+            model: 'claude-opus-5-5',
+        })).toMatchObject({
+            provider: 'claude',
+            model: 'claude-opus-5-5',
+            effort: 'medium',
+        });
+
+        for (const effort of ['low', 'medium', 'high', 'xhigh', 'max']) {
+            expect(resolveEffectiveSessionSettings(target, 'machine-1', {
+                provider: 'claude',
+                model: 'claude-opus-5-5',
+                effort,
+            }).effort).toBe(effort);
+        }
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'claude',
+            model: 'claude-opus-5-5',
+            effort: 'ultra',
+        })).toThrow('does not advertise effort level "ultra"');
     });
 
     it('returns an all-ambient receipt when a catalogless provider launch omits every selection', () => {

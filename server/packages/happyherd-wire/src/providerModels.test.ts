@@ -4,6 +4,9 @@ import {
     HAPPYHERD_AGY_MODEL_NAMES,
     HAPPYHERD_AGY_EFFORTS,
     HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS,
+    HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
+    HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS,
+    HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT,
     HAPPYHERD_DEFAULT_AGY_MODEL,
     HAPPYHERD_DEFAULT_AGY_EFFORT,
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
@@ -16,6 +19,7 @@ describe('HappyHerd provider model catalog', () => {
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toEqual([
             'claude-fable-5-1',
             'claude-fable-5',
+            'claude-opus-5-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
             'claude-opus-4-8',
@@ -25,6 +29,9 @@ describe('HappyHerd provider model catalog', () => {
         ]);
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS.every((slug) => /^claude-[a-z]+-\d(?:-\d+)?(?:\[1m\])?$/.test(slug))).toBe(true);
         expect(HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG).toBe('claude-opus-5');
+        expect(HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG).toBe('claude-opus-5-5');
+        expect(HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT).toBe('medium');
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-fable-5-1']).toBe(1_000_000);
     });
 

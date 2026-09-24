@@ -151,8 +151,13 @@ export function resolveAgentDefaultConfig(
 export function resolveAgentDefaultEffortLevel(
     overrides: AgentDefaultOverrides | null | undefined,
     flavor: string | null | undefined,
-    availableEfforts: ReadonlyArray<{ key: string }>,
+    availableEfforts: ReadonlyArray<{ key: string; isDefault?: boolean }>,
 ): string | null {
+    const explicitEffort = getAgentDefaultOverride(overrides, flavor).effortLevel;
+    if (!explicitEffort && normalizeAgentKey(flavor) === 'claude') {
+        const modelDefault = availableEfforts.find((effort) => effort.isDefault)?.key;
+        if (modelDefault) return modelDefault;
+    }
     const configured = resolveAgentDefaultConfig(overrides, flavor).effortLevel;
     return resolveSupportedAgentEffortLevel(configured, flavor, availableEfforts);
 }

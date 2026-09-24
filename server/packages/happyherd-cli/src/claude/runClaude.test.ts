@@ -1026,6 +1026,34 @@ describe('runClaude remote JSONL scanner', () => {
         await harness.finish();
     });
 
+    it('defaults fresh Claude Opus 5.5 turns to medium effort', async () => {
+        const harness = await startRemoteRunClaudeHarness({
+            runOptions: { model: 'claude-opus-5-5' },
+        });
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        expect(harness.api.getOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+            metadata: expect.objectContaining({
+                spawnSettings: expect.objectContaining({
+                    provider: 'claude',
+                    model: 'claude-opus-5-5',
+                    effort: 'medium',
+                }),
+            }),
+        }));
+
+        await userMessageHandler({
+            content: { text: 'use the model default' },
+            meta: {},
+        });
+
+        expect(harness.loopOptions.messageQueue.queue[0].mode).toMatchObject({
+            model: 'claude-opus-5-5',
+            effort: 'medium',
+        });
+        await harness.finish();
+    });
+
     it('publishes explicit terminal launch modes for the UI', async () => {
         const harness = await startRemoteRunClaudeHarness({
             runOptions: {
@@ -1164,6 +1192,28 @@ describe('runClaude remote JSONL scanner', () => {
 
         expect(harness.loopOptions.messageQueue.queue[1].mode).toMatchObject({
             effort: 'max',
+        });
+        await harness.finish();
+    });
+
+    it('resets Opus 5.5 effort to its model default', async () => {
+        const harness = await startRemoteRunClaudeHarness({
+            runOptions: { model: 'claude-opus-5-5' },
+        });
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            content: { text: 'use less effort once' },
+            meta: { effort: 'high' },
+        });
+        await userMessageHandler({
+            content: { text: 'return to the model default' },
+            meta: { effort: null },
+        });
+
+        expect(harness.loopOptions.messageQueue.queue[1].mode).toMatchObject({
+            model: 'claude-opus-5-5',
+            effort: 'medium',
         });
         await harness.finish();
     });

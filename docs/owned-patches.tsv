@@ -491,3 +491,4 @@ FOCUS_MODE_EXISTING_FIXTURES	accepted	test(focus): adapt existing header and wor
 FOCUS_MODE_CHANGELOG_GOLDENS	accepted	test(focus): refresh the changelog visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 AUTOMATION_ACTIVE_GREEN	accepted	fix(app): restore green active automation indicators	server/packages/happyherd-app/sources/app/(app)/automations/index.tsx
 AUTOMATION_ACTIVE_GREEN_CHANGELOG_GOLDENS	accepted	test(app): refresh automation changelog visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+CLAUDE_OPUS_5_5	accepted	feat(claude): add Opus 5.5 model support	server/packages/happyherd-cli/src/claude/runClaude.test.ts

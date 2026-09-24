@@ -71,6 +71,10 @@ import {
     composeUserSafeguardPrompt,
     resolveUserSafeguardPromptMode,
 } from '@/userSafeguard/userSafeguard';
+import {
+    HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
+    HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT,
+} from '@happyherd/wire';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -94,6 +98,14 @@ export interface StartOptions {
 // applies its own settings. Substituting a value here — this used to be
 // 'yolo' — silently overrode every user's Claude config with full access.
 const DEFAULT_CLAUDE_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'max';
+type ClaudeEffort = NonNullable<StartOptions['effort']>;
+
+function defaultClaudeEffortForModel(model: string | null | undefined): ClaudeEffort {
+    return model === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+        ? HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT
+        : DEFAULT_CLAUDE_EFFORT;
+}
+
 type ClaudeGoalCommand = NonNullable<ReturnType<typeof parseClaudeGoalActionParams>>;
 type PendingClaudeGoalAction = {
     command: ClaudeGoalCommand;
@@ -211,7 +223,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         spawnSettings: {
             provider: 'claude',
             model: options.model ?? null,
-            effort: options.effort ?? DEFAULT_CLAUDE_EFFORT,
+            effort: options.effort ?? defaultClaudeEffortForModel(options.model),
             permission: initialPermissionMode ?? null,
         },
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
@@ -234,7 +246,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         : options.model;
     const nativeEffort = hasClaudeDaemonLaunchReceipt
         ? effectiveLaunchSettings?.effort ?? undefined
-        : options.effort ?? DEFAULT_CLAUDE_EFFORT;
+        : options.effort ?? defaultClaudeEffortForModel(options.model);
     metadata.permissionMode = hasClaudeDaemonLaunchReceipt
         ? effectiveLaunchSettings?.permission ?? null
         : initialPermissionMode ?? null;
@@ -952,9 +964,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
             if (incoming === null || incoming === undefined) {
-                messageEffort = DEFAULT_CLAUDE_EFFORT;
-                currentEffort = DEFAULT_CLAUDE_EFFORT;
-                logger.debug(`[loop] Effort reset to default: ${DEFAULT_CLAUDE_EFFORT}`);
+                messageEffort = defaultClaudeEffortForModel(currentModel);
+                currentEffort = messageEffort;
+                logger.debug(`[loop] Effort reset to default: ${messageEffort}`);
             } else if (typeof incoming === 'string' && VALID_EFFORTS.has(incoming)) {
                 messageEffort = incoming as 'low' | 'medium' | 'high' | 'xhigh' | 'max';
                 currentEffort = messageEffort;
