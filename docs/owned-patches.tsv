@@ -494,3 +494,4 @@ AUTOMATION_ACTIVE_GREEN_CHANGELOG_GOLDENS	accepted	test(app): refresh automation
 CLAUDE_OPUS_5_5	accepted	feat(claude): add Opus 5.5 model support	server/packages/happyherd-cli/src/claude/runClaude.test.ts
 CLAUDE_OPUS_5_5_GOLDENS	accepted	test(app): refresh four changelog golden screenshots to include Claude Opus 5.5	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 CLI_SAVED_CREDENTIALS	accepted	feat(cli): add saved credential list and run commands	server/packages/happyherd-cli/src/commands/credentials.test.ts
+CLI_SAVED_CREDENTIALS_GOLDENS	accepted	test(app): refresh changelog golden screenshots for CLI saved credentials	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
