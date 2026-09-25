@@ -27,6 +27,7 @@ import { listDaemonSessions, stopDaemonSession } from './daemon/controlClient'
 import { handleAuthCommand } from './commands/auth'
 import { handleConnectCommand } from './commands/connect'
 import { handleAccountsCommand } from './commands/accounts'
+import { handleCredentialsCommand } from '@/commands/credentials'
 import { handleSandboxCommand } from './commands/sandbox'
 import { handleServerCommand } from './commands/server'
 import { spawnHappyHerdCLI } from './utils/spawnHappyHerdCLI'
@@ -117,6 +118,14 @@ Conversation history is preserved on the server, but in-flight tool calls are in
   } else if (subcommand === 'accounts') {
     try {
       await handleAccountsCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'credentials') {
+    try {
+      process.exitCode = await handleCredentialsCommand(args.slice(1));
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
@@ -741,6 +750,7 @@ ${chalk.bold('Usage:')}
   happyherd acp               Start a generic ACP-compatible agent
   happyherd connect           Connect AI vendor API keys
   happyherd accounts      List, select, or remove named provider accounts
+  happyherd credentials       List saved credentials or run a command with them
   happyherd sandbox           Configure and manage OS-level sandboxing
   happyherd notify            Send push notification
   happyherd daemon            Manage background service that allows

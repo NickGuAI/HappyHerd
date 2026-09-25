@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 25 — Saved credentials in the CLI",
+      "summary": "",
+      "markdown": "- Added `happyherd credentials list`, with optional `--json` output, to show your saved credentials without exposing secret values.\n- Added `happyherd credentials run` to pass selected saved credentials to a command as environment variables; values are never printed, and nothing is injected automatically."
+    },
+    {
       "title": "September 24 — Claude Opus 5.5 support",
       "summary": "",
       "markdown": "- Added support for Claude Opus 5.5 featuring adaptive thinking with selectable effort levels (low, medium, high, xhigh, max), defaulting to medium."
@@ -826,5 +831,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 24 — Claude Opus 5.5 support"
+  "latestTitle": "September 25 — Saved credentials in the CLI"
 }
