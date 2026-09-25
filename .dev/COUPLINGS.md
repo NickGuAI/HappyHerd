@@ -235,7 +235,11 @@ sessions. Account-wide saved credentials are owned by `happyherd-server`
 `credentialRoutes` and the Prisma `SavedCredential` model; service, username,
 and secret are encrypted, lists contain summaries only, and explicit reveal
 returns one response marked `no-store`. Skills, Browser, and MCP labels are
-descriptive and do not inject secrets.
+descriptive and do not inject secrets. The explicit CLI consumer is the one-shot
+`happyherd credentials` command in `src/commands/credentials.ts`: `list` reads
+the summaries with the `happyherd auth login` token, and only `run` reveals the
+referenced entries into one child command's environment. It introduces no
+daemon, server, wire, or application behavior.
 
 ### Provider prompt, permission, and tool-event behavior
 

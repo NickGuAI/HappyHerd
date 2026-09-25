@@ -49,7 +49,7 @@ happyherd <command>
 ├── Daemon        · start, stop, status, list
 ├── Commanders    · list, create --manifest <absolute-file>
 ├── Automations   · list, create, update, pause, resume, run-now, history, delete
-├── Auth/Connect  · auth, connect, accounts
+├── Auth/Connect  · auth, connect, accounts, credentials
 └── Diagnostics   · sandbox, notify, doctor
 ```
 

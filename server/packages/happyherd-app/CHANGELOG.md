@@ -1,3 +1,8 @@
+# September 25 — Saved credentials in the CLI
+
+- Added `happyherd credentials list`, with optional `--json` output, to show your saved credentials without exposing secret values.
+- Added `happyherd credentials run` to pass selected saved credentials to a command as environment variables; values are never printed, and nothing is injected automatically.
+
 # September 24 — Claude Opus 5.5 support
 
 - Added support for Claude Opus 5.5 featuring adaptive thinking with selectable effort levels (low, medium, high, xhigh, max), defaulting to medium.

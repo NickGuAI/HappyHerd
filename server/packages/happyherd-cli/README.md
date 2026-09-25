@@ -310,6 +310,29 @@ with transcript history and runtime context preserved. If all configured
 accounts for a provider are limited, execution pauses until the earliest
 account becomes eligible again.
 
+### Saved credentials
+
+Saved credentials are the encrypted secrets stored in your HappyHerd account
+under Settings > Credentials & Accounts. The `happyherd credentials` commands
+use your existing sign-in from `happyherd auth login` without starting the
+daemon or launching a login flow.
+
+```bash
+happyherd credentials list
+happyherd credentials list --json
+happyherd credentials run --env EXAMPLE_API_KEY=example-api-key -- ./scripts/deploy.sh
+```
+
+The `list` command displays secret-free credential summaries, including name,
+type, usage labels, service, username, and ID, and never shows secret values.
+The `--json` flag outputs the same secret-free details in JSON format.
+
+The `run` command injects secret values strictly as environment variables into
+the specified command. HappyHerd prints no values, never writes them to logs or
+command-line arguments, and exits with the command's exit code. It halts before
+revealing any value if a reference is unknown or ambiguous, a variable name is
+invalid or repeated, the command is missing, or the CLI is not signed in.
+
 ## Commands
 
 | Command | Description |
@@ -322,6 +345,8 @@ account becomes eligible again.
 | `happyherd acp` | Start any ACP-compatible agent |
 | `happyherd resume <id>` | Resume a previous session |
 | `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create and manage exact-parent side chats for Claude, Codex, Gemini, Grok, DSH, and Agy on their local owning daemon |
+| `happyherd credentials list [--json]` | List saved credentials without secret values |
+| `happyherd credentials run --env VAR=<name\|id> -- <command>` | Run commands with credentials injected as environment variables |
 | `happyherd notify` | Send push notification to your devices |
 | `happyherd doctor` | Diagnostics & troubleshooting |
 | `happyherd commander list` | List Commanders available on this machine |
