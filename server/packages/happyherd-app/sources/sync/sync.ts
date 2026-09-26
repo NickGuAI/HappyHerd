@@ -485,6 +485,13 @@ class Sync {
         gitStatusSync.getSync(sessionId).invalidate();
     }
 
+    private shouldFetchSessionMessages = (sessionId: string): boolean => {
+        const state = storage.getState();
+        return state.currentViewingSessionId === sessionId
+            || state.sessionMessages[sessionId]?.isLoaded === true
+            || state.realtimeStatus === 'connected';
+    }
+
     private onSessionDataUpdated = (sessionId: string) => {
         // Git status follows file changes (see the new-message handler), not
         // every server event.
@@ -2703,6 +2710,11 @@ class Sync {
         // The loop yields between pages to keep the UI thread responsive
         // and to spread out server load.
         while (true) {
+            // Page history only while the Human is viewing this chat; scrolling
+            // up still loads older pages on demand.
+            if (storage.getState().currentViewingSessionId !== sessionId) {
+                return;
+            }
             const sessionMessages = storage.getState().sessionMessages[sessionId];
             if (!sessionMessages || !sessionMessages.hasMoreOlder) {
                 return;
@@ -2947,6 +2959,7 @@ class Sync {
         console.log(`🔄 Sync: Validated update type: ${updateData.body.t}`);
 
         if (updateData.body.t === 'new-message') {
+            let appliedFromSocket = false;
 
             // Get encryption — may not be ready if sessions are still syncing
             let encryption = this.encryption.getSessionEncryption(updateData.body.sid);
@@ -3023,14 +3036,14 @@ class Sync {
                         this.fetchSessions();
                     }
 
-                    // Fast-path only on consecutive seq values, otherwise fetch from server.
+                    // Apply consecutive seq values from the socket; anything else
+                    // is a gap that the server fills below.
                     const currentLastSeq = this.sessionLastSeq.get(updateData.body.sid);
                     const incomingSeq = updateData.body.message.seq;
                     if (lastMessage && currentLastSeq !== undefined && incomingSeq === currentLastSeq + 1) {
                         this.enqueueMessages(updateData.body.sid, [lastMessage]);
                         this.sessionLastSeq.set(updateData.body.sid, incomingSeq);
-                    } else {
-                        this.getMessagesSync(updateData.body.sid).invalidate();
+                        appliedFromSocket = true;
                     }
 
                     // Git status runs four commands on the session's machine, so
@@ -3047,8 +3060,14 @@ class Sync {
                 }
             }
 
+            // The socket already delivered a consecutive message. Fetch only to
+            // fill a gap in a chat this tab has loaded or is showing, or while
+            // voice follows sessions; unopened chats load when first opened.
+            if (!appliedFromSocket && this.shouldFetchSessionMessages(updateData.body.sid)) {
+                this.getMessagesSync(updateData.body.sid).invalidate();
+            }
             // A socket update refreshes data; it is not a user opening a chat.
-            this.onSessionDataUpdated(updateData.body.sid);
+            this.notifyVoiceSessionFocus(updateData.body.sid);
 
         } else if (updateData.body.t === 'new-session') {
             log.log('🆕 New session update received');
@@ -3523,6 +3542,11 @@ class Sync {
 
         for (const [sessionId, update] of updates) {
             const session = storage.getState().sessions[sessionId];
+            // A heartbeat that changes neither state only moves timestamps that
+            // nothing renders for an active session; skip the store rebuild.
+            if (session && session.active && update.active && (session.thinking ?? false) === (update.thinking ?? false)) {
+                continue;
+            }
             if (session) {
                 sessions.push({
                     ...session,
