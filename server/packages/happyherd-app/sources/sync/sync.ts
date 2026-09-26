@@ -112,6 +112,26 @@ import { SessionAvatarHydrator } from './SessionAvatarHydrator';
 import { sessionAvatarDescriptorSchema, sessionAvatarRevisionSchema, sameSessionAvatar } from './sessionAvatarTypes';
 import { releaseSpawnedSession } from './spawnRequestId';
 
+/** A session record from GET /v1/sessions or GET /v2/sessions. */
+type FetchedSession = {
+    id: string;
+    tag?: string;
+    seq: number;
+    metadata: string;
+    metadataVersion: number;
+    agentState: string | null;
+    agentStateVersion: number;
+    dataEncryptionKey: string | null;
+    projectId?: string | null;
+    avatar?: unknown;
+    avatarVersion?: unknown;
+    active: boolean;
+    activeAt: number;
+    createdAt: number;
+    updatedAt: number;
+    lastMessage?: ApiMessage | null;
+};
+
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
     hasMore: boolean;
@@ -188,12 +208,16 @@ function avatarDescriptorKey(descriptor: NonNullable<DecryptedProjectRecord['ava
 class Sync {
     private static readonly BACKGROUND_SEND_TIMEOUT_MS = 30_000;
     private static readonly SESSION_MESSAGE_LOAD_TIMEOUT_MS = 4_000;
+    private static readonly SESSION_DELTA_OVERLAP_MS = 60_000;
     encryption!: Encryption;
     serverID!: string;
     anonID!: string;
     private credentials!: AuthCredentials;
     public encryptionCache = new EncryptionCache();
     private sessionsSync: InvalidateSync;
+    private sessionsDeltaSync: InvalidateSync;
+    // Newest server updatedAt seen in a session list response
+    private sessionsChangedSince: number | null = null;
     private projectsSync: InvalidateSync;
     private messagesSync = new Map<string, InvalidateSync>();
     private messagePreloader = new SessionMessagePreloader((sessionId, signal) => this.preloadLatestPage(sessionId, signal));
@@ -257,6 +281,7 @@ class Sync {
 
     constructor() {
         this.sessionsSync = new InvalidateSync(this.fetchSessions);
+        this.sessionsDeltaSync = new InvalidateSync(this.fetchChangedSessions);
         this.projectsSync = new InvalidateSync(this.fetchProjects);
         this.settingsSync = new InvalidateSync(this.syncSettings);
         this.profileSync = new InvalidateSync(this.fetchProfile);
@@ -304,7 +329,7 @@ class Sync {
                 this.profileSync.invalidate();
                 this.machinesSync.invalidate();
                 this.pushTokenSync.invalidate();
-                this.sessionsSync.invalidate();
+                this.sessionsDeltaSync.invalidate();
                 this.projectsSync.invalidate();
                 this.nativeUpdateSync.invalidate();
                 log.log('📱 App became active: Invalidating artifacts sync');
@@ -1640,28 +1665,58 @@ class Sync {
         }
 
         const data = await response.json();
-        const sessions = data.sessions as Array<{
-            id: string;
-            tag: string;
-            seq: number;
-            metadata: string;
-            metadataVersion: number;
-            agentState: string | null;
-            agentStateVersion: number;
-            dataEncryptionKey: string | null;
-            projectId?: string | null;
-            avatar?: unknown;
-            avatarVersion?: unknown;
-            active: boolean;
-            activeAt: number;
-            createdAt: number;
-            updatedAt: number;
-            lastMessage: ApiMessage | null;
-        }>;
+        await this.applyFetchedSessions(data.sessions as FetchedSession[], avatarsBeforeFetch);
+    }
 
-        // Initialize all session encryptions first
+    /**
+     * Fetch only the sessions the server changed since the newest list this
+     * tab applied. Socket events keep the list current while connected, so
+     * tab return, reconnect, and new-session catch up without the full list.
+     */
+    private fetchChangedSessions = async () => {
+        if (!this.credentials) return;
+        if (this.sessionsChangedSince === null) {
+            await this.fetchSessions();
+            return;
+        }
+        const avatarsBeforeFetch = storage.getState().sessions;
+        // Overlap the watermark so a change committed just before it is not missed.
+        const changedSince = Math.max(1, this.sessionsChangedSince - Sync.SESSION_DELTA_OVERLAP_MS);
+        const sessions: FetchedSession[] = [];
+        let cursor: string | null = null;
+        do {
+            const query = new URLSearchParams({ changedSince: String(changedSince), limit: '200' });
+            if (cursor) query.set('cursor', cursor);
+            const response = await fetch(`${getServerUrl()}/v2/sessions?${query}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.credentials.token}`,
+                    'Content-Type': 'application/json',
+                    'X-Happy-Client': getHappyHerdClientId(),
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch changed sessions: ${response.status}`);
+            }
+            const data = await response.json() as { sessions: FetchedSession[]; nextCursor: string | null; hasNext: boolean };
+            sessions.push(...data.sessions);
+            cursor = data.hasNext ? data.nextCursor : null;
+        } while (cursor);
+        if (sessions.length > 0) {
+            await this.applyFetchedSessions(sessions, avatarsBeforeFetch);
+        }
+    }
+
+    private awaitSessionsSync = async () => {
+        await Promise.all([this.sessionsSync.awaitQueue(), this.sessionsDeltaSync.awaitQueue()]);
+    }
+
+    private applyFetchedSessions = async (sessions: FetchedSession[], avatarsBeforeFetch: Record<string, Session>) => {
+        // Initialize session encryptions first; known sessions keep theirs.
         const sessionKeys = new Map<string, Uint8Array | null>();
         for (const session of sessions) {
+            if (this.encryption.getSessionEncryption(session.id)) {
+                continue;
+            }
             if (session.dataEncryptionKey) {
                 let decrypted = await this.encryption.decryptEncryptionKey(session.dataEncryptionKey);
                 if (!decrypted) {
@@ -1739,6 +1794,9 @@ class Sync {
             thinkingAt: s.active ? (current[s.id]?.thinkingAt ?? 0) : 0,
         })));
         this.projectsSync.invalidate();
+        for (const session of sessions) {
+            this.sessionsChangedSince = Math.max(this.sessionsChangedSince ?? 0, session.updatedAt);
+        }
         log.log(`📥 fetchSessions completed - processed ${decryptedSessions.length} sessions`);
         // Machine-readable for scripts/perf-e2e.mjs, which deep-links through
         // the most recent real sessions and reads [perf] timings off Metro.
@@ -2932,7 +2990,7 @@ class Sync {
             // covers the very first connect; this covers reconnects).
             apiSocket.sendAppState(getCurrentAppState());
 
-            this.sessionsSync.invalidate();
+            this.sessionsDeltaSync.invalidate();
             this.machinesSync.invalidate();
             log.log('🔌 Socket reconnected: Invalidating artifacts sync');
             this.artifactsSync.invalidate();
@@ -2964,7 +3022,7 @@ class Sync {
             // Get encryption — may not be ready if sessions are still syncing
             let encryption = this.encryption.getSessionEncryption(updateData.body.sid);
             if (!encryption) {
-                await this.sessionsSync.awaitQueue();
+                await this.awaitSessionsSync();
                 encryption = this.encryption.getSessionEncryption(updateData.body.sid);
                 if (!encryption) {
                     console.error(`Session ${updateData.body.sid} not found after sync`);
@@ -3071,7 +3129,7 @@ class Sync {
 
         } else if (updateData.body.t === 'new-session') {
             log.log('🆕 New session update received');
-            this.sessionsSync.invalidate();
+            this.sessionsDeltaSync.invalidate();
         } else if (updateData.body.t === 'delete-session') {
             log.log('🗑️ Delete session update received');
             const sessionId = updateData.body.sid;
@@ -3119,7 +3177,7 @@ class Sync {
             let session = storage.getState().sessions[updateData.body.id];
             let sessionEncryption = this.encryption.getSessionEncryption(updateData.body.id);
             if (!session || !sessionEncryption) {
-                await this.sessionsSync.awaitQueue();
+                await this.awaitSessionsSync();
                 session = storage.getState().sessions[updateData.body.id];
                 sessionEncryption = this.encryption.getSessionEncryption(updateData.body.id);
             }
