@@ -2,7 +2,7 @@ import { InvalidateSync } from "@/utils/sync";
 import { RawJSONLines, RawJSONLinesSchema } from "../types";
 import { parseClaudeGoalStatusTranscriptEvent, type ClaudeGoalStatusTranscriptEvent } from "../claudeGoalStatus";
 import { join } from "node:path";
-import { readFile } from "node:fs/promises";
+import { open, stat } from "node:fs/promises";
 import { logger } from "@/ui/logger";
 import { startFileWatcher } from "@/modules/watcher/startFileWatcher";
 import { getProjectPath } from "./path";
@@ -46,6 +46,8 @@ export async function createSessionScanner(opts: {
     let currentSessionId: string | null = null;
     let watchers = new Map<string, (() => void)>();
     let processedEntryKeys = new Set<string>();
+    // How far each transcript has been read, so a pass parses only new lines
+    let cursors = new Map<string, TranscriptCursor>();
     // Sessions whose transcript file never appeared. Their watcher gave up,
     // so we must stop re-reading them and never re-create a watcher for them
     // — otherwise a phantom session id (e.g. a remote launch whose .jsonl is
@@ -55,7 +57,7 @@ export async function createSessionScanner(opts: {
 
     // Mark existing entries as processed and start watching the initial session
     if (opts.sessionId) {
-        let entries = await readSessionEntries(projectDir, opts.sessionId);
+        let entries = await readNewSessionEntries(projectDir, opts.sessionId, cursors);
         logger.debug(`[SESSION_SCANNER] Marking ${entries.length} existing entries as processed from session ${opts.sessionId}`);
         for (let entry of entries) {
             processedEntryKeys.add(entry.key);
@@ -89,7 +91,7 @@ export async function createSessionScanner(opts: {
 
         // Process sessions
         for (let session of sessions) {
-            const sessionEntries = await readSessionEntries(projectDir, session);
+            const sessionEntries = await readNewSessionEntries(projectDir, session, cursors);
             let skipped = 0;
             let sentMessages = 0;
             let sentTranscriptEvents = 0;
@@ -190,7 +192,7 @@ export async function createSessionScanner(opts: {
             // file as fresh user prompts. Without this, every previous
             // user message re-appears in the chat after reconnect.
             if (options?.treatExistingAsProcessed) {
-                const existing = await readSessionEntries(projectDir, sessionId);
+                const existing = await readNewSessionEntries(projectDir, sessionId, cursors);
                 logger.debug(`[SESSION_SCANNER] Pre-marking ${existing.length} existing entries as processed for new session ${sessionId}`);
                 for (const entry of existing) {
                     processedEntryKeys.add(entry.key);
@@ -231,22 +233,61 @@ function transcriptEventKey(event: ScannerTranscriptEvent): string {
     return `event:${event.uuid}`;
 }
 
+type TranscriptCursor = { offset: number; ino: number };
+
 /**
- * Read and parse session log file
+ * Read and parse the part of a session log file written since the last read.
+ * Transcripts are append-only JSONL, so the cursor only advances past
+ * complete lines; a replaced or truncated file is read again from the start
+ * and its already-processed entries are skipped by key.
  * Returns only valid conversation messages and recognized side-channel events,
  * silently skipping internal events.
  */
-async function readSessionEntries(projectDir: string, sessionId: string): Promise<SessionLogEntry[]> {
+async function readNewSessionEntries(projectDir: string, sessionId: string, cursors: Map<string, TranscriptCursor>): Promise<SessionLogEntry[]> {
     const expectedSessionFile = join(projectDir, `${sessionId}.jsonl`);
-    logger.debug(`[SESSION_SCANNER] Reading session file: ${expectedSessionFile}`);
-    let file: string;
+    let fileStat;
     try {
-        file = await readFile(expectedSessionFile, 'utf-8');
+        fileStat = await stat(expectedSessionFile);
     } catch (error) {
         logger.debug(`[SESSION_SCANNER] Session file not found: ${expectedSessionFile}`);
         return [];
     }
-    let lines = file.split('\n');
+    let cursor = cursors.get(sessionId);
+    if (!cursor || cursor.ino !== fileStat.ino || fileStat.size < cursor.offset) {
+        cursor = { offset: 0, ino: fileStat.ino };
+    }
+    if (fileStat.size === cursor.offset) {
+        cursors.set(sessionId, cursor);
+        return [];
+    }
+
+    logger.debug(`[SESSION_SCANNER] Reading session file: ${expectedSessionFile} from byte ${cursor.offset}`);
+    let chunk: Buffer;
+    try {
+        const handle = await open(expectedSessionFile, 'r');
+        try {
+            const buffer = Buffer.alloc(fileStat.size - cursor.offset);
+            const { bytesRead } = await handle.read(buffer, 0, buffer.length, cursor.offset);
+            chunk = buffer.subarray(0, bytesRead);
+        } finally {
+            await handle.close();
+        }
+    } catch (error) {
+        logger.debug(`[SESSION_SCANNER] Session file not found: ${expectedSessionFile}`);
+        return [];
+    }
+
+    // Parse complete lines only; a final line without a newline is used once
+    // it is valid JSON, otherwise it is still being written.
+    let end = chunk.lastIndexOf(0x0a) + 1;
+    const lines = chunk.subarray(0, end).toString('utf-8').split('\n');
+    const tail = chunk.subarray(end).toString('utf-8');
+    if (tail.trim() !== '' && isCompleteJson(tail)) {
+        lines.push(tail);
+        end = chunk.length;
+    }
+    cursors.set(sessionId, { offset: cursor.offset + end, ino: fileStat.ino });
+
     let entries: SessionLogEntry[] = [];
     for (let l of lines) {
         try {
@@ -287,4 +328,13 @@ async function readSessionEntries(projectDir: string, sessionId: string): Promis
         }
     }
     return entries;
+}
+
+function isCompleteJson(text: string): boolean {
+    try {
+        JSON.parse(text);
+        return true;
+    } catch {
+        return false;
+    }
 }
