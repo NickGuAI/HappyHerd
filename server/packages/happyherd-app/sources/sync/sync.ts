@@ -486,7 +486,9 @@ class Sync {
     }
 
     private onSessionDataUpdated = (sessionId: string) => {
-        this.refreshSessionData(sessionId);
+        // Git status follows file changes (see the new-message handler), not
+        // every server event.
+        this.getMessagesSync(sessionId).invalidate();
         // Preserve existing voice-follow behavior for actual server events.
         // Unlike a user visit, these must not opt a session into full history.
         this.notifyVoiceSessionFocus(sessionId);
@@ -3027,15 +3029,20 @@ class Sync {
                     if (lastMessage && currentLastSeq !== undefined && incomingSeq === currentLastSeq + 1) {
                         this.enqueueMessages(updateData.body.sid, [lastMessage]);
                         this.sessionLastSeq.set(updateData.body.sid, incomingSeq);
-                        let hasMutableTool = false;
-                        if (lastMessage.role === 'agent' && lastMessage.content[0] && lastMessage.content[0].type === 'tool-result') {
-                            hasMutableTool = storage.getState().isMutableToolCall(updateData.body.sid, lastMessage.content[0].tool_use_id);
-                        }
-                        if (hasMutableTool) {
-                            gitStatusSync.invalidate(updateData.body.sid);
-                        }
                     } else {
                         this.getMessagesSync(updateData.body.sid).invalidate();
+                    }
+
+                    // Git status runs four commands on the session's machine, so
+                    // refresh it only when files may have changed: at the end of
+                    // a turn, after a mutating tool result in the viewed session,
+                    // or when this project has never been fetched.
+                    const viewed = storage.getState().currentViewingSessionId === updateData.body.sid;
+                    const firstContent = lastMessage?.role === 'agent' ? lastMessage.content[0] : undefined;
+                    const mutatingToolResult = viewed && firstContent?.type === 'tool-result'
+                        && storage.getState().isMutableToolCall(updateData.body.sid, firstContent.tool_use_id);
+                    if (isTaskComplete || mutatingToolResult || !gitStatusSync.hasStatus(updateData.body.sid)) {
+                        gitStatusSync.invalidate(updateData.body.sid);
                     }
                 }
             }
@@ -3141,10 +3148,9 @@ class Sync {
                 }]);
                 if (nextProjectId !== session.projectId) this.projectsSync.invalidate();
 
-                // Invalidate git status when agent state changes (files may have been modified)
+                // Agent state carries permission and usage bookkeeping; file
+                // changes arrive as tool-result messages, which refresh git status.
                 if (updateData.body.agentState) {
-                    gitStatusSync.invalidate(updateData.body.id);
-
                     // Check for new permission requests and notify voice assistant
                     if (agentState?.requests && Object.keys(agentState.requests).length > 0) {
                         const requestIds = Object.keys(agentState.requests);
