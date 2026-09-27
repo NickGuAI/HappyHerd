@@ -6,6 +6,7 @@ import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Switch } from '@/components/Switch';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 import {
     getMachineAdvertisedEffortLevels,
     getMachineAdvertisedModels,
@@ -43,7 +44,7 @@ function optionName(options: readonly ModeOption[], key: string | null | undefin
     return options.find((option) => option.key === key)?.name ?? key;
 }
 
-export default function StreamlineSettingsScreen() {
+function StreamlineSettingsScreen() {
     const { theme } = useUnistyles();
     const [newSessionMode, setNewSessionMode] = useSettingMutable('newSessionMode');
     const [streamlineAgent, setStreamlineAgent] = useSettingMutable('streamlineAgent');
@@ -236,3 +237,5 @@ export default function StreamlineSettingsScreen() {
         </ItemList>
     );
 }
+
+export default withSettingsFrame('streamline', StreamlineSettingsScreen);

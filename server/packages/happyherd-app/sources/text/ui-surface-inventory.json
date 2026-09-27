@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bf7500fd7ec7eedae7a7b5d1aaba74e88bf9ae080ca16a0c107f5bd7fd1cebe8",
+  "sourceFingerprint": "e5f1771064909cddbd523c20c0224c4168d41fb402e627615df9f7d201b773f1",
   "routeCount": 43,
   "surfaceCount": 307,
   "hardcodedCopyCount": 0,
@@ -2229,9 +2229,7 @@
       "owner": "sources/app/(app)/settings/streamline.tsx",
       "kind": "route",
       "route": "/settings/streamline",
-      "exports": [
-        "StreamlineSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "agentDefaults.capabilitiesFromMachine",
         "agentDefaults.capabilitySource",
@@ -4136,6 +4134,7 @@
       "translationKeys": [
         "devicePairing.title",
         "happyHerd.commander.category",
+        "newSession.streamline.modeStreamline",
         "settings.about",
         "settings.account",
         "settings.appearance",
@@ -5476,6 +5475,8 @@
         "modals.disconnectService",
         "modals.disconnectServiceConfirm",
         "modals.pasteUrlFromTerminal",
+        "newSession.streamline.intro",
+        "newSession.streamline.modeStreamline",
         "settings.about",
         "settings.account",
         "settings.accountSubtitle",

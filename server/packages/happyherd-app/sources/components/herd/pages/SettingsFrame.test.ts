@@ -96,6 +96,7 @@ describe('SettingsFrame', () => {
         expect(navItems(renderer).map((node: any) => node.props.accessibilityLabel)).toEqual([
             'settings.title',
             'settings.account',
+            'newSession.streamline.modeStreamline',
             'settings.appearance',
             'uiCopy.agentDefaults',
             'settingsCredentials.title',
@@ -134,6 +135,7 @@ describe('SettingsFrame', () => {
         expect(SETTINGS_SECTIONS.map((entry) => entry.route)).toEqual([
             '/settings',
             '/settings/account',
+            '/settings/streamline',
             '/settings/appearance',
             '/settings/agents',
             '/settings/credentials',

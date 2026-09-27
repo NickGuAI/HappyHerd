@@ -19,6 +19,7 @@ import { t } from '@/text';
 export type SettingsSectionId =
     | 'general'
     | 'account'
+    | 'streamline'
     | 'appearance'
     | 'agents'
     | 'credentials'
@@ -46,6 +47,7 @@ export type SettingsNavEntry = {
 export const SETTINGS_SECTIONS: readonly SettingsNavEntry[] = [
     { id: 'general', route: '/settings', icon: 'settings-outline', title: () => t('settings.title') },
     { id: 'account', route: '/settings/account', icon: 'person-circle-outline', title: () => t('settings.account') },
+    { id: 'streamline', route: '/settings/streamline', icon: 'flash-outline', title: () => t('newSession.streamline.modeStreamline') },
     { id: 'appearance', route: '/settings/appearance', icon: 'color-palette-outline', title: () => t('settings.appearance') },
     { id: 'agents', route: '/settings/agents', icon: 'options-outline', title: () => t('uiCopy.agentDefaults') },
     { id: 'credentials', route: '/settings/credentials', icon: 'key-outline', title: () => t('settingsCredentials.title') },
