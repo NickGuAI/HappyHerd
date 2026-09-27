@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -8,6 +8,23 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
 import { useHerdWideLayout } from './HerdPage';
+
+/**
+ * React Native Web closes the topmost Modal on the Escape keyup, so an alert
+ * opened from a sheet closes before the sheet does. Global navigation reads
+ * the keydown as Back; marking it handled keeps closing a sheet from also
+ * leaving the page.
+ */
+export function useSheetEscapeKeydown(active: boolean): void {
+    React.useEffect(() => {
+        if (!active || Platform.OS !== 'web' || typeof window === 'undefined') return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') event.preventDefault();
+        };
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
+    }, [active]);
+}
 
 /**
  * Modal sheet for page-owned forms and readers (UI overhaul). Wide layouts get a
@@ -40,6 +57,7 @@ export function HerdSheet({
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const wideLayout = useHerdWideLayout();
+    useSheetEscapeKeydown(visible);
     if (!visible) return null;
     return (
         <Modal visible transparent animationType="none" onRequestClose={onClose}>

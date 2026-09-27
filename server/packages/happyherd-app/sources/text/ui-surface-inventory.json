@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "beeb56a950507cb50369a130398b4b7ac0dccee748c8bd4bbaaeb785b1c4b373",
+  "sourceFingerprint": "6dc83dec327187e99ea7d5fc2d70917d0707342d9a0cf4fc46ac51e5ce1637ae",
   "routeCount": 43,
   "surfaceCount": 307,
   "hardcodedCopyCount": 0,
@@ -4101,7 +4101,8 @@
       "kind": "sheet",
       "route": null,
       "exports": [
-        "HerdSheet"
+        "HerdSheet",
+        "useSheetEscapeKeydown"
       ],
       "translationKeys": [],
       "states": [],
