@@ -45,6 +45,8 @@ const mocks = vi.hoisted(() => {
         githubStatusByPath: {} as Record<string, 'github' | 'git' | 'none' | 'unknown'>,
         githubLoading: false,
         lastCommanderWorkspaces: null as any,
+        streamlineAgentDefaults: {} as Record<string, Record<string, string>>,
+        streamlineAgent: 'claude',
         draftVersion: 0,
         draftListeners: new Set<() => void>(),
         streamlineLocations: [] as any[],
@@ -278,8 +280,8 @@ vi.mock('@/sync/storage', () => ({
         fileDiffsSidebar: false,
         expImageUpload: mocks.expImageUpload,
         newSessionMode: mocks.newSessionMode,
-        streamlineAgent: 'claude',
-        streamlineAgentDefaults: {},
+        streamlineAgent: mocks.streamlineAgent,
+        streamlineAgentDefaults: mocks.streamlineAgentDefaults,
         streamlineGithubWorktree: mocks.streamlineGithubWorktree,
     })[key] ?? false,
     useSettingMutable: (key: string) => key === 'agentDefaultOverrides'
@@ -582,6 +584,8 @@ beforeEach(() => {
     mocks.lastCommanderWorkspaces = null;
     mocks.draftVersion = 0;
     mocks.draftListeners.clear();
+    mocks.streamlineAgentDefaults = {};
+    mocks.streamlineAgent = 'claude';
     mocks.streamlineLocations = [];
     mocks.streamlineGithubWorktree = true;
     mocks.draft = createDraft();
@@ -1557,6 +1561,51 @@ describe('Streamline New Session review fixes', () => {
         for (const key of ['agent', 'model', 'effort', 'permission']) {
             expect(renderer.root.findAll((node: any) => node.props?.testID === `streamline-chip-${key}`).length).toBeGreaterThan(0);
         }
+        act(() => renderer.unmount());
+    });
+
+    it('launches with the Streamline settings the user saved', async () => {
+        // Claude omits 'default' at spawn, so the saved choice is a non-default mode.
+        mocks.streamlineAgentDefaults = { claude: { modelMode: 'claude-opus-5', effortLevel: 'high', permissionMode: 'bypassPermissions' } };
+        mocks.githubStatus = 'none';
+        const renderer = await renderScreen();
+        await settle(renderer);
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            agent: 'claude',
+            modelMode: 'claude-opus-5',
+            effortLevel: 'high',
+            permissionMode: 'bypassPermissions',
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('starts on the default agent chosen in Streamline settings', async () => {
+        const machine: any = createClaudeMachine();
+        machine.metadata.cliAvailability = { claude: true, codex: true };
+        machine.metadata.agentCapabilities.codex = {
+            detectedAt: 1,
+            sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+            models: [{ code: 'gpt-6-astra', value: 'gpt-6-astra', isDefault: true }],
+            effortLevels: [{ code: 'high', value: 'high' }, { code: 'xhigh', value: 'xhigh', isDefault: true }],
+            permissionModes: [{ code: 'default', value: 'default', isDefault: true }, { code: 'yolo', value: 'yolo' }],
+        };
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.streamlineAgent = 'codex';
+        mocks.githubStatus = 'none';
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(mocks.draft.agentType).toBe('codex');
+        expect(mocks.draft.modelMode).toBe('gpt-6-astra');
+        expect(mocks.draft.permissionMode).toBe('default');
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            agent: 'codex',
+            modelMode: 'gpt-6-astra',
+            effortLevel: 'xhigh',
+            permissionMode: 'default',
+        }));
         act(() => renderer.unmount());
     });
 });
