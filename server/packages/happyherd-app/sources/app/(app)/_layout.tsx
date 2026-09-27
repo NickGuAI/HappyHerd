@@ -11,20 +11,25 @@ import { t } from '@/text';
 import { MobileGlassBackdrop } from '@/components/MobileGlass';
 import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
 import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HerdWindowInsetsContext } from '@/components/herd/shell/windowInsets';
 
 export const unstable_settings = {
     initialRouteName: 'index',
 };
 
 export default function RootLayout() {
-    // Keep UIKit in charge of most iPhone/iPad headers. Screens that belong to
-    // the floating-glass family opt into createHeader below.
-    const shouldUseCustomHeader = Platform.OS === 'android' || isRunningOnMac() || Platform.OS === 'web';
+    // Phones (UI overhaul): the drawer and top bar lead away from their own
+    // destinations, so those keep no Back.
+    const phone = useHerdPhoneLayout();
+    // Signed in, the HappyHerd top bar sits above these screens.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    // Keep UIKit in charge of most iPad headers and of the iPhone's signed-out
+    // pages. Phones under the top bar, the iPhone included, take createHeader,
+    // the page's title row and Back. Screens that belong to the floating-glass
+    // family opt into createHeader below.
+    const shouldUseCustomHeader = Platform.OS === 'android' || isRunningOnMac() || Platform.OS === 'web' || (phone && underTopBar);
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const { theme } = useUnistyles();
-    // Phones (UI overhaul): the drawer and top bar lead away from their own
-    // destinations, so those keep no Back, including UIKit's on iPhone.
-    const phone = useHerdPhoneLayout();
 
     return (
         <View

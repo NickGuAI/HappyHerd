@@ -154,7 +154,8 @@ vi.mock('@/utils/copySessionMetadataToClipboard', () => ({
 vi.mock('@/utils/versionUtils', () => ({ isVersionSupported: () => true, MINIMUM_CLI_VERSION: '1' }));
 
 import { ChatHeaderView } from './ChatHeaderView';
-import { Header, createPlainHeader } from './navigation/Header';
+import { Header, createHeader, createPlainHeader } from './navigation/Header';
+import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import { GitLineChanges } from './GitLineChanges';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import SessionInfo from '@/app/(app)/session/[id]/info';
@@ -482,5 +483,55 @@ describe('tool-detail navigation', () => {
         expect(screen.root.findAllByType('StackScreen')).toHaveLength(1);
         expect(screen.root.findAllByType('ActivityIndicator')).toHaveLength(1);
         expect(state.back).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('page headers', () => {
+    // Phones (UI overhaul), the iPhone included, draw every page's header with
+    // navigation/Header, the title row under the top bar. The iPad keeps UIKit's.
+    // Signed in, the layout renders under the top bar, which provides the window insets.
+    function screenOptions(routeName: string, underTopBar = true) {
+        const layout = render(underTopBar
+            ? React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, React.createElement(RootLayout))
+            : React.createElement(RootLayout));
+        return layout.root.findByType('Stack').props.screenOptions({ route: { name: routeName } });
+    }
+
+    it.each([
+        ['an iPhone', 'ios', false, createHeader],
+        ['an Android phone', 'android', false, createHeader],
+        ['Web Mobile', 'web', false, createHeader],
+        ['an iPad', 'ios', true, undefined],
+        ['an Android tablet', 'android', true, createHeader],
+        ['desktop Web', 'web', true, createHeader],
+    ])('chooses a page\'s header on %s', (_name, platform, tablet, header) => {
+        state.platform = platform as string;
+        state.tablet = tablet as boolean;
+        expect(screenOptions('settings/appearance').header).toBe(header);
+    });
+
+    it('keeps UIKit\'s header on a signed-out iPhone page, with no top bar above it', () => {
+        state.platform = 'ios';
+        state.tablet = false;
+        expect(screenOptions('restore/index', false).header).toBeUndefined();
+    });
+
+    it('gives an iPhone page the phone title row and Back, and the drawer\'s destinations no Back', () => {
+        const titleRow = (routeName: string, headerTitle: string) => {
+            const options = { ...screenOptions(routeName), headerTitle };
+            return render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, options.header({
+                options, route: { name: routeName }, back: { title: 'Home' }, navigation: { goBack: vi.fn() },
+            })));
+        };
+        expect(screenOptions('automations/index')).toMatchObject({ header: createHeader, headerBackVisible: false });
+
+        const page = titleRow('settings/appearance', 'Appearance');
+        expect(page.root.findAllByType('Pressable').map((node: any) => node.props.testID)).toEqual(['header-back']);
+        expect(page.root.findByType('Icon').props.name).toBe('arrow-back');
+        expect(flattenStyle(page.root.findByType('Text').props.style)).toMatchObject({ fontSize: 22, textAlign: 'left' });
+
+        const destination = titleRow('automations/index', 'Automations');
+        expect(destination.root.findAllByType('Pressable')).toHaveLength(0);
+        expect(flattenStyle(destination.root.findByType('Text').props.style)).toMatchObject({ fontSize: 24, textAlign: 'left' });
     });
 });

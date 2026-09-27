@@ -88,11 +88,13 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
   `app/(app)/_layout.tsx`), that is UIKit's Back. Elsewhere it is the custom
   headers' own: `ChatHeaderView` on the session screen, which steps out of an
   open diff or file first and otherwise leaves the session, and
-  `navigation/Header`, which Android and the iOS app on a Mac use for every
-  route. Phones show Back on nested pages, and in a session only while a diff
-  or file is open over the chat; the drawer's destinations have none. The top
-  bar's brand still returns to the session list, iOS keeps the stack's
-  swipe-back and Android the system Back.
+  `navigation/Header`, which Android, the iOS app on a Mac and the signed-in
+  iPhone use for every route. The iPad, and the iPhone's signed-out pages,
+  keep UIKit's header. Phones show Back on
+  nested pages, and in a session only while a diff or file is open over the
+  chat; the drawer's destinations have none. The top bar's brand still
+  returns to the session list, iOS keeps the stack's swipe-back and Android
+  the system Back.
 - **Panel toggle.** The toggle moved from the drawer boundary into the top bar,
   with ⌥⌘B (Ctrl+Alt+B off macOS). A secondary handle sits on the panel edge.
   It appears while the pointer is over the shell and stays visible, at the
@@ -261,7 +263,7 @@ native fades them.
 | `sources/components/TabBar.tsx` | Removed | Deleted with the tab bar. The drawer's rows and the top bar reach its destinations. | — | Do not port upstream tab bar changes; give a new destination a row in `SidebarView`. |
 | `sources/components/MainView.tsx` | Replaced (phones) | Only the panel's session list (`variant="sidebar"`) and the blank tablet index (`variant="phone"`) remain. The phone home moved to `herd/mobile/PhoneHome.tsx`: the docked panel, the native session search and the native `HomeDock`. | The sidebar list with its loading and empty states, and the blank tablet index. | Port phone home changes (dock, search, empty states) into `PhoneHome`, and sidebar list changes here. |
 | `sources/app/(app)/index.tsx` | Call site | Phones render `PhoneHome`; tablets keep `MainView variant="phone"`. | The route. | — |
-| `sources/app/(app)/_layout.tsx` | Extended (phones) | `screenOptions` hides Back (`headerBackVisible: false`), UIKit's included, on the routes the drawer and top bar open directly (`herd/shell/phoneRoutes.ts`). Pages opened from those routes keep Back. | Every screen's options. | Add a new drawer destination to `HERD_PHONE_TOP_LEVEL_ROUTES`. |
+| `sources/app/(app)/_layout.tsx` | Extended (phones) | `screenOptions` gives the phone layout under the top bar `createHeader` (`navigation/Header`) on iOS too, as on Android and the web, so signed-in iPhone pages get the phone title row and Back; the iPad and signed-out iPhone pages keep UIKit's header. It hides Back (`headerBackVisible: false`) on the routes the drawer and top bar open directly (`herd/shell/phoneRoutes.ts`). Pages opened from those routes keep Back. | Every screen's options. | Keep `phone` in `shouldUseCustomHeader`. Add a new drawer destination to `HERD_PHONE_TOP_LEVEL_ROUTES`. |
 | `sources/components/navigation/Header.tsx` | Restyled (phones) | Phone web (below 700 px): an opaque `surface` bar with no shadow (skips `styles.shadow`), 56 px, a labelled Back (`header-back`), a left-aligned 16 px title and a 12 px faint subtitle. Under the phone top bar, on web and native, the header is the page's title row: opaque, with no glass or hairline, and Back is a 44 px square whose arrow lands on the gutter. The row ends 4 px from the edge, so a 44 px control at its end has its icon on the gutter. The title is the page's, left-aligned at 24 px, or 22 px beside Back, and Back is the mock's arrow on web and native alike. | `goBack`, custom `headerLeft` / `headerRight`, and the tablet, desktop and signed-out headers. Back is hidden only on the web at 700 px and wider (`shouldHideBackButton`); native tablets, the iOS app on a Mac included, show it. The phone checks use `useHerdPhoneLayout`. | Keep the `webPhone*` and then the `phoneShell*` styles last in each style array. |
 | `sources/app/(app)/settings/index.tsx` | Extended (phones) | On a custom server, the phone title row ends in `herd/pages/SettingsServerButton`, which opens `/server` as the phone Settings tab's header did. | The page, its frame and every other platform. | Keep the `Stack.Screen` `headerRight` rule. |
 | `sources/app/(app)/{automations,projects}/index.tsx` | Restyled (phones) | The compact page content sits on the 16 px gutter (was 14 px), as on the HappyHerd-owned Commanders page. | Everything else. | Keep `contentCompact` at 16. |
