@@ -6,11 +6,11 @@ import { Stack } from 'expo-router';
 import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 import { SettingsServerButton } from '@/components/herd/pages/SettingsServerButton';
 import { isUsingCustomServer } from '@/sync/serverConfig';
-import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 function SettingsScreen() {
-    // Phones (UI overhaul): a custom server's configuration stays one tap away, on the title row.
-    const serverButton = useHerdPhoneLayout() && isUsingCustomServer();
+    // A custom server's configuration stays one tap away on the title row, on
+    // every layout: it is the only signed-in way to /server (UI overhaul).
+    const serverButton = isUsingCustomServer();
     return (
         <>
             <Stack.Screen options={{ headerRight: serverButton ? () => <SettingsServerButton /> : undefined }} />

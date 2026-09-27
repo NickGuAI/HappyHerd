@@ -60,7 +60,7 @@ function headerRight() {
     return renderer.root.findByType('StackScreen' as any).props.options.headerRight as (() => React.ReactElement) | undefined;
 }
 
-describe('Settings on a phone', () => {
+describe('Settings server configuration', () => {
     it('opens a custom server\'s configuration from the title row', () => {
         const right = headerRight();
         expect(right).toEqual(expect.any(Function));
@@ -76,28 +76,24 @@ describe('Settings on a phone', () => {
         expect(state.push).toHaveBeenCalledWith('/server');
     });
 
-    it('shows nothing there on the default server or on a tablet', () => {
-        state.customServer = false;
-        expect(headerRight()).toBeUndefined();
-        Object.assign(state, { customServer: true, tablet: true, width: 1024 });
-        expect(headerRight()).toBeUndefined();
+    it('shows nothing there on the default server', () => {
+        for (const layout of [{ width: 390, tablet: false }, { width: 1024, tablet: true }, { platform: 'ios', width: 844, tablet: false }]) {
+            Object.assign(state, { customServer: false, platform: 'web', ...layout });
+            expect(headerRight()).toBeUndefined();
+        }
     });
 
-    it('shows nothing there in a 1024 × 768 browser window, though the device rule calls it a phone', () => {
-        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width.
-        Object.assign(state, { tablet: false, width: 1024 });
-        expect(headerRight()).toBeUndefined();
-    });
-
-    it('keeps it at 699 px on the web and drops it at 700 px', () => {
-        Object.assign(state, { tablet: true, width: 699 });
-        expect(headerRight()).toEqual(expect.any(Function));
-        Object.assign(state, { tablet: false, width: 700 });
-        expect(headerRight()).toBeUndefined();
-    });
-
-    it('keeps it on a native phone in landscape, where the device decides', () => {
-        Object.assign(state, { platform: 'ios', tablet: false, width: 844 });
+    // It is the only signed-in way to /server, so the width rule must not take it away.
+    it.each([
+        ['a 390 px phone browser', { width: 390, tablet: false }],
+        ['699 px on the web', { width: 699, tablet: true }],
+        ['700 px on the web', { width: 700, tablet: false }],
+        ['a 1024 × 768 browser window', { width: 1024, tablet: false }],
+        ['a desktop window', { width: 1440, tablet: true }],
+        ['a native phone in landscape', { platform: 'ios', width: 844, tablet: false }],
+        ['a native tablet', { platform: 'ios', width: 1024, tablet: true }],
+    ])('keeps it on %s with a custom server', (_label, layout) => {
+        Object.assign(state, { platform: 'web', customServer: true, ...layout });
         expect(headerRight()).toEqual(expect.any(Function));
     });
 });
