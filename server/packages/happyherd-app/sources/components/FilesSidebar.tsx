@@ -31,6 +31,7 @@ import {
 } from './AnimatedOverlay';
 import { MobileGlassSurface } from './MobileGlass';
 import { useHeaderHeight } from '@/utils/responsive';
+import { useHerdEscapeToClose } from './herd/escape';
 import { HerdMenuItem } from './herd/HerdPopover';
 import { herdStaggerClass, herdWebClasses } from './herd/motion';
 import { HerdCollapse } from './herd/session/Collapse';
@@ -87,6 +88,11 @@ interface FilesSidebarProps {
     onCreateSideChat: () => Promise<boolean>;
     /** Hides the overlay sheet (below 1,100 px) without closing its panels. */
     onHidePanel?: () => void;
+    /**
+     * Whether the panel is on screen. Below 1,100 px it stays mounted while its
+     * sheet is hidden; its menu and shortcuts then stay off.
+     */
+    presented?: boolean;
 }
 
 type FileNode<T = GitFileStatus> = {
@@ -227,6 +233,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     canCreateSideChat,
     onCreateSideChat,
     onHidePanel,
+    presented = true,
 }) => {
     const router = useRouter();
     const { theme } = useUnistyles();
@@ -338,8 +345,14 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
         return true;
     }, [availablePanels, canCreateSideChat, creatingSideChat, onCreateSideChat, onOpenPanel, onOpenWorkspace]);
 
+    // A hidden panel closes its menu; Escape closes the open menu before the sheet.
     React.useEffect(() => {
-        const shortcutsActive = activePanel === null || addMenuOpen;
+        if (!presented) setAddMenuOpen(false);
+    }, [presented]);
+    useHerdEscapeToClose(Platform.OS === 'web' && presented && addMenuOpen, () => setAddMenuOpen(false));
+
+    React.useEffect(() => {
+        const shortcutsActive = presented && (activePanel === null || addMenuOpen);
         if (Platform.OS !== 'web' || typeof window === 'undefined' || !shortcutsActive) {
             return;
         }
@@ -359,7 +372,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
 
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [activePanel, addMenuOpen, availablePickerActionIds, preferredModifier, runPickerAction]);
+    }, [activePanel, addMenuOpen, availablePickerActionIds, preferredModifier, presented, runPickerAction]);
 
     // Empty sidebar: a centred picker of panels to open (no header).
     if (activePanel === null) {

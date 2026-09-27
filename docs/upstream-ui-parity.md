@@ -87,7 +87,10 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
 - **Escape in menus.** `HerdPopover`, the web `SessionActionsPopover`, the
   phone bottom sheets and the composer's chip pickers consume Escape on
   keydown in the capture phase (`useHerdEscapeToClose`, in `herd/escape.ts`
-  so the composer does not import the popover UI). `HerdSheet` only marks the keydown handled
+  so the composer does not import the popover UI). Overlays stack: only the
+  most recently opened one answers Escape, so a menu inside a sheet closes
+  before the sheet. The side panel sheet joins the stack but leaves Escape
+  to a focused text field and to app dialogs. `HerdSheet` only marks the keydown handled
   (`useSheetEscapeKeydown`) and leaves closing to its React Native Web
   `Modal`, which closes the topmost modal on keyup, so an alert raised from
   a sheet's form closes before the sheet. The app's global navigation
@@ -165,7 +168,7 @@ tokens; a future theme token can replace each.
 
 | Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
 |---|---|---|---|---|
-| `sources/components/FilesSidebar.tsx` | Restyled + Extended | Pill tabs (`herd/panels/PanelTab`): Changes with +N −N, then Side chats with its count, in fixed order and level with the chat header (`useHeaderHeight`); a closed Changes pill opens the panel. Picker cards with a description and shortcut; the add-panel menu inline under its "+" (`HerdMenuItem`, `herd-pop`); a branch and staged/unstaged summary; mono tree rows with per-file counts, a molten edge on the open file, folders through `HerdCollapse`; an optional `onHidePanel`. | Props, picker and menu actions and shortcuts (active only while the picker or menu shows), git refresh on mount, tree building, deleted-file handling, the native glass menu. | Take upstream data and behavior; keep the pill order (`ALL_PANELS`), the inline menu and the row styles. A new panel gets a pill and a picker card. |
+| `sources/components/FilesSidebar.tsx` | Restyled + Extended | Pill tabs (`herd/panels/PanelTab`): Changes with +N −N, then Side chats with its count, in fixed order and level with the chat header (`useHeaderHeight`); a closed Changes pill opens the panel. Picker cards with a description and shortcut; the add-panel menu inline under its "+" (`HerdMenuItem`, `herd-pop`); a branch and staged/unstaged summary; mono tree rows with per-file counts, a molten edge on the open file, folders through `HerdCollapse`; an optional `onHidePanel`; a `presented` flag (false while the sheet below 1,100 px is hidden) closes the add-panel menu and turns its shortcuts off, and Escape closes that menu before the sheet. | Props, picker and menu actions and shortcuts (active only while the picker or menu shows), git refresh on mount, tree building, deleted-file handling, the native glass menu. | Take upstream data and behavior; keep the pill order (`ALL_PANELS`), the inline menu and the row styles. A new panel gets a pill and a picker card. |
 | `sources/components/SideChatPanel.tsx` | Restyled + Extended | One pill per side chat (close on hover or when active); "+" beside the tabs and full screen at the row's end, replacing the toolbar row; a molten empty-state hero; the phone full-screen host uses `HerdPanelScreenHeader` (collapse, parent-session subtitle, "+" in the header through `newChatInTabs={false}`); a restyled modal header. | Exports and props, `SideChatAccessButton` (native, unchanged), the `sideChat.close/expand/collapse/newChat` labels, unlabelled tab semantics, the Modal flow, the embedded `SessionViewLoaded`. | Take upstream behavior; keep the tab row (tabs, "+", spacer, full screen) and the full-screen header. |
 | `sources/components/FileViewPanel.tsx` | Restyled | Preview/Edit as one sunken pair with a molten selected state (`aria-pressed`); labelled icon Download and Delete in the wide Workspace bar (`iconActions`); compact headers keep a labelled Download and native keeps a labelled Delete; an edit bar with the file name, save state, Cancel and a primary Save; bars on theme surfaces. | All read, write, delete, download, conflict and preview logic, and every accessible name. | Take upstream logic; keep the `iconActions` split. |
 
@@ -221,7 +224,7 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/herd/motion.test.ts` | Guards the motion classes, reduced-motion coverage and the overhaul tokens in both themes. |
 | `sources/components/herd/SegmentedControl.tsx` | Equal-width segmented control with a sliding selection thumb. |
 | `sources/components/herd/HerdPopover.tsx` | Anchored dropdown (`HerdPopover`, `HerdMenuItem`, `HerdMenuTitle`, `HerdMenuSeparator`) for top bar menus; a bottom sheet on phone web. It re-exports `useHerdEscapeToClose`. |
-| `sources/components/herd/escape.ts` | `useHerdEscapeToClose`, the capture-phase Escape rule for overlays. |
+| `sources/components/herd/escape.ts` | `useHerdEscapeToClose`, the capture-phase Escape rule for overlays: a stack in which the newest open overlay answers, with an optional `accepts` check. |
 | `sources/components/herd/presence.ts` | `useHerdExit` and `HERD_EXIT`: an overlay keeps its last anchor, or open state, while its exit class plays. |
 | `sources/components/herd/HerdExitLayer.web.tsx` (and a native `HerdExitLayer.tsx` that renders nothing) | The inert, pointer-transparent body layer a closed overlay leaves on, after its Modal has already ended. |
 | `sources/components/herd/panels/*` | Side panel parts: `PanelTab` (pill tab with close and count or line badges), `PanelIconButton`, `PanelGrip` (the resize pill), `PanelOverlay` (scrim, Escape that skips text fields, the sheet width rule), `PanelScreenHeader` (phone back header) and `panelColors`. |

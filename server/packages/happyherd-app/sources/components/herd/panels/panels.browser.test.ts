@@ -411,6 +411,54 @@ describe('Side panels and Workspace overhaul (Web, production style runtime)', (
         await page.close();
     }, 60_000);
 
+    it('gives Escape to the sheet ahead of Back and to its menu first, and keeps a hidden panel quiet', async () => {
+        // Stand-in for the app's global navigation, which is registered first
+        // and treats an unhandled Escape keydown as Back.
+        const { page, errors, foreground } = await open(OVERLAY, 'light');
+        await page.evaluate(() => window.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || event.defaultPrevented) return;
+            (window as any).__BACK__ = ((window as any).__BACK__ ?? 0) + 1;
+            event.preventDefault();
+        }));
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        const blur = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible' });
+        await blur();
+        await page.keyboard.press('Escape');
+        await scrim.waitFor({ state: 'detached' });
+        await expect(page.evaluate(() => (window as any).__BACK__ ?? 0)).resolves.toBe(0);
+
+        // A menu inside the sheet closes before the sheet.
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Add panel', exact: true }).click();
+        const menuItem = foreground.getByRole('menuitem', { name: 'Changes', exact: true });
+        await menuItem.waitFor({ state: 'visible' });
+        await blur();
+        await page.keyboard.press('Escape');
+        await expect.poll(() => menuItem.count()).toBe(0);
+        await expect(scrim.isVisible()).resolves.toBe(true);
+        await page.keyboard.press('Escape');
+        await scrim.waitFor({ state: 'detached' });
+
+        // With the sheet hidden, its menu is gone and its shortcuts stay off.
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible' });
+        await foreground.getByRole('button', { name: 'Add panel', exact: true }).click();
+        await menuItem.waitFor({ state: 'visible' });
+        const scrimBox = (await scrim.boundingBox())!;
+        await page.mouse.click(scrimBox.x + 20, scrimBox.y + scrimBox.height / 2);
+        await scrim.waitFor({ state: 'detached' });
+        await page.keyboard.press('Control+Alt+KeyS');
+        await page.waitForTimeout(300);
+        await expect(page.evaluate(() => (window as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__BACK__ ?? 0)).resolves.toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 60_000);
+
     it.each(THEMES)('keeps the Workspace beside the chat with tabs, a file bar, comments and a draggable divider (%s)', async (theme) => {
         const { page, errors, foreground } = await open(DESKTOP, theme);
         await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();

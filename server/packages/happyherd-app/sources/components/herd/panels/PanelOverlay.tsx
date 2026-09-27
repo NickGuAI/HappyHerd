@@ -1,7 +1,7 @@
-import * as React from 'react';
-import { Platform, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
+import { useHerdEscapeToClose } from '@/components/herd/escape';
 import { herdWebClasses } from '@/components/herd/motion';
 
 /**
@@ -39,26 +39,19 @@ function isEditableElement(element: Element | null): boolean {
     return element instanceof HTMLElement && element.isContentEditable;
 }
 
+/** A sheet leaves Escape to a focused text field and to app dialogs. */
+function sheetAcceptsEscape(): boolean {
+    return !isEditableElement(document.activeElement) && !document.querySelector('[aria-modal="true"]');
+}
+
 /**
- * Web: Escape closes an open sheet unless something inside handled it first
- * or focus is in an editable field (the composer uses Escape to stop a turn
- * and to dismiss suggestions).
+ * Web: Escape closes an open sheet, ahead of the app's global Back, unless
+ * focus is in an editable field (the composer uses Escape to stop a turn and
+ * to dismiss suggestions) or an app dialog is open. A menu opened inside the
+ * sheet is newer, so it closes first (herd/escape.ts).
  */
 export function useHerdOverlayEscape(open: boolean, onClose: () => void): void {
-    const onCloseRef = React.useRef(onClose);
-    onCloseRef.current = onClose;
-    React.useEffect(() => {
-        if (!open || Platform.OS !== 'web' || typeof window === 'undefined') return;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
-            if (isEditableElement(document.activeElement)) return;
-            if (document.querySelector('[aria-modal="true"]')) return;
-            event.preventDefault();
-            onCloseRef.current();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [open]);
+    useHerdEscapeToClose(open, onClose, sheetAcceptsEscape);
 }
 
 /** Width of a sheet: generous, but always leaving a strip of scrim to close it by. */

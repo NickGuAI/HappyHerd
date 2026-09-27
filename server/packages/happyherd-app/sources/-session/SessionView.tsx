@@ -1420,6 +1420,7 @@ export const SessionView = React.memo((props: {
                         canCreateSideChat={canCreateSideChat}
                         onCreateSideChat={createSideChat}
                         onHidePanel={rightPanelOverlay ? dismissRightOverlay : undefined}
+                        presented={!rightPanelOverlay || rightPanelOverlayOpen}
                     />
                 </View>
             </Animated.View>
