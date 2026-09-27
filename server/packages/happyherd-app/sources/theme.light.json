@@ -255,6 +255,8 @@
     "radius": 8,
     "radiusCard": 12,
     "radiusSheet": 14,
+    "radiusBottomSheet": 22,
+    "radiusFab": 18,
     "radiusPill": 999,
     "gutter": 24,
     "rail": 1180,

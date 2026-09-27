@@ -211,7 +211,7 @@ const styles = StyleSheet.create((theme) => ({
     fab: {
         width: 56,
         height: 56,
-        borderRadius: theme.kilv.radiusSheet,
+        borderRadius: theme.kilv.radiusFab,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: theme.colors.kilv.accent,

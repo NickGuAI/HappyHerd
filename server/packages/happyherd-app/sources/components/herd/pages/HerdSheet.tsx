@@ -157,8 +157,8 @@ const styles = StyleSheet.create((theme) => ({
     sheetBottom: {
         maxHeight: '92%',
         borderBottomWidth: 0,
-        borderTopLeftRadius: theme.kilv.radiusSheet + 4,
-        borderTopRightRadius: theme.kilv.radiusSheet + 4,
+        borderTopLeftRadius: theme.kilv.radiusBottomSheet,
+        borderTopRightRadius: theme.kilv.radiusBottomSheet,
         _web: { _classNames: herdWebClasses('herd-sheet-up') },
     },
     handle: {

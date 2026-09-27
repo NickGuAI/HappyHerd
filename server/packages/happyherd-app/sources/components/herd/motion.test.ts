@@ -52,6 +52,9 @@ describe.each([['light', lightTheme], ['dark', darkTheme]] as const)('%s overhau
         expect(theme.kilv.radius).toBeGreaterThanOrEqual(8);
         expect(theme.kilv.radiusCard).toBeGreaterThan(theme.kilv.radius);
         expect(theme.kilv.radiusSheet).toBeGreaterThanOrEqual(theme.kilv.radiusCard);
+        // Phone surfaces are the roundest: the floating button, then the bottom sheets.
+        expect(theme.kilv.radiusFab).toBeGreaterThan(theme.kilv.radiusSheet);
+        expect(theme.kilv.radiusBottomSheet).toBeGreaterThan(theme.kilv.radiusFab);
     });
 
     it('shares one selected-state language', () => {
