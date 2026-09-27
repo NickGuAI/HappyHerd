@@ -373,9 +373,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                     <View style={styles.webCardBody}>
                         {specificBody ?? (needsApprovalInput ? defaultBody : null)}
                         {specificError ?? genericError}
-                        {detailsLink}
                     </View>
                     {renderPermissionFooter()}
+                    {/* After the choices, so it never reads as their heading. */}
+                    {detailsLink ? <View style={styles.webCardFooter}>{detailsLink}</View> : null}
                 </View>
             );
         }
@@ -690,6 +691,10 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingTop: 8,
         overflow: 'visible',
+    },
+    webCardFooter: {
+        paddingHorizontal: 12,
+        paddingBottom: 6,
     },
     webDetailsLink: {
         alignSelf: 'flex-start',

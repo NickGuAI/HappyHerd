@@ -525,3 +525,4 @@ UI_OVERHAUL_TOOL_DETAILS_LINK	accepted	fix(app): keep tool detail navigation on 
 UI_OVERHAUL_CHIP_PICKER_ESCAPE	accepted	fix(app): close composer chip pickers on Escape without going Back	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_SETTINGS_FRAME_STABLE	accepted	fix(app): keep Settings pages mounted across the frame width	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
 UI_OVERHAUL_SHEET_ESCAPE	accepted	fix(app): close page sheets on Escape without leaving the page	server/packages/happyherd-app/sources/components/herd/pages/HerdSheet.test.ts
+UI_OVERHAUL_PENDING_DETAILS_FOOTER	accepted	fix(app): put a pending card's Details link after its choices	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
