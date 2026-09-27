@@ -7,7 +7,8 @@ import { layout } from '../layout';
 import { isRunningOnMac } from '@/utils/platform';
 import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { Typography } from '@/constants/Typography';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { t } from '@/text';
 import { MobileGlassSurface } from '../MobileGlass';
 import {
     MobileHeaderScrim,
@@ -77,6 +78,8 @@ export const Header = React.memo((props: HeaderProps) => {
     const isTablet = useIsTablet();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const isNativePhone = !isDesktop && !isTablet;
+    // UI overhaul: Web at phone size gets the full-width back bar (56 px, hairline).
+    const isWebPhone = Platform.OS === 'web' && !isTablet;
     const glassControlsEnabled = isNativePhone && Platform.OS === 'ios';
     const isAndroidHeader = isNativePhone && Platform.OS === 'android';
     const headerLeftUsesGlass = headerLeftGlass && glassControlsEnabled;
@@ -136,15 +139,17 @@ export const Header = React.memo((props: HeaderProps) => {
         {
             paddingTop,
         },
-        headerShadowVisible && styles.shadow,
+        headerShadowVisible && !isWebPhone && styles.shadow,
         headerStyle,
         isAndroidHeader && (headerBackdropVisible ? styles.containerAndroidScrolled : styles.containerNormal),
         glassControlsEnabled && styles.containerTransparent,
+        isWebPhone && styles.webPhoneContainer,
     ];
 
     const subtitleStyle = [
         styles.subtitle,
         isDesktop && styles.desktopSubtitle,
+        isWebPhone && styles.webPhoneSubtitle,
         headerSubtitleStyle,
     ];
     const titleContent = (
@@ -177,8 +182,9 @@ export const Header = React.memo((props: HeaderProps) => {
                 <View style={[
                     styles.content,
                     isDesktop && styles.desktopContent,
+                    isWebPhone && styles.webPhoneContent,
                     centerTitle && styles.centeredContent,
-                    { height: contentHeight },
+                    { height: isWebPhone ? WEB_PHONE_HEADER_HEIGHT : contentHeight },
                 ]}>
                     <View style={styles.leftContainer}>
                         {headerLeft && headerLeftUsesGlass && (
@@ -204,6 +210,7 @@ export const Header = React.memo((props: HeaderProps) => {
                     <View style={[
                         styles.centerContainer,
                         isDesktop && styles.desktopCenterContainer,
+                        isWebPhone && styles.webPhoneCenterContainer,
                         centerTitle && styles.centeredTitleContainer,
                     ]}>
                         {glassControlsEnabled && mobileTitleSurface === 'glass' ? (
@@ -257,6 +264,22 @@ interface ExtendedNavigationOptions extends Partial<NativeStackHeaderProps['opti
 // Default back button component
 const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> = ({ tintColor = '#000', onPress }) => {
     const styles = stylesheet;
+    const { theme } = useUnistyles();
+    const isTablet = useIsTablet();
+    if (Platform.OS === 'web' && !isTablet) {
+        return (
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+                onPress={onPress}
+                hitSlop={4}
+                testID="header-back"
+                style={({ pressed, hovered }: any) => [styles.webPhoneBackButton, (pressed || hovered) && styles.webPhoneBackButtonActive]}
+            >
+                <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            </Pressable>
+        );
+    }
     if (Platform.OS === 'web' || isRunningOnMac()) {
         return (
             <Pressable onPress={onPress} hitSlop={15}>
@@ -309,6 +332,8 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
     const extendedOptions = options as ExtendedNavigationOptions;
     const isTablet = useIsTablet();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
+    const isWebPhone = Platform.OS === 'web' && !isTablet;
+    const titleFontSize = isDesktop && !isWebPhone ? 17 : 16;
 
     // Hide back button on tablet — navigation is handled via sidebar and persistent header
     const shouldHideBackButton = isTablet;
@@ -324,7 +349,7 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
                     ellipsizeMode="tail"
                     style={[
                         {
-                            fontSize: isDesktop ? 17 : 16,
+                            fontSize: titleFontSize,
                             fontWeight: '600',
                             textAlign: titleAlign,
                             color: options.headerTintColor || '#000',
@@ -348,7 +373,7 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
                 numberOfLines={1}
                 ellipsizeMode="tail"
                 style={[
-                    { fontSize: 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
+                    { fontSize: isWebPhone ? 16 : 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
                     Typography.default('semiBold'),
                     options.headerTitleStyle
                 ]}
@@ -414,10 +439,47 @@ export const createPlainHeader = (props: NativeStackHeaderProps) => {
     return <NavigationHeaderComponent {...props} mobileTitleSurfaceOverride="plain" />;
 };
 
+/** Web at phone size: the mock's back bar height. */
+const WEB_PHONE_HEADER_HEIGHT = 56;
+
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
         position: 'relative',
         zIndex: 100,
+    },
+    // UI overhaul, Web at phone size: an opaque raised bar with a hairline, no shadow.
+    webPhoneContainer: {
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+    },
+    webPhoneContent: {
+        gap: 6,
+        paddingLeft: 10,
+        paddingRight: 8,
+    },
+    webPhoneCenterContainer: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
+    webPhoneSubtitle: {
+        marginTop: 1,
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.kilv.inkFaint,
+    },
+    webPhoneBackButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.kilv.radius,
+        _web: { cursor: 'pointer' },
+    },
+    webPhoneBackButtonActive: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
     },
     containerTransparent: {
         backgroundColor: 'transparent',

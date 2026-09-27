@@ -530,3 +530,4 @@ UI_OVERHAUL_PARITY_SETTINGS_GAPS	accepted	docs(app): record the Streamline setti
 UI_OVERHAUL_MOBILE_SHEETS	accepted	feat(app): open Web phone menus as bottom sheets	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
 UI_OVERHAUL_MOBILE_TAB_BAR	accepted	feat(app): restyle the Web Mobile tab bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UI_OVERHAUL_MOBILE_HOME	accepted	feat(app): rebuild the Web Mobile home header and New session button	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_MOBILE_PAGE_HEADER	accepted	feat(app): give Web phone pages a back bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
