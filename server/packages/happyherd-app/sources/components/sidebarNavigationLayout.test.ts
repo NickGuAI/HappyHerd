@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
     resolveDesktopNavigationDrawerWidth,
-    resolveDesktopNavigationHeaderLeftPadding,
     resolveDesktopNavigationHidden,
 } from './sidebarNavigationLayout';
 
@@ -36,10 +35,5 @@ describe('desktop navigation drawer layout', () => {
 
     it('never exposes the permanent drawer on a narrow layout', () => {
         expect(width({ isDesktopLayout: false })).toBe(0);
-    });
-
-    it('needs no header clearance now that the shell controls live in the top bar', () => {
-        expect(resolveDesktopNavigationHeaderLeftPadding(false, 16)).toBe(16);
-        expect(resolveDesktopNavigationHeaderLeftPadding(true, 16)).toBe(16);
     });
 });

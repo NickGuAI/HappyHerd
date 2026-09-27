@@ -20,8 +20,6 @@ import {
     MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY,
     MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY,
 } from './navigation/MobileHeaderScrim';
-import { useLocalSetting } from '@/sync/storage';
-import { resolveDesktopNavigationHeaderLeftPadding } from './sidebarNavigationLayout';
 
 interface ChatHeaderViewProps {
     title: string;
@@ -56,8 +54,6 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
-    const zenMode = useLocalSetting('zenMode');
-    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
     const showBackButton = !isTablet && !!onBackPress;
     const hasExtra = !!extraPathSegment;
     const glassEnabled = !isTablet && Platform.OS === 'ios' && !isRunningOnMac();
@@ -95,9 +91,11 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     }, [backdropStrength, backdropVisible, glassEnabled]);
 
     if (Platform.OS === 'web') {
-        const headerLeftPadding = isTablet
-            ? resolveDesktopNavigationHeaderLeftPadding(zenMode || navigationSidebarCollapsed, 16)
-            : 16;
+        // The shell's controls live in the top bar, so the header needs no left clearance.
+        const headerLeftPadding = 16;
+        // UI overhaul: one full-width bar with a hairline, the folder / title
+        // crumb on the left (hover shows it opens the details) and the session
+        // controls on the right.
         return (
             <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.header.background }]}>
                 <View style={styles.contentWrapper}>
@@ -111,58 +109,63 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                                 />
                             </Pressable>
                         )}
-                        <Pressable
-                            style={styles.titleContainer}
-                            onPress={onTitlePress}
-                            disabled={!onTitlePress}
-                        >
-                            {folderName ? (
-                                <View style={styles.webTitleRow}>
+                        <View style={styles.titleContainer}>
+                            <Pressable
+                                style={({ hovered, pressed }: any) => [
+                                    styles.webCrumb,
+                                    onTitlePress && (hovered || pressed) && styles.webCrumbHovered,
+                                ]}
+                                onPress={onTitlePress}
+                                disabled={!onTitlePress}
+                            >
+                                {folderName ? (
+                                    <View style={styles.webTitleRow}>
+                                        <Text
+                                            numberOfLines={1}
+                                            style={[styles.webFolderName, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}
+                                        >
+                                            {folderName}
+                                        </Text>
+                                        {title && title !== folderName && (
+                                            <>
+                                                <Text style={[styles.webSeparator, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}>/</Text>
+                                                <Text
+                                                    numberOfLines={1}
+                                                    ellipsizeMode="tail"
+                                                    style={[
+                                                        styles.webTitle,
+                                                        hasExtra && styles.webTitleWithExtra,
+                                                        { color: theme.colors.header.tint, ...Typography.default('semiBold') },
+                                                    ]}
+                                                >
+                                                    {title}
+                                                </Text>
+                                            </>
+                                        )}
+                                        {hasExtra && (
+                                            <>
+                                                <Text style={[styles.webSeparator, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}>/</Text>
+                                                <Text
+                                                    numberOfLines={1}
+                                                    ellipsizeMode="middle"
+                                                    style={[styles.webExtraPath, { color: theme.colors.header.tint, ...Typography.mono() }]}
+                                                >
+                                                    {extraPathSegment}
+                                                </Text>
+                                            </>
+                                        )}
+                                    </View>
+                                ) : (
                                     <Text
                                         numberOfLines={1}
-                                        style={[styles.webFolderName, { color: theme.colors.textSecondary, ...Typography.default() }]}
+                                        ellipsizeMode="tail"
+                                        style={[styles.webTitle, { color: theme.colors.header.tint, ...Typography.default('semiBold') }]}
                                     >
-                                        {folderName}
+                                        {title}
                                     </Text>
-                                    {title && title !== folderName && (
-                                        <>
-                                            <Text style={[styles.webSeparator, { color: theme.colors.textSecondary, ...Typography.default() }]}>/</Text>
-                                            <Text
-                                                numberOfLines={1}
-                                                ellipsizeMode="tail"
-                                                style={[
-                                                    styles.webTitle,
-                                                    hasExtra && styles.webTitleWithExtra,
-                                                    { color: theme.colors.header.tint, ...Typography.default() },
-                                                ]}
-                                            >
-                                                {title}
-                                            </Text>
-                                        </>
-                                    )}
-                                    {hasExtra && (
-                                        <>
-                                            <Text style={[styles.webSeparator, { color: theme.colors.textSecondary, ...Typography.default() }]}>/</Text>
-                                            <Text
-                                                numberOfLines={1}
-                                                ellipsizeMode="middle"
-                                                style={[styles.webExtraPath, { color: theme.colors.header.tint, ...Typography.mono() }]}
-                                            >
-                                                {extraPathSegment}
-                                            </Text>
-                                        </>
-                                    )}
-                                </View>
-                            ) : (
-                                <Text
-                                    numberOfLines={1}
-                                    ellipsizeMode="tail"
-                                    style={[styles.webTitle, { color: theme.colors.header.tint, ...Typography.default() }]}
-                                >
-                                    {title}
-                                </Text>
-                            )}
-                        </Pressable>
+                                )}
+                            </Pressable>
+                        </View>
                         {rightSlot ? <View style={styles.webRightSlot}>{rightSlot}</View> : null}
                     </View>
                 </View>
@@ -356,9 +359,27 @@ const styles = StyleSheet.create((theme) => ({
     webContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingLeft: 16,
+        paddingRight: 18,
         width: '100%',
-        maxWidth: layout.headerMaxWidth,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+    },
+    webCrumb: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: '100%',
+        minWidth: 0,
+        marginLeft: -6,
+        paddingHorizontal: 6,
+        paddingVertical: 4,
+        borderRadius: theme.borderRadius.sm,
+        _web: {
+            transition: `background-color ${theme.kilv.motionFast}ms ${theme.kilv.easeOut}`,
+        },
+    },
+    webCrumbHovered: {
+        backgroundColor: theme.colors.glass.backgroundSubtle,
     },
     titleContainer: {
         flex: 1,
@@ -440,30 +461,30 @@ const styles = StyleSheet.create((theme) => ({
     webTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        width: '100%',
+        gap: 8,
+        minWidth: 0,
+        maxWidth: '100%',
     },
     webFolderName: {
-        fontSize: 14,
+        fontSize: 16,
         flexShrink: 0,
     },
     webSeparator: {
-        fontSize: 14,
+        fontSize: 16,
         flexShrink: 0,
     },
     webTitle: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 16,
         flexShrink: 1,
+        minWidth: 0,
     },
     webTitleWithExtra: {
         flexShrink: 0.5,
     },
     webExtraPath: {
-        flex: 1,
-        minWidth: 0,
-        fontSize: 13,
         flexShrink: 1,
+        minWidth: 0,
+        fontSize: 14,
     },
     webRightSlot: {
         flexDirection: 'row',

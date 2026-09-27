@@ -19,14 +19,3 @@ export function resolveDesktopNavigationDrawerWidth(input: {
 }): number {
     return input.isDesktopLayout && !input.hidden ? input.fullDrawerWidth : 0;
 }
-
-/**
- * Left padding for a desktop screen header. The shell's controls moved into
- * the top bar above every screen, so a hidden panel no longer needs clearance.
- */
-export function resolveDesktopNavigationHeaderLeftPadding(
-    _navigationDrawerHidden: boolean,
-    defaultPadding: number,
-): number {
-    return defaultPadding;
-}

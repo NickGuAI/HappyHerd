@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "3f6c8406cd0c4835d24cfce87fdf9ceb69266ed6b4a94feb3c06ba5cb094347e",
+  "sourceFingerprint": "1a5a268372eb7587634c2c789a870eba10a7d86f58e2a87d6dbb67bad94772e5",
   "routeCount": 42,
-  "surfaceCount": 298,
+  "surfaceCount": 300,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4040,6 +4040,35 @@
         "ContextMeter"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/HeaderButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdHeaderButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/SessionHeaderActions.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionHeaderActions"
+      ],
+      "translationKeys": [
+        "sideChat.collapse",
+        "sideChat.newChat",
+        "sideChat.openCount",
+        "sideChat.panelTitle",
+        "uiCopy.session",
+        "workspace.title"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

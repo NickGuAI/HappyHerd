@@ -67,6 +67,7 @@ import {
     type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
+import { SessionHeaderActions } from '@/components/herd/session/SessionHeaderActions';
 import {
     resolveActiveSideChatId,
     resolveSideChatSelectionAfterClose,
@@ -82,6 +83,7 @@ import { GitFileStatus } from '@/sync/gitStatusFiles';
 import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { formatPathRelativeToHome, getResumeCommandBlock, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
+import { getHarnessName } from '@/utils/harnessCatalog';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons, Octicons } from '@expo/vector-icons';
@@ -267,6 +269,10 @@ export const SessionView = React.memo((props: {
         && rigCanUseShell(desktopFileWorkspaceSession.metadata);
     const workspaceLinkRequestGeneration = React.useRef(0);
     const pendingWorkspaceLink = React.useRef<{ generation: number; machineId: string; path: string } | null>(null);
+    // The header's Workspace toggle hides the open Workspace without closing its
+    // tabs or dirty editors. Every path that reveals the Workspace collapses the
+    // sidebar panels first, and that collapse clears this flag again.
+    const [desktopWorkspaceHidden, setDesktopWorkspaceHidden] = React.useState(false);
 
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
@@ -274,6 +280,7 @@ export const SessionView = React.memo((props: {
         desktopWorkspacesRef.current = {};
         setDesktopWorkspaces({});
         setDesktopFileWorkspaceSessionId(sessionId);
+        setDesktopWorkspaceHidden(false);
         return () => {
             workspaceLinkRequestGeneration.current += 1;
         };
@@ -358,6 +365,7 @@ export const SessionView = React.memo((props: {
         });
     }, [sessionId]);
     const collapseSidebarPanels = React.useCallback(() => {
+        setDesktopWorkspaceHidden(false);
         const state = storage.getState().localSettings;
         const ownsSideChat = state.sidebarSideChatSessionId === sessionId;
         const open: SidebarMode[] = ownsSideChat
@@ -460,6 +468,7 @@ export const SessionView = React.memo((props: {
         && desktopFileWorkspaceSessionId !== sessionId;
     const desktopFileWorkspaceVisible = canShowSessionFileWorkspaceSplit
         && desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
         && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
         && !sideChatFullscreenOpen;
@@ -654,6 +663,7 @@ export const SessionView = React.memo((props: {
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file ?? null : null;
     const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
         && canUseDesktopFileWorkspaceSession
         && !canShowSessionFileWorkspaceSplit
         && !diffViewOpen
@@ -1046,14 +1056,44 @@ export const SessionView = React.memo((props: {
         sideChatCount: sideChats.length,
         canCreateSideChat: Boolean(session),
     });
-    const headerRight = sideChatAccessButton || sessionInfoButton
+    // Web header controls (UI overhaul): the Workspace toggle hides or reveals
+    // the same Workspace the composer + menu opens, without closing its tabs.
+    const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen;
+    const toggleWorkspaceFromHeader = React.useCallback(() => {
+        if (!session) return;
+        workspaceLinkRequestGeneration.current += 1;
+        if (headerWorkspaceShown) {
+            setDesktopWorkspaceHidden(true);
+            return;
+        }
+        openWorkspaceForSession(session);
+    }, [headerWorkspaceShown, openWorkspaceForSession, session]);
+    const webHeaderActions = session && Platform.OS === 'web'
+        ? (
+            <SessionHeaderActions
+                sessionId={sessionId}
+                workspace={canUseSessionFileWorkspace
+                    ? { visible: headerWorkspaceShown, onToggle: toggleWorkspaceFromHeader }
+                    : null}
+                sideChats={{
+                    count: sideChats.length,
+                    expanded: sidebarPresentation.sideChatSurface === 'sidebar'
+                        ? sideChatSidebarExpanded
+                        : sideChatFullscreenOpen,
+                    compact: deviceType === 'phone' || windowWidth < 720,
+                    onToggle: toggleSideChats,
+                }}
+            />
+        )
+        : null;
+    const headerRight = webHeaderActions ?? (sideChatAccessButton || sessionInfoButton
         ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {sideChatAccessButton}
                 {sessionInfoButton}
             </View>
         )
-        : null;
+        : null);
     const mobileSideChatWorkspaceOpen = sideChatOwnsFileWorkspace
         && (desktopFileWorkspaceActive || diffViewOpen || !!fileViewPath);
     const voiceStatusBarHeight = !isTablet && realtimeStatus !== 'disconnected'
@@ -1761,7 +1801,21 @@ export function SessionViewLoaded({
         resumeSession,
         resumeSessionWithQueuedTurn,
         resumingSession,
+        canContinueWithProvider,
+        openProviderContinuationSheet,
     } = useSessionQuickActions(session);
+    // Web agent chip (UI overhaul): the session's harness; it opens the same
+    // "Continue with…" sheet as the session actions menu when that is offered.
+    const agentChipFlavor = flavor ?? (session.metadata?.claudeSessionId ? 'claude' : null);
+    const composerAgentChip = React.useMemo(() => (
+        Platform.OS === 'web' && !embedded && agentChipFlavor
+            ? {
+                label: getHarnessName(agentChipFlavor),
+                providerKind: agentChipFlavor,
+                onPress: canContinueWithProvider ? openProviderContinuationSheet : undefined,
+            }
+            : null
+    ), [agentChipFlavor, canContinueWithProvider, embedded, openProviderContinuationSheet]);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
 
@@ -2034,7 +2088,8 @@ export function SessionViewLoaded({
         color: sessionStatus.statusColor,
         dotColor: sessionStatus.statusDotColor,
         isPulsing: sessionStatus.isPulsing,
-    }), [sessionStatus.statusText, sessionStatus.statusColor, sessionStatus.statusDotColor, sessionStatus.isPulsing]);
+        state: sessionStatus.state,
+    }), [sessionStatus.statusText, sessionStatus.statusColor, sessionStatus.statusDotColor, sessionStatus.isPulsing, sessionStatus.state]);
 
     const usageData = React.useMemo(() => {
         const source = sessionUsage ?? session.latestUsage;
@@ -2167,6 +2222,7 @@ export function SessionViewLoaded({
                 onEffortLevelChange={isRigReasoningSelectionEnabled(session.metadata) ? updateEffortLevel : undefined}
                 metadata={session.metadata}
                 connectionStatus={connectionStatus}
+                agentChip={composerAgentChip}
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 isSendDisabled={dshUploadBusy}
                 onSend={handleSend}

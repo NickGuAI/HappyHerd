@@ -1885,7 +1885,8 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
-        await page.getByRole('button', { name: 'Continue with…' }).click();
+        // The composer's agent chip also offers Continue with…; use the menu row.
+        await page.getByRole('button', { name: 'Continue with…', exact: true }).click();
         await page.getByText('Continue session', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByTestId('provider-continuation-claude').click();
         await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
@@ -1950,7 +1951,8 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
-        await page.getByRole('button', { name: 'Continue with…' }).click();
+        // The composer's agent chip also offers Continue with…; use the menu row.
+        await page.getByRole('button', { name: 'Continue with…', exact: true }).click();
         await page.getByTestId('provider-continuation-codex').click();
         await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
 
