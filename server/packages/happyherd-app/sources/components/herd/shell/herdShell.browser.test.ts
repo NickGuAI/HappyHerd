@@ -80,7 +80,16 @@ const virtualModules: Record<string, string> = {
         export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });
         export const SafeAreaInsetsContext = React.createContext(null);
     `,
-    'react-native-reanimated': `export const useReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;`,
+    'react-native-reanimated': `
+        import { View } from 'react-native';
+        export const useReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // The status dot's pulse (the phone list's connection line; the desktop never shows it).
+        export default { View };
+        export const useSharedValue = (value) => ({ value });
+        export const useAnimatedStyle = (factory) => factory();
+        export const withRepeat = (value) => value;
+        export const withTiming = (value) => value;
+    `,
     'react-native-gesture-handler': `import React from 'react'; export const Swipeable = React.forwardRef(({ children }, _ref) => children);`,
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
     '@/utils/responsive': `export const useIsTablet = () => true; export const useHeaderHeight = () => 56; export const useDeviceType = () => 'tablet';`,
@@ -113,6 +122,7 @@ const virtualModules: Record<string, string> = {
         export const useFeedItems = () => feed;
         export const useFriendRequests = () => requests;
         export const useRealtimeStatus = () => 'disconnected';
+        export const useSocketStatus = () => ({ status: 'connected' });
         export const useSessionGitStatus = () => null;
         export const storage = { getState: () => ({ localSettings: settings, applyLocalSettings(delta) { Object.assign(settings, delta); emit(); } }) };
         window.__SETTINGS__ = settings;

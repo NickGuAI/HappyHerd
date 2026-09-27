@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "323ef8629c958aa8f6ed5be6be4440150006361f6fbc14f7ba711335b27578e4",
+  "sourceFingerprint": "7556cddeab6b0c74b9fb11056e6c61d4a3476354298543e964e7870670c87567",
   "routeCount": 43,
-  "surfaceCount": 315,
+  "surfaceCount": 318,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4189,6 +4189,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/pages/SettingsServerButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsServerButton"
+      ],
+      "translationKeys": [
+        "server.serverConfiguration"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/panels/PanelGrip.tsx",
       "kind": "panel",
       "route": null,
@@ -4337,6 +4350,28 @@
       "translationKeys": [
         "toolGroup.ran"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdConnectionStatus.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdConnectionStatus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdHeaderIconButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdHeaderIconButton"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },

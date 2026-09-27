@@ -12,6 +12,7 @@ import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
 import { useIsTablet } from '@/utils/responsive';
+import { HerdConnectionStatus } from './herd/shell/HerdConnectionStatus';
 
 const stylesheet = StyleSheet.create((theme) => ({
     // Sits below the HappyHerd top bar, which owns the window's top edge.
@@ -195,6 +196,9 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                     )}
                 </View>
             </View>
+
+            {/* The phone session list carries the connection line its home header used to. */}
+            {docked && <HerdConnectionStatus />}
 
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="sidebar" />

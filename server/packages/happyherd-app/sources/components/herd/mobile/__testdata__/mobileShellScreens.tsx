@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { PhoneHome } from '@/components/herd/mobile/PhoneHome';
+import { SettingsServerButton } from '@/components/herd/pages/SettingsServerButton';
+import { isUsingCustomServer } from '@/sync/serverConfig';
 import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
 import { createHeader } from '@/components/navigation/Header';
 import { useFixturePath } from './mobileShellRouter';
@@ -30,6 +32,8 @@ function PageStandIn({ path }: { path: string }) {
                     headerTitle: title,
                     headerTintColor: theme.colors.header.tint,
                     ...(isHerdPhoneTopLevelRoute(name) ? { headerBackVisible: false } : {}),
+                    // What settings/index sets on phones for a custom server (its own test covers the rule).
+                    ...(name === 'settings/index' && isUsingCustomServer() ? { headerRight: () => <SettingsServerButton /> } : {}),
                 },
                 route: { key: path, name },
                 back: { title: 'Back', href: undefined },

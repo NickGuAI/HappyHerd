@@ -35,21 +35,22 @@ const virtualModules: Record<string, string> = {
         import { lightTheme, darkTheme } from '@/theme';
         export const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
     `,
-    // The real Ionicons glyphs, drawn with the bundled font.
+    // The real Ionicons and Octicons glyphs, drawn with the bundled fonts.
     '@expo/vector-icons': `
         import React from 'react';
         import glyphs from '${resolve(ioniconsRoot, 'glyphmaps/Ionicons.json')}';
-        const icon = (map) => {
+        import octicons from '${resolve(ioniconsRoot, 'glyphmaps/Octicons.json')}';
+        const icon = (map, fontFamily) => {
             const Icon = ({ name, color, size = 16 }) => React.createElement('span', {
                 'data-icon': name, 'aria-hidden': true,
-                style: { fontFamily: 'ionicons', fontStyle: 'normal', fontWeight: 'normal', color, fontSize: size, width: size, height: size, lineHeight: size + 'px', textAlign: 'center', display: 'inline-block', flexShrink: 0, userSelect: 'none' },
+                style: { fontFamily, fontStyle: 'normal', fontWeight: 'normal', color, fontSize: size, width: size, height: size, lineHeight: size + 'px', textAlign: 'center', display: 'inline-block', flexShrink: 0, userSelect: 'none' },
             }, map[name] ? String.fromCodePoint(map[name]) : '•');
             Icon.glyphMap = map;
             return Icon;
         };
-        export const Ionicons = icon(glyphs);
-        export const Octicons = icon({});
-        export const MaterialCommunityIcons = icon({});
+        export const Ionicons = icon(glyphs, 'ionicons');
+        export const Octicons = icon(octicons, 'octicons');
+        export const MaterialCommunityIcons = icon({}, 'ionicons');
     `,
     // Tinted images (the header mark) keep their shape through a CSS mask.
     'expo-image': `
@@ -403,16 +404,17 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
                 response.end(readFileSync(resolve(sourcesRoot, 'assets/fonts', `${font[1]}.ttf`)));
                 return;
             }
-            if (url.pathname === '/fonts/Ionicons.ttf') {
+            const iconFont = url.pathname.match(/^\/fonts\/(Ionicons|Octicons)\.ttf$/);
+            if (iconFont) {
                 response.setHeader('content-type', 'font/ttf');
-                response.end(readFileSync(resolve(ioniconsRoot, 'Fonts/Ionicons.ttf')));
+                response.end(readFileSync(resolve(ioniconsRoot, `Fonts/${iconFont[1]}.ttf`)));
                 return;
             }
             const background = url.searchParams.get('theme') === 'dark' ? '#151B28' : '#FFF9EC';
             response.setHeader('content-type', 'text/html; charset=utf-8');
             const escapeProbe = `window.__UNHANDLED_ESCAPES__=0;window.addEventListener('keydown',function(e){if(e.key==='Escape'&&!e.defaultPrevented)window.__UNHANDLED_ESCAPES__++;});`;
             const fontFaces = FONTS.map((family) => `@font-face{font-family:${family};src:url(/fonts/${family}.ttf)}`).join('')
-                + '@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}';
+                + '@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}';
             response.end(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><script>${escapeProbe}</script><style>${fontFaces}html,body,#root{height:100%;margin:0;background:${background}}#root{display:flex;flex-direction:column}*{box-sizing:border-box}</style><style>${themeCss}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready));
@@ -681,12 +683,14 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
             const input = page.getByPlaceholder('Type a command or search...');
             await input.waitFor();
-            // The palette springs in through Animated rather than a CSS animation; wait for full scale.
-            await expect.poll(async () => Math.round((await box(page, 'command-palette')).width)).toBe(PHONE.width - 16);
+            // The palette springs in through Animated rather than a CSS animation: wait until
+            // its scale has come to rest, which a rounded width alone does not show.
+            await expect.poll(async () => Math.abs((await box(page, 'command-palette')).width - (PHONE.width - 16)) < 0.05).toBe(true);
             await settled(page);
             // The palette spans the phone less 8 px a side and sits 8 px below the notch.
             const palette = await box(page, 'command-palette');
-            expect(palette).toMatchObject({ x: 8, y: PHONE_INSETS.top + 8, width: PHONE.width - 16 });
+            expect({ x: Math.round(palette.x), y: Math.round(palette.y), width: Math.round(palette.width) })
+                .toEqual({ x: 8, y: PHONE_INSETS.top + 8, width: PHONE.width - 16 });
             expect(palette.height).toBeLessThanOrEqual(Math.min(Math.round(PHONE.height * 0.78), 640));
             // No keyboard hints; a 44 px close button ends the input row, its icon near the edge.
             await expect(page.getByTestId('command-palette-hints').count()).resolves.toBe(0);
@@ -695,7 +699,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             expect(close).toMatchObject({ width: 44, height: 44 });
             expect(Math.round(palette.x + palette.width - (close.x + close.width))).toBe(5);
             // The search icon and every row's icon sit on the palette's 16 px gutter (inside its 1 px rim).
-            const gutter = palette.x + 1 + 16;
+            const gutter = Math.round(palette.x) + 1 + 16;
             expect(Math.round((await page.locator('[data-icon="search"]').last().boundingBox())!.x)).toBe(gutter);
             const rows = page.getByTestId('command-palette').locator('[aria-selected]');
             await expect(rows.count()).resolves.toBe(4);
@@ -715,7 +719,8 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
 
     /** A menu card's rim and where its content starts, for the 16 px gutter. */
     const card = async (page: Page, testID: string) => {
-        const frame = (await page.getByTestId(testID).boundingBox())!;
+        const box = (await page.getByTestId(testID).boundingBox())!;
+        const frame = { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
         return { ...frame, gutter: frame.x + 1 + 16 };
     };
 
@@ -847,6 +852,58 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await popover.getByTestId('herd-inbox-open-page').click();
         await expect.poll(() => popover.count()).toBe(0);
         await expect.poll(() => routerCalls(page)).toEqual(['/inbox']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('shows an unhealthy connection above the phone session list, on the gutter, and nothing while connected', async () => {
+        for (const [socket, label] of [['disconnected', 'disconnected'], ['connecting', 'connecting'], ['error', 'error']] as const) {
+            const { page, errors } = await open({ query: { socket } });
+            const docked = page.getByTestId('herd-sidebar-docked');
+            const status = docked.getByTestId('herd-connection-status');
+            await status.waitFor();
+            await expect(status.innerText()).resolves.toBe(label);
+            await expect(status.getAttribute('aria-live')).resolves.toBe('polite');
+            await settled(page);
+            // The dot starts on the 16 px gutter, between the panel's controls and the list.
+            const line = (await status.boundingBox())!;
+            const dot = await status.evaluate((element) => Math.round(Math.min(...[...element.querySelectorAll('*')]
+                .map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0).map((rect) => rect.left))));
+            expect(dot).toBe(16);
+            const newSession = (await docked.getByRole('button', { name: /New session/ }).boundingBox())!;
+            const list = (await page.getByTestId('fixture-session-list').boundingBox())!;
+            expect(line.y).toBeGreaterThanOrEqual(newSession.y + newSession.height);
+            expect(line.y + line.height).toBeLessThanOrEqual(list.y + 1);
+            if (socket === 'disconnected') await evidence(page, 'phone-home-disconnected-light-390');
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+        const connected = await open();
+        await connected.page.getByTestId('herd-sidebar-docked').waitFor();
+        await expect(connected.page.getByTestId('herd-connection-status').count()).resolves.toBe(0);
+        // The drawer elsewhere keeps its panel as on desktop, without the line.
+        await openSession(connected.page);
+        await connected.page.getByTestId('navigation-sidebar-toggle').click();
+        await connected.page.getByTestId('herd-phone-drawer').waitFor();
+        await expect(connected.page.getByTestId('herd-connection-status').count()).resolves.toBe(0);
+        expect(connected.errors).toEqual([]);
+        await connected.page.close();
+    }, 40_000);
+
+    it('opens a custom server\'s configuration from the Settings title row, its icon on the gutter', async () => {
+        const { page, errors } = await open({ query: { server: 'custom' } });
+        await page.evaluate(() => (window as any).__FIXTURE_ROUTER__.push('/settings'));
+        const button = page.getByTestId('settings-server-configuration');
+        await button.waitFor();
+        await expect(button.getAttribute('aria-label')).resolves.toBe('Server Configuration');
+        const frame = (await button.boundingBox())!;
+        expect(frame).toMatchObject({ width: 44, height: 44 });
+        expect(Math.round(PHONE.width - (frame.x + frame.width))).toBe(4);
+        const icon = (await button.locator('[data-icon="server-outline"]').boundingBox())!;
+        expect(Math.round(PHONE.width - (icon.x + icon.width))).toBe(16);
+        await evidence(page, 'phone-settings-custom-server-light-390');
+        await button.click();
+        await expect.poll(() => routerCalls(page)).toContain('/server');
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);

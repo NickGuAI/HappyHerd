@@ -142,6 +142,7 @@ Object.assign(virtualModules, {
             },
         });
         export const usePathname = () => location.pathname;
+        export const Stack = { Screen: () => null };
     `,
     '@/sync/storage': `
         import React from 'react';

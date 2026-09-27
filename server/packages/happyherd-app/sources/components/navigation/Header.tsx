@@ -506,8 +506,10 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         width: 44,
         height: 44,
     },
+    // The row ends 4 px from the edge, so a 44 px control's icon lands on the gutter.
     phoneShellContent: {
         paddingLeft: 5,
+        paddingRight: 4,
     },
     phoneShellCenterContainer: {
         paddingHorizontal: 5,
