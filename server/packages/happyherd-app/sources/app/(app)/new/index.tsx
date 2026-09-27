@@ -3343,19 +3343,22 @@ function NewSessionScreen() {
                     { maxHeight: Math.round(windowHeight * 0.56) },
                 ]}
             >
-                <PathPickerContent
-                    title={t('sessionInfo.path')}
-                    items={pathItems}
-                    value={selectedPath}
-                    homeDir={selectedHomeDir}
-                    machineId={selectedMachineId}
-                    platform={selectedMachine?.metadata?.platform}
-                    machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
-                    favorites={selectedMachineFavorites}
-                    onToggleFavorite={toggleFavoritePath}
-                    onChangeValue={setSelectedPath}
-                    onDone={closePicker}
-                />
+                {/* The card keeps its cap; the whole picker scrolls inside it. */}
+                <ScrollView style={styles.streamlinePathPickerPhoneBody} keyboardShouldPersistTaps="handled">
+                    <PathPickerContent
+                        title={t('sessionInfo.path')}
+                        items={pathItems}
+                        value={selectedPath}
+                        homeDir={selectedHomeDir}
+                        machineId={selectedMachineId}
+                        platform={selectedMachine?.metadata?.platform}
+                        machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                        favorites={selectedMachineFavorites}
+                        onToggleFavorite={toggleFavoritePath}
+                        onChangeValue={setSelectedPath}
+                        onDone={closePicker}
+                    />
+                </ScrollView>
             </View>
         </View>
     ) : null;
@@ -3958,6 +3961,10 @@ const styles = StyleSheet.create((theme) => ({
             _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
         },
     }),
+    streamlinePathPickerPhoneBody: {
+        flexGrow: 0,
+        flexShrink: 1,
+    },
     configBox: {
         backgroundColor: theme.colors.input.background,
         borderRadius: theme.borderRadius.xl,

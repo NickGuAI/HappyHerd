@@ -5,13 +5,19 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformSync } from '@babel/core';
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../../../..');
 const sourcesRoot = resolve(appRoot, 'sources');
 const opsSource = readFileSync(resolve(sourcesRoot, 'sync/ops.ts'), 'utf8');
 const opNames = [...opsSource.matchAll(/export (?:async )?function (\w+)/g)].map((match) => match[1]);
+// A home folder as the daemon lists it, longer than the phone folder browser's card.
+const homeEntries = [
+    ...['.config', '.ssh', 'Applications', 'Desktop', 'Documents', 'Downloads', 'Library', 'Movies', 'Music', 'Pictures', 'Public', 'code', 'notes']
+        .map((name) => ({ name, type: 'directory' })),
+    ...['.gitconfig', '.zshrc'].map((name) => ({ name, type: 'file' })),
+];
 
 /**
  * The real New Session screen in Streamline mode, with every app source file
@@ -203,7 +209,10 @@ const virtualModules: Record<string, string> = {
         ], globalAgentsPath: null });`
         : name === 'machineSpawnNewSession'
             ? `export const machineSpawnNewSession = async (options) => { window.__SPAWNS__ = [...(window.__SPAWNS__ ?? []), options]; return { type: 'error', errorMessage: 'fixture stops after the payload' }; };`
-            : `export const ${name} = async () => ({ success: true });`).join('\n'),
+            : name === 'machineGetDirectoryTree'
+                ? `export const machineGetDirectoryTree = async (_machineId, path) => ({ success: true, tree: { name: path, path, type: 'directory',
+                    children: ${JSON.stringify(homeEntries)}.map((entry) => ({ ...entry, path: (path === '/' ? '' : path) + '/' + entry.name })) } });`
+                : `export const ${name} = async () => ({ success: true });`).join('\n'),
     '@/sync/sync': `export const sync = { refreshSessions: async () => {}, ensureSessionReady: async () => {}, sendMessage: async () => ({}), assignSessionProject: async () => {} };`,
     '@/utils/worktree': `
         export * from '${resolve(sourcesRoot, 'utils/worktreePaths.ts')}';
@@ -226,7 +235,6 @@ const virtualModules: Record<string, string> = {
         export const CommanderSessionAvatar = ({ size, commanderName }) => React.createElement(View, { style: { width: size, height: size, borderRadius: size / 2, backgroundColor: '#5E6B52', alignItems: 'center', justifyContent: 'center' } },
             React.createElement(Text, { style: { color: '#FFF9EC', fontSize: size * 0.4 } }, (commanderName ?? '?').slice(0, 1)));
     `,
-    '@/components/MachinePathBrowser': `export const MachinePathBrowser = () => null;`,
     '@/components/ProviderIcon': `import React from 'react'; export const ProviderIcon = ({ size }) => React.createElement('span', { style: { display: 'inline-block', width: size, height: size, borderRadius: size / 2, background: '#C9AE85' } });`,
     '@/components/navigation/Header': `export const Header = () => null;`,
     '@/components/AnimatedOverlay': `import React from 'react'; import { View } from 'react-native-unistyles/components/native/View'; export const AnimatedClickAwayBackdrop = ({ exitImmediately, ...props }) => React.createElement(View, props); export const AnimatedPopup = ({ exitImmediately, ...props }) => React.createElement(View, props); export const LocalBlurHalo = () => null;`,
@@ -549,6 +557,37 @@ describe('Streamline New Session in the production style runtime', () => {
         await page.mouse.click(195, 40);
         await expect.poll(() => browser.count()).toBe(0);
         await expect(page.getByTestId('streamline-choose-folder').getAttribute('aria-expanded')).resolves.toBe('false');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('scrolls the whole folder browser inside its card on a short phone, so every control is reachable', async () => {
+        const { page, errors } = await open({ width: 320, height: 568 });
+        await page.getByTestId('streamline-sections').waitFor();
+        await page.getByTestId('streamline-choose-folder').click();
+        const browser = page.getByTestId('streamline-folder-browser');
+        // The real folder browser lists the home folder, taller than the card.
+        await browser.getByRole('button', { name: 'Open folder Documents' }).waitFor();
+        await settle(page);
+        // The card keeps its cap and its 8 px margins, inside the window.
+        const card = await rect(page, 'streamline-folder-browser');
+        expect({ x: card.x, width: card.width, height: card.height }).toEqual({ x: 8, width: 320 - 16, height: Math.round(568 * 0.56) });
+        expect(568 - (card.y + card.height)).toBe(8);
+        // Pixels of a control above or below the card; 0 when all of it shows.
+        const outsideCard = (control: Locator) => control.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            const bounds = element.closest('[data-testid="streamline-folder-browser"]')!.getBoundingClientRect();
+            return Math.round(Math.max(0, bounds.top - box.top) + Math.max(0, box.bottom - bounds.bottom));
+        });
+        // A person scrolls from the card's side padding, clear of the folder and
+        // recent lists, which scroll on their own. The toolbar is the top-most
+        // control, and the path field the bottom-most: the fixture has no recent folders.
+        await page.mouse.move(card.x + 8, card.y + card.height / 2);
+        await page.mouse.wheel(0, -2000);
+        await expect.poll(() => outsideCard(browser.getByRole('button', { name: 'Browse filesystem root' })), { message: 'the toolbar scrolls into the card' }).toBe(0);
+        await page.mouse.wheel(0, 2000);
+        await expect.poll(() => outsideCard(browser.getByPlaceholder('Enter project path')), { message: 'the path field scrolls into the card' }).toBe(0);
+        await evidence(page, 'streamline-folder-browser-light-320');
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
