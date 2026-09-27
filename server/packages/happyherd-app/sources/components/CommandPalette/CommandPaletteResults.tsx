@@ -88,7 +88,7 @@ export function CommandPaletteResults({
 
                 return (
                     <View key={category.id}>
-                        <Text style={[styles.categoryTitle, Typography.default('semiBold')]}>
+                        <Text style={[styles.categoryTitle, Typography.mono('semiBold')]}>
                             {category.title}
                         </Text>
                         {categoryCommands}
@@ -103,11 +103,11 @@ const styles = StyleSheet.create((theme) => ({
     container: {
         // Use viewport-based height for better proportions
         ...(Platform.OS === 'web' ? {
-            maxHeight: '40vh', // 40% of viewport height for results
+            maxHeight: '52vh',
         } as any : {
             maxHeight: 420, // Fallback for native
         }),
-        paddingVertical: 8,
+        padding: 8,
     },
     emptyContainer: {
         padding: 48,
@@ -119,13 +119,12 @@ const styles = StyleSheet.create((theme) => ({
         letterSpacing: -0.2,
     },
     categoryTitle: {
-        paddingHorizontal: 32,
-        paddingTop: 16,
-        paddingBottom: 8,
-        fontSize: 12,
-        color: theme.colors.textSecondary,
+        paddingHorizontal: 10,
+        paddingTop: 10,
+        paddingBottom: 6,
+        fontSize: 10.5,
+        color: theme.colors.textLink,
         textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        fontWeight: '600',
+        letterSpacing: 2,
     },
 }));

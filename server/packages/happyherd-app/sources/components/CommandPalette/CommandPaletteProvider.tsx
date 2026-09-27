@@ -67,6 +67,16 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
                 }
             },
             {
+                id: 'commanders',
+                title: t('happyHerd.commander.category'),
+                subtitle: t('happyHerd.commander.browseSubtitle'),
+                icon: 'people-outline',
+                category: t('happyHerd.commander.category'),
+                action: () => {
+                    router.push('/commanders');
+                }
+            },
+            {
                 id: 'sessions',
                 title: t("uiCopy.viewAllSessions"),
                 subtitle: t("uiCopy.browseYourChatHistory"),

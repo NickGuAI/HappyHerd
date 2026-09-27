@@ -1,7 +1,9 @@
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React from 'react';
 import { View, TextInput, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
+import { HerdKey } from '@/components/herd/pages/HerdPage';
 import { t } from '@/text';
 
 interface CommandPaletteInputProps {
@@ -28,7 +30,8 @@ export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef 
     }, [onKeyPress]);
 
     return (
-        <View style={[styles.container, focused && { borderBottomColor: theme.colors.kilv.accent }]}>
+        <View style={[styles.container, focused && { borderBottomColor: theme.colors.selection.border }]}>
+            <Ionicons name="search" size={19} color={theme.colors.textLink} />
             <TextInput
                 ref={inputRef}
                 style={[styles.input, Typography.default()]}
@@ -45,22 +48,28 @@ export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef 
                 onKeyPress={handleKeyDown}
                 blurOnSubmit={false}
             />
+            <HerdKey label={t('commandPalette.keyEscape')} />
         </View>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
     container: {
+        minHeight: 58,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 18,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.kilv.rimLine,
-        backgroundColor: theme.colors.kilv.bgSunken,
+        borderBottomColor: theme.colors.divider,
     },
     input: {
-        paddingHorizontal: 24,
-        paddingVertical: 24,
-        fontSize: 18,
+        flex: 1,
+        minWidth: 0,
+        paddingVertical: 16,
+        fontSize: 17,
         color: theme.colors.text,
-        letterSpacing: -0.3,
+        letterSpacing: -0.2,
         // Remove outline on web
         ...(Platform.OS === 'web' ? {
             outlineStyle: 'none',

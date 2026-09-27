@@ -4,6 +4,7 @@ import { View, Text, Pressable, Platform } from 'react-native';
 import { Command } from './types';
 import { Typography } from '@/constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
+import { HerdKey } from '@/components/herd/pages/HerdPage';
 
 interface CommandPaletteItemProps {
     command: Command;
@@ -46,32 +47,29 @@ export function CommandPaletteItem({ command, isSelected, onPress, onHover }: Co
     }
 
     return (
-        <Pressable {...pressableProps} accessibilityRole="button" accessibilityState={{ selected: isSelected }}>
+        <Pressable {...pressableProps} accessibilityRole="button" accessibilityState={{ selected: isSelected }} aria-selected={isSelected}>
+            {isSelected && <View testID="command-palette-accent" style={styles.accentBar} />}
             <View style={styles.content}>
                 {command.icon && (
                     <View style={styles.iconContainer}>
                         <Ionicons
                             name={command.icon as any}
-                            size={20}
+                            size={17}
                             color={isSelected ? theme.colors.textLink : theme.colors.textSecondary}
                         />
                     </View>
                 )}
-                <View style={styles.textContainer}>
-                    <Text style={[styles.title, Typography.default()]}>
-                        {command.title}
+                <Text numberOfLines={1} style={[styles.title, Typography.default(), isSelected && styles.titleSelected]}>
+                    {command.title}
+                </Text>
+                {command.subtitle && (
+                    <Text numberOfLines={1} style={[styles.subtitle, Typography.default()]}>
+                        {command.subtitle}
                     </Text>
-                    {command.subtitle && (
-                        <Text style={[styles.subtitle, Typography.default()]}>
-                            {command.subtitle}
-                        </Text>
-                    )}
-                </View>
+                )}
                 {command.shortcut && (
                     <View style={styles.shortcutContainer}>
-                        <Text style={[styles.shortcut, Typography.mono()]}>
-                            {command.shortcut}
-                        </Text>
+                        <HerdKey label={command.shortcut} />
                     </View>
                 )}
             </View>
@@ -82,64 +80,58 @@ export function CommandPaletteItem({ command, isSelected, onPress, onHover }: Co
 const styles = StyleSheet.create((theme) => ({
     container: {
         minHeight: 44,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 12,
+        justifyContent: 'center',
         backgroundColor: 'transparent',
-        marginHorizontal: 8,
-        marginVertical: 2,
-        borderRadius: 4,
-        borderWidth: 2,
-        borderColor: 'transparent',
+        borderRadius: theme.borderRadius.md,
     },
     selected: {
-        backgroundColor: theme.colors.surfaceSelected,
-        borderColor: theme.colors.kilv.accent,
+        backgroundColor: theme.colors.surfaceHighest,
     },
     pressed: {
         backgroundColor: theme.colors.surfacePressed,
     },
     hovered: {
-        backgroundColor: theme.colors.surfaceHigh,
+        backgroundColor: theme.colors.surfacePressedOverlay,
+    },
+    accentBar: {
+        position: 'absolute',
+        left: 0,
+        top: 10,
+        bottom: 10,
+        width: 2,
+        borderRadius: 1,
+        backgroundColor: theme.colors.kilv.accent,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
     },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: 12,
     },
     iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 4,
-        backgroundColor: theme.colors.kilv.bgSunken,
+        width: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
-    },
-    textContainer: {
-        flex: 1,
-        minWidth: 0,
-        marginRight: 12,
     },
     title: {
+        flexShrink: 0,
+        maxWidth: '62%',
         fontSize: 15,
-        color: theme.colors.text,
-        marginBottom: 2,
+        color: theme.colors.textSecondary,
         letterSpacing: -0.2,
     },
+    titleSelected: {
+        color: theme.colors.text,
+    },
     subtitle: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
+        flex: 1,
+        minWidth: 0,
+        fontSize: 12.5,
+        color: theme.colors.kilv.inkFaint,
         letterSpacing: -0.1,
     },
     shortcutContainer: {
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        backgroundColor: theme.colors.kilv.bgSunken,
-        borderRadius: 6,
-    },
-    shortcut: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        fontWeight: '500',
+        marginLeft: 'auto',
     },
 }));

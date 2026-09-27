@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect, useRef } from 'react';
 import {
     View,
@@ -21,6 +21,7 @@ export function CommandPaletteModal({
     onClose,
     children
 }: CommandPaletteModalProps) {
+    const { theme } = useUnistyles();
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
     const [isModalVisible, setIsModalVisible] = React.useState(true);
@@ -112,7 +113,7 @@ export function CommandPaletteModal({
                         }
                     ]}
                 >
-                    {Platform.OS !== 'web' && <LocalBlurHalo borderRadius={6} expansion={18} blurIntensity={38} />}
+                    {Platform.OS !== 'web' && <LocalBlurHalo borderRadius={theme.kilv.radiusSheet} expansion={18} blurIntensity={38} />}
                     {children}
                 </Animated.View>
             </KeyboardAvoidingView>
@@ -125,9 +126,9 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        // Position at 30% from top of viewport
+        // Sit high in the viewport so results have room to grow
         ...(Platform.OS === 'web' ? {
-            paddingTop: '30vh',
+            paddingTop: '12vh',
         } as any : {
             paddingTop: 200, // Fallback for native
         })
@@ -135,6 +136,7 @@ const styles = StyleSheet.create((theme) => ({
     backdrop: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: theme.colors.kilv.scrimStrong,
+        _web: { backdropFilter: 'blur(2px)' },
     },
     nativeBackdrop: {
         ...StyleSheet.absoluteFillObject,
@@ -145,7 +147,8 @@ const styles = StyleSheet.create((theme) => ({
     },
     content: {
         zIndex: 1,
-        width: '90%',
-        maxWidth: 800, // Increased from 640
+        width: '92%',
+        maxWidth: 640,
+        alignItems: 'center',
     }
 }));

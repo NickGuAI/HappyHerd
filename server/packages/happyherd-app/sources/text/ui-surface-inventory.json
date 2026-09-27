@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "d110e73fcc3bdfde76ac0026f2c439d34cc2a691168baa1ee6548651bf56cfeb",
+  "sourceFingerprint": "bf7500fd7ec7eedae7a7b5d1aaba74e88bf9ae080ca16a0c107f5bd7fd1cebe8",
   "routeCount": 43,
   "surfaceCount": 307,
   "hardcodedCopyCount": 0,
@@ -3062,7 +3062,12 @@
       "exports": [
         "CommandPalette"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "commandPalette.hintClose",
+        "commandPalette.hintNavigate",
+        "commandPalette.hintOpen",
+        "commandPalette.keyEscape"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3074,6 +3079,7 @@
         "CommandPaletteInput"
       ],
       "translationKeys": [
+        "commandPalette.keyEscape",
         "commandPalette.placeholder"
       ],
       "states": [],
@@ -3109,6 +3115,7 @@
         "CommandPaletteProvider"
       ],
       "translationKeys": [
+        "happyHerd.commander.browseSubtitle",
         "happyHerd.commander.category",
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
