@@ -134,7 +134,7 @@ otherwise.
 
 | Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
 |---|---|---|---|---|
-| `sources/-session/SessionView.tsx` | Extended | The web header renders `herd/session/SessionHeaderActions` (Workspace toggle, Side chats with a count badge, ⋯ opening `SessionActionsPopover`). A `desktopWorkspaceHidden` flag hides the Workspace without closing tabs; `collapseSidebarPanels` and a session change clear it. Passes the composer's agent chip and `connectionStatus.state`. | Native header and all workspace, side-chat, overlay and composer logic. | Merge logic normally; keep the header, the hidden flag and the chip wiring. New header buttons go into `SessionHeaderActions`. |
+| `sources/-session/SessionView.tsx` | Extended | The web header renders `herd/session/SessionHeaderActions` (Workspace toggle, Side chats with a count badge, ⋯ opening `SessionActionsPopover`). A `desktopWorkspaceHidden` flag hides the Workspace without closing tabs; `collapseSidebarPanels` and a session change clear it. Passes the composer's agent chip and `connectionStatus.state`. Below 1,100 px on desktop web, the right panel and the Workspace render as one sheet over a scrim through `DesktopFileWorkspaceSplit`'s `overlay` prop (`resolveHerdSheetWidth`); `rightOverlayDismissed` hides the sheet without closing panels and is cleared by `openSidebarPanel`, `selectSidebarPanel` and `collapseSidebarPanels`, and the header state follows the sheet (`sideChatSidebarShown`). | Native header, the docked layout from 1,100 px, phone full-screen views, and all workspace, side-chat, link, overlay-history, draft and composer logic. | Merge logic normally; keep the header, the hidden flag, the overlay wiring and the chip wiring. New header buttons go into `SessionHeaderActions`. Any new path that reveals a panel or the Workspace must go through those helpers so the dismissal clears. |
 | `sources/components/ChatHeaderView.tsx` | Restyled | Web: a full-width bar with a hairline, a folder / title crumb with hover, and no left clearance (shell controls live in the top bar). | Props, native glass branch, back button, `rightSlot`. Both Back buttons are now labelled `common.back`. | Take behavior; re-apply the web styles and keep the labels. |
 | `sources/components/MessageView.tsx` | Restyled | Web user bubbles; replies use the Markdown `reply` tone; event rows (`AgentEventRow`); an `entrance` prop. | Message kinds, pending and error frames, options, copy, safeguard, native island. | Keep web values in `Platform.select`; route new event types through `AgentEventRow`. |
 | `sources/components/ChatList.tsx` | Extended | A row rises in once (first paint, live arrival, group reveal), never on scroll or recycle; the Jump to latest control is a pill. | Inverted list, windowing, grouping, focus, wheel handling. | Merge list logic; keep the entrance tracker hooks. |
@@ -151,6 +151,23 @@ Open decisions recorded for the owner: the context meter follows the existing
 "Always show context size" setting, which is off by default, so it shows only
 at 10% or less remaining. The send button keeps its current behavior (Stop
 stays in the + menu and on Esc).
+
+## Side panels and Workspace
+
+The right panel and the Workspace follow the mock: pill tabs for Changes
+and Side chats, a Changes list with a branch summary, a grip divider, a
+Workspace with folder-style tabs and a file bar, molten comment cards, and a
+framed live view. Below 1,100 px on desktop web they slide over the chat as
+one sheet (see `SessionView.tsx` above). `herd/panels/panelColors.ts`
+derives the few tints the mock uses that have no theme token (the fainter
+hairlines, the active tab's rim, the panel and Workspace grounds) from KILV
+tokens; a future theme token can replace each.
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/components/FilesSidebar.tsx` | Restyled + Extended | Pill tabs (`herd/panels/PanelTab`): Changes with +N −N, then Side chats with its count, in fixed order and level with the chat header (`useHeaderHeight`); a closed Changes pill opens the panel. Picker cards with a description and shortcut; the add-panel menu inline under its "+" (`HerdMenuItem`, `herd-pop`); a branch and staged/unstaged summary; mono tree rows with per-file counts, a molten edge on the open file, folders through `HerdCollapse`; an optional `onHidePanel`. | Props, picker and menu actions and shortcuts (active only while the picker or menu shows), git refresh on mount, tree building, deleted-file handling, the native glass menu. | Take upstream data and behavior; keep the pill order (`ALL_PANELS`), the inline menu and the row styles. A new panel gets a pill and a picker card. |
+| `sources/components/SideChatPanel.tsx` | Restyled + Extended | One pill per side chat (close on hover or when active); "+" beside the tabs and full screen at the row's end, replacing the toolbar row; a molten empty-state hero; the phone full-screen host uses `HerdPanelScreenHeader` (collapse, parent-session subtitle, "+" in the header through `newChatInTabs={false}`); a restyled modal header. | Exports and props, `SideChatAccessButton` (native, unchanged), the `sideChat.close/expand/collapse/newChat` labels, unlabelled tab semantics, the Modal flow, the embedded `SessionViewLoaded`. | Take upstream behavior; keep the tab row (tabs, "+", spacer, full screen) and the full-screen header. |
+| `sources/components/FileViewPanel.tsx` | Restyled | Preview/Edit as one sunken pair with a molten selected state (`aria-pressed`); labelled icon Download and Delete in the wide Workspace bar (`iconActions`); compact headers keep a labelled Download and native keeps a labelled Delete; an edit bar with the file name, save state, Cancel and a primary Save; bars on theme surfaces. | All read, write, delete, download, conflict and preview logic, and every accessible name. | Take upstream logic; keep the `iconActions` split. |
 
 ## Secondary pages
 
@@ -206,6 +223,9 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/herd/HerdPopover.tsx` | Anchored dropdown (`HerdPopover`, `HerdMenuItem`, `HerdMenuTitle`, `HerdMenuSeparator`) for top bar menus; a bottom sheet on phone web. It re-exports `useHerdEscapeToClose`. |
 | `sources/components/herd/escape.ts` | `useHerdEscapeToClose`, the capture-phase Escape rule for overlays. |
 | `sources/components/herd/presence.ts` | `useHerdExit` and `HERD_EXIT`: an overlay keeps its last anchor, or open state, while its exit class plays. |
+| `sources/components/herd/HerdExitLayer.web.tsx` (and a native `HerdExitLayer.tsx` that renders nothing) | The inert, pointer-transparent body layer a closed overlay leaves on, after its Modal has already ended. |
+| `sources/components/herd/panels/*` | Side panel parts: `PanelTab` (pill tab with close and count or line badges), `PanelIconButton`, `PanelGrip` (the resize pill), `PanelOverlay` (scrim, Escape that skips text fields, the sheet width rule), `PanelScreenHeader` (phone back header) and `panelColors`. |
+| `sources/components/{DesktopFileWorkspace,SessionSidebarDivider,LocalhostLiveView.web,InlineCommentReview.web}.tsx`, `sources/components/sideChatPresentation.ts`, `sources/app/(app)/workspace/index.tsx` | HappyHerd-owned Workspace and panel files, restyled for the panels: the Workspace tabs, file bar and `overlay` split mode, the grip divider, the framed live view, molten comment cards and a docked review bar, the overlay presentation rule (`rightPanelPresentation: 'overlay'` on non-phone web below 1,100 px), and the Workspace page on theme tokens. |
 | `sources/components/herd/mobile/useHerdPhone.ts` | The phone web rule: web and narrower than 700 px. |
 | `sources/components/herd/mobile/HerdBottomSheet.tsx` | The phone sheet: scrim, `herd-sheet-up` / `herd-sheet-down`, a drag handle that is also a labelled Cancel button (a drag past 72 px or a flick dismisses), and home-indicator padding. |
 | `sources/components/herd/mobile/MobileHome.tsx` | The phone home header, its icon buttons, the focus row and the floating New session button. |
@@ -229,7 +249,7 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/sync/githubRepository.ts` | Git and GitHub detection for a machine folder through the existing bash RPC (plain `git`, cached). |
 | `sources/hooks/useStreamlineLocations.ts` | Working folders from favorites, recent folders and Commander workspaces. |
 | `sources/utils/normalizeMachinePath.ts` | Shared machine-path identity for Streamline. |
-| `sources/components/herd/session/*` | Session screen parts: `ToolLine` and `toolLineModel`, `Collapse`, `color` (`herdAlpha`), `entranceMotion`, `permissionShortcuts`, `ComposerChips` and `composerChipModel`, `HeaderButton`, `SessionHeaderActions`. |
+| `sources/components/herd/session/*` | Session screen parts: `ToolLine` and `toolLineModel`, `Collapse`, `color` (`herdAlpha`, which mixes the CSS-variable colors Unistyles hands web style factories with `color-mix`), `entranceMotion`, `permissionShortcuts`, `ComposerChips` and `composerChipModel`, `HeaderButton`, `SessionHeaderActions`. |
 | `sources/components/herd/pages/*` | Page parts: `HerdPage` (header, buttons, chips, labels, notices, empty states), `HerdSheet`, `HerdCollapse`, `HerdList` (drop-in `ItemGroup`/`Item`), `HerdTimeline`, `SettingsFrame` (desktop section list), `commanderMemory`, `focusProgress`. `herd/session/Collapse` and `HerdCollapse` do the same job; merge them the next time either changes. |
 | `sources/app/(app)/commanders/index.tsx` | The Commanders page. |
 | `sources/app/(app)/settings/{connections,credentials,features}.tsx` | HappyHerd-owned settings pages. Their default exports are wrapped in `withSettingsFrame`, like the inherited ones. |
