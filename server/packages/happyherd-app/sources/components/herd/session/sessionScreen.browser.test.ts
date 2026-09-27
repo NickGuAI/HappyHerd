@@ -486,6 +486,10 @@ describe('Session screen overhaul (Web)', () => {
         const foreground = page.getByTestId('foreground-session');
         const workspace = foreground.getByRole('button', { name: 'Workspace', exact: true });
         await expect(workspace.isVisible()).resolves.toBe(true);
+        // Phones get a labelled Back button in the session header.
+        if (viewport === MOBILE) {
+            await expect(foreground.getByRole('button', { name: 'Back', exact: true }).isVisible()).resolves.toBe(true);
+        }
         await expect(foreground.getByRole('button', { name: 'Open side chats (2)' }).isVisible()).resolves.toBe(true);
         const menuButton = foreground.getByRole('button', { name: 'Session', exact: true });
         await menuButton.click();

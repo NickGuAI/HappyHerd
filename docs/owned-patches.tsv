@@ -534,3 +534,4 @@ UI_OVERHAUL_MOBILE_PAGE_HEADER	accepted	feat(app): give Web phone pages a back b
 UI_OVERHAUL_MOBILE_BROWSER	accepted	test(app): cover the Web Mobile shell in the production style runtime	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UI_OVERHAUL_ESCAPE_MODULE	accepted	fix(app): import the Escape hook without the popover UI	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
 UI_OVERHAUL_ROW_LONG_PRESS	accepted	feat(app): open session row actions with a long press on touch screens	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_SESSION_BACK_LABEL	accepted	fix(app): label the session header's Back button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts

@@ -6,6 +6,7 @@ import { Typography } from '@/constants/Typography';
 import { isRunningOnMac } from '@/utils/platform';
 import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { layout } from '@/components/layout';
+import { t } from '@/text';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from './MobileGlass';
 import { BubblePressable } from './BubblePressable';
@@ -101,7 +102,13 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                 <View style={styles.contentWrapper}>
                     <View style={[styles.webContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
                         {showBackButton && (
-                            <Pressable onPress={onBackPress} hitSlop={15} style={styles.webBackButton}>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.back')}
+                                onPress={onBackPress}
+                                hitSlop={15}
+                                style={styles.webBackButton}
+                            >
                                 <Ionicons
                                     name="arrow-back"
                                     size={24}
@@ -275,6 +282,8 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                 <View style={[styles.content, { height: contentHeight }]}>
                     {showBackButton && (
                         <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.back')}
                             onPress={onBackPress}
                             hitSlop={10}
                             style={({ pressed }) => [styles.backButton, pressed && styles.controlPressed]}

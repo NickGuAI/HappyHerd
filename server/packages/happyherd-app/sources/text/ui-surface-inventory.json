@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bc26cb3a99534f130b8f5701b2a8204c5f9bdbdb3572d42fa8fe492b2abbf281",
+  "sourceFingerprint": "3ae76204fd501811a4b01e429e9c3fcd77ff76b19bfe4f12e883b93dfc0665af",
   "routeCount": 43,
   "surfaceCount": 309,
   "hardcodedCopyCount": 0,
@@ -2942,7 +2942,9 @@
       "exports": [
         "ChatHeaderView"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.back"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
