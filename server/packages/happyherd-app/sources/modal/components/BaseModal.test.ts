@@ -26,7 +26,12 @@ vi.mock('react-native', async () => {
         Text: host('Text'),
         Pressable: host('Pressable'),
         Modal: host('Modal'),
-        KeyboardAvoidingView: host('KeyboardAvoidingView'),
+        // As React Native does, iOS's padding mode composes the keyboard's height
+        // (0 while it is closed) over the style's bottom padding.
+        KeyboardAvoidingView: (props: any) => ReactModule.createElement('KeyboardAvoidingView', {
+            ...props,
+            style: props.behavior === 'padding' ? [props.style, { paddingBottom: 0 }] : props.style,
+        }, props.children),
         TouchableWithoutFeedback: host('TouchableWithoutFeedback'),
         Animated: { Value, View: host('AnimatedView'), timing: () => ({ start() {} }) },
         StyleSheet: { create: (styles: unknown) => styles, absoluteFillObject: {}, hairlineWidth: 1 },
@@ -71,25 +76,30 @@ function renderDialog(placement: 'center' | 'dialog' = 'dialog') {
         renderer = create(React.createElement(BaseModal, { visible: true, placement, children: React.createElement(DialogProbe) }));
     });
     renderers.push(renderer);
+    const container = flat(renderer.root.findByType('KeyboardAvoidingView' as any).props.style);
+    const content = flat(renderer.root.findAllByType('AnimatedView' as any).at(-1)!.props.style);
     return {
-        container: flat(renderer.root.findByType('KeyboardAvoidingView' as any).props.style),
+        container,
+        // The space between the dialog and the window's bottom edge.
+        bottomGap: Number(container.paddingBottom ?? 0) + Number(content.marginBottom ?? 0),
         phoneDialog: renderer.root.findByType('Probe' as any).props.phoneDialog as boolean,
     };
 }
 
 describe('dialog placement', () => {
     it('rests a dialog on the bottom edge of a phone-width browser window', () => {
-        const { container, phoneDialog } = renderDialog();
-        expect(container).toMatchObject({ justifyContent: 'flex-end', paddingBottom: 8 + 34 });
+        const { container, bottomGap, phoneDialog } = renderDialog();
+        expect(container.justifyContent).toBe('flex-end');
+        expect(bottomGap).toBe(8 + 34);
         expect(phoneDialog).toBe(true);
     });
 
     it('keeps a dialog centered in a 1024 × 768 browser window, though the device rule calls it a phone', () => {
         // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width.
         mocks.window = { width: 1024, height: 768 };
-        const { container, phoneDialog } = renderDialog();
+        const { container, bottomGap, phoneDialog } = renderDialog();
         expect(container.justifyContent).toBe('center');
-        expect(container.paddingBottom).toBeUndefined();
+        expect(bottomGap).toBe(0);
         // The duplicate and continuation sheets keep their centered width cap.
         expect(phoneDialog).toBe(false);
     });
@@ -118,12 +128,10 @@ describe('dialog placement', () => {
             tablet: false,
             insets: { top: 0, left: 47, right: 47, bottom: 21 },
         });
-        expect(renderDialog().container).toMatchObject({
-            justifyContent: 'flex-end',
-            paddingLeft: 8 + 47,
-            paddingRight: 8 + 47,
-            paddingBottom: 8 + 21,
-        });
+        const { container, bottomGap } = renderDialog();
+        expect(container).toMatchObject({ justifyContent: 'flex-end', paddingLeft: 8 + 47, paddingRight: 8 + 47 });
+        // iOS keyboard avoidance replaces the container's bottom padding, so the gap survives it.
+        expect(bottomGap).toBe(8 + 21);
     });
 
     it('keeps a centered modal 20 px inside a landscape phone\'s side insets', () => {
@@ -133,9 +141,9 @@ describe('dialog placement', () => {
             tablet: false,
             insets: { top: 0, left: 47, right: 47, bottom: 21 },
         });
-        const { container, phoneDialog } = renderDialog('center');
+        const { container, bottomGap, phoneDialog } = renderDialog('center');
         expect(container).toMatchObject({ justifyContent: 'center', paddingLeft: 20 + 47, paddingRight: 20 + 47 });
-        expect(container.paddingBottom).toBeUndefined();
+        expect(bottomGap).toBe(0);
         expect(phoneDialog).toBe(false);
     });
 

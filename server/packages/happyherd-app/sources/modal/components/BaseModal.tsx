@@ -91,7 +91,9 @@ export function BaseModal({
                     phoneDialog && {
                         justifyContent: 'flex-end',
                         padding: HERD_PHONE_FLOAT_MARGIN,
-                        paddingBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom,
+                        // iOS keyboard avoidance owns this edge: it sets the padding to the
+                        // keyboard's height, 0 while it is closed. The gap is the content's margin.
+                        paddingBottom: 0,
                     },
                     // Last: react-native-web expands an inline `padding` in
                     // key order, so it would override sides set before it.
@@ -129,6 +131,7 @@ export function BaseModal({
                     style={[
                         styles.content,
                         phoneDialog && styles.contentPhoneDialog,
+                        phoneDialog && { marginBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom },
                         {
                             opacity: fadeAnim,
                             transform: [{
