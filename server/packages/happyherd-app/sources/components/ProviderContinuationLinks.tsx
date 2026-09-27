@@ -1,6 +1,6 @@
 import { Text } from '@/components/StyledText';
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -9,6 +9,8 @@ import { useProviderContinuationSessions, useSession } from '@/sync/storage';
 import type { Session } from '@/sync/storageTypes';
 import { t } from '@/text';
 import { getProviderContinuationLabel, getProviderContinuationSource } from '@/utils/providerContinuation';
+import { herdAlpha } from './herd/session/color';
+import { herdWebClasses } from './herd/motion';
 
 export const ProviderContinuationLinks = React.memo(function ProviderContinuationLinks({
     session,
@@ -57,9 +59,13 @@ function ContinuationLink({
             accessibilityRole="button"
             accessibilityLabel={label}
             onPress={onPress}
-            style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+            style={({ pressed, hovered }: any) => [
+                styles.link,
+                hovered && styles.hovered,
+                pressed && styles.pressed,
+            ]}
         >
-            <Ionicons name={icon} size={15} color={theme.colors.textLink} />
+            <Ionicons name={icon} size={Platform.OS === 'web' ? 13 : 15} color={theme.colors.textLink} />
             <Text numberOfLines={1} style={styles.label}>{label}</Text>
         </Pressable>
     );
@@ -82,21 +88,31 @@ const styles = StyleSheet.create((theme) => ({
         paddingBottom: 6,
         paddingHorizontal: 8,
     },
+    // Web continuation links are molten pills (UI overhaul).
     link: {
         alignItems: 'center',
-        backgroundColor: theme.colors.surfaceHigh,
-        borderRadius: 999,
+        backgroundColor: Platform.select({ web: theme.colors.selection.background, default: theme.colors.surfaceHigh }),
+        borderRadius: theme.kilv.radiusPill,
+        borderWidth: Platform.select({ web: 1, default: 0 }),
+        borderColor: herdAlpha(theme.colors.textLink, 0.35),
         flexDirection: 'row',
-        gap: 6,
+        gap: Platform.select({ web: 7, default: 6 }),
         maxWidth: '100%',
-        minHeight: 32,
+        minHeight: Platform.select({ web: 28, default: 32 }),
         paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingVertical: Platform.select({ web: 4, default: 6 }),
+        _web: {
+            _classNames: herdWebClasses('herd-rise-sm', 'herd-transition'),
+        },
     },
     label: {
         color: theme.colors.textLink,
-        fontSize: 13,
+        fontSize: Platform.select({ web: 12.5, default: 13 }),
         fontWeight: '500' as const,
+    },
+    hovered: {
+        backgroundColor: herdAlpha(theme.colors.textLink, 0.14),
+        borderColor: herdAlpha(theme.colors.textLink, 0.55),
     },
     pressed: {
         opacity: 0.7,

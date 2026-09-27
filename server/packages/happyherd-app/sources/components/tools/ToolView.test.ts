@@ -86,6 +86,8 @@ import { WriteView } from './views/WriteView';
 import { MultiEditView } from './views/MultiEditView';
 import { MultiEditViewFull } from './views/MultiEditViewFull';
 import { GeminiEditView } from './views/GeminiEditView';
+import { ToolLine } from '@/components/herd/session/ToolLine';
+import { HerdCollapse } from '@/components/herd/session/Collapse';
 
 const renderers: ReturnType<typeof create>[] = [];
 function render(element: React.ReactElement) {
@@ -154,7 +156,14 @@ describe('tool rendering on mobile and web', () => {
         for (const name of ['write_stdin', 'kill_session', 'BashOutput', 'BashInput', 'BashStop', 'send_command_input', 'get_command_or_subagent_output', 'kill_command_or_subagent', 'create_agent', 'read_user_input', 'cancel_ask', 'future_tool']) {
             const row = render(React.createElement(ToolView, { tool: tool(name), metadata: null, sessionId: 's1', messageId: 'm1' }));
             expect(row.root.findAllByType('CodeView')).toHaveLength(0);
-            expect(row.root.findAllByType('TouchableOpacity')).toHaveLength(1);
+            if (platform === 'web') {
+                // Web renders the compact row as one pressable tool line (UI overhaul).
+                const lines = row.root.findAllByType(ToolLine);
+                expect(lines).toHaveLength(1);
+                expect(typeof lines[0].props.onPress).toBe('function');
+            } else {
+                expect(row.root.findAllByType('TouchableOpacity')).toHaveLength(1);
+            }
         }
     });
 
@@ -306,6 +315,48 @@ describe('tool rendering on mobile and web', () => {
             permissionFooter: React.createElement('PermissionFooter'),
         }));
         expect(row.root.findByType('CodeView').props.code).toBe(patch);
+        expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+    });
+});
+
+describe('web tool rows (UI overhaul)', () => {
+    it('expands a compact patch row in place with its line stats', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const patch = '*** Begin Patch\n*** Update File: a.ts\n@@\n-old\n+new\n+more\n*** End Patch';
+        const row = render(React.createElement(ToolView, {
+            tool: tool('apply_patch', { patch }), metadata: null, sessionId: 's1', messageId: 'm1',
+        }));
+        const [line] = row.root.findAllByType(ToolLine);
+        expect(line.props).toMatchObject({ expandable: true, expanded: false, stats: { additions: 2, deletions: 1 }, state: 'completed' });
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(false);
+        act(() => line.props.onPress());
+        expect(row.root.findAllByType(ToolLine)[0].props.expanded).toBe(true);
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(true);
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(1);
+        act(() => row.root.findAllByType(ToolLine)[0].props.onPress());
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(false);
+    });
+
+    it('keeps rows without an inline body navigable to the detail screen', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const row = render(React.createElement(ToolView, { tool: tool('future_tool'), metadata: null, sessionId: 's1', messageId: 'm1' }));
+        const [line] = row.root.findAllByType(ToolLine);
+        expect(line.props.expandable).toBe(false);
+        expect(typeof line.props.onPress).toBe('function');
+        expect(row.root.findAllByType(HerdCollapse)).toHaveLength(0);
+    });
+
+    it('draws a pending approval as a warning card with its input and choices', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const pending = { ...tool('unknown', { path: '/sensitive' }), state: 'running' as const, permission: { id: 'p1', status: 'pending' as const } };
+        const row = render(React.createElement(ToolView, { tool: pending, metadata: null, sessionId: 's1' }));
+        const card = row.root.findAll((node: any) => node.props.testID === 'tool-permission-card');
+        expect(card.length).toBeGreaterThan(0);
+        expect(row.root.findAllByType(ToolLine)[0].props).toMatchObject({ variant: 'card', state: 'pending' });
+        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
     });
 });

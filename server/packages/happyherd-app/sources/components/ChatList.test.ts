@@ -56,24 +56,24 @@ vi.mock('@shopify/flash-list', async () => {
 
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 0 }));
-vi.mock('react-native-unistyles', () => ({
-    useUnistyles: () => ({
-        theme: {
-            colors: {
-                divider: 'divider',
-                shadow: { color: 'shadow', opacity: 1 },
-                surface: 'surface',
-                text: 'text',
-            },
+vi.mock('react-native-unistyles', async () => {
+    // The real tokens back everything the fixture does not pin explicitly.
+    const { lightTheme } = await import('@/theme');
+    const theme = {
+        ...lightTheme,
+        colors: {
+            ...lightTheme.colors,
+            divider: 'divider',
+            shadow: { color: 'shadow', opacity: 1 },
+            surface: 'surface',
+            text: 'text',
         },
-    }),
-    StyleSheet: { create: (factory: (theme: any) => unknown) => factory({ colors: {
-        divider: 'divider',
-        shadow: { color: 'shadow', opacity: 1 },
-        surface: 'surface',
-        text: 'text',
-    } }) },
-}));
+    };
+    return {
+        useUnistyles: () => ({ theme }),
+        StyleSheet: { create: (factory: (theme: any) => unknown) => factory(theme) },
+    };
+});
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Octicons: (props: any) => ReactModule.createElement('Octicons', props) };

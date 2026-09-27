@@ -506,6 +506,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         '--hh-markdown-surface': palette.surface,
         '--hh-markdown-surface-high': palette.surfaceHigh,
         '--hh-markdown-surface-highest': palette.surfaceHighest,
+        '--hh-markdown-surface-sunken': palette.input.background,
         '--hh-markdown-syntax-keyword': palette.syntaxKeyword,
         '--hh-markdown-syntax-string': palette.syntaxString,
         '--hh-markdown-syntax-comment': palette.syntaxComment,
@@ -562,7 +563,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     return (
         <div
             ref={rootRef}
-            className={`hh-markdown-root${theme.dark || props.tone === 'island' ? ' hh-markdown-dark' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
+            className={`hh-markdown-root${theme.dark || props.tone === 'island' ? ' hh-markdown-dark' : ''}${props.tone === 'reply' ? ' hh-markdown-reply' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
@@ -624,6 +625,18 @@ const MARKDOWN_CSS = `
 .hh-markdown-root.hh-markdown-dark .hljs-number { color: var(--hh-markdown-syntax-number); }
 .hh-markdown-root.hh-markdown-dark .hljs-title,.hh-markdown-root.hh-markdown-dark .hljs-section,.hh-markdown-root.hh-markdown-dark .hljs-function { color: var(--hh-markdown-syntax-function); }
 .hh-markdown-root.hh-markdown-dark .hljs-variable,.hh-markdown-root.hh-markdown-dark .hljs-attr,.hh-markdown-root.hh-markdown-dark .hljs-params,.hh-markdown-root.hh-markdown-dark .hljs-punctuation { color: var(--hh-markdown-syntax-default); }
+.hh-markdown-root.hh-markdown-reply { line-height: 1.65; }
+.hh-markdown-root.hh-markdown-reply ul,.hh-markdown-root.hh-markdown-reply ol { padding-inline-start: 22px; }
+.hh-markdown-root.hh-markdown-reply li { margin: 4px 0; }
+.hh-markdown-root.hh-markdown-reply li::marker { color: var(--hh-markdown-accent); }
+.hh-markdown-root.hh-markdown-reply a { color: var(--hh-markdown-accent); text-underline-offset: 3px; }
+.hh-markdown-root.hh-markdown-reply :not(pre) > code { font-size: .86em; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--hh-markdown-divider); background: var(--hh-markdown-surface-high); color: var(--hh-markdown-accent); }
+.hh-markdown-root.hh-markdown-reply pre { background: var(--hh-markdown-surface-sunken); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+.hh-markdown-root.hh-markdown-reply .hh-markdown-options { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.hh-markdown-root.hh-markdown-reply .hh-markdown-option,.hh-markdown-root.hh-markdown-reply .hh-markdown-option-item { display: inline-flex; align-items: center; gap: 8px; width: auto; max-width: 100%; border: 1px solid var(--hh-markdown-divider); border-radius: 999px; padding: 7px 14px; background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text); font-size: 14px; line-height: 20px; transition: border-color 140ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+.hh-markdown-root.hh-markdown-reply .hh-markdown-option::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 1px; background: var(--hh-markdown-accent); transform: rotate(45deg); }
+.hh-markdown-root.hh-markdown-reply .hh-markdown-option:hover { border-color: var(--hh-markdown-accent); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .hh-markdown-root.hh-markdown-reply .hh-markdown-option { transition: none; } .hh-markdown-root.hh-markdown-reply .hh-markdown-option:hover { transform: none; } }
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { background: var(--hh-markdown-surface); color: var(--hh-markdown-text); border: 1px solid var(--hh-markdown-divider); border-radius: 4px; padding: 4px 8px; position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }

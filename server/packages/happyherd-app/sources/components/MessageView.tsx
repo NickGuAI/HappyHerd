@@ -23,8 +23,10 @@ import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 import { parseSafeguardReminder } from './safeguardReminder';
 import { SafeguardReminderCard } from './SafeguardReminderCard';
 import { CodexQuotaRecoveryActions } from './CodexQuotaRecoveryActions';
+import { herdWebClasses } from './herd/motion';
 
-
+// UI overhaul: Web replies sit on the chat background and user messages are
+// soft bubbles; native keeps its island presentation.
 export const MessageView = React.memo((props: {
   message: Message;
   metadata: Metadata | null;
@@ -32,10 +34,19 @@ export const MessageView = React.memo((props: {
   getMessageById?: (id: string) => Message | null;
   copyText?: string;
   inlineImages?: AcpInlineImageOverrides;
+  /** Rise in on mount (web). Captured once so later renders cannot cut it short. */
+  entrance?: boolean;
+  onEntranceShown?: (messageId: string) => void;
 }) => {
+  const [entrance] = React.useState(() => Platform.OS === 'web' && props.entrance === true);
+  const messageId = props.message.id;
+  const onEntranceShown = props.onEntranceShown;
+  React.useEffect(() => {
+    if (entrance) onEntranceShown?.(messageId);
+  }, [entrance, messageId, onEntranceShown]);
   return (
     <View
-      style={styles.messageContainer}
+      style={[styles.messageContainer, entrance && styles.entrance]}
       renderToHardwareTextureAndroid={Platform.OS !== 'web'}
     >
       <View style={styles.messageContent}>
@@ -169,9 +180,11 @@ function UserTextBlock(props: {
     backgroundColor: bubblePalette.background,
     borderColor: bubblePalette.border,
   };
-  const copyTargetStyle = isOtherParticipantMessage(props.message)
+  const fromOther = isOtherParticipantMessage(props.message);
+  const copyTargetStyle = fromOther
     ? styles.userCopyTargetOther
     : styles.userCopyTarget;
+  const bubbleShape = fromOther ? styles.userMessageBubbleOther : styles.userMessageBubbleOwn;
   // Claude Agent SDK emits synthetic user messages wrapped in tags like
   // <local-command-caveat>…</local-command-caveat> and
   // <command-message>…</command-message><command-name>/foo</command-name>
@@ -192,7 +205,7 @@ function UserTextBlock(props: {
     return (
       <UserMessageFrame pending={props.message.pending} sendError={props.message.sendError} author={props.message.author} sessionId={props.sessionId}>
         <LongPressCopyable style={copyTargetStyle} text={parsed.goal}>
-          <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.goalMessageBubble]}>
+          <View style={[styles.userMessageBubble, bubbleShape, styles.userMessageBubbleSolid, bubbleStyle, styles.goalMessageBubble]}>
             <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
           </View>
           <View style={styles.goalSentRow}>
@@ -209,7 +222,7 @@ function UserTextBlock(props: {
       <UserMessageFrame pending={props.message.pending} sendError={props.message.sendError} author={props.message.author} sessionId={props.sessionId}>
         <LongPressCopyable style={copyTargetStyle} text={commandText}>
           {parsed.args ? (
-            <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.commandMessageBubble]}>
+            <View style={[styles.userMessageBubble, bubbleShape, styles.userMessageBubbleSolid, bubbleStyle, styles.commandMessageBubble]}>
               <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
             </View>
           ) : null}
@@ -226,7 +239,7 @@ function UserTextBlock(props: {
       {/* Long-press copies the whole message through our own menu rather than the
           OS selection callout. Rewind remains in session actions. */}
       <LongPressCopyable style={copyTargetStyle} text={parsed.text}>
-        <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle]}>
+        <View style={[styles.userMessageBubble, bubbleShape, styles.userMessageBubbleSolid, bubbleStyle]}>
           <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
         </View>
       </LongPressCopyable>
@@ -254,7 +267,7 @@ function AgentTextBlock(props: {
   return (
     <View style={styles.agentMessageContainer}>
       {parsed.reminder ? <SafeguardReminderCard reminder={parsed.reminder} /> : null}
-      <MarkdownView tone="island" markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
+      <MarkdownView tone={Platform.OS === 'web' ? 'reply' : 'island'} markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
       {props.copyText ? <MessageCopyButton text={props.copyText} /> : null}
     </View>
   );
@@ -301,9 +314,32 @@ function MessageCopyButton(props: { text: string }) {
       <Ionicons
         name={copied ? 'checkmark' : 'copy-outline'}
         size={16}
-        color={theme.colors.kilv.islandInk}
+        color={Platform.OS === 'web'
+          ? copied ? theme.colors.gitAddedText : theme.colors.textSecondary
+          : theme.colors.kilv.islandInk}
       />
     </Pressable>
+  );
+}
+
+/**
+ * A system row. Web draws it as a caption between two hairlines (UI overhaul);
+ * native keeps the centered text.
+ */
+function AgentEventRow(props: { children: React.ReactNode }) {
+  if (Platform.OS !== 'web') {
+    return (
+      <View style={styles.agentEventContainer}>
+        <Text style={styles.agentEventText}>{props.children}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.agentEventContainer, styles.agentEventRuled]}>
+      <View style={styles.agentEventRule} />
+      <Text style={[styles.agentEventText, styles.agentEventTextRuled]}>{props.children}</Text>
+      <View style={styles.agentEventRule} />
+    </View>
   );
 }
 
@@ -313,18 +349,10 @@ function AgentEventBlock(props: {
   sessionId: string;
 }) {
   if (props.event.type === 'switch') {
-    return (
-      <View style={styles.agentEventContainer}>
-        <Text style={styles.agentEventText}>{t('message.switchedToMode', { mode: props.event.mode })}</Text>
-      </View>
-    );
+    return <AgentEventRow>{t('message.switchedToMode', { mode: props.event.mode })}</AgentEventRow>;
   }
   if (props.event.type === 'message') {
-    return (
-      <View style={styles.agentEventContainer}>
-        <Text style={styles.agentEventText}>{props.event.message}</Text>
-      </View>
-    );
+    return <AgentEventRow>{props.event.message}</AgentEventRow>;
   }
   if (props.event.type === 'limit-reached') {
     const formatTime = (timestamp: number): string => {
@@ -337,24 +365,20 @@ function AgentEventBlock(props: {
     };
 
     return (
-      <View style={styles.agentEventContainer}>
-        <Text style={styles.agentEventText}>
-          {t('message.usageLimitUntil', { time: formatTime(props.event.endsAt) })}
-        </Text>
-      </View>
+      <AgentEventRow>
+        {t('message.usageLimitUntil', { time: formatTime(props.event.endsAt) })}
+      </AgentEventRow>
     );
   }
   if (props.event.type === 'provider-account-switched') {
     return (
-      <View style={styles.agentEventContainer}>
-        <Text style={styles.agentEventText}>
-          {t('message.providerAccountSwitched', {
-            provider: getHarnessName(props.event.provider),
-            fromAccount: props.event.fromAccount,
-            toAccount: props.event.toAccount,
-          })}
-        </Text>
-      </View>
+      <AgentEventRow>
+        {t('message.providerAccountSwitched', {
+          provider: getHarnessName(props.event.provider),
+          fromAccount: props.event.fromAccount,
+          toAccount: props.event.toAccount,
+        })}
+      </AgentEventRow>
     );
   }
   if (props.event.type === 'provider-quota-exhausted') {
@@ -373,17 +397,9 @@ function AgentEventBlock(props: {
   }
   if (props.event.type === 'turn-end') {
     const label = props.event.status === 'failed' ? 'Turn failed' : 'Turn cancelled';
-    return (
-      <View style={styles.agentEventContainer}>
-        <Text style={styles.agentEventText}>{label}</Text>
-      </View>
-    );
+    return <AgentEventRow>{label}</AgentEventRow>;
   }
-  return (
-    <View style={styles.agentEventContainer}>
-      <Text style={styles.agentEventText}>{t('message.unknownEvent')}</Text>
-    </View>
-  );
+  return <AgentEventRow>{t('message.unknownEvent')}</AgentEventRow>;
 }
 
 function ToolCallBlock(props: {
@@ -413,6 +429,11 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     justifyContent: 'center',
   },
+  entrance: {
+    _web: {
+      _classNames: herdWebClasses('herd-rise-sm'),
+    },
+  },
   messageContent: {
     flexDirection: 'column',
     flexGrow: 1,
@@ -435,14 +456,24 @@ const styles = StyleSheet.create((theme) => ({
     // right side of the thread (flex-end).
     alignItems: 'flex-start',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: Platform.select({ web: 18, default: 12 }),
+    paddingVertical: Platform.select({ web: 12, default: 4 }),
+    borderRadius: Platform.select({ web: theme.borderRadius.xxl, default: theme.borderRadius.sm }),
     marginBottom: 4,
     maxWidth: '100%',
+    _web: {
+      maxWidth: 'min(88%, 640px)',
+    },
+  },
+  // The corner nearest the sender stays tight, like a speech bubble tail.
+  userMessageBubbleOwn: {
+    borderBottomRightRadius: theme.borderRadius.sm,
+  },
+  userMessageBubbleOther: {
+    borderBottomLeftRadius: theme.borderRadius.sm,
   },
   userMessageBubbleSolid: {
-    borderWidth: Platform.select({ web: 0, default: StyleSheet.hairlineWidth }),
+    borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
     overflow: 'hidden',
   },
   goalMessageBubble: {
@@ -469,7 +500,7 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.sm,
     marginBottom: 4,
     maxWidth: '100%',
     opacity: 0.65,
@@ -482,13 +513,14 @@ const styles = StyleSheet.create((theme) => ({
   agentMessageContainer: {
     // Symmetric, so a tool row reads the same distance from the text whether
     // it lands above or below it. Total rhythm matches the old 4 + 16.
+    // Web replies sit directly on the chat background (UI overhaul).
     marginHorizontal: 16,
-    marginVertical: 10,
-    padding: 16,
-    backgroundColor: theme.colors.kilv.islandTop,
-    borderWidth: 1,
+    marginVertical: Platform.select({ web: 8, default: 10 }),
+    padding: Platform.select({ web: 0, default: 16 }),
+    backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.kilv.islandTop }),
+    borderWidth: Platform.select({ web: 0, default: 1 }),
     borderColor: theme.colors.kilv.islandBorder,
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.sm,
     maxWidth: '100%',
   },
   copyAction: {
@@ -499,7 +531,7 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: 'center',
     // Sits fully below the last markdown block's trailing margin, clear of the
     // reply text.
-    marginTop: 0,
+    marginTop: Platform.select({ web: 6, default: 0 }),
   },
   copyActionPressed: {
     opacity: 0.5,
@@ -554,9 +586,26 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     paddingVertical: 8,
   },
+  agentEventRuled: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 16,
+    paddingVertical: 14,
+  },
+  agentEventRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.divider,
+  },
   agentEventText: {
     color: theme.colors.agentEventText,
     fontSize: 14,
+  },
+  agentEventTextRuled: {
+    flexShrink: 1,
+    textAlign: 'center',
+    fontSize: 13,
+    color: theme.colors.kilv.inkFaint,
   },
   toolContainer: {
     marginHorizontal: 8,

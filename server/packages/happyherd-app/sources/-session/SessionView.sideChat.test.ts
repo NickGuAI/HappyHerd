@@ -123,10 +123,14 @@ vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    // The real tokens back everything the fixture does not pin explicitly.
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         dark: false,
         colors: {
+            ...lightTheme.colors,
             agentEventText: '#555',
             divider: '#ddd',
             glass: { overlayTint: '#fff' },

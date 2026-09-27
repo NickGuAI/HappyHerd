@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "81c92936a72fa885c0392589e818c563fe736b576cdad4e620e89a768907b12a",
+  "sourceFingerprint": "c7751b520244d1d05a0056c39936ad5767b4880f980ed4d2abee4b6b94ccd912",
   "routeCount": 42,
-  "surfaceCount": 294,
+  "surfaceCount": 297,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4018,6 +4018,45 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/session/Collapse.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdCollapse"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/ToolLine.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolLine",
+        "ToolLineStateIcon",
+        "ToolLineStatsText"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/toolLineModel.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "formatToolSeconds",
+        "resolveToolLineStats",
+        "resolveToolLineText"
+      ],
+      "translationKeys": [
+        "toolGroup.ran"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/shell/HerdInboxBell.tsx",
       "kind": "component",
       "route": null,
@@ -5673,6 +5712,7 @@
         "ToolView"
       ],
       "translationKeys": [
+        "profile.details",
         "toolView.input",
         "toolView.output"
       ],
@@ -5922,7 +5962,9 @@
       "exports": [
         "TodoView"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "tools.names.todoList"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

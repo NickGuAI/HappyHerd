@@ -159,12 +159,16 @@ describe('ChatList production FlashList browser interactions', () => {
         await message.waitFor({ state: 'visible', timeout: 5000 });
         await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThanOrEqual(0);
         await message.hover();
+        // The focused row can sit at the oldest rendered edge, where the first
+        // upward wheel has no room until history grows. Move toward newer
+        // messages first, then back, so both directions have travel.
         const before = (await message.boundingBox())!.y;
-        await page.mouse.wheel(0, -100);
-        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThan(before + 50);
-        const afterUp = (await message.boundingBox())!.y;
         await page.mouse.wheel(0, 100);
-        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeLessThan(afterUp - 50);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeLessThan(before - 50);
+        const afterDown = (await message.boundingBox())!.y;
+        await message.hover();
+        await page.mouse.wheel(0, -100);
+        await expect.poll(async () => (await message.boundingBox())?.y, visualStatePollOptions).toBeGreaterThan(afterDown + 50);
         await page.getByRole('button', { name: 'Jump to latest', exact: true }).click();
         await expect.poll(async () => {
             const bounds = await page.getByText('Prompt 149', { exact: true }).boundingBox();

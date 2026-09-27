@@ -33,6 +33,8 @@ import { projectSessionQueue } from '@/sync/queueProjection';
 import { buildAgentTurnCopyTextByMessageId } from '@/utils/agentTurnCopy';
 import { resolveAcpInlineImages } from '@/utils/acpInlineImages';
 import { perfSince, useCommitPerf } from '@/utils/perfLog';
+import { createEntranceTracker, type EntranceTracker } from './herd/session/entranceMotion';
+import { herdWebClasses } from './herd/motion';
 
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
@@ -424,6 +426,23 @@ const ChatListInternal = React.memo((props: {
         () => buildAgentTurnCopyTextByMessageId(windowedMessages, { currentTurnComplete: collapseCurrentTurn }),
         [collapseCurrentTurn, windowedMessages],
     );
+
+    // Web entrance motion (UI overhaul): a row rises in once, when it is new to
+    // the reader — the first paint, a message that arrived after the list opened,
+    // or a member revealed by expanding its work group. Scrolling and recycling
+    // never replay it. The list remounts per session, so the tracker does too.
+    const entranceTrackerRef = React.useRef<EntranceTracker | null>(null);
+    if (entranceTrackerRef.current === null) entranceTrackerRef.current = createEntranceTracker();
+    const entranceTracker = entranceTrackerRef.current;
+    const conversationIdsNewestFirst = React.useMemo(() => messages.map((message) => message.id), [messages]);
+    entranceTracker.captureBaseline(conversationIdsNewestFirst);
+    const liveEntranceIds = React.useMemo(
+        () => entranceTracker.liveIds(conversationIdsNewestFirst),
+        [entranceTracker, conversationIdsNewestFirst],
+    );
+    const handleEntranceShown = useCallback((id: string) => {
+        entranceTracker.markShown(id);
+    }, [entranceTracker]);
     const inlineImagesByMessageId = React.useMemo(
         () => resolveAcpInlineImages(props.messages, props.metadata?.flavor),
         [props.messages, props.metadata?.flavor],
@@ -523,6 +542,9 @@ const ChatListInternal = React.memo((props: {
         // move and the expansion grows upward from the header.
         userTookOverRef.current = true;
         const wasExpanded = isGroupExpanded(group);
+        if (!wasExpanded) {
+            entranceTracker.reveal(group.messages.map((message) => message.id));
+        }
         releaseExactMessageFocus();
         setGroupToggles((prev) => {
             const expanded = new Set(prev.expanded);
@@ -536,7 +558,7 @@ const ChatListInternal = React.memo((props: {
             }
             return { expanded, closed };
         });
-    }, [isGroupExpanded, releaseExactMessageFocus]);
+    }, [entranceTracker, isGroupExpanded, releaseExactMessageFocus]);
 
     // Expanded groups contribute their members as ordinary list items right
     // after the header, so the list itself virtualizes them and an expansion
@@ -788,9 +810,12 @@ const ChatListInternal = React.memo((props: {
         // The inner `key` opts out of FlashList's cell recycling for the row
         // content: rows carry local state (expanded diffs, collapsed output)
         // that must never leak into a different message via a recycled cell.
+        const measuring = target === 'Measurement';
         if (item.type === 'work-header') {
             // Keyed and toggled by the group, not the row: the two rows of one
-            // expanded group have different ids but drive the same state.
+            // expanded group have different ids but drive the same state. A
+            // header rises in when its turn happened after the list opened.
+            const liveGroup = item.group.messages.some((message) => liveEntranceIds.has(message.id));
             return (
                 <AgentWorkGroupHeader
                     key={item.id}
@@ -798,11 +823,13 @@ const ChatListInternal = React.memo((props: {
                     expanded={isGroupExpanded(item.group)}
                     placement={item.placement}
                     onToggle={() => handleToggleGroup(item.group)}
+                    entrance={!measuring && entranceTracker.shouldAnimate(item.id, liveGroup ? new Set([item.id]) : liveEntranceIds)}
+                    onEntranceShown={handleEntranceShown}
                 />
             );
         }
         return (
-            <DiffSyntaxCell key={item.id} viewport={syntaxViewport} itemKey={item.id} enabled={target !== 'Measurement'}>
+            <DiffSyntaxCell key={item.id} viewport={syntaxViewport} itemKey={item.id} enabled={!measuring}>
             <MessageView
                 key={item.message.id}
                 message={item.message}
@@ -810,10 +837,12 @@ const ChatListInternal = React.memo((props: {
                 sessionId={props.sessionId}
                 copyText={agentCopyTextByMessageId.get(item.message.id)}
                 inlineImages={inlineImagesByMessageId.get(item.message.id)}
+                entrance={!measuring && entranceTracker.shouldAnimate(item.message.id, liveEntranceIds)}
+                onEntranceShown={handleEntranceShown}
             />
             </DiffSyntaxCell>
         );
-    }, [syntaxViewport, agentCopyTextByMessageId, inlineImagesByMessageId, props.metadata, props.sessionId, isGroupExpanded, handleToggleGroup]);
+    }, [syntaxViewport, agentCopyTextByMessageId, inlineImagesByMessageId, props.metadata, props.sessionId, isGroupExpanded, handleToggleGroup, entranceTracker, liveEntranceIds, handleEntranceShown]);
 
     // The list is inverted, so offset 0 is the newest message and growing
     // offsets walk back through history.
@@ -1083,15 +1112,18 @@ const styles = StyleSheet.create((theme) => ({
         pointerEvents: 'box-none',
     },
     scrollButton: {
-        borderRadius: 6,
+        borderRadius: theme.kilv.radiusPill,
         minHeight: 32,
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         flexDirection: 'row',
-        gap: 6,
+        gap: 7,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: theme.colors.divider,
+        borderColor: theme.colors.kilv.rimLine,
+        _web: {
+            _classNames: herdWebClasses('herd-rise-sm'),
+        },
         shadowColor: theme.colors.shadow.color,
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 2,
