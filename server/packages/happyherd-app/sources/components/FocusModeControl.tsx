@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
-import { useUnistyles } from 'react-native-unistyles';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProjects, useSettingMutable } from '@/sync/storage';
@@ -10,13 +10,15 @@ import { FOCUS_DURATIONS, formatFocusRemaining, getFocusRemainingSeconds } from 
 import { useFocusMode } from '@/hooks/useFocusMode';
 import { t } from '@/text';
 import { Typography } from '@/constants/Typography';
-import { Item } from './Item';
-import { RoundButton } from './RoundButton';
+import { HerdSegmentedControl } from '@/components/herd/SegmentedControl';
+import { HerdButton, HerdChip, HerdSectionLabel } from '@/components/herd/pages/HerdPage';
+import { herdWebClasses } from '@/components/herd/motion';
+import { focusModeProgress } from '@/components/herd/pages/focusProgress';
 
-function TomatoIcon() {
+function TomatoIcon({ size = 24 }: { size?: number }) {
     const { theme } = useUnistyles();
     return (
-        <Svg width={24} height={24} viewBox="0 0 24 24"
+        <Svg width={size} height={size} viewBox="0 0 24 24"
             {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
             <Path d="M12 7C5 3 1 9 3 16c2 7 16 7 18 0 2-7-2-13-9-9Z" fill={theme.colors.textDestructive} />
             <Path d="m12 9-6-3 5 1-1-4 3 3 4-2-2 4 4 2-6-1-2 3Z" fill={theme.colors.kilv.olive} />
@@ -47,55 +49,6 @@ function PixelTile({ index, size, columns, color }: {
         width: size + 1, height: size + 1, backgroundColor: color, opacity: progress,
         transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) }],
     }} />;
-}
-
-function FocusChoice({ label, value, options, onSelect }: {
-    label: string;
-    value: string;
-    options: { value: string; label: string }[];
-    onSelect: (value: string) => void;
-}) {
-    const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
-    const dimensions = useWindowDimensions();
-    const trigger = React.useRef<View>(null);
-    const [anchor, setAnchor] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
-    React.useEffect(() => setAnchor(null), [dimensions.width, dimensions.height]);
-    const menuHeight = Math.min(options.length * 56 + 2, dimensions.height * 0.45);
-    const surface = { backgroundColor: theme.colors.surface, borderColor: theme.colors.kilv.rimLine, borderWidth: 1, borderRadius: 6, overflow: 'hidden' as const };
-    const close = () => setAnchor(null);
-
-    return <View style={{ gap: 8 }}>
-        <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{label}</Text>
-        <View ref={trigger} collapsable={false} style={surface}>
-            <Item title={options.find(option => option.value === value)?.label ?? t('focusMode.selectProject')}
-                accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ expanded: anchor !== null, disabled: options.length === 0 }}
-                disabled={options.length === 0} showDivider={false}
-                rightElement={<Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />}
-                onPress={() => trigger.current?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }))} />
-        </View>
-        {anchor && <Modal transparent animationType="none" onRequestClose={close}>
-            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('focusMode.cancel')} onPress={close}
-                    style={{ position: 'absolute', inset: 0, backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.kilv.scrim }} />
-                <View testID="focus-mode-choices" style={[surface, Platform.OS === 'web' ? {
-                    position: 'absolute', width: anchor.width, left: anchor.x,
-                    top: anchor.y + anchor.height + menuHeight + 4 <= dimensions.height - 12
-                        ? anchor.y + anchor.height + 4 : Math.max(12, anchor.y - menuHeight - 4),
-                    shadowColor: theme.colors.shadow.color, shadowOpacity: theme.colors.shadow.opacity,
-                    shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-                } : { marginHorizontal: 16, marginBottom: Math.max(safeArea.bottom, 16) }]}>
-                    <ScrollView style={{ maxHeight: menuHeight }} keyboardShouldPersistTaps="handled">
-                        {options.map((option, index) => <Item key={option.value} title={option.label}
-                            accessibilityLabel={option.label} accessibilityRole="button" accessibilityState={{ selected: value === option.value }}
-                            selected={value === option.value} showChevron={false} showDivider={index < options.length - 1}
-                            rightElement={value === option.value ? <Ionicons name="checkmark" size={18} color={theme.colors.text} /> : undefined}
-                            onPress={() => { onSelect(option.value); close(); }} />)}
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>}
-    </View>;
 }
 
 function FocusModeSetup({ onClose }: { onClose: () => void }) {
@@ -135,21 +88,48 @@ function FocusModeSetup({ onClose }: { onClose: () => void }) {
                         <Text accessibilityRole="header" style={{ fontSize: dimensions.width < 600 ? 36 : 56, lineHeight: dimensions.width < 600 ? 44 : 64, ...Typography.header(), color: ink }}>
                             {t('focusMode.title')}
                         </Text>
-                        <View style={{ gap: 20, padding: 20, backgroundColor: theme.colors.surface, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.kilv.rimLine }}>
-                            <FocusChoice label={t('focusMode.duration')} value={String(minutes)}
-                                options={FOCUS_DURATIONS.map(value => ({ value: String(value), label: t('focusMode.durationOption', { minutes: String(value) }) }))}
-                                onSelect={value => setMinutes(Number(value))} />
-                            <FocusChoice label={t('focusMode.project')} value={projectId}
-                                options={projects.map(project => ({ value: project.id, label: project.name }))}
-                                onSelect={setProjectId} />
-                            {projects.length === 0 && <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{t('focusMode.noProjects')}</Text>}
-                            <View style={{ gap: 12 }}>
-                                <RoundButton title={t('focusMode.start')} disabled={!canStart} onPress={() => {
+                        <View style={styles.card}>
+                            <View style={styles.tomato}><TomatoIcon size={30} /></View>
+                            <View>
+                                <HerdSectionLabel first>{t('focusMode.duration')}</HerdSectionLabel>
+                                <HerdSegmentedControl
+                                    accessibilityLabel={t('focusMode.duration')}
+                                    options={FOCUS_DURATIONS.map((value) => ({
+                                        value,
+                                        label: t('focusMode.durationOption', { minutes: String(value) }),
+                                    }))}
+                                    value={minutes}
+                                    onChange={setMinutes}
+                                />
+                            </View>
+                            <View>
+                                <HerdSectionLabel first>{t('focusMode.project')}</HerdSectionLabel>
+                                {projects.length === 0 ? (
+                                    <Text style={styles.hint}>{t('focusMode.noProjects')}</Text>
+                                ) : (
+                                    <View accessibilityRole="radiogroup" accessibilityLabel={t('focusMode.project')} style={styles.chips}>
+                                        {projects.map((project) => (
+                                            <HerdChip
+                                                key={project.id}
+                                                label={project.name}
+                                                selected={project.id === projectId}
+                                                onPress={() => setProjectId(project.id)}
+                                            />
+                                        ))}
+                                    </View>
+                                )}
+                                {projects.length > 0 && !canStart && (
+                                    <Text style={[styles.hint, styles.hintBelow]}>{t('focusMode.selectProject')}</Text>
+                                )}
+                            </View>
+                            <View style={styles.actions}>
+                                <HerdButton label={t('focusMode.cancel')} onPress={onClose} />
+                                <HerdButton variant="primary" icon="play" label={t('focusMode.start')} disabled={!canStart} onPress={() => {
                                     if (!canStart) return;
-                                    setFocusMode({ projectId, endsAt: Date.now() + minutes * 60_000 });
+                                    const startedAt = Date.now();
+                                    setFocusMode({ projectId, endsAt: startedAt + minutes * 60_000, startedAt });
                                     onClose();
                                 }} />
-                                <RoundButton title={t('focusMode.cancel')} display="inverted" onPress={onClose} />
                             </View>
                         </View>
                     </View>
@@ -159,9 +139,38 @@ function FocusModeSetup({ onClose }: { onClose: () => void }) {
     );
 }
 
+function FocusRing({ progress }: { progress: number }) {
+    const { theme } = useUnistyles();
+    const size = 16;
+    const stroke = 2.5;
+    const radius = (size - stroke) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.min(1, Math.max(0, progress));
+    return (
+        <Svg testID="focus-mode-ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+            {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
+            <Circle cx={size / 2} cy={size / 2} r={radius} stroke={theme.colors.selection.background} strokeWidth={stroke} fill="none" />
+            <Circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={theme.colors.textLink}
+                strokeWidth={stroke}
+                strokeLinecap="round"
+                fill="none"
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={circumference * (1 - clamped)}
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+        </Svg>
+    );
+}
+
 export function FocusModeControl() {
     const { theme } = useUnistyles();
+    const dimensions = useWindowDimensions();
     const focus = useFocusMode();
+    const projectsById = useProjects();
     const [, setFocusMode] = useSettingMutable('focusMode');
     const [setupOpen, setSetupOpen] = React.useState(false);
     const [now, setNow] = React.useState(Date.now);
@@ -171,20 +180,110 @@ export function FocusModeControl() {
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
     }, [focus]);
-    const time = formatFocusRemaining(getFocusRemainingSeconds(focus, now));
+    const remaining = getFocusRemainingSeconds(focus, now);
+    const time = formatFocusRemaining(remaining);
+    const progress = focus ? focusModeProgress(focus, remaining) : 0;
+    const projectName = focus ? projectsById[focus.projectId]?.name : undefined;
 
     return <>
-        {focus ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text testID="focus-mode-timer" accessibilityLabel={t('focusMode.remaining', { time })}
-                style={{ ...Typography.mono(), color: theme.colors.header.tint, fontSize: 16, fontVariant: ['tabular-nums'] }}>{time}</Text>
+        {focus ? <View testID="focus-mode-pill" style={styles.pill}>
+            <FocusRing progress={progress} />
+            <Text testID="focus-mode-timer" accessibilityLabel={t('focusMode.remaining', { time })} style={styles.pillTime}>{time}</Text>
+            {projectName && dimensions.width >= 600 ? <Text numberOfLines={1} style={styles.pillProject}>{projectName}</Text> : null}
             <Pressable testID="focus-mode-exit" accessibilityRole="button" accessibilityLabel={t('focusMode.exit')}
-                onPress={() => setFocusMode(null)} style={{ minWidth: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="close" size={22} color={theme.colors.header.tint} />
+                onPress={() => setFocusMode(null)} hitSlop={8} style={({ pressed }) => [styles.pillExit, pressed && styles.pressed]}>
+                <Ionicons name="close" size={15} color={theme.colors.textLink} />
             </Pressable>
         </View> : <Pressable testID="focus-mode-enter" accessibilityRole="button" accessibilityLabel={t('focusMode.enter')}
-            onPress={() => setSetupOpen(true)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+            onPress={() => setSetupOpen(true)} style={({ pressed }) => [styles.enter, pressed && styles.pressed]}>
             <TomatoIcon />
         </Pressable>}
         {setupOpen && <FocusModeSetup onClose={() => setSetupOpen(false)} />}
     </>;
 }
+
+const styles = StyleSheet.create((theme) => ({
+    card: {
+        gap: 20,
+        padding: 24,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.kilv.radiusSheet,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        _web: { _classNames: herdWebClasses('herd-sheet'), boxShadow: theme.kilv.shadow },
+    },
+    tomato: {
+        alignSelf: 'center',
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.selection.background,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
+    },
+    chips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    hint: {
+        ...Typography.default(),
+        fontSize: 14,
+        lineHeight: 20,
+        color: theme.colors.textSecondary,
+    },
+    hintBelow: {
+        marginTop: 8,
+    },
+    actions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    enter: {
+        minWidth: 44,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.kilv.radius,
+        _web: { cursor: 'pointer', _hover: { backgroundColor: theme.colors.surfacePressedOverlay } },
+    },
+    pill: {
+        height: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingLeft: 10,
+        paddingRight: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.selection.border,
+        borderRadius: theme.kilv.radiusPill,
+        backgroundColor: theme.colors.selection.background,
+        _web: { _classNames: herdWebClasses('herd-pop') },
+    },
+    pillTime: {
+        ...Typography.mono(),
+        fontSize: 13,
+        color: theme.colors.textLink,
+        fontVariant: ['tabular-nums'],
+    },
+    pillProject: {
+        ...Typography.default(),
+        maxWidth: 120,
+        fontSize: 12.5,
+        color: theme.colors.textSecondary,
+    },
+    pillExit: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        _web: { cursor: 'pointer', _hover: { backgroundColor: theme.colors.surfacePressedOverlay } },
+    },
+    pressed: {
+        opacity: 0.7,
+    },
+}));

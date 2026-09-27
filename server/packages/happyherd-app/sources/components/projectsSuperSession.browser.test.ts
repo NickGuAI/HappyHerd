@@ -680,20 +680,18 @@ describe('Projects and Super Session production UI gestures', () => {
         const start = page.getByRole('button', { name: german ? 'Fokus starten' : 'Start focus', exact: true });
         expect(await start.isDisabled()).toBe(true);
         expect(await page.getByTestId('focus-mode-setup').locator('select').count()).toBe(0);
-        expect(await start.evaluate(element => getComputedStyle(element).borderRadius)).toBe('4px');
+        expect(await start.evaluate(element => getComputedStyle(element).borderRadius)).toBe('8px');
         expect(await page.getByRole('heading', { name: headline, exact: true }).evaluate(element => getComputedStyle(element).fontFamily)).toContain('SpaceGrotesk');
-        await page.getByRole('button', { name: german ? 'Dauer' : 'Duration', exact: true }).click();
-        await page.clock.runFor(50);
+        await page.getByRole('radiogroup', { name: german ? 'Dauer' : 'Duration', exact: true }).waitFor();
+        // The segmented control's selection is proven by the started timer's duration.
+        await page.getByRole('radio', { name: `${minutes} ${german ? 'Min' : 'min'}`, exact: true }).click();
         await screenshot(page, `focus-duration-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
-        await page.getByRole('button', { name: `${minutes} ${german ? 'Min' : 'min'}`, exact: true }).click();
-        await page.getByRole('button', { name: german ? 'Projekt' : 'Project', exact: true }).click();
-        await page.clock.runFor(50);
-        const menuBox = await page.getByTestId('focus-mode-choices').boundingBox();
-        expect(menuBox!.x).toBeGreaterThanOrEqual(0);
-        expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-        expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
-        await screenshot(page, `focus-project-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
-        await page.getByRole('button', { name: projectId === 'empty-project' ? 'Roadmap' : 'Project Alpha', exact: true }).first().click();
+        const project = page.getByRole('radio', { name: projectId === 'empty-project' ? 'Roadmap' : 'Project Alpha', exact: true }).first();
+        const projectBox = await project.boundingBox();
+        expect(projectBox!.x).toBeGreaterThanOrEqual(0);
+        expect(projectBox!.x + projectBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+        await project.click();
+        expect(await project.getAttribute('aria-checked')).toBe('true');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
@@ -702,35 +700,27 @@ describe('Projects and Super Session production UI gestures', () => {
 
     for (const surface of surfaces) {
         for (const theme of ['light', 'dark']) {
-            it(`dismisses focus choices without starting a timer on ${surface.name} ${theme}`, async () => {
+            it(`changes focus choices and dismisses setup without starting a timer on ${surface.name} ${theme}`, async () => {
                 const { page, errors } = await openFocusPage(surface, `theme=${theme}`);
                 await page.getByTestId('focus-mode-enter').click();
                 await page.clock.runFor(1500);
-                const duration = page.getByRole('button', { name: 'Duration', exact: true });
-                await duration.click();
-                await page.clock.runFor(50);
-                await page.getByRole('dialog').filter({ has: page.getByTestId('focus-mode-choices') }).waitFor();
-                await page.getByRole('button', { name: '30 min', exact: true }).waitFor();
-                await page.keyboard.press('Escape');
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                expect(await duration.getAttribute('aria-expanded')).toBe('false');
-                await duration.click();
-                await page.clock.runFor(50);
-                const choice = page.getByRole('button', { name: '45 min', exact: true });
-                await choice.focus();
-                await page.keyboard.press('Space');
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                expect(await duration.innerText()).toContain('45 min');
-                await page.getByRole('button', { name: 'Project', exact: true }).click();
-                await page.clock.runFor(50);
+                await page.getByRole('radiogroup', { name: 'Duration', exact: true }).waitFor();
+                await page.getByRole('radio', { name: '45 min', exact: true }).click();
+                const start = page.getByRole('button', { name: 'Start focus', exact: true });
+                expect(await start.isDisabled()).toBe(true);
+                const alpha = page.getByRole('radio', { name: 'Project Alpha', exact: true }).first();
+                await alpha.click();
+                expect(await alpha.getAttribute('aria-checked')).toBe('true');
+                expect(await start.isDisabled()).toBe(false);
                 await screenshot(page, `focus-menu-${surface.name}-${theme}`);
                 await page.setViewportSize({ width: surface.viewport.width - 30, height: surface.viewport.height });
                 await page.clock.runFor(50);
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                await page.getByRole('button', { name: 'Project', exact: true }).click();
-                await page.clock.runFor(50);
-                await page.getByLabel('Cancel', { exact: true }).click({ position: { x: 8, y: 8 } });
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+                await page.keyboard.press('Escape');
+                await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
+                expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
+                await page.getByTestId('focus-mode-enter').click();
+                await page.clock.runFor(1500);
                 await screenshot(page, `focus-cancel-${surface.name}-${theme}`);
                 await page.getByRole('button', { name: 'Cancel', exact: true }).click();
                 await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });

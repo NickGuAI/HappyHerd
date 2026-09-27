@@ -513,3 +513,4 @@ UI_OVERHAUL_AUTOMATIONS_ROWS	accepted	feat(app): turn Automations into expandabl
 UI_OVERHAUL_COMMANDERS_PAGE	accepted	feat(app): add the Commanders page	server/packages/happyherd-app/sources/app/(app)/commanders/index.test.ts
 UI_OVERHAUL_SETTINGS_SECTIONS	accepted	feat(app): add a desktop section list to Settings	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
 UI_OVERHAUL_SECONDARY_PAGES	accepted	feat(app): restyle Projects, Inbox, Session details, Machine and What's New	server/packages/happyherd-app/sources/app/(app)/session/[id]/info.archive.test.ts
+UI_OVERHAUL_FOCUS_MODE	accepted	feat(app): restyle Focus mode setup and countdown	server/packages/happyherd-app/sources/components/herd/pages/focusProgress.test.ts
