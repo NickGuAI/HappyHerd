@@ -571,3 +571,4 @@ UI_OVERHAUL_NATIVE_TABLET_BACK	accepted	feat(app): show the session and page Bac
 UI_OVERHAUL_NATIVE_STREAMLINE	accepted	feat(app): open native phones in Streamline, as the web does	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_PHONE_WIDTH_RULE	accepted	fix(app): give every web window 700 px and wider the desktop layout	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
 UI_OVERHAUL_PHONE_CHANGELOG_PARITY	accepted	docs(app): qualify the phone changelog to what each platform ships	server/packages/happyherd-app/CHANGELOG.md
+UI_OVERHAUL_PHONE_WORKSPACE_ADD	accepted	fix(app): close the phone drawer from a workspace group's new session button	server/packages/happyherd-app/sources/components/ProjectGroup.test.ts
