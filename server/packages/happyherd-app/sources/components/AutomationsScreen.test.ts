@@ -27,14 +27,38 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         ActivityIndicator: host('ActivityIndicator'),
+        Modal: (props: any) => (props.visible ? ReactModule.createElement('Modal', props, props.children) : null),
         Platform: { OS: 'web' },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
+        Text: host('Text'),
         TextInput: host('TextInput'),
         View: host('View'),
         useWindowDimensions: () => ({ width: testState.width, height: 800 }),
     };
 });
+
+vi.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
+vi.mock('react-native-reanimated', async () => {
+    const ReactModule = await import('react');
+    const View = (props: any) => ReactModule.createElement('AnimatedView', props, props.children);
+    return {
+        default: { View },
+        Easing: { bezier: () => (value: number) => value },
+        ReduceMotion: { System: 'system' },
+        useAnimatedStyle: (factory: () => unknown) => factory(),
+        useSharedValue: (value: unknown) => ReactModule.useRef({ value }).current,
+        withTiming: (value: unknown, _config?: unknown, callback?: (finished: boolean) => void) => {
+            callback?.(true);
+            return value;
+        },
+    };
+});
+
+vi.mock('react-native-worklets', () => ({ runOnJS: (callback: unknown) => callback }));
 
 vi.mock('@react-navigation/native', async () => {
     const ReactModule = await import('react');
@@ -147,7 +171,10 @@ const translations: Record<string, string> = {
     'happyHerd.automations.searchPlaceholder': 'Search automations',
     'happyHerd.automations.automationCount': '{count} automations',
     'happyHerd.automations.noMatches': 'No automations match these filters.',
-    'happyHerd.automations.openDetails': 'Open details for {name}',
+    'happyHerd.automations.openDetails': 'Show details for {name}',
+    'happyHerd.automations.expandDetails': 'Show details for {name}',
+    'happyHerd.automations.collapseDetails': 'Hide details for {name}',
+    'common.cancel': 'Cancel',
     'happyHerd.automations.listLabel': 'Automations',
 };
 
@@ -271,6 +298,22 @@ async function updateScreen(renderer: ReactTestRenderer): Promise<void> {
     });
 }
 
+function hostNodes(renderer: ReactTestRenderer, type: string, testID: string) {
+    return renderer.root.findAll((node: any) => node.type === type && node.props.testID === testID);
+}
+
+function automationForm(renderer: ReactTestRenderer) {
+    return hostNodes(renderer, 'View', 'automation-form')[0];
+}
+
+function rowLabels(renderer: ReactTestRenderer): string[] {
+    return renderer.root.findAll((node: any) => (
+        node.type === 'Pressable'
+        && (node.props.accessibilityLabel?.startsWith('Show details for ')
+            || node.props.accessibilityLabel?.startsWith('Hide details for '))
+    )).map((node: any) => node.props.accessibilityLabel);
+}
+
 describe('AutomationsScreen refresh behavior', () => {
     it('shows dynamic tag filters and search without opening the form', async () => {
         testState.machines = [machine('machine-a', 100)];
@@ -348,7 +391,7 @@ describe('AutomationsScreen refresh behavior', () => {
     });
 });
 
-describe('AutomationsScreen master-detail behavior', () => {
+describe('AutomationsScreen expandable rows', () => {
     it('colors active lifecycle indicators green and leaves paused indicators secondary', async () => {
         testState.machines = [machine('machine-a', 100)];
         testState.listAutomations.mockResolvedValue({
@@ -360,11 +403,10 @@ describe('AutomationsScreen master-detail behavior', () => {
         });
 
         const renderer = await renderScreen();
-        const activeRow = renderer.root.findByProps({ accessibilityLabel: 'Open details for Active workflow' });
-        const pausedRow = renderer.root.findByProps({ accessibilityLabel: 'Open details for Paused workflow' });
+        const activeRow = renderer.root.findByProps({ accessibilityLabel: 'Show details for Active workflow' });
+        const pausedRow = renderer.root.findByProps({ accessibilityLabel: 'Show details for Paused workflow' });
         const statusDot = (row: typeof activeRow) => row.findAll((node: any) => (
-            node.type === 'View'
-            && node.props.style?.flat?.().some((style: any) => style?.width === 8)
+            node.type === 'View' && node.props.testID === 'automation-status-dot'
         ))[0];
         const statusLabel = (row: typeof activeRow, label: string) => row.findAllByType('Text' as any).find((node: any) => (
             node.props.children === label
@@ -408,13 +450,13 @@ describe('AutomationsScreen master-detail behavior', () => {
         expect(machineSelectors).toHaveLength(2);
         expect(renderer.root.findAll((node: any) => (
             node.type === 'ScrollView' && node.props.accessibilityRole === 'radiogroup'
-        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Automation tags', 'Machine']);
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Machine', 'Automation tags']);
         expect(machineSelectors.filter((node: any) => node.props.accessibilityState?.selected)).toHaveLength(1);
         expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Show details for ')
         )).map((node: any) => node.props.accessibilityLabel)).toEqual([
-            'Open details for Alpha Beacon',
-            'Open details for Alpha Operations',
+            'Show details for Alpha Beacon',
+            'Show details for Alpha Operations',
         ]);
 
         const betaSelectors = machineSelectors.filter((node: any) => nodeText(node) === 'machine-b');
@@ -426,8 +468,8 @@ describe('AutomationsScreen master-detail behavior', () => {
         });
 
         expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
-        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Beta Beacon']);
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Show details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Show details for Beta Beacon']);
         expect(testState.listAutomations).toHaveBeenCalledTimes(2);
         expect(testState.listCommanders).toHaveBeenCalledTimes(2);
 
@@ -435,8 +477,8 @@ describe('AutomationsScreen master-detail behavior', () => {
         await updateScreen(renderer);
 
         expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
-        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Beta Beacon']);
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Show details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Show details for Beta Beacon']);
         expect(testState.listAutomations).toHaveBeenCalledTimes(2);
         expect(testState.listCommanders).toHaveBeenCalledTimes(2);
     });
@@ -463,8 +505,8 @@ describe('AutomationsScreen master-detail behavior', () => {
         });
 
         expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
-        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Daily Attention']);
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Show details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Show details for Daily Attention']);
 
         const search = renderer.root.findAllByType('TextInput' as any).find((node: any) => (
             node.props.accessibilityLabel === 'Search automations'
@@ -476,7 +518,7 @@ describe('AutomationsScreen master-detail behavior', () => {
 
         expect(visibleText(renderer)).toContain('No automations match these filters.');
         expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Show details for ')
         ))).toHaveLength(0);
     });
 
@@ -492,7 +534,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         const renderer = await renderScreen();
 
         await act(async () => {
-            renderer.root.findByProps({ accessibilityLabel: 'Open details for Daily Attention' }).props.onPress();
+            renderer.root.findByProps({ accessibilityLabel: 'Show details for Daily Attention' }).props.onPress();
             await Promise.resolve();
             await Promise.resolve();
         });
@@ -513,7 +555,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
 
         await act(async () => {
-            renderer.root.findByProps({ accessibilityLabel: 'Open details for Evening Review' }).props.onPress();
+            renderer.root.findByProps({ accessibilityLabel: 'Show details for Evening Review' }).props.onPress();
             await Promise.resolve();
             await Promise.resolve();
         });
@@ -529,7 +571,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
     });
 
-    it('keeps the desktop list beside detail and restores preserved filters after mobile Back', async () => {
+    it('expands rows in place at desktop and phone widths and keeps the filters while open', async () => {
         testState.machines = [machine('machine-a', 100)];
         testState.listAutomations.mockResolvedValue({
             definitionSchemaVersion: 3,
@@ -556,39 +598,144 @@ describe('AutomationsScreen master-detail behavior', () => {
             await Promise.resolve();
         });
         await act(async () => {
-            renderer.root.findAll((node: any) => (
-                node.type === 'Pressable'
-                && node.props.accessibilityLabel === 'Open details for Daily Attention'
-            ))[0].props.onPress();
+            renderer.root.findByProps({ accessibilityLabel: 'Show details for Daily Attention' }).props.onPress();
             await Promise.resolve();
             await Promise.resolve();
         });
 
-        expect(renderer.root.findAllByType('TextInput' as any).some((node: any) => (
-            node.props.accessibilityLabel === 'Search automations'
-        ))).toBe(true);
-        expect(renderer.root.findByType('AutomationDetail' as any).props.mobile).toBe(false);
+        const row = hostNodes(renderer, 'View', 'automation-row-11111111-1111-4111-8111-111111111111')[0];
+        expect(row.findByType('AutomationDetail' as any).props.automation.name).toBe('Daily Attention');
+        expect(renderer.root.findByProps({ accessibilityLabel: 'Hide details for Daily Attention' }).props.accessibilityState)
+            .toEqual({ expanded: true });
         expect(testState.automationHistory).toHaveBeenCalledWith('machine-a', '11111111-1111-4111-8111-111111111111');
 
         testState.width = 600;
         await updateScreen(renderer);
-        expect(renderer.root.findByType('AutomationDetail' as any).props.mobile).toBe(true);
-        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(1);
+        expect(renderer.root.findAllByType('TextInput' as any).some((node: any) => (
+            node.props.accessibilityLabel === 'Search automations'
+        ))).toBe(true);
 
         await act(async () => {
-            renderer.root.findByType('AutomationDetail' as any).props.onBack();
+            renderer.root.findByProps({ accessibilityLabel: 'Hide details for Daily Attention' }).props.onPress();
             await Promise.resolve();
         });
 
-        const restoredSearch = renderer.root.findAllByType('TextInput' as any).find((node: any) => (
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('TextInput' as any).find((node: any) => (
             node.props.accessibilityLabel === 'Search automations'
-        ));
-        expect(restoredSearch?.props.value).toBe('daily');
+        ))?.props.value).toBe('daily');
         expect(renderer.root.findAll((node: any) => (
             node.type === 'Pressable'
             && node.props.accessibilityRole === 'radio'
             && nodeText(node) === 'dream'
-        ))[0].props.accessibilityState).toEqual({ selected: true });
+        ))[0].props.accessibilityState).toEqual({ selected: true, checked: true, disabled: false });
+    });
+
+    it('keeps one row open at a time and closes it on a second press', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [
+                automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', []),
+                automation('22222222-2222-4222-8222-222222222222', 'machine-a', 'Evening Review', []),
+            ],
+        });
+        const renderer = await renderScreen();
+        const press = async (label: string) => {
+            await act(async () => {
+                renderer.root.findByProps({ accessibilityLabel: label }).props.onPress();
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+        };
+
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
+        await press('Show details for Daily Attention');
+        expect(rowLabels(renderer)).toEqual(['Hide details for Daily Attention', 'Show details for Evening Review']);
+
+        await press('Show details for Evening Review');
+        expect(rowLabels(renderer)).toEqual(['Show details for Daily Attention', 'Hide details for Evening Review']);
+        expect(renderer.root.findAllByType('AutomationDetail' as any).map((node: any) => node.props.automation.name))
+            .toEqual(['Evening Review']);
+
+        await press('Hide details for Evening Review');
+        expect(rowLabels(renderer)).toEqual(['Show details for Daily Attention', 'Show details for Evening Review']);
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
+    });
+
+    it('opens the create form in a sheet over the list on desktop and inline on phones', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 4,
+            automations: [automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', [])],
+        });
+        const renderer = await renderScreen();
+        const pressNew = async () => {
+            await act(async () => {
+                renderer.root.findAll((node: any) => (
+                    node.type === 'Pressable' && nodeText(node) === 'New'
+                ))[0].props.onPress();
+                await Promise.resolve();
+            });
+        };
+
+        await pressNew();
+        const sheet = hostNodes(renderer, 'View', 'automation-form-sheet')[0];
+        expect(sheet.findAll((node: any) => node.type === 'View' && node.props.testID === 'automation-form')).toHaveLength(1);
+        expect(renderer.root.findAllByType('Modal' as any)).toHaveLength(1);
+        expect(rowLabels(renderer)).toEqual(['Show details for Daily Attention']);
+
+        await act(async () => {
+            renderer.root.findAll((node: any) => node.type === 'Pressable' && nodeText(node) === 'Cancel')[0].props.onPress();
+            await Promise.resolve();
+        });
+        expect(renderer.root.findAllByType('Modal' as any)).toHaveLength(0);
+
+        testState.width = 600;
+        await updateScreen(renderer);
+        await pressNew();
+        expect(renderer.root.findAllByType('Modal' as any)).toHaveLength(0);
+        expect(automationForm(renderer)).toBeDefined();
+        expect(rowLabels(renderer)).toEqual([]);
+    });
+
+    it('marks the run started by Run now as the fresh run', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', [])],
+        });
+        testState.runAutomationNow.mockResolvedValue({
+            id: '99999999-9999-4999-8999-999999999999',
+            automationId: '11111111-1111-4111-8111-111111111111',
+            source: 'manual',
+            scheduledFor: '2026-08-31T01:00:00.000Z',
+            startedAt: '2026-08-31T01:00:00.000Z',
+            finishedAt: null,
+            status: 'started',
+            attempt: 1,
+            sessionId: 'session-run',
+            message: null,
+        });
+        const renderer = await renderScreen();
+        await act(async () => {
+            renderer.root.findByProps({ accessibilityLabel: 'Show details for Daily Attention' }).props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(renderer.root.findByType('AutomationDetail' as any).props.freshRunId).toBeNull();
+
+        await act(async () => {
+            renderer.root.findByType('AutomationDetail' as any).props.onRunNow();
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        const props = renderer.root.findByType('AutomationDetail' as any).props;
+        expect(props.freshRunId).toBe('99999999-9999-4999-8999-999999999999');
+        expect(props.history[0]).toMatchObject({ id: '99999999-9999-4999-8999-999999999999', status: 'started' });
     });
 
     it('keeps failed history retryable instead of caching a false empty result', async () => {
@@ -609,7 +756,7 @@ describe('AutomationsScreen master-detail behavior', () => {
 
         await act(async () => {
             renderer.root.findByProps({
-                accessibilityLabel: 'Open details for Daily Attention',
+                accessibilityLabel: 'Show details for Daily Attention',
             }).props.onPress();
             await Promise.resolve();
             await Promise.resolve();
@@ -646,7 +793,7 @@ describe('AutomationsScreen master-detail behavior', () => {
             await Promise.resolve();
         });
 
-        const machineSelectors = renderer.root.findAll((node: any) => (
+        const machineSelectors = automationForm(renderer).findAll((node: any) => (
             node.type === 'Pressable'
             && node.props.accessibilityRole === 'radio'
             && ['machine-a', 'machine-b'].includes(nodeText(node))
@@ -655,7 +802,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         expect(renderer.root.findAll((node: any) => (
             node.type === 'Pressable' && nodeText(node) === 'Direct Command'
         ))).toHaveLength(0);
-        expect(renderer.root.findAll((node: any) => (
+        expect(automationForm(renderer).findAll((node: any) => (
             node.type === 'ScrollView' && node.props.accessibilityRole === 'radiogroup'
         )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Machine']);
         expect(machineSelectors.map((node: any) => node.props.accessibilityState?.selected)).toEqual([true, false]);
@@ -666,7 +813,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         ];
         await updateScreen(renderer);
 
-        const offlineTarget = renderer.root.findAll((node: any) => (
+        const offlineTarget = automationForm(renderer).findAll((node: any) => (
             node.type === 'Pressable'
             && nodeText(node) === 'machine-a'
             && node.props.accessibilityState?.selected
@@ -676,7 +823,7 @@ describe('AutomationsScreen master-detail behavior', () => {
             node.type === 'Pressable' && nodeText(node) === 'Save automation'
         ))[0].props.disabled).toBe(true);
 
-        const onlineTarget = renderer.root.findAll((node: any) => (
+        const onlineTarget = automationForm(renderer).findAll((node: any) => (
             node.type === 'Pressable'
             && nodeText(node) === 'machine-b'
             && node.props.accessibilityRole === 'radio'
@@ -806,7 +953,7 @@ describe('AutomationsScreen master-detail behavior', () => {
             const renderer = await renderScreen();
             await act(async () => {
                 renderer.root.findByProps({
-                    accessibilityLabel: 'Open details for Data sink',
+                    accessibilityLabel: 'Show details for Data sink',
                 }).props.onPress();
                 await Promise.resolve();
                 await Promise.resolve();
@@ -879,7 +1026,7 @@ describe('AutomationsScreen master-detail behavior', () => {
         await act(async () => {
             renderer.root.findAll((node: any) => (
                 node.type === 'Pressable'
-                && node.props.accessibilityLabel === 'Open details for Beta Beacon'
+                && node.props.accessibilityLabel === 'Show details for Beta Beacon'
             ))[0].props.onPress();
             await Promise.resolve();
         });

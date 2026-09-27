@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@happyherd/wire';
@@ -10,6 +10,8 @@ import {
     happyHerdAutomationKindLabel,
     happyHerdAutomationRunStatusLabel,
 } from '@/components/happyHerdAutomationPresentation';
+import { HerdButton, HerdSectionLabel } from '@/components/herd/pages/HerdPage';
+import { herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 
@@ -22,57 +24,70 @@ const translateAutomation = (key: any, params?: Record<string, string | number>)
     (t as any)(key, params)
 );
 
-type SettingRowProps = {
-    label: string;
-    value: string;
-    mono?: boolean;
-};
+/** Runs listed before History expands the full list. */
+export const HAPPYHERD_AUTOMATION_RECENT_RUNS = 3;
 
-function SettingRow({ label, value, mono = false }: SettingRowProps) {
+function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
     const { theme } = useUnistyles();
     return (
-        <View style={[styles.settingRow, { borderBottomColor: theme.colors.divider }]}>
-            <Text>{label}</Text>
-            <Text
-                selectable
-                style={[
-                    styles.settingValue,
-                    mono && styles.mono,
-                    { color: theme.colors.textSecondary },
-                ]}
-            >
+        <View style={styles.field}>
+            <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+            <Text selectable numberOfLines={2} style={[styles.fieldValue, mono && styles.mono]}>
                 {value}
             </Text>
         </View>
     );
 }
 
+function RunState({ run, fresh }: { run: HappyHerdAutomationRun; fresh: boolean }) {
+    const { theme } = useUnistyles();
+    if (run.status === 'running' || run.status === 'started') {
+        return <ActivityIndicator testID="automation-run-running" size="small" color={theme.colors.textLink} />;
+    }
+    if (run.status === 'completed') {
+        return (
+            <View style={fresh ? styles.freshCheck : undefined}>
+                <Ionicons testID="automation-run-completed" name="checkmark" size={16} color={theme.colors.diff.success} />
+            </View>
+        );
+    }
+    if (run.status === 'failed') {
+        return <Ionicons name="alert-circle-outline" size={16} color={theme.colors.status.disconnected} />;
+    }
+    return <Ionicons name="remove" size={16} color={theme.colors.textSecondary} />;
+}
+
 export type HappyHerdAutomationDetailProps = {
     automation: HappyHerdAutomation;
     machineName: string;
+    /** Display name for `automation.commanderId` when the machine's Commander list is loaded. */
+    commanderName?: string | null;
     history?: HappyHerdAutomationRun[];
     historyLoading: boolean;
     historyFailed: boolean;
-    mobile: boolean;
-    onBack: () => void;
-    onClose: () => void;
+    /** The run started from this screen, highlighted until it settles. */
+    freshRunId?: string | null;
     onRunNow: () => void;
     onEdit: () => void;
     onToggleStatus: () => void;
     onDelete: () => void;
     onOpenSession: (sessionId: string) => void;
+    /** Reloads history: the retry action and the History toggle both use it. */
     onRetryHistory: () => void;
 };
 
+/**
+ * The expanded body of one automation row (UI overhaul): actions, instructions
+ * or command, details, schedule, previous runs and lifecycle.
+ */
 export function HappyHerdAutomationDetail({
     automation,
     machineName,
+    commanderName,
     history,
     historyLoading,
     historyFailed,
-    mobile,
-    onBack,
-    onClose,
+    freshRunId = null,
     onRunNow,
     onEdit,
     onToggleStatus,
@@ -82,13 +97,10 @@ export function HappyHerdAutomationDetail({
 }: HappyHerdAutomationDetailProps) {
     const { theme } = useUnistyles();
     const [instructionExpanded, setInstructionExpanded] = React.useState(false);
+    const [allRuns, setAllRuns] = React.useState(false);
     const active = automation.status === 'active';
-    const statusLabel = t(
-        active
-            ? 'happyHerd.automations.statusActive'
-            : 'happyHerd.automations.statusPaused',
-    );
-    const schedule = automation.kind === 'heartbeat'
+    const heartbeat = automation.kind === 'heartbeat';
+    const schedule = heartbeat
         ? `${t('happyHerd.heartbeat.every')} ${automation.intervalSeconds}s`
         : automation.schedule;
     const project = automation.tags.length > 0
@@ -97,378 +109,352 @@ export function HappyHerdAutomationDetail({
     const lastRun = automation.lastRunAt
         ? new Date(automation.lastRunAt).toLocaleString()
         : t('happyHerd.automations.neverRun');
+    const runs = history ?? [];
+    const visibleRuns = allRuns ? runs : runs.slice(0, HAPPYHERD_AUTOMATION_RECENT_RUNS);
 
     React.useEffect(() => {
         setInstructionExpanded(false);
+        setAllRuns(false);
     }, [automation.id]);
 
+    const toggleHistory = React.useCallback(() => {
+        const next = !allRuns;
+        setAllRuns(next);
+        if (next) onRetryHistory();
+    }, [allRuns, onRetryHistory]);
+
     return (
-        <View
-            accessibilityLabel={t('happyHerd.automations.details')}
-            style={[
-                styles.panel,
-                mobile ? styles.panelMobile : styles.panelDesktop,
-                { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.divider },
-            ]}
-        >
-            <View
-                testID="automation-detail-header"
-                style={[styles.header, { borderBottomColor: theme.colors.divider }]}
-            >
-                <View style={styles.headingRow}>
-                    {mobile && (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t('happyHerd.automations.backToAutomations')}
-                            onPress={onBack}
-                            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-                        >
-                            <Ionicons name="chevron-back" size={19} color={theme.colors.text} />
-                            <Text style={styles.backText}>{t('common.back')}</Text>
-                        </Pressable>
-                    )}
-                    <View style={styles.headingCopy}>
-                        <Text style={[styles.statusLabel, { color: active ? theme.colors.diff.success : theme.colors.textSecondary }]}>
-                            {statusLabel}
-                        </Text>
-                        <Text style={styles.title} numberOfLines={2}>{automation.name}</Text>
-                    </View>
-                </View>
-                <Pressable
-                    testID="automation-detail-close"
-                    accessibilityRole="button"
-                    accessibilityLabel={t('happyHerd.automations.closeDetails')}
-                    onPress={onClose}
-                    style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-                >
-                    <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-                </Pressable>
+        <View accessibilityLabel={t('happyHerd.automations.details')} style={styles.body}>
+            <View style={styles.actions}>
+                {!heartbeat && (
+                    <HerdButton
+                        size="sm"
+                        variant="primary"
+                        icon="play"
+                        label={t('happyHerd.automations.runNow')}
+                        onPress={onRunNow}
+                    />
+                )}
+                {!heartbeat && (
+                    <HerdButton
+                        size="sm"
+                        icon={active ? 'pause' : 'play-outline'}
+                        label={active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}
+                        onPress={onToggleStatus}
+                    />
+                )}
+                <HerdButton
+                    size="sm"
+                    variant={heartbeat ? 'primary' : 'default'}
+                    icon={heartbeat ? 'open-outline' : 'create-outline'}
+                    label={heartbeat ? t('happyHerd.heartbeat.openTarget') : t('happyHerd.automations.editAction')}
+                    onPress={onEdit}
+                />
+                <HerdButton
+                    size="sm"
+                    icon="time-outline"
+                    label={t('happyHerd.automations.history')}
+                    selected={allRuns}
+                    onPress={toggleHistory}
+                />
             </View>
 
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator
-            >
-                {automation.rail === 'exec' ? (
-                    <>
-                        <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                            {t('happyHerd.automations.command')}
-                        </Text>
-                        <View style={[styles.settingsCard, { borderColor: theme.colors.divider }]}>
-                            <SettingRow label={t('happyHerd.automations.executable')} value={automation.executable} mono />
-                            <SettingRow
-                                label={t('happyHerd.automations.arguments')}
-                                value={JSON.stringify(automation.arguments)}
-                                mono
-                            />
+            {automation.rail === 'exec' ? (
+                <>
+                    <HerdSectionLabel>{t('happyHerd.automations.command')}</HerdSectionLabel>
+                    <View style={styles.grid}>
+                        <Field label={t('happyHerd.automations.executable')} value={automation.executable} mono />
+                        <Field
+                            label={t('happyHerd.automations.arguments')}
+                            value={JSON.stringify(automation.arguments)}
+                            mono
+                        />
+                    </View>
+                </>
+            ) : (
+                <>
+                    <HerdSectionLabel>{t('happyHerd.automations.instructions')}</HerdSectionLabel>
+                    <View style={[styles.instructionCard, { borderColor: theme.colors.divider }]}>
+                        <View
+                            testID="automation-instruction-markdown"
+                            style={[styles.instructionBody, !instructionExpanded && styles.instructionCollapsed]}
+                        >
+                            <MarkdownView markdown={automation.instruction} />
                         </View>
-                    </>
-                ) : (
-                    <>
-                        <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                            {t('happyHerd.automations.instructions')}
-                        </Text>
-                        <View style={[styles.instructionCard, { borderColor: theme.colors.divider }]}>
-                            <Pressable
-                                accessibilityRole="button"
-                                accessibilityState={{ expanded: instructionExpanded }}
-                                accessibilityLabel={t(
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: instructionExpanded }}
+                            aria-expanded={instructionExpanded}
+                            accessibilityLabel={t(
+                                instructionExpanded
+                                    ? 'happyHerd.automations.showLessInstruction'
+                                    : 'happyHerd.automations.showFullInstruction',
+                            )}
+                            onPress={() => setInstructionExpanded((current) => !current)}
+                            style={({ pressed }) => [
+                                styles.instructionAffordance,
+                                { borderTopColor: theme.colors.divider },
+                                pressed && styles.pressed,
+                            ]}
+                        >
+                            <Text style={[styles.linkText, { color: theme.colors.textLink }]}>
+                                {t(
                                     instructionExpanded
                                         ? 'happyHerd.automations.showLessInstruction'
                                         : 'happyHerd.automations.showFullInstruction',
                                 )}
-                                onPress={() => setInstructionExpanded((current) => !current)}
-                                style={({ pressed }) => [styles.instructionHeader, pressed && styles.pressed]}
-                            >
-                                <Text style={styles.instructionTitle}>{t('happyHerd.automations.instructions')}</Text>
-                                <Ionicons
-                                    name={instructionExpanded ? 'chevron-up' : 'chevron-down'}
-                                    size={18}
-                                    color={theme.colors.textSecondary}
-                                />
-                            </Pressable>
-                            <View
-                                testID="automation-instruction-markdown"
-                                style={[
-                                    styles.instructionBody,
-                                    { borderTopColor: theme.colors.divider },
-                                    !instructionExpanded && styles.instructionCollapsed,
-                                ]}
-                            >
-                                <MarkdownView markdown={automation.instruction} />
-                            </View>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={() => setInstructionExpanded((current) => !current)}
-                                style={({ pressed }) => [styles.instructionAffordance, pressed && styles.pressed]}
-                            >
-                                <Text style={[styles.linkText, { color: theme.colors.textLink }]}>
-                                    {t(
-                                        instructionExpanded
-                                            ? 'happyHerd.automations.showLessInstruction'
-                                            : 'happyHerd.automations.showFullInstruction',
-                                    )}
-                                </Text>
-                            </Pressable>
-                        </View>
-                    </>
-                )}
-
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                    {t('happyHerd.automations.details')}
-                </Text>
-                <View style={[styles.settingsCard, { borderColor: theme.colors.divider }]}>
-                    <SettingRow label={t('happyHerd.automations.machine')} value={machineName} />
-                    <SettingRow label={t('happyHerd.automations.project')} value={project} />
-                    <SettingRow
-                        label={t('happyHerd.automations.kind')}
-                        value={happyHerdAutomationKindLabel(automation.kind, translateAutomation)}
-                    />
-                    <SettingRow label={t('happyHerd.automations.rail')} value={automation.rail} />
-                    {automation.rail !== 'exec' && (
-                        <SettingRow
-                            label={t('happyHerd.automations.commander')}
-                            value={automation.commanderId ?? t('happyHerd.automations.none')}
-                        />
-                    )}
-                    <SettingRow label={t('happyHerd.automations.workspace')} value={automation.workspace} mono />
-                </View>
-
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                    {t('happyHerd.automations.scheduleSection')}
-                </Text>
-                <View style={[styles.settingsCard, { borderColor: theme.colors.divider }]}>
-                    <SettingRow
-                        label={automation.kind === 'heartbeat'
-                            ? t('happyHerd.heartbeat.interval')
-                            : t('happyHerd.automations.cron')}
-                        value={schedule}
-                        mono
-                    />
-                    <SettingRow label={t('happyHerd.automations.timezone')} value={automation.timezone} mono />
-                    <SettingRow label={t('happyHerd.automations.lastRun')} value={lastRun} />
-                </View>
-
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                    {t('happyHerd.automations.previousRuns')}
-                </Text>
-                <View accessibilityLabel={t('happyHerd.automations.previousRuns')}>
-                    {historyLoading ? (
-                        <View style={styles.historyLoading}>
-                            <ActivityIndicator color={theme.colors.text} />
-                            <Text style={{ color: theme.colors.textSecondary }}>
-                                {t('happyHerd.automations.loadingRuns')}
                             </Text>
-                        </View>
-                    ) : historyFailed ? (
-                        <View style={styles.historyError}>
-                            <Text style={{ color: theme.colors.status.disconnected }}>
-                                {t('happyHerd.automations.unableHistory')}
-                            </Text>
-                            <Pressable
-                                accessibilityRole="button"
-                                accessibilityLabel={t('common.retry')}
-                                onPress={onRetryHistory}
-                                style={({ pressed }) => [
-                                    styles.retryButton,
-                                    { borderColor: theme.colors.divider },
-                                    pressed && styles.pressed,
-                                ]}
-                            >
-                                <Text style={styles.buttonText}>{t('common.retry')}</Text>
-                            </Pressable>
-                        </View>
-                    ) : history && history.length > 0 ? history.map((run) => {
-                        const row = (
-                            <>
-                                <View
-                                    style={[
-                                        styles.runDot,
-                                        {
-                                            backgroundColor: run.status === 'failed'
-                                                ? theme.colors.status.disconnected
-                                                : theme.colors.success,
-                                        },
-                                    ]}
-                                />
-                                <View style={styles.runCopy}>
-                                    <Text style={styles.runStatus}>
-                                        {happyHerdAutomationRunStatusLabel(run.status, translateAutomation)}
-                                    </Text>
-                                    {run.message && (
-                                        <Text style={{ color: theme.colors.textSecondary }} numberOfLines={2}>
-                                            {run.message}
-                                        </Text>
-                                    )}
-                                </View>
-                                <Text style={[styles.runTime, { color: theme.colors.textSecondary }]}>
-                                    {new Date(run.scheduledFor).toLocaleString()}
-                                </Text>
-                                {run.sessionId && (
-                                    <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
-                                )}
-                            </>
-                        );
-                        return run.sessionId ? (
-                            <Pressable
-                                key={run.id}
-                                accessibilityRole="link"
-                                accessibilityLabel={t('happyHerd.automations.openSession', { id: run.sessionId })}
-                                onPress={() => onOpenSession(run.sessionId!)}
-                                style={({ pressed }) => [
-                                    styles.runRow,
-                                    { borderBottomColor: theme.colors.divider },
-                                    pressed && styles.pressed,
-                                ]}
-                            >
-                                {row}
-                            </Pressable>
-                        ) : (
-                            <View
-                                key={run.id}
-                                style={[styles.runRow, { borderBottomColor: theme.colors.divider }]}
-                            >
-                                {row}
-                            </View>
-                        );
-                    }) : (
-                        <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.noRuns')}</Text>
-                    )}
-                </View>
+                            <Ionicons
+                                name={instructionExpanded ? 'chevron-up' : 'chevron-down'}
+                                size={15}
+                                color={theme.colors.textLink}
+                            />
+                        </Pressable>
+                    </View>
+                </>
+            )}
 
-                {automation.kind !== 'heartbeat' && (
-                    <>
-                        <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                            {t('happyHerd.automations.lifecycle')}
-                        </Text>
-                        <View style={[styles.lifecycleCard, { borderColor: theme.colors.divider }]}>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={onToggleStatus}
-                                style={({ pressed }) => [styles.lifecycleAction, pressed && styles.pressed]}
-                            >
-                                <Text>{active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}</Text>
-                            </Pressable>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={onDelete}
-                                style={({ pressed }) => [
-                                    styles.lifecycleAction,
-                                    {
-                                        borderTopColor: theme.colors.divider,
-                                        borderTopWidth: StyleSheet.hairlineWidth,
-                                    },
-                                    pressed && styles.pressed,
-                                ]}
-                            >
-                                <Text style={{ color: theme.colors.status.disconnected }}>
-                                    {t('happyHerd.automations.delete')}
-                                </Text>
-                            </Pressable>
-                        </View>
-                    </>
+            <HerdSectionLabel>{t('happyHerd.automations.details')}</HerdSectionLabel>
+            <View style={styles.grid}>
+                <Field label={t('happyHerd.automations.machine')} value={machineName} mono />
+                <Field label={t('happyHerd.automations.project')} value={project} />
+                <Field
+                    label={t('happyHerd.automations.kind')}
+                    value={happyHerdAutomationKindLabel(automation.kind, translateAutomation)}
+                />
+                <Field label={t('happyHerd.automations.rail')} value={automation.rail} mono />
+                {automation.rail !== 'exec' && (
+                    <Field
+                        label={t('happyHerd.automations.commander')}
+                        value={automation.commanderId
+                            ? commanderName ?? automation.commanderId
+                            : t('happyHerd.automations.none')}
+                    />
                 )}
-            </ScrollView>
-
-            <View style={[styles.footer, { borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface }]}>
-                {automation.kind !== 'heartbeat' && (
-                    <Pressable
-                        accessibilityRole="button"
-                        onPress={onRunNow}
-                        style={({ pressed }) => [
-                            styles.primaryButton,
-                            { backgroundColor: theme.colors.text },
-                            pressed && styles.pressed,
-                        ]}
-                    >
-                        <Text style={[styles.buttonText, { color: theme.colors.surface }]}>
-                            {t('happyHerd.automations.runNow')}
-                        </Text>
-                    </Pressable>
-                )}
-                <Pressable
-                    accessibilityRole="button"
-                    onPress={onEdit}
-                    style={({ pressed }) => [
-                        styles.secondaryButton,
-                        { borderColor: theme.colors.divider },
-                        pressed && styles.pressed,
-                    ]}
-                >
-                    <Text style={styles.buttonText}>
-                        {automation.kind === 'heartbeat'
-                            ? t('happyHerd.heartbeat.openTarget')
-                            : t('happyHerd.automations.editAction')}
-                    </Text>
-                </Pressable>
+                <Field label={t('happyHerd.automations.workspace')} value={automation.workspace} mono />
             </View>
+
+            <HerdSectionLabel>{t('happyHerd.automations.scheduleSection')}</HerdSectionLabel>
+            <View style={styles.grid}>
+                <Field
+                    label={heartbeat ? t('happyHerd.heartbeat.interval') : t('happyHerd.automations.cron')}
+                    value={schedule}
+                    mono
+                />
+                <Field label={t('happyHerd.automations.timezone')} value={automation.timezone} mono />
+                <Field label={t('happyHerd.automations.lastRun')} value={lastRun} mono />
+            </View>
+
+            <HerdSectionLabel>{t('happyHerd.automations.previousRuns')}</HerdSectionLabel>
+            <View accessibilityLabel={t('happyHerd.automations.previousRuns')} style={styles.runs}>
+                {historyLoading && runs.length === 0 ? (
+                    <View style={styles.historyLoading}>
+                        <ActivityIndicator color={theme.colors.textSecondary} />
+                        <Text style={{ color: theme.colors.textSecondary }}>
+                            {t('happyHerd.automations.loadingRuns')}
+                        </Text>
+                    </View>
+                ) : historyFailed ? (
+                    <View style={styles.historyError}>
+                        <Text style={{ color: theme.colors.status.disconnected }}>
+                            {t('happyHerd.automations.unableHistory')}
+                        </Text>
+                        <HerdButton size="sm" label={t('common.retry')} onPress={onRetryHistory} />
+                    </View>
+                ) : visibleRuns.length > 0 ? visibleRuns.map((run) => {
+                    const fresh = run.id === freshRunId;
+                    const settled = run.status === 'completed';
+                    const row = (
+                        <>
+                            <View style={styles.runState}><RunState run={run} fresh={fresh} /></View>
+                            <Text style={styles.runStatus} numberOfLines={1}>
+                                {happyHerdAutomationRunStatusLabel(run.status, translateAutomation)}
+                            </Text>
+                            <Text style={[styles.runTime, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                                {new Date(run.scheduledFor).toLocaleString()}
+                            </Text>
+                            <Text style={[styles.runMessage, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                                {run.message ?? ''}
+                            </Text>
+                            {run.sessionId && (
+                                <Ionicons name="chevron-forward" size={15} color={theme.colors.textLink} />
+                            )}
+                        </>
+                    );
+                    const rowStyle = [
+                        styles.runRow(fresh),
+                        fresh && styles.runFresh,
+                        fresh && settled && styles.runFreshDone,
+                    ];
+                    return run.sessionId ? (
+                        <Pressable
+                            key={run.id}
+                            accessibilityRole="link"
+                            accessibilityLabel={t('happyHerd.automations.openSession', { id: run.sessionId })}
+                            onPress={() => onOpenSession(run.sessionId!)}
+                            style={({ pressed }) => [...rowStyle, styles.runLink, pressed && styles.pressed]}
+                        >
+                            {row}
+                        </Pressable>
+                    ) : (
+                        <View key={run.id} style={rowStyle}>
+                            {row}
+                        </View>
+                    );
+                }) : (
+                    <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.noRuns')}</Text>
+                )}
+            </View>
+
+            {!heartbeat && (
+                <>
+                    <HerdSectionLabel>{t('happyHerd.automations.lifecycle')}</HerdSectionLabel>
+                    <View style={styles.actions}>
+                        <HerdButton
+                            size="sm"
+                            label={active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}
+                            onPress={onToggleStatus}
+                        />
+                        <HerdButton
+                            size="sm"
+                            variant="danger"
+                            icon="trash-outline"
+                            label={t('happyHerd.automations.delete')}
+                            onPress={onDelete}
+                        />
+                    </View>
+                </>
+            )}
         </View>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
-    panel: { minWidth: 0, flex: 1 },
-    panelDesktop: {
-        width: '34%',
-        minWidth: 420,
-        maxWidth: 470,
-        flexGrow: 0,
-        flexShrink: 0,
-        flexBasis: 'auto',
-        borderLeftWidth: StyleSheet.hairlineWidth,
+    body: {
+        paddingTop: 14,
     },
-    panelMobile: { width: '100%' },
-    header: {
-        minHeight: 92,
-        paddingHorizontal: 18,
-        paddingVertical: 16,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+    actions: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 12,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
     },
-    headingRow: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    headingCopy: { minWidth: 0, flex: 1 },
-    statusLabel: { fontSize: 12, ...Typography.default('semiBold') },
-    title: { marginTop: 6, fontSize: 19, ...Typography.default('semiBold') },
-    backButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
-    backText: { ...Typography.default('semiBold') },
-    iconButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: theme.borderRadius.md },
-    scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 28 },
-    sectionLabel: { marginTop: 22, marginBottom: 9, marginHorizontal: 3, fontSize: 13, ...Typography.default('semiBold') },
-    instructionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
-    instructionHeader: { paddingHorizontal: 15, paddingTop: 13, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-    instructionTitle: { fontSize: 15, ...Typography.default('semiBold') },
-    instructionBody: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 15, paddingTop: 13 },
-    instructionCollapsed: { maxHeight: 92, overflow: 'hidden' },
-    instructionAffordance: { paddingHorizontal: 15, paddingVertical: 12 },
-    linkText: { fontSize: 13, ...Typography.default('semiBold') },
-    settingsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
-    settingRow: { minHeight: 46, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
-    settingValue: { minWidth: 0, flexShrink: 1, textAlign: 'right' },
-    mono: { ...Typography.mono(), fontSize: 12 },
-    historyLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
-    historyError: { alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
-    retryButton: {
-        minHeight: 38,
-        justifyContent: 'center',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: theme.borderRadius.md,
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        columnGap: 20,
+        rowGap: 12,
+    },
+    field: {
+        minWidth: 180,
+        flexGrow: 1,
+        flexBasis: 180,
+    },
+    fieldLabel: {
+        ...Typography.mono(),
+        fontSize: 11.5,
+        lineHeight: 15,
+    },
+    fieldValue: {
+        marginTop: 3,
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    mono: {
+        ...Typography.mono(),
+        fontSize: 13,
+    },
+    instructionCard: {
+        borderWidth: 1,
+        borderRadius: theme.kilv.radius,
+        overflow: 'hidden',
+        backgroundColor: theme.colors.input.background,
+    },
+    instructionBody: {
         paddingHorizontal: 14,
+        paddingTop: 10,
     },
-    runRow: { minHeight: 50, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
-    runDot: { width: 8, height: 8, borderRadius: 4 },
-    runCopy: { minWidth: 0, flex: 1 },
-    runStatus: { ...Typography.default('semiBold') },
-    runTime: { maxWidth: 150, fontSize: 12, textAlign: 'right' },
-    lifecycleCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, overflow: 'hidden' },
-    lifecycleAction: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center' },
-    footer: { paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 9 },
-    primaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: theme.borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-    secondaryButton: { minHeight: 40, paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-    buttonText: { ...Typography.default('semiBold') },
-    pressed: { opacity: 0.7 },
+    instructionCollapsed: {
+        maxHeight: 92,
+        overflow: 'hidden',
+    },
+    instructionAffordance: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    linkText: {
+        fontSize: 13,
+        ...Typography.default('semiBold'),
+    },
+    runs: {
+        gap: 6,
+    },
+    historyLoading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 9,
+        paddingVertical: 8,
+    },
+    historyError: {
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingVertical: 8,
+    },
+    // The only style in a run row's list that sets web classes (see Unistyles `_web` merging).
+    runRow: (fresh: boolean) => ({
+        minHeight: 40,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        columnGap: 10,
+        rowGap: 2,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: theme.borderRadius.sm,
+        backgroundColor: theme.colors.input.background,
+        _web: { _classNames: herdWebClasses('herd-transition', fresh && 'herd-slide-left') },
+    }),
+    runLink: {
+        _web: { cursor: 'pointer', _hover: { borderColor: theme.colors.kilv.rimLine } },
+    },
+    runFresh: {
+        borderColor: theme.colors.selection.border,
+    },
+    runFreshDone: {
+        borderColor: theme.colors.diff.success,
+        _web: { boxShadow: `0 0 18px ${theme.colors.diff.addedBg}` },
+    },
+    freshCheck: {
+        _web: { _classNames: herdWebClasses('herd-check') },
+    },
+    runState: {
+        width: 18,
+        alignItems: 'center',
+    },
+    runStatus: {
+        minWidth: 88,
+        ...Typography.default('semiBold'),
+        fontSize: 14,
+    },
+    runTime: {
+        ...Typography.mono(),
+        fontSize: 12,
+    },
+    // Wraps below the status and time when the row is too narrow to hold it.
+    runMessage: {
+        flexGrow: 1,
+        flexShrink: 1,
+        flexBasis: 200,
+        minWidth: 0,
+        fontSize: 13,
+    },
+    pressed: {
+        opacity: 0.72,
+    },
 }));

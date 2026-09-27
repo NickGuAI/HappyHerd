@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "1a5a268372eb7587634c2c789a870eba10a7d86f58e2a87d6dbb67bad94772e5",
+  "sourceFingerprint": "8ae3883d79e3299c3590c1112f59879ca516296e76ec9261bf3cf8204dd7de3e",
   "routeCount": 42,
-  "surfaceCount": 300,
+  "surfaceCount": 303,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -81,10 +81,12 @@
       "owner": "sources/app/(app)/automations/index.tsx",
       "translationKeys": [
         "active",
+        "common.cancel",
         "happyHerd.automations.allTags",
         "happyHerd.automations.arguments",
         "happyHerd.automations.argumentsHint",
         "happyHerd.automations.automationCount",
+        "happyHerd.automations.collapseDetails",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -95,6 +97,7 @@
         "happyHerd.automations.emptySubtitle",
         "happyHerd.automations.emptyTitle",
         "happyHerd.automations.executable",
+        "happyHerd.automations.expandDetails",
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
@@ -106,7 +109,6 @@
         "happyHerd.automations.new",
         "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
-        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.railExec",
         "happyHerd.automations.save",
@@ -1308,10 +1310,12 @@
       ],
       "translationKeys": [
         "active",
+        "common.cancel",
         "happyHerd.automations.allTags",
         "happyHerd.automations.arguments",
         "happyHerd.automations.argumentsHint",
         "happyHerd.automations.automationCount",
+        "happyHerd.automations.collapseDetails",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -1322,6 +1326,7 @@
         "happyHerd.automations.emptySubtitle",
         "happyHerd.automations.emptyTitle",
         "happyHerd.automations.executable",
+        "happyHerd.automations.expandDetails",
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
@@ -1333,7 +1338,6 @@
         "happyHerd.automations.new",
         "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
-        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.railExec",
         "happyHerd.automations.save",
@@ -3847,14 +3851,12 @@
       "kind": "component",
       "route": null,
       "exports": [
+        "HAPPYHERD_AUTOMATION_RECENT_RUNS",
         "HappyHerdAutomationDetail"
       ],
       "translationKeys": [
-        "common.back",
         "common.retry",
         "happyHerd.automations.arguments",
-        "happyHerd.automations.backToAutomations",
-        "happyHerd.automations.closeDetails",
         "happyHerd.automations.command",
         "happyHerd.automations.commander",
         "happyHerd.automations.cron",
@@ -3862,6 +3864,7 @@
         "happyHerd.automations.details",
         "happyHerd.automations.editAction",
         "happyHerd.automations.executable",
+        "happyHerd.automations.history",
         "happyHerd.automations.instructions",
         "happyHerd.automations.kind",
         "happyHerd.automations.lastRun",
@@ -3881,8 +3884,6 @@
         "happyHerd.automations.scheduleSection",
         "happyHerd.automations.showFullInstruction",
         "happyHerd.automations.showLessInstruction",
-        "happyHerd.automations.statusActive",
-        "happyHerd.automations.statusPaused",
         "happyHerd.automations.timezone",
         "happyHerd.automations.unableHistory",
         "happyHerd.automations.untagged",
@@ -4006,6 +4007,48 @@
       "states": [
         "offline"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdCollapse.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdCollapse"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdPage.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdButton",
+        "HerdChip",
+        "HerdDot",
+        "HerdEmptyState",
+        "HerdKey",
+        "HerdNotice",
+        "HerdPageHeader",
+        "HerdSectionLabel",
+        "herdEnterStyles",
+        "useHerdWideLayout"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "HerdSheet"
+      ],
+      "translationKeys": [],
+      "states": [],
       "hardcodedCopy": []
     },
     {

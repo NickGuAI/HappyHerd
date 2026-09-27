@@ -509,3 +509,4 @@ UI_OVERHAUL_SESSION_STREAM	accepted	feat(app): restyle the session stream with t
 UI_OVERHAUL_SESSION_COMPOSER	accepted	feat(app): add composer chips, a context meter and a single-line dock	server/packages/happyherd-app/sources/components/herd/session/composerChipModel.test.ts
 UI_OVERHAUL_SESSION_HEADER	accepted	feat(app): add Workspace, Side chats and session actions to the chat header	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_SESSION_BROWSER	accepted	test(app): cover the session screen overhaul on Web Desktop and Web Mobile	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_AUTOMATIONS_ROWS	accepted	feat(app): turn Automations into expandable rows	server/packages/happyherd-app/sources/components/AutomationsScreen.test.ts

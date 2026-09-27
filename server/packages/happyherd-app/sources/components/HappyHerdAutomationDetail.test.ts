@@ -11,9 +11,12 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         ActivityIndicator: host('ActivityIndicator'),
+        Platform: { OS: 'web' },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
+        Text: host('Text'),
         View: host('View'),
+        useWindowDimensions: () => ({ width: 1200, height: 800 }),
     };
 });
 
@@ -153,9 +156,6 @@ function renderDetail(overrides: Partial<React.ComponentProps<typeof HappyHerdAu
         history: [run],
         historyLoading: false,
         historyFailed: false,
-        mobile: false,
-        onBack: vi.fn(),
-        onClose: vi.fn(),
         onRunNow: vi.fn(),
         onEdit: vi.fn(),
         onToggleStatus: vi.fn(),
@@ -172,35 +172,31 @@ function renderDetail(overrides: Partial<React.ComponentProps<typeof HappyHerdAu
 }
 
 describe('HappyHerdAutomationDetail', () => {
-    it('uses green for the active lifecycle label and secondary text when paused', () => {
-        const active = renderDetail().renderer;
-        const activeLabel = active.root.findAllByType('Text' as any).find((node: any) => (
-            node.props.children === 'happyHerd.automations.statusActive'
+    function renderedText(renderer: ReactTestRenderer): unknown[] {
+        return renderer.root.findAllByType('Text' as any)
+            .map((node: any) => node.props.children)
+            .flat(Infinity);
+    }
+
+    function byTestId(renderer: ReactTestRenderer, type: string, testID: string) {
+        return renderer.root.findAll((node: any) => node.type === type && node.props.testID === testID);
+    }
+
+    function runRows(renderer: ReactTestRenderer) {
+        return renderer.root.findAll((node: any) => (
+            (node.type === 'View' || node.type === 'Pressable')
+            && node.props.style?.flat?.().some((style: any) => style?.minHeight === 40 && style?.borderWidth === 1)
         ));
-        expect(activeLabel?.props.style.flat()).toEqual(expect.arrayContaining([
-            expect.objectContaining({ color: lightTheme.colors.diff.success }),
-        ]));
+    }
 
-        const paused = renderDetail({ automation: { ...automation, status: 'paused' } }).renderer;
-        const pausedLabel = paused.root.findAllByType('Text' as any).find((node: any) => (
-            node.props.children === 'happyHerd.automations.statusPaused'
-        ));
-        expect(pausedLabel?.props.style.flat()).toEqual(expect.arrayContaining([
-            expect.objectContaining({ color: '#666666' }),
-        ]));
-    });
+    it('offers Pause for an active automation and Resume for a paused one', () => {
+        const active = renderedText(renderDetail().renderer);
+        expect(active).toContain('happyHerd.automations.pause');
+        expect(active).not.toContain('happyHerd.automations.resume');
 
-    it('keeps exactly one desktop header action and closes through it', () => {
-        const { props, renderer } = renderDetail();
-        const header = renderer.root.findByProps({ testID: 'automation-detail-header' });
-
-        expect(header.findAllByType('Pressable' as any)).toHaveLength(1);
-        expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.testID === 'automation-detail-close'
-        ))).toHaveLength(1);
-
-        act(() => renderer.root.findByProps({ testID: 'automation-detail-close' }).props.onPress());
-        expect(props.onClose).toHaveBeenCalledOnce();
+        const paused = renderedText(renderDetail({ automation: { ...automation, status: 'paused' } }).renderer);
+        expect(paused).toContain('happyHerd.automations.resume');
+        expect(paused).not.toContain('happyHerd.automations.pause');
     });
 
     it('renders Markdown inside a bounded card and expands and collapses it', () => {
@@ -226,41 +222,113 @@ describe('HappyHerdAutomationDetail', () => {
             .not.toEqual(expect.arrayContaining([expect.objectContaining({ maxHeight: 92 })]));
     });
 
-    it('shows mobile Back separately from the single close action', () => {
-        const onBack = vi.fn();
-        const { renderer } = renderDetail({ mobile: true, onBack });
-        const header = renderer.root.findByProps({ testID: 'automation-detail-header' });
-
-        expect(header.findAllByType('Pressable' as any)).toHaveLength(2);
-        act(() => renderer.root.findByProps({
-            accessibilityLabel: 'happyHerd.automations.backToAutomations',
-        }).props.onPress());
-        expect(onBack).toHaveBeenCalledOnce();
-        expect(renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && node.props.testID === 'automation-detail-close'
-        ))).toHaveLength(1);
-    });
-
     it('keeps metadata, previous runs, Run now, Edit, and lifecycle actions accessible', () => {
         const { props, renderer } = renderDetail();
 
-        expect(renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children).flat(Infinity))
-            .toEqual(expect.arrayContaining([
-                'MainEC2',
-                'dream · health',
-                'happyHerd.automations.kindScheduled',
-                'happyHerd.automations.runStatusCompleted',
-                '0 7 * * *',
-                'happyHerd.automations.runNow',
-                'happyHerd.automations.editAction',
-                'happyHerd.automations.pause',
-                'happyHerd.automations.delete',
-            ]));
+        expect(renderedText(renderer)).toEqual(expect.arrayContaining([
+            'MainEC2',
+            'dream · health',
+            'happyHerd.automations.kindScheduled',
+            'happyHerd.automations.runStatusCompleted',
+            '0 7 * * *',
+            'happyHerd.automations.runNow',
+            'happyHerd.automations.editAction',
+            'happyHerd.automations.history',
+            'happyHerd.automations.pause',
+            'happyHerd.automations.delete',
+        ]));
 
         act(() => renderer.root.findByProps({
             accessibilityLabel: 'happyHerd.automations.openSession:session-123',
         }).props.onPress());
         expect(props.onOpenSession).toHaveBeenCalledWith('session-123');
+
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'happyHerd.automations.runNow' }).props.onPress());
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'happyHerd.automations.editAction' }).props.onPress());
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'happyHerd.automations.delete' }).props.onPress());
+        expect(props.onRunNow).toHaveBeenCalledOnce();
+        expect(props.onEdit).toHaveBeenCalledOnce();
+        expect(props.onDelete).toHaveBeenCalledOnce();
+
+        const toggles = renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel === 'happyHerd.automations.pause'
+        ));
+        expect(toggles.length).toBeGreaterThan(0);
+        act(() => toggles[0].props.onPress());
+        expect(props.onToggleStatus).toHaveBeenCalledOnce();
+    });
+
+    it('names the Commander when its list is loaded and falls back to the identifier', () => {
+        expect(renderedText(renderDetail({ commanderName: 'Athena' }).renderer)).toContain('Athena');
+        expect(renderedText(renderDetail().renderer)).toContain('athena');
+    });
+
+    it('lists the most recent runs until History shows and reloads every run', () => {
+        const runs = Array.from({ length: 5 }, (_, index) => ({
+            ...run,
+            id: `run-${index}`,
+            sessionId: null,
+            message: `run ${index}`,
+        }));
+        const onRetryHistory = vi.fn();
+        const { renderer } = renderDetail({ history: runs, onRetryHistory });
+        const history = () => renderer.root.findByProps({ accessibilityLabel: 'happyHerd.automations.history' });
+
+        expect(runRows(renderer)).toHaveLength(3);
+        expect(history().props.accessibilityState).toMatchObject({ selected: false });
+
+        act(() => history().props.onPress());
+        expect(onRetryHistory).toHaveBeenCalledOnce();
+        expect(runRows(renderer)).toHaveLength(5);
+        expect(history().props.accessibilityState).toMatchObject({ selected: true });
+
+        act(() => history().props.onPress());
+        expect(onRetryHistory).toHaveBeenCalledOnce();
+        expect(runRows(renderer)).toHaveLength(3);
+    });
+
+    it('shows a fresh manual run as Running, then Completed when history settles', () => {
+        const started: HappyHerdAutomationRun = {
+            ...run,
+            id: 'fresh-run',
+            source: 'manual',
+            finishedAt: null,
+            status: 'started',
+            message: null,
+        };
+        const { props, renderer } = renderDetail({ history: [started, run], freshRunId: 'fresh-run' });
+
+        expect(byTestId(renderer, 'ActivityIndicator', 'automation-run-running')).toHaveLength(1);
+        expect(renderedText(renderer)).toContain('happyHerd.automations.runStatusRunning');
+
+        act(() => renderer.update(React.createElement(HappyHerdAutomationDetail, {
+            ...props,
+            history: [{ ...started, status: 'completed', finishedAt: '2026-08-30T11:05:00.000Z' }, run],
+        })));
+
+        expect(byTestId(renderer, 'ActivityIndicator', 'automation-run-running')).toHaveLength(0);
+        expect(byTestId(renderer, 'Ionicons', 'automation-run-completed')).toHaveLength(2);
+        expect(renderedText(renderer)).not.toContain('happyHerd.automations.runStatusRunning');
+    });
+
+    it('keeps heartbeats to their target session without Run now or lifecycle actions', () => {
+        const heartbeat = {
+            ...automation,
+            kind: 'heartbeat',
+            schedule: null,
+            targetSessionId: 'session-target',
+            intervalSeconds: 1800,
+            nextDueAt: null,
+            maxRetries: 0,
+        } as HappyHerdAutomation;
+        const { props, renderer } = renderDetail({ automation: heartbeat });
+        const text = renderedText(renderer);
+
+        expect(text).toContain('happyHerd.heartbeat.openTarget');
+        expect(text).not.toContain('happyHerd.automations.runNow');
+        expect(text).not.toContain('happyHerd.automations.lifecycle');
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'happyHerd.heartbeat.openTarget' }).props.onPress());
+        expect(props.onEdit).toHaveBeenCalledOnce();
     });
 
     it('shows the exact exec command and sessionless failure history', () => {
@@ -268,11 +336,8 @@ describe('HappyHerdAutomationDetail', () => {
             automation: execAutomation,
             history: [execRun],
         });
-        const renderedText = renderer.root.findAllByType('Text' as any)
-            .map((node: any) => node.props.children)
-            .flat(Infinity);
 
-        expect(renderedText).toEqual(expect.arrayContaining([
+        expect(renderedText(renderer)).toEqual(expect.arrayContaining([
             'happyHerd.automations.command',
             '/opt/happyherd/bin/data-sink',
             '["--run-now"]',
@@ -283,23 +348,6 @@ describe('HappyHerdAutomationDetail', () => {
         expect(renderer.root.findAll((node: any) => node.props.accessibilityRole === 'link')).toHaveLength(0);
     });
 
-    it('uses the approved bounded desktop detail width', () => {
-        const { renderer } = renderDetail();
-        const panel = renderer.root.findByProps({
-            accessibilityLabel: 'happyHerd.automations.details',
-        });
-
-        expect(panel.props.style.flat()).toEqual(expect.arrayContaining([
-            expect.objectContaining({
-                width: '34%',
-                minWidth: 420,
-                maxWidth: 470,
-                flexGrow: 0,
-                flexBasis: 'auto',
-            }),
-        ]));
-    });
-
     it('shows a retry action instead of a false empty state when history loading fails', () => {
         const onRetryHistory = vi.fn();
         const { renderer } = renderDetail({
@@ -308,11 +356,9 @@ describe('HappyHerdAutomationDetail', () => {
             onRetryHistory,
         });
 
-        const renderedText = renderer.root.findAllByType('Text' as any)
-            .map((node: any) => node.props.children)
-            .flat(Infinity);
-        expect(renderedText).toContain('happyHerd.automations.unableHistory');
-        expect(renderedText).not.toContain('happyHerd.automations.noRuns');
+        const text = renderedText(renderer);
+        expect(text).toContain('happyHerd.automations.unableHistory');
+        expect(text).not.toContain('happyHerd.automations.noRuns');
 
         act(() => renderer.root.findByProps({ accessibilityLabel: 'common.retry' }).props.onPress());
         expect(onRetryHistory).toHaveBeenCalledOnce();
