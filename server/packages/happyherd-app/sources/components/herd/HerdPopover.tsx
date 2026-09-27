@@ -5,6 +5,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from './motion';
+import { HerdBottomSheet, useInHerdSheet } from './mobile/HerdBottomSheet';
+import { isHerdPhoneWeb } from './mobile/useHerdPhone';
 
 /** A trigger's rectangle in window coordinates. */
 export type HerdAnchorRect = { x: number; y: number; width: number; height: number };
@@ -84,6 +86,7 @@ export function useHerdEscapeToClose(visible: boolean, onClose: () => void): voi
 /**
  * Anchored dropdown used by the top bar menus. It scales in from its trigger,
  * closes on an outside press or Escape, and never dims the page behind it.
+ * On a phone-width Web window it presents the same content as a bottom sheet.
  */
 export function HerdPopover(props: {
     visible: boolean;
@@ -100,6 +103,19 @@ export function HerdPopover(props: {
     useHerdEscapeToClose(props.visible && !!props.anchor, props.onClose);
     if (!props.visible || !props.anchor) {
         return null;
+    }
+    if (isHerdPhoneWeb(windowWidth)) {
+        return (
+            <HerdBottomSheet
+                visible
+                onClose={props.onClose}
+                role="menu"
+                accessibilityLabel={props.accessibilityLabel}
+                testID={props.testID}
+            >
+                {props.children}
+            </HerdBottomSheet>
+        );
     }
     const position = resolveHerdPopoverPosition({
         anchor: props.anchor,
@@ -159,6 +175,7 @@ export function HerdMenuItem(props: {
     testID?: string;
 }) {
     const { theme } = useUnistyles();
+    const inSheet = useInHerdSheet();
     return (
         <Pressable
             accessibilityRole="menuitem"
@@ -169,15 +186,16 @@ export function HerdMenuItem(props: {
             testID={props.testID}
             style={({ pressed, hovered }: any) => [
                 styles.item,
+                inSheet && styles.itemInSheet,
                 props.selected && styles.itemSelected,
                 (hovered || pressed) && !props.disabled && styles.itemHovered,
                 props.disabled && styles.itemDisabled,
             ]}
         >
             {props.leading ?? (props.icon ? (
-                <Ionicons name={props.icon} size={16} color={theme.colors.textSecondary} />
+                <Ionicons name={props.icon} size={inSheet ? 18 : 16} color={theme.colors.textSecondary} />
             ) : null)}
-            <Text numberOfLines={1} style={[styles.itemLabel, props.selected && styles.itemLabelSelected]}>
+            <Text numberOfLines={1} style={[styles.itemLabel, inSheet && styles.itemLabelInSheet, props.selected && styles.itemLabelSelected]}>
                 {props.label}
             </Text>
             {props.hint ? <Text numberOfLines={1} style={styles.itemHint}>{props.hint}</Text> : null}
@@ -238,6 +256,12 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 10,
         borderRadius: theme.kilv.radius,
     },
+    // Phone sheets: touch-size rows (48 px) and 16 px labels.
+    itemInSheet: {
+        minHeight: 48,
+        gap: 12,
+        paddingHorizontal: 12,
+    },
     itemHovered: {
         backgroundColor: theme.colors.surfacePressedOverlay,
     },
@@ -254,6 +278,10 @@ const styles = StyleSheet.create((theme) => ({
         lineHeight: 20,
         color: theme.colors.text,
         ...Typography.default(),
+    },
+    itemLabelInSheet: {
+        fontSize: 16,
+        lineHeight: 22,
     },
     itemLabelSelected: {
         color: theme.colors.textLink,

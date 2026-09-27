@@ -15,7 +15,10 @@ import {
 import { MobileGlassSurface } from './MobileGlass';
 import { AnimatedPopup, LocalBlurHalo } from './AnimatedOverlay';
 import { herdWebClasses } from './herd/motion';
-import { useHerdEscapeToClose } from './herd/HerdPopover';
+import { HerdMenuSeparator, useHerdEscapeToClose } from './herd/HerdPopover';
+import { HerdBottomSheet } from './herd/mobile/HerdBottomSheet';
+import { isHerdPhoneWeb } from './herd/mobile/useHerdPhone';
+import { getSessionName } from '@/utils/sessionUtils';
 
 export type SessionActionsAnchor =
     | {
@@ -134,6 +137,34 @@ const stylesheet = StyleSheet.create((theme) => ({
         lineHeight: 18,
         ...Typography.default('semiBold'),
     },
+    // Phone Web: the same actions in a bottom sheet with touch-size rows,
+    // titled with the session name in the menu title's mono voice.
+    sheetTitle: {
+        paddingHorizontal: 12,
+        paddingTop: 2,
+        paddingBottom: 6,
+        fontSize: 11,
+        lineHeight: 16,
+        letterSpacing: 1.2,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
+    sheetItem: {
+        minHeight: 48,
+        gap: 10,
+        paddingHorizontal: 12,
+        borderRadius: theme.kilv.radius,
+        _web: { _classNames: herdWebClasses('herd-transition') },
+    },
+    sheetItemLabel: {
+        fontSize: 16,
+        lineHeight: 22,
+    },
+    sheetItemShortcut: {
+        fontSize: 11,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
     nativeContainer: {
         flex: 1,
         justifyContent: 'flex-end',
@@ -233,6 +264,7 @@ export function SessionActionsPopover({
         return null;
     }
 
+    const phoneSheet = isHerdPhoneWeb(windowWidth);
     const actionItems = actions.map((action, index) => {
         const isLast = index === actions.length - 1;
         const color = action.destructive ? theme.colors.status.error : theme.colors.text;
@@ -246,7 +278,11 @@ export function SessionActionsPopover({
                 key={action.id}
                 accessibilityRole="button"
                 onPress={() => handleActionPress(action)}
-                style={({ pressed, hovered }: any) => Platform.OS === 'web' ? [
+                style={({ pressed, hovered }: any) => phoneSheet ? [
+                    styles.menuItem,
+                    styles.sheetItem,
+                    (hovered || pressed) && styles.webMenuItemHovered,
+                ] : Platform.OS === 'web' ? [
                     styles.menuItem,
                     styles.webMenuItem,
                     hovered && styles.webMenuItemHovered,
@@ -262,11 +298,11 @@ export function SessionActionsPopover({
                     name={action.icon as keyof typeof Ionicons.glyphMap}
                     size={18}
                 />
-                <Text numberOfLines={1} style={[styles.menuItemLabel, { color }]}>
+                <Text numberOfLines={1} style={[styles.menuItemLabel, phoneSheet && styles.sheetItemLabel, { color }]}>
                     {action.label}
                 </Text>
                 {Platform.OS === 'web' && (
-                    <Text style={styles.menuItemShortcut}>{shortcutLabel}</Text>
+                    <Text style={[styles.menuItemShortcut, phoneSheet && styles.sheetItemShortcut]}>{shortcutLabel}</Text>
                 )}
             </Pressable>
         );
@@ -290,6 +326,25 @@ export function SessionActionsPopover({
             </MobileGlassSurface>
         </>
     );
+
+    if (phoneSheet) {
+        return (
+            <HerdBottomSheet
+                visible={visible}
+                onClose={onClose}
+                accessibilityLabel={getSessionName(session)}
+                testID="session-actions-sheet"
+            >
+                <Text numberOfLines={1} style={styles.sheetTitle}>{getSessionName(session)}</Text>
+                {actionItems.map((item, index) => actions[index].destructive && index > 0 ? (
+                    <React.Fragment key={actions[index].id}>
+                        <HerdMenuSeparator />
+                        {item}
+                    </React.Fragment>
+                ) : item)}
+            </HerdBottomSheet>
+        );
+    }
 
     if (Platform.OS === 'web' && position) {
         return (

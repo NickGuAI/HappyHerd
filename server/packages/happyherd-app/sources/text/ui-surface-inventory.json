@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4088dfcfd7ccc851c1c8dde59e9ca04cd57d67e1ed6668ed395c6082fb794f7d",
+  "sourceFingerprint": "1e836e1e7e39bdd9c077bfa761c46885dc790ba7b3031ddcbec316eaf59e72b3",
   "routeCount": 43,
-  "surfaceCount": 307,
+  "surfaceCount": 308,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4006,6 +4006,24 @@
         "useHerdEscapeToClose"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/mobile/HerdBottomSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "HERD_SHEET_DISMISS_DISTANCE",
+        "HERD_SHEET_DISMISS_VELOCITY",
+        "HerdBottomSheet",
+        "HerdSheetContext",
+        "shouldDismissHerdSheet",
+        "useInHerdSheet"
+      ],
+      "translationKeys": [
+        "common.cancel"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
