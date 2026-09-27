@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { TextInput } from 'react-native';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +28,7 @@ vi.mock('react-native', () => {
         Pressable: 'Pressable',
         Modal: 'Modal',
         ScrollView: 'ScrollView',
+        TextInput: 'TextInput',
         Animated: { View: 'AnimatedView', Value, spring: () => ({ start() {} }) },
         PanResponder: {
             create: (config: unknown) => {
@@ -38,6 +40,7 @@ vi.mock('react-native', () => {
     };
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+vi.mock('react-native-keyboard-controller', () => ({ KeyboardAvoidingView: 'KeyboardAvoidingView' }));
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, right: 0, bottom: 34, left: 0 }) }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('react-native-unistyles', () => {
@@ -215,6 +218,46 @@ describe('HerdBottomSheet', () => {
         mocks.panConfig.onPanResponderMove(null, { dy: 120, dx: 0 });
         mocks.panConfig.onPanResponderRelease(null, { dy: 120, vy: 0.2 });
         expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    // A picker searched down to one result.
+    const searchedSheet = () => React.createElement(HerdBottomSheet, {
+        visible: true,
+        onClose: vi.fn(),
+        testID: 'probe-sheet',
+        children: [
+            React.createElement(TextInput, { key: 'search', testID: 'probe-search', value: 'opus' }),
+            React.createElement(HerdMenuItem, { key: 'result', label: 'claude-opus-5-5', onPress: vi.fn(), testID: 'probe-result' }),
+        ],
+    });
+
+    it('rises above the keyboard with its Search field on a native phone', () => {
+        mocks.platform = 'ios';
+        const renderer = render(searchedSheet());
+        // The keyboard-aware container fills the Modal, below the status bar, and
+        // holds the scrim and the sheet with its field and result at its bottom.
+        const [keyboard] = renderer.root.findByType('Modal').findAllByType('KeyboardAvoidingView');
+        expect(keyboard?.props.behavior).toBe('padding');
+        expect(flatStyle(keyboard.props.style)).toMatchObject({ flex: 1, justifyContent: 'flex-end', paddingTop: 47 });
+        for (const testID of ['probe-sheet-backdrop', 'probe-sheet', 'probe-search', 'probe-result']) {
+            expect(keyboard.findAll((node: any) => typeof node.type === 'string' && node.props.testID === testID)).toHaveLength(1);
+        }
+        // A sheet taller than the room above the keyboard shrinks, and its body scrolls.
+        const [sheet] = byTestID(renderer, 'probe-sheet');
+        expect(flatStyle(sheet.props.style).flexShrink).toBe(1);
+        expect(flatStyle(sheet.parent.props.style).flexShrink).toBe(1);
+
+        mocks.platform = 'android';
+        expect(render(searchedSheet()).root.findByType('KeyboardAvoidingView').props.behavior).toBe('height');
+    });
+
+    it('keeps the web sheet out of the keyboard container', () => {
+        const renderer = render(searchedSheet());
+        expect(renderer.root.findAllByType('KeyboardAvoidingView')).toEqual([]);
+        const [backdrop] = byTestID(renderer, 'probe-sheet-backdrop');
+        expect(backdrop.parent.type).toBe('View');
+        expect(flatStyle(backdrop.parent.props.style)).toEqual({ flex: 1, justifyContent: 'flex-end' });
+        expect(renderer.root.findByType('Modal').props.animationType).toBe('none');
     });
 });
 

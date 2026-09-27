@@ -48,6 +48,8 @@ const virtualModules: Record<string, string> = {
         Icon.glyphMap = {};
         export const Ionicons = Icon; export const Octicons = Icon; export const MaterialCommunityIcons = Icon;
     `,
+    // The native sheet's keyboard container; the web renders a plain View.
+    'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
     'expo-image': `
         import React from 'react';
         export const Image = ({ style, tintColor }) => {

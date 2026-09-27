@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Animated, Modal, PanResponder, Platform, Pressable, ScrollView, View, useWindowDimensions, type Role } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 
@@ -24,6 +25,26 @@ export const HERD_SHEET_DISMISS_VELOCITY = 0.9;
 
 export function shouldDismissHerdSheet(dy: number, vy: number): boolean {
     return dy > HERD_SHEET_DISMISS_DISTANCE || vy > HERD_SHEET_DISMISS_VELOCITY;
+}
+
+/**
+ * The window-filling layer under the scrim and the sheet. On native it is the
+ * keyboard-aware container New Session uses: the sheet rises above the
+ * keyboard that a field in it opens, such as a picker's Search, and a sheet
+ * taller than the room left shrinks to fit below the status bar.
+ */
+function HerdSheetFrame({ topInset, children }: { topInset: number; children: React.ReactNode }) {
+    if (Platform.OS === 'web') {
+        return <View style={styles.root}>{children}</View>;
+    }
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[styles.root, { paddingTop: topInset }]}
+        >
+            {children}
+        </KeyboardAvoidingView>
+    );
 }
 
 /**
@@ -99,7 +120,7 @@ export function HerdBottomSheet({
     const exiting = presence.exiting;
     const layer = (
         <HerdTouchMenuContext.Provider value>
-            <View style={styles.root}>
+            <HerdSheetFrame topInset={safeArea.top}>
                 <Pressable
                     accessible={false}
                     onPress={onClose}
@@ -141,7 +162,7 @@ export function HerdBottomSheet({
                         </ScrollView>
                     </View>
                 </Animated.View>
-            </View>
+            </HerdSheetFrame>
         </HerdTouchMenuContext.Provider>
     );
     // Closing ends the Modal at once; the sheet slides down on an inert layer.
@@ -169,11 +190,14 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.kilv.scrim,
         _web: { _classNames: herdWebClasses(exiting ? 'herd-fade-out' : 'herd-fade') },
     }),
+    // Both shrink to the room above an open keyboard; the body then scrolls.
     position: {
         width: '100%',
+        flexShrink: 1,
     },
     sheet: (exiting: boolean) => ({
         width: '100%',
+        flexShrink: 1,
         overflow: 'hidden',
         // With the rows' own 8 px, content sits on the 16 px gutter.
         paddingHorizontal: 8,

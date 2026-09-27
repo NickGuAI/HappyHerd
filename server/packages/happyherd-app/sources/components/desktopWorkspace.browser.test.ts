@@ -78,6 +78,8 @@ const virtualModules: Record<string, string> = {
         import { View } from 'react-native';
         export const LinearGradient = ({ children, style }) => React.createElement(View, { style }, children);
     `,
+    // The native sheet's keyboard container; the web renders a plain View.
+    'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
     'react-native-reanimated': `
         import React from 'react';
         import { View } from 'react-native';

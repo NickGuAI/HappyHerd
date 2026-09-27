@@ -66,6 +66,7 @@ const virtualModules: Record<string, string> = {
     'expo-blur': `import { View } from 'react-native-unistyles/components/native/View'; export const BlurView = View;`,
     'expo-linear-gradient': `import { View } from 'react-native-unistyles/components/native/View'; export const LinearGradient = View;`,
     '@react-native-masked-view/masked-view': `import { View } from 'react-native-unistyles/components/native/View'; export default View;`,
+    'react-native-keyboard-controller': `import { View } from 'react-native-unistyles/components/native/View'; export const KeyboardAvoidingView = View;`,
     'expo-haptics': `
         export const impactAsync = async () => {}; export const notificationAsync = async () => {}; export const selectionAsync = async () => {};
         export const ImpactFeedbackStyle = { Light: 'light', Medium: 'medium', Heavy: 'heavy' };

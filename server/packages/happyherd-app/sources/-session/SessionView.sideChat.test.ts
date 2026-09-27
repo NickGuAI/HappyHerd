@@ -158,6 +158,7 @@ vi.mock('react-native-unistyles', async () => {
     };
 });
 
+vi.mock('react-native-keyboard-controller', () => ({ KeyboardAvoidingView: 'KeyboardAvoidingView' }));
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     const icon = (name: string) => (props: any) => ReactModule.createElement(name, props);

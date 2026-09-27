@@ -16,6 +16,7 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('react-native-reanimated', () => ({ useReducedMotion: () => false }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
+vi.mock('react-native-keyboard-controller', () => ({ KeyboardAvoidingView: 'KeyboardAvoidingView' }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', Octicons: 'Octicons' }));
 vi.mock('react-native-safe-area-context', async () => {
     const ReactModule = await import('react');
