@@ -570,3 +570,4 @@ UI_OVERHAUL_PHONE_TEST_FOCUS	accepted	test(app): give the New Session test's moc
 UI_OVERHAUL_NATIVE_TABLET_BACK	accepted	feat(app): show the session and page Back on native tablets	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
 UI_OVERHAUL_NATIVE_STREAMLINE	accepted	feat(app): open native phones in Streamline, as the web does	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_PHONE_WIDTH_RULE	accepted	fix(app): give every web window 700 px and wider the desktop layout	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_PHONE_CHANGELOG_PARITY	accepted	docs(app): qualify the phone changelog to what each platform ships	server/packages/happyherd-app/CHANGELOG.md
