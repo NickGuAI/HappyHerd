@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { layout } from '@/components/layout';
 import { useIsTablet } from '@/utils/responsive';
 import { Header } from './navigation/Header';
+import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { FeedItemCard } from './FeedItemCard';
@@ -71,7 +72,7 @@ interface InboxViewProps {
     onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
-// Header components for tablet mode only (phone mode header is in MainView)
+// The page header on tablets, and on signed-in phones under the HappyHerd top bar (UI overhaul).
 function HeaderTitleTablet() {
     const { theme } = useUnistyles();
     return (
@@ -117,7 +118,10 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     const feedLoaded = useFeedLoaded();
     const friendsLoaded = useFriendsLoaded();
     const { theme } = useUnistyles();
+    // Tablets and signed-in phones (under the top bar) draw the Inbox title row with Find Friends here.
     const isTablet = useIsTablet();
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    const showHeader = isTablet || underTopBar;
     const realtimeStatus = useRealtimeStatus();
 
     const isLoading = !feedLoaded || !friendsLoaded;
@@ -126,7 +130,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isLoading) {
         return (
             <View style={styles.container}>
-                {isTablet && (
+                {showHeader && (
                     <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
                         <Header
                             title={<HeaderTitleTablet />}
@@ -152,7 +156,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isEmpty) {
         return (
             <View style={styles.container}>
-                {isTablet && (
+                {showHeader && (
                     <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
                         <Header
                             title={<HeaderTitleTablet />}
@@ -184,7 +188,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
 
     return (
         <View style={styles.container}>
-            {isTablet && (
+            {showHeader && (
                 <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
                     <Header
                         title={<HeaderTitleTablet />}

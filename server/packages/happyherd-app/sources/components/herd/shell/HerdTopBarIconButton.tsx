@@ -2,6 +2,8 @@ import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
+import { useHerdTopBarLayout } from './topBarLayout';
+
 function useWebTitle(label: string) {
     return React.useCallback((node: View | null) => {
         if (node && Platform.OS === 'web') {
@@ -11,7 +13,7 @@ function useWebTitle(label: string) {
     }, [label]);
 }
 
-/** Square icon control used across the top bar. */
+/** Square icon control used across the top bar: 34 px on desktop, a 44 px touch target on phones. */
 export function HerdTopBarIconButton(props: {
     label: string;
     onPress: () => void;
@@ -23,6 +25,7 @@ export function HerdTopBarIconButton(props: {
     testID?: string;
 }) {
     const titleRef = useWebTitle(props.hint ? `${props.label}  ${props.hint}` : props.label);
+    const phone = useHerdTopBarLayout() === 'phone';
     return (
         <Pressable
             ref={titleRef}
@@ -36,6 +39,7 @@ export function HerdTopBarIconButton(props: {
             testID={props.testID}
             style={({ pressed, hovered }: any) => [
                 styles.iconButton,
+                phone && styles.iconButtonPhone,
                 props.active && styles.iconButtonActive,
                 (hovered || pressed) && !props.disabled && styles.iconButtonHovered,
                 props.disabled && styles.iconButtonDisabled,
@@ -54,6 +58,10 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         _web: { _classNames: ['herd-transition', 'herd-press'] },
+    },
+    iconButtonPhone: {
+        width: 44,
+        height: 44,
     },
     iconButtonHovered: {
         backgroundColor: theme.colors.surfacePressedOverlay,

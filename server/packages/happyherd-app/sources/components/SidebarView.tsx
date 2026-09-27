@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
+import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
 import { useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
 import { MainView } from './MainView';
@@ -10,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
+import { useIsTablet } from '@/utils/responsive';
 
 const stylesheet = StyleSheet.create((theme) => ({
     // Sits below the HappyHerd top bar, which owns the window's top edge.
@@ -20,11 +22,21 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderRightWidth: 1,
         borderRightColor: theme.colors.divider,
     },
+    // Phones: the panel is the session list itself, at full width.
+    containerDocked: {
+        borderRightWidth: 0,
+    },
     topControls: {
         marginHorizontal: 14,
         marginTop: 14,
         marginBottom: 6,
         gap: 10,
+    },
+    // Phones put the panel's controls on the 16 px page gutter.
+    topControlsPhone: {
+        marginHorizontal: 16,
+        marginTop: 12,
+        gap: 8,
     },
     primaryNavigation: {
         flexDirection: 'row',
@@ -63,14 +75,29 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 8,
+        paddingTop: 8,
         borderTopWidth: 1,
         borderTopColor: theme.colors.divider,
         gap: 10,
     },
+    settingsRowPhone: {
+        paddingHorizontal: 8,
+    },
 }));
 
-export const SidebarView = React.memo(() => {
+type SidebarViewProps = {
+    /** Phones (UI overhaul): the panel is the session list, docked at full width. */
+    docked?: boolean;
+    /** The session list; the desktop panel's list by default. */
+    list?: React.ReactNode;
+    /**
+     * The native phone home keeps its home dock along the bottom edge, so
+     * Settings joins the icon row there instead of the bottom row.
+     */
+    settingsInNav?: boolean;
+};
+
+export const SidebarView = React.memo(({ docked = false, list, settingsInNav = false }: SidebarViewProps) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -82,6 +109,12 @@ export const SidebarView = React.memo(() => {
     // have no rename migration — but it hides archived sessions only.
     const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
     const { visible: shortcutHintsVisible } = useShortcutHints();
+    const phone = !useIsTablet();
+    // The bottom row owns the home-indicator inset, so the list above it must not add it again.
+    const insets = useSafeAreaInsets();
+    const listInsets = React.useMemo(() => ({ ...insets, bottom: 0 }), [insets]);
+    const sessionList = list ?? <MainView variant="sidebar" />;
+    const openSettings = React.useCallback(() => router.push('/settings'), [router]);
 
     const handleNewSession = React.useCallback(() => {
         router.navigate('/new');
@@ -90,8 +123,8 @@ export const SidebarView = React.memo(() => {
         setHideArchivedSessions(!hideArchivedSessions);
     }, [hideArchivedSessions, setHideArchivedSessions]);
     return (
-        <View style={styles.container}>
-            <View style={styles.topControls}>
+        <View style={[styles.container, docked && styles.containerDocked]} testID={docked ? 'herd-sidebar-docked' : 'herd-sidebar'}>
+            <View style={[styles.topControls, phone && styles.topControlsPhone]}>
                 <View style={styles.primaryNavigation}>
                     {machineWorkspaceEnabled && (
                         <SidebarNavigationButton
@@ -116,6 +149,15 @@ export const SidebarView = React.memo(() => {
                         active={pathname.startsWith('/automations')}
                         onPress={() => router.navigate('/automations')}
                     />
+                    {settingsInNav && (
+                        <SidebarNavigationButton
+                            iconOnly
+                            icon="settings-outline"
+                            label={t('settings.title')}
+                            active={pathname.startsWith('/settings')}
+                            onPress={openSettings}
+                        />
+                    )}
                 </View>
                 <View style={styles.sessionActions}>
                     <View style={styles.newSession}>
@@ -159,20 +201,24 @@ export const SidebarView = React.memo(() => {
             )}
 
             {/* Sessions list */}
-            <MainView variant="sidebar" />
+            {settingsInNav ? sessionList : (
+                <SafeAreaInsetsContext.Provider value={listInsets}>{sessionList}</SafeAreaInsetsContext.Provider>
+            )}
 
             {/* Settings at bottom */}
-            <View style={styles.settingsRow}>
-                <SidebarNavigationButton
-                    icon="settings-outline"
-                    label={t('settings.title')}
-                    onPress={() => router.push('/settings')}
-                    quiet
-                    active={pathname.startsWith('/settings')}
-                    highlighted={shortcutHintsVisible}
-                    trailing={<ShortcutHintBadge shortcutKey="," />}
-                />
-            </View>
+            {!settingsInNav && (
+                <View style={[styles.settingsRow, phone && styles.settingsRowPhone, { paddingBottom: 8 + insets.bottom }]}>
+                    <SidebarNavigationButton
+                        icon="settings-outline"
+                        label={t('settings.title')}
+                        onPress={openSettings}
+                        quiet
+                        active={pathname.startsWith('/settings')}
+                        highlighted={shortcutHintsVisible}
+                        trailing={<ShortcutHintBadge shortcutKey="," />}
+                    />
+                </View>
+            )}
         </View>
     );
 });

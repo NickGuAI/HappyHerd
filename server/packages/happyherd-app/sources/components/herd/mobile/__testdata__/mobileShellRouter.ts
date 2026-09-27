@@ -33,6 +33,9 @@ export const router = {
     setParams() {},
 };
 
+// Lets a test open a route no visible control leads to in the fixture.
+(window as any).__FIXTURE_ROUTER__ = router;
+
 export function useFixturePath(): string {
     return React.useSyncExternalStore(
         (listener) => {

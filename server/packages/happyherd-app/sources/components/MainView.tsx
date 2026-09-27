@@ -1,107 +1,19 @@
-import { HomeHeaderTitle } from './HomeHeaderTitle';
 import * as React from 'react';
-import {
-    View,
-    ActivityIndicator,
-    Text,
-    Pressable,
-    Platform,
-    Keyboard,
-    TextInput,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
-import { NativeSettingsMenu, type NativeSettingsMenuGroup } from './NativeSettingsMenu';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
-import { useIsTablet } from '@/utils/responsive';
-import { useRouter } from 'expo-router';
 import { EmptySessionsTablet } from './EmptySessionsTablet';
 import { SessionsList } from './SessionsList';
-import { TabBar, TabType } from './TabBar';
-import { InboxView } from './InboxView';
-import { HomeDock, MOBILE_HOME_DOCK_CONTENT_INSET } from './HomeDock';
-import { SettingsViewWrapper } from './SettingsViewWrapper';
-import { SessionsListWrapper } from './SessionsListWrapper';
-import { Header } from './navigation/Header';
-import { HeaderLogo } from './HeaderLogo';
-import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
-import { StatusDot } from './StatusDot';
-import { Ionicons } from '@expo/vector-icons';
-import { Typography } from '@/constants/Typography';
-import { t } from '@/text';
-import { isUsingCustomServer } from '@/sync/serverConfig';
-import { trackFriendsSearch } from '@/track';
-import { MOBILE_GLASS_HEADER_HEIGHT } from './navigation/headerMetrics';
-import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
-import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
-import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
-import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
-import { FocusModeControl } from './FocusModeControl';
-import {
-    MOBILE_FAB_CLEARANCE,
-    MobileFocusRow,
-    MobileHeaderIconButton,
-    MobileHomeHeader,
-    MobileNewSessionFab,
-} from './herd/mobile/MobileHome';
 
 interface MainViewProps {
     variant: 'phone' | 'sidebar';
 }
 
 const styles = StyleSheet.create((theme) => ({
-    container: {
-        flex: 1,
-    },
-    phoneContainer: {
-        flex: 1,
-        position: 'relative',
-        backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.groupped.background,
-    },
-    phoneSceneStack: {
-        flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: theme.colors.groupped.background,
-    },
-    phoneRoot: {
-        flex: 1,
-        backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.groupped.background,
-    },
-    phoneHeader: {
-        zIndex: 10,
-        backgroundColor: Platform.OS === 'web' ? theme.colors.groupped.background : 'transparent',
-    },
-    phoneHeaderOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-    },
-    phoneBottomDockOverlay: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 30,
-    },
     sidebarContentContainer: {
         flex: 1,
         flexBasis: 0,
         flexGrow: 1,
-    },
-    loadingContainerWrapper: {
-        flex: 1,
-        flexBasis: 0,
-        flexGrow: 1,
-        backgroundColor: theme.colors.groupped.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingBottom: 32,
     },
     tabletLoadingContainer: {
         flex: 1,
@@ -122,508 +34,47 @@ const styles = StyleSheet.create((theme) => ({
         flexBasis: 0,
         flexGrow: 1,
     },
-    titleContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: Platform.OS === 'web' ? 'flex-start' : 'center',
-    },
-    titleText: {
-        fontSize: Platform.OS === 'web' ? 17 : 16,
-        color: theme.colors.header.tint,
-        fontWeight: '600',
-        ...Typography.default('semiBold'),
-    },
-    statusContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: -2,
-    },
-    statusText: {
-        fontSize: Platform.OS === 'web' ? 12 : 11,
-        fontWeight: '500',
-        lineHeight: 16,
-        ...Typography.default(),
-    },
-    headerButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'transparent',
-    },
-    headerActionButton: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerSearch: {
-        width: '100%',
-        height: 40,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 4,
-    },
-    headerSearchInput: {
-        flex: 1,
-        minWidth: 0,
-        height: 40,
-        paddingVertical: 0,
-        color: theme.colors.text,
-        fontSize: 16,
-        ...Typography.default(),
-    },
 }));
 
-// Tab header configuration
-const TAB_TITLES = {
-    sessions: 'tabs.sessions',
-    inbox: 'tabs.inbox',
-    settings: 'tabs.settings',
-} as const;
-
-// Active tabs
-type ActiveTabType = TabType;
-
-const HeaderTitle = React.memo(({ activeTab }: { activeTab: ActiveTabType }) => (
-    <HomeHeaderTitle title={t(TAB_TITLES[activeTab])} />
-));
-
-const HeaderSearch = React.memo(({
-    value,
-    onChangeText,
-}: {
-    value: string;
-    onChangeText: (value: string) => void;
-}) => {
-    const { theme } = useUnistyles();
-
-    return (
-        <View style={styles.headerSearch}>
-            <Ionicons name="search" size={18} color={theme.colors.textSecondary} />
-            <TextInput
-                autoFocus
-                value={value}
-                onChangeText={onChangeText}
-                placeholder={t('tools.names.search')}
-                placeholderTextColor={theme.colors.textSecondary}
-                selectionColor={theme.colors.text}
-                returnKeyType="search"
-                autoCorrect={false}
-                style={styles.headerSearchInput}
-            />
-        </View>
-    );
-});
-
-// Header right button - varies by tab
-const HeaderRight = React.memo(({
-    activeTab,
-    searchActive,
-    onSearchPress,
-}: {
-    activeTab: ActiveTabType;
-    searchActive: boolean;
-    onSearchPress: () => void;
-}) => {
-    const router = useRouter();
-    const { theme } = useUnistyles();
-    const isCustomServer = isUsingCustomServer();
-    const machineWorkspaceEnabled = useSetting('machineWorkspace');
-    const [sessionListGrouping, setSessionListGrouping] = useSettingMutable('sessionListGrouping');
-
-    if (activeTab === 'sessions') {
-        if (Platform.OS !== 'web') {
-            const viewMenuGroups: NativeSettingsMenuGroup[] = [
-                {
-                    key: 'grouping',
-                    label: t('sessionsFilter.groupingTitle'),
-                    title: t('sessionsFilter.groupingTitle'),
-                    systemImage: 'rectangle.grid.1x2',
-                    options: [
-                        { key: 'flat', label: t('sessionsFilter.flatList') },
-                        { key: 'project', label: t('sessionsFilter.groupByWorkspace') },
-                        { key: 'personal-project', label: t('sessionsFilter.groupByProject') },
-                    ],
-                    selectedKey: sessionListGrouping,
-                    onSelect: (key) => {
-                        if (key === 'flat' || key === 'project' || key === 'personal-project') setSessionListGrouping(key);
-                    },
-                },
-                // A plain row, not a choice: it leaves this screen for the
-                // appearance settings, where the avatar options now live.
-                {
-                    key: 'appearance',
-                    label: '',
-                    title: '',
-                    options: [{
-                        key: 'open',
-                        label: t('sessionsFilter.appearanceSettings'),
-                        systemImage: 'paintpalette',
-                    }],
-                    selectedKey: null,
-                    onSelect: () => router.push('/settings/appearance'),
-                },
-            ];
-            return (
-                <View style={styles.headerActions}>
-                    <NativeSettingsMenu
-                        groups={viewMenuGroups}
-                        anchor="top"
-                        accessibilityLabel={t('sessionsFilter.title')}
-                    >
-                        <View style={styles.headerActionButton}>
-                            <Ionicons name="filter" size={21} color={theme.colors.header.tint} />
-                        </View>
-                    </NativeSettingsMenu>
-                    {machineWorkspaceEnabled && (
-                        <Pressable
-                            onPress={() => router.push('/workspace')}
-                            style={styles.headerActionButton}
-                            accessibilityLabel={t('workspace.title')}
-                        >
-                            <Ionicons name="folder-open-outline" size={21} color={theme.colors.header.tint} />
-                        </Pressable>
-                    )}
-                    <Pressable
-                        onPress={() => router.push('/projects')}
-                        style={styles.headerActionButton}
-                        accessibilityLabel={t('sidebar.projects')}
-                    >
-                        <Ionicons name="albums-outline" size={21} color={theme.colors.header.tint} />
-                    </Pressable>
-                    <Pressable
-                        onPress={() => router.push('/automations')}
-                        style={styles.headerActionButton}
-                        accessibilityLabel={t("happyHerd.automations.title")}
-                    >
-                        <Ionicons name="time-outline" size={21} color={theme.colors.header.tint} />
-                    </Pressable>
-                    <Pressable
-                        onPress={onSearchPress}
-                        accessibilityLabel={t('tools.names.search')}
-                        accessibilityRole="button"
-                        style={styles.headerActionButton}
-                    >
-                        <Ionicons
-                            name={searchActive ? 'close' : 'search'}
-                            size={searchActive ? 24 : 21}
-                            color={theme.colors.header.tint}
-                        />
-                    </Pressable>
-                    <Pressable
-                        onPress={() => router.push('/settings')}
-                        accessibilityLabel={t('settings.title')}
-                        accessibilityRole="button"
-                        style={styles.headerActionButton}
-                    >
-                        <Ionicons name="settings-outline" size={22} color={theme.colors.header.tint} />
-                    </Pressable>
-                </View>
-            );
-        }
-        // Web Mobile (UI overhaul): New session is the floating button above the tab bar.
-        return (
-            <View style={styles.headerActions}>
-                {machineWorkspaceEnabled && (
-                    <MobileHeaderIconButton
-                        icon="folder-open-outline"
-                        label={t('workspace.title')}
-                        onPress={() => router.push('/workspace')}
-                    />
-                )}
-                <MobileHeaderIconButton
-                    icon="albums-outline"
-                    label={t('sidebar.projects')}
-                    onPress={() => router.push('/projects')}
-                />
-                <MobileHeaderIconButton
-                    icon="time-outline"
-                    label={t("happyHerd.automations.title")}
-                    onPress={() => router.push('/automations')}
-                />
-            </View>
-        );
-    }
-
-    if (activeTab === 'inbox') {
-        if (Platform.OS === 'web') {
-            return (
-                <MobileHeaderIconButton
-                    icon="person-add-outline"
-                    label={t('friends.findFriends')}
-                    onPress={() => {
-                        trackFriendsSearch();
-                        router.push('/friends/search');
-                    }}
-                />
-            );
-        }
-        return (
-            <Pressable
-                onPress={() => {
-                    trackFriendsSearch();
-                    router.push('/friends/search');
-                }}
-                hitSlop={15}
-                style={styles.headerButton}
-            >
-                <Ionicons name="person-add-outline" size={24} color={theme.colors.header.tint} />
-            </Pressable>
-        );
-    }
-
-    if (activeTab === 'settings') {
-        if (!isCustomServer) {
-            return Platform.OS === 'web' ? <View style={styles.headerButton} /> : null;
-        }
-        if (Platform.OS === 'web') {
-            return (
-                <MobileHeaderIconButton
-                    icon="server-outline"
-                    label={t('server.serverConfiguration')}
-                    onPress={() => router.push('/server')}
-                />
-            );
-        }
-        return (
-            <Pressable
-                onPress={() => router.push('/server')}
-                hitSlop={15}
-                style={styles.headerButton}
-            >
-                <Ionicons name="server-outline" size={24} color={theme.colors.header.tint} />
-            </Pressable>
-        );
-    }
-
-    return null;
-});
-
+/**
+ * `sidebar` is the left panel's session list. `phone` is the index route on
+ * tablets, where the list lives in the panel and the main area stays blank.
+ * Phones render the panel itself as the list (herd/mobile/PhoneHome, UI overhaul).
+ */
 export const MainView = React.memo(({ variant }: MainViewProps) => {
     const { theme } = useUnistyles();
     const sessionListViewData = useVisibleSessionListViewData();
-    const isTablet = useIsTablet();
-    const router = useRouter();
-    const friendRequests = useFriendRequests();
-    const realtimeStatus = useRealtimeStatus();
-    const safeArea = useSafeAreaInsets();
-    const {
-        isStarting: isStartingHomeSession,
-        phase: homeSessionPhase,
-        startSession: startHomeSession,
-        cancelStart: cancelHomeSession,
-    } = useStartSessionFromDraft();
 
-    // Tab state management
-    // NOTE: Zen tab removed - the feature never got to a useful state
-    const [activeTab, setActiveTab] = React.useState<ActiveTabType>('sessions');
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const [searchActive, setSearchActive] = React.useState(false);
-    const [homePrompt, setHomePrompt] = React.useState('');
-    const showHeaderRight = activeTab !== 'settings' || isUsingCustomServer();
-    const topChromeInset = Platform.OS === 'web'
-        ? 0
-        : safeArea.top
-            + MOBILE_GLASS_HEADER_HEIGHT
-            + (activeTab === 'sessions' ? 44 : 0)
-            + (realtimeStatus !== 'disconnected' ? 32 : 0);
-    const topContentInset = topChromeInset + (Platform.OS === 'web' ? 0 : 12);
-    const bottomContentInset = Platform.OS === 'web'
-        ? 0
-        : searchActive ? 16 : MOBILE_HOME_DOCK_CONTENT_INSET;
+    if (variant === 'phone') {
+        return <View style={styles.emptyStateContentContainer} />;
+    }
 
-    const handleHomePromptSubmit = React.useCallback(async (
-        workspaceEntries: readonly WorkspaceContextEntry[] = [],
-    ): Promise<boolean> => {
-        const prompt = homePrompt.trim();
-        const attachments = useNewSessionDraft.getState().attachments;
-        if (!prompt && attachments.length === 0 && workspaceEntries.length === 0) {
-            return false;
-        }
-        useNewSessionDraft.getState().setInput(prompt);
-        // The keyboard stays up: the dock reports what is happening above the
-        // composer and closes itself once the session is open.
-        const started = await startHomeSession(workspaceEntries);
-        if (started) setHomePrompt('');
-        return started;
-    }, [homePrompt, startHomeSession]);
-
-    const handleSearchPress = React.useCallback(() => {
-        setSearchActive((currentValue) => {
-            if (currentValue) {
-                setSearchQuery('');
-                Keyboard.dismiss();
-            }
-            return !currentValue;
-        });
-    }, []);
-
-    const handleTabPress = React.useCallback((tab: ActiveTabType) => {
-        // This callback is intentionally independent of activeTab. Gesture
-        // worklets can outlive the render that created them, so comparing with a
-        // captured tab here can discard a newer tap or drag commit.
-        setActiveTab((currentTab) => currentTab === tab ? currentTab : tab);
-    }, []);
-
-    const renderWebTabContent = () => {
-        switch (activeTab) {
-            case 'inbox':
-                return <InboxView />;
-            case 'settings':
-                return <SettingsViewWrapper topContentInset={topContentInset} bottomContentInset={bottomContentInset} />;
-            case 'sessions':
-            default:
-                return (
-                    <SessionsListWrapper
-                        topContentInset={topContentInset}
-                        bottomContentInset={MOBILE_FAB_CLEARANCE}
-                        searchQuery={searchQuery}
-                    />
-                );
-        }
-    };
-
-    // Sidebar variant
-    if (variant === 'sidebar') {
-        // Loading state
-        if (sessionListViewData === null) {
-            return (
-                <View style={styles.sidebarContentContainer}>
-                    <View style={styles.tabletLoadingContainer}>
-                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                    </View>
-                </View>
-            );
-        }
-
-        // Empty state
-        if (sessionListViewData.length === 0) {
-            return (
-                <View style={styles.sidebarContentContainer}>
-                    <View style={styles.emptyStateContainer}>
-                        <EmptySessionsTablet />
-                    </View>
-                </View>
-            );
-        }
-
-        // Sessions list
+    // Loading state
+    if (sessionListViewData === null) {
         return (
             <View style={styles.sidebarContentContainer}>
-                <SessionsList />
+                <View style={styles.tabletLoadingContainer}>
+                    <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                </View>
             </View>
         );
     }
 
-    // Phone variant
-    // Tablet in phone mode - special case (when showing index view on tablets, show empty view)
-    if (isTablet) {
-        // Just show an empty view on tablets for the index view
-        // The sessions list is shown in the sidebar, so the main area should be blank
-        return <View style={styles.emptyStateContentContainer} />;
+    // Empty state
+    if (sessionListViewData.length === 0) {
+        return (
+            <View style={styles.sidebarContentContainer}>
+                <View style={styles.emptyStateContainer}>
+                    <EmptySessionsTablet />
+                </View>
+            </View>
+        );
     }
 
-    // Regular phone mode with tabs
-    const phoneHeader = (
-        <View style={[styles.phoneHeader, Platform.OS !== 'web' && styles.phoneHeaderOverlay]}>
-            <Header
-                title={searchActive && Platform.OS !== 'web'
-                    ? <HeaderSearch value={searchQuery} onChangeText={setSearchQuery} />
-                    : <HeaderTitle activeTab={activeTab} />}
-                headerRight={showHeaderRight ? () => (
-                    <HeaderRight
-                        activeTab={activeTab}
-                        searchActive={searchActive}
-                        onSearchPress={handleSearchPress}
-                    />
-                ) : undefined}
-                headerLeft={() => <HeaderLogo />}
-                headerLeftGlass={Platform.OS !== 'web'}
-                headerBackdropAlwaysVisible={Platform.OS !== 'web'}
-                headerBackdropVariant="home"
-                headerShadowVisible={false}
-                headerTransparent={true}
-                mobileTitleSurface="plain"
-                mobileTitleAlignment="center"
-            />
-            {activeTab === 'sessions' && <View style={{ height: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 16, color: theme.colors.header.tint }}>{t('focusMode.enter')}</Text>
-                <FocusModeControl />
-            </View>}
-            {realtimeStatus !== 'disconnected' && (
-                <VoiceAssistantStatusBar variant="full" />
-            )}
-        </View>
-    );
-
-    // Web Mobile (UI overhaul): the mock's phone header, the Focus and machine
-    // row on Sessions, and the floating New session button above the tab bar.
-    const webPhoneHeader = (
-        <View style={styles.phoneHeader}>
-            <MobileHomeHeader
-                title={activeTab === 'sessions' ? t('sidebar.sessionsTitle') : t(TAB_TITLES[activeTab])}
-                actions={showHeaderRight ? (
-                    <HeaderRight
-                        activeTab={activeTab}
-                        searchActive={searchActive}
-                        onSearchPress={handleSearchPress}
-                    />
-                ) : undefined}
-            />
-            {activeTab === 'sessions' && <MobileFocusRow />}
-            {realtimeStatus !== 'disconnected' && (
-                <VoiceAssistantStatusBar variant="full" />
-            )}
-        </View>
-    );
-
+    // Sessions list
     return (
-        <View style={styles.phoneRoot}>
-            <View style={styles.phoneContainer}>
-                {Platform.OS === 'web' && webPhoneHeader}
-                {Platform.OS === 'web' ? renderWebTabContent() : (
-                    <View style={styles.phoneSceneStack}>
-                        <SessionsListWrapper
-                            topContentInset={topContentInset}
-                            scrollIndicatorTopInset={topChromeInset}
-                            bottomContentInset={bottomContentInset}
-                            searchQuery={searchQuery}
-                        />
-                    </View>
-                )}
-                {Platform.OS !== 'web' && phoneHeader}
-                {Platform.OS === 'web' && activeTab === 'sessions' && (
-                    <MobileNewSessionFab onPress={() => router.navigate('/new')} />
-                )}
-            </View>
-            {Platform.OS === 'web' ? (
-                <TabBar
-                    activeTab={activeTab}
-                    onTabPress={handleTabPress}
-                    inboxBadgeCount={friendRequests.length}
-                />
-            ) : (
-                <View pointerEvents="box-none" style={styles.phoneBottomDockOverlay}>
-                    {!searchActive && (
-                        <HomeDock
-                            prompt={homePrompt}
-                            onPromptChange={setHomePrompt}
-                            onSubmit={handleHomePromptSubmit}
-                            isSubmitting={isStartingHomeSession}
-                            submitPhase={homeSessionPhase}
-                            onSubmitCancel={cancelHomeSession}
-                            showBottomBackdrop={sessionListViewData !== null && sessionListViewData.length > 0}
-                        />
-                    )}
-                </View>
-            )}
+        <View style={styles.sidebarContentContainer}>
+            <SessionsList />
         </View>
     );
 });

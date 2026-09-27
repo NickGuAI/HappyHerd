@@ -1,6 +1,7 @@
 import { useAuth } from '@/auth/AuthContext';
 import * as React from 'react';
 import { Drawer } from 'expo-router/drawer';
+import { usePathname } from 'expo-router';
 import { useIsTablet } from '@/utils/responsive';
 import { SidebarView } from './SidebarView';
 import { useWindowDimensions, View } from 'react-native';
@@ -8,6 +9,9 @@ import { useLocalSetting } from '@/sync/storage';
 import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { HerdTopBar } from './herd/shell/HerdTopBar';
+import { HerdPhoneTopBar } from './herd/shell/HerdPhoneTopBar';
+import { HerdPhoneDrawer } from './herd/shell/HerdPhoneDrawer';
+import { useHerdPhoneShell } from './herd/shell/phoneShell';
 import { HerdSidebarEdgeToggle } from './herd/shell/HerdSidebarEdgeToggle';
 import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import {
@@ -26,8 +30,20 @@ export const SidebarNavigator = React.memo(() => {
     const zenMode = useLocalSetting('zenMode');
     const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
     const isDesktopLayout = auth.isAuthenticated && isTablet;
+    // Phones (UI overhaul) get the same top bar, with the panel as a drawer
+    // over the screen instead of the permanent drawer beside it.
+    const isPhoneLayout = auth.isAuthenticated && !isTablet;
+    const showTopBar = isDesktopLayout || isPhoneLayout;
     const { width: windowWidth } = useWindowDimensions();
     const safeArea = useSafeAreaInsets();
+    const pathname = usePathname();
+    const phoneHome = pathname === '/';
+    const closePhoneDrawer = useHerdPhoneShell((state) => state.closeDrawer);
+
+    // Any navigation (a row, a page, the brand) and leaving the phone layout close the phone drawer.
+    React.useEffect(() => {
+        closePhoneDrawer();
+    }, [closePhoneDrawer, isPhoneLayout, pathname]);
 
     // Calculate target drawer width
     const fullDrawerWidth = React.useMemo(() => {
@@ -44,12 +60,12 @@ export const SidebarNavigator = React.memo(() => {
         fullDrawerWidth,
     });
 
-    // The desktop top bar consumes the top inset, so screens below it start
-    // flush. Fullscreen modals read the window's real insets instead
+    // The top bar consumes the top inset, so screens below it start flush.
+    // Fullscreen modals read the window's real insets instead
     // (useWindowSafeAreaInsets), because they cover the top bar.
     const bodyInsets = React.useMemo(
-        () => (isDesktopLayout ? { ...safeArea, top: 0 } : safeArea),
-        [isDesktopLayout, safeArea],
+        () => (showTopBar ? { ...safeArea, top: 0 } : safeArea),
+        [showTopBar, safeArea],
     );
 
     const drawerNavigationOptions = React.useMemo(() => {
@@ -104,10 +120,10 @@ export const SidebarNavigator = React.memo(() => {
 
     return (
         <View style={{ flex: 1 }}>
-            {/* HappyHerd top bar: always visible on desktop, including Zen mode */}
-            {isDesktopLayout && <HerdTopBar />}
+            {/* HappyHerd top bar: always visible once signed in, including Zen mode */}
+            {showTopBar && (isDesktopLayout ? <HerdTopBar /> : <HerdPhoneTopBar home={phoneHome} />)}
             <View style={styles.body}>
-                <HerdWindowInsetsContext.Provider value={isDesktopLayout ? safeArea : null}>
+                <HerdWindowInsetsContext.Provider value={showTopBar ? safeArea : null}>
                     <SafeAreaInsetsContext.Provider value={bodyInsets}>
                         <HerdSidebarPhaseContext.Provider value={transition.phase}>
                             <Drawer
@@ -120,6 +136,7 @@ export const SidebarNavigator = React.memo(() => {
                 {isDesktopLayout && !zenMode && (
                     <HerdSidebarEdgeToggle drawerWidth={drawerWidth} />
                 )}
+                {isPhoneLayout && <HerdPhoneDrawer edgeSwipe={!phoneHome} />}
             </View>
         </View>
     );

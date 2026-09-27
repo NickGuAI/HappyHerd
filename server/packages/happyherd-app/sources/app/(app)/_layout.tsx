@@ -9,6 +9,8 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { MobileGlassBackdrop } from '@/components/MobileGlass';
+import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
+import { useIsTablet } from '@/utils/responsive';
 
 export const unstable_settings = {
     initialRouteName: 'index',
@@ -20,6 +22,9 @@ export default function RootLayout() {
     const shouldUseCustomHeader = Platform.OS === 'android' || isRunningOnMac() || Platform.OS === 'web';
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const { theme } = useUnistyles();
+    // Phones (UI overhaul): the drawer and top bar lead away from their own
+    // destinations, so those keep no Back, including UIKit's on iPhone.
+    const phone = !useIsTablet();
 
     return (
         <View
@@ -33,7 +38,8 @@ export default function RootLayout() {
             <MobileGlassBackdrop enabled={!isDesktop} />
         <Stack
             initialRouteName='index'
-            screenOptions={{
+            screenOptions={({ route }) => ({
+                ...(phone && isHerdPhoneTopLevelRoute(route.name) ? { headerBackVisible: false } : {}),
                 header: shouldUseCustomHeader ? createHeader : undefined,
                 headerBackTitle: t('common.back'),
                 headerBackButtonDisplayMode: Platform.OS === 'ios' ? 'minimal' : undefined,
@@ -52,7 +58,7 @@ export default function RootLayout() {
                     ...Typography.default('semiBold'),
                 },
 
-            }}
+            })}
         >
             <Stack.Screen
                 name="index"

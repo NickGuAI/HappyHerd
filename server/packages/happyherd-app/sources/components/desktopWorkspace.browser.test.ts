@@ -108,6 +108,7 @@ const virtualModules: Record<string, string> = {
             navigate() {},
         });
         export const useLocalSearchParams = () => ({});
+        export const usePathname = () => '/session/fixture';
         export const Stack = { Screen: () => null };
     `,
     'expo-router/drawer': `
@@ -666,7 +667,7 @@ const fixturePlugin: Plugin = {
                 if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
             }
             if (args.path === './SidebarView') return { path: '@/components/SidebarView', namespace: 'fixture-stub' };
-            if (args.importer.endsWith('/herd/shell/HerdTopBar.tsx') && (args.path === './HerdInboxBell' || args.path === './HerdMachineMenu')) {
+            if (/\/herd\/shell\/Herd(Phone)?TopBar\.tsx$/.test(args.importer) && (args.path === './HerdInboxBell' || args.path === './HerdMachineMenu')) {
                 return { path: `@/components/herd/shell/${args.path.slice(2)}`, namespace: 'fixture-stub' };
             }
             if (args.path === '@/components/MultiTextInput') {

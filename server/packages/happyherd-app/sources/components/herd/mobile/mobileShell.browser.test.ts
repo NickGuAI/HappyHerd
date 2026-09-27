@@ -17,10 +17,12 @@ const opNames = [...opsSource.matchAll(/export (?:async )?function (\w+)/g)].map
 const testData = (name: string) => resolve(here, '__testdata__', name);
 
 /**
- * The Web Mobile shell (MainView's phone variant, the tab bar, full-screen
- * pages and the phone bottom sheets), with every app source file compiled
- * through the Unistyles Babel transform and web runtime as in the Expo build.
- * Only data, navigation, device services and other slices' surfaces are stubbed.
+ * The Web Mobile shell (UI overhaul): the real SidebarNavigator with the phone
+ * top bar, the panel docked as the session list and slid in as a drawer, and
+ * the pages' title rows, with every app source file compiled through the
+ * Unistyles Babel transform and web runtime as in the Expo build. Only data,
+ * navigation, device services and other slices' surfaces are stubbed; the
+ * navigator's stack is the fixture router's current screen.
  */
 const virtualModules: Record<string, string> = {
     'react-native': `
@@ -70,6 +72,14 @@ const virtualModules: Record<string, string> = {
     `,
     'expo-clipboard': `export const setStringAsync = async () => true; export const getStringAsync = async () => '';`,
     'expo-constants': `export default { statusBarHeight: 0, expoConfig: { extra: {} } };`,
+    'expo-router/drawer': `
+        import React from 'react';
+        import { FixtureScreens } from '${testData('mobileShellScreens.tsx')}';
+        export const Drawer = () => React.createElement(FixtureScreens);
+    `,
+    '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
+    '@/utils/isTauri': `export const isTauri = () => false;`,
+    '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     'expo-router': `
         import { router } from '${testData('mobileShellRouter.ts')}';
         import { useFixturePath } from '${testData('mobileShellRouter.ts')}';
@@ -82,12 +92,13 @@ const virtualModules: Record<string, string> = {
         export const Stack = { Screen: () => null };
     `,
     // Phone safe areas come from the page URL, so the notch and home indicator are exercised.
+    // As in the library, a provider (the navigator's, below the top bar) overrides them.
     'react-native-safe-area-context': `
         import React from 'react';
         const params = new URLSearchParams(window.location.search);
         const insets = { top: Number(params.get('top') ?? 0), right: 0, bottom: Number(params.get('bottom') ?? 0), left: 0 };
-        export const useSafeAreaInsets = () => insets;
         export const SafeAreaInsetsContext = React.createContext(insets);
+        export const useSafeAreaInsets = () => React.useContext(SafeAreaInsetsContext);
         export const SafeAreaProvider = ({ children }) => children;
     `,
     'react-native-reanimated': `
@@ -163,8 +174,10 @@ const virtualModules: Record<string, string> = {
         import * as fixtureList from '${testData('mobileShellFixtureList.tsx')}';
         const params = new URLSearchParams(window.location.search);
         const settings = {
-            machineWorkspace: params.get('workspace') !== 'off', sessionListGrouping: 'flat', focusMode: null,
+            machineWorkspace: params.get('workspace') !== 'off', sessionListGrouping: 'flat',
+            focusMode: params.get('focus') === 'on' ? { projectId: 'web-app', endsAt: Date.now() + 25 * 60_000, startedAt: Date.now(), durationMinutes: 25 } : null,
             hideInactiveSessions: true, expResumeSession: false, devModeEnabled: false,
+            navigationSidebarCollapsed: false, zenMode: false,
         };
         window.__SETTINGS__ = settings;
         const listeners = new Set();
@@ -188,7 +201,11 @@ const virtualModules: Record<string, string> = {
         ];
         export const useAllMachines = () => machines;
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
-        export const useProjects = () => ({});
+        export const useProjects = () => ({ 'web-app': { id: 'web-app', name: 'Web App Suite' } });
+        export const useFeedItems = () => [
+            { id: 'feed-1', body: { kind: 'text', text: 'Automation "Nightly triage" finished' } },
+            { id: 'feed-2', body: { kind: 'text', text: 'Session "Refresh token rotation" needs approval' } },
+        ];
         export const useSessionGitStatus = () => null;
         export const useSession = (id) => {
             const row = fixtureList.fixtureRows.find((item) => item.session.id === id);
@@ -240,7 +257,19 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = () => [false, () => {}];`,
     '@/utils/sessionListTimestamp': `export const formatSessionListTimestamp = () => '2m';`,
     '@/components/SessionsListWrapper': `export { FixtureSessionsListWrapper as SessionsListWrapper } from '${testData('mobileShellFixtureList.tsx')}';`,
-    '@/components/SettingsViewWrapper': `export { FixtureSettingsViewWrapper as SettingsViewWrapper } from '${testData('mobileShellFixtureSettings.tsx')}';`,
+    // The drawer's panel lists the same fixture rows.
+    '@/components/MainView': `export { FixtureSessionsListWrapper as MainView } from '${testData('mobileShellFixtureList.tsx')}';`,
+    '@/components/FeedItemCard': `
+        import React from 'react';
+        import { Pressable, Text } from 'react-native';
+        import { useRouter } from 'expo-router';
+        export const FeedItemCard = ({ item }) => {
+            const router = useRouter();
+            return React.createElement(Pressable, { testID: 'feed-item', onPress: () => router.push('/feed/' + item.id), style: { padding: 10 } },
+                React.createElement(Text, { style: { fontFamily: 'SpaceGrotesk-Regular' } }, item.body.text));
+        };
+    `,
+    '@/components/UpdateBanner': `export const UpdateBanner = () => null;`,
     '@/components/InboxView': `
         import React from 'react';
         import { Text, View } from 'react-native';
@@ -356,7 +385,9 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             format: 'iife',
             platform: 'browser',
             sourcemap: 'inline',
-            define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"test"' },
+            // Production, as in the Expo export: under "test", React Native Web swaps in a mock
+            // Animated that jumps to every end value, and the drawer's slide would not run.
+            define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"production"' },
             jsx: 'automatic',
             loader: { '.png': 'dataurl', '.ttf': 'dataurl', '.js': 'jsx', '.webp': 'dataurl', '.jpg': 'dataurl' },
             resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
@@ -439,453 +470,256 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
     const box = async (page: Page, testID: string) => (await page.getByTestId(testID).first().boundingBox())!;
     const classList = (page: Page, testID: string) => page.getByTestId(testID).first().evaluate((element) => [...element.classList]);
     const routerCalls = (page: Page) => page.evaluate(() => (window as any).__ROUTER_CALLS__ ?? []);
-    const indicatorX = (page: Page) => page.getByTestId('tab-indicator').evaluate((element) => element.getBoundingClientRect().x);
-
-    it('lays out the phone home: brand header, focus row, rows, New session button and tab bar', async () => {
-        for (const theme of ['light', 'dark'] as const) {
-            const { page, errors } = await open({ theme });
-            await page.getByTestId('mobile-home-header').waitFor();
-            const header = await box(page, 'mobile-home-header');
-            // The header clears the notch, then keeps the mock's 58 px row.
-            expect(header.y).toBe(0);
-            expect(header.height).toBe(PHONE_INSETS.top + 58 + 1);
-            await expect(page.getByRole('heading', { name: 'HappyHerd', exact: true }).count()).resolves.toBe(1);
-            for (const label of ['Workspace', 'Projects', 'Automations']) {
-                await expect(page.getByTestId('mobile-home-header').getByRole('button', { name: label, exact: true }).count()).resolves.toBe(1);
-            }
-            // New session moved from the header to the floating button.
-            await expect(page.getByTestId('mobile-home-header').getByRole('button', { name: 'New session', exact: true }).count()).resolves.toBe(0);
-
-            const focusRow = await box(page, 'mobile-focus-row');
-            expect(focusRow.y).toBe(header.y + header.height);
-            expect(focusRow.height).toBe(46);
-            await expect(page.getByTestId('mobile-focus-row').getByTestId('herd-machine-menu').innerText()).resolves.toContain('studio-mac');
-            await expect(page.getByTestId('mobile-focus-row').getByText('Focus mode', { exact: true }).count()).resolves.toBe(1);
-
-            const tabBar = (await page.getByRole('tablist').boundingBox())!;
-            // The tab bar sits on the home indicator inset, flush with the bottom edge.
-            expect(tabBar.y + tabBar.height).toBe(PHONE.height - PHONE_INSETS.bottom);
-            expect(tabBar.height).toBe(58);
-            // The button pops in; measure it once the entrance settles.
-            await expect.poll(async () => (await box(page, 'mobile-new-session-fab')).width).toBe(56);
-            const fab = await box(page, 'mobile-new-session-fab');
-            expect(fab.x + fab.width).toBe(PHONE.width - 16);
-            expect(tabBar.y - (fab.y + fab.height)).toBeCloseTo(16 + 1, 0);
-            expect(await classList(page, 'mobile-new-session-fab')).toEqual(expect.arrayContaining(['herd-transition', 'herd-press']));
-
-            await expect(page.getByTestId('tab-sessions').getAttribute('aria-selected')).resolves.toBe('true');
-            await expect(page.getByTestId('tab-sessions').innerText()).resolves.toContain('Sessions');
-            await expect(page.getByTestId('tab-inbox-unread').count()).resolves.toBe(1);
-            expect(await indicatorX(page)).toBeCloseTo(PHONE.width / 3, 0);
-            // The list scrolls clear of the floating button.
-            const listPadding = await page.getByTestId('fixture-session-list').evaluate((element) => getComputedStyle(element.firstElementChild!).paddingBottom);
-            expect(listPadding).toBe('88px');
-            expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-            await evidence(page, `mobile-home-${theme}-390`);
-            expect(errors).toEqual([]);
-            await page.close();
-        }
-    }, 40_000);
-
-    it('slides the tab indicator between tabs and swaps the header for each tab', async () => {
-        const { page, errors } = await open({ query: { requests: '3' } });
-        await page.getByTestId('mobile-home-header').waitFor();
-        await expect(page.getByTestId('tab-inbox-badge').innerText()).resolves.toBe('3');
-        expect(await classList(page, 'tab-indicator')).toContain('herd-glide');
-
-        // The indicator is still travelling a frame after the tap, then lands on Inbox.
-        const travelling = page.waitForFunction(() => {
-            const indicator = document.querySelector('[data-testid="tab-indicator"]');
-            const x = indicator?.getBoundingClientRect().x ?? 0;
-            return x > 1 && x < 129 ? x : null;
-        }, undefined, { polling: 'raf', timeout: 1_000 });
-        await page.getByTestId('tab-inbox').click();
-        expect(await (await travelling).jsonValue()).toBeGreaterThan(0);
-        await expect.poll(() => indicatorX(page)).toBeCloseTo(0, 0);
-        await expect(page.getByTestId('tab-inbox').getAttribute('aria-selected')).resolves.toBe('true');
-        await expect(page.getByTestId('tab-sessions').getAttribute('aria-selected')).resolves.toBe('false');
-        await expect(page.getByRole('heading', { name: 'Inbox', exact: true }).count()).resolves.toBe(1);
-        await expect(page.getByTestId('mobile-new-session-fab').count()).resolves.toBe(0);
-        await expect(page.getByTestId('mobile-focus-row').count()).resolves.toBe(0);
-        await page.getByTestId('mobile-home-header').getByRole('button', { name: 'Find Friends', exact: true }).click();
-        expect(await routerCalls(page)).toEqual(['/friends/search']);
-        expect(await page.evaluate(() => (window as any).__FRIENDS_SEARCHES__)).toBe(1);
-        await page.getByTestId('header-back').click();
-        await page.getByTestId('mobile-home-header').waitFor();
-
-        await page.getByTestId('tab-settings').click();
-        await expect.poll(() => indicatorX(page)).toBeCloseTo((PHONE.width / 3) * 2, 0);
-        await expect(page.getByRole('heading', { name: 'Settings', exact: true }).count()).resolves.toBe(1);
-        await evidence(page, 'mobile-settings-tab-light-390');
-        await page.getByText('Appearance', { exact: true }).click();
-        await page.getByTestId('fixture-page').waitFor();
-        await expect(page.getByTestId('header-back').count()).resolves.toBe(1);
-        expect(errors).toEqual([]);
-        await page.close();
-
-        const dark = await open({ theme: 'dark' });
-        await dark.page.getByTestId('tab-inbox').click();
-        await expect.poll(() => indicatorX(dark.page)).toBeCloseTo(0, 0);
-        await evidence(dark.page, 'mobile-inbox-tab-dark-390');
-        expect(dark.errors).toEqual([]);
-        await dark.page.close();
-    }, 30_000);
-
-    it('opens New Session from the floating button and full-screen pages with a back header', async () => {
-        for (const theme of ['light', 'dark'] as const) {
-            const { page, errors } = await open({ theme });
-            await page.getByTestId('mobile-new-session-fab').click();
-            expect(await routerCalls(page)).toEqual(['/new']);
-            await page.getByTestId('fixture-page').waitFor();
-            await page.getByTestId('header-back').click();
-            expect(await page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__)).toBe(1);
-            await page.getByTestId('mobile-home-header').waitFor();
-
-            await page.getByTestId('mobile-home-header').getByRole('button', { name: 'Projects', exact: true }).click();
-            await page.getByTestId('fixture-page').waitFor();
-            const back = page.getByTestId('header-back');
-            await expect(back.getAttribute('aria-label')).resolves.toBe('Back');
-            const backBox = (await back.boundingBox())!;
-            expect(backBox.width).toBe(40);
-            expect(backBox.height).toBe(40);
-            // The 56 px back bar starts under the notch and ends in a hairline.
-            const bar = await back.evaluate((element) => {
-                let node: HTMLElement | null = element as HTMLElement;
-                while (node && getComputedStyle(node).borderBottomWidth !== '1px') node = node.parentElement;
-                return node ? { bottom: node.getBoundingClientRect().bottom, top: node.getBoundingClientRect().top } : null;
-            });
-            expect(bar).toEqual({ top: 0, bottom: PHONE_INSETS.top + 56 + 1 });
-            // A hairline, not a shadow, separates the bar from the page.
-            await expect(back.evaluate((element) => {
-                let node: HTMLElement | null = element as HTMLElement;
-                while (node && getComputedStyle(node).borderBottomWidth !== '1px') node = node.parentElement;
-                return node ? getComputedStyle(node).boxShadow : null;
-            })).resolves.toBe('none');
-            expect(backBox.x).toBe(10);
-            await expect(page.getByText('Projects', { exact: true }).evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('16px');
-            await evidence(page, `mobile-page-header-${theme}-390`);
-            await back.click();
-            await page.getByTestId('mobile-home-header').waitFor();
-            expect(await routerCalls(page)).toEqual(['/new', '/projects']);
-            expect(errors).toEqual([]);
-            await page.close();
-        }
-    }, 30_000);
-
-    it('opens a session full screen from its row and returns with Back', async () => {
-        const { page, errors } = await open();
-        await page.locator('[data-herd-row="auth"]').click();
+    /** Where the drawer's panel currently sits: its left edge and whether it is inert. */
+    const drawer = (page: Page) => page.getByTestId('herd-phone-drawer').evaluate((element) => ({
+        x: Math.round(element.getBoundingClientRect().x),
+        width: Math.round(element.getBoundingClientRect().width),
+        inert: (element as HTMLElement).inert,
+        hidden: element.getAttribute('aria-hidden'),
+    }));
+    const openSession = async (page: Page, id = 'auth') => {
+        await page.locator(`[data-herd-row="${id}"]`).first().click();
         await page.getByTestId('fixture-session').waitFor();
-        expect(await routerCalls(page)).toEqual(['/session/auth']);
-        await evidence(page, 'mobile-session-light-390');
-        await page.getByTestId('fixture-session').locator('[data-icon="arrow-back"]').click();
-        await page.getByTestId('mobile-home-header').waitFor();
-        await expect(page.locator('[data-herd-row="auth"]').count()).resolves.toBe(1);
-        expect(errors).toEqual([]);
-        await page.close();
-    }, 20_000);
+    };
 
-    it('opens the session actions as a bottom sheet and runs the chosen action', async () => {
+    const offscreen = async (page: Page) => (await drawer(page)).x <= -PHONE.width * 0.9;
+    /** Lets entrance motion (rows slide in, lists stagger) finish, so geometry is measured at rest. */
+    const settled = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations()
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))
+        .map((animation) => animation.finished.catch(() => undefined))));
+    const noHorizontalOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+    it('lays out the phone home: the top bar over the docked panel, with no tab bar or floating button', async () => {
         for (const theme of ['light', 'dark'] as const) {
             const { page, errors } = await open({ theme });
-            const row = page.locator('[data-herd-row="dock"]');
-            await row.click({ button: 'right' });
-            const sheet = page.getByTestId('session-actions-sheet');
-            await sheet.waitFor();
-            // A secondary click opens the menu without opening the session.
-            expect(await routerCalls(page)).toEqual([]);
-            // A labelled modal dialog of action buttons.
-            await expect(sheet.getAttribute('role')).resolves.toBe('dialog');
-            await expect(sheet.getAttribute('aria-label')).resolves.toBe('Composer chips and context meter');
-            await expect(sheet.getByText('Composer chips and context meter', { exact: true }).count()).resolves.toBe(1);
-            // Full width, resting on the bottom edge, above a scrim.
-            const sheetBox = (await sheet.boundingBox())!;
-            expect(sheetBox.x).toBe(0);
-            expect(sheetBox.width).toBe(PHONE.width);
-            await expect.poll(async () => { const current = (await sheet.boundingBox())!; return current.y + current.height; }).toBeCloseTo(PHONE.height, 0);
-            expect(await classList(page, 'session-actions-sheet')).toContain('herd-sheet-up');
-            expect(await classList(page, 'session-actions-sheet-backdrop')).toContain('herd-fade');
-            // Every action, label and shortcut stays; rows grow to touch size.
-            const items = await sheet.getByRole('button').evaluateAll((nodes) => nodes.map((node) => [...node.querySelectorAll('*')]
-                .filter((element) => element.children.length === 0 && !element.closest('[aria-hidden="true"]'))
-                .map((element) => element.textContent?.trim() ?? '')
-                .filter(Boolean)));
-            // The drag handle is also the labelled Cancel button for assistive technology.
-            expect(items[0]).toEqual([]);
-            await expect(sheet.getByRole('button').first().getAttribute('aria-label')).resolves.toBe('Cancel');
-            expect(items.slice(1).map(([label]) => label)).toEqual([
-                'Details', 'Fork session', 'Duplicate from message…', 'Continue with…', 'Copy session metadata', 'Archive',
-            ]);
-            expect(items.slice(1).map(([, shortcut]) => shortcut)).toEqual([
-                'Ctrl+Alt+O', 'Ctrl+Alt+F', 'Ctrl+Alt+Shift+D', 'Ctrl+Alt+Shift+C', 'Ctrl+Alt+M', 'Ctrl+Shift+A',
-            ]);
-            // Labels are never cut short by their shortcut; Archive sits after a separator.
-            const truncated = await sheet.getByRole('button').evaluateAll((nodes) => nodes.flatMap((node) => [...node.querySelectorAll('div[dir="auto"]')]
-                .filter((element) => element.scrollWidth > element.clientWidth + 1).map((element) => element.textContent)));
-            expect(truncated).toEqual([]);
-            await expect(sheet.getByRole('button', { name: /Archive/ }).evaluate((element) => {
-                const separator = element.previousElementSibling as HTMLElement | null;
-                return separator ? Math.round(separator.getBoundingClientRect().height) : null;
-            })).resolves.toBe(1);
-            const detailsBox = (await sheet.getByRole('button', { name: /Details/ }).boundingBox())!;
-            expect(Math.round(detailsBox.height)).toBeGreaterThanOrEqual(48);
-            await expect(sheet.getByText('Details', { exact: true }).evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('16px');
-            // The sheet clears the home indicator.
-            const lastItem = (await sheet.getByRole('button', { name: /Archive/ }).boundingBox())!;
-            expect(PHONE.height - (lastItem.y + lastItem.height)).toBeGreaterThanOrEqual(PHONE_INSETS.bottom);
-            await evidence(page, `mobile-session-actions-${theme}-390`);
+            await page.getByTestId('herd-sidebar-docked').waitFor();
+            const bar = await box(page, 'herd-top-bar');
+            // The bar clears the notch, then keeps the mock's 52 px row.
+            expect(bar).toMatchObject({ x: 0, y: 0, width: PHONE.width, height: PHONE_INSETS.top + 52 });
+            // The list is the panel, docked open, so the brand leads and there is no panel toggle.
+            await expect(page.getByTestId('navigation-sidebar-toggle').count()).resolves.toBe(0);
+            expect(await box(page, 'herd-top-bar-brand')).toMatchObject({ x: 4, width: 44, height: 44 });
+            // Focus, the Inbox bell and the machine pill are 44 px targets ending 4 px from the edge.
+            for (const id of ['focus-mode-enter', 'herd-inbox-bell', 'herd-machine-menu']) {
+                expect((await box(page, id)).height).toBeGreaterThanOrEqual(44);
+            }
+            const machine = await box(page, 'herd-machine-menu');
+            expect(PHONE.width - (machine.x + machine.width)).toBeCloseTo(4, 0);
+            await expect(page.getByTestId('herd-machine-menu').innerText()).resolves.toContain('studio-mac');
+            // Search is the command palette, off by default in Features.
+            await expect(page.getByTestId('herd-command-search').count()).resolves.toBe(0);
 
-            await sheet.getByRole('button', { name: /Fork/ }).click();
-            await expect.poll(() => page.getByTestId('session-actions-sheet').count()).toBe(0);
-            expect(await page.evaluate(() => (window as any).__ACTIONS__)).toEqual(['fork']);
+            // The docked panel fills the screen below the bar.
+            const panel = await box(page, 'herd-sidebar-docked');
+            expect(panel).toMatchObject({ x: 0, y: bar.height, width: PHONE.width, height: PHONE.height - bar.height });
+            const docked = page.getByTestId('herd-sidebar-docked');
+            // The desktop panel's own controls, starting on the 16 px gutter.
+            const workspace = (await docked.getByRole('button', { name: 'Workspace', exact: true }).boundingBox())!;
+            expect(workspace.x).toBe(16);
+            const newSession = (await docked.getByRole('button', { name: /New session/ }).boundingBox())!;
+            expect(newSession.x).toBe(16);
+            for (const label of ['Projects', 'Automations']) {
+                await expect(docked.getByRole('button', { name: label, exact: true }).count()).resolves.toBe(1);
+            }
+            await expect(docked.locator('[data-herd-row]').count()).resolves.toBe(6);
+            await settled(page);
+            // Rows: the highlight reaches 8 px past the content; the avatar and the time sit on the gutters.
+            const rowEdges = await docked.locator('[data-herd-row]').evaluateAll((rows) => rows.map((row) => {
+                const inside = [...row.querySelectorAll('*')].map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+                return {
+                    row: Math.round(row.getBoundingClientRect().left),
+                    left: Math.round(Math.min(...inside.map((rect) => rect.left))),
+                    right: Math.round(Math.max(...inside.map((rect) => rect.right))),
+                };
+            }));
+            for (const edge of rowEdges) expect(edge).toEqual({ row: 8, left: 16, right: PHONE.width - 16 });
+            // Settings sits in the bottom row, its icon on the gutter, clear of the home indicator.
+            const settings = (await docked.getByRole('button', { name: /Settings/ }).boundingBox())!;
+            expect(PHONE.height - (settings.y + settings.height)).toBeGreaterThanOrEqual(PHONE_INSETS.bottom);
+            expect((await docked.locator('[data-icon="settings-outline"]').boundingBox())!.x).toBe(16);
+            // Nothing of the earlier phone shell remains.
+            await expect(page.getByRole('tablist').count()).resolves.toBe(0);
+            await expect(page.getByTestId('mobile-new-session-fab').count()).resolves.toBe(0);
+            await expect(page.getByTestId('mobile-home-header').count()).resolves.toBe(0);
+            expect(await noHorizontalOverflow(page)).toBe(true);
+            await evidence(page, `phone-home-${theme}-390`);
             expect(errors).toEqual([]);
             await page.close();
         }
     }, 40_000);
 
-    it('opens the session actions from a long press on a touch screen, without opening the session', async () => {
-        const { page, errors } = await open({ touch: true });
-        const cdp = await page.context().newCDPSession(page);
-        const row = page.locator('[data-herd-row="dock"]');
-        const box = (await row.boundingBox())!;
-        const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-        // iOS Safari sends no context menu on a long press; the row reads the press itself.
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
-        await page.waitForTimeout(800);
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        const sheet = page.getByTestId('session-actions-sheet');
-        await sheet.waitFor();
-        await expect(sheet.getAttribute('aria-label')).resolves.toBe('Composer chips and context meter');
-        // Lifting the finger neither clicks the new sheet's backdrop nor opens the session.
-        await page.waitForTimeout(300);
-        await expect(sheet.isVisible()).resolves.toBe(true);
-        expect(await routerCalls(page)).toEqual([]);
-        // A quick tap still opens the session.
-        await page.keyboard.press('Escape');
-        await expect.poll(() => sheet.count()).toBe(0);
-        await page.touchscreen.tap(point.x, point.y);
-        await expect.poll(() => routerCalls(page)).toEqual(['/session/dock']);
-        expect(errors).toEqual([]);
-        await page.close();
-    }, 30_000);
-
-    it('dismisses the phone sheet with Escape, the scrim, the handle, or a downward drag', async () => {
+    it('slides the panel in as a drawer, and closes it with the scrim, Escape, a drag, or a row', async () => {
         const { page, errors } = await open();
-        const row = page.locator('[data-herd-row="question"]');
-        const sheet = page.getByTestId('session-actions-sheet');
+        await openSession(page);
+        const toggle = page.getByTestId('navigation-sidebar-toggle');
+        // Off the list the panel toggle leads the bar, its icon on the 16 px gutter.
+        expect(await box(page, 'navigation-sidebar-toggle')).toMatchObject({ x: 4, width: 44, height: 44 });
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('false');
+        // The drawer mounts on first use.
+        await expect(page.getByTestId('herd-phone-drawer').count()).resolves.toBe(0);
 
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        // The sheet slides back down, redrawn on the inert exit layer, before
-        // it unmounts. The watch is in place before Escape is pressed.
-        await page.evaluate(() => {
-            const selector = '[data-testid="session-actions-sheet"].herd-sheet-down';
-            (window as any).__HERD_SLID_DOWN__ = new Promise<boolean>((resolve) => {
-                const observer = new MutationObserver(() => {
-                    if (!document.querySelector(selector)) return;
-                    observer.disconnect();
-                    resolve(true);
-                });
-                observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-                setTimeout(() => { observer.disconnect(); resolve(false); }, 2_000);
-            });
-        });
+        await toggle.click();
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('true');
+        // It slides: a frame later it is still on its way, then it rests at the left edge at 92% width.
+        expect((await drawer(page)).x).toBeLessThan(0);
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
+        // Open, it is reachable: not inert, and not hidden from assistive technology.
+        expect(await drawer(page)).toMatchObject({ width: Math.round(PHONE.width * 0.92), inert: false, hidden: null });
+        // Below the bar, which keeps its toggle reachable, over a scrim.
+        expect((await box(page, 'herd-phone-drawer')).y).toBe(PHONE_INSETS.top + 52);
+        await expect(page.getByTestId('herd-phone-drawer').locator('[data-herd-row]').count()).resolves.toBe(6);
+        await evidence(page, 'phone-drawer-light-390');
+
+        // The scrim closes it; closed, it is out of the tab order and hidden from assistive technology.
+        await page.mouse.click(PHONE.width - 12, 500);
+        await expect.poll(() => offscreen(page)).toBe(true);
+        expect(await drawer(page)).toMatchObject({ inert: true, hidden: 'true' });
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('false');
+
+        // Escape closes it without also going Back.
+        await toggle.click();
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
         await page.keyboard.press('Escape');
-        await expect(page.evaluate(() => (window as any).__HERD_SLID_DOWN__ as Promise<boolean>)).resolves.toBe(true);
-        await expect.poll(() => sheet.count()).toBe(0);
+        await expect.poll(() => offscreen(page)).toBe(true);
         expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(0);
+        expect(await page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).toBe(0);
 
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        await page.mouse.click(PHONE.width / 2, 120);
-        await expect.poll(() => sheet.count()).toBe(0);
-
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        await expect(page.getByTestId('session-actions-sheet-handle').getAttribute('aria-label')).resolves.toBe('Cancel');
-        await page.getByTestId('session-actions-sheet-handle').click();
-        await expect.poll(() => sheet.count()).toBe(0);
-
-        // A short drag springs back; a long one dismisses.
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        await page.waitForTimeout(500);
-        const handle = (await page.getByTestId('session-actions-sheet-handle').boundingBox())!;
-        const restingY = (await sheet.boundingBox())!.y;
-        await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
-        await page.mouse.down();
-        // A slow drag: a fast downward flick dismisses by velocity alone.
-        for (let step = 1; step <= 10; step++) {
-            await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + step * 3);
-            await page.waitForTimeout(20);
-        }
-        await expect.poll(async () => (await sheet.boundingBox())!.y).toBeGreaterThan(restingY + 20);
-        await page.mouse.up();
-        await expect.poll(async () => (await sheet.boundingBox())!.y, { timeout: 2_000 }).toBeCloseTo(restingY, 0);
-        await expect(sheet.count()).resolves.toBe(1);
-
-        const again = (await page.getByTestId('session-actions-sheet-handle').boundingBox())!;
-        await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2);
-        await page.mouse.down();
-        // A fast flick: its first move already leaves the 26 px handle.
-        await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2 + 140, { steps: 4 });
-        await page.mouse.up();
-        await expect.poll(() => sheet.count()).toBe(0);
-        expect(await page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
-        // Nothing under the dismissed sheet was pressed.
-        expect(await routerCalls(page)).toEqual([]);
-        await page.getByTestId('mobile-home-header').waitFor();
-        expect(errors).toEqual([]);
-        await page.close();
-    }, 30_000);
-
-    it('follows touch on the handle: a flick dismisses, a short drag springs back, a tap cancels', async () => {
-        const { page, errors } = await open({ touch: true });
-        const cdp = await page.context().newCDPSession(page);
-        const touch = async (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) => {
-            await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+        // A drag to the left closes it; a short one springs back.
+        await toggle.click();
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
+        const drag = async (fromX: number, toX: number) => {
+            await page.mouse.move(fromX, 460);
+            await page.mouse.down();
+            await page.mouse.move(toX, 464, { steps: 10 });
+            await page.mouse.up();
         };
-        const row = page.locator('[data-herd-row="unread"]');
-        const sheet = page.getByTestId('session-actions-sheet');
-        // Touch-only browsers hide the hover ⋯; the row's context menu opens the sheet.
-        await expect(row.getByTestId('session-row-more').isVisible()).resolves.toBe(false);
+        await drag(280, 250);
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
+        await drag(300, 150);
+        await expect.poll(() => offscreen(page)).toBe(true);
 
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        await page.waitForTimeout(500);
-        const restingY = (await sheet.boundingBox())!.y;
-        let handle = (await page.getByTestId('session-actions-sheet-handle').boundingBox())!;
-        let [x, y] = [handle.x + handle.width / 2, handle.y + handle.height / 2];
-        await touch('touchStart', x, y);
-        for (let step = 1; step <= 8; step++) {
-            await touch('touchMove', x, y + step * 4);
-            await page.waitForTimeout(20);
-        }
-        await expect.poll(async () => (await sheet.boundingBox())!.y).toBeGreaterThan(restingY + 20);
-        await touch('touchEnd', x, y + 32);
-        await expect.poll(async () => (await sheet.boundingBox())!.y, { timeout: 2_000 }).toBeCloseTo(restingY, 0);
-        await page.waitForTimeout(300);
-        await expect(sheet.count()).resolves.toBe(1);
-
-        // A flick: two large moves in quick succession.
-        handle = (await page.getByTestId('session-actions-sheet-handle').boundingBox())!;
-        [x, y] = [handle.x + handle.width / 2, handle.y + handle.height / 2];
-        await touch('touchStart', x, y);
-        await touch('touchMove', x, y + 40);
-        await touch('touchMove', x, y + 90);
-        await touch('touchEnd', x, y + 90);
-        await expect.poll(() => sheet.count()).toBe(0);
-
-        await row.click({ button: 'right' });
-        await sheet.waitFor();
-        await page.waitForTimeout(500);
-        handle = (await page.getByTestId('session-actions-sheet-handle').boundingBox())!;
-        await page.touchscreen.tap(handle.x + handle.width / 2, handle.y + handle.height / 2);
-        await expect.poll(() => sheet.count()).toBe(0);
-        expect(await page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
-        expect(await routerCalls(page)).toEqual([]);
-        expect(errors).toEqual([]);
-        await page.close();
-    }, 30_000);
-
-    it('switches the New Session machine from the focus row as a bottom sheet', async () => {
-        const { page, errors } = await open({ theme: 'dark' });
-        await page.getByTestId('herd-machine-menu').click();
-        const sheet = page.getByTestId('herd-machine-popover');
-        await sheet.waitFor();
-        await expect(sheet.getAttribute('role')).resolves.toBe('menu');
-        expect(await classList(page, 'herd-machine-popover')).toContain('herd-sheet-up');
-        expect((await sheet.boundingBox())!.width).toBe(PHONE.width);
-        const options = await sheet.locator('[data-testid^="herd-machine-option-"]').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')));
-        expect(options).toEqual(['herd-machine-option-studio-mac', 'herd-machine-option-build-box', 'herd-machine-option-gpu-lab']);
-        await expect(sheet.getByTestId('herd-machine-option-studio-mac').getAttribute('aria-selected')).resolves.toBe('true');
-        await expect(sheet.getByTestId('herd-machine-option-gpu-lab').isDisabled()).resolves.toBe(true);
-        expect(Math.round((await sheet.getByTestId('herd-machine-option-build-box').boundingBox())!.height)).toBeGreaterThanOrEqual(48);
-        await evidence(page, 'mobile-machine-sheet-dark-390');
-
-        await sheet.getByTestId('herd-machine-option-build-box').click();
-        await expect.poll(() => sheet.count()).toBe(0);
-        expect(await page.evaluate(() => (window as any).__DRAFT_MACHINE_WRITES__)).toEqual(['build-box']);
-        await expect(page.getByTestId('herd-machine-menu').innerText()).resolves.toContain('build-box');
-        expect(errors).toEqual([]);
-        await page.close();
-    }, 20_000);
-
-    it('shows the connection line, hides Workspace when it is off, and honors reduced motion', async () => {
-        const { page, errors } = await open({ query: { socket: 'connecting', workspace: 'off' }, reducedMotion: true });
-        await page.getByTestId('mobile-home-header').waitFor();
-        await expect(page.getByTestId('mobile-home-header').getByText('connecting', { exact: false }).count()).resolves.toBeGreaterThan(0);
-        await expect(page.getByTestId('mobile-home-header').getByRole('button', { name: 'Workspace', exact: true }).count()).resolves.toBe(0);
-        await page.getByTestId('tab-settings').click();
-        // Reduced motion: the indicator jumps without a transition.
-        await expect(page.getByTestId('tab-indicator').evaluate((element) => getComputedStyle(element).transitionDuration)).resolves.toMatch(/^0s/);
-        expect(await indicatorX(page)).toBeCloseTo((PHONE.width / 3) * 2, 0);
-        expect(errors).toEqual([]);
-        await page.close();
-
-        const noInsets = await open({ insets: false });
-        await noInsets.page.getByTestId('mobile-home-header').waitFor();
-        expect((await box(noInsets.page, 'mobile-home-header')).height).toBe(58 + 1);
-        const tabBar = (await noInsets.page.getByRole('tablist').boundingBox())!;
-        expect(tabBar.y + tabBar.height).toBe(PHONE.height);
-        await noInsets.page.close();
-    }, 20_000);
-
-    it.each([
-        ['desktop card', { width: 1440, height: 900, insets: false, query: { screen: 'desktop' } }],
-        ['phone sheet', {}],
-    ] as const)('hands input back to the page as soon as the %s closes', async (_presentation, options) => {
-        const openMenu = async (page: Page) => {
-            await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 120, y: 20 } });
-            await page.getByRole('button', { name: /Fork/ }).first().waitFor();
-        };
-        // A key press while the menu leaves never runs a dismissed action.
-        const keys = await open(options);
-        await openMenu(keys.page);
-        await keys.page.getByRole('button', { name: /Fork/ }).first().focus();
-        await keys.page.keyboard.press('Escape');
-        await keys.page.keyboard.press('Enter');
-        await keys.page.waitForTimeout(400);
-        expect(await keys.page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
-        expect(keys.errors).toEqual([]);
-        await keys.page.close();
-        // The next click reaches the page while the menu is still leaving.
-        const { page, errors } = await open(options);
-        await openMenu(page);
-        await page.keyboard.press('Escape');
-        await page.locator('[data-herd-row="auth"]').click({ position: { x: 120, y: 20 } });
-        await expect.poll(() => routerCalls(page)).toContain('/session/auth');
+        // A row opens its session and closes the drawer.
+        await toggle.click();
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
+        await page.getByTestId('herd-phone-drawer').locator('[data-herd-row="dock"]').click();
+        await expect.poll(() => routerCalls(page)).toEqual(['/session/auth', '/session/dock']);
+        await expect.poll(() => offscreen(page)).toBe(true);
         expect(errors).toEqual([]);
         await page.close();
     }, 40_000);
 
-    it('keeps anchored cards at desktop width', async () => {
-        const { page, errors } = await open({ width: 1440, height: 900, insets: false, query: { screen: 'desktop' } });
-        await page.getByTestId('fixture-desktop').waitFor();
-        const pill = await box(page, 'herd-machine-menu');
-        await page.getByTestId('herd-machine-menu').click();
-        const menu = page.getByTestId('herd-machine-popover');
-        await menu.waitFor();
-        expect(await classList(page, 'herd-machine-popover')).toContain('herd-pop');
-        expect(await classList(page, 'herd-machine-popover')).not.toContain('herd-sheet-up');
-        await expect(page.getByTestId('herd-machine-popover-handle').count()).resolves.toBe(0);
-        const menuBox = (await menu.boundingBox())!;
-        expect(menuBox.width).toBeLessThan(400);
-        expect(menuBox.y).toBeGreaterThan(pill.y + pill.height);
-        await expect(menu.getByTestId('herd-machine-option-build-box').evaluate((element) => getComputedStyle(element).minHeight)).resolves.not.toBe('48px');
-        await page.keyboard.press('Escape');
-        await expect.poll(() => menu.count()).toBe(0);
+    it('pulls the drawer in with a touch swipe from the left edge, and lets a short one fall back', async () => {
+        const { page, errors } = await open({ touch: true });
+        await page.locator('[data-herd-row="auth"]').first().tap();
+        await page.getByTestId('fixture-session').waitFor();
+        const cdp = await page.context().newCDPSession(page);
+        const swipe = async (xs: number[]) => {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 4, y: 420 }] });
+            for (const x of xs) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: 422 }] });
+        };
+        await swipe([24, 70, 120, 170]);
+        // The panel follows the finger before the release decides.
+        const following = await drawer(page);
+        expect(following.x).toBeGreaterThan(-PHONE.width);
+        expect(following.x).toBeLessThan(0);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
 
-        await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 120, y: 20 } });
-        await expect(page.getByTestId('session-actions-sheet').count()).resolves.toBe(0);
-        const fork = page.getByRole('button', { name: /Fork/ });
-        await fork.waitFor();
-        const forkBox = (await fork.boundingBox())!;
-        expect(forkBox.width).toBeLessThan(300);
-        expect(forkBox.x).toBeGreaterThan(100);
-        await evidence(page, 'desktop-menus-unchanged-light-1440');
-        await fork.click();
-        expect(await page.evaluate(() => (window as any).__ACTIONS__)).toEqual(['fork']);
+        // The scrim shows to the right of the panel.
+        await page.touchscreen.tap(PHONE.width - 12, 500);
+        await expect.poll(() => offscreen(page)).toBe(true);
+        await swipe([20, 40]);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(() => offscreen(page)).toBe(true);
+        await expect(page.getByTestId('navigation-sidebar-toggle').getAttribute('aria-expanded')).resolves.toBe('false');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('gives the drawer’s own destinations a title row without Back, and nested pages Back on the gutter', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme });
+            await page.getByTestId('herd-sidebar-docked').getByRole('button', { name: /Settings/ }).click();
+            await page.getByTestId('fixture-page').waitFor();
+            expect(await routerCalls(page)).toEqual(['/settings']);
+            await expect(page.getByTestId('header-back').count()).resolves.toBe(0);
+            // The title row is the page's first line: right under the bar (no second notch inset), on the gutter.
+            const title = (await page.getByTestId('fixture-page').getByText('Settings', { exact: true }).boundingBox())!;
+            expect(title.x).toBeCloseTo(16, 0);
+            expect(title.y).toBeGreaterThan(PHONE_INSETS.top + 52);
+            expect(title.y).toBeLessThan(PHONE_INSETS.top + 52 + 56);
+            // No hairline of its own: the bar above already has one.
+            const hairlines = await page.getByTestId('fixture-page').evaluate((element) => [...element.querySelectorAll('*')]
+                .filter((node) => getComputedStyle(node).borderBottomWidth === '1px').length);
+            expect(hairlines).toBe(0);
+            await evidence(page, `phone-page-top-level-${theme}-390`);
+
+            await page.evaluate(() => (window as any).__FIXTURE_ROUTER__.push('/settings/appearance'));
+            const back = page.getByTestId('header-back');
+            await back.waitFor();
+            await expect(back.getAttribute('aria-label')).resolves.toBe('Back');
+            expect(await box(page, 'header-back')).toMatchObject({ x: 5, width: 44, height: 44 });
+            const chevron = (await back.locator('[data-icon="chevron-back"]').boundingBox())!;
+            expect(chevron.x).toBe(16);
+            await evidence(page, `phone-page-nested-${theme}-390`);
+            await back.click();
+            expect(await page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__)).toBe(1);
+            await expect(page.getByTestId('header-back').count()).resolves.toBe(0);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('opens the command palette from the search square when it is on', async () => {
+        const { page, errors } = await open({ query: { palette: 'on' } });
+        const search = page.getByTestId('herd-command-search');
+        await search.waitFor();
+        // A 44 px square right after the brand.
+        expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + 44 + 2, width: 44, height: 44 });
+        await search.click();
+        expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('fits the top bar at 320 px and while the Focus countdown runs', async () => {
+        const fits = async (page: Page, width: number) => {
+            expect(await noHorizontalOverflow(page)).toBe(true);
+            const boxes = await page.getByTestId('herd-top-bar').evaluate((bar) => [...bar.querySelectorAll('[role="button"], button')]
+                .map((node) => node.getBoundingClientRect()).map((rect) => [Math.round(rect.left), Math.round(rect.right)]));
+            for (const [left, right] of boxes) {
+                expect(left).toBeGreaterThanOrEqual(0);
+                expect(right).toBeLessThanOrEqual(width);
+            }
+        };
+        const narrow = await open({ width: 320, height: 568 });
+        await openSession(narrow.page);
+        await fits(narrow.page, 320);
+        // Too narrow for the machine name: the pill keeps its status dot.
+        await expect(narrow.page.getByTestId('herd-machine-menu').innerText()).resolves.not.toContain('studio-mac');
+        await evidence(narrow.page, 'phone-session-top-bar-light-320');
+        expect(narrow.errors).toEqual([]);
+        await narrow.page.close();
+
+        const focusing = await open({ query: { focus: 'on' } });
+        await openSession(focusing.page);
+        await focusing.page.getByTestId('focus-mode-pill').waitFor();
+        await fits(focusing.page, PHONE.width);
+        await expect(focusing.page.getByTestId('herd-machine-menu').innerText()).resolves.not.toContain('studio-mac');
+        await evidence(focusing.page, 'phone-focus-top-bar-light-390');
+        expect(focusing.errors).toEqual([]);
+        await focusing.page.close();
+    }, 30_000);
+
+    it('opens and closes the drawer at once with reduced motion', async () => {
+        const { page, errors } = await open({ reducedMotion: true });
+        await openSession(page);
+        await page.getByTestId('navigation-sidebar-toggle').click();
+        await page.waitForTimeout(50);
+        expect((await drawer(page)).x).toBe(0);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(50);
+        expect(await offscreen(page)).toBe(true);
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);

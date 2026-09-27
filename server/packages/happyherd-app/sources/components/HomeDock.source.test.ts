@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const homeDockSource = readFileSync(new URL('./HomeDock.tsx', import.meta.url), 'utf8');
-const mainViewSource = readFileSync(new URL('./MainView.tsx', import.meta.url), 'utf8');
+const phoneHomeSource = readFileSync(new URL('./herd/mobile/PhoneHome.tsx', import.meta.url), 'utf8');
 
 describe('HomeDock focused prompt placeholder', () => {
     it('renders the localized selected-provider name while preserving Codex copy', () => {
@@ -28,12 +28,12 @@ describe('HomeDock dsh workspace attachments', () => {
 
     it('passes exact uploaded entries into the shared initial-message owner', () => {
         expect(homeDockSource).toContain('const started = await onSubmit(workspaceEntries);');
-        expect(mainViewSource).toContain('const started = await startHomeSession(workspaceEntries);');
+        expect(phoneHomeSource).toContain('const started = await startHomeSession(workspaceEntries);');
     });
 
     it('remains native-only because Web mounts Full New Session instead of HomeDock', () => {
-        expect(mainViewSource).toContain("{Platform.OS === 'web' ? (");
-        expect(mainViewSource).toContain("{!searchActive && (");
-        expect(mainViewSource).toContain('<HomeDock');
+        expect(phoneHomeSource).toContain("const native = Platform.OS !== 'web';");
+        expect(phoneHomeSource).toContain('const showDock = native && !searchOpen;');
+        expect(phoneHomeSource).toContain('<HomeDock');
     });
 });

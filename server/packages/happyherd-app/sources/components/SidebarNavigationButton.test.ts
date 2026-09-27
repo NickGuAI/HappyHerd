@@ -9,6 +9,8 @@ vi.mock('react-native', async () => {
     return { Pressable: host('Pressable'), Text: host('Text'), View: host('View') };
 });
 
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
+
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };

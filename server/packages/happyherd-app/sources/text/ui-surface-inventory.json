@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "70ce9ed225e5369309e4b0257d88fd21ca3b673d6ba0930e3842e1d4e5c64d33",
+  "sourceFingerprint": "661e411c415bee2658b547e9a301a44819c5e2e60faf97c0a85780a8281392da",
   "routeCount": 43,
-  "surfaceCount": 314,
+  "surfaceCount": 315,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -201,9 +201,7 @@
     {
       "path": "/inbox",
       "owner": "sources/app/(app)/inbox/index.tsx",
-      "translationKeys": [
-        "tabs.inbox"
-      ],
+      "translationKeys": [],
       "states": []
     },
     {
@@ -1481,9 +1479,7 @@
       "exports": [
         "InboxPage"
       ],
-      "translationKeys": [
-        "tabs.inbox"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4035,19 +4031,15 @@
       "hardcodedCopy": []
     },
     {
-      "owner": "sources/components/herd/mobile/MobileHome.tsx",
+      "owner": "sources/components/herd/mobile/PhoneHome.tsx",
       "kind": "component",
       "route": null,
       "exports": [
-        "MOBILE_FAB_CLEARANCE",
-        "MobileFocusRow",
-        "MobileHeaderIconButton",
-        "MobileHomeHeader",
-        "MobileNewSessionFab"
+        "PhoneHome"
       ],
       "translationKeys": [
-        "focusMode.enter",
-        "sidebar.newSession"
+        "common.cancel",
+        "tools.names.search"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -4380,6 +4372,40 @@
       "states": [
         "offline"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdPhoneDrawer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HERD_PHONE_DRAWER_EDGE",
+        "HERD_PHONE_DRAWER_SWIPE_DISTANCE",
+        "HERD_PHONE_DRAWER_SWIPE_VELOCITY",
+        "HerdPhoneDrawer",
+        "herdPhoneDrawerWidth"
+      ],
+      "translationKeys": [
+        "navigation.collapseSidebar"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdPhoneTopBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdPhoneTopBar"
+      ],
+      "translationKeys": [
+        "commandPalette.placeholder",
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
+        "sidebar.sessionsTitle",
+        "tools.names.search"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -4768,23 +4794,7 @@
       "exports": [
         "MainView"
       ],
-      "translationKeys": [
-        "focusMode.enter",
-        "friends.findFriends",
-        "happyHerd.automations.title",
-        "server.serverConfiguration",
-        "sessionsFilter.appearanceSettings",
-        "sessionsFilter.flatList",
-        "sessionsFilter.groupByProject",
-        "sessionsFilter.groupByWorkspace",
-        "sessionsFilter.groupingTitle",
-        "sessionsFilter.title",
-        "settings.title",
-        "sidebar.projects",
-        "sidebar.sessionsTitle",
-        "tools.names.search",
-        "workspace.title"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5840,23 +5850,6 @@
         "SyntaxText"
       ],
       "translationKeys": [],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/TabBar.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "MOBILE_TAB_BAR_CONTENT_INSET",
-        "TabBar"
-      ],
-      "translationKeys": [
-        "tabs.inbox",
-        "tabs.sessions",
-        "tabs.sessionsTab",
-        "tabs.settings"
-      ],
       "states": [],
       "hardcodedCopy": []
     },

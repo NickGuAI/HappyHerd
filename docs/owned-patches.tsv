@@ -558,3 +558,4 @@ UI_OVERHAUL_HISTORY_GEMINI_DOCS	accepted	docs(app): record the top bar without B
 UI_OVERHAUL_CONTEXT_METER_SETTING	accepted	test(app): prove the context meter follows the Always show context size setting	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
 UI_OVERHAUL_TABLET_BACK_DOCS	accepted	docs(app): say which native tablet screens keep an on-screen Back	docs/upstream-ui-parity.md
 UI_OVERHAUL_GOLDENS_CHANGELOG	accepted	test(app): regenerate the KILV changelog baselines after the top bar entry changed	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UI_OVERHAUL_PHONE_SHELL	accepted	feat(app): give phones the top bar and the left panel as a drawer	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts

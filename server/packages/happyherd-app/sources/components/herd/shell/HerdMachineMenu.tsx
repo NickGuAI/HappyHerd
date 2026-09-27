@@ -19,6 +19,7 @@ import {
     measureHerdAnchor,
     type HerdAnchorRect,
 } from '../HerdPopover';
+import { useHerdTopBarLayout } from './topBarLayout';
 
 const MACHINE_POPOVER_WIDTH = 300;
 
@@ -33,10 +34,13 @@ export function orderMachinesForMenu(machines: readonly Machine[]): Machine[] {
 
 /**
  * Top bar machine pill: the current machine and whether it is online, with a
- * menu to switch the machine New Session uses or open its details.
+ * menu to switch the machine New Session uses or open its details. On phones
+ * the pill sits in a 44 px touch target, and `nameHidden` leaves only its dot
+ * when the bar runs out of room (a narrow screen, or the Focus countdown).
  */
-export function HerdMachineMenu({ compact }: { compact: boolean }) {
+export function HerdMachineMenu({ compact, nameHidden = false }: { compact: boolean; nameHidden?: boolean }) {
     const { theme } = useUnistyles();
+    const phone = useHerdTopBarLayout() === 'phone';
     const router = useRouter();
     const triggerRef = React.useRef<View>(null);
     const [anchor, setAnchor] = React.useState<HerdAnchorRect | null>(null);
@@ -72,16 +76,17 @@ export function HerdMachineMenu({ compact }: { compact: boolean }) {
                     aria-expanded={!!anchor}
                     onPress={toggle}
                     testID="herd-machine-menu"
-                    style={({ hovered, pressed }: any) => [
-                        styles.pill,
-                        (hovered || pressed || anchor) && styles.pillHovered,
-                    ]}
+                    style={phone ? styles.phoneTarget : undefined}
                 >
-                    <Ionicons name="desktop-outline" size={14} color={theme.colors.textSecondary} />
-                    <Text numberOfLines={1} style={styles.pillName}>{currentLabel}</Text>
-                    <View style={[styles.dot, online ? styles.dotOnline : styles.dotOffline]} />
-                    {!compact && <Text style={styles.pillStatus}>{statusLabel}</Text>}
-                    <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+                    {({ hovered, pressed }: any) => (
+                        <View style={[styles.pill, (hovered || pressed || anchor) && styles.pillHovered]}>
+                            {!nameHidden && <Ionicons name="desktop-outline" size={14} color={theme.colors.textSecondary} />}
+                            {!nameHidden && <Text numberOfLines={1} style={styles.pillName}>{currentLabel}</Text>}
+                            <View style={[styles.dot, online ? styles.dotOnline : styles.dotOffline]} />
+                            {!compact && <Text style={styles.pillStatus}>{statusLabel}</Text>}
+                            <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+                        </View>
+                    )}
                 </Pressable>
             </View>
             <HerdPopover
@@ -130,6 +135,11 @@ export function HerdMachineMenu({ compact }: { compact: boolean }) {
 }
 
 const styles = StyleSheet.create((theme) => ({
+    phoneTarget: {
+        height: 44,
+        justifyContent: 'center',
+        paddingHorizontal: 2,
+    },
     pill: {
         height: 32,
         maxWidth: 240,

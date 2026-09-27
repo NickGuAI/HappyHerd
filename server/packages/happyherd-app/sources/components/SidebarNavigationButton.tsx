@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
+import { useIsTablet } from '@/utils/responsive';
 
 const stylesheet = StyleSheet.create((theme) => ({
     button: {
@@ -45,6 +46,10 @@ const stylesheet = StyleSheet.create((theme) => ({
     quiet: {
         borderColor: 'transparent',
         backgroundColor: 'transparent',
+    },
+    // Phones: with the 8 px bottom row, the icon lands on the 16 px gutter.
+    quietPhone: {
+        paddingHorizontal: 7,
     },
     quietHovered: {
         borderColor: 'transparent',
@@ -90,6 +95,7 @@ export const SidebarNavigationButton = React.memo((props: {
 }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
+    const phone = !useIsTablet();
     const setIconHint = React.useCallback((node: View | null) => {
         if (node && Platform.OS === 'web') {
             // React Native Web filters title out of forwarded View props.
@@ -111,6 +117,7 @@ export const SidebarNavigationButton = React.memo((props: {
                 props.iconOnly && styles.iconButton,
                 props.emphasis && styles.emphasis,
                 props.quiet && styles.quiet,
+                props.quiet && phone && styles.quietPhone,
                 hovered && (props.quiet ? styles.quietHovered : props.emphasis ? styles.emphasisHovered : styles.buttonHovered),
                 props.active && styles.buttonActive,
                 props.highlighted && styles.buttonHighlighted,

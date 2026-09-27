@@ -13,6 +13,8 @@ import { Typography } from "@/constants/Typography";
 import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
 import { MainView } from "@/components/MainView";
+import { PhoneHome } from "@/components/herd/mobile/PhoneHome";
+import { useIsTablet } from "@/utils/responsive";
 import { t } from '@/text';
 import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
 
@@ -30,7 +32,9 @@ export default function Home() {
 }
 
 function Authenticated() {
-    return <MainView variant="phone" />;
+    // Tablets list sessions in the left panel; phones show that panel as the page (UI overhaul).
+    const isTablet = useIsTablet();
+    return isTablet ? <MainView variant="phone" /> : <PhoneHome />;
 }
 
 function NotAuthenticated() {

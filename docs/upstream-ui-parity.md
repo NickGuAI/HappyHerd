@@ -58,7 +58,8 @@ The desktop layout is now a HappyHerd top bar above the permanent drawer.
 Upstream's absolute `PersistentHeader` overlay (Zen, Back, Forward) and the
 boundary collapse toggle no longer exist. Zen and the collapse toggle live in
 `components/herd/shell/`; the Back and Forward buttons were removed (see
-History below).
+History below). Phones use the same top bar with the panel as a drawer (see
+*Phone shell*).
 
 | Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
 |---|---|---|---|---|
@@ -212,22 +213,38 @@ Commander avatar settings and the Inbox update banner were outside this pass;
 Settings sub-pages keep the base list look until `ItemGroup`/`Item` adopt the
 `HerdList` treatment.
 
-## Web Mobile shell
+## Phone shell
+
+Signed-in phones, both Web Mobile and the native iPhone and Android apps,
+use the desktop shell at phone size (owner-approved phone design,
+2026-09-27). A phone is `!useIsTablet()`, the diagonal rule in
+`utils/responsive.ts`. The HappyHerd top bar sits over every screen. The
+desktop left panel is the page on the session list and slides in as a
+drawer everywhere else. The tab bar, the phone home header and the floating
+New session button were removed.
+
+One spacing rule holds on every phone surface. Content sits 16 px inside the
+surface that holds it. Lists of selectable rows pad the list 8 px and each
+row 8 px, so a row's highlight reaches 8 px past its content. Bar controls
+are 44 px targets placed so that their icon lands on the 16 px gutter.
 
 Below 700 px on the web (`herd/mobile/useHerdPhone.ts`, the same width rule
-as Streamline), the shell follows the mock's phone mode: a bottom tab bar, a
-home header with a focus row, a floating New session button, back bars on
-full-screen pages, and bottom sheets in place of anchored menus. Native
-rendering is unchanged. Menus and sheets leave with motion on both desktop
-and phone web (`herd/presence.ts` `useHerdExit`); reduced motion and native
-close at once.
+as Streamline), menus and pickers open as bottom sheets. Menus and sheets
+leave with motion on web (`herd/presence.ts` `useHerdExit`); reduced motion
+and native close at once.
 
 | Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
 |---|---|---|---|---|
-| `sources/components/TabBar.tsx` | Restyled (web) | Web tabs: Ionicons (filled when active), 58 px tabs with 11 px labels, a 2 px accent indicator sliding with `herd-glide`, accent badge and dot, `role="tablist"` with `aria-selected`, test IDs `tab-*`. The Sessions label is `tabs.sessionsTab`. | The native tab bar (drag lens, haptics, glass), tab order, `onTabPress`, badge and unread rules, bottom safe-area padding. | Take upstream behavior. A new web tab needs `iconName` / `activeIconName` in `webTabs`; the indicator width follows the tab count. |
-| `sources/components/MainView.tsx` | Extended (phone web) | The phone web header is `herd/mobile/MobileHome` (header, then the focus row on Sessions). Header actions are `MobileHeaderIconButton`s: Workspace (only while `machineWorkspace` is on), Projects and Automations. The `+` became `MobileNewSessionFab` on Sessions, with an 88 px list inset. | Native header, search, view menu, `HomeDock`, the sidebar variant, tab state, every route. | Merge logic normally; phone web header changes go in `MobileHomeHeader` and the web branches of `HeaderRight`. |
-| `sources/components/navigation/Header.tsx` | Restyled (phone web) | An opaque `surface` bar with a hairline and no shadow (skips `styles.shadow`), 56 px, a labelled 40 px Back (`header-back`), a left-aligned 16 px title and a 12 px faint subtitle. | `goBack`, custom `headerLeft` / `headerRight`, tablet, desktop and native headers. | Keep the `isWebPhone` styles last in each style array. |
-| `sources/components/HomeHeader.test.ts` | Test | Mocks `herd/mobile/MobileHome`, because this file tests the native home. | Every native assertion. | Keep the mock. |
+| `sources/components/SidebarNavigator.tsx` | Extended (phones) | Signed-in phones render `herd/shell/HerdPhoneTopBar` above the body and mount `herd/shell/HerdPhoneDrawer` over it. The body's top inset is 0 and `HerdWindowInsetsContext` holds the window's insets whenever either top bar shows. Any navigation closes the drawer, and so does leaving the phone layout. | The hidden `front` drawer on phones, the desktop branch and the element order. | Put new phone shell controls in `HerdPhoneTopBar`, not in this file. |
+| `sources/components/SidebarView.tsx` | Extended (phones) | `docked` renders the panel as the phone session list page. `list` replaces its session list, which `PhoneHome` uses for the native search and the dock inset. `settingsInNav` moves Settings into the icon row on native phones, so the home dock keeps the bottom edge. On phones, rows and controls put their content on the 16 px gutter, and the bottom inset pads the Settings row. | The desktop panel, every destination and hint, `VoiceAssistantStatusBar` and the archive toggle. | Take upstream structure; keep the three props and the phone spacing styles. |
+| `sources/components/FlatSessionRow.tsx` | Restyled (phones) | Rows pad 8 px inside their 8 px inset (`rowPhone`), so titles sit on the gutter. | Everything in its *Desktop shell* row. | Keep `rowPhone` last in the row style. |
+| `sources/components/TabBar.tsx` | Removed | Deleted with the tab bar. The drawer's rows and the top bar reach its destinations. | — | Do not port upstream tab bar changes; give a new destination a row in `SidebarView`. |
+| `sources/components/MainView.tsx` | Replaced (phones) | Only the panel's session list (`variant="sidebar"`) and the blank tablet index (`variant="phone"`) remain. The phone home moved to `herd/mobile/PhoneHome.tsx`: the docked panel, the native session search and the native `HomeDock`. | The sidebar list with its loading and empty states, and the blank tablet index. | Port phone home changes (dock, search, empty states) into `PhoneHome`, and sidebar list changes here. |
+| `sources/app/(app)/index.tsx` | Call site | Phones render `PhoneHome`; tablets keep `MainView variant="phone"`. | The route. | — |
+| `sources/app/(app)/_layout.tsx` | Extended (phones) | `screenOptions` hides Back (`headerBackVisible: false`), UIKit's included, on the routes the drawer and top bar open directly (`herd/shell/phoneRoutes.ts`). Pages opened from those routes keep Back. | Every screen's options. | Add a new drawer destination to `HERD_PHONE_TOP_LEVEL_ROUTES`. |
+| `sources/components/navigation/Header.tsx` | Restyled (phones) | Phone web: an opaque `surface` bar with no shadow (skips `styles.shadow`), 56 px, a labelled Back (`header-back`), a left-aligned 16 px title and a 12 px faint subtitle. Under the phone top bar, on web and native, the header is the page's title row: opaque, with no glass or hairline, and Back is a 44 px square whose arrow lands on the gutter. | `goBack`, custom `headerLeft` / `headerRight`, and the tablet, desktop and signed-out headers. | Keep the `webPhone*` and then the `phoneShell*` styles last in each style array. |
+| `sources/components/InboxView.tsx`, `sources/app/(app)/inbox/index.tsx` | Extended (phones) | `InboxView` draws its title row with Find Friends on tablets and under the phone top bar. The route renders `InboxView` alone, because the separate phone header was removed. | The feed, friend requests and their actions. | Merge normally; keep `showHeader`. |
+| `sources/components/HomeHeader.test.ts` | Test | The phone home test and its mocks moved to the phone shell browser suite (`herd/mobile/mobileShell.browser.test.ts`). | Every native assertion. | — |
 | `sources/components/herd/HerdPopover.tsx` (HappyHerd-owned) | Extended (phone web) | Under 700 px it renders its content in a `HerdBottomSheet` with touch-size rows (`useInHerdSheet`). | The desktop card, anchoring and Escape. | Not inherited; listed here because every top bar menu and Streamline chip picker gets the phone sheet through it. |
 
 ## HappyHerd-owned modules
@@ -247,11 +264,16 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/{DesktopFileWorkspace,SessionSidebarDivider,LocalhostLiveView.web,InlineCommentReview.web}.tsx`, `sources/components/sideChatPresentation.ts`, `sources/app/(app)/workspace/index.tsx` | HappyHerd-owned Workspace and panel files, restyled for the panels: the Workspace tabs, file bar and `overlay` split mode, the grip divider, the framed live view, molten comment cards and a docked review bar, the overlay presentation rule (`rightPanelPresentation: 'overlay'` on non-phone web below 1,100 px), and the Workspace page on theme tokens. |
 | `sources/components/herd/mobile/useHerdPhone.ts` | The phone web rule: web and narrower than 700 px. |
 | `sources/components/herd/mobile/HerdBottomSheet.tsx` | The phone sheet: scrim, `herd-sheet-up` / `herd-sheet-down`, a drag handle that is also a labelled Cancel button (a drag past 72 px or a flick dismisses), and home-indicator padding. |
-| `sources/components/herd/mobile/MobileHome.tsx` | The phone home header, its icon buttons, the focus row and the floating New session button. |
+| `sources/components/herd/mobile/PhoneHome.tsx` | The phone session list: the docked left panel, the native session search and the native home dock. |
 | `sources/components/herd/shell/HerdTopBar.tsx` | Desktop top bar: panel toggle, Zen, brand, command search, Focus mode, Inbox bell and machine menu. |
-| `sources/components/herd/shell/HerdTopBarIconButton.tsx` | Square icon control for the top bar. |
+| `sources/components/herd/shell/HerdPhoneTopBar.tsx` | Phone top bar: the panel toggle (hidden on the session list), the brand, search (the command palette on web, the session search on native), Focus mode, the Inbox bell and the machine pill, as 44 px targets on the gutter. The machine name steps aside below 360 px and during Focus. |
+| `sources/components/herd/shell/HerdPhoneDrawer.tsx` | The left panel as a phone drawer, 92% of the width up to 360 px, over a scrim. The scrim, a drag or flick left, Escape, Android Back and any navigation close it; a web touch swipe from the left edge opens it. It slides through `Animated` on web and native, and reduced motion makes it instant. |
+| `sources/components/herd/shell/phoneShell.ts` | Phone shell state: whether the drawer and the native session search are open, and the search query. |
+| `sources/components/herd/shell/phoneRoutes.ts` | The routes the drawer and top bar open directly, which show no Back on phones. |
+| `sources/components/herd/shell/topBarLayout.ts` | `HerdTopBarLayoutContext`, which tells shared top bar controls whether they sit in the desktop or the phone bar, plus the phone bar height and touch target. |
+| `sources/components/herd/shell/HerdTopBarIconButton.tsx` | Square icon control for the top bar; a 44 px target in the phone bar. |
 | `sources/components/herd/shell/HerdInboxBell.tsx` | Inbox bell with the friend-request count (or an unread dot) and the Updates dropdown. |
-| `sources/components/herd/shell/HerdMachineMenu.tsx` | Machine pill and menu. It shows and switches the machine New Session uses (`useNewSessionDraft.setMachineId`). |
+| `sources/components/herd/shell/HerdMachineMenu.tsx` | Machine pill and menu. It shows and switches the machine New Session uses (`useNewSessionDraft.setMachineId`). In the phone bar the pill sits in a 44 px target, and `nameHidden` leaves only its status dot. |
 | `sources/components/herd/shell/HerdSidebarEdgeToggle.tsx` | Secondary collapse handle on the panel edge. |
 | `sources/components/herd/shell/sidebarTransition.tsx` | Collapse sequencing (`useHerdSidebarTransition`, `HerdSidebarFrame`). |
 | `sources/components/herd/shell/sidebarShortcut.ts` | The ⌥⌘B chord and the shared collapse toggle. |

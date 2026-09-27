@@ -48,34 +48,6 @@ vi.mock('@/sync/serverConfig', () => ({
 }));
 
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 59 }) }));
-vi.mock('@/utils/responsive', () => ({ useIsTablet: () => false }));
-vi.mock('@/hooks/useVisibleSessionListViewData', () => ({ useVisibleSessionListViewData: () => [] }));
-vi.mock('@/hooks/useNewSessionDraft', () => ({ useNewSessionDraft: {} }));
-vi.mock('@/hooks/useStartSessionFromDraft', () => ({ useStartSessionFromDraft: () => ({ isStarting: false }) }));
-vi.mock('@/track', () => ({ trackFriendsSearch: vi.fn() }));
-vi.mock('./NativeSettingsMenu', () => ({ NativeSettingsMenu: () => null }));
-vi.mock('./EmptySessionsTablet', () => ({ EmptySessionsTablet: () => null }));
-vi.mock('./SessionsList', () => ({ SessionsList: () => null }));
-vi.mock('./TabBar', () => ({ TabBar: () => null }));
-vi.mock('./InboxView', () => ({ InboxView: () => null }));
-vi.mock('./SettingsViewWrapper', () => ({ SettingsViewWrapper: () => null }));
-vi.mock('./HomeDock', () => ({ HomeDock: () => null, MOBILE_HOME_DOCK_CONTENT_INSET: 150 }));
-vi.mock('./HeaderLogo', () => ({ HeaderLogo: () => null }));
-vi.mock('./FocusModeControl', () => ({ FocusModeControl: () => null }));
-// The Web Mobile header, focus row and New session button are covered by
-// herd/mobile tests; this file exercises the native home.
-vi.mock('./herd/mobile/MobileHome', () => ({
-    MOBILE_FAB_CLEARANCE: 88,
-    MobileFocusRow: () => null,
-    MobileHeaderIconButton: () => null,
-    MobileHomeHeader: () => null,
-    MobileNewSessionFab: () => null,
-}));
-vi.mock('./VoiceAssistantStatusBar', () => ({ VoiceAssistantStatusBar: () => null }));
-vi.mock('./SessionsListWrapper', async () => {
-    const ReactModule = await import('react');
-    return { SessionsListWrapper: (props: any) => ReactModule.createElement('SessionsListWrapper', props) };
-});
 
 vi.mock('expo-image', async () => {
     const ReactModule = await import('react');
@@ -128,7 +100,6 @@ vi.mock('./StatusDot', () => ({ StatusDot: () => null }));
 
 import { HomeHeader, HomeHeaderNotAuth } from './HomeHeader';
 import { HomeHeaderTitle } from './HomeHeaderTitle';
-import { MainView } from './MainView';
 
 const originalConsoleError = console.error;
 const renderers: ReturnType<typeof create>[] = [];
@@ -248,26 +219,6 @@ describe('home header connection status', () => {
             const texts = title.root.findAllByType('Text' as any);
             expect(texts).toHaveLength(2);
             expect(texts[1].props).toMatchObject({ children: subtitle, numberOfLines: 1, ellipsizeMode: 'middle' });
-        }
-    });
-
-    it('uses the same stable title in the actual phone home without changing list insets', () => {
-        socketStatus.status = 'connected';
-        const home = renderHomeHeaderTitle(React.createElement(MainView, { variant: 'phone' }));
-        const heading = home.root.findByProps({ accessibilityRole: 'header' });
-        const list = home.root.findByType('SessionsListWrapper' as any);
-        const insets = { ...list.props };
-        const header = home.root.findByType('Header' as any);
-        expect(header.props).toMatchObject({ mobileTitleSurface: 'plain', mobileTitleAlignment: 'center' });
-        expect(heading.props.children).toBe('tabs.sessions');
-        // The phone's focus controls add 44px above the unchanged session list.
-        expect(insets).toMatchObject({ topContentInset: 167, scrollIndicatorTopInset: 155 });
-
-        for (const status of ['connecting', 'error', 'disconnected', 'connected'] as const) {
-            setSocketStatus(status);
-            expect(home.root.findByProps({ accessibilityRole: 'header' })).toBe(heading);
-            expect(home.root.findByType('SessionsListWrapper' as any).props).toEqual(insets);
-            expect(home.root.findByType('Header' as any)).toBe(header);
         }
     });
 });

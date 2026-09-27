@@ -385,7 +385,6 @@ const virtualModules: Record<string, string> = {
     '@/components/InboxView': `export const InboxView = () => null;`,
     '@/components/HomeDock': `export const HomeDock = () => null; export const MOBILE_HOME_DOCK_CONTENT_INSET = 128;`,
     '@/components/SettingsViewWrapper': `export const SettingsViewWrapper = () => null;`,
-    '@/components/TabBar': `export const TabBar = () => null;`,
     '@/components/HeaderLogo': `export const HeaderLogo = () => null;`,
     '@/components/navigation/Header': `
         import React from 'react';
@@ -432,7 +431,6 @@ const fixturePlugin: Plugin = {
                 './InboxView': '@/components/InboxView',
                 './HomeDock': '@/components/HomeDock',
                 './SettingsViewWrapper': '@/components/SettingsViewWrapper',
-                './TabBar': '@/components/TabBar',
                 './HeaderLogo': '@/components/HeaderLogo',
                 './navigation/Header': '@/components/navigation/Header',
                 './NativeSettingsMenu': '@/components/NativeSettingsMenu',
@@ -515,7 +513,8 @@ describe('Projects and Super Session production UI gestures', () => {
                     import { SidebarView } from '@/components/SidebarView';
                     import { SidebarNavigator } from '@/components/SidebarNavigator';
                     import { SessionsList } from '@/components/SessionsList';
-                    import { MainView } from '@/components/MainView';
+                    import { HerdPhoneTopBar } from '@/components/herd/shell/HerdPhoneTopBar';
+                    import { PhoneHome } from '@/components/herd/mobile/PhoneHome';
                     import AppearanceScreen from '@/app/(app)/settings/appearance';
                     import ProjectDetailScreen from '@/app/(app)/projects/[id]';
                     import ProjectsScreen from '@/app/(app)/projects/index';
@@ -537,8 +536,9 @@ describe('Projects and Super Session production UI gestures', () => {
                         else if (pathname.startsWith('/session/')) content = React.createElement(SessionDestination, { id: pathname.split('/')[2] });
                         else if (pathname !== '/') content = React.createElement('h1', null, pathname);
                         else if (query.has('search')) content = React.createElement(SessionsList, { searchQuery: query.get('search'), bottomContentInset: 12 });
+                        // A signed-in phone at '/': the phone top bar over the docked panel.
                         else content = query.get('mobile') === '1'
-                            ? React.createElement(MainView, { variant: 'phone' })
+                            ? React.createElement(React.Fragment, null, React.createElement(HerdPhoneTopBar, { home: true }), React.createElement(PhoneHome))
                             : query.has('focus') ? React.createElement(SidebarNavigator)
                             : React.createElement('aside', { 'data-testid': 'desktop-sidebar', style: { width: 'min(390px, 100vw)', height: '100%', display: 'flex' } }, React.createElement(SidebarView));
                         // This replaces Expo's stack host only. All project/list
@@ -799,10 +799,11 @@ describe('Projects and Super Session production UI gestures', () => {
         await startFocus(page, 15);
         expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
         for (let attempt = 0; attempt < 2; attempt += 1) {
-            await page.getByRole('button', { name: 'Show Archived', exact: true }).click();
+            // The phone list is the desktop panel: its archive toggle comes before the list's own row.
+            await page.getByRole('button', { name: 'Show Archived', exact: true }).first().click();
             await page.getByText('Archived Alpha work', { exact: true }).waitFor();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
-            await page.getByRole('button', { name: 'Hide Archived', exact: true }).click();
+            await page.getByRole('button', { name: 'Hide Archived', exact: true }).first().click();
             expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
         }
         expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);

@@ -21,6 +21,7 @@ import {
     MOBILE_GLASS_CONTROL_SIZE,
     MOBILE_GLASS_HEADER_HEIGHT,
 } from './headerMetrics';
+import { HerdWindowInsetsContext } from '../herd/shell/windowInsets';
 
 interface HeaderProps {
     title?: React.ReactNode;
@@ -80,7 +81,11 @@ export const Header = React.memo((props: HeaderProps) => {
     const isNativePhone = !isDesktop && !isTablet;
     // UI overhaul: Web at phone size gets the full-width back bar (56 px, hairline).
     const isWebPhone = Platform.OS === 'web' && !isTablet;
-    const glassControlsEnabled = isNativePhone && Platform.OS === 'ios';
+    // Signed in, a phone header sits under the HappyHerd top bar: it reads as the
+    // page's title row, with Back on the 16 px gutter and no glass or hairline.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    const phoneShellHeader = !isTablet && underTopBar;
+    const glassControlsEnabled = isNativePhone && Platform.OS === 'ios' && !phoneShellHeader;
     const isAndroidHeader = isNativePhone && Platform.OS === 'android';
     const headerLeftUsesGlass = headerLeftGlass && glassControlsEnabled;
     const headerRightUsesGlass = headerRightGlass && glassControlsEnabled;
@@ -144,6 +149,7 @@ export const Header = React.memo((props: HeaderProps) => {
         isAndroidHeader && (headerBackdropVisible ? styles.containerAndroidScrolled : styles.containerNormal),
         glassControlsEnabled && styles.containerTransparent,
         isWebPhone && styles.webPhoneContainer,
+        phoneShellHeader && styles.phoneShellContainer,
     ];
 
     const subtitleStyle = [
@@ -183,6 +189,7 @@ export const Header = React.memo((props: HeaderProps) => {
                     styles.content,
                     isDesktop && styles.desktopContent,
                     isWebPhone && styles.webPhoneContent,
+                    phoneShellHeader && styles.phoneShellContent,
                     centerTitle && styles.centeredContent,
                     { height: isWebPhone ? WEB_PHONE_HEADER_HEIGHT : contentHeight },
                 ]}>
@@ -211,6 +218,7 @@ export const Header = React.memo((props: HeaderProps) => {
                         styles.centerContainer,
                         isDesktop && styles.desktopCenterContainer,
                         isWebPhone && styles.webPhoneCenterContainer,
+                        phoneShellHeader && styles.phoneShellCenterContainer,
                         centerTitle && styles.centeredTitleContainer,
                     ]}>
                         {glassControlsEnabled && mobileTitleSurface === 'glass' ? (
@@ -266,6 +274,7 @@ const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> =
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const isTablet = useIsTablet();
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
     if (Platform.OS === 'web' && !isTablet) {
         return (
             <Pressable
@@ -274,7 +283,11 @@ const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> =
                 onPress={onPress}
                 hitSlop={4}
                 testID="header-back"
-                style={({ pressed, hovered }: any) => [styles.webPhoneBackButton, (pressed || hovered) && styles.webPhoneBackButtonActive]}
+                style={({ pressed, hovered }: any) => [
+                    styles.webPhoneBackButton,
+                    underTopBar && styles.phoneShellBackButton,
+                    (pressed || hovered) && styles.webPhoneBackButtonActive,
+                ]}
             >
                 <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             </Pressable>
@@ -335,7 +348,8 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
     const isWebPhone = Platform.OS === 'web' && !isTablet;
     const titleFontSize = isDesktop && !isWebPhone ? 17 : 16;
 
-    // Hide back button on tablet — navigation is handled via sidebar and persistent header
+    // Hide back button on tablet — navigation is handled via sidebar and persistent header.
+    // Phones hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
     const shouldHideBackButton = isTablet;
     const titleAlign = options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');
 
@@ -480,6 +494,23 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     webPhoneBackButtonActive: {
         backgroundColor: theme.colors.surfacePressedOverlay,
+    },
+    // Signed-in phones: the title row under the top bar. Back is a 44 px square
+    // whose chevron lands on the 16 px gutter; a title without Back starts there too.
+    // Opaque, in the page's own colour: without glass, content must not show through when it scrolls under.
+    phoneShellContainer: {
+        borderBottomWidth: 0,
+        backgroundColor: Platform.OS === 'web' ? theme.colors.surface : theme.colors.groupped.background,
+    },
+    phoneShellBackButton: {
+        width: 44,
+        height: 44,
+    },
+    phoneShellContent: {
+        paddingLeft: 5,
+    },
+    phoneShellCenterContainer: {
+        paddingHorizontal: 5,
     },
     containerTransparent: {
         backgroundColor: 'transparent',
