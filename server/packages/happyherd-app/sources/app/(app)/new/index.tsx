@@ -32,7 +32,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Constants from 'expo-constants';
-import { useDeviceType, useHeaderHeight } from '@/utils/responsive';
+import { useDeviceType, useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { t } from '@/text';
 import { useAllMachines, useLocalSetting, useProjects, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
@@ -41,6 +41,10 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveNewSessionMachine } from '@/utils/newSessionMachine';
 import { HerdSegmentedControl } from '@/components/herd/SegmentedControl';
 import { HerdPopover, type HerdAnchorRect } from '@/components/herd/HerdPopover';
+import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
+import { herdWebClasses } from '@/components/herd/motion';
+import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
 import { StreamlineSections, type StreamlineFolderOption } from '@/components/herd/newSession/StreamlineSections';
 import {
     StreamlineComposerChips,
@@ -992,6 +996,9 @@ function NewSessionScreen() {
     );
     const streamline = sessionMode === 'streamline';
     const [streamlineAnchor, setStreamlineAnchor] = React.useState<HerdAnchorRect | null>(null);
+    // Phones anchor a Streamline chip's picker to the composer (UI overhaul).
+    const streamlineComposerRef = React.useRef<View>(null);
+    const isTablet = useIsTablet();
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
@@ -3045,9 +3052,18 @@ function NewSessionScreen() {
     ], [agent.key, canPickWorktree, currentEffort, currentModel, currentPermission, showEffort, showModel, showPermission, theme.colors.textLink, theme.colors.textSecondary, worktreeLabel]);
 
     const openStreamlineChip = React.useCallback((key: StreamlineChipKey, anchor: HerdAnchorRect | null) => {
+        // Phones (UI overhaul): a chip's picker spans the composer it opens from.
+        const composer = streamlinePhone ? streamlineComposerRef.current : null;
+        if (composer) {
+            composer.measureInWindow((x, y, width, height) => {
+                setStreamlineAnchor({ x, y, width, height });
+                togglePicker(key);
+            });
+            return;
+        }
         setStreamlineAnchor(anchor);
         togglePicker(key);
-    }, [togglePicker]);
+    }, [streamlinePhone, togglePicker]);
 
     const streamlineChipsNode = streamline ? (
         <StreamlineComposerChips
@@ -3246,7 +3262,6 @@ function NewSessionScreen() {
     // ---- Streamline (web) ----
     const modeSwitchControl = Platform.OS === 'web' ? (
         <HerdSegmentedControl
-            size="sm"
             options={[
                 { value: 'streamline', label: t('newSession.streamline.modeStreamline') },
                 { value: 'advanced', label: t('newSession.streamline.modeAdvanced') },
@@ -3256,21 +3271,23 @@ function NewSessionScreen() {
                 closePicker();
                 setSessionMode(next);
             }}
+            size={streamlinePhone ? 'touch' : 'sm'}
             accessibilityLabel={t('newSession.title')}
             testID="new-session-mode"
         />
     ) : null;
+    // Phones stack the title, the intro and a full-width mode switch.
     const modeHeader = Platform.OS === 'web' ? (
-        <View style={styles.modeHeader}>
-            <View style={styles.modeHeaderText}>
-                <Text style={styles.modeTitle}>{t('newSession.title')}</Text>
-                <Text style={styles.modeSubtitle}>{t('newSession.streamline.intro')}</Text>
+        <View style={[styles.modeHeader, streamlinePhone && styles.modeHeaderPhone]}>
+            <View style={[styles.modeHeaderText, streamlinePhone && styles.modeHeaderTextPhone]}>
+                <Text style={[styles.modeTitle, streamlinePhone && styles.modeTitlePhone]}>{t('newSession.title')}</Text>
+                <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>{t('newSession.streamline.intro')}</Text>
             </View>
-            <View style={styles.modeSwitch}>{modeSwitchControl}</View>
+            <View style={[styles.modeSwitch, streamlinePhone && styles.modeSwitchPhone]}>{modeSwitchControl}</View>
         </View>
     ) : null;
 
-    const streamlinePathPicker = streamline && activePicker === 'path' ? (
+    const streamlinePathPicker = streamline && activePicker === 'path' && !streamlinePhone ? (
         <View style={styles.streamlinePathPicker}>
             <PathPickerContent
                 title={t('sessionInfo.path')}
@@ -3287,6 +3304,58 @@ function NewSessionScreen() {
             />
         </View>
     ) : null;
+
+    // Phones (UI overhaul): the folder browser floats above the page, 8 px from
+    // the window's sides and bottom, and leaves with motion.
+    const phoneFolderBrowser = useHerdExit(streamline && streamlinePhone && activePicker === 'path' ? true : null, HERD_EXIT.pop);
+    const phoneFolderBrowserCard = phoneFolderBrowser.value ? (
+        <View
+            pointerEvents="box-none"
+            style={[
+                styles.streamlineFloatingLayer,
+                {
+                    paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
+                    paddingBottom: HERD_PHONE_FLOAT_MARGIN + safeArea.bottom,
+                },
+            ]}
+        >
+            {!phoneFolderBrowser.exiting && (
+                <Pressable
+                    accessible={false}
+                    onPress={closePicker}
+                    style={styles.streamlineFloatingBackdrop}
+                    testID="streamline-folder-browser-backdrop"
+                />
+            )}
+            <View
+                testID="streamline-folder-browser"
+                style={[
+                    styles.streamlinePathPicker,
+                    styles.streamlinePathPickerPhone(phoneFolderBrowser.exiting),
+                    { maxHeight: Math.round(windowHeight * 0.56) },
+                ]}
+            >
+                <PathPickerContent
+                    title={t('sessionInfo.path')}
+                    items={pathItems}
+                    value={selectedPath}
+                    homeDir={selectedHomeDir}
+                    machineId={selectedMachineId}
+                    platform={selectedMachine?.metadata?.platform}
+                    machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                    favorites={selectedMachineFavorites}
+                    onToggleFavorite={toggleFavoritePath}
+                    onChangeValue={setSelectedPath}
+                    onDone={closePicker}
+                />
+            </View>
+        </View>
+    ) : null;
+    const streamlinePhoneFolderBrowser = phoneFolderBrowserCard
+        ? phoneFolderBrowser.exiting
+            ? <HerdExitLayer>{phoneFolderBrowserCard}</HerdExitLayer>
+            : <RNModal transparent animationType="none" visible onRequestClose={closePicker}>{phoneFolderBrowserCard}</RNModal>
+        : null;
 
     const streamlineSections = streamline ? (
         <StreamlineSections
@@ -3324,7 +3393,7 @@ function NewSessionScreen() {
             visible
             anchor={streamlineAnchor}
             onClose={closePicker}
-            width={300}
+            width={streamlinePhone ? streamlineAnchor.width : 300}
             align="start"
             placement="auto"
             accessibilityLabel={pickerData.title}
@@ -3359,7 +3428,8 @@ function NewSessionScreen() {
             {isNativeMobile && (
                 <Header
                     title={<Text style={styles.mobileHeaderTitle}>{t('newSession.title')}</Text>}
-                    headerLeft={() => (
+                    // Phones (UI overhaul) reach New Session from the drawer, which leads away again, so it has no Back.
+                    headerLeft={!isTablet ? undefined : () => (
                         <Pressable
                             onPress={() => router.back()}
                             style={styles.mobileHeaderBackButton}
@@ -3471,20 +3541,22 @@ function NewSessionScreen() {
                         </>
                     ) : streamline ? (
                         <>
+                            {/* Phones (UI overhaul): the whole page scrolls, the composer after the choices. */}
                             <ScrollView
                                 style={styles.streamlineScroll}
-                                contentContainerStyle={styles.streamlinePhoneConfig}
+                                contentContainerStyle={[styles.streamlinePhoneConfig, { paddingBottom: 28 + safeArea.bottom }]}
                                 keyboardShouldPersistTaps="handled"
                                 testID="new-session-streamline"
                             >
                                 {modeHeader}
                                 {streamlineSections}
-                            </ScrollView>
-                            <View style={styles.inlineComposerWrap}>
-                                {composerNode}
+                                <View ref={streamlineComposerRef} style={styles.streamlinePhoneComposer} testID="streamline-composer">
+                                    {composerNode}
+                                </View>
                                 {streamlineSummary}
-                            </View>
+                            </ScrollView>
                             {streamlineChipPicker}
+                            {streamlinePhoneFolderBrowser}
                         </>
                     ) : (
                         <>
@@ -3505,7 +3577,8 @@ function NewSessionScreen() {
                         </>
                     )}
 
-                    <View style={{ height: Math.max(12, safeArea.bottom) }} />
+                    {/* The phone Streamline page pads its own scroll for the home indicator. */}
+                    {!(streamline && !isNativeMobile) && <View style={{ height: Math.max(12, safeArea.bottom) }} />}
                 </View>
             )}
 
@@ -3760,6 +3833,32 @@ const styles = StyleSheet.create((theme) => ({
         width: 250,
         marginTop: 4,
     },
+    // Phones: the title, the intro and a full-width switch, stacked.
+    modeHeaderPhone: {
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        flexWrap: 'nowrap',
+        gap: 12,
+    },
+    // `flex: 1` from the row layout would give the column a zero basis and collapse it.
+    modeHeaderTextPhone: {
+        flexGrow: 0,
+        flexShrink: 0,
+        flexBasis: 'auto',
+        minWidth: 0,
+    },
+    modeTitlePhone: {
+        fontSize: 24,
+        lineHeight: 30,
+    },
+    modeSubtitlePhone: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    modeSwitchPhone: {
+        width: '100%',
+        marginTop: 0,
+    },
     advancedModeSwitch: {
         width: 250,
         alignSelf: 'center',
@@ -3796,9 +3895,33 @@ const styles = StyleSheet.create((theme) => ({
     },
     streamlinePhoneConfig: {
         paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 12,
+        paddingTop: 18,
     },
+    streamlinePhoneComposer: {
+        marginTop: 22,
+        marginBottom: 10,
+    },
+    streamlineFloatingLayer: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    streamlineFloatingBackdrop: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+    },
+    streamlinePathPickerPhone: (exiting: boolean) => ({
+        marginTop: 0,
+        maxWidth: '100%',
+        width: '100%',
+        _web: {
+            boxShadow: theme.kilv.shadow,
+            transformOrigin: 'bottom center',
+            _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
+        },
+    }),
     configBox: {
         backgroundColor: theme.colors.input.background,
         borderRadius: theme.borderRadius.xl,

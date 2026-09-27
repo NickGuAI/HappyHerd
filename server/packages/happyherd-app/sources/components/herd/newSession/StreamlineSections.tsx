@@ -15,6 +15,8 @@ export type StreamlineProjectOption = { id: string; name: string };
 
 const FOLDER_CARD_WIDTH = 246;
 const COMMANDER_CARD_WIDTH = 208;
+/** Phones (UI overhaul): Commanders are square cards with the avatar and name. */
+const COMMANDER_SQUARE_SIZE = 104;
 
 /** Mono amber section label used across the Streamline form. */
 export function StreamlineLabel({ children, trailing }: { children: React.ReactNode; trailing?: React.ReactNode }) {
@@ -28,7 +30,8 @@ export function StreamlineLabel({ children, trailing }: { children: React.ReactN
 
 /**
  * The three Streamline choices: Commander, working folder and project. Wide
- * layouts wrap the cards; phones scroll each choice as a horizontal row.
+ * layouts wrap the cards. Phones (UI overhaul) scroll square Commander cards
+ * and folder chips sideways, edge to edge, and wrap the project chips.
  */
 export function StreamlineSections(props: {
     compact: boolean;
@@ -55,7 +58,50 @@ export function StreamlineSections(props: {
     const selectedKnown = props.folders.some(props.isFolderSelected);
 
     let index = 0;
-    const commanderCards = [
+    const commanderCards = props.compact ? [
+        <SquareCard
+            key="none"
+            index={index++}
+            selected={!props.commanderId}
+            onPress={() => props.onSelectCommander(null)}
+            testID="streamline-commander-none"
+            accessibilityLabel={`${t('uiCopy.noCommander')}, ${t('uiCopy.useGlobalAgentsMdOnly')}`}
+            leading={<View style={[styles.glyph, styles.glyphSquare]}><Ionicons name="document-text-outline" size={18} color={theme.colors.textSecondary} /></View>}
+            title={t('uiCopy.noCommander')}
+        />,
+        ...props.commanders.map((commander) => (
+            <SquareCard
+                key={commander.id}
+                index={index++}
+                selected={props.commanderId === commander.id}
+                onPress={() => props.onSelectCommander(commander.id)}
+                testID={`streamline-commander-${commander.id}`}
+                accessibilityLabel={commander.role ? `${commander.name}, ${commander.role}` : commander.name}
+                leading={(
+                    <CommanderSessionAvatar
+                        accessible={false}
+                        machineId={props.commanderMachineId}
+                        commanderId={commander.id}
+                        commanderName={commander.name}
+                        size={44}
+                    />
+                )}
+                title={commander.name}
+            />
+        )),
+        <SquareCard
+            key="create"
+            index={index++}
+            dashed
+            accent
+            role="button"
+            onPress={props.onCreateCommander}
+            testID="streamline-commander-create"
+            accessibilityLabel={t('happyHerd.commander.createTitle')}
+            leading={<View style={[styles.glyph, styles.glyphSquare, styles.glyphDashed]}><Ionicons name="add" size={18} color={theme.colors.textLink} /></View>}
+            title={t('common.create')}
+        />,
+    ] : [
         <ChoiceCard
             key="none"
             index={index++}
@@ -102,7 +148,48 @@ export function StreamlineSections(props: {
         />,
     ];
 
-    const folderCards = [
+    const folderCards = props.compact ? [
+        ...props.folders.map((folder) => (
+            <StreamlineFolderChip
+                key={`${folder.machineId}:${folder.path}`}
+                folder={folder}
+                selected={props.isFolderSelected(folder)}
+                onPress={() => props.onSelectFolder(folder)}
+            />
+        )),
+        ...(props.selectedFolder && !selectedKnown && props.selectedFolder.machineId && props.selectedFolder.path ? [
+            <StreamlineFolderChip
+                key="selected"
+                folder={{
+                    machineId: props.selectedFolder.machineId,
+                    path: props.selectedFolder.path,
+                    name: props.selectedFolder.name,
+                    machineName: props.selectedFolder.machineName ?? props.selectedFolder.machineId,
+                    online: true,
+                }}
+                selected
+                onPress={props.onChooseFolder}
+            />,
+        ] : []),
+        <Pressable
+            key="browse"
+            accessibilityRole="button"
+            accessibilityLabel={t('newSession.streamline.browseFolder')}
+            aria-expanded={props.chooseFolderOpen}
+            onPress={props.onChooseFolder}
+            testID="streamline-choose-folder"
+            style={({ hovered, pressed }: any) => [
+                styles.chip,
+                styles.chipTouch,
+                styles.cardDashed,
+                (hovered || pressed) && !props.chooseFolderOpen && styles.cardHovered,
+                props.chooseFolderOpen && styles.cardSelected,
+            ]}
+        >
+            <Ionicons name="add" size={15} color={theme.colors.textLink} />
+            <Text numberOfLines={1} style={[styles.chipText, styles.cardTitleAccent]}>{t('newSession.streamline.browseFolder')}</Text>
+        </Pressable>,
+    ] : [
         ...props.folders.map((folder) => (
             <StreamlineFolderCard
                 key={`${folder.machineId}:${folder.path}`}
@@ -143,13 +230,14 @@ export function StreamlineSections(props: {
     ];
 
     const projectChips = [
-        <ProjectChip key="none" label={t('projects.noProject')} selected={!props.projectId} onPress={() => props.onSelectProject(null)} />,
+        <ProjectChip key="none" label={t('projects.noProject')} selected={!props.projectId} touch={props.compact} onPress={() => props.onSelectProject(null)} />,
         ...props.projects.map((project) => (
             <ProjectChip
                 key={project.id}
                 label={project.name}
                 selected={props.projectId === project.id}
                 focus={props.focusProjectId === project.id}
+                touch={props.compact}
                 onPress={() => props.onSelectProject(project.id)}
             />
         )),
@@ -166,7 +254,8 @@ export function StreamlineSections(props: {
             {props.chooseFolderPopover}
 
             <StreamlineLabel>{t('projects.project')}</StreamlineLabel>
-            <ChoiceRow compact={props.compact} chips>{projectChips}</ChoiceRow>
+            {/* Project chips wrap on every width. */}
+            <ChoiceRow compact={false} chips>{projectChips}</ChoiceRow>
         </View>
     );
 }
@@ -179,6 +268,7 @@ function ChoiceRow({ compact, chips, children }: { compact: boolean; chips?: boo
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={[styles.row, styles.swipeContent, chips && styles.chipRow]}
                 style={styles.swipeRow}
+                testID="streamline-swipe-row"
             >
                 {children}
             </ScrollView>
@@ -232,6 +322,77 @@ function ChoiceCard(props: {
     );
 }
 
+/** Phones: a square card with the avatar or glyph above the name. */
+function SquareCard(props: {
+    index: number;
+    title: string;
+    accessibilityLabel: string;
+    leading: React.ReactNode;
+    selected?: boolean;
+    dashed?: boolean;
+    accent?: boolean;
+    role?: 'radio' | 'button';
+    onPress: () => void;
+    testID?: string;
+}) {
+    const role = props.role ?? 'radio';
+    return (
+        <Pressable
+            accessibilityRole={role}
+            accessibilityLabel={props.accessibilityLabel}
+            aria-checked={role === 'radio' ? !!props.selected : undefined}
+            onPress={props.onPress}
+            testID={props.testID}
+            style={({ hovered, pressed }: any) => [
+                styles.card(props.index),
+                styles.square,
+                props.dashed && styles.cardDashed,
+                (hovered || pressed) && !props.selected && styles.cardHovered,
+                props.selected && styles.cardSelected,
+            ]}
+        >
+            {props.leading}
+            <Text numberOfLines={2} style={[styles.squareTitle, props.accent && styles.cardTitleAccent]}>{props.title}</Text>
+        </Pressable>
+    );
+}
+
+/** Phones: a working folder as a chip, the name and then its machine, like the project chips. */
+function StreamlineFolderChip({ folder, selected, onPress }: {
+    folder: StreamlineFolderOption;
+    selected: boolean;
+    onPress: () => void;
+}) {
+    const repository = useGithubRepository(folder.online ? folder.machineId : null, folder.path);
+    const label = [
+        folder.name,
+        folder.path,
+        folder.machineName,
+        repository.status === 'github' ? t('newSession.streamline.githubBadge') : null,
+        folder.online ? null : t('status.offline'),
+    ].filter(Boolean).join(', ');
+    return (
+        <Pressable
+            accessibilityRole="radio"
+            accessibilityLabel={label}
+            aria-checked={selected}
+            disabled={!folder.online}
+            onPress={onPress}
+            testID={`streamline-folder-${folder.machineId}-${folder.name}`}
+            style={({ hovered, pressed }: any) => [
+                styles.chip,
+                styles.chipTouch,
+                (hovered || pressed) && !selected && styles.cardHovered,
+                selected && styles.cardSelected,
+                !folder.online && styles.cardDisabled,
+            ]}
+        >
+            <Text numberOfLines={1} style={styles.chipText}>{folder.name}</Text>
+            <Text numberOfLines={1} style={[styles.chipSub, selected && styles.chipSubSelected]}>{folder.machineName}</Text>
+        </Pressable>
+    );
+}
+
 function repositoryBadge(status: GithubRepositoryStatus): 'github' | 'none' | null {
     return status === 'github' ? 'github' : status === 'none' ? 'none' : null;
 }
@@ -280,7 +441,7 @@ function StreamlineFolderCard({ folder, selected, index, onPress }: {
     );
 }
 
-function ProjectChip({ label, selected, focus, onPress }: { label: string; selected: boolean; focus?: boolean; onPress: () => void }) {
+function ProjectChip({ label, selected, focus, touch, onPress }: { label: string; selected: boolean; focus?: boolean; touch?: boolean; onPress: () => void }) {
     const { theme } = useUnistyles();
     return (
         <Pressable
@@ -290,6 +451,7 @@ function ProjectChip({ label, selected, focus, onPress }: { label: string; selec
             onPress={onPress}
             style={({ hovered, pressed }: any) => [
                 styles.chip,
+                touch && styles.chipTouch,
                 (hovered || pressed) && !selected && styles.cardHovered,
                 selected && styles.cardSelected,
             ]}
@@ -408,6 +570,30 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         backgroundColor: theme.colors.surfaceHighest,
     },
+    glyphSquare: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+    },
+    // Phones: the Commander square.
+    square: {
+        width: COMMANDER_SQUARE_SIZE,
+        height: COMMANDER_SQUARE_SIZE,
+        minHeight: COMMANDER_SQUARE_SIZE,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+    },
+    squareTitle: {
+        maxWidth: '100%',
+        fontSize: 12.5,
+        lineHeight: 15,
+        textAlign: 'center',
+        color: theme.colors.text,
+        ...Typography.default('semiBold'),
+    },
     glyphDashed: {
         backgroundColor: 'transparent',
         borderWidth: 1,
@@ -481,5 +667,18 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 14,
         color: theme.colors.text,
         ...Typography.default(),
+    },
+    // Phones: touch-size chips.
+    chipTouch: {
+        height: 44,
+        flexShrink: 0,
+    },
+    chipSub: {
+        fontSize: 11.5,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
+    chipSubSelected: {
+        color: theme.colors.textSecondary,
     },
 }));

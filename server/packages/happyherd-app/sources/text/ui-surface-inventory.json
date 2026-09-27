@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "7556cddeab6b0c74b9fb11056e6c61d4a3476354298543e964e7870670c87567",
+  "sourceFingerprint": "828a0fbe9a4ae4fdcc51ef64fff940eec2765d7db9f8d4538b9cf53390d358a3",
   "routeCount": 43,
   "surfaceCount": 318,
   "hardcodedCopyCount": 0,
@@ -4070,6 +4070,7 @@
         "StreamlineSections"
       ],
       "translationKeys": [
+        "common.create",
         "happyHerd.commander.category",
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",

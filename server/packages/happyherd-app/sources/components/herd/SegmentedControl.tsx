@@ -13,7 +13,8 @@ export function HerdSegmentedControl<T extends string | number>(props: {
     options: ReadonlyArray<HerdSegmentOption<T>>;
     value: T;
     onChange: (value: T) => void;
-    size?: 'md' | 'sm';
+    /** `touch`: 44 px segments for phones (UI overhaul). */
+    size?: 'md' | 'sm' | 'touch';
     accessibilityLabel?: string;
     testID?: string;
 }) {
@@ -33,7 +34,12 @@ export function HerdSegmentedControl<T extends string | number>(props: {
                         aria-checked={selected}
                         accessibilityLabel={option.label}
                         onPress={() => onChange(option.value)}
-                        style={[styles.segment, size === 'sm' && styles.segmentSmall, optionIndex < options.length - 1 && styles.segmentDivider]}
+                        style={[
+                            styles.segment,
+                            size === 'sm' && styles.segmentSmall,
+                            size === 'touch' && styles.segmentTouch,
+                            optionIndex < options.length - 1 && styles.segmentDivider,
+                        ]}
                     >
                         <Text numberOfLines={1} style={[styles.label, size === 'sm' && styles.labelSmall, selected && styles.labelSelected]}>
                             {option.label}
@@ -74,6 +80,9 @@ const styles = StyleSheet.create((theme) => ({
     },
     segmentSmall: {
         minHeight: 32,
+    },
+    segmentTouch: {
+        minHeight: 44,
     },
     segmentDivider: {
         borderRightWidth: 1,

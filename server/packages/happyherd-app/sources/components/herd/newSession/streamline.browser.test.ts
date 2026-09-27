@@ -446,15 +446,58 @@ describe('Streamline New Session in the production style runtime', () => {
         await page.close();
     }, 30_000);
 
-    it('scrolls each choice as a swipe row on a phone', async () => {
+    const settle = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations()
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))
+        .map((animation) => animation.finished.catch(() => undefined))));
+    const rect = async (page: Page, testID: string) => {
+        const box = (await page.getByTestId(testID).first().boundingBox())!;
+        return { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
+    };
+
+    it('lays the phone page out as the approved mock, every choice on the 16 px gutter', async () => {
         for (const theme of ['light', 'dark'] as const) {
             const { page, errors } = await open({ theme, width: 390, height: 844 });
-            await page.getByTestId('streamline-sections').waitFor();
-            const rows = await page.getByTestId('streamline-sections').evaluate((root) => [...root.querySelectorAll('div')]
-                .filter((node) => getComputedStyle(node).overflowX === 'auto' || getComputedStyle(node).overflowX === 'scroll')
-                .map((node) => ({ scroll: node.scrollWidth, client: node.clientWidth })));
-            expect(rows.length).toBeGreaterThanOrEqual(3);
-            expect(rows.some((row) => row.scroll > row.client)).toBe(true);
+            const sections = page.getByTestId('streamline-sections');
+            await sections.waitFor();
+            await settle(page);
+            // The title, the intro and a full-width mode switch with 44 px segments, stacked in that order.
+            const title = (await page.getByText('Start New Session', { exact: true }).boundingBox())!;
+            expect(Math.round(title.x)).toBe(16);
+            const intro = (await page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).boundingBox())!;
+            const mode = await rect(page, 'new-session-mode');
+            expect(mode).toMatchObject({ x: 16, width: 390 - 32 });
+            expect(intro.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
+            expect(mode.y).toBeGreaterThanOrEqual(Math.floor(intro.y + intro.height));
+            for (const height of await page.getByTestId('new-session-mode').getByRole('radio').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))) {
+                expect(Math.round(height)).toBeGreaterThanOrEqual(44);
+            }
+            // Commanders: 104 px squares, the avatar or glyph above the name.
+            expect(await rect(page, 'streamline-commander-none')).toMatchObject({ x: 16, width: 104, height: 104 });
+            expect(await rect(page, 'streamline-commander-athena')).toMatchObject({ width: 104, height: 104 });
+            await expect(page.getByTestId('streamline-commander-athena').getAttribute('aria-label')).resolves.toBe('Athena, Engineering commander');
+            await expect(page.getByTestId('streamline-commander-create').getAttribute('role')).resolves.toBe('button');
+            // Working folders: chips with the machine after the name; the offline one is disabled.
+            const folder = page.getByTestId('streamline-folder-studio-mac-happyherd');
+            expect(await rect(page, 'streamline-folder-studio-mac-happyherd')).toMatchObject({ x: 16, height: 44 });
+            await expect(folder.innerText()).resolves.toMatch(/happyherd\s+studio-mac/);
+            await expect(folder.getAttribute('aria-label')).resolves.toContain('GitHub');
+            await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
+            expect((await rect(page, 'streamline-choose-folder')).height).toBe(44);
+            // Commanders and folders scroll sideways edge to edge; the project chips wrap.
+            const rows = page.getByTestId('streamline-swipe-row');
+            await expect(rows.count()).resolves.toBe(2);
+            for (const row of await rows.evaluateAll((nodes) => nodes.map((node) => ({ left: Math.round(node.getBoundingClientRect().left), width: Math.round(node.getBoundingClientRect().width) })))) {
+                expect(row).toEqual({ left: 0, width: 390 });
+            }
+            const projects = sections.getByRole('radio', { name: 'No Project', exact: true });
+            expect(Math.round((await projects.boundingBox())!.x)).toBe(16);
+            expect(Math.round((await projects.boundingBox())!.height)).toBe(44);
+            // The composer follows the choices in the page, then the summary.
+            const composer = await rect(page, 'streamline-composer');
+            expect(composer).toMatchObject({ x: 16, width: 390 - 32 });
+            const lastProject = (await sections.getByRole('radio').last().boundingBox())!;
+            expect(composer.y).toBeGreaterThan(lastProject.y + lastProject.height);
+            expect((await rect(page, 'streamline-summary')).y).toBeGreaterThanOrEqual(composer.y + composer.height);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
             await evidence(page, `streamline-phone-${theme}-390`);
             expect(errors).toEqual([]);
@@ -462,26 +505,25 @@ describe('Streamline New Session in the production style runtime', () => {
         }
     }, 40_000);
 
-    it('opens a chip picker as a card on a phone, inside the window, and applies the choice', async () => {
+    it('opens a chip picker across the composer on a phone, above it, and applies the choice', async () => {
         for (const theme of ['light', 'dark'] as const) {
             const { page, errors } = await open({ theme, width: 390, height: 844 });
             await page.getByTestId('streamline-sections').waitFor();
-            // Phones show the agent, permission and worktree chips.
-            const chip = (await page.getByTestId('streamline-chip-permission').boundingBox())!;
+            // A person brings the composer into view before choosing.
+            await page.getByTestId('streamline-composer').scrollIntoViewIfNeeded();
+            await settle(page);
+            const composer = await rect(page, 'streamline-composer');
             await page.getByTestId('streamline-chip-permission').click();
             const picker = page.getByTestId('streamline-chip-picker');
             await picker.waitFor();
-            // Anchored at the chip, as on desktop, never within 8 px of the window's edge.
             expect(await picker.evaluate((element) => [...element.classList])).toContain('herd-pop');
             await expect(page.getByTestId('streamline-chip-picker-handle').count()).resolves.toBe(0);
-            await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
-            const box = (await picker.boundingBox())!;
-            expect(box.width).toBe(300);
-            expect(box.x).toBeGreaterThanOrEqual(8);
-            expect(box.x + box.width).toBeLessThanOrEqual(390 - 8);
-            expect(box.y + box.height <= chip.y || box.y >= chip.y + chip.height).toBe(true);
+            await settle(page);
+            const box = await rect(page, 'streamline-chip-picker');
+            // The mock's picker: as wide as the composer, resting just above it.
+            expect({ x: box.x, width: box.width }).toEqual({ x: composer.x, width: composer.width });
+            expect(box.y + box.height).toBeLessThanOrEqual(composer.y - 7);
             expect(box.y).toBeGreaterThanOrEqual(8);
-            expect(box.y + box.height).toBeLessThanOrEqual(844 - 8);
             await evidence(page, `streamline-chip-picker-${theme}-390`);
             await picker.getByRole('radio', { name: 'plan' }).click();
             await expect.poll(() => picker.count()).toBe(0);
@@ -490,6 +532,26 @@ describe('Streamline New Session in the production style runtime', () => {
             await page.close();
         }
     }, 40_000);
+
+    it('opens the folder browser on a phone as a card on the bottom edge, and closes it from outside', async () => {
+        const { page, errors } = await open({ width: 390, height: 844 });
+        await page.getByTestId('streamline-sections').waitFor();
+        await page.getByTestId('streamline-choose-folder').click();
+        const browser = page.getByTestId('streamline-folder-browser');
+        await browser.waitFor();
+        await expect(page.getByTestId('streamline-choose-folder').getAttribute('aria-expanded')).resolves.toBe('true');
+        await settle(page);
+        const box = await rect(page, 'streamline-folder-browser');
+        expect({ x: box.x, width: box.width }).toEqual({ x: 8, width: 390 - 16 });
+        expect(844 - (box.y + box.height)).toBe(8);
+        expect(box.height).toBeLessThanOrEqual(Math.round(844 * 0.56));
+        await evidence(page, 'streamline-folder-browser-light-390');
+        await page.mouse.click(195, 40);
+        await expect.poll(() => browser.count()).toBe(0);
+        await expect(page.getByTestId('streamline-choose-folder').getAttribute('aria-expanded')).resolves.toBe('false');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('edits the Streamline defaults from their settings page', async () => {
         const { page, errors } = await open({ screen: 'settings', height: 1400 });
