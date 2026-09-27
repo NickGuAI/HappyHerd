@@ -1073,6 +1073,15 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
     '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = (flavor) => flavor !== 'dsh' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
+    // New Session's Streamline mode is covered by herd/newSession/streamline.browser.test.ts;
+    // these flows exercise the Advanced form.
+    '@/sync/streamlineDefaults': `
+        export const STREAMLINE_CODE_DEFAULTS = {};
+        export const normalizeStreamlineAgent = (agent) => agent ?? 'claude';
+        export const resolveStreamlineSelection = () => ({ permissionMode: null, modelMode: null, effortLevel: null });
+    `,
+    '@/sync/githubRepository': `export const useGithubRepository = () => ({ status: 'unknown', loading: false }); export const detectGithubRepository = async () => 'unknown';`,
+    '@/hooks/useStreamlineLocations': `export const useStreamlineLocations = () => [];`,
     '@/sync/agentDefaults': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentDefaults.ts')}';
         const realDefaults = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.agentSettings === true;

@@ -96,6 +96,29 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
   0.21 ignores `accessibilityState`, so upstream-style `accessibilityState` on
   these controls never reaches the DOM.
 
+## New Session: Streamline and Advanced
+
+The inherited New Session screen gains a web-only **Streamline** mode (the
+default, `newSessionMode`) next to the existing form, which is now labelled
+**Advanced**. Streamline never forks launch logic. It fills the same draft
+(machine, path, Commander, account project, agent, model, effort, permission,
+worktree) and starts through the existing `handleSend`, so "exactly one
+session per first message", retries and project assignment are unchanged.
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/app/(app)/new/index.tsx` | Extended | A `sessionMode` state (web: the synced default; native: always Advanced) and a mode switch in both layouts. Streamline renders `StreamlineSections`, composer chips (`StreamlineComposerChips`, opening the same `PickerContent` through an anchored `HerdPopover`) and `StreamlineSummary`. Effects apply the default agent once per entry and `resolveStreamlineSelection` once per agent, machine and catalog. A GitHub folder (`useGithubRepository`) gets `worktreeKey='__new__'` unless a Commander is selected, the setting is off, or the user edited the worktree chip for that folder. In Streamline, model, effort and permission picks change the launch only and never write Agent Defaults. Streamline lays out by width alone (`STREAMLINE_PHONE_MAX_WIDTH` 700), independent of the `fileDiffsSidebar` panel. | The Advanced form, pickers, keyboard, attachments, dictation, launch, validation, retry and native layouts; Advanced still writes GrokBuild/dsh/rig picks to Agent Defaults as before. | Take upstream changes to the form, pickers and `handleSend`. When upstream adds a launch dimension, give Streamline a chip for it if users should see it before sending. Keep the Streamline effects keyed so later chip edits survive re-renders. |
+| `sources/app/(app)/_layout.tsx` | Call site | Registers the `settings/streamline` Stack screen. | Every other screen. | Keep the entry when merging. |
+
+The Streamline defaults are Claude Opus 5.5 at xhigh with accept edits; Codex
+gpt-6-astra at xhigh with default permissions; Gemini 3.1 Pro at high with auto
+edit (stored only, because Gemini is retired in the launch registry); GrokBuild
+on its catalog default at high with accept edits; and dsh deepseek-v4-flash at
+medium with default permissions. They live in `sync/streamlineDefaults.ts` and
+resolve against the exact machine's advertised catalog. Choices come from the
+machine, so display names are the daemon's values (for example
+`claude-opus-5-5`, `acceptEdits`), exactly as in the Advanced pickers.
+
 ## HappyHerd-owned modules
 
 These files do not exist upstream; upstream merges never conflict with them.
@@ -119,5 +142,12 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/herd/shell/sessionRowPresentation.ts` | Row status line and agent chip rules. |
 | `sources/components/herd/shell/windowInsets.ts` | `HerdWindowInsetsContext` / `useWindowSafeAreaInsets` for fullscreen content inside the shell body. |
 | `sources/utils/newSessionMachine.ts` | `resolveNewSessionMachine`, the default-machine rule shared by New Session and the top bar's machine pill. |
+| `sources/components/herd/newSession/StreamlineSections.tsx` | Streamline's Commander cards, working-folder cards (with the GitHub badge) and project chips; swipe rows on phones. |
+| `sources/components/herd/newSession/StreamlineComposer.tsx` | Streamline composer chips and the defaults summary line. |
+| `sources/app/(app)/settings/streamline.tsx` | Streamline settings: default mode, default agent, the GitHub worktree rule, and per-agent model/effort/permission defaults from a capability source machine. |
+| `sources/sync/streamlineDefaults.ts` | Streamline code defaults and `resolveStreamlineSelection` (catalog-validated model, effort and permission). |
+| `sources/sync/githubRepository.ts` | Git and GitHub detection for a machine folder through the existing bash RPC (plain `git`, cached). |
+| `sources/hooks/useStreamlineLocations.ts` | Working folders from favorites, recent folders and Commander workspaces. |
+| `sources/utils/normalizeMachinePath.ts` | Shared machine-path identity for Streamline. |
 | `sources/components/SidebarNavigationButton.tsx` | HappyHerd-owned; restyled with tokens and given `active`, `emphasis` and `quiet` variants. |
 | `sources/components/sidebarNavigationLayout.ts` | HappyHerd-owned; the boundary-toggle and persistent-header helpers were removed with those controls. |

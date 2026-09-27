@@ -40,6 +40,11 @@ const mocks = vi.hoisted(() => {
         buildWorkspaceContextMessage: vi.fn(),
         clearWorkspaceContextFiles: vi.fn(),
         uploadPhase: 'idle',
+        newSessionMode: 'advanced' as 'streamline' | 'advanced',
+        githubStatus: 'unknown' as 'github' | 'git' | 'none' | 'unknown',
+        streamlineLocations: [] as any[],
+        streamlineGithubWorktree: true,
+        setAgentDefaultOverrides: vi.fn(),
     };
 });
 
@@ -242,6 +247,17 @@ vi.mock('@/sync/workspaceContext', () => ({
     ),
 }));
 
+vi.mock('@/components/CommanderSessionAvatar', async () => {
+    const ReactModule = await import('react');
+    return { CommanderSessionAvatar: (props: any) => ReactModule.createElement('CommanderSessionAvatar', props) };
+});
+vi.mock('@/sync/githubRepository', () => ({
+    useGithubRepository: () => ({ status: mocks.githubStatus, loading: false }),
+    detectGithubRepository: async () => mocks.githubStatus,
+}));
+vi.mock('@/hooks/useStreamlineLocations', () => ({
+    useStreamlineLocations: () => mocks.streamlineLocations,
+}));
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.renderMachines,
     useSessions: () => mocks.emptyList,
@@ -250,9 +266,13 @@ vi.mock('@/sync/storage', () => ({
         agentInputEnterToSend: false,
         fileDiffsSidebar: false,
         expImageUpload: mocks.expImageUpload,
+        newSessionMode: mocks.newSessionMode,
+        streamlineAgent: 'claude',
+        streamlineAgentDefaults: {},
+        streamlineGithubWorktree: mocks.streamlineGithubWorktree,
     })[key] ?? false,
     useSettingMutable: (key: string) => key === 'agentDefaultOverrides'
-        ? [mocks.overrides, vi.fn()]
+        ? [mocks.overrides, mocks.setAgentDefaultOverrides]
         : [mocks.emptyList, mocks.setFavorites],
     useLocalSetting: () => false,
     storage: { getState: () => ({ machines: mocks.liveMachines, projects: mocks.projects, settings: { focusMode: mocks.focusMode } }) },
@@ -465,7 +485,10 @@ function createDshMachine() {
 async function renderScreen() {
     let renderer!: ReturnType<typeof create>;
     await act(async () => {
-        renderer = create(React.createElement(NewSessionScreen));
+        renderer = create(React.createElement(NewSessionScreen), {
+            // Chips measure themselves to anchor their picker.
+            createNodeMock: () => ({ measureInWindow: (done: (...rect: number[]) => void) => done(40, 700, 90, 28) }),
+        });
         await Promise.resolve();
         await Promise.resolve();
     });
@@ -531,6 +554,10 @@ beforeEach(() => {
     mocks.expImageUpload = false;
     mocks.machineUploaderOptions = null;
     mocks.uploadPhase = 'idle';
+    mocks.newSessionMode = 'advanced';
+    mocks.githubStatus = 'unknown';
+    mocks.streamlineLocations = [];
+    mocks.streamlineGithubWorktree = true;
     mocks.draft = createDraft();
     const machine = createRigMachine();
     mocks.renderMachines = [machine];
@@ -1205,6 +1232,154 @@ describe('Full New Session provider launch', () => {
             'common.error',
             'uiCopy.theSelectedAgentConfigurationIsUnavailable',
         );
+        act(() => renderer.unmount());
+    });
+});
+
+function createClaudeMachine() {
+    const efforts = ['low', 'medium', 'high', 'xhigh', 'max'].map((code) => ({ code, value: code, ...(code === 'max' ? { isDefault: true } : {}) }));
+    return {
+        id: 'machine-1',
+        active: true,
+        activeAt: Date.now(),
+        metadata: {
+            homeDir: '/Users/dev',
+            host: 'studio',
+            cliAvailability: { claude: true },
+            agentCapabilities: {
+                claude: {
+                    detectedAt: 1,
+                    sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'daemon-defaults' },
+                    models: [
+                        { code: 'claude-opus-5', value: 'Opus 5', isDefault: true, effortLevels: efforts },
+                        { code: 'claude-opus-5-5', value: 'Opus 5.5', effortLevels: efforts },
+                    ],
+                    effortLevels: efforts,
+                    permissionModes: [
+                        { code: 'default', value: 'default' },
+                        { code: 'acceptEdits', value: 'acceptEdits' },
+                        { code: 'bypassPermissions', value: 'bypassPermissions', isDefault: true },
+                    ],
+                },
+            },
+        },
+    };
+}
+
+/** A draft whose setters write back, as the real store does. */
+function createLiveDraft(overrides: Record<string, unknown> = {}) {
+    const draft: any = createDraft(overrides);
+    for (const [setter, field] of [
+        ['setModelMode', 'modelMode'],
+        ['setEffortLevel', 'effortLevel'],
+        ['setPermissionMode', 'permissionMode'],
+        ['setAgentType', 'agentType'],
+        ['setPath', 'selectedPath'],
+        ['setCommanderId', 'selectedCommanderId'],
+        ['setSessionType', 'sessionType'],
+        ['setWorktreeKey', 'worktreeKey'],
+    ] as const) {
+        draft[setter] = vi.fn((value: unknown) => { mocks.draft[field] = value; });
+    }
+    return draft;
+}
+
+async function settle(renderer: ReturnType<typeof create>) {
+    for (let pass = 0; pass < 3; pass += 1) {
+        await act(async () => {
+            renderer.update(React.createElement(NewSessionScreen));
+            await Promise.resolve();
+        });
+    }
+}
+
+describe('Streamline New Session', () => {
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = 'streamline';
+        mocks.dimensions = { width: 1440, height: 900 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.streamlineLocations = [{ machineId: 'machine-1', path: '/Users/dev/repo', name: 'repo', machineName: 'studio', online: true }];
+    });
+
+    it('opens in Streamline on the web and switches to the full Advanced form', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const streamlineRoots = () => renderer.root.findAll((node: any) => node.props?.testID === 'streamline-sections');
+        expect(streamlineRoots().length).toBeGreaterThan(0);
+        const mode = renderer.root.find((node: any) => node.props?.testID === 'new-session-mode');
+        await act(async () => { mode.props.onChange('advanced'); });
+        expect(streamlineRoots()).toHaveLength(0);
+        expect(renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'sessionInfo.path').length).toBeGreaterThan(0);
+        act(() => renderer.unmount());
+    });
+
+    it('starts one Claude session with the Streamline defaults in a new worktree for a GitHub folder', async () => {
+        mocks.githubStatus = 'github';
+        const renderer = await renderScreen();
+        await settle(renderer);
+
+        expect(mocks.draft.setModelMode).toHaveBeenCalledWith('claude-opus-5-5');
+        expect(mocks.draft.setEffortLevel).toHaveBeenCalledWith('xhigh');
+        expect(mocks.draft.setPermissionMode).toHaveBeenCalledWith('acceptEdits');
+        const summary = renderer.root.find((node: any) => node.props?.testID === 'streamline-summary');
+        expect(summary.props).toBeDefined();
+
+        await pressSend(renderer);
+        expect(mocks.createWorktree).toHaveBeenCalledTimes(1);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(1);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'claude',
+            modelMode: 'claude-opus-5-5',
+            effortLevel: 'xhigh',
+            permissionMode: 'acceptEdits',
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('runs directly in a folder that is not a GitHub repository', async () => {
+        mocks.githubStatus = 'none';
+        const renderer = await renderScreen();
+        await settle(renderer);
+        await pressSend(renderer);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+
+    it('never adds a worktree when the setting is off', async () => {
+        mocks.githubStatus = 'github';
+        mocks.streamlineGithubWorktree = false;
+        const renderer = await renderScreen();
+        await settle(renderer);
+        await pressSend(renderer);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the saved Agent Defaults when a Streamline chip changes this launch', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createLiveDraft({ agentType: 'dsh', selectedPath: '/Users/dev/repo' });
+        const renderer = await renderScreen();
+        await settle(renderer);
+        // dsh's Streamline effort (medium) and permission (default) are not advertised, so the catalog defaults apply.
+        expect(mocks.draft.setModelMode).toHaveBeenCalledWith('deepseek-v4-flash');
+        expect(mocks.draft.setPermissionMode).toHaveBeenCalledWith('workspace-write');
+
+        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-permission');
+        await act(async () => { chip.props.onPress(); });
+        await settle(renderer);
+        const picker = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-picker');
+        const option = picker.findAll((node: any) => node.props?.accessibilityLabel === 'read-only' && typeof node.props?.onPress === 'function')[0];
+        expect(option).toBeDefined();
+        await act(async () => { option.props.onPress(); });
+        expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('read-only');
+        expect(mocks.setAgentDefaultOverrides).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
 });

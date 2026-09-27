@@ -421,7 +421,30 @@
     "newWorkspace": "neuer Arbeitsbereich",
     "happyherdAgentUnsupported": "Dieser Rechner kann keine HappyHerd-Agent-Sitzungen starten",
     "workspaceNoLongerAvailable": "Der ausgewählte HappyHerd-Agent-Arbeitsbereich ist nicht mehr verfügbar.",
-    "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
+    "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "Erweitert",
+      "intro": "Schnell eine Sitzung mit den vorkonfigurierten Agenten-Standardeinstellungen starten.",
+      "whereLabel": "Arbeitsordner",
+      "browseFolder": "Ordner auswählen",
+      "githubBadge": "GitHub",
+      "notGithub": "Kein git-Repository",
+      "defaultsSummary": "Verwendet {model} mit {effort} Aufwand und {permission}.",
+      "worktreeOn": "Erstellt einen neuen git-Worktree",
+      "worktreeOff": "Wird direkt im ausgewählten Ordner ausgeführt",
+      "settingsLink": "Streamline-Einstellungen",
+      "settingsSubtitle": "Standardmodelle, Aufwandstufen und Berechtigungsmodi für jeden Agenten beim Starten einer Streamline-Sitzung konfigurieren.",
+      "defaultModeTitle": "Standard-Sitzungsmodus",
+      "defaultAgentTitle": "Standard-Agent",
+      "defaultAgentDescription": "Auswählen, welcher Agent im Streamline-Modus automatisch startet.",
+      "agentDefaultsTitle": "Standardoptionen für Agenten",
+      "agentDefaultsDescription": "Standardoptionen für jeden Agenten festlegen, die auf den Composer-Chips weiterhin geändert werden können.",
+      "latestModel": "Neueste",
+      "latestModelDescription": "Das neueste Modell wird beim Start der Sitzung ermittelt.",
+      "worktreeRuleTitle": "Immer git-Worktrees verwenden",
+      "worktreeRuleDescription": "Sitzungen bei Verwendung von GitHub-Repositories immer in einem neuen git-Worktree starten."
+    }
   },
   "agentDefaults": {
     "capabilitySource": "Quellrechner für Funktionen",

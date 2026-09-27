@@ -504,3 +504,4 @@ UI_OVERHAUL_FOUNDATION	accepted	feat(app): add the fluid interface foundation	se
 UI_OVERHAUL_DESKTOP_SHELL	accepted	feat(app): add the fluid desktop shell	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
 UI_OVERHAUL_STREAMLINE_DEFAULTS	accepted	feat(app): add synced Streamline defaults and capability resolution	server/packages/happyherd-app/sources/sync/streamlineDefaults.test.ts
 UI_OVERHAUL_STREAMLINE_FOLDERS	accepted	feat(app): discover Streamline GitHub repositories and working folders	server/packages/happyherd-app/sources/sync/githubRepository.test.ts
+UI_OVERHAUL_STREAMLINE_START	accepted	feat(app): start sessions from Streamline	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts

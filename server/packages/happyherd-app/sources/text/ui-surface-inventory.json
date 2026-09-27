@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "af7440fca1d3a0e92a178ced798ffca0db5a295ba7ea39d23a0d7215f1a5a702",
-  "routeCount": 41,
-  "surfaceCount": 291,
+  "sourceFingerprint": "81c92936a72fa885c0392589e818c563fe736b576cdad4e620e89a768907b12a",
+  "routeCount": 42,
+  "surfaceCount": 294,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -289,6 +289,10 @@
         "newSession.happyherdAgentUnsupported",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
+        "newSession.streamline.defaultsSummary",
+        "newSession.streamline.intro",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
         "newSession.title",
         "newSession.workspace",
@@ -823,6 +827,46 @@
       "states": []
     },
     {
+      "path": "/settings/streamline",
+      "owner": "sources/app/(app)/settings/streamline.tsx",
+      "translationKeys": [
+        "agentDefaults.capabilitiesFromMachine",
+        "agentDefaults.capabilitySource",
+        "agentDefaults.capabilitySourceDescription",
+        "agentDefaults.providerUnavailable",
+        "agentDefaults.providerUnavailableOnMachine",
+        "agentDefaults.selectMachineForProvider",
+        "common.reset",
+        "machine.machineGroup",
+        "newSession.streamline.agentDefaultsDescription",
+        "newSession.streamline.agentDefaultsTitle",
+        "newSession.streamline.defaultAgentDescription",
+        "newSession.streamline.defaultAgentTitle",
+        "newSession.streamline.defaultModeTitle",
+        "newSession.streamline.intro",
+        "newSession.streamline.latestModel",
+        "newSession.streamline.latestModelDescription",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
+        "newSession.streamline.settingsSubtitle",
+        "newSession.streamline.worktreeRuleDescription",
+        "newSession.streamline.worktreeRuleTitle",
+        "status.lastSeen",
+        "status.offline",
+        "status.online",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "workspace.noMachines",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "offline"
+      ]
+    },
+    {
       "path": "/settings/usage",
       "owner": "sources/app/(app)/settings/usage.tsx",
       "translationKeys": [],
@@ -1150,6 +1194,7 @@
         "navigation.linkNewDevice",
         "navigation.restoreWithSecretKey",
         "navigation.whatsNew",
+        "newSession.streamline.modeStreamline",
         "newSession.title",
         "sessionHistory.title",
         "settings.account",
@@ -1504,6 +1549,10 @@
         "newSession.happyherdAgentUnsupported",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
+        "newSession.streamline.defaultsSummary",
+        "newSession.streamline.intro",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
         "newSession.title",
         "newSession.workspace",
@@ -2127,6 +2176,51 @@
         "settingsLanguage.description"
       ],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/streamline.tsx",
+      "kind": "route",
+      "route": "/settings/streamline",
+      "exports": [
+        "StreamlineSettingsScreen"
+      ],
+      "translationKeys": [
+        "agentDefaults.capabilitiesFromMachine",
+        "agentDefaults.capabilitySource",
+        "agentDefaults.capabilitySourceDescription",
+        "agentDefaults.providerUnavailable",
+        "agentDefaults.providerUnavailableOnMachine",
+        "agentDefaults.selectMachineForProvider",
+        "common.reset",
+        "machine.machineGroup",
+        "newSession.streamline.agentDefaultsDescription",
+        "newSession.streamline.agentDefaultsTitle",
+        "newSession.streamline.defaultAgentDescription",
+        "newSession.streamline.defaultAgentTitle",
+        "newSession.streamline.defaultModeTitle",
+        "newSession.streamline.intro",
+        "newSession.streamline.latestModel",
+        "newSession.streamline.latestModelDescription",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
+        "newSession.streamline.settingsSubtitle",
+        "newSession.streamline.worktreeRuleDescription",
+        "newSession.streamline.worktreeRuleTitle",
+        "status.lastSeen",
+        "status.offline",
+        "status.online",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "workspace.noMachines",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "offline"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -3866,6 +3960,50 @@
       ],
       "translationKeys": [],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/StreamlineComposer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StreamlineComposerChips",
+        "StreamlineSummary"
+      ],
+      "translationKeys": [
+        "newSession.streamline.settingsLink",
+        "newSession.streamline.worktreeOff",
+        "newSession.streamline.worktreeOn"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/StreamlineSections.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StreamlineLabel",
+        "StreamlineSections"
+      ],
+      "translationKeys": [
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "newSession.streamline.browseFolder",
+        "newSession.streamline.githubBadge",
+        "newSession.streamline.notGithub",
+        "newSession.streamline.whereLabel",
+        "projects.noProject",
+        "projects.project",
+        "status.offline",
+        "uiCopy.noCommander",
+        "uiCopy.useGlobalAgentsMdOnly",
+        "workspace.browseMachine"
+      ],
+      "states": [
+        "offline"
+      ],
       "hardcodedCopy": []
     },
     {

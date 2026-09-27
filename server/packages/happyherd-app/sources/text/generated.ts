@@ -683,6 +683,27 @@ export type TranslationKey =
     | "newSession.newWorkspace"
     | "newSession.noWorkspace"
     | "newSession.showHidden"
+    | "newSession.streamline.agentDefaultsDescription"
+    | "newSession.streamline.agentDefaultsTitle"
+    | "newSession.streamline.browseFolder"
+    | "newSession.streamline.defaultAgentDescription"
+    | "newSession.streamline.defaultAgentTitle"
+    | "newSession.streamline.defaultModeTitle"
+    | "newSession.streamline.defaultsSummary"
+    | "newSession.streamline.githubBadge"
+    | "newSession.streamline.intro"
+    | "newSession.streamline.latestModel"
+    | "newSession.streamline.latestModelDescription"
+    | "newSession.streamline.modeAdvanced"
+    | "newSession.streamline.modeStreamline"
+    | "newSession.streamline.notGithub"
+    | "newSession.streamline.settingsLink"
+    | "newSession.streamline.settingsSubtitle"
+    | "newSession.streamline.whereLabel"
+    | "newSession.streamline.worktreeOff"
+    | "newSession.streamline.worktreeOn"
+    | "newSession.streamline.worktreeRuleDescription"
+    | "newSession.streamline.worktreeRuleTitle"
     | "newSession.switchMachinesHint"
     | "newSession.title"
     | "newSession.workspace"
@@ -1698,6 +1719,7 @@ export interface TranslationParamsByKey {
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
+    "newSession.streamline.defaultsSummary": { effort: string; model: string; permission: string };
     "offlineMachines.singleUnreachable": { name: string };
     "projects.renamePrompt": { name: string };
     "projects.sessionCount": { count: number };

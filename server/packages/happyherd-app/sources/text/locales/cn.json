@@ -335,7 +335,30 @@
     "newWorkspace": "新建工作区",
     "happyherdAgentUnsupported": "此机器无法启动 HappyHerd Agent 会话",
     "workspaceNoLongerAvailable": "所选的 HappyHerd Agent 工作区已不可用。",
-    "interruptPressStop": "如需中断，请按“停止”"
+    "interruptPressStop": "如需中断，请按“停止”",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "高级",
+      "intro": "使用预配置的智能体默认设置快速启动会话。",
+      "whereLabel": "工作文件夹",
+      "browseFolder": "选择文件夹",
+      "githubBadge": "GitHub",
+      "notGithub": "非 git 仓库",
+      "defaultsSummary": "使用 {model}，工作量 {effort}，{permission}。",
+      "worktreeOn": "创建新的 git 工作树",
+      "worktreeOff": "直接在选定的文件夹中运行",
+      "settingsLink": "Streamline 设置",
+      "settingsSubtitle": "配置启动 Streamline 会话时每个智能体的默认模型、工作量和权限模式。",
+      "defaultModeTitle": "默认会话模式",
+      "defaultAgentTitle": "默认智能体",
+      "defaultAgentDescription": "选择在 Streamline 模式下自动启动的智能体。",
+      "agentDefaultsTitle": "智能体默认选项",
+      "agentDefaultsDescription": "为每个智能体设置默认选项，仍可在输入框的选项中修改。",
+      "latestModel": "最新",
+      "latestModelDescription": "最新模型将在会话启动时解析。",
+      "worktreeRuleTitle": "始终使用 git 工作树",
+      "worktreeRuleDescription": "使用 GitHub 仓库时，始终在新的 git 工作树中启动会话。"
+    }
   },
   "agentDefaults": {
     "capabilitySource": "功能来源设备",

@@ -24,9 +24,13 @@ export function measureHerdAnchor(node: View | null): Promise<HerdAnchorRect | n
     });
 }
 
+/** Below this much room under the trigger, an `auto` popover opens upward when there is more room above. */
+const POPOVER_FLIP_THRESHOLD = 280;
+
 /**
  * Places a popover below its trigger, aligned to the trigger's start or end
- * edge and kept inside the window.
+ * edge and kept inside the window. `auto` placement opens upward instead when
+ * the trigger sits near the bottom of the window.
  */
 export function resolveHerdPopoverPosition(input: {
     anchor: HerdAnchorRect;
@@ -34,15 +38,25 @@ export function resolveHerdPopoverPosition(input: {
     align: 'start' | 'end';
     windowWidth: number;
     windowHeight: number;
-}): { left: number; top: number; maxHeight: number } {
+    placement?: 'below' | 'auto';
+}): { left: number; top?: number; bottom?: number; maxHeight: number } {
     const { anchor, width, align, windowWidth, windowHeight } = input;
     const preferredLeft = align === 'end' ? anchor.x + anchor.width - width : anchor.x;
     const left = Math.max(POPOVER_MARGIN, Math.min(windowWidth - width - POPOVER_MARGIN, preferredLeft));
     const top = anchor.y + anchor.height + POPOVER_GAP;
+    const roomBelow = windowHeight - top - POPOVER_MARGIN;
+    const roomAbove = anchor.y - POPOVER_GAP - POPOVER_MARGIN;
+    if (input.placement === 'auto' && roomBelow < POPOVER_FLIP_THRESHOLD && roomAbove > roomBelow) {
+        return {
+            left,
+            bottom: windowHeight - anchor.y + POPOVER_GAP,
+            maxHeight: Math.max(POPOVER_MIN_HEIGHT, roomAbove),
+        };
+    }
     return {
         left,
         top,
-        maxHeight: Math.max(POPOVER_MIN_HEIGHT, windowHeight - top - POPOVER_MARGIN),
+        maxHeight: Math.max(POPOVER_MIN_HEIGHT, roomBelow),
     };
 }
 
@@ -77,6 +91,7 @@ export function HerdPopover(props: {
     onClose: () => void;
     width: number;
     align?: 'start' | 'end';
+    placement?: 'below' | 'auto';
     accessibilityLabel?: string;
     testID?: string;
     children: React.ReactNode;
@@ -92,6 +107,7 @@ export function HerdPopover(props: {
         align: props.align ?? 'end',
         windowWidth,
         windowHeight,
+        placement: props.placement,
     });
 
     return (
@@ -110,6 +126,7 @@ export function HerdPopover(props: {
                     style={[styles.card, {
                         left: position.left,
                         top: position.top,
+                        bottom: position.bottom,
                         width: props.width,
                         maxHeight: position.maxHeight,
                     }]}

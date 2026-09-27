@@ -421,7 +421,30 @@
     "newWorkspace": "new workspace",
     "happyherdAgentUnsupported": "This machine cannot start HappyHerd agent sessions",
     "workspaceNoLongerAvailable": "The selected HappyHerd Agent workspace is no longer available.",
-    "interruptPressStop": "To interrupt press stop"
+    "interruptPressStop": "To interrupt press stop",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "Advanced",
+      "intro": "Start a session quickly using your preconfigured agent defaults.",
+      "whereLabel": "Working folder",
+      "browseFolder": "Choose folder",
+      "githubBadge": "GitHub",
+      "notGithub": "Not a git repository",
+      "defaultsSummary": "Uses {model} with {effort} effort and {permission}.",
+      "worktreeOn": "Creates a new git worktree",
+      "worktreeOff": "Runs directly in the selected folder",
+      "settingsLink": "Streamline settings",
+      "settingsSubtitle": "Configure default models, effort levels, and permission modes for each agent when starting a Streamline session.",
+      "defaultModeTitle": "Default session mode",
+      "defaultAgentTitle": "Default agent",
+      "defaultAgentDescription": "Choose which agent starts automatically in Streamline mode.",
+      "agentDefaultsTitle": "Agent option defaults",
+      "agentDefaultsDescription": "Set default options for each agent, which can still be changed on the composer chips.",
+      "latestModel": "Latest",
+      "latestModelDescription": "The latest model is resolved when the session starts.",
+      "worktreeRuleTitle": "Always use git worktrees",
+      "worktreeRuleDescription": "Always start sessions in a new git worktree when using GitHub repositories."
+    }
   },
   "agentDefaults": {
     "capabilitySource": "Capability Source Machine",

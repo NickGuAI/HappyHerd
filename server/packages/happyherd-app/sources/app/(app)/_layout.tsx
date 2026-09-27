@@ -211,6 +211,12 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="settings/streamline"
+                options={{
+                    headerTitle: t('newSession.streamline.modeStreamline'),
+                }}
+            />
+            <Stack.Screen
                 name="terminal/connect"
                 options={{
                     headerTitle: t('navigation.connectTerminal'),
