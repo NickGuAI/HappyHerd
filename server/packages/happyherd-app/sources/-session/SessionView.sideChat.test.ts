@@ -1369,6 +1369,57 @@ describe('SessionView Web composer workspace access', () => {
     });
 });
 
+describe('SessionView right panel and Workspace below 1,100 px on desktop Web', () => {
+    function split(renderer: ReactTestRenderer) {
+        return renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+    }
+
+    it('slides Side chats in over the chat and hides the sheet without closing the panel', () => {
+        mocks.width = 1024;
+        mocks.height = 1366;
+        const renderer = renderParent();
+        expect(split(renderer).props.overlay).toMatchObject({ workspaceOpen: false, panelOpen: false });
+        expect(sessionSidebarDividers(renderer)).toHaveLength(0);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(split(renderer).props.overlay.panelOpen).toBe(true);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+        const childComposer = composerForSession(renderer, 'newest');
+
+        act(() => split(renderer).props.overlay.onDismiss());
+        expect(split(renderer).props.overlay.panelOpen).toBe(false);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+        expect(composerForSession(renderer, 'newest')).toBe(childComposer);
+
+        // The header reopens the same panel instead of collapsing it.
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(split(renderer).props.overlay.panelOpen).toBe(true);
+        expect(composerForSession(renderer, 'newest')).toBe(childComposer);
+        expect(mocks.closeSideChatSession).not.toHaveBeenCalled();
+    });
+
+    it('opens the Workspace in the same sheet and keeps its tabs and the chat through a dismissal', () => {
+        mocks.width = 1024;
+        mocks.height = 1366;
+        const renderer = renderParent();
+        const mainComposer = composerForSession(renderer, 'parent');
+        openParentWorkspaceFile(renderer, '/work/a.ts');
+        expect(split(renderer).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
+        expect(split(renderer).props.overlay).toMatchObject({ workspaceOpen: true, panelOpen: false });
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.compact).toBe(false);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+
+        act(() => workspace.props.onHide());
+        expect(split(renderer).props.overlay.workspaceOpen).toBe(false);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+        expect(composerForSession(renderer, 'parent')).toBe(mainComposer);
+    });
+});
+
 describe('SessionView side-chat integration', () => {
     it('lists Changes before Side chats as the right panel tabs and opens either from its tab', () => {
         const renderer = renderParent();

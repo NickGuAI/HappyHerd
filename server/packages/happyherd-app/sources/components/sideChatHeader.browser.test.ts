@@ -2801,7 +2801,8 @@ describe('Side chats browser interaction', () => {
     }, 15_000);
 
     it('expands the real session workspace to 75 percent without losing mounted chat or file state', async () => {
-        const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+        // The docked split starts at 1,100 px; below it the Workspace is an overlay sheet (UI overhaul).
+        const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
         await page.addInitScript(() => {
             (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { zenMode: true };
         });
@@ -2834,7 +2835,9 @@ describe('Side chats browser interaction', () => {
         });
         const chatScroll = foreground.locator('[data-retention-chat-scroll="mounted"]');
         await chatScroll.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(foreground.getByText('Changes').count()).resolves.toBe(0);
+        // Zen mode keeps the right panel mounted but gives it no width.
+        await expect(foreground.getByTestId('desktop-right-panel-host')
+            .evaluate((element) => element.getBoundingClientRect().width)).resolves.toBe(0);
         await composerDraft.fill('main draft survives first open');
         await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'main'; });
 
@@ -2926,6 +2929,101 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it('slides the Workspace and the right panel over the chat below 1100px and keeps every draft mounted', async () => {
+        const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const composerDraft = foreground.locator('textarea').first();
+        await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
+        await composerDraft.fill('main draft survives the overlay');
+        await composerDraft.evaluate((element) => { element.dataset.overlayComposer = 'main'; });
+        await foreground.evaluate((root) => {
+            const scroll = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => (
+                getComputedStyle(element).overflowY === 'auto'
+                && element.scrollHeight > element.clientHeight
+                && element.textContent?.includes('Fixture chat line')
+            ));
+            if (!scroll) throw new Error('real ChatList scroll container was not rendered');
+            scroll.dataset.overlayChatScroll = 'mounted';
+            scroll.scrollTop = 120;
+        });
+        const chatScroll = foreground.locator('[data-overlay-chat-scroll="mounted"]');
+        const chatScrollTop = await chatScroll.evaluate((element) => element.scrollTop);
+        expect(chatScrollTop).toBeGreaterThan(0);
+
+        // The Workspace opens as a sheet over the chat: no divider, a scrim beside it.
+        await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
+        const [hostBox, foregroundBox] = await Promise.all([host.boundingBox(), foreground.boundingBox()]);
+        if (!hostBox || !foregroundBox) throw new Error('overlay sheet has no layout');
+        expect(Math.abs(hostBox.x + hostBox.width - (foregroundBox.x + foregroundBox.width))).toBeLessThan(2);
+        expect(hostBox.width).toBeLessThan(foregroundBox.width - 40);
+
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = workspace.locator('textarea.code-editor-textarea');
+        await editor.waitFor({ state: 'visible', timeout: 3_000 });
+        const unsavedValue = Array.from({ length: 60 }, (_, index) => `overlay draft line ${index}`).join('\n');
+        await editor.fill(unsavedValue);
+        await editor.evaluate((element) => { element.dataset.overlayEditor = 'mounted'; });
+
+        // The scrim closes the sheet; nothing unmounts.
+        const scrimBox = await scrim.boundingBox();
+        if (!scrimBox) throw new Error('overlay scrim has no layout');
+        await page.mouse.click(scrimBox.x + 24, scrimBox.y + scrimBox.height / 2);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await expect(host.isVisible()).resolves.toBe(false);
+        await expect(foreground.locator('textarea[data-overlay-editor="mounted"]').count()).resolves.toBe(1);
+        await expect(foreground.locator('textarea[data-overlay-composer="main"]').inputValue())
+            .resolves.toBe('main draft survives the overlay');
+        await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(chatScrollTop);
+
+        // Reopening shows the same editor with its unsaved text.
+        await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(editor.getAttribute('data-overlay-editor')).resolves.toBe('mounted');
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+
+        // Escape closes it too once focus leaves the editor.
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+        await page.keyboard.press('Escape');
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+
+        // Side chats use the same sheet; Hide panel keeps the child composer mounted.
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const childDraft = foreground.locator('textarea').filter({ visible: true }).last();
+        await childDraft.fill('side chat draft survives');
+        await childDraft.evaluate((element) => { element.dataset.overlayComposer = 'child'; });
+        await foreground.getByTestId('files-sidebar-hide').click();
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.locator('textarea[data-overlay-composer="child"]').inputValue())
+            .resolves.toBe('side chat draft survives');
+        await expect(foreground.locator('textarea[data-overlay-composer="main"]').inputValue())
+            .resolves.toBe('main draft survives the overlay');
+        await expect(foreground.locator('textarea[data-overlay-editor="mounted"]').inputValue()).resolves.toBe(unsavedValue);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 20_000);
 
     it('opens a same-session link directly in the compact mobile workspace', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });

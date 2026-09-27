@@ -2,10 +2,17 @@ export const SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH = 1100;
 
 export type SideChatSurface = 'sidebar' | 'fullscreen';
 
+/**
+ * How the right panel and the Workspace meet the chat: docked beside it, or
+ * (below 1,100 px on desktop Web) as a sheet that slides in over it.
+ */
+export type RightPanelPresentation = 'docked' | 'overlay';
+
 export function resolveSessionSidebarPresentation(input: {
     platform: string;
     runningOnMac: boolean;
     windowWidth: number;
+    deviceType: 'phone' | 'tablet';
     zenMode: boolean;
     workspaceLinkPanelOpen: boolean;
     canUseFilePanels: boolean;
@@ -13,13 +20,20 @@ export function resolveSessionSidebarPresentation(input: {
     fileSidebarAvailable: boolean;
     sideChatSidebarAvailable: boolean;
     sideChatSurface: SideChatSurface;
+    rightPanelPresentation: RightPanelPresentation;
 } {
     const wideSidebarFrame = (input.platform === 'web' || input.runningOnMac)
         && input.windowWidth >= SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
-    const sideChatSidebarAvailable = wideSidebarFrame;
+    // Below the wide frame, desktop Web keeps the same panels as an overlay
+    // sheet (UI overhaul). Web phones keep their full-screen views.
+    const overlaySidebarFrame = input.platform === 'web'
+        && input.deviceType !== 'phone'
+        && input.windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const sidebarFrame = wideSidebarFrame || overlaySidebarFrame;
+    const sideChatSidebarAvailable = sidebarFrame;
 
     return {
-        fileSidebarAvailable: wideSidebarFrame
+        fileSidebarAvailable: sidebarFrame
             && input.canUseFilePanels,
         sideChatSidebarAvailable,
         // Externally created children remain reachable even when the current
@@ -29,6 +43,7 @@ export function resolveSessionSidebarPresentation(input: {
             && !input.workspaceLinkPanelOpen
             ? 'sidebar'
             : 'fullscreen',
+        rightPanelPresentation: overlaySidebarFrame ? 'overlay' : 'docked',
     };
 }
 

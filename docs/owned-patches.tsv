@@ -541,3 +541,4 @@ UI_OVERHAUL_PARITY_MOBILE	accepted	docs(app): record the Web Mobile shell and ov
 UI_OVERHAUL_PANELS_PARTS	accepted	feat(app): add the side panel building blocks	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
 UI_OVERHAUL_PANELS_RIGHT	accepted	feat(app): restyle the right panel with pill tabs and the Changes list	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
 UI_OVERHAUL_PANELS_WORKSPACE	accepted	feat(app): restyle the Workspace tabs, file bar, comments and live view	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANELS_OVERLAY	accepted	feat(app): slide the right panel and Workspace over the chat below 1100px	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts

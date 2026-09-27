@@ -51,6 +51,7 @@ import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloo
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
+import { resolveHerdSheetWidth } from '@/components/herd/panels/PanelOverlay';
 import {
     closeDesktopFile,
     deletedDesktopFilePaths,
@@ -139,6 +140,9 @@ import { deliverSessionTurn } from '@/utils/sessionContinuation';
 import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 
 const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
+// Preferred overlay sheet widths below 1,100 px (each leaves a strip of scrim).
+const OVERLAY_PANEL_SHEET_WIDTH = 440;
+const OVERLAY_WORKSPACE_SHEET_WIDTH = 760;
 
 type ChatFileWorkspace = {
     files: DesktopFileWorkspaceState;
@@ -213,6 +217,7 @@ export const SessionView = React.memo((props: {
         platform: Platform.OS,
         runningOnMac: isRunningOnMac(),
         windowWidth,
+        deviceType,
         zenMode,
         workspaceLinkPanelOpen: false,
         canUseFilePanels: !session
@@ -226,6 +231,9 @@ export const SessionView = React.memo((props: {
     const canShowSessionFileWorkspaceSplit = canUseSessionFileWorkspace
         && windowWidth >= SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH;
     const canShowFileSidebar = sidebarPresentation.fileSidebarAvailable && isDataReady && !!session;
+    // Below 1,100 px on desktop Web the right panel and the Workspace slide in
+    // over the chat instead of docking beside it (UI overhaul).
+    const rightPanelOverlay = sidebarPresentation.rightPanelPresentation === 'overlay';
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
     const fixedSidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
@@ -273,6 +281,9 @@ export const SessionView = React.memo((props: {
     // tabs or dirty editors. Every path that reveals the Workspace collapses the
     // sidebar panels first, and that collapse clears this flag again.
     const [desktopWorkspaceHidden, setDesktopWorkspaceHidden] = React.useState(false);
+    // Closing the overlay sheet only hides it: its panels, editors and drafts
+    // stay open and mounted. Opening a panel or revealing the Workspace clears it.
+    const [rightOverlayDismissed, setRightOverlayDismissed] = React.useState(false);
 
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
@@ -281,6 +292,7 @@ export const SessionView = React.memo((props: {
         setDesktopWorkspaces({});
         setDesktopFileWorkspaceSessionId(sessionId);
         setDesktopWorkspaceHidden(false);
+        setRightOverlayDismissed(false);
         return () => {
             workspaceLinkRequestGeneration.current += 1;
         };
@@ -315,6 +327,7 @@ export const SessionView = React.memo((props: {
     }, [sidebarPanelActiveRaw, sidebarPanelsOpen]);
 
     const openSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        setRightOverlayDismissed(false);
         const cur = storage.getState().localSettings.sidebarPanelsOpen as SidebarMode[];
         const open = cur.includes(panel) ? cur : [...cur, panel];
         storage.getState().applyLocalSettings({
@@ -330,6 +343,7 @@ export const SessionView = React.memo((props: {
             return;
         }
         if (cur.includes(panel)) {
+            setRightOverlayDismissed(false);
             storage.getState().applyLocalSettings({ sidebarPanelActive: panel });
         }
     }, [sessionId]);
@@ -366,6 +380,7 @@ export const SessionView = React.memo((props: {
     }, [sessionId]);
     const collapseSidebarPanels = React.useCallback(() => {
         setDesktopWorkspaceHidden(false);
+        setRightOverlayDismissed(false);
         const state = storage.getState().localSettings;
         const ownsSideChat = state.sidebarSideChatSessionId === sessionId;
         const open: SidebarMode[] = ownsSideChat
@@ -454,6 +469,10 @@ export const SessionView = React.memo((props: {
     const sideChatSidebarExpanded = sidebarPresentation.sideChatSurface === 'sidebar'
         && sidebarPanelActive === 'sideChat'
         && sideChats.length > 0;
+    // What the header reports and toggles: a dismissed overlay sheet keeps its
+    // Side chat panel open but out of sight.
+    const sideChatSidebarShown = sideChatSidebarExpanded
+        && !(rightPanelOverlay && rightOverlayDismissed);
     const sideChatFullscreenTransitionPending = sidebarPresentation.sideChatSurface === 'fullscreen'
         && sidebarPanelActive === 'sideChat'
         && sidebarPanelsOpen.includes('sideChat')
@@ -558,7 +577,7 @@ export const SessionView = React.memo((props: {
 
         if (sidebarPresentation.sideChatSurface === 'sidebar') {
             setSideChatFullscreenOpen(false);
-            if (sideChatSidebarExpanded) {
+            if (sideChatSidebarShown) {
                 removeSidebarPanel('sideChat');
             } else {
                 openSidebarPanel('sideChat');
@@ -568,7 +587,7 @@ export const SessionView = React.memo((props: {
 
         removeSidebarPanel('sideChat');
         setSideChatFullscreenOpen((open) => !open);
-    }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarExpanded, sidebarPresentation.sideChatSurface]);
+    }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarShown, sidebarPresentation.sideChatSurface]);
 
     React.useEffect(() => {
         if (sideChatFullscreenTransitionPending) {
@@ -669,8 +688,30 @@ export const SessionView = React.memo((props: {
         && !diffViewOpen
         && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
         && !sideChatFullscreenTransitionPending;
-    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
-    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
+    // The overlay sheet replaces both the docked split and the narrow
+    // full-screen Workspace on desktop Web below 1,100 px.
+    const desktopFileWorkspaceOverlayOpen = rightPanelOverlay
+        && desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
+        && !rightOverlayDismissed
+        && canUseDesktopFileWorkspaceSession
+        && !diffViewOpen
+        && !fileSidebarPanelExpanded
+        && !sideChatSidebarExpanded
+        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
+        && !sideChatFullscreenTransitionPending;
+    const rightPanelOverlayOpen = rightPanelOverlay
+        && !zenMode
+        && !rightOverlayDismissed
+        && !desktopFileWorkspaceOverlayOpen
+        && canRenderSidebar
+        && visibleSidebarPanelActive !== null;
+    const rightWorkspaceVisible = !rightPanelOverlay && desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = !rightPanelOverlay && desktopFileWorkspaceFullscreen;
+    const dismissRightOverlay = React.useCallback(() => {
+        workspaceLinkRequestGeneration.current += 1;
+        setRightOverlayDismissed(true);
+    }, []);
     const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
     const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
@@ -1042,7 +1083,7 @@ export const SessionView = React.memo((props: {
             <SideChatAccessButton
                 count={sideChats.length}
                 expanded={sidebarPresentation.sideChatSurface === 'sidebar'
-                    ? sideChatSidebarExpanded
+                    ? sideChatSidebarShown
                     : sideChatFullscreenOpen}
                 compact={deviceType === 'phone' || windowWidth < 720}
                 onPress={toggleSideChats}
@@ -1058,7 +1099,7 @@ export const SessionView = React.memo((props: {
     });
     // Web header controls (UI overhaul): the Workspace toggle hides or reveals
     // the same Workspace the composer + menu opens, without closing its tabs.
-    const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen;
+    const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen || desktopFileWorkspaceOverlayOpen;
     const toggleWorkspaceFromHeader = React.useCallback(() => {
         if (!session) return;
         workspaceLinkRequestGeneration.current += 1;
@@ -1078,7 +1119,7 @@ export const SessionView = React.memo((props: {
                 sideChats={{
                     count: sideChats.length,
                     expanded: sidebarPresentation.sideChatSurface === 'sidebar'
-                        ? sideChatSidebarExpanded
+                        ? sideChatSidebarShown
                         : sideChatFullscreenOpen,
                     compact: deviceType === 'phone' || windowWidth < 720,
                     onToggle: toggleSideChats,
@@ -1348,14 +1389,18 @@ export const SessionView = React.memo((props: {
 
     const fallbackRightSurface = (
         <>
-            {Platform.OS === 'web' && showSidebar ? (
+            {Platform.OS === 'web' && showSidebar && !rightPanelOverlay ? (
                 <SessionSidebarDivider
                     width={sidebarWidth}
                     onWidthChange={handleSidebarWidthChange}
                 />
             ) : null}
-            <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-                <View style={{ width: sidebarWidth, flex: 1 }}>
+            <Animated.View
+                style={rightPanelOverlay
+                    ? { flex: 1, minWidth: 0, alignSelf: 'stretch' }
+                    : [{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}
+            >
+                <View style={rightPanelOverlay ? { flex: 1 } : { width: sidebarWidth, flex: 1 }}>
                     <FilesSidebar
                         sessionId={sessionId}
                         selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : null}
@@ -1374,6 +1419,7 @@ export const SessionView = React.memo((props: {
                         creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
                         canCreateSideChat={canCreateSideChat}
                         onCreateSideChat={createSideChat}
+                        onHidePanel={rightPanelOverlay ? dismissRightOverlay : undefined}
                     />
                 </View>
             </Animated.View>
@@ -1391,7 +1437,8 @@ export const SessionView = React.memo((props: {
                         references={desktopFileWorkspace.references}
                         dirtyPaths={desktopDirtyPaths}
                         machinePickerOpen={desktopMachinePickerOpen}
-                        compact={desktopFileWorkspaceFullscreen}
+                        compact={rightWorkspaceFullscreen}
+                        onHide={rightPanelOverlay ? dismissRightOverlay : undefined}
                         machinePicker={machineWorkspacePicker(desktopFileWorkspaceSessionId, currentDesktopWorkspace)}
                         retainedWorkspaces={Object.entries(desktopWorkspaces)
                             .filter(([owner]) => owner !== desktopFileWorkspaceSessionId)
@@ -1438,6 +1485,13 @@ export const SessionView = React.memo((props: {
                             workspaceFullscreen={rightWorkspaceFullscreen}
                             workspace={workspaceSurface}
                             fallback={canRenderSidebar ? fallbackRightSurface : null}
+                            overlay={rightPanelOverlay ? {
+                                workspaceOpen: desktopFileWorkspaceOverlayOpen,
+                                panelOpen: rightPanelOverlayOpen,
+                                workspaceWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_WORKSPACE_SHEET_WIDTH),
+                                panelWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_PANEL_SHEET_WIDTH),
+                                onDismiss: dismissRightOverlay,
+                            } : null}
                         >
                             {chatSurface}
                         </DesktopFileWorkspaceSplit>
