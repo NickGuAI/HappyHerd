@@ -1,7 +1,10 @@
 # Upstream UI parity record
 
+<!-- rename:preserve -->
 HappyHerd's interface now departs from the one it inherits from upstream Happy
-(`slopus/happy`). This record lists every inherited screen, component and style
+(`slopus/happy`).
+<!-- /rename:preserve -->
+This record lists every inherited screen, component and style
 the overhaul replaces or modifies, the HappyHerd file that now owns the
 behavior, what stayed compatible, and how to carry a future upstream change into
 the new design. Follow it during every upstream merge (see the
@@ -10,6 +13,7 @@ change that touches an inherited file.
 
 - **Upstream base for this record:** `4b7d763ee3afda04985f3210b9cb9acf9359c7d9`
   (the most recent upstream commit merged into `main` when the overhaul began).
+<!-- rename:preserve -->
 - **Path mapping:** upstream `packages/happy-app/sources/<path>` is HappyHerd
   `server/packages/happyherd-app/sources/<path>`.
 - **Check provenance of a file** (prints `upstream` when the path exists
@@ -20,6 +24,7 @@ change that touches an inherited file.
   f='components/SidebarView.tsx'
   git cat-file -e "$U:packages/happy-app/sources/$f" 2>/dev/null && echo upstream || echo happyherd
   ```
+<!-- /rename:preserve -->
 
 ## Merge procedure for inherited UI files
 
