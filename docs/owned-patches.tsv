@@ -573,3 +573,4 @@ UI_OVERHAUL_PHONE_WIDTH_RULE	accepted	fix(app): give every web window 700 px and
 UI_OVERHAUL_PHONE_CHANGELOG_PARITY	accepted	docs(app): qualify the phone changelog to what each platform ships	server/packages/happyherd-app/CHANGELOG.md
 UI_OVERHAUL_PHONE_WORKSPACE_ADD	accepted	fix(app): close the phone drawer from a workspace group's new session button	server/packages/happyherd-app/sources/components/ProjectGroup.test.ts
 UI_OVERHAUL_PHONE_FOLDER_SCROLL	accepted	fix(app): let the phone folder browser scroll its whole content	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PHONE_MENU_HEIGHT	accepted	fix(app): keep the phone session actions card inside short windows	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts

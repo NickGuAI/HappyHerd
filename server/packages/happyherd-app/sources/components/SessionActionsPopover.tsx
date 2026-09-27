@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, Modal as RNModal, Platform, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, Modal as RNModal, Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +56,8 @@ const PHONE_MENU_ITEM_HEIGHT = 48;
 const PHONE_MENU_PADDING = 8;
 const PHONE_MENU_TITLE_HEIGHT = 28;
 const PHONE_MENU_SEPARATOR_HEIGHT = 13;
+// The card's 1 px rim, above and below.
+const PHONE_MENU_RIM = 2;
 
 const stylesheet = StyleSheet.create((theme) => ({
     backdrop: {
@@ -152,6 +154,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         padding: PHONE_MENU_PADDING,
     },
     phoneTitle: {
+        flexShrink: 0,
         paddingHorizontal: 8,
         paddingTop: 6,
         paddingBottom: 6,
@@ -160,6 +163,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         letterSpacing: 1.2,
         color: theme.colors.kilv.inkFaint,
         ...Typography.mono(),
+    },
+    // Bounded by the card, so every action stays reachable in a short window.
+    phoneMenuRows: {
+        flexGrow: 0,
+        flexShrink: 1,
+        minHeight: 0,
     },
     phoneMenuItem: {
         minHeight: PHONE_MENU_ITEM_HEIGHT,
@@ -210,6 +219,8 @@ export function SessionActionsPopover({
     const phoneWeb = isHerdPhoneWeb(windowWidth);
     const menuMargin = phoneWeb ? HERD_PHONE_FLOAT_MARGIN : WEB_MENU_MARGIN;
     const menuWidth = phoneWeb ? Math.min(PHONE_MENU_WIDTH, windowWidth - menuMargin * 2) : WEB_MENU_WIDTH;
+    // Phones: the card never grows past the window less its margins; its rows scroll instead.
+    const phoneMaxHeight = windowHeight - menuMargin * 2;
     // The web card stays mounted, with its last anchor, while it leaves; a
     // closed menu mounts nothing.
     const presence = useHerdExit(visible && anchor ? anchor : null, HERD_EXIT.pop);
@@ -223,8 +234,8 @@ export function SessionActionsPopover({
         const anchor = shownAnchor;
 
         const estimatedHeight = phoneWeb
-            ? PHONE_MENU_TITLE_HEIGHT + actions.length * PHONE_MENU_ITEM_HEIGHT
-                + destructiveBreaks * PHONE_MENU_SEPARATOR_HEIGHT + PHONE_MENU_PADDING * 2
+            ? Math.min(phoneMaxHeight, PHONE_MENU_TITLE_HEIGHT + actions.length * PHONE_MENU_ITEM_HEIGHT
+                + destructiveBreaks * PHONE_MENU_SEPARATOR_HEIGHT + PHONE_MENU_PADDING * 2 + PHONE_MENU_RIM)
             : actions.length * WEB_MENU_ITEM_HEIGHT + WEB_MENU_PADDING * 2;
         const leftBase = anchor.type === 'point'
             ? anchor.x
@@ -242,7 +253,7 @@ export function SessionActionsPopover({
             left: Math.max(menuMargin, Math.min(windowWidth - menuWidth - menuMargin, leftBase)),
             top: Math.max(menuMargin, Math.min(windowHeight - estimatedHeight - menuMargin, topBase)),
         };
-    }, [actions.length, destructiveBreaks, menuMargin, menuWidth, phoneWeb, shownAnchor, windowHeight, windowWidth]);
+    }, [actions.length, destructiveBreaks, menuMargin, menuWidth, phoneMaxHeight, phoneWeb, shownAnchor, windowHeight, windowWidth]);
 
     // Escape closes the menu instead of reaching the app's Back handling.
     useHerdEscapeToClose(visible && !!anchor, onClose);
@@ -362,19 +373,23 @@ export function SessionActionsPopover({
                         styles.card,
                         styles.webMenuCard(presence.exiting),
                         phoneWeb && styles.phoneMenuCard,
+                        phoneWeb && { maxHeight: phoneMaxHeight },
                         { backgroundColor: theme.colors.header.background },
                     ]}
                 >
                     {phoneWeb ? (
                         <>
                             <Text numberOfLines={1} style={styles.phoneTitle}>{getSessionName(session)}</Text>
-                            {/* A separator sets the destructive action apart, as in the mock. */}
-                            {actionItems.map((item, index) => actions[index].destructive && index > 0 ? (
-                                <React.Fragment key={actions[index].id}>
-                                    <HerdMenuSeparator />
-                                    {item}
-                                </React.Fragment>
-                            ) : item)}
+                            {/* In a short window the title stays and the actions scroll below it. */}
+                            <ScrollView style={styles.phoneMenuRows}>
+                                {/* A separator sets the destructive action apart, as in the mock. */}
+                                {actionItems.map((item, index) => actions[index].destructive && index > 0 ? (
+                                    <React.Fragment key={actions[index].id}>
+                                        <HerdMenuSeparator />
+                                        {item}
+                                    </React.Fragment>
+                                ) : item)}
+                            </ScrollView>
                         </>
                     ) : actionItems}
                 </View>

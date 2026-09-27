@@ -854,6 +854,57 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await page.close();
     }, 30_000);
 
+    it('keeps the session actions card inside a short landscape window, its actions scrolling under the title', async () => {
+        // A small phone on its side: the title, six actions and the separator need more than its height.
+        const SHORT = { width: 568, height: 320 };
+        const { page, errors } = await open({ width: SHORT.width, height: SHORT.height, insets: false, touch: true });
+        const cdp = await page.context().newCDPSession(page);
+        const row = page.locator('[data-herd-row="dock"]');
+        await row.scrollIntoViewIfNeeded();
+        const rowBox = (await row.boundingBox())!;
+        const point = { x: rowBox.x + rowBox.width / 2, y: rowBox.y + rowBox.height / 2 };
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+        await page.waitForTimeout(800);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        const menu = page.getByTestId('session-actions-menu');
+        await menu.waitFor();
+        await settled(page);
+        // The card stops 8 px from the window's top and bottom edges, with its last action cut off.
+        const frame = await card(page, 'session-actions-menu');
+        expect(frame.y).toBeGreaterThanOrEqual(8);
+        expect(frame.y + frame.height).toBeLessThanOrEqual(SHORT.height - 8);
+        const archive = menu.getByRole('button', { name: /Archive/ });
+        const hidden = (await archive.boundingBox())!;
+        expect(hidden.y + hidden.height).toBeGreaterThan(frame.y + frame.height);
+
+        // The title keeps its whole line above the rows.
+        const title = menu.getByText('Composer chips and context meter', { exact: true });
+        const titleBox = (await title.boundingBox())!;
+        expect(Math.round(titleBox.height)).toBe(28);
+
+        // A drag on the rows scrolls them, running nothing, until Archive shows whole inside the card.
+        const drag = { x: frame.x + frame.width / 2, y: frame.y + frame.height - 40 };
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [drag] });
+        for (let step = 1; step <= 10; step++) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: drag.x, y: drag.y - step * 12 }] });
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(async () => {
+            const target = (await archive.boundingBox())!;
+            return target.y >= frame.y && target.y + target.height <= frame.y + frame.height;
+        }).toBe(true);
+        // The title stays put.
+        expect((await title.boundingBox())!.y).toBe(titleBox.y);
+        expect(await page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
+        await evidence(page, 'phone-session-actions-light-568x320');
+
+        await archive.tap();
+        await expect.poll(() => menu.count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__ACTIONS__)).toEqual(['archive']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
     it('switches the New Session machine from a card under the pill, and closes the menu with Escape', async () => {
         const { page, errors } = await open({ theme: 'dark' });
         const pill = await box(page, 'herd-machine-menu');

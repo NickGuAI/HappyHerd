@@ -265,6 +265,14 @@ describe('session actions on a phone', () => {
         expect(menuFrame(renderer)).toMatchObject({ left: 8, top: 112, width: 304 });
     });
 
+    it('keeps the card, rim included, 8 px inside a short window, and never taller than it allows', () => {
+        mocks.window = { width: 568, height: 320 };
+        const renderer = render(popover(vi.fn(), { type: 'point', x: 284, y: 219 }));
+        // The title, three rows, the separator, the padding and the 1 px rim end 8 px above the bottom edge.
+        expect(menuFrame(renderer)).toMatchObject({ left: 230, top: 109 });
+        expect(flatStyle(byTestID(renderer, 'session-actions-menu')[0].props.style).maxHeight).toBe(304);
+    });
+
     it('keeps the anchored web card at desktop width', () => {
         mocks.window = { width: 1440, height: 900 };
         const renderer = render(popover(vi.fn()));
