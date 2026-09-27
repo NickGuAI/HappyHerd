@@ -499,3 +499,4 @@ CLAUDE_TRANSCRIPT_TAIL_READ	accepted	perf(cli): read only appended Claude transc
 GIT_STATUS_FILE_CHANGE_REFRESH	accepted	perf(app): refresh git status on file changes, not every message	server/packages/happyherd-app/sources/sync/sync.gitStatusTriggers.test.ts
 SOCKET_MESSAGES_WITHOUT_REFETCH	accepted	perf(app): apply socket messages without refetching them	server/packages/happyherd-app/sources/sync/sync.socketMessages.test.ts
 SESSION_LIST_DELTA_REFRESH	accepted	perf(app): refresh the session list with changed sessions only	server/packages/happyherd-app/sources/sync/sync.sessionListDelta.test.ts
+CLI_CURSORRULES_LINK	accepted	chore(cli): move the leftover cursorrules link into the renamed CLI package	server/packages/happyherd-cli/.cursorrules
