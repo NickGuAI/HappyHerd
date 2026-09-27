@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "40ccff188aa7467afeff026d4c7088e2ab8d5cfaa324ae9a9c8b569caaf2666f",
+  "sourceFingerprint": "cb939ff969577a5f80fed5aa74ba5d9be169ddaf921b1cc342f7b3fc397bad3a",
   "routeCount": 43,
-  "surfaceCount": 309,
+  "surfaceCount": 314,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4186,6 +4186,65 @@
         "settingsLanguage.title",
         "uiCopy.agentDefaults"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelGrip.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelGrip"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelIconButton.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelIconButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelOverlay.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelScrim",
+        "resolveHerdSheetWidth",
+        "useHerdOverlayEscape"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelScreenHeader.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelScreenHeader"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelTab.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdCountBadge",
+        "HerdLineCounts",
+        "HerdPanelTab"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
