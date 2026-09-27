@@ -91,4 +91,16 @@ describe('browser navigation shortcuts', () => {
             shiftKey: false,
         })).toBeNull();
     });
+
+    test('Escape that cancels an IME composition never navigates', () => {
+        expect(getKeyboardNavigationDirection({
+            key: 'Escape',
+            defaultPrevented: false,
+            altKey: false,
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            isComposing: true,
+        })).toBeNull();
+    });
 });
