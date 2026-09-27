@@ -119,6 +119,56 @@ resolve against the exact machine's advertised catalog. Choices come from the
 machine, so display names are the daemon's values (for example
 `claude-opus-5-5`, `acceptEdits`), exactly as in the Advanced pickers.
 
+## Session screen
+
+The session stream, dock, composer and header keep every upstream behavior and
+gain a web presentation. Native paths are unchanged unless a row says
+otherwise.
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/-session/SessionView.tsx` | Extended | The web header renders `herd/session/SessionHeaderActions` (Workspace toggle, Side chats with a count badge, ⋯ opening `SessionActionsPopover`). A `desktopWorkspaceHidden` flag hides the Workspace without closing tabs; `collapseSidebarPanels` and a session change clear it. Passes the composer's agent chip and `connectionStatus.state`. | Native header and all workspace, side-chat, overlay and composer logic. | Merge logic normally; keep the header, the hidden flag and the chip wiring. New header buttons go into `SessionHeaderActions`. |
+| `sources/components/ChatHeaderView.tsx` | Restyled | Web: a full-width bar with a hairline, a folder / title crumb with hover, and no left clearance (shell controls live in the top bar). | Props, native glass branch, back button, `rightSlot`. | Take behavior; re-apply the web styles. |
+| `sources/components/MessageView.tsx` | Restyled | Web user bubbles; replies use the Markdown `reply` tone; event rows (`AgentEventRow`); an `entrance` prop. | Message kinds, pending and error frames, options, copy, safeguard, native island. | Keep web values in `Platform.select`; route new event types through `AgentEventRow`. |
+| `sources/components/ChatList.tsx` | Extended | A row rises in once (first paint, live arrival, group reveal), never on scroll or recycle; the Jump to latest control is a pill. | Inverted list, windowing, grouping, focus, wheel handling. | Merge list logic; keep the entrance tracker hooks. |
+| `sources/components/AgentWorkGroupHeader.tsx` | Restyled | A leading chevron that rotates, a hover wash, a member count, entrance props. | Labels, `aria-expanded`, equal row heights. | Keep the equal heights and the chevron-first layout. |
+| `sources/components/tools/ToolView.tsx` | Extended | A web-only render path: `ToolLine` rows (icon, verb, mono argument, +N −N, live timer, spinner then check) expanding in place through `herd/session/Collapse`, a warning-edged permission card, and bare cards for plans and questions. | Tool classification, specific tool views, errors, native path, detail navigation. | Port changes into the shared code above the web branch and mirror new cases in the web path. |
+| `sources/components/tools/PermissionFooter.tsx` | Restyled + Extended | Each provider's choices become one ordered list (same labels and handlers). Web adds number keys 1..n (`herd/session/permissionShortcuts.ts`) for the oldest visible pending card, and a decided state. | Every handler, label and decision rule; native styles. | Add new choices to the provider's list. List order is the key number. |
+| `sources/components/tools/views/TodoView.tsx` | Extended | `WebTodoCard` with a progress bar and done/total count. | Parsing, native list. | Parsing changes apply to both. |
+| `sources/components/tools/views/InlineQuestionForm.tsx` | Restyled | Web: an info-edged card, circular radios, the selection ring, staggered options and `aria-checked`. | Submit, cancel, Other, multi-select and secret logic. | Take logic; re-apply the web styles. |
+| `sources/components/AgentInput.tsx` | Extended | Web chips after the + button (agent opens "Continue with…"; model, effort and permission open popovers built from the same option renderers as the settings popover); a context meter (`agentInput.context.remaining`, following the existing "Always show context size" setting); a theme-colored status row; restyled controls. | All input behavior and shortcuts, the native composer, the combined settings popover in the + menu. | Keep `renderPermission/Model/EffortOptions` shared so new options appear in the chips too. |
+| `sources/components/AgentGoalBar.tsx`, `QueuedMessagesPanel.tsx` | Restyled | Web single-line goal; single-line queued rows ("Sends after this turn · +N queued"). | Actions and labels; native layouts. | Merge as-is; keep the web branches. |
+| `sources/components/SafeguardReminderCard.tsx`, `ProviderContinuationLinks.tsx`, `markdown/MarkdownView.web.tsx`, `markdown/MarkdownView.types.ts` | Restyled | Card sizing and quote rule; molten continuation pills; the Markdown `reply` tone (list markers, links, inline code, code blocks, option pills). | Contrast values the tests assert; content and links. | Take behavior; keep the web styles and the `reply` tone. |
+
+Open decisions recorded for the owner: the context meter follows the existing
+"Always show context size" setting, which is off by default, so it shows only
+at 10% or less remaining. The send button keeps its current behavior (Stop
+stays in the + menu and on Esc).
+
+## Secondary pages
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/app/(app)/automations/index.tsx`, `components/HappyHerdAutomationDetail.tsx` | Replaced (layout) | Expandable rows, one open at a time, carrying every detail capability (Run now with Running then Completed, Pause/Resume, Edit or Open target, History, instructions, schedule, previous runs, Delete). The create/edit form is a sheet on desktop and inline on phones. | RPCs, exec-run polling, profiling, and every action. | Port behavior into the expanded row; keep one row open at a time. |
+| `sources/components/SettingsView.tsx` | Extended | A Commanders row at the end of Features and a Streamline row beside Agent Defaults. | All rows, handlers and order. | Keep both rows. |
+| `sources/app/(app)/settings/{index,account,appearance,agents,language,usage,voice,voice/language,connect/claude}.tsx` | Extended | Default export wrapped in `withSettingsFrame('<section>', Screen)`, so from 1,000 px on web the section list appears beside the page. | Bodies, props, routes, and phone and native rendering. | Merge body edits normally and keep the wrapper. A new settings page gets a `SETTINGS_SECTIONS` entry. |
+| `sources/components/InboxView.tsx`, `FeedItemCard.tsx`, `app/(app)/session/[id]/info.tsx`, `app/(app)/machine/[id].tsx` | Restyled | `HerdItemGroup` / `HerdItem` drop-in imports (`herd/pages/HerdList.tsx`). | All JSX, data, actions and states. | Keep the import lines; new rows inherit the look. |
+| `sources/app/(app)/projects/index.tsx`, `projects/[id].tsx` | Restyled | A card grid with session counts and recent avatars; the project detail has a header with Rename and its sessions in one card. | Data, actions, archive toggle, focus project. | Take behavior; keep the card layout. |
+| `sources/app/(app)/changelog.tsx` | Restyled | Entries render through `HerdTimelineGroup`, centred at 760 px. | Parsing, links, images, Markdown, last-viewed state. | Keep `HerdTimelineGroup` and the timeline style. |
+| `sources/components/FocusModeControl.tsx` | Restyled | The setup card uses `HerdSegmentedControl` for duration and chips for the project. The active state is a pill with a progress ring. Timers also store `startedAt` in the synced focus setting (unknown fields pass through older clients). | The amber transition, heading, testIDs and the focus data flow. | Take behavior; keep the ring maths in `herd/pages/focusProgress.ts`. |
+| `sources/components/CommandPalette/{CommandPalette,CommandPaletteInput,CommandPaletteItem,CommandPaletteResults,CommandPaletteModal}.tsx` | Restyled | Sheet radius token, 640 px wide, amber section labels, an accent bar on the highlighted row, key caps, a hint footer, `aria-selected`. | Commands, keyboard handling, grouping, animations. | Take upstream logic; keep the style blocks and the footer. |
+| `sources/components/CommandPalette/CommandPaletteProvider.tsx` | Extended | Adds a Commanders command (and publishes the opener, see *Desktop shell*). | All existing commands and shortcuts. | Keep the command after Create Commander. |
+
+The new Commanders page (`app/(app)/commanders/index.tsx`) is HappyHerd-owned.
+It reads memory files through the existing `machineReadFileWithinRoot` call,
+bounded to each Commander's AgentContext folder, so older daemons show an
+error with Retry.
+
+Known gaps: the Usage page keeps its current look; Credentials, Connections,
+Commander avatar settings and the Inbox update banner were outside this pass;
+Settings sub-pages keep the base list look until `ItemGroup`/`Item` adopt the
+`HerdList` treatment.
+
 ## HappyHerd-owned modules
 
 These files do not exist upstream; upstream merges never conflict with them.
@@ -149,5 +199,8 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/sync/githubRepository.ts` | Git and GitHub detection for a machine folder through the existing bash RPC (plain `git`, cached). |
 | `sources/hooks/useStreamlineLocations.ts` | Working folders from favorites, recent folders and Commander workspaces. |
 | `sources/utils/normalizeMachinePath.ts` | Shared machine-path identity for Streamline. |
+| `sources/components/herd/session/*` | Session screen parts: `ToolLine` and `toolLineModel`, `Collapse`, `color` (`herdAlpha`), `entranceMotion`, `permissionShortcuts`, `ComposerChips` and `composerChipModel`, `HeaderButton`, `SessionHeaderActions`. |
+| `sources/components/herd/pages/*` | Page parts: `HerdPage` (header, buttons, chips, labels, notices, empty states), `HerdSheet`, `HerdCollapse`, `HerdList` (drop-in `ItemGroup`/`Item`), `HerdTimeline`, `SettingsFrame` (desktop section list), `commanderMemory`, `focusProgress`. `herd/session/Collapse` and `HerdCollapse` do the same job; merge them the next time either changes. |
+| `sources/app/(app)/commanders/index.tsx` | The Commanders page. |
 | `sources/components/SidebarNavigationButton.tsx` | HappyHerd-owned; restyled with tokens and given `active`, `emphasis` and `quiet` variants. |
-| `sources/components/sidebarNavigationLayout.ts` | HappyHerd-owned; the boundary-toggle and persistent-header helpers were removed with those controls. |
+| `sources/components/sidebarNavigationLayout.ts` | HappyHerd-owned; the boundary-toggle, persistent-header and header-clearance helpers were removed with those controls. |

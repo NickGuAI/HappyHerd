@@ -517,3 +517,4 @@ UI_OVERHAUL_FOCUS_MODE	accepted	feat(app): restyle Focus mode setup and countdow
 UI_OVERHAUL_COMMAND_PALETTE	accepted	feat(app): restyle the command palette	scripts/kilv-capture/pages.capture.mjs
 UI_OVERHAUL_PAGES_CAPTURE	accepted	test(app): capture the overhauled secondary pages	scripts/kilv-capture/pages.capture.mjs
 UI_OVERHAUL_STREAMLINE_SETTINGS_NAV	accepted	feat(app): list Streamline with the other settings	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_PARITY_SESSION_PAGES	accepted	docs(app): record the session and page overhaul for upstream merges	docs/upstream-ui-parity.md
