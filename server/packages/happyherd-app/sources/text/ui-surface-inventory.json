@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a8cec2024bffe815899ee039d867da0df18f124270572690f365880e08a493b1",
+  "sourceFingerprint": "cf5513f93e86c7498cf4d0004ecc4dcbb54cdb352bbc5108a7e092c248a941e5",
   "routeCount": 43,
-  "surfaceCount": 308,
+  "surfaceCount": 309,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4028,6 +4028,24 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/mobile/MobileHome.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MOBILE_FAB_CLEARANCE",
+        "MobileFocusRow",
+        "MobileHeaderIconButton",
+        "MobileHomeHeader",
+        "MobileNewSessionFab"
+      ],
+      "translationKeys": [
+        "focusMode.enter",
+        "sidebar.newSession"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/newSession/StreamlineComposer.tsx",
       "kind": "component",
       "route": null,
@@ -4683,7 +4701,9 @@
       ],
       "translationKeys": [
         "focusMode.enter",
+        "friends.findFriends",
         "happyHerd.automations.title",
+        "server.serverConfiguration",
         "sessionsFilter.appearanceSettings",
         "sessionsFilter.flatList",
         "sessionsFilter.groupByProject",
@@ -4692,6 +4712,7 @@
         "sessionsFilter.title",
         "settings.title",
         "sidebar.projects",
+        "sidebar.sessionsTitle",
         "tools.names.search",
         "workspace.title"
       ],

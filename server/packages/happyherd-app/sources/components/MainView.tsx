@@ -38,6 +38,13 @@ import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
 import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
 import { FocusModeControl } from './FocusModeControl';
+import {
+    MOBILE_FAB_CLEARANCE,
+    MobileFocusRow,
+    MobileHeaderIconButton,
+    MobileHomeHeader,
+    MobileNewSessionFab,
+} from './herd/mobile/MobileHome';
 
 interface MainViewProps {
     variant: 'phone' | 'sidebar';
@@ -49,6 +56,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     phoneContainer: {
         flex: 1,
+        position: 'relative',
         backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.groupped.background,
     },
     phoneSceneStack: {
@@ -320,46 +328,43 @@ const HeaderRight = React.memo(({
                 </View>
             );
         }
+        // Web Mobile (UI overhaul): New session is the floating button above the tab bar.
         return (
             <View style={styles.headerActions}>
                 {machineWorkspaceEnabled && (
-                    <Pressable
+                    <MobileHeaderIconButton
+                        icon="folder-open-outline"
+                        label={t('workspace.title')}
                         onPress={() => router.push('/workspace')}
-                        hitSlop={12}
-                        style={styles.headerButton}
-                        accessibilityLabel={t('workspace.title')}
-                    >
-                        <Ionicons name="folder-open-outline" size={22} color={theme.colors.header.tint} />
-                    </Pressable>
+                    />
                 )}
-                <Pressable
+                <MobileHeaderIconButton
+                    icon="albums-outline"
+                    label={t('sidebar.projects')}
                     onPress={() => router.push('/projects')}
-                    hitSlop={12}
-                    style={styles.headerButton}
-                    accessibilityLabel={t('sidebar.projects')}
-                >
-                    <Ionicons name="albums-outline" size={22} color={theme.colors.header.tint} />
-                </Pressable>
-                <Pressable
+                />
+                <MobileHeaderIconButton
+                    icon="time-outline"
+                    label={t("happyHerd.automations.title")}
                     onPress={() => router.push('/automations')}
-                    hitSlop={12}
-                    style={styles.headerButton}
-                    accessibilityLabel={t("happyHerd.automations.title")}
-                >
-                    <Ionicons name="time-outline" size={22} color={theme.colors.header.tint} />
-                </Pressable>
-                <Pressable
-                    onPress={() => router.navigate('/new')}
-                    hitSlop={15}
-                    style={styles.headerButton}
-                >
-                    <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
-                </Pressable>
+                />
             </View>
         );
     }
 
     if (activeTab === 'inbox') {
+        if (Platform.OS === 'web') {
+            return (
+                <MobileHeaderIconButton
+                    icon="person-add-outline"
+                    label={t('friends.findFriends')}
+                    onPress={() => {
+                        trackFriendsSearch();
+                        router.push('/friends/search');
+                    }}
+                />
+            );
+        }
         return (
             <Pressable
                 onPress={() => {
@@ -377,6 +382,15 @@ const HeaderRight = React.memo(({
     if (activeTab === 'settings') {
         if (!isCustomServer) {
             return Platform.OS === 'web' ? <View style={styles.headerButton} /> : null;
+        }
+        if (Platform.OS === 'web') {
+            return (
+                <MobileHeaderIconButton
+                    icon="server-outline"
+                    label={t('server.serverConfiguration')}
+                    onPress={() => router.push('/server')}
+                />
+            );
         }
         return (
             <Pressable
@@ -466,7 +480,13 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                 return <SettingsViewWrapper topContentInset={topContentInset} bottomContentInset={bottomContentInset} />;
             case 'sessions':
             default:
-                return <SessionsListWrapper topContentInset={topContentInset} searchQuery={searchQuery} />;
+                return (
+                    <SessionsListWrapper
+                        topContentInset={topContentInset}
+                        bottomContentInset={MOBILE_FAB_CLEARANCE}
+                        searchQuery={searchQuery}
+                    />
+                );
         }
     };
 
@@ -543,10 +563,31 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
         </View>
     );
 
+    // Web Mobile (UI overhaul): the mock's phone header, the Focus and machine
+    // row on Sessions, and the floating New session button above the tab bar.
+    const webPhoneHeader = (
+        <View style={styles.phoneHeader}>
+            <MobileHomeHeader
+                title={activeTab === 'sessions' ? t('sidebar.sessionsTitle') : t(TAB_TITLES[activeTab])}
+                actions={showHeaderRight ? (
+                    <HeaderRight
+                        activeTab={activeTab}
+                        searchActive={searchActive}
+                        onSearchPress={handleSearchPress}
+                    />
+                ) : undefined}
+            />
+            {activeTab === 'sessions' && <MobileFocusRow />}
+            {realtimeStatus !== 'disconnected' && (
+                <VoiceAssistantStatusBar variant="full" />
+            )}
+        </View>
+    );
+
     return (
         <View style={styles.phoneRoot}>
             <View style={styles.phoneContainer}>
-                {Platform.OS === 'web' && phoneHeader}
+                {Platform.OS === 'web' && webPhoneHeader}
                 {Platform.OS === 'web' ? renderWebTabContent() : (
                     <View style={styles.phoneSceneStack}>
                         <SessionsListWrapper
@@ -558,6 +599,9 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                     </View>
                 )}
                 {Platform.OS !== 'web' && phoneHeader}
+                {Platform.OS === 'web' && activeTab === 'sessions' && (
+                    <MobileNewSessionFab onPress={() => router.navigate('/new')} />
+                )}
             </View>
             {Platform.OS === 'web' ? (
                 <TabBar

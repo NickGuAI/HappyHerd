@@ -62,6 +62,15 @@ vi.mock('./SettingsViewWrapper', () => ({ SettingsViewWrapper: () => null }));
 vi.mock('./HomeDock', () => ({ HomeDock: () => null, MOBILE_HOME_DOCK_CONTENT_INSET: 150 }));
 vi.mock('./HeaderLogo', () => ({ HeaderLogo: () => null }));
 vi.mock('./FocusModeControl', () => ({ FocusModeControl: () => null }));
+// The Web Mobile header, focus row and New session button are covered by
+// herd/mobile tests; this file exercises the native home.
+vi.mock('./herd/mobile/MobileHome', () => ({
+    MOBILE_FAB_CLEARANCE: 88,
+    MobileFocusRow: () => null,
+    MobileHeaderIconButton: () => null,
+    MobileHomeHeader: () => null,
+    MobileNewSessionFab: () => null,
+}));
 vi.mock('./VoiceAssistantStatusBar', () => ({ VoiceAssistantStatusBar: () => null }));
 vi.mock('./SessionsListWrapper', async () => {
     const ReactModule = await import('react');
