@@ -60,7 +60,8 @@ const darkPalette: typeof lightPalette = {
 
 const sharedSpacing = {
     margins: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24 },
-    borderRadius: { sm: 4, md: 4, lg: 4, xl: 6, xxl: 6 },
+    // HappyHerd UI overhaul: softer corners for controls (sm–lg) and panels/sheets (xl–xxl).
+    borderRadius: { sm: 6, md: 8, lg: 10, xl: 12, xxl: 14 },
     iconSize: { small: 12, medium: 16, large: 20, xlarge: 24 },
 } as const;
 
@@ -114,6 +115,15 @@ function createTheme(dark: boolean, p: typeof lightPalette) {
             surfaceHigh: p.bgRaised,
             surfaceHighest: dark ? p.stone : p.bgSunken,
             divider: p.hair,
+            // One selected-state language for cards, rows, chips and options: accent edge,
+            // faint accent wash, inner ring plus a soft molten glow (web box-shadow string).
+            selection: {
+                border: action,
+                background: dark ? 'rgba(240, 220, 176, 0.08)' : 'rgba(143, 110, 54, 0.08)',
+                ring: dark
+                    ? `0 0 0 1px ${action} inset, 0 0 22px rgba(240, 220, 176, 0.18)`
+                    : `0 0 0 1px ${action} inset, 0 6px 18px rgba(143, 110, 54, 0.16)`,
+            },
             shadow: { color: dark ? '#000000' : '#3A2A12', opacity: dark ? 0.7 : 0.16 },
             glass: {
                 background: dark ? 'rgba(21, 27, 40, 0.94)' : 'rgba(255, 249, 236, 0.94)',
@@ -238,8 +248,10 @@ function createTheme(dark: boolean, p: typeof lightPalette) {
             },
         },
         kilv: {
-            radius: 4,
-            radiusCard: 6,
+            radius: 8,
+            radiusCard: 12,
+            radiusSheet: 14,
+            radiusPill: 999,
             gutter: 24,
             rail: 1180,
             tick: 26,
@@ -249,6 +261,13 @@ function createTheme(dark: boolean, p: typeof lightPalette) {
             focusHalo: 3,
             disabledOpacity: 0.45,
             motion: 150,
+            // Shared motion scale (web CSS in theme.css, native presets in components/herd/motion.ts).
+            motionFast: 140,
+            motionBase: 240,
+            motionSlow: 420,
+            easeOut: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            easeInOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
+            easeIn: 'cubic-bezier(0.55, 0, 1, 0.45)',
             glowMolten: '0 0 10px rgba(255, 246, 226, 0.65), 0 0 34px rgba(240, 220, 176, 0.32)',
             glowMoltenSoft: '0 0 22px rgba(240, 220, 176, 0.22)',
             glowRim: '0 0 14px rgba(143, 163, 184, 0.22)',

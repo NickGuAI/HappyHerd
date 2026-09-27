@@ -116,6 +116,95 @@ diffs-container {
     }
 }
 
+/* HappyHerd fluid motion. Components opt in through Unistyles
+   `_web: { _classNames: [...] }` (see components/herd/motion.ts); native uses
+   the Reanimated presets from the same module. Durations and curves mirror
+   theme.kilv.motion{Fast,Base,Slow} and theme.kilv.ease*. */
+@keyframes herd-rise {
+    from { opacity: 0; transform: translateY(12px); filter: blur(6px); }
+    to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes herd-rise-sm {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes herd-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes herd-pop {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes herd-sheet {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes herd-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+}
+@keyframes herd-slide-left {
+    from { opacity: 0; transform: translateX(-18px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes herd-slide-right {
+    from { opacity: 0; transform: translateX(22px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes herd-check {
+    0% { opacity: 0; transform: scale(0.3); }
+    60% { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes herd-attention {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 157, 0.5); }
+    50% { box-shadow: 0 0 0 5px rgba(255, 215, 157, 0); }
+}
+@keyframes herd-thinking {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(170, 197, 221, 0.45); }
+    50% { box-shadow: 0 0 0 5px rgba(170, 197, 221, 0); }
+}
+@keyframes herd-breathe {
+    0%, 100% { box-shadow: 0 0 10px rgba(240, 220, 176, 0.35); }
+    50% { box-shadow: 0 0 18px rgba(240, 220, 176, 0.55); }
+}
+
+.herd-rise { animation: herd-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-rise-sm { animation: herd-rise-sm 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-fade { animation: herd-fade 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-pop { animation: herd-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: top center; }
+.herd-sheet { animation: herd-sheet 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-sheet-up { animation: herd-sheet-up 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-slide-left { animation: herd-slide-left 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-slide-right { animation: herd-slide-right 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.herd-check { animation: herd-check 320ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.herd-attention { animation: herd-attention 1600ms cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+.herd-thinking { animation: herd-thinking 1400ms cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+.herd-breathe { animation: herd-breathe 2600ms cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+/* Stagger steps for lists (45 ms apart, capped so long lists stay responsive). */
+.herd-d1 { animation-delay: 45ms; } .herd-d2 { animation-delay: 90ms; } .herd-d3 { animation-delay: 135ms; }
+.herd-d4 { animation-delay: 180ms; } .herd-d5 { animation-delay: 225ms; } .herd-d6 { animation-delay: 270ms; }
+.herd-d7 { animation-delay: 315ms; } .herd-d8 { animation-delay: 360ms; } .herd-d9 { animation-delay: 405ms; }
+.herd-d10 { animation-delay: 450ms; }
+/* State changes (hover, selection, theme) ease instead of snapping. */
+.herd-transition {
+    transition: background-color 240ms cubic-bezier(0.16, 1, 0.3, 1), border-color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1), color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.herd-press:active { transform: scale(0.97); }
+.herd-glide { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), height 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+    .herd-rise, .herd-rise-sm, .herd-fade, .herd-pop, .herd-sheet, .herd-sheet-up, .herd-slide-left, .herd-slide-right,
+    .herd-check, .herd-attention, .herd-thinking, .herd-breathe {
+        animation: none !important;
+    }
+    .herd-transition, .herd-glide { transition: none !important; }
+    .herd-press:active { transform: none; }
+}
+
 /* Consume the variables emitted by Unistyles. No independent CSS theme or
    data-theme switch: manual and system preferences keep one authority. */
 :root { color-scheme: light dark; }

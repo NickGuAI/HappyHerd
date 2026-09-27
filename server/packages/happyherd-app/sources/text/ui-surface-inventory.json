@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "0b54ad22d645e43aea20a94019d5c38688f8621c30f6e6d3b94140f4527627f5",
+  "sourceFingerprint": "90d10aebf3f057037ee7b8bc607ff0abb03a31e88de6cfe4f1e0fd0ab511540f",
   "routeCount": 41,
-  "surfaceCount": 282,
+  "surfaceCount": 283,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3846,6 +3846,17 @@
       "route": null,
       "exports": [
         "HeaderLogo"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/SegmentedControl.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdSegmentedControl"
       ],
       "translationKeys": [],
       "states": [],
