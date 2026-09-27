@@ -19,6 +19,7 @@ import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListView
 import { getSessionShortcutIdsInDisplayOrder } from '@/utils/sessionDisplayOrder';
 import { t } from '@/text';
 import { getRecentTopLevelSessions } from '@/sync/sessionListVisibility';
+import { HerdCommandPaletteContext } from '@/components/herd/shell/commandPaletteBridge';
 
 const EMPTY_SESSION_IDS: readonly string[] = [];
 
@@ -165,6 +166,11 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         } as any);
     }, [commands, commandPaletteEnabled, isAuthenticated]);
 
+    // The top bar's search control opens the same palette as ⌘K.
+    const paletteOpener = Platform.OS === 'web' && isAuthenticated && commandPaletteEnabled
+        ? showCommandPalette
+        : null;
+
     const openNewSession = useCallback(() => {
         router.navigate('/new');
     }, [router]);
@@ -199,7 +205,9 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             recentSessionIds={isAuthenticated ? visibleSessionShortcutIds : EMPTY_SESSION_IDS}
             browserSafeShortcuts={browserSafeShortcuts}
         >
-            {children}
+            <HerdCommandPaletteContext.Provider value={paletteOpener}>
+                {children}
+            </HerdCommandPaletteContext.Provider>
         </ShortcutHintsProvider>
     );
 }

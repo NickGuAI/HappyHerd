@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { darkTheme, lightTheme } from '@/theme';
-import { HERD_MOTION, HERD_MOTION_CLASSES, herdStaggerClass, herdWebClasses } from './motion';
+import { HERD_HOST_CLASSES, HERD_MOTION, HERD_MOTION_CLASSES, herdStaggerClass, herdWebClasses } from './motion';
 
 const css = readFileSync(resolve(__dirname, '../../theme.css'), 'utf8');
 
 describe('HappyHerd fluid motion', () => {
     it('defines every motion class in theme.css', () => {
         for (const name of HERD_MOTION_CLASSES) {
-            expect(css, name).toMatch(new RegExp(`\\.${name}(:active)?\\s*\\{`));
+            expect(css, name).toMatch(new RegExp(`\\.${name}(:active)?\\s*[{,]`));
         }
     });
 
@@ -19,6 +19,14 @@ describe('HappyHerd fluid motion', () => {
         for (const name of HERD_MOTION_CLASSES) {
             expect(reduced, name).toContain(`.${name}`);
         }
+    });
+
+    it('reveals each host\'s controls on hover and never on touch-only screens', () => {
+        for (const host of HERD_HOST_CLASSES) {
+            expect(css, host).toContain(`.${host}:hover .${host}-reveal`);
+        }
+        const touch = css.slice(css.indexOf('@media (hover: none) {'));
+        expect(touch).toMatch(/\.herd-shell-reveal, \.herd-row-reveal \{ display: none; \}/);
     });
 
     it('staggers list items in capped 45 ms steps', () => {

@@ -501,3 +501,4 @@ SOCKET_MESSAGES_WITHOUT_REFETCH	accepted	perf(app): apply socket messages withou
 SESSION_LIST_DELTA_REFRESH	accepted	perf(app): refresh the session list with changed sessions only	server/packages/happyherd-app/sources/sync/sync.sessionListDelta.test.ts
 CLI_CURSORRULES_LINK	accepted	chore(cli): move the leftover cursorrules link into the renamed CLI package	server/packages/happyherd-cli/.cursorrules
 UI_OVERHAUL_FOUNDATION	accepted	feat(app): add the fluid interface foundation	server/packages/happyherd-app/sources/components/herd/motion.test.ts
+UI_OVERHAUL_DESKTOP_SHELL	accepted	feat(app): add the fluid desktop shell	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts

@@ -14,6 +14,8 @@ import {
 } from '@/keyboard/shortcuts';
 import { MobileGlassSurface } from './MobileGlass';
 import { AnimatedPopup, LocalBlurHalo } from './AnimatedOverlay';
+import { herdWebClasses } from './herd/motion';
+import { useHerdEscapeToClose } from './herd/HerdPopover';
 
 export type SessionActionsAnchor =
     | {
@@ -40,7 +42,8 @@ interface SessionActionsPopoverProps {
 
 
 const WEB_MENU_WIDTH = 288;
-const WEB_MENU_ITEM_HEIGHT = 48;
+const WEB_MENU_ITEM_HEIGHT = 40;
+const WEB_MENU_PADDING = 6;
 const WEB_MENU_MARGIN = 12;
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -60,7 +63,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.kilv.scrim,
     },
     card: {
-        borderRadius: 6,
+        borderRadius: theme.kilv.radiusCard,
         overflow: 'hidden',
         backgroundColor: Platform.select({
             web: theme.colors.surface,
@@ -96,6 +99,23 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     menuItemPressed: {
         backgroundColor: theme.colors.surfaceSelected,
+    },
+    // Web: a floating menu of rounded rows that tint on hover (HappyHerd fluid shell).
+    webMenuCard: {
+        padding: WEB_MENU_PADDING,
+        _web: {
+            boxShadow: theme.kilv.shadow,
+            _classNames: herdWebClasses('herd-pop'),
+        },
+    },
+    webMenuItem: {
+        minHeight: WEB_MENU_ITEM_HEIGHT,
+        paddingHorizontal: 10,
+        borderRadius: theme.kilv.radius,
+        _web: { _classNames: herdWebClasses('herd-transition') },
+    },
+    webMenuItemHovered: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
     },
     menuItemDivider: {
         borderBottomWidth: StyleSheet.hairlineWidth,
@@ -158,7 +178,7 @@ export function SessionActionsPopover({
             return null;
         }
 
-        const estimatedHeight = actions.length * WEB_MENU_ITEM_HEIGHT;
+        const estimatedHeight = actions.length * WEB_MENU_ITEM_HEIGHT + WEB_MENU_PADDING * 2;
         const leftBase = anchor.type === 'point'
             ? anchor.x
             : anchor.x + anchor.width - WEB_MENU_WIDTH;
@@ -176,6 +196,9 @@ export function SessionActionsPopover({
             top: Math.max(WEB_MENU_MARGIN, Math.min(windowHeight - estimatedHeight - WEB_MENU_MARGIN, topBase)),
         };
     }, [actions.length, anchor, windowHeight, windowWidth]);
+
+    // Escape closes the menu instead of reaching the app's Back handling.
+    useHerdEscapeToClose(visible && !!anchor, onClose);
 
     const handleActionPress = React.useCallback((action: SessionActionItem) => {
         onClose();
@@ -223,7 +246,12 @@ export function SessionActionsPopover({
                 key={action.id}
                 accessibilityRole="button"
                 onPress={() => handleActionPress(action)}
-                style={({ pressed }) => [
+                style={({ pressed, hovered }: any) => Platform.OS === 'web' ? [
+                    styles.menuItem,
+                    styles.webMenuItem,
+                    hovered && styles.webMenuItemHovered,
+                    pressed && styles.menuItemPressed,
+                ] : [
                     styles.menuItem,
                     !isLast && styles.menuItemDivider,
                     pressed && styles.menuItemPressed,
@@ -246,7 +274,7 @@ export function SessionActionsPopover({
 
     const nativeContent = (
         <>
-            <LocalBlurHalo borderRadius={6} expansion={14} />
+            <LocalBlurHalo borderRadius={theme.kilv.radiusCard} expansion={14} />
             <MobileGlassSurface
                 enabled
                 nativeEffect
@@ -282,7 +310,7 @@ export function SessionActionsPopover({
                             },
                         ]}
                     >
-                        <View style={[styles.card, { backgroundColor: theme.colors.header.background }]}>
+                        <View style={[styles.card, styles.webMenuCard, { backgroundColor: theme.colors.header.background }]}>
                             {actionItems}
                         </View>
                     </View>

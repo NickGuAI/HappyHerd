@@ -91,7 +91,7 @@ export default React.memo(function ProjectSessionsScreen() {
                                 <FlatSessionRow
                                     row={item}
                                     pinned={item.session.id === list.superSessionId}
-                                    showBorder={index < list.sessions.length - 1}
+                                    entranceIndex={index}
                                 />
                             </View>
                         )}
@@ -116,12 +116,11 @@ export default React.memo(function ProjectSessionsScreen() {
                                         {showArchived ? t('sidebar.hideArchived') : t('sidebar.showArchived')}
                                     </Text>
                                 </Pressable>
-                                {showArchived && list.archivedSessions.map((row, index) => (
+                                {showArchived && list.archivedSessions.map((row) => (
                                     <View key={row.session.id} testID={`project-session-row-${row.session.id}`}>
                                         <FlatSessionRow
                                             row={row}
                                             archived
-                                            showBorder={index < list.archivedSessions.length - 1}
                                         />
                                     </View>
                                 ))}

@@ -24,6 +24,7 @@ import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import { SessionStatusAvatar } from './SessionStatusAvatar';
+import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet } from './herd/shell/HerdSessionRowParts';
 
 interface ActiveSessionsGroupProps {
     sessions: SessionRowData[];
@@ -279,14 +280,17 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
 
     const itemContent = (
         <Pressable
-            style={[
+            style={({ hovered, pressed }: any) => [
                 styles.sessionRow,
-                showBorder && styles.sessionRowWithBorder,
-                selected && styles.sessionRowSelected
+                showBorder && Platform.OS !== 'web' && styles.sessionRowWithBorder,
+                selected && Platform.OS !== 'web' && styles.sessionRowSelected,
+                (hovered || pressed) && !selected && styles.sessionRowHovered,
             ]}
+            {...herdRowDataSet(session.id)}
             {...sessionPressHandlers}
             {...menuProps}
         >
+            {Platform.OS === 'web' && <HerdRowSelection sessionId={session.id} selected={!!selected} />}
             <View style={styles.sessionContent}>
                 <View style={styles.sessionTitleRow}>
                     {renderLeadingIndicator()}
@@ -325,6 +329,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     </View>
                 )}
             </View>
+            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} top={15} />
         </Pressable>
     );
 
@@ -473,12 +478,21 @@ const stylesheet = StyleSheet.create((theme) => ({
         height: 56,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: Platform.OS === 'web' ? 10 : 16,
+        marginHorizontal: Platform.OS === 'web' ? 8 : 0,
+        marginBottom: Platform.OS === 'web' ? 2 : 0,
+        borderRadius: Platform.OS === 'web' ? theme.kilv.radius : 0,
         // Solid, and the same color the card behind it paints: the row is the
         // thing that slides during the archive swipe, so it must cover the red
         // action underneath the way the flat list's rows do — a transparent
-        // row lets the red show through the moment the drag starts.
-        backgroundColor: theme.colors.surface,
+        // row lets the red show through the moment the drag starts. Web has
+        // no swipe, so its rows are inset, rounded and transparent for the
+        // gliding selection (HappyHerd fluid shell).
+        backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.surface,
+        _web: { _classNames: ['herd-row', 'herd-transition'] },
+    },
+    sessionRowHovered: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
     },
     sessionRowWithBorder: {
         borderBottomWidth: StyleSheet.hairlineWidth,

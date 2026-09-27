@@ -31,7 +31,16 @@ export const HERD_MOTION_CLASSES = [
     'herd-transition',
     'herd-press',
     'herd-glide',
+    'herd-exit-left',
+    'herd-shell-reveal',
+    'herd-row-reveal',
 ] as const;
+
+/**
+ * Structural hosts for the reveal classes above. They carry no motion of
+ * their own, so they are outside the reduced-motion guard.
+ */
+export const HERD_HOST_CLASSES = ['herd-shell', 'herd-row'] as const;
 
 export type HerdMotionClass = typeof HERD_MOTION_CLASSES[number];
 

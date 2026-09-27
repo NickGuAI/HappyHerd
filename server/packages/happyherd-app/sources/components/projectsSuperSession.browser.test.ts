@@ -53,7 +53,14 @@ const virtualModules: Record<string, string> = {
         export const useOverlayNav = (selector) => selector(state);
         useOverlayNav.getState = () => state;
     `,
-    'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
+    'react-native-safe-area-context': `
+        import React from 'react';
+        export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });
+        export const SafeAreaInsetsContext = React.createContext(null);
+    `,
+    // Covered by the herd shell browser test; here they only hold their slots.
+    '@/components/herd/shell/HerdInboxBell': `export const HerdInboxBell = () => null;`,
+    '@/components/herd/shell/HerdMachineMenu': `export const HerdMachineMenu = () => null;`,
     'react-native-gesture-handler': `
         import React from 'react';
         export const Swipeable = React.forwardRef(({ children }, _ref) => children);
@@ -445,6 +452,8 @@ const fixturePlugin: Plugin = {
                 './StatusDot': '@/components/StatusDot',
                 './VoiceAssistantStatusBar': '@/components/VoiceAssistantStatusBar',
                 './BubblePressable': '@/components/BubblePressable',
+                './HerdInboxBell': '@/components/herd/shell/HerdInboxBell',
+                './HerdMachineMenu': '@/components/herd/shell/HerdMachineMenu',
             };
             if (args.path in relativeStubs) {
                 const replacement = relativeStubs[args.path];
@@ -734,13 +743,14 @@ describe('Projects and Super Session production UI gestures', () => {
 
     it('starts all four focus durations through the real desktop header and restores the list on exit', async () => {
         const { page, errors } = await openFocusPage(surfaces[0]);
+        // Top bar order: panel toggle, history, …, Focus mode on the right.
         const [back, tomato, collapse] = await Promise.all([
             page.getByRole('button', { name: 'Back', exact: true }).boundingBox(),
             page.getByTestId('focus-mode-enter').boundingBox(),
             page.getByTestId('navigation-sidebar-toggle').boundingBox(),
         ]);
+        expect(collapse!.x + collapse!.width).toBeLessThanOrEqual(back!.x);
         expect(tomato!.x).toBeGreaterThan(back!.x + back!.width);
-        expect(tomato!.x + tomato!.width).toBeLessThan(collapse!.x);
         for (const minutes of [15, 30, 45, 60]) {
             await startFocus(page, minutes);
             expect(await page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);

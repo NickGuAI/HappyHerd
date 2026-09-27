@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "90d10aebf3f057037ee7b8bc607ff0abb03a31e88de6cfe4f1e0fd0ab511540f",
+  "sourceFingerprint": "af7440fca1d3a0e92a178ced798ffca0db5a295ba7ea39d23a0d7215f1a5a702",
   "routeCount": 41,
-  "surfaceCount": 283,
+  "surfaceCount": 291,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3852,11 +3852,142 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/HerdPopover.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMenuItem",
+        "HerdMenuSeparator",
+        "HerdMenuTitle",
+        "HerdPopover",
+        "measureHerdAnchor",
+        "resolveHerdPopoverPosition",
+        "useHerdEscapeToClose"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/SegmentedControl.tsx",
       "kind": "component",
       "route": null,
       "exports": [
         "HerdSegmentedControl"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdInboxBell.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdInboxBell"
+      ],
+      "translationKeys": [
+        "friends.pendingRequests",
+        "inbox.emptyTitle",
+        "inbox.updates",
+        "tabs.inbox"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMachineMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMachineMenu",
+        "machineLabel",
+        "orderMachinesForMenu"
+      ],
+      "translationKeys": [
+        "sessionInfo.viewMachine",
+        "settings.machines",
+        "status.offline",
+        "status.online"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdSessionRowParts.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdRowMoreButton",
+        "HerdRowSelection",
+        "herdRowDataSet"
+      ],
+      "translationKeys": [
+        "sessionInfo.quickActions"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdSidebarEdgeToggle.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "HERD_SIDEBAR_EDGE_TOGGLE_COLLAPSED_LEFT",
+        "HERD_SIDEBAR_EDGE_TOGGLE_HEIGHT",
+        "HERD_SIDEBAR_EDGE_TOGGLE_WIDTH",
+        "HerdSidebarEdgeToggle",
+        "resolveHerdSidebarEdgeToggleLeft"
+      ],
+      "translationKeys": [
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTopBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HERD_TOP_BAR_COMPACT_WIDTH",
+        "HerdTopBar"
+      ],
+      "translationKeys": [
+        "commandPalette.placeholder",
+        "common.back",
+        "common.forward",
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
+        "sidebar.sessionsTitle",
+        "zen.toggle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTopBarIconButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdTopBarIconButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/sidebarTransition.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "HERD_SIDEBAR_EXIT_MS",
+        "HerdSidebarFrame",
+        "HerdSidebarPhaseContext",
+        "useHerdSidebarTransition"
       ],
       "translationKeys": [],
       "states": [],
@@ -5126,12 +5257,7 @@
       "exports": [
         "SidebarNavigator"
       ],
-      "translationKeys": [
-        "common.back",
-        "navigation.collapseSidebar",
-        "navigation.expandSidebar",
-        "zen.toggle"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },

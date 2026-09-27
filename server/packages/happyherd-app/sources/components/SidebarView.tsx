@@ -1,8 +1,6 @@
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useHeaderHeight } from '@/utils/responsive';
+import { usePathname, useRouter } from 'expo-router';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
 import { useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
 import { MainView } from './MainView';
@@ -14,18 +12,19 @@ import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
 
 const stylesheet = StyleSheet.create((theme) => ({
+    // Sits below the HappyHerd top bar, which owns the window's top edge.
     container: {
         flex: 1,
         borderStyle: 'solid',
         backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.kilv.rimLine,
+        borderRightWidth: 1,
+        borderRightColor: theme.colors.divider,
     },
     topControls: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        marginBottom: 4,
-        gap: 8,
+        marginHorizontal: 14,
+        marginTop: 14,
+        marginBottom: 6,
+        gap: 10,
     },
     primaryNavigation: {
         flexDirection: 'row',
@@ -40,17 +39,22 @@ const stylesheet = StyleSheet.create((theme) => ({
         flex: 1,
     },
     archiveButton: {
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 4,
+        borderRadius: theme.kilv.radius,
         borderWidth: 1,
-        borderColor: theme.colors.kilv.rimLine,
+        borderColor: theme.colors.divider,
         backgroundColor: theme.colors.surface,
+        _web: { _classNames: ['herd-transition', 'herd-press'] },
+    },
+    archiveButtonHovered: {
+        borderColor: theme.colors.kilv.rimLine,
     },
     archiveButtonActive: {
-        backgroundColor: theme.colors.surfaceSelected,
+        borderColor: theme.colors.selection.border,
+        backgroundColor: theme.colors.selection.background,
     },
     archiveButtonPressed: {
         backgroundColor: theme.colors.surfacePressed,
@@ -58,9 +62,9 @@ const stylesheet = StyleSheet.create((theme) => ({
     settingsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderTopWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderTopWidth: 1,
         borderTopColor: theme.colors.divider,
         gap: 10,
     },
@@ -69,9 +73,8 @@ const stylesheet = StyleSheet.create((theme) => ({
 export const SidebarView = React.memo(() => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
     const router = useRouter();
-    const headerHeight = useHeaderHeight();
+    const pathname = usePathname();
     const realtimeStatus = useRealtimeStatus();
     const machineWorkspaceEnabled = useSetting('machineWorkspace');
     const hasArchivedSessions = useHasArchivedSessions();
@@ -87,7 +90,7 @@ export const SidebarView = React.memo(() => {
         setHideArchivedSessions(!hideArchivedSessions);
     }, [hideArchivedSessions, setHideArchivedSessions]);
     return (
-        <View style={[styles.container, { paddingTop: safeArea.top + headerHeight }]}>
+        <View style={styles.container}>
             <View style={styles.topControls}>
                 <View style={styles.primaryNavigation}>
                     {machineWorkspaceEnabled && (
@@ -95,6 +98,7 @@ export const SidebarView = React.memo(() => {
                             iconOnly
                             icon="folder-open-outline"
                             label={t('workspace.title')}
+                            active={pathname.startsWith('/workspace')}
                             onPress={() => router.navigate('/workspace')}
                         />
                     )}
@@ -102,12 +106,14 @@ export const SidebarView = React.memo(() => {
                         iconOnly
                         icon="albums-outline"
                         label={t('sidebar.projects')}
+                        active={pathname.startsWith('/projects')}
                         onPress={() => router.navigate('/projects')}
                     />
                     <SidebarNavigationButton
                         iconOnly
                         icon="time-outline"
                         label={t('happyHerd.automations.title')}
+                        active={pathname.startsWith('/automations')}
                         onPress={() => router.navigate('/automations')}
                     />
                 </View>
@@ -117,6 +123,8 @@ export const SidebarView = React.memo(() => {
                             icon="create-outline"
                             label={t('sidebar.newSession')}
                             onPress={handleNewSession}
+                            emphasis
+                            active={pathname.startsWith('/new')}
                             highlighted={shortcutHintsVisible}
                             trailing={<ShortcutHintBadge shortcutKey="N" />}
                         />
@@ -129,8 +137,9 @@ export const SidebarView = React.memo(() => {
                                 : t('sidebar.hideArchived')}
                             accessibilityRole="button"
                             accessibilityState={{ selected: !hideArchivedSessions }}
-                            style={({ pressed }) => [
+                            style={({ pressed, hovered }: any) => [
                                 styles.archiveButton,
+                                hovered && styles.archiveButtonHovered,
                                 !hideArchivedSessions && styles.archiveButtonActive,
                                 pressed && styles.archiveButtonPressed,
                             ]}
@@ -138,7 +147,7 @@ export const SidebarView = React.memo(() => {
                             <Ionicons
                                 name={hideArchivedSessions ? 'archive-outline' : 'archive'}
                                 size={18}
-                                color={theme.colors.text}
+                                color={hideArchivedSessions ? theme.colors.text : theme.colors.textLink}
                             />
                         </Pressable>
                     )}
@@ -158,6 +167,8 @@ export const SidebarView = React.memo(() => {
                     icon="settings-outline"
                     label={t('settings.title')}
                     onPress={() => router.push('/settings')}
+                    quiet
+                    active={pathname.startsWith('/settings')}
                     highlighted={shortcutHintsVisible}
                     trailing={<ShortcutHintBadge shortcutKey="," />}
                 />

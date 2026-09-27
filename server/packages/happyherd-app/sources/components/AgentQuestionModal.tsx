@@ -8,7 +8,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -41,7 +41,7 @@ interface AgentQuestionModalProps {
 export function AgentQuestionModal({ pending, sessionId, visible, onClose }: AgentQuestionModalProps) {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
+    const safeArea = useWindowSafeAreaInsets();
     const [drafts, setDrafts] = React.useState<Record<string, AgentQuestionDraft>>({});
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);

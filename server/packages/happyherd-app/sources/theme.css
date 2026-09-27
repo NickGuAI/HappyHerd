@@ -196,12 +196,37 @@ diffs-container {
 .herd-press:active { transform: scale(0.97); }
 .herd-glide { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), height 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease; }
 
+/* The desktop panel's content leaves before its width snaps shut. */
+@keyframes herd-exit-left {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateX(-24px); }
+}
+.herd-exit-left { animation: herd-exit-left 180ms cubic-bezier(0.55, 0, 1, 0.45) both; }
+/* Controls that appear with their host: the panel's edge handle while the
+   pointer is over the shell (.herd-shell), a session row's ⋯ button while the
+   row is hovered or keyboard-focused (.herd-row). A mouse click that selects a
+   row does not keep ⋯ over its timestamp. Touch screens have no hover. */
+.herd-shell-reveal, .herd-row-reveal {
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 140ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.herd-shell:hover .herd-shell-reveal, .herd-shell-reveal:focus-visible,
+.herd-row:hover .herd-row-reveal, .herd-row:focus-visible .herd-row-reveal, .herd-row-reveal:focus-visible,
+.herd-row-reveal[data-open="true"] {
+    opacity: 1;
+    transform: none;
+}
+@media (hover: none) {
+    .herd-shell-reveal, .herd-row-reveal { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .herd-rise, .herd-rise-sm, .herd-fade, .herd-pop, .herd-sheet, .herd-sheet-up, .herd-slide-left, .herd-slide-right,
-    .herd-check, .herd-attention, .herd-thinking, .herd-breathe {
+    .herd-check, .herd-attention, .herd-thinking, .herd-breathe, .herd-exit-left {
         animation: none !important;
     }
-    .herd-transition, .herd-glide { transition: none !important; }
+    .herd-transition, .herd-glide, .herd-shell-reveal, .herd-row-reveal { transition: none !important; }
     .herd-press:active { transform: none; }
 }
 

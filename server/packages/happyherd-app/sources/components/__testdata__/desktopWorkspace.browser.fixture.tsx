@@ -13,7 +13,7 @@ import {
     type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
 import { SidebarNavigator } from '@/components/SidebarNavigator';
-import { useLocalSetting } from '@/sync/storage';
+import { FixtureDrawerScreenContext } from './fixtureDrawerScreen';
 import { MachineWorkspaceBrowser } from '../../app/(app)/workspace';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
@@ -43,7 +43,7 @@ function CollapsedNavigationHeaderDemo() {
     return (
         <div
             data-testid="collapsed-navigation-header-demo"
-            style={{ position: 'relative', display: 'flex', width: 800, height: 80 }}
+            style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: 800, height: 400 }}
         >
             <SidebarNavigator />
         </div>
@@ -68,27 +68,19 @@ function WorkspaceSplitDemo() {
     );
 }
 
-function IntegratedDesktopDemo() {
-    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
+const renderWorkspaceSplitDemo = () => <WorkspaceSplitDemo />;
 
+// The real shell: top bar above, panel and screen below. The split workspace
+// is the drawer's screen, so it widens exactly when the panel collapses.
+function IntegratedDesktopDemo() {
     return (
         <div
             data-testid="integrated-desktop-demo"
-            style={{ display: 'flex', width: 1400, height: 480 }}
+            style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: 1400, height: 560 }}
         >
-            <div
-                data-testid="sidebar-demo"
-                style={{
-                    position: 'relative',
-                    flex: '0 0 auto',
-                    width: navigationSidebarCollapsed ? 0 : 360,
-                    height: 480,
-                    zIndex: 1,
-                }}
-            >
+            <FixtureDrawerScreenContext.Provider value={renderWorkspaceSplitDemo}>
                 <SidebarNavigator />
-            </div>
-            <WorkspaceSplitDemo />
+            </FixtureDrawerScreenContext.Provider>
         </div>
     );
 }

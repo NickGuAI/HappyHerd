@@ -14,21 +14,29 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 
-vi.mock('react-native-unistyles', () => ({
-    StyleSheet: {
-        hairlineWidth: 1,
-        create: (factory: any) => factory({
-            colors: {
-                kilv: { rimLine: 'rim', accent: 'accent' },
-                surfaceSelected: 'selected',
-                divider: 'divider',
-                surface: 'surface',
-                surfacePressed: 'pressed',
-                text: 'text',
-            },
-        }),
-    },
-}));
+vi.mock('react-native-unistyles', () => {
+    const theme = {
+        colors: {
+            kilv: { rimLine: 'rim', accent: 'accent' },
+            selection: { border: 'selection-border', background: 'selection-background' },
+            surfaceSelected: 'selected',
+            surfacePressedOverlay: 'pressed-overlay',
+            divider: 'divider',
+            surface: 'surface',
+            surfacePressed: 'pressed',
+            text: 'text',
+            textLink: 'link',
+        },
+        kilv: { radius: 8, glowMoltenSoft: 'glow' },
+    };
+    return {
+        StyleSheet: {
+            hairlineWidth: 1,
+            create: (factory: any) => factory(theme),
+        },
+        useUnistyles: () => ({ theme }),
+    };
+});
 
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 
@@ -62,12 +70,36 @@ describe('SidebarNavigationButton', () => {
 
         expect(resolvedStyle).toMatchObject({
             width: '100%',
-            minHeight: 40,
+            minHeight: 42,
+            borderRadius: 8,
             paddingVertical: 10,
             paddingHorizontal: 14,
         });
         expect(resolvedStyle).not.toHaveProperty('flex');
         expect(pressable.props.accessibilityLabel).toBe('Workspace');
         expect(pressable.props.accessibilityRole).toBe('button');
+        expect(pressable.props['aria-selected']).toBeUndefined();
+    });
+
+    it('marks the destination that owns the current route with the shared selection language', () => {
+        let renderer: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(SidebarNavigationButton, {
+                icon: 'albums-outline',
+                label: 'Projects',
+                iconOnly: true,
+                active: true,
+                onPress: vi.fn(),
+            }));
+        });
+
+        const pressable = renderer!.root.findByType('Pressable' as any);
+        const resolvedStyle = Object.assign({}, ...pressable.props.style({ pressed: false, hovered: false }).filter(Boolean));
+        expect(resolvedStyle).toMatchObject({
+            borderColor: 'selection-border',
+            backgroundColor: 'selection-background',
+        });
+        expect(pressable.props['aria-selected']).toBe(true);
+        expect(renderer!.root.findByType('Ionicons' as any).props.color).toBe('link');
     });
 });

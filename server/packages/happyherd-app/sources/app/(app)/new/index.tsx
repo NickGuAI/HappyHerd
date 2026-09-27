@@ -38,6 +38,7 @@ import { useAllMachines, useLocalSetting, useProjects, useSessions, useSetting, 
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
+import { resolveNewSessionMachine } from '@/utils/newSessionMachine';
 import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { createWorktree } from '@/utils/worktree';
 import { useWorktrees } from '@/hooks/useWorktrees';
@@ -1083,8 +1084,9 @@ function NewSessionScreen() {
     // Pick a default only for a fresh draft. A stale explicit daemon id fails in
     // place rather than silently routing to another machine.
     React.useEffect(() => {
-        if (!selectedMachineId && allMachines.length > 0) {
-            setSelectedMachineId(allMachines[0].id);
+        const fresh = selectedMachineId ? null : resolveNewSessionMachine(allMachines, null);
+        if (fresh) {
+            setSelectedMachineId(fresh.id);
         }
     }, [allMachines, selectedMachineId, setSelectedMachineId]);
 
