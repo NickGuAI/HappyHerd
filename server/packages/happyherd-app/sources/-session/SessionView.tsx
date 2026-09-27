@@ -1212,15 +1212,16 @@ export const SessionView = React.memo((props: {
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        // Phones leave the session through the top bar; Back only steps out
-                        // of a diff or file opened over the chat.
+                        // Back steps out of a diff or file opened over the chat. Phones leave
+                        // the session through the top bar; native tablets, the iOS app on a
+                        // Mac included, leave it with their own Back (owner decision, 2026-09-27).
                         onBackPress={overlayCurrent.kind !== 'none' ? () => {
                             withFileDiscardConfirmation(() => setOverlayHistory((current) => (
                                 current.cursor <= 0
                                     ? current
                                     : { ...current, cursor: current.cursor - 1 }
                             )));
-                        } : undefined}
+                        } : Platform.OS !== 'web' && isTablet ? () => router.back() : undefined}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
                     {!isTablet && realtimeStatus !== 'disconnected' && (

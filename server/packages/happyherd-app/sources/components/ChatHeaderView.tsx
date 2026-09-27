@@ -59,7 +59,10 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     // on Web and native alike; the native branch below now serves tablets.
     const phone = !isTablet;
     const barLayout = Platform.OS === 'web' || phone;
-    const showBackButton = phone && !!onBackPress;
+    // Phones show Back while there is somewhere to step back to; native tablets,
+    // the iOS app on a Mac included, keep their own Back (owner decision,
+    // 2026-09-27). Web tablets and desktop leave history to the browser.
+    const showBackButton = !!onBackPress && (phone || Platform.OS !== 'web');
     const hasExtra = !!extraPathSegment;
     // Upstream's glass header was the native phone header. Phones now take the
     // bar and tablets never used glass, so it stays off; kept for upstream merges.

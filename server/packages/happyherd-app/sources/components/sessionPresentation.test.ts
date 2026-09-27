@@ -211,6 +211,25 @@ describe('chat header', () => {
         expect(texts(renderer)).toEqual(expected);
     });
 
+    // Owner decision, 2026-09-27: native tablets, the iOS app on a Mac included, keep the
+    // session header's own Back; web tablets and desktop leave history to the browser.
+    it.each([
+        ['an iPad', 'ios', true],
+        ['an Android tablet', 'android', true],
+        ['a web tablet or desktop', 'web', false],
+    ])('shows the session header\'s own Back on %s: %s', (_name, platform, shown) => {
+        state.platform = platform as string;
+        state.tablet = true;
+        const onBackPress = vi.fn();
+        const renderer = render(React.createElement(ChatHeaderView, { title: 'Session title', folderName: 'nice', onBackPress }));
+        const back = renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back');
+        expect(back).toHaveLength(shown ? 1 : 0);
+        if (shown) {
+            act(() => back[0].props.onPress());
+            expect(onBackPress).toHaveBeenCalledOnce();
+        }
+    });
+
     it('does not duplicate the folder when it equals the title', () => {
         expect(texts(render(React.createElement(ChatHeaderView, { title: 'nice', folderName: 'nice' })))).toEqual(['nice']);
     });
@@ -262,6 +281,27 @@ describe('session details', () => {
         act(() => items[0].props.onPress());
         expect(state.replace).toHaveBeenCalledWith({ pathname: '/session/[id]', params: { id: 'session-id', openChangesRequestId: 'fixture-uuid' } });
         expect(state.push).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['an iPad', 'ios', 1],
+        ['an Android tablet', 'android', 1],
+        ['a web tablet or desktop', 'web', 0],
+    ])('gives a page header its own Back on %s', (_name, platform, backs) => {
+        state.platform = platform as string;
+        state.tablet = true;
+        const goBack = vi.fn();
+        const renderer = render(createPlainHeader({
+            options: { headerTitle: 'Appearance' },
+            route: { name: 'settings/appearance' }, back: { title: 'Settings' },
+            navigation: { goBack },
+        } as any)!);
+        const presses = renderer.root.findAllByType('Pressable');
+        expect(presses).toHaveLength(backs);
+        if (backs) {
+            act(() => presses[0].props.onPress());
+            expect(goBack).toHaveBeenCalledOnce();
+        }
     });
 
     it('honors left alignment so the title uses space after the back button', () => {

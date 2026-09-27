@@ -370,9 +370,10 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
     // title, left-aligned at 24 px, or 22 px beside Back.
     const phoneShell = !isTablet && underTopBar;
 
-    // Hide back button on tablet — navigation is handled via sidebar and persistent header.
-    // Phones hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
-    const shouldHideBackButton = isTablet;
+    // Web tablets and desktop hide Back: the browser keeps history. Native tablets,
+    // the iOS app on a Mac included, show it (owner decision, 2026-09-27). Phones
+    // hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
+    const shouldHideBackButton = isTablet && Platform.OS === 'web';
     const showsBack = !!options.headerLeft || (!!back && options.headerBackVisible !== false && !shouldHideBackButton);
     const titleFontSize = phoneShell ? (showsBack ? 22 : 24) : isDesktop && !isWebPhone ? 17 : 16;
     const titleAlign = phoneShell ? 'left' : options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');

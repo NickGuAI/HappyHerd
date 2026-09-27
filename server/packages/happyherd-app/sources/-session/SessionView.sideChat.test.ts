@@ -997,6 +997,23 @@ describe('SessionView mobile back navigation', () => {
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
     });
 
+    it.each([
+        { label: 'iPad', width: 1024, height: 1366, platform: 'ios' },
+        { label: 'Android tablet', width: 1280, height: 800, platform: 'android' },
+    ])('gives the native $label session header its own Back, which leaves the session', ({ width, height, platform }) => {
+        // Owner decision, 2026-09-27: native tablets (the iOS app on a Mac included) keep a header Back.
+        mocks.width = width;
+        mocks.height = height;
+        mocks.platform = platform;
+        const renderer = renderParent();
+
+        const onBackPress = chatHeader(renderer).props.onBackPress;
+        expect(onBackPress).toEqual(expect.any(Function));
+        act(() => onBackPress());
+        expect(mocks.routerBack).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+
     it('dismisses the landscape narrow-Web session directly to the session list', () => {
         mocks.width = 844;
         mocks.height = 390;
