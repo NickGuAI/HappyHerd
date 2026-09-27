@@ -196,6 +196,29 @@ diffs-container {
 .herd-press:active { transform: scale(0.97); }
 .herd-glide { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), height 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease; }
 
+/* Overlays leave the way they came, then unmount (herd/presence.ts
+   useHerdExit). An overlay stops taking pointer input as it starts to leave. */
+@keyframes herd-pop-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+}
+@keyframes herd-sheet-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(16px) scale(0.98); }
+}
+@keyframes herd-sheet-down {
+    from { transform: none; }
+    to { transform: translateY(100%); }
+}
+@keyframes herd-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+.herd-pop-out { animation: herd-pop-out 140ms cubic-bezier(0.55, 0, 1, 0.45) both; transform-origin: top center; pointer-events: none; }
+.herd-sheet-out { animation: herd-sheet-out 180ms cubic-bezier(0.55, 0, 1, 0.45) both; pointer-events: none; }
+.herd-sheet-down { animation: herd-sheet-down 260ms cubic-bezier(0.55, 0, 1, 0.45) both; pointer-events: none; }
+.herd-fade-out { animation: herd-fade-out 180ms cubic-bezier(0.55, 0, 1, 0.45) both; pointer-events: none; }
+
 /* The desktop panel's content leaves before its width snaps shut. */
 @keyframes herd-exit-left {
     from { opacity: 1; transform: none; }
@@ -225,7 +248,8 @@ diffs-container {
 
 @media (prefers-reduced-motion: reduce) {
     .herd-rise, .herd-rise-sm, .herd-fade, .herd-pop, .herd-sheet, .herd-sheet-up, .herd-slide-left, .herd-slide-right,
-    .herd-check, .herd-attention, .herd-thinking, .herd-breathe, .herd-exit-left {
+    .herd-check, .herd-attention, .herd-thinking, .herd-breathe, .herd-exit-left,
+    .herd-pop-out, .herd-sheet-out, .herd-sheet-down, .herd-fade-out {
         animation: none !important;
     }
     .herd-transition, .herd-glide, .herd-shell-reveal, .herd-row-reveal { transition: none !important; }

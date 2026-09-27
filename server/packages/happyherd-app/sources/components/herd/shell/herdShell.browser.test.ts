@@ -274,6 +274,28 @@ const fixturePlugin: Plugin = {
     },
 };
 
+/**
+ * Starts watching the page for an element with `testId` and `className` (for
+ * example a leaving overlay, which is redrawn on the exit layer). The watch is
+ * in place when this resolves; the returned check reports whether such an
+ * element appeared, waiting up to 2 s.
+ */
+async function watchClass(page: Page, testId: string, className: string): Promise<() => Promise<boolean>> {
+    await page.evaluate(([id, name]) => {
+        const selector = `[data-testid="${id}"].${name}`;
+        (window as any).__HERD_CLASS_SEEN__ = new Promise<boolean>((resolve) => {
+            const observer = new MutationObserver(() => {
+                if (!document.querySelector(selector)) return;
+                observer.disconnect();
+                resolve(true);
+            });
+            observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+            setTimeout(() => { observer.disconnect(); resolve(false); }, 2_000);
+        });
+    }, [testId, className] as const);
+    return () => page.evaluate(() => (window as any).__HERD_CLASS_SEEN__ as Promise<boolean>);
+}
+
 describe('HappyHerd fluid shell in the production style runtime', () => {
     let browser: Browser;
     let server: Server;
@@ -488,19 +510,22 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await evidence(page, 'shell-inbox-dark-1440');
 
         // Escape closes the dropdown and never reaches the app's Back handling.
+        // The card scales out before it unmounts.
+        const exited = await watchClass(page, 'herd-inbox-popover', 'herd-pop-out');
         await page.keyboard.press('Escape');
-        await expect(popover.count()).resolves.toBe(0);
+        await expect(exited()).resolves.toBe(true);
+        await expect.poll(() => popover.count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(0);
         await page.keyboard.press('Escape');
         expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(1);
 
         await bell.click();
         await page.getByTestId('herd-inbox-open-page').click();
-        await expect(page.getByTestId('herd-inbox-popover').count()).resolves.toBe(0);
+        await expect.poll(() => page.getByTestId('herd-inbox-popover').count()).toBe(0);
         // A destination opened from a preview item closes the dropdown too.
         await bell.click();
         await page.getByTestId('herd-inbox-popover').getByTestId('feed-item').first().click();
-        await expect(page.getByTestId('herd-inbox-popover').count()).resolves.toBe(0);
+        await expect.poll(() => page.getByTestId('herd-inbox-popover').count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual(['/inbox', '/feed/feed-1']);
         expect(errors).toEqual([]);
         await page.close();
@@ -521,7 +546,7 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await evidence(page, 'shell-machine-menu-light-1440');
 
         await menu.getByTestId('herd-machine-option-build-box').click();
-        await expect(menu.count()).resolves.toBe(0);
+        await expect.poll(() => menu.count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__DRAFT_MACHINE_WRITES__)).toEqual(['build-box']);
         await expect(pill.innerText()).resolves.toContain('build-box');
 

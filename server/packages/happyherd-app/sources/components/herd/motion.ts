@@ -32,6 +32,10 @@ export const HERD_MOTION_CLASSES = [
     'herd-press',
     'herd-glide',
     'herd-exit-left',
+    'herd-pop-out',
+    'herd-sheet-out',
+    'herd-sheet-down',
+    'herd-fade-out',
     'herd-shell-reveal',
     'herd-row-reveal',
 ] as const;

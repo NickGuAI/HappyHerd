@@ -690,7 +690,7 @@ describe('Session screen overhaul (Web)', () => {
             await expect.poll(() => page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).toContainEqual(
                 { sessionId: 'parent', patch: expect.objectContaining({ modelMode: 'claude-sonnet-5' }) },
             );
-            await expect(popover.count()).resolves.toBe(0);
+            await expect.poll(() => popover.count()).toBe(0);
         }
         await permission.click();
         const permissionPopover = foreground.getByTestId('composer-chip-popover-permission-chip');

@@ -51,6 +51,7 @@ import {
 } from './agentInputLayout';
 import { shouldUseExpoNativeSettingsMenu } from './glassInteractionPolicy';
 import { useHerdEscapeToClose } from './herd/escape';
+import { HERD_EXIT, useHerdExit } from './herd/presence';
 import { herdWebClasses } from './herd/motion';
 import { herdAlpha } from './herd/session/color';
 import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
@@ -1553,6 +1554,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const chipPickerOpen = openPicker === 'model' || openPicker === 'effort' || openPicker === 'permission-chip';
     // Escape closes the chip picker and stops there, so it never also navigates Back.
     useHerdEscapeToClose(chipPickerOpen, closePicker);
+    // The last chip picker stays for its exit motion after it closes.
+    const chipPicker = useHerdExit(chipPickerOpen ? openPicker : null, HERD_EXIT.pop);
 
     // Handle settings selection
     const handleSettingsSelect = React.useCallback((mode: PermissionMode) => {
@@ -2510,28 +2513,31 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 {/* Web chip popovers (UI overhaul): each chip opens exactly its
                     section of the settings popover, anchored above the chip. */}
-                {webActionMenu && chipPickerOpen && (
+                {webActionMenu && chipPicker.value && (
                     <>
-                        <TouchableWithoutFeedback onPress={closePicker}>
-                            <View style={styles.overlayBackdrop} />
-                        </TouchableWithoutFeedback>
+                        {chipPicker.exiting ? null : (
+                            <TouchableWithoutFeedback onPress={closePicker}>
+                                <View style={styles.overlayBackdrop} />
+                            </TouchableWithoutFeedback>
+                        )}
                         <ComposerChipPopover
                             left={chipAnchorLeft}
-                            width={openPicker === 'permission-chip' ? 300 : openPicker === 'model' ? 280 : 220}
+                            width={chipPicker.value === 'permission-chip' ? 300 : chipPicker.value === 'model' ? 280 : 220}
                             containerWidth={innerContainerWidth}
-                            testID={`composer-chip-popover-${openPicker}`}
+                            exiting={chipPicker.exiting}
+                            testID={`composer-chip-popover-${chipPicker.value}`}
                         >
                             <View style={styles.chipPopoverSection}>
                                 <Text style={styles.overlaySectionTitle}>
-                                    {openPicker === 'permission-chip'
+                                    {chipPicker.value === 'permission-chip'
                                         ? permissionSectionTitle
-                                        : openPicker === 'model'
+                                        : chipPicker.value === 'model'
                                             ? t('agentInput.model.title')
                                             : t('agentInput.effort.title')}
                                 </Text>
-                                {openPicker === 'permission-chip'
+                                {chipPicker.value === 'permission-chip'
                                     ? renderPermissionOptions()
-                                    : openPicker === 'model'
+                                    : chipPicker.value === 'model'
                                         ? renderModelOptions()
                                         : renderEffortOptions()}
                             </View>

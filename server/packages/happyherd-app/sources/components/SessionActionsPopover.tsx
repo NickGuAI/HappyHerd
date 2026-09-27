@@ -16,6 +16,8 @@ import { MobileGlassSurface } from './MobileGlass';
 import { AnimatedPopup, LocalBlurHalo } from './AnimatedOverlay';
 import { herdWebClasses } from './herd/motion';
 import { HerdMenuSeparator, useHerdEscapeToClose } from './herd/HerdPopover';
+import { HerdExitLayer } from './herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from './herd/presence';
 import { HerdBottomSheet } from './herd/mobile/HerdBottomSheet';
 import { isHerdPhoneWeb } from './herd/mobile/useHerdPhone';
 import { getSessionName } from '@/utils/sessionUtils';
@@ -104,13 +106,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfaceSelected,
     },
     // Web: a floating menu of rounded rows that tint on hover (HappyHerd fluid shell).
-    webMenuCard: {
+    webMenuCard: (exiting: boolean) => ({
         padding: WEB_MENU_PADDING,
         _web: {
             boxShadow: theme.kilv.shadow,
-            _classNames: herdWebClasses('herd-pop'),
+            _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
         },
-    },
+    }),
     webMenuItem: {
         minHeight: WEB_MENU_ITEM_HEIGHT,
         paddingHorizontal: 10,
@@ -203,11 +205,17 @@ export function SessionActionsPopover({
     const preferredModifier = React.useMemo(() => getPreferredShortcutModifier(
         typeof navigator === 'undefined' ? undefined : navigator
     ), []);
+    const phoneSheet = isHerdPhoneWeb(windowWidth);
+    // The web card and the phone sheet stay mounted, with their last anchor,
+    // while they leave; a closed menu mounts neither.
+    const presence = useHerdExit(visible && anchor ? anchor : null, phoneSheet ? HERD_EXIT.sheetDown : HERD_EXIT.pop);
+    const shownAnchor = presence.value;
 
     const position = React.useMemo(() => {
-        if (!anchor) {
+        if (!shownAnchor) {
             return null;
         }
+        const anchor = shownAnchor;
 
         const estimatedHeight = actions.length * WEB_MENU_ITEM_HEIGHT + WEB_MENU_PADDING * 2;
         const leftBase = anchor.type === 'point'
@@ -226,12 +234,16 @@ export function SessionActionsPopover({
             left: Math.max(WEB_MENU_MARGIN, Math.min(windowWidth - WEB_MENU_WIDTH - WEB_MENU_MARGIN, leftBase)),
             top: Math.max(WEB_MENU_MARGIN, Math.min(windowHeight - estimatedHeight - WEB_MENU_MARGIN, topBase)),
         };
-    }, [actions.length, anchor, windowHeight, windowWidth]);
+    }, [actions.length, shownAnchor, windowHeight, windowWidth]);
 
     // Escape closes the menu instead of reaching the app's Back handling.
     useHerdEscapeToClose(visible && !!anchor, onClose);
 
+    // A closed menu never runs an action, even from a press that lands while it leaves.
+    const visibleRef = React.useRef(visible);
+    visibleRef.current = visible;
     const handleActionPress = React.useCallback((action: SessionActionItem) => {
+        if (!visibleRef.current) return;
         onClose();
         action.onPress();
     }, [onClose]);
@@ -260,11 +272,10 @@ export function SessionActionsPopover({
         return () => window.removeEventListener('keydown', handleKeyDown, true);
     }, [actions, anchor, handleActionPress, preferredModifier, session, visible]);
 
-    if (!visible || !anchor || !session) {
+    if (!session || !shownAnchor) {
         return null;
     }
 
-    const phoneSheet = isHerdPhoneWeb(windowWidth);
     const actionItems = actions.map((action, index) => {
         const isLast = index === actions.length - 1;
         const color = action.destructive ? theme.colors.status.error : theme.colors.text;
@@ -330,7 +341,7 @@ export function SessionActionsPopover({
     if (phoneSheet) {
         return (
             <HerdBottomSheet
-                visible={visible}
+                visible={visible && !!anchor}
                 onClose={onClose}
                 accessibilityLabel={getSessionName(session)}
                 testID="session-actions-sheet"
@@ -347,28 +358,35 @@ export function SessionActionsPopover({
     }
 
     if (Platform.OS === 'web' && position) {
+        const menu = (
+            <View
+                style={[
+                    styles.webMenu,
+                    {
+                        left: position.left,
+                        top: position.top,
+                    },
+                ]}
+            >
+                <View style={[styles.card, styles.webMenuCard(presence.exiting), { backgroundColor: theme.colors.header.background }]}>
+                    {actionItems}
+                </View>
+            </View>
+        );
+        // Closing ends the Modal at once; the card scales out on an inert layer.
+        if (presence.exiting) {
+            return <HerdExitLayer>{menu}</HerdExitLayer>;
+        }
         return (
             <RNModal
                 animationType="none"
                 onRequestClose={onClose}
                 transparent
-                visible={visible}
+                visible
             >
                 <View style={styles.webContainer}>
                     <Pressable onPress={onClose} style={[styles.backdrop, styles.webBackdrop]} />
-                    <View
-                        style={[
-                            styles.webMenu,
-                            {
-                                left: position.left,
-                                top: position.top,
-                            },
-                        ]}
-                    >
-                        <View style={[styles.card, styles.webMenuCard, { backgroundColor: theme.colors.header.background }]}>
-                            {actionItems}
-                        </View>
-                    </View>
+                    {menu}
                 </View>
             </RNModal>
         );

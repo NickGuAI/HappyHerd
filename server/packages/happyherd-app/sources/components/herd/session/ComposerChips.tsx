@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
@@ -87,6 +87,8 @@ export function ComposerChipPopover(props: {
     width: number;
     containerWidth: number;
     maxHeight?: number;
+    /** Plays the exit instead of the entrance (herd/presence `useHerdExit`). */
+    exiting?: boolean;
     children: React.ReactNode;
     testID?: string;
 }) {
@@ -94,8 +96,16 @@ export function ComposerChipPopover(props: {
     const maxLeft = props.containerWidth > 0 ? Math.max(0, props.containerWidth - width) : props.left;
     const left = Math.max(0, Math.min(props.left, maxLeft));
     const maxHeight = props.maxHeight ?? 400;
+    // A leaving popover takes no focus or keys, so a dismissed option cannot be chosen.
+    const ref = React.useRef<View>(null);
+    React.useLayoutEffect(() => {
+        const node = ref.current as unknown as HTMLElement | null;
+        if (Platform.OS !== 'web' || !node?.setAttribute) return;
+        if (props.exiting) node.setAttribute('inert', '');
+        else node.removeAttribute('inert');
+    }, [props.exiting]);
     return (
-        <View style={[styles.popover, { left, width }]} testID={props.testID} accessibilityRole="menu">
+        <View ref={ref} style={[styles.popover(!!props.exiting), { left, width }]} testID={props.testID} accessibilityRole="menu">
             <View style={[styles.popoverSurface, { maxHeight }]}>
                 <ScrollView style={{ maxHeight }} keyboardShouldPersistTaps="always">
                     {props.children}
@@ -200,16 +210,16 @@ const styles = StyleSheet.create((theme) => ({
         lineHeight: 16,
         ...Typography.mono(),
     },
-    popover: {
+    popover: (exiting: boolean) => ({
         position: 'absolute',
         bottom: '100%',
         marginBottom: 10,
         zIndex: 1000,
         _web: {
-            _classNames: herdWebClasses('herd-pop'),
+            _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
             transformOrigin: 'bottom left',
         },
-    },
+    }),
     popoverSurface: {
         borderWidth: 1,
         borderColor: theme.colors.kilv.rimLine,

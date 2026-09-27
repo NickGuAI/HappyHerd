@@ -536,3 +536,4 @@ UI_OVERHAUL_ESCAPE_MODULE	accepted	fix(app): import the Escape hook without the 
 UI_OVERHAUL_ROW_LONG_PRESS	accepted	feat(app): open session row actions with a long press on touch screens	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UI_OVERHAUL_SESSION_BACK_LABEL	accepted	fix(app): label the session header's Back button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_PHONE_RADII	accepted	feat(app): round phone sheets and the New session button like the mock	server/packages/happyherd-app/sources/components/herd/motion.test.ts
+UI_OVERHAUL_OVERLAY_EXIT	accepted	feat(app): let menus and sheets leave with motion	server/packages/happyherd-app/sources/components/herd/presence.test.ts

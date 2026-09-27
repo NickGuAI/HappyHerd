@@ -76,14 +76,13 @@ export function SessionHeaderActions(props: {
                 renderIcon={(color) => <Octicons name="kebab-horizontal" size={16} color={color} />}
                 testID="session-header-menu"
             />
-            {menuAnchor ? (
-                <SessionActionsPopover
-                    anchor={menuAnchor}
-                    onClose={closeMenu}
-                    sessionId={props.sessionId}
-                    visible
-                />
-            ) : null}
+            {/* Always mounted, so the menu can play its exit after it closes. */}
+            <SessionActionsPopover
+                anchor={menuAnchor}
+                onClose={closeMenu}
+                sessionId={props.sessionId}
+                visible={menuAnchor !== null}
+            />
         </View>
     );
 }

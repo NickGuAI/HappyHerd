@@ -398,6 +398,7 @@ vi.mock('@/hooks/useMachineFileUpload', () => ({
 vi.mock('@/hooks/useHappyHerdAction', () => ({ useHappyHerdAction: () => [false, vi.fn()] }));
 vi.mock('@/hooks/useSessionQuickActions', () => ({
     useSessionQuickActions: (session: Session) => ({
+        actionItems: [],
         canResume: !session.active,
         resumeSession: () => mocks.resumeSession(session.id),
         resumeSessionWithQueuedTurn: mocks.resumeSessionWithQueuedTurn,

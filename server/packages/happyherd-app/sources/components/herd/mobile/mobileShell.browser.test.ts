@@ -636,7 +636,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             await evidence(page, `mobile-session-actions-${theme}-390`);
 
             await sheet.getByRole('button', { name: /Fork/ }).click();
-            await expect(page.getByTestId('session-actions-sheet').count()).resolves.toBe(0);
+            await expect.poll(() => page.getByTestId('session-actions-sheet').count()).toBe(0);
             expect(await page.evaluate(() => (window as any).__ACTIONS__)).toEqual(['fork']);
             expect(errors).toEqual([]);
             await page.close();
@@ -676,20 +676,35 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
 
         await row.click({ button: 'right' });
         await sheet.waitFor();
+        // The sheet slides back down, redrawn on the inert exit layer, before
+        // it unmounts. The watch is in place before Escape is pressed.
+        await page.evaluate(() => {
+            const selector = '[data-testid="session-actions-sheet"].herd-sheet-down';
+            (window as any).__HERD_SLID_DOWN__ = new Promise<boolean>((resolve) => {
+                const observer = new MutationObserver(() => {
+                    if (!document.querySelector(selector)) return;
+                    observer.disconnect();
+                    resolve(true);
+                });
+                observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+                setTimeout(() => { observer.disconnect(); resolve(false); }, 2_000);
+            });
+        });
         await page.keyboard.press('Escape');
-        await expect(sheet.count()).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__HERD_SLID_DOWN__ as Promise<boolean>)).resolves.toBe(true);
+        await expect.poll(() => sheet.count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(0);
 
         await row.click({ button: 'right' });
         await sheet.waitFor();
         await page.mouse.click(PHONE.width / 2, 120);
-        await expect(sheet.count()).resolves.toBe(0);
+        await expect.poll(() => sheet.count()).toBe(0);
 
         await row.click({ button: 'right' });
         await sheet.waitFor();
         await expect(page.getByTestId('session-actions-sheet-handle').getAttribute('aria-label')).resolves.toBe('Cancel');
         await page.getByTestId('session-actions-sheet-handle').click();
-        await expect(sheet.count()).resolves.toBe(0);
+        await expect.poll(() => sheet.count()).toBe(0);
 
         // A short drag springs back; a long one dismisses.
         await row.click({ button: 'right' });
@@ -715,7 +730,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         // A fast flick: its first move already leaves the 26 px handle.
         await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2 + 140, { steps: 4 });
         await page.mouse.up();
-        await expect(sheet.count()).resolves.toBe(0);
+        await expect.poll(() => sheet.count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
         // Nothing under the dismissed sheet was pressed.
         expect(await routerCalls(page)).toEqual([]);
@@ -789,7 +804,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await evidence(page, 'mobile-machine-sheet-dark-390');
 
         await sheet.getByTestId('herd-machine-option-build-box').click();
-        await expect(sheet.count()).resolves.toBe(0);
+        await expect.poll(() => sheet.count()).toBe(0);
         expect(await page.evaluate(() => (window as any).__DRAFT_MACHINE_WRITES__)).toEqual(['build-box']);
         await expect(page.getByTestId('herd-machine-menu').innerText()).resolves.toContain('build-box');
         expect(errors).toEqual([]);
@@ -816,6 +831,34 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await noInsets.page.close();
     }, 20_000);
 
+    it.each([
+        ['desktop card', { width: 1440, height: 900, insets: false, query: { screen: 'desktop' } }],
+        ['phone sheet', {}],
+    ] as const)('hands input back to the page as soon as the %s closes', async (_presentation, options) => {
+        const openMenu = async (page: Page) => {
+            await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 120, y: 20 } });
+            await page.getByRole('button', { name: /Fork/ }).first().waitFor();
+        };
+        // A key press while the menu leaves never runs a dismissed action.
+        const keys = await open(options);
+        await openMenu(keys.page);
+        await keys.page.getByRole('button', { name: /Fork/ }).first().focus();
+        await keys.page.keyboard.press('Escape');
+        await keys.page.keyboard.press('Enter');
+        await keys.page.waitForTimeout(400);
+        expect(await keys.page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
+        expect(keys.errors).toEqual([]);
+        await keys.page.close();
+        // The next click reaches the page while the menu is still leaving.
+        const { page, errors } = await open(options);
+        await openMenu(page);
+        await page.keyboard.press('Escape');
+        await page.locator('[data-herd-row="auth"]').click({ position: { x: 120, y: 20 } });
+        await expect.poll(() => routerCalls(page)).toContain('/session/auth');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 40_000);
+
     it('keeps anchored cards at desktop width', async () => {
         const { page, errors } = await open({ width: 1440, height: 900, insets: false, query: { screen: 'desktop' } });
         await page.getByTestId('fixture-desktop').waitFor();
@@ -831,7 +874,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         expect(menuBox.y).toBeGreaterThan(pill.y + pill.height);
         await expect(menu.getByTestId('herd-machine-option-build-box').evaluate((element) => getComputedStyle(element).minHeight)).resolves.not.toBe('48px');
         await page.keyboard.press('Escape');
-        await expect(menu.count()).resolves.toBe(0);
+        await expect.poll(() => menu.count()).toBe(0);
 
         await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 120, y: 20 } });
         await expect(page.getByTestId('session-actions-sheet').count()).resolves.toBe(0);

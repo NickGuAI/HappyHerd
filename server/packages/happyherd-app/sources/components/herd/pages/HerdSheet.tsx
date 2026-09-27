@@ -7,6 +7,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
+import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
 import { useHerdWideLayout } from './HerdPage';
 
 /**
@@ -58,56 +60,66 @@ export function HerdSheet({
     const safeArea = useSafeAreaInsets();
     const wideLayout = useHerdWideLayout();
     useSheetEscapeKeydown(visible);
-    if (!visible) return null;
+    // The sheet plays its exit before it unmounts.
+    const presence = useHerdExit(visible ? true : null, wideLayout ? HERD_EXIT.sheet : HERD_EXIT.sheetDown);
+    if (!presence.value) return null;
+    const exiting = presence.exiting;
+    const layer = (
+        <View style={[styles.root, wideLayout ? styles.rootCentered : styles.rootBottom]}>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={closeLabel}
+                onPress={onClose}
+                style={styles.scrim(exiting)}
+            />
+            <View
+                testID={testID}
+                role="dialog"
+                aria-modal
+                accessibilityLabel={title}
+                style={[
+                    styles.sheet,
+                    wideLayout ? styles.sheetCentered(exiting) : styles.sheetBottom(exiting),
+                    wideLayout && wide && styles.sheetWide,
+                    !wideLayout && { paddingBottom: Math.max(safeArea.bottom, 12) },
+                ]}
+            >
+                {!wideLayout ? <View style={styles.handle} /> : null}
+                <View style={styles.header}>
+                    {leading}
+                    <View style={styles.headerCopy}>
+                        <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
+                        {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
+                    </View>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={closeLabel}
+                        onPress={onClose}
+                        hitSlop={8}
+                        style={({ pressed }) => [styles.close, pressed && styles.pressed]}
+                    >
+                        <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                    </Pressable>
+                </View>
+                <ScrollView
+                    style={styles.body}
+                    contentContainerStyle={styles.bodyContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator
+                >
+                    {children}
+                </ScrollView>
+                {footer ? <View style={styles.footer}>{footer}</View> : null}
+            </View>
+        </View>
+    );
+    // Closing ends the Modal at once; the sheet leaves on an inert layer.
+    if (exiting) {
+        return <HerdExitLayer>{layer}</HerdExitLayer>;
+    }
     return (
         <Modal visible transparent animationType="none" onRequestClose={onClose}>
-            <View style={[styles.root, wideLayout ? styles.rootCentered : styles.rootBottom]}>
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={closeLabel}
-                    onPress={onClose}
-                    style={styles.scrim}
-                />
-                <View
-                    testID={testID}
-                    role="dialog"
-                    aria-modal
-                    accessibilityLabel={title}
-                    style={[
-                        styles.sheet,
-                        wideLayout ? styles.sheetCentered : styles.sheetBottom,
-                        wideLayout && wide && styles.sheetWide,
-                        !wideLayout && { paddingBottom: Math.max(safeArea.bottom, 12) },
-                    ]}
-                >
-                    {!wideLayout ? <View style={styles.handle} /> : null}
-                    <View style={styles.header}>
-                        {leading}
-                        <View style={styles.headerCopy}>
-                            <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
-                            {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
-                        </View>
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={closeLabel}
-                            onPress={onClose}
-                            hitSlop={8}
-                            style={({ pressed }) => [styles.close, pressed && styles.pressed]}
-                        >
-                            <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
-                        </Pressable>
-                    </View>
-                    <ScrollView
-                        style={styles.body}
-                        contentContainerStyle={styles.bodyContent}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator
-                    >
-                        {children}
-                    </ScrollView>
-                    {footer ? <View style={styles.footer}>{footer}</View> : null}
-                </View>
-            </View>
+            {layer}
         </Modal>
     );
 }
@@ -124,15 +136,15 @@ const styles = StyleSheet.create((theme) => ({
     rootBottom: {
         justifyContent: 'flex-end',
     },
-    scrim: {
+    scrim: (exiting: boolean) => ({
         position: 'absolute',
         top: 0,
         right: 0,
         bottom: 0,
         left: 0,
         backgroundColor: theme.colors.kilv.scrim,
-        _web: { _classNames: herdWebClasses('herd-fade') },
-    },
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-fade-out' : 'herd-fade') },
+    }),
     sheet: {
         width: '100%',
         overflow: 'hidden',
@@ -145,22 +157,22 @@ const styles = StyleSheet.create((theme) => ({
         shadowOffset: { width: 0, height: 24 },
         elevation: 16,
     },
-    sheetCentered: {
+    sheetCentered: (exiting: boolean) => ({
         maxWidth: 560,
         maxHeight: '88%',
         borderRadius: theme.kilv.radiusSheet,
-        _web: { _classNames: herdWebClasses('herd-sheet'), boxShadow: theme.kilv.shadow },
-    },
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-sheet-out' : 'herd-sheet'), boxShadow: theme.kilv.shadow },
+    }),
     sheetWide: {
         maxWidth: 720,
     },
-    sheetBottom: {
+    sheetBottom: (exiting: boolean) => ({
         maxHeight: '92%',
         borderBottomWidth: 0,
         borderTopLeftRadius: theme.kilv.radiusBottomSheet,
         borderTopRightRadius: theme.kilv.radiusBottomSheet,
-        _web: { _classNames: herdWebClasses('herd-sheet-up') },
-    },
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-sheet-down' : 'herd-sheet-up') },
+    }),
     handle: {
         alignSelf: 'center',
         width: 38,

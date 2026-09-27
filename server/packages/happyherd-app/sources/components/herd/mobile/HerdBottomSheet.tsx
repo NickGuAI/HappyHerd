@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 
 import { herdWebClasses } from '@/components/herd/motion';
+import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
 import { t } from '@/text';
 
 /** True inside a phone bottom sheet, so menu rows grow to touch size. */
@@ -23,9 +25,10 @@ export function shouldDismissHerdSheet(dy: number, vy: number): boolean {
 
 /**
  * Phone presentation for menus and pickers (UI overhaul): a bottom sheet that
- * slides up over a scrim, with a drag handle. Dragging the handle down past
- * the threshold dismisses it; the handle is also a labelled Cancel button for
- * assistive technology. The sheet clears the home indicator.
+ * slides up over a scrim, and back down when it closes, with a drag handle.
+ * Dragging the handle down past the threshold dismisses it; the handle is also
+ * a labelled Cancel button for assistive technology. The sheet clears the home
+ * indicator.
  */
 export function HerdBottomSheet({
     visible,
@@ -88,54 +91,63 @@ export function HerdBottomSheet({
         if (visible) drag.setValue(0);
     }, [drag, visible]);
 
-    if (!visible) return null;
+    const presence = useHerdExit(visible ? true : null, HERD_EXIT.sheetDown);
+    if (!presence.value) return null;
+    const exiting = presence.exiting;
+    const layer = (
+        <HerdSheetContext.Provider value>
+            <View style={styles.root}>
+                <Pressable
+                    accessible={false}
+                    onPress={onClose}
+                    style={styles.scrim(exiting)}
+                    testID={testID ? `${testID}-backdrop` : undefined}
+                />
+                {/* The drag moves this layer; the sheet inside keeps its entrance motion. */}
+                <Animated.View style={[styles.position, { transform: [{ translateY: drag }] }]}>
+                    <View
+                        role={role}
+                        aria-label={accessibilityLabel}
+                        testID={testID}
+                        style={[
+                            styles.sheet(exiting),
+                            {
+                                maxHeight: Math.round(windowHeight * 0.92),
+                                paddingBottom: Math.max(safeArea.bottom, 12) + 8,
+                            },
+                        ]}
+                    >
+                        <View {...dragResponder.panHandlers} style={styles.handleZone}>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.cancel')}
+                                testID={testID ? `${testID}-handle` : undefined}
+                                onPress={handlePress}
+                                style={styles.handleHit}
+                            >
+                                <View style={styles.handle} />
+                            </Pressable>
+                        </View>
+                        <ScrollView
+                            style={styles.body}
+                            bounces={false}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            {children}
+                        </ScrollView>
+                    </View>
+                </Animated.View>
+            </View>
+        </HerdSheetContext.Provider>
+    );
+    // Closing ends the Modal at once; the sheet slides down on an inert layer.
+    if (exiting) {
+        return <HerdExitLayer>{layer}</HerdExitLayer>;
+    }
     return (
         <Modal transparent animationType="none" visible onRequestClose={onClose}>
-            <HerdSheetContext.Provider value>
-                <View style={styles.root}>
-                    <Pressable
-                        accessible={false}
-                        onPress={onClose}
-                        style={styles.scrim}
-                        testID={testID ? `${testID}-backdrop` : undefined}
-                    />
-                    {/* The drag moves this layer; the sheet inside keeps its entrance motion. */}
-                    <Animated.View style={[styles.position, { transform: [{ translateY: drag }] }]}>
-                        <View
-                            role={role}
-                            aria-label={accessibilityLabel}
-                            testID={testID}
-                            style={[
-                                styles.sheet,
-                                {
-                                    maxHeight: Math.round(windowHeight * 0.92),
-                                    paddingBottom: Math.max(safeArea.bottom, 12) + 8,
-                                },
-                            ]}
-                        >
-                            <View {...dragResponder.panHandlers} style={styles.handleZone}>
-                                <Pressable
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('common.cancel')}
-                                    testID={testID ? `${testID}-handle` : undefined}
-                                    onPress={handlePress}
-                                    style={styles.handleHit}
-                                >
-                                    <View style={styles.handle} />
-                                </Pressable>
-                            </View>
-                            <ScrollView
-                                style={styles.body}
-                                bounces={false}
-                                keyboardShouldPersistTaps="handled"
-                                showsVerticalScrollIndicator={false}
-                            >
-                                {children}
-                            </ScrollView>
-                        </View>
-                    </Animated.View>
-                </View>
-            </HerdSheetContext.Provider>
+            {layer}
         </Modal>
     );
 }
@@ -145,19 +157,19 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
         justifyContent: 'flex-end',
     },
-    scrim: {
+    scrim: (exiting: boolean) => ({
         position: 'absolute',
         top: 0,
         right: 0,
         bottom: 0,
         left: 0,
         backgroundColor: theme.colors.kilv.scrim,
-        _web: { _classNames: herdWebClasses('herd-fade') },
-    },
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-fade-out' : 'herd-fade') },
+    }),
     position: {
         width: '100%',
     },
-    sheet: {
+    sheet: (exiting: boolean) => ({
         width: '100%',
         overflow: 'hidden',
         paddingHorizontal: 10,
@@ -172,8 +184,8 @@ const styles = StyleSheet.create((theme) => ({
         shadowRadius: 30,
         shadowOffset: { width: 0, height: -8 },
         elevation: 16,
-        _web: { _classNames: herdWebClasses('herd-sheet-up'), boxShadow: theme.kilv.shadow },
-    },
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-sheet-down' : 'herd-sheet-up'), boxShadow: theme.kilv.shadow },
+    }),
     handleZone: {
         alignItems: 'center',
         // A mouse drag from the handle must not start a text selection, which

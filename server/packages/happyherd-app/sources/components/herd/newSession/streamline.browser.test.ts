@@ -465,7 +465,7 @@ describe('Streamline New Session in the production style runtime', () => {
             expect(await picker.evaluate((element) => [...element.classList])).toContain('herd-sheet-up');
             await evidence(page, `streamline-chip-sheet-${theme}-390`);
             await picker.getByRole('radio', { name: 'plan' }).click();
-            await expect(picker.count()).resolves.toBe(0);
+            await expect.poll(() => picker.count()).toBe(0);
             await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.permissionMode)).toBe('plan');
             expect(errors).toEqual([]);
             await page.close();

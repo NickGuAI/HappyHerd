@@ -5,7 +5,9 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from './motion';
+import { HERD_EXIT, useHerdExit } from './presence';
 import { useHerdEscapeToClose } from './escape';
+import { HerdExitLayer } from './HerdExitLayer';
 import { HerdBottomSheet, useInHerdSheet } from './mobile/HerdBottomSheet';
 import { isHerdPhoneWeb } from './mobile/useHerdPhone';
 
@@ -68,9 +70,10 @@ export function resolveHerdPopoverPosition(input: {
 
 
 /**
- * Anchored dropdown used by the top bar menus. It scales in from its trigger,
- * closes on an outside press or Escape, and never dims the page behind it.
- * On a phone-width Web window it presents the same content as a bottom sheet.
+ * Anchored dropdown used by the top bar menus. It scales in from its trigger
+ * and out again, closes on an outside press or Escape, and never dims the page
+ * behind it. On a phone-width Web window it presents the same content as a
+ * bottom sheet.
  */
 export function HerdPopover(props: {
     visible: boolean;
@@ -84,14 +87,20 @@ export function HerdPopover(props: {
     children: React.ReactNode;
 }) {
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-    useHerdEscapeToClose(props.visible && !!props.anchor, props.onClose);
-    if (!props.visible || !props.anchor) {
+    const open = props.visible && !!props.anchor;
+    useHerdEscapeToClose(open, props.onClose);
+    const phone = isHerdPhoneWeb(windowWidth);
+    // The card, or the phone sheet, stays mounted with its last anchor while
+    // it leaves; a closed popover mounts neither.
+    const presence = useHerdExit(open ? props.anchor : null, phone ? HERD_EXIT.sheetDown : HERD_EXIT.pop);
+    const anchor = presence.value;
+    if (!anchor) {
         return null;
     }
-    if (isHerdPhoneWeb(windowWidth)) {
+    if (phone) {
         return (
             <HerdBottomSheet
-                visible
+                visible={open}
                 onClose={props.onClose}
                 role="menu"
                 accessibilityLabel={props.accessibilityLabel}
@@ -102,7 +111,7 @@ export function HerdPopover(props: {
         );
     }
     const position = resolveHerdPopoverPosition({
-        anchor: props.anchor,
+        anchor,
         width: props.width,
         align: props.align ?? 'end',
         windowWidth,
@@ -110,6 +119,26 @@ export function HerdPopover(props: {
         placement: props.placement,
     });
 
+    const card = (
+        <View
+            accessibilityRole="menu"
+            accessibilityLabel={props.accessibilityLabel}
+            testID={props.testID}
+            style={[styles.card(presence.exiting), {
+                left: position.left,
+                top: position.top,
+                bottom: position.bottom,
+                width: props.width,
+                maxHeight: position.maxHeight,
+            }]}
+        >
+            {props.children}
+        </View>
+    );
+    // Closing ends the Modal at once; the card scales out on an inert layer.
+    if (presence.exiting) {
+        return <HerdExitLayer>{card}</HerdExitLayer>;
+    }
     return (
         <RNModal transparent animationType="none" visible onRequestClose={props.onClose}>
             <View style={styles.root}>
@@ -119,20 +148,7 @@ export function HerdPopover(props: {
                     style={styles.backdrop}
                     testID={props.testID ? `${props.testID}-backdrop` : undefined}
                 />
-                <View
-                    accessibilityRole="menu"
-                    accessibilityLabel={props.accessibilityLabel}
-                    testID={props.testID}
-                    style={[styles.card, {
-                        left: position.left,
-                        top: position.top,
-                        bottom: position.bottom,
-                        width: props.width,
-                        maxHeight: position.maxHeight,
-                    }]}
-                >
-                    {props.children}
-                </View>
+                {card}
             </View>
         </RNModal>
     );
@@ -198,7 +214,7 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 0,
         left: 0,
     },
-    card: {
+    card: (exiting: boolean) => ({
         position: 'absolute',
         padding: 6,
         overflow: 'hidden',
@@ -213,9 +229,9 @@ const styles = StyleSheet.create((theme) => ({
         elevation: 12,
         _web: {
             boxShadow: theme.kilv.shadow,
-            _classNames: herdWebClasses('herd-pop'),
+            _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
         },
-    },
+    }),
     title: {
         paddingHorizontal: 10,
         paddingTop: 8,
