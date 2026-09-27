@@ -1,11 +1,12 @@
 import { StyleSheet } from 'react-native-unistyles';
 import React from 'react';
-import { View, Platform } from 'react-native';
+import { View, Platform, useWindowDimensions } from 'react-native';
 import { CommandPaletteInput } from './CommandPaletteInput';
 import { CommandPaletteResults } from './CommandPaletteResults';
 import { useCommandPalette } from './useCommandPalette';
 import { Command } from './types';
 import { HerdKey } from '@/components/herd/pages/HerdPage';
+import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
@@ -26,6 +27,9 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
         handleKeyPress,
         setSelectedIndex,
     } = useCommandPalette(commands, onClose);
+    // Phones (UI overhaul): taller, with a close button and no keyboard hints.
+    const phone = useHerdPhoneWeb();
+    const { height: windowHeight } = useWindowDimensions();
 
     // Only render on web
     if (Platform.OS !== 'web') {
@@ -33,12 +37,13 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
     }
 
     return (
-        <View style={styles.container}>
+        <View testID="command-palette" style={[styles.container, phone && { maxWidth: '100%', maxHeight: Math.min(Math.round(windowHeight * 0.78), 640) }]}>
             <CommandPaletteInput
                 value={searchQuery}
                 onChangeText={handleSearchChange}
                 onKeyPress={handleKeyPress}
                 inputRef={inputRef}
+                onClose={phone ? onClose : undefined}
             />
             <CommandPaletteResults
                 categories={filteredCategories}
@@ -46,7 +51,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
                 onSelectCommand={handleSelectCommand}
                 onSelectionChange={setSelectedIndex}
             />
-            <View testID="command-palette-hints" style={styles.footer}>
+            {!phone && <View testID="command-palette-hints" style={styles.footer}>
                 <View style={styles.hint}>
                     <HerdKey label="↑" />
                     <HerdKey label="↓" />
@@ -60,7 +65,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
                     <HerdKey label={t('commandPalette.keyEscape')} />
                     <Text style={styles.hintText}>{t('commandPalette.hintClose')}</Text>
                 </View>
-            </View>
+            </View>}
         </View>
     );
 }

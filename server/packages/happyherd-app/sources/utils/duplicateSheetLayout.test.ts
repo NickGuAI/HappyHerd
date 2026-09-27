@@ -9,6 +9,13 @@ describe('getDuplicateSheetFrame', () => {
         });
     });
 
+    it('spans a phone less 8 px a side when it rests on the bottom edge', () => {
+        expect(getDuplicateSheetFrame({ width: 390, height: 844 }, true)).toEqual({
+            width: 374,
+            maxHeight: 717,
+        });
+    });
+
     it('caps the duplicate sheet width on larger screens', () => {
         expect(getDuplicateSheetFrame({ width: 1200, height: 900 })).toEqual({
             width: 560,

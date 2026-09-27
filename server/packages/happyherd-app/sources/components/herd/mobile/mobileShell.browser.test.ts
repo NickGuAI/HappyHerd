@@ -670,14 +670,183 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         }
     }, 40_000);
 
-    it('opens the command palette from the search square when it is on', async () => {
-        const { page, errors } = await open({ query: { palette: 'on' } });
-        const search = page.getByTestId('herd-command-search');
-        await search.waitFor();
-        // A 44 px square right after the brand.
-        expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + 44 + 2, width: 44, height: 44 });
-        await search.click();
-        expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
+    it('opens the command palette from the search square, across the phone below the notch', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme, query: { palette: 'on' } });
+            const search = page.getByTestId('herd-command-search');
+            await search.waitFor();
+            // A 44 px square right after the brand.
+            expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + 44 + 2, width: 44, height: 44 });
+            await search.click();
+            expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
+            const input = page.getByPlaceholder('Type a command or search...');
+            await input.waitFor();
+            // The palette springs in through Animated rather than a CSS animation; wait for full scale.
+            await expect.poll(async () => Math.round((await box(page, 'command-palette')).width)).toBe(PHONE.width - 16);
+            await settled(page);
+            // The palette spans the phone less 8 px a side and sits 8 px below the notch.
+            const palette = await box(page, 'command-palette');
+            expect(palette).toMatchObject({ x: 8, y: PHONE_INSETS.top + 8, width: PHONE.width - 16 });
+            expect(palette.height).toBeLessThanOrEqual(Math.min(Math.round(PHONE.height * 0.78), 640));
+            // No keyboard hints; a 44 px close button ends the input row, its icon near the edge.
+            await expect(page.getByTestId('command-palette-hints').count()).resolves.toBe(0);
+            await expect(page.locator('[data-herd-key]').count()).resolves.toBe(0);
+            const close = await box(page, 'command-palette-close');
+            expect(close).toMatchObject({ width: 44, height: 44 });
+            expect(Math.round(palette.x + palette.width - (close.x + close.width))).toBe(5);
+            // The search icon and every row's icon sit on the palette's 16 px gutter (inside its 1 px rim).
+            const gutter = palette.x + 1 + 16;
+            expect(Math.round((await page.locator('[data-icon="search"]').last().boundingBox())!.x)).toBe(gutter);
+            const rows = page.getByTestId('command-palette').locator('[aria-selected]');
+            await expect(rows.count()).resolves.toBe(4);
+            const rowIcons = await rows.locator('[data-icon]').evaluateAll((icons) => icons.map((icon) => Math.round(icon.getBoundingClientRect().x)));
+            expect(rowIcons).toHaveLength(4);
+            for (const x of rowIcons) expect(x).toBe(gutter + 2);
+            for (const height of await rows.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))) {
+                expect(height).toBeGreaterThanOrEqual(48);
+            }
+            await evidence(page, `phone-palette-${theme}-390`);
+            await page.getByTestId('command-palette-close').click();
+            await expect.poll(() => input.count()).toBe(0);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    /** A menu card's rim and where its content starts, for the 16 px gutter. */
+    const card = async (page: Page, testID: string) => {
+        const frame = (await page.getByTestId(testID).boundingBox())!;
+        return { ...frame, gutter: frame.x + 1 + 16 };
+    };
+
+    it('opens the session actions as a card inside the phone, titled with the session, and runs the chosen action', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme });
+            await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 200, y: 20 } });
+            const menu = page.getByTestId('session-actions-menu');
+            await menu.waitFor();
+            // A secondary click opens the menu without opening the session.
+            expect(await routerCalls(page)).toEqual([]);
+            expect(await classList(page, 'session-actions-menu')).toContain('herd-pop');
+            await settled(page);
+            // As wide as the phone allows up to 330 px, never within 8 px of an edge.
+            const frame = await card(page, 'session-actions-menu');
+            expect(frame.width).toBe(330);
+            expect(frame.x).toBeGreaterThanOrEqual(8);
+            expect(frame.x + frame.width).toBeLessThanOrEqual(PHONE.width - 8);
+            expect(frame.y + frame.height).toBeLessThanOrEqual(PHONE.height - 8);
+            await expect(menu.getByText('Composer chips and context meter', { exact: true }).count()).resolves.toBe(1);
+            // Every action stays; a phone has no keyboard for their chords.
+            const labels = await menu.getByRole('button').evaluateAll((nodes) => nodes.map((node) => [...node.querySelectorAll('*')]
+                .filter((element) => element.children.length === 0 && !element.closest('[aria-hidden="true"]'))
+                .map((element) => element.textContent?.trim() ?? '').filter(Boolean)));
+            expect(labels).toEqual([
+                ['Details'], ['Fork session'], ['Duplicate from message…'], ['Continue with…'], ['Copy session metadata'], ['Archive'],
+            ]);
+            // Archive sits after a separator; rows are touch-size with their icons and title on the gutter.
+            await expect(menu.getByRole('button', { name: /Archive/ }).evaluate((element) => {
+                const separator = element.previousElementSibling as HTMLElement | null;
+                return separator ? Math.round(separator.getBoundingClientRect().height) : null;
+            })).resolves.toBe(1);
+            for (const height of await menu.getByRole('button').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))) {
+                expect(Math.round(height)).toBeGreaterThanOrEqual(48);
+            }
+            const icons = await menu.locator('[data-icon]').evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().x)));
+            for (const x of icons) expect(x).toBe(frame.gutter);
+            // The title's text, inside its own padding, starts there too.
+            await expect(menu.getByText('Composer chips and context meter', { exact: true }).evaluate((element) => Math.round(element.getBoundingClientRect().x
+                + parseFloat(getComputedStyle(element).paddingLeft)))).resolves.toBe(frame.gutter);
+            await expect(menu.getByText('Details', { exact: true }).evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('16px');
+            await evidence(page, `phone-session-actions-${theme}-390`);
+
+            await menu.getByRole('button', { name: /Fork/ }).click();
+            await expect.poll(() => menu.count()).toBe(0);
+            expect(await page.evaluate(() => (window as any).__ACTIONS__)).toEqual(['fork']);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('opens the session actions from a long press on a touch screen, without opening the session', async () => {
+        const { page, errors } = await open({ touch: true });
+        const cdp = await page.context().newCDPSession(page);
+        const row = page.locator('[data-herd-row="dock"]');
+        const rowBox = (await row.boundingBox())!;
+        const point = { x: rowBox.x + rowBox.width / 2, y: rowBox.y + rowBox.height / 2 };
+        // iOS Safari sends no context menu on a long press; the row reads the press itself.
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+        await page.waitForTimeout(800);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        const menu = page.getByTestId('session-actions-menu');
+        await menu.waitFor();
+        await expect(menu.getByText('Composer chips and context meter', { exact: true }).count()).resolves.toBe(1);
+        // Lifting the finger neither dismisses the new menu nor opens the session.
+        await page.waitForTimeout(300);
+        await expect(menu.isVisible()).resolves.toBe(true);
+        expect(await routerCalls(page)).toEqual([]);
+        // A tap outside closes it; a quick tap on the row still opens the session.
+        await page.touchscreen.tap(PHONE.width / 2, 30);
+        await expect.poll(() => menu.count()).toBe(0);
+        await page.touchscreen.tap(point.x, point.y);
+        await expect.poll(() => routerCalls(page)).toEqual(['/session/dock']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('switches the New Session machine from a card under the pill, and closes the menu with Escape', async () => {
+        const { page, errors } = await open({ theme: 'dark' });
+        const pill = await box(page, 'herd-machine-menu');
+        await page.getByTestId('herd-machine-menu').click();
+        const menu = page.getByTestId('herd-machine-popover');
+        await menu.waitFor();
+        await expect(menu.getAttribute('role')).resolves.toBe('menu');
+        expect(await classList(page, 'herd-machine-popover')).toContain('herd-pop');
+        await expect(page.getByTestId('herd-machine-popover-handle').count()).resolves.toBe(0);
+        await settled(page);
+        // Below the pill, its end edge 8 px from the phone's.
+        const frame = await card(page, 'herd-machine-popover');
+        expect(frame.width).toBe(300);
+        expect(Math.round(frame.x + frame.width)).toBe(PHONE.width - 8);
+        expect(frame.y).toBeGreaterThan(pill.y + pill.height);
+        const options = await menu.locator('[data-testid^="herd-machine-option-"]').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')));
+        expect(options).toEqual(['herd-machine-option-studio-mac', 'herd-machine-option-build-box', 'herd-machine-option-gpu-lab']);
+        await expect(menu.getByTestId('herd-machine-option-studio-mac').getAttribute('aria-selected')).resolves.toBe('true');
+        await expect(menu.getByTestId('herd-machine-option-gpu-lab').isDisabled()).resolves.toBe(true);
+        const option = (await menu.getByTestId('herd-machine-option-build-box').boundingBox())!;
+        expect(Math.round(option.height)).toBeGreaterThanOrEqual(48);
+        // The row content starts on the card's 16 px gutter.
+        const firstContent = await menu.getByTestId('herd-machine-option-build-box').evaluate((row) => Math.round(Math.min(...[...row.querySelectorAll('*')]
+            .map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0).map((rect) => rect.left))));
+        expect(firstContent).toBe(frame.gutter);
+        await evidence(page, 'phone-machine-menu-dark-390');
+        await page.keyboard.press('Escape');
+        await expect.poll(() => menu.count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(0);
+
+        await page.getByTestId('herd-machine-menu').click();
+        await menu.getByTestId('herd-machine-option-build-box').click();
+        await expect.poll(() => menu.count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__DRAFT_MACHINE_WRITES__)).toEqual(['build-box']);
+        await expect(page.getByTestId('herd-machine-menu').innerText()).resolves.toContain('build-box');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('opens the Inbox updates across the phone, 8 px from each edge', async () => {
+        const { page, errors } = await open();
+        await page.getByTestId('herd-inbox-bell').click();
+        const popover = page.getByTestId('herd-inbox-popover');
+        await popover.waitFor();
+        await settled(page);
+        const frame = await card(page, 'herd-inbox-popover');
+        expect(frame).toMatchObject({ x: 8, width: PHONE.width - 16 });
+        expect(frame.y).toBeGreaterThan(PHONE_INSETS.top + 44);
+        expect(frame.y + frame.height).toBeLessThanOrEqual(PHONE.height - 8);
+        await expect(popover.getByTestId('feed-item').count()).resolves.toBe(2);
+        await evidence(page, 'phone-inbox-popover-light-390');
+        await popover.getByTestId('herd-inbox-open-page').click();
+        await expect.poll(() => popover.count()).toBe(0);
+        await expect.poll(() => routerCalls(page)).toEqual(['/inbox']);
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);

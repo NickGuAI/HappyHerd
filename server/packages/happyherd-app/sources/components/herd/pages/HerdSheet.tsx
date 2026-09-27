@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -9,6 +9,10 @@ import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
 import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
+import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
+import { useIsTablet } from '@/utils/responsive';
 import { useHerdWideLayout } from './HerdPage';
 
 /**
@@ -30,8 +34,10 @@ export function useSheetEscapeKeydown(active: boolean): void {
 
 /**
  * Modal sheet for page-owned forms and readers (UI overhaul). Wide layouts get a
- * centered card that scales in; phones get a bottom sheet with a drag handle.
- * The Modal host keeps Escape/back dismissal and the web focus trap.
+ * centered card that scales in. Phones get the same card resting on the bottom
+ * edge, 8 px from the window's sides and bottom and below the top bar. Other
+ * narrow layouts get a bottom sheet with a drag handle. The Modal host keeps
+ * Escape/back dismissal and the web focus trap.
  */
 export function HerdSheet({
     visible,
@@ -58,14 +64,28 @@ export function HerdSheet({
 }) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
+    const windowInsets = useWindowSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
     const wideLayout = useHerdWideLayout();
+    const isTablet = useIsTablet();
+    const phone = !wideLayout && !isTablet;
+    const card = wideLayout || phone;
     useSheetEscapeKeydown(visible);
-    // The sheet plays its exit before it unmounts.
-    const presence = useHerdExit(visible ? true : null, wideLayout ? HERD_EXIT.sheet : HERD_EXIT.sheetDown);
+    // On the web the sheet plays its exit before it unmounts; native fades.
+    const presence = useHerdExit(visible ? true : null, card ? HERD_EXIT.sheet : HERD_EXIT.sheetDown);
     if (!presence.value) return null;
     const exiting = presence.exiting;
     const layer = (
-        <View style={[styles.root, wideLayout ? styles.rootCentered : styles.rootBottom]}>
+        <View
+            style={[
+                styles.root,
+                wideLayout ? styles.rootCentered : styles.rootBottom,
+                phone && {
+                    paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
+                    paddingBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom,
+                },
+            ]}
+        >
             <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={closeLabel}
@@ -79,13 +99,19 @@ export function HerdSheet({
                 accessibilityLabel={title}
                 style={[
                     styles.sheet,
-                    wideLayout ? styles.sheetCentered(exiting) : styles.sheetBottom(exiting),
+                    card ? styles.sheetCentered(exiting) : styles.sheetBottom(exiting),
                     wideLayout && wide && styles.sheetWide,
-                    !wideLayout && { paddingBottom: Math.max(safeArea.bottom, 12) },
+                    // Phones keep the top bar in view, as the mock's 20 px of it does.
+                    phone && {
+                        maxWidth: '100%',
+                        maxHeight: windowHeight - windowInsets.top - HERD_PHONE_TOP_BAR_HEIGHT
+                            - windowInsets.bottom - HERD_PHONE_FLOAT_MARGIN - 20,
+                    },
+                    !card && { paddingBottom: Math.max(safeArea.bottom, 12) },
                 ]}
             >
-                {!wideLayout ? <View style={styles.handle} /> : null}
-                <View style={styles.header}>
+                {!card ? <View style={styles.handle} /> : null}
+                <View style={[styles.header, phone && styles.headerPhone]}>
                     {leading}
                     <View style={styles.headerCopy}>
                         <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
@@ -103,13 +129,13 @@ export function HerdSheet({
                 </View>
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={styles.bodyContent}
+                    contentContainerStyle={[styles.bodyContent, phone && styles.bodyContentPhone]}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator
                 >
                     {children}
                 </ScrollView>
-                {footer ? <View style={styles.footer}>{footer}</View> : null}
+                {footer ? <View style={[styles.footer, phone && styles.footerPhone]}>{footer}</View> : null}
             </View>
         </View>
     );
@@ -118,7 +144,7 @@ export function HerdSheet({
         return <HerdExitLayer>{layer}</HerdExitLayer>;
     }
     return (
-        <Modal visible transparent animationType="none" onRequestClose={onClose}>
+        <Modal visible transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={onClose}>
             {layer}
         </Modal>
     );
@@ -189,6 +215,11 @@ const styles = StyleSheet.create((theme) => ({
         paddingTop: 18,
         paddingBottom: 12,
     },
+    // Phones: the card's content sits on the 16 px gutter.
+    headerPhone: {
+        paddingHorizontal: 16,
+        paddingTop: 20,
+    },
     headerCopy: {
         flex: 1,
         minWidth: 0,
@@ -226,6 +257,10 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 20,
         paddingBottom: 18,
     },
+    bodyContentPhone: {
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+    },
     footer: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
@@ -235,5 +270,8 @@ const styles = StyleSheet.create((theme) => ({
         paddingVertical: 14,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: theme.colors.divider,
+    },
+    footerPhone: {
+        paddingHorizontal: 16,
     },
 }));

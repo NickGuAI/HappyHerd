@@ -9,6 +9,10 @@ import {
     Platform
 } from 'react-native';
 import { AnimatedBlurBackdrop } from '@/components/AnimatedOverlay';
+import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
+import { HerdPhoneDialogContext } from '@/components/herd/mobile/phoneDialog';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
+import { useIsTablet } from '@/utils/responsive';
 
 // On web, stop events from propagating to expo-router's modal overlay
 // which intercepts clicks when it applies pointer-events: none to body
@@ -24,6 +28,12 @@ interface BaseModalProps {
     animationType?: 'fade' | 'slide' | 'none';
     transparent?: boolean;
     closeOnBackdrop?: boolean;
+    /**
+     * `dialog`: on phones (UI overhaul) the content rests on the bottom edge,
+     * 8 px from the window's sides and bottom, and spans that width. Previews
+     * and other large content keep the centered default.
+     */
+    placement?: 'center' | 'dialog';
 }
 
 export function BaseModal({
@@ -32,9 +42,13 @@ export function BaseModal({
     children,
     animationType = 'fade',
     transparent = true,
-    closeOnBackdrop = true
+    closeOnBackdrop = true,
+    placement = 'center',
 }: BaseModalProps) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const isTablet = useIsTablet();
+    const windowInsets = useWindowSafeAreaInsets();
+    const phoneDialog = placement === 'dialog' && !isTablet;
 
     useEffect(() => {
         if (visible) {
@@ -66,7 +80,14 @@ export function BaseModal({
             onRequestClose={onClose}
         >
             <KeyboardAvoidingView
-                style={styles.container}
+                style={[
+                    styles.container,
+                    phoneDialog && {
+                        justifyContent: 'flex-end',
+                        padding: HERD_PHONE_FLOAT_MARGIN,
+                        paddingBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom,
+                    },
+                ]}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 {...webEventHandlers}
             >
@@ -95,6 +116,7 @@ export function BaseModal({
                 <Animated.View
                     style={[
                         styles.content,
+                        phoneDialog && styles.contentPhoneDialog,
                         {
                             opacity: fadeAnim,
                             transform: [{
@@ -106,7 +128,9 @@ export function BaseModal({
                         }
                     ]}
                 >
-                    {children}
+                    <HerdPhoneDialogContext.Provider value={phoneDialog}>
+                        {children}
+                    </HerdPhoneDialogContext.Provider>
                 </Animated.View>
             </KeyboardAvoidingView>
         </Modal>
@@ -129,5 +153,8 @@ const styles = StyleSheet.create({
     content: {
         zIndex: 1,
         maxWidth: '100%'
-    }
+    },
+    contentPhoneDialog: {
+        width: '100%',
+    },
 });

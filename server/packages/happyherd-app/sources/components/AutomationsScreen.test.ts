@@ -149,6 +149,7 @@ vi.mock('@/sync/storage', () => ({
 
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/hooks/useNavigateToSession', () => ({ useNavigateToSession: () => vi.fn() }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => testState.width >= 700 }));
 vi.mock('@/utils/automationProfiling', () => ({
     automationProfileStart: testState.profileStart,
     profileAutomationRpc: testState.profileRpc,

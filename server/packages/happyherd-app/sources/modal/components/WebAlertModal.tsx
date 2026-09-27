@@ -6,6 +6,7 @@ import { Typography } from '@/constants/Typography';
 import { StyleSheet } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { useIsTablet } from '@/utils/responsive';
 import { t } from '@/text';
 
 interface WebAlertModalProps {
@@ -16,6 +17,8 @@ interface WebAlertModalProps {
 
 export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps) {
     const { theme } = useUnistyles();
+    // Phones (UI overhaul): the dialog rests on the bottom edge at the window's width less 8 px a side.
+    const phoneDialog = !useIsTablet();
     const isConfirm = config.type === 'confirm';
     
     const handleButtonPress = (buttonIndex: number) => {
@@ -51,6 +54,9 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
             shadowOpacity: 0.25,
             shadowRadius: 4,
             elevation: 5
+        },
+        containerPhone: {
+            width: '100%',
         },
         content: {
             paddingHorizontal: 24,
@@ -104,14 +110,14 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
     });
 
     return (
-        <BaseModal visible={true} onClose={onClose} closeOnBackdrop={false}>
+        <BaseModal visible={true} onClose={onClose} closeOnBackdrop={false} placement="dialog">
             <MobileGlassSurface
                 enabled={false}
                 nativeEffect
                 glassEffectStyle="regular"
                 intensity={88}
                 tintColor={theme.colors.glass.overlayTint}
-                style={styles.container}
+                style={[styles.container, phoneDialog && styles.containerPhone]}
             >
                 <View style={styles.content}>
                     <Text style={[styles.title, Typography.default('semiBold')]}>

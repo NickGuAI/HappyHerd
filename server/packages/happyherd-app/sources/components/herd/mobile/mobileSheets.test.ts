@@ -5,6 +5,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     window: { width: 390, height: 844 },
+    platform: 'web',
+    tablet: false,
     panConfig: null as any,
     actions: [] as Array<{ id: string; icon: string; label: string; onPress: () => void; destructive?: boolean }>,
 }));
@@ -16,7 +18,10 @@ vi.mock('react-native', () => {
         setValue(value: number) { this.value = value; }
     }
     return {
-        Platform: { OS: 'web', select: (options: Record<string, unknown>) => options.web ?? options.default },
+        Platform: {
+            get OS() { return mocks.platform; },
+            select: (options: Record<string, unknown>) => options[mocks.platform] ?? options.default,
+        },
         View: 'View',
         Text: 'Text',
         Pressable: 'Pressable',
@@ -43,15 +48,16 @@ vi.mock('react-native-unistyles', () => {
     };
 });
 vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => mocks.tablet }));
 vi.mock('@/components/MobileGlass', () => ({ MobileGlassSurface: 'MobileGlassSurface' }));
 vi.mock('@/components/AnimatedOverlay', () => ({ AnimatedPopup: 'AnimatedPopup', LocalBlurHalo: () => null }));
 vi.mock('@/hooks/useSessionQuickActions', () => ({ useSessionQuickActions: () => ({ actionItems: mocks.actions }) }));
 vi.mock('@/sync/storage', () => ({ useSession: (id: string) => ({ id, metadata: { summary: { text: 'Refresh token rotation' } } }) }));
 vi.mock('@/utils/sessionUtils', () => ({ getSessionName: (session: any) => session.metadata.summary.text }));
 
-import { HerdMenuItem, HerdPopover } from '../HerdPopover';
+import { HerdMenuItem, HerdMenuSeparator, HerdMenuTitle, HerdPopover } from '../HerdPopover';
 import { SessionActionsPopover } from '../../SessionActionsPopover';
-import { HERD_SHEET_DISMISS_DISTANCE, HERD_SHEET_DISMISS_VELOCITY, shouldDismissHerdSheet } from './HerdBottomSheet';
+import { HERD_SHEET_DISMISS_DISTANCE, HERD_SHEET_DISMISS_VELOCITY, HerdBottomSheet, shouldDismissHerdSheet } from './HerdBottomSheet';
 import { HERD_PHONE_SHEET_MAX_WIDTH, isHerdPhoneWeb } from './useHerdPhone';
 
 beforeAll(() => {
@@ -60,6 +66,8 @@ beforeAll(() => {
 
 beforeEach(() => {
     mocks.window = { width: 390, height: 844 };
+    mocks.platform = 'web';
+    mocks.tablet = false;
     mocks.panConfig = null;
 });
 
@@ -96,37 +104,84 @@ describe('phone sheet dismissal', () => {
 
 describe('HerdPopover on a phone', () => {
     const anchor = { x: 280, y: 100, width: 90, height: 32 };
-    const popover = (onClose: () => void, onPick: () => void) => React.createElement(HerdPopover, {
+    const popover = (onClose: () => void, onPick: () => void, width = 280) => React.createElement(HerdPopover, {
         visible: true,
         anchor,
         onClose,
-        width: 280,
+        width,
         accessibilityLabel: 'Machines',
         testID: 'probe-popover',
-        children: React.createElement(HerdMenuItem, { label: 'build-box', hint: 'linux · online', onPress: onPick, testID: 'probe-item' }),
+        children: [
+            React.createElement(HerdMenuTitle, { key: 'title', children: 'Machines' }),
+            React.createElement(HerdMenuItem, { key: 'item', label: 'build-box', hint: 'linux · online', onPress: onPick, testID: 'probe-item' }),
+        ],
     });
 
-    it('presents its content as a labelled bottom sheet with touch-size rows', () => {
+    it('stays anchored on Web Mobile, 8 px from the window edge, with touch-size rows on the gutter', () => {
         const onClose = vi.fn();
         const renderer = render(popover(onClose, vi.fn()));
-        const [sheet] = byTestID(renderer, 'probe-popover');
-        expect(sheet.type).toBe('View');
-        expect(sheet.props.role).toBe('menu');
-        expect(sheet.props['aria-label']).toBe('Machines');
-        const [handle] = byTestID(renderer, 'probe-popover-handle');
-        expect(handle.props.accessibilityLabel).toBe('common.cancel');
+        const [card] = byTestID(renderer, 'probe-popover');
+        expect(card.props.accessibilityRole).toBe('menu');
+        expect(card.props.accessibilityLabel).toBe('Machines');
+        // Aligned to the trigger's end edge, 8 px below it.
+        expect(flatStyle(card.props.style)).toMatchObject({ left: 90, top: 140, width: 280, padding: 8 });
+        expect(byTestID(renderer, 'probe-popover-handle')).toEqual([]);
         const [item] = byTestID(renderer, 'probe-item');
-        expect(pressableStyle(item).minHeight).toBe(48);
+        expect(pressableStyle(item)).toMatchObject({ minHeight: 48, paddingHorizontal: 8 });
         // Every item keeps its label and hint.
         expect(item.findAll((node: any) => node.type === 'Text').map((node: any) => node.props.children)).toEqual(['build-box', 'linux · online']);
         byTestID(renderer, 'probe-popover-backdrop')[0].props.onPress();
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('closes from a handle tap but not from the click that ends a drag', () => {
+    it('never grows past the phone window less 8 px a side', () => {
+        const renderer = render(popover(vi.fn(), vi.fn(), 380));
+        expect(flatStyle(byTestID(renderer, 'probe-popover')[0].props.style)).toMatchObject({ left: 8, width: 374 });
+    });
+
+    it('presents its content as a labelled bottom sheet with touch-size rows on a native phone', () => {
+        mocks.platform = 'ios';
         const onClose = vi.fn();
         const renderer = render(popover(onClose, vi.fn()));
-        const handle = () => byTestID(renderer, 'probe-popover-handle')[0];
+        const [sheet] = byTestID(renderer, 'probe-popover');
+        expect(sheet.type).toBe('View');
+        expect(sheet.props.role).toBe('menu');
+        expect(sheet.props['aria-label']).toBe('Machines');
+        // The sheet fades on native; it clears the home indicator.
+        expect(renderer.root.findByType('Modal').props.animationType).toBe('fade');
+        expect(flatStyle(sheet.props.style).paddingBottom).toBe(42);
+        const [handle] = byTestID(renderer, 'probe-popover-handle');
+        expect(handle.props.accessibilityLabel).toBe('common.cancel');
+        expect(pressableStyle(byTestID(renderer, 'probe-item')[0])).toMatchObject({ minHeight: 48, paddingHorizontal: 8 });
+        byTestID(renderer, 'probe-popover-backdrop')[0].props.onPress();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the anchored card on a native tablet and at desktop width', () => {
+        mocks.platform = 'ios';
+        mocks.tablet = true;
+        expect(byTestID(render(popover(vi.fn(), vi.fn())), 'probe-popover-handle')).toEqual([]);
+        mocks.platform = 'web';
+        mocks.window = { width: 1440, height: 900 };
+        const renderer = render(popover(vi.fn(), vi.fn()));
+        const [card] = byTestID(renderer, 'probe-popover');
+        expect(card.props.accessibilityRole).toBe('menu');
+        expect(flatStyle(card.props.style)).toMatchObject({ width: 280, padding: 6 });
+        expect(byTestID(renderer, 'probe-popover-handle')).toEqual([]);
+        expect(pressableStyle(byTestID(renderer, 'probe-item')[0]).minHeight).not.toBe(48);
+    });
+});
+
+describe('HerdBottomSheet', () => {
+    it('closes from a handle tap but not from the click that ends a drag', () => {
+        const onClose = vi.fn();
+        const renderer = render(React.createElement(HerdBottomSheet, {
+            visible: true,
+            onClose,
+            testID: 'probe-sheet',
+            children: React.createElement(HerdMenuItem, { label: 'build-box', onPress: vi.fn() }),
+        }));
+        const handle = () => byTestID(renderer, 'probe-sheet-handle')[0];
         // The web handle claims the gesture on press, so a fast flick still drags.
         expect(mocks.panConfig.onStartShouldSetPanResponderCapture()).toBe(true);
 
@@ -146,16 +201,6 @@ describe('HerdPopover on a phone', () => {
         mocks.panConfig.onPanResponderRelease(null, { dy: 120, vy: 0.2 });
         expect(onClose).toHaveBeenCalledTimes(2);
     });
-
-    it('stays an anchored card at desktop width', () => {
-        mocks.window = { width: 1440, height: 900 };
-        const renderer = render(popover(vi.fn(), vi.fn()));
-        const [card] = byTestID(renderer, 'probe-popover');
-        expect(card.props.accessibilityRole).toBe('menu');
-        expect(flatStyle(card.props.style).width).toBe(280);
-        expect(byTestID(renderer, 'probe-popover-handle')).toEqual([]);
-        expect(pressableStyle(byTestID(renderer, 'probe-item')[0]).minHeight).not.toBe(48);
-    });
 });
 
 describe('session actions on a phone', () => {
@@ -167,43 +212,51 @@ describe('session actions on a phone', () => {
             { id: 'archive', icon: 'archive-outline', label: 'Archive', onPress: onPress.archive, destructive: true },
         ];
     });
-    const popover = (onClose: () => void) => React.createElement(SessionActionsPopover, {
-        anchor: { type: 'point', x: 120, y: 300 },
+    const popover = (onClose: () => void, anchor: any = { type: 'point', x: 120, y: 300 }) => React.createElement(SessionActionsPopover, {
+        anchor,
         onClose,
         sessionId: 'auth',
         visible: true,
     });
+    const menuFrame = (renderer: any) => flatStyle(byTestID(renderer, 'session-actions-menu')[0].parent.props.style);
 
-    it('opens a bottom sheet titled with the session, keeping every action and shortcut', () => {
+    it('opens the anchored card on Web Mobile, titled with the session, with every action', () => {
         const onClose = vi.fn();
         const renderer = render(popover(onClose));
-        const [sheet] = byTestID(renderer, 'session-actions-sheet');
-        expect(sheet.props.role).toBe('dialog');
-        expect(sheet.props['aria-label']).toBe('Refresh token rotation');
-        const texts = sheet.findAll((node: any) => node.type === 'Text').map((node: any) => node.props.children);
-        expect(texts).toEqual(['Refresh token rotation', 'Details', 'Ctrl+Alt+O', 'Fork session', 'Ctrl+Alt+F', 'Archive', 'Ctrl+Shift+A']);
+        const [card] = byTestID(renderer, 'session-actions-menu');
+        expect(flatStyle(card.props.style).padding).toBe(8);
+        // The phone card is as wide as the window allows, up to 330 px, and kept 8 px inside it.
+        expect(menuFrame(renderer)).toMatchObject({ left: 52, top: 300, width: 330 });
+        // A phone has no keyboard for the chords, so the card shows no shortcut hints.
+        const texts = card.findAll((node: any) => node.type === 'Text').map((node: any) => node.props.children);
+        expect(texts).toEqual(['Refresh token rotation', 'Details', 'Fork session', 'Archive']);
 
         // A separator sets the destructive action apart, as in the mock.
-        const body = sheet.findByType('ScrollView');
-        const children = body.children.flatMap((child: any) => child.type === React.Fragment ? child.children : [child]);
-        const archiveIndex = children.findIndex((child: any) => child.findAll?.((node: any) => node.props.children === 'Archive').length);
-        expect(archiveIndex).toBeGreaterThan(1);
-        expect(children[archiveIndex - 1].findAll((node: any) => node.type === 'Pressable')).toEqual([]);
+        const archive = card.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.props.children === 'Archive').length > 0)[0];
+        const siblings = archive.parent.children;
+        expect(siblings[siblings.indexOf(archive) - 1].type).toBe(HerdMenuSeparator);
 
-        const details = sheet.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
+        const details = card.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button'
             && node.findAll((child: any) => child.props.children === 'Details').length > 0)[0];
-        expect(pressableStyle(details).minHeight).toBe(48);
+        expect(pressableStyle(details)).toMatchObject({ minHeight: 48, paddingHorizontal: 8 });
         act(() => details.props.onPress());
         expect(onClose).toHaveBeenCalledTimes(1);
         expect(onPress.details).toHaveBeenCalledTimes(1);
     });
 
+    it('opens below a header trigger and inside the narrowest phone', () => {
+        mocks.window = { width: 320, height: 640 };
+        const renderer = render(popover(vi.fn(), { type: 'rect', x: 270, y: 60, width: 44, height: 44 }));
+        expect(menuFrame(renderer)).toMatchObject({ left: 8, top: 112, width: 304 });
+    });
+
     it('keeps the anchored web card at desktop width', () => {
         mocks.window = { width: 1440, height: 900 };
         const renderer = render(popover(vi.fn()));
-        expect(byTestID(renderer, 'session-actions-sheet')).toEqual([]);
         const modal = renderer.root.findByType('Modal');
         expect(modal.findAll((node: any) => node.props.children === 'Details')).toHaveLength(1);
         expect(modal.findAll((node: any) => node.type === 'Text' && node.props.children === 'Refresh token rotation')).toEqual([]);
+        expect(menuFrame(renderer).width).toBe(288);
+        expect(modal.findAll((node: any) => node.type === 'Text' && node.props.children === 'Ctrl+Alt+O')).toHaveLength(1);
     });
 });

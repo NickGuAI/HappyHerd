@@ -18,8 +18,7 @@ import { herdWebClasses } from './herd/motion';
 import { HerdMenuSeparator, useHerdEscapeToClose } from './herd/HerdPopover';
 import { HerdExitLayer } from './herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from './herd/presence';
-import { HerdBottomSheet } from './herd/mobile/HerdBottomSheet';
-import { isHerdPhoneWeb } from './herd/mobile/useHerdPhone';
+import { HERD_PHONE_FLOAT_MARGIN, isHerdPhoneWeb } from './herd/mobile/useHerdPhone';
 import { getSessionName } from '@/utils/sessionUtils';
 
 export type SessionActionsAnchor =
@@ -50,6 +49,13 @@ const WEB_MENU_WIDTH = 288;
 const WEB_MENU_ITEM_HEIGHT = 40;
 const WEB_MENU_PADDING = 6;
 const WEB_MENU_MARGIN = 12;
+// Phone Web (UI overhaul): the same card, titled with the session, with
+// touch-size rows, as wide as the window allows up to the mock's 330 px.
+const PHONE_MENU_WIDTH = 330;
+const PHONE_MENU_ITEM_HEIGHT = 48;
+const PHONE_MENU_PADDING = 8;
+const PHONE_MENU_TITLE_HEIGHT = 28;
+const PHONE_MENU_SEPARATOR_HEIGHT = 13;
 
 const stylesheet = StyleSheet.create((theme) => ({
     backdrop: {
@@ -139,11 +145,15 @@ const stylesheet = StyleSheet.create((theme) => ({
         lineHeight: 18,
         ...Typography.default('semiBold'),
     },
-    // Phone Web: the same actions in a bottom sheet with touch-size rows,
-    // titled with the session name in the menu title's mono voice.
-    sheetTitle: {
-        paddingHorizontal: 12,
-        paddingTop: 2,
+    // Phone Web: the card is titled with the session name in the menu title's
+    // mono voice. Rows pad 8 px inside 8 px of card, so content sits on the
+    // 16 px gutter.
+    phoneMenuCard: {
+        padding: PHONE_MENU_PADDING,
+    },
+    phoneTitle: {
+        paddingHorizontal: 8,
+        paddingTop: 6,
         paddingBottom: 6,
         fontSize: 11,
         lineHeight: 16,
@@ -151,21 +161,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.kilv.inkFaint,
         ...Typography.mono(),
     },
-    sheetItem: {
-        minHeight: 48,
-        gap: 10,
-        paddingHorizontal: 12,
-        borderRadius: theme.kilv.radius,
-        _web: { _classNames: herdWebClasses('herd-transition') },
+    phoneMenuItem: {
+        minHeight: PHONE_MENU_ITEM_HEIGHT,
+        paddingHorizontal: 8,
     },
-    sheetItemLabel: {
+    phoneMenuItemLabel: {
         fontSize: 16,
         lineHeight: 22,
-    },
-    sheetItemShortcut: {
-        fontSize: 11,
-        color: theme.colors.kilv.inkFaint,
-        ...Typography.mono(),
     },
     nativeContainer: {
         flex: 1,
@@ -205,11 +207,14 @@ export function SessionActionsPopover({
     const preferredModifier = React.useMemo(() => getPreferredShortcutModifier(
         typeof navigator === 'undefined' ? undefined : navigator
     ), []);
-    const phoneSheet = isHerdPhoneWeb(windowWidth);
-    // The web card and the phone sheet stay mounted, with their last anchor,
-    // while they leave; a closed menu mounts neither.
-    const presence = useHerdExit(visible && anchor ? anchor : null, phoneSheet ? HERD_EXIT.sheetDown : HERD_EXIT.pop);
+    const phoneWeb = isHerdPhoneWeb(windowWidth);
+    const menuMargin = phoneWeb ? HERD_PHONE_FLOAT_MARGIN : WEB_MENU_MARGIN;
+    const menuWidth = phoneWeb ? Math.min(PHONE_MENU_WIDTH, windowWidth - menuMargin * 2) : WEB_MENU_WIDTH;
+    // The web card stays mounted, with its last anchor, while it leaves; a
+    // closed menu mounts nothing.
+    const presence = useHerdExit(visible && anchor ? anchor : null, HERD_EXIT.pop);
     const shownAnchor = presence.value;
+    const destructiveBreaks = actions.filter((action, index) => action.destructive && index > 0).length;
 
     const position = React.useMemo(() => {
         if (!shownAnchor) {
@@ -217,24 +222,27 @@ export function SessionActionsPopover({
         }
         const anchor = shownAnchor;
 
-        const estimatedHeight = actions.length * WEB_MENU_ITEM_HEIGHT + WEB_MENU_PADDING * 2;
+        const estimatedHeight = phoneWeb
+            ? PHONE_MENU_TITLE_HEIGHT + actions.length * PHONE_MENU_ITEM_HEIGHT
+                + destructiveBreaks * PHONE_MENU_SEPARATOR_HEIGHT + PHONE_MENU_PADDING * 2
+            : actions.length * WEB_MENU_ITEM_HEIGHT + WEB_MENU_PADDING * 2;
         const leftBase = anchor.type === 'point'
             ? anchor.x
-            : anchor.x + anchor.width - WEB_MENU_WIDTH;
+            : anchor.x + anchor.width - menuWidth;
 
         let topBase = anchor.type === 'point'
             ? anchor.y
             : anchor.y + anchor.height + 8;
 
-        if (anchor.type === 'rect' && topBase + estimatedHeight > windowHeight - WEB_MENU_MARGIN) {
+        if (anchor.type === 'rect' && topBase + estimatedHeight > windowHeight - menuMargin) {
             topBase = anchor.y - estimatedHeight - 8;
         }
 
         return {
-            left: Math.max(WEB_MENU_MARGIN, Math.min(windowWidth - WEB_MENU_WIDTH - WEB_MENU_MARGIN, leftBase)),
-            top: Math.max(WEB_MENU_MARGIN, Math.min(windowHeight - estimatedHeight - WEB_MENU_MARGIN, topBase)),
+            left: Math.max(menuMargin, Math.min(windowWidth - menuWidth - menuMargin, leftBase)),
+            top: Math.max(menuMargin, Math.min(windowHeight - estimatedHeight - menuMargin, topBase)),
         };
-    }, [actions.length, shownAnchor, windowHeight, windowWidth]);
+    }, [actions.length, destructiveBreaks, menuMargin, menuWidth, phoneWeb, shownAnchor, windowHeight, windowWidth]);
 
     // Escape closes the menu instead of reaching the app's Back handling.
     useHerdEscapeToClose(visible && !!anchor, onClose);
@@ -289,13 +297,10 @@ export function SessionActionsPopover({
                 key={action.id}
                 accessibilityRole="button"
                 onPress={() => handleActionPress(action)}
-                style={({ pressed, hovered }: any) => phoneSheet ? [
-                    styles.menuItem,
-                    styles.sheetItem,
-                    (hovered || pressed) && styles.webMenuItemHovered,
-                ] : Platform.OS === 'web' ? [
+                style={({ pressed, hovered }: any) => Platform.OS === 'web' ? [
                     styles.menuItem,
                     styles.webMenuItem,
+                    phoneWeb && styles.phoneMenuItem,
                     hovered && styles.webMenuItemHovered,
                     pressed && styles.menuItemPressed,
                 ] : [
@@ -309,11 +314,12 @@ export function SessionActionsPopover({
                     name={action.icon as keyof typeof Ionicons.glyphMap}
                     size={18}
                 />
-                <Text numberOfLines={1} style={[styles.menuItemLabel, phoneSheet && styles.sheetItemLabel, { color }]}>
+                <Text numberOfLines={1} style={[styles.menuItemLabel, phoneWeb && styles.phoneMenuItemLabel, { color }]}>
                     {action.label}
                 </Text>
-                {Platform.OS === 'web' && (
-                    <Text style={[styles.menuItemShortcut, phoneSheet && styles.sheetItemShortcut]}>{shortcutLabel}</Text>
+                {/* A phone has no keyboard for the chord; the action itself stays. */}
+                {Platform.OS === 'web' && !phoneWeb && (
+                    <Text style={styles.menuItemShortcut}>{shortcutLabel}</Text>
                 )}
             </Pressable>
         );
@@ -338,25 +344,6 @@ export function SessionActionsPopover({
         </>
     );
 
-    if (phoneSheet) {
-        return (
-            <HerdBottomSheet
-                visible={visible && !!anchor}
-                onClose={onClose}
-                accessibilityLabel={getSessionName(session)}
-                testID="session-actions-sheet"
-            >
-                <Text numberOfLines={1} style={styles.sheetTitle}>{getSessionName(session)}</Text>
-                {actionItems.map((item, index) => actions[index].destructive && index > 0 ? (
-                    <React.Fragment key={actions[index].id}>
-                        <HerdMenuSeparator />
-                        {item}
-                    </React.Fragment>
-                ) : item)}
-            </HerdBottomSheet>
-        );
-    }
-
     if (Platform.OS === 'web' && position) {
         const menu = (
             <View
@@ -365,11 +352,31 @@ export function SessionActionsPopover({
                     {
                         left: position.left,
                         top: position.top,
+                        width: menuWidth,
                     },
                 ]}
             >
-                <View style={[styles.card, styles.webMenuCard(presence.exiting), { backgroundColor: theme.colors.header.background }]}>
-                    {actionItems}
+                <View
+                    testID="session-actions-menu"
+                    style={[
+                        styles.card,
+                        styles.webMenuCard(presence.exiting),
+                        phoneWeb && styles.phoneMenuCard,
+                        { backgroundColor: theme.colors.header.background },
+                    ]}
+                >
+                    {phoneWeb ? (
+                        <>
+                            <Text numberOfLines={1} style={styles.phoneTitle}>{getSessionName(session)}</Text>
+                            {/* A separator sets the destructive action apart, as in the mock. */}
+                            {actionItems.map((item, index) => actions[index].destructive && index > 0 ? (
+                                <React.Fragment key={actions[index].id}>
+                                    <HerdMenuSeparator />
+                                    {item}
+                                </React.Fragment>
+                            ) : item)}
+                        </>
+                    ) : actionItems}
                 </View>
             </View>
         );

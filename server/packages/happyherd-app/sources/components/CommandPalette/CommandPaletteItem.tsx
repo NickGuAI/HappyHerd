@@ -5,6 +5,7 @@ import { Command } from './types';
 import { Typography } from '@/constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import { HerdKey } from '@/components/herd/pages/HerdPage';
+import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
 
 interface CommandPaletteItemProps {
     command: Command;
@@ -15,6 +16,7 @@ interface CommandPaletteItemProps {
 
 export function CommandPaletteItem({ command, isSelected, onPress, onHover }: CommandPaletteItemProps) {
     const { theme } = useUnistyles();
+    const phone = useHerdPhoneWeb();
     const [isHovered, setIsHovered] = React.useState(false);
 
     const handleMouseEnter = React.useCallback(() => {
@@ -33,6 +35,7 @@ export function CommandPaletteItem({ command, isSelected, onPress, onHover }: Co
     const pressableProps: any = {
         style: ({ pressed }: any) => [
             styles.container,
+            phone && styles.containerPhone,
             isSelected && styles.selected,
             isHovered && !isSelected && styles.hovered,
             pressed && Platform.OS === 'web' && styles.pressed
@@ -67,7 +70,7 @@ export function CommandPaletteItem({ command, isSelected, onPress, onHover }: Co
                         {command.subtitle}
                     </Text>
                 )}
-                {command.shortcut && (
+                {command.shortcut && !phone && (
                     <View style={styles.shortcutContainer}>
                         <HerdKey label={command.shortcut} />
                     </View>
@@ -84,6 +87,11 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         backgroundColor: 'transparent',
         borderRadius: theme.borderRadius.md,
+    },
+    // Phones: touch-size rows whose content sits on the 16 px gutter with the list's 8 px.
+    containerPhone: {
+        minHeight: 48,
+        paddingHorizontal: 8,
     },
     selected: {
         backgroundColor: theme.colors.surfaceHighest,

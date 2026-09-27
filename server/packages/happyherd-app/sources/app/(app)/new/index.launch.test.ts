@@ -167,6 +167,7 @@ vi.mock('zustand/react/shallow', () => ({ useShallow: (selector: unknown) => sel
 vi.mock('@/utils/responsive', () => ({
     useDeviceType: () => 'phone',
     useHeaderHeight: () => 0,
+    useIsTablet: () => mocks.dimensions.width >= 700,
 }));
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/newSessionSidebarLayout', async (importOriginal) => ({

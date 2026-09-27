@@ -15,6 +15,7 @@ vi.mock('react-native', () => ({
     useWindowDimensions: () => ({ width: 1440, height: 900 }),
 }));
 vi.mock('react-native-reanimated', () => ({ useReducedMotion: () => false }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', Octicons: 'Octicons' }));
 vi.mock('react-native-safe-area-context', async () => {
     const ReactModule = await import('react');
@@ -154,11 +155,14 @@ describe('edge handle and popover geometry', () => {
     it('opens popovers under their trigger and keeps them inside the window', () => {
         const anchor = { x: 1300, y: 10, width: 120, height: 34 };
         expect(resolveHerdPopoverPosition({ anchor, width: 300, align: 'end', windowWidth: 1440, windowHeight: 900 }))
-            .toEqual({ left: 1120, top: 52, maxHeight: 836 });
+            .toEqual({ left: 1120, width: 300, top: 52, maxHeight: 836 });
         expect(resolveHerdPopoverPosition({ anchor: { ...anchor, x: 1400 }, width: 300, align: 'start', windowWidth: 1440, windowHeight: 900 }).left)
             .toBe(1128);
         expect(resolveHerdPopoverPosition({ anchor: { ...anchor, x: 0 }, width: 300, align: 'end', windowWidth: 1440, windowHeight: 900 }).left)
             .toBe(12);
+        // Phones keep 8 px from the edges, and a wide popover shrinks to the window less those margins.
+        expect(resolveHerdPopoverPosition({ anchor: { x: 330, y: 50, width: 52, height: 44 }, width: 380, align: 'end', windowWidth: 390, windowHeight: 844, margin: 8 }))
+            .toEqual({ left: 8, width: 374, top: 102, maxHeight: 734 });
     });
 });
 

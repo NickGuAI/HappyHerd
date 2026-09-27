@@ -251,9 +251,8 @@ function createTheme(dark: boolean, p: typeof lightPalette) {
             radius: 8,
             radiusCard: 12,
             radiusSheet: 14,
-            // Phone bottom sheets' top corners and the floating New session button.
+            // Phone bottom sheets' top corners.
             radiusBottomSheet: 22,
-            radiusFab: 18,
             radiusPill: 999,
             gutter: 24,
             rail: 1180,

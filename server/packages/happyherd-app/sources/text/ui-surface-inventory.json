@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "ea75bec31f4ea581fa4b2210f453a5d42c8c900ca71edda29038d33a33f1dcbd",
+  "sourceFingerprint": "323ef8629c958aa8f6ed5be6be4440150006361f6fbc14f7ba711335b27578e4",
   "routeCount": 43,
   "surfaceCount": 315,
   "hardcodedCopyCount": 0,
@@ -3076,7 +3076,8 @@
       ],
       "translationKeys": [
         "commandPalette.keyEscape",
-        "commandPalette.placeholder"
+        "commandPalette.placeholder",
+        "common.cancel"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -4020,9 +4021,9 @@
         "HERD_SHEET_DISMISS_DISTANCE",
         "HERD_SHEET_DISMISS_VELOCITY",
         "HerdBottomSheet",
-        "HerdSheetContext",
+        "HerdTouchMenuContext",
         "shouldDismissHerdSheet",
-        "useInHerdSheet"
+        "useHerdTouchMenu"
       ],
       "translationKeys": [
         "common.cancel"

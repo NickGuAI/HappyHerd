@@ -4,6 +4,7 @@ import { View, ScrollView, Text, Platform } from 'react-native';
 import { Command, CommandCategory } from './types';
 import { CommandPaletteItem } from './CommandPaletteItem';
 import { Typography } from '@/constants/Typography';
+import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
 
 import { t } from '@/text';
 interface CommandPaletteResultsProps {
@@ -20,6 +21,7 @@ export function CommandPaletteResults({
     onSelectionChange
 }: CommandPaletteResultsProps) {
     const scrollViewRef = useRef<ScrollView>(null);
+    const phone = useHerdPhoneWeb();
     const itemRefs = useRef<{ [key: number]: View | null }>({});
 
     // Flatten commands for index tracking
@@ -56,7 +58,7 @@ export function CommandPaletteResults({
     return (
         <ScrollView
             ref={scrollViewRef}
-            style={styles.container}
+            style={[styles.container, phone && styles.containerPhone]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         >
@@ -88,7 +90,7 @@ export function CommandPaletteResults({
 
                 return (
                     <View key={category.id}>
-                        <Text style={[styles.categoryTitle, Typography.mono('semiBold')]}>
+                        <Text style={[styles.categoryTitle, phone && styles.categoryTitlePhone, Typography.mono('semiBold')]}>
                             {category.title}
                         </Text>
                         {categoryCommands}
@@ -109,6 +111,11 @@ const styles = StyleSheet.create((theme) => ({
         }),
         padding: 8,
     },
+    // Phones: the list takes the palette's height; the palette caps it.
+    containerPhone: {
+        maxHeight: 'none' as any,
+        flexShrink: 1,
+    },
     emptyContainer: {
         padding: 48,
         alignItems: 'center',
@@ -126,5 +133,8 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textLink,
         textTransform: 'uppercase',
         letterSpacing: 2,
+    },
+    categoryTitlePhone: {
+        paddingHorizontal: 8,
     },
 }));

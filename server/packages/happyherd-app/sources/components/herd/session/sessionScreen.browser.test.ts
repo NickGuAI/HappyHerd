@@ -505,11 +505,19 @@ describe('Session screen overhaul (Web)', () => {
         await expect(foreground.getByRole('button', { name: 'Open side chats (2)' }).isVisible()).resolves.toBe(true);
         const menuButton = foreground.getByRole('button', { name: 'Session', exact: true });
         await menuButton.click();
-        // The same rows, icons and shortcuts as the session list's menu.
+        // The same rows and icons as the session list's menu, with their shortcuts where a keyboard is likely.
         const menu = page.getByRole('dialog');
         const details = menu.getByRole('button', { name: /Details/ });
         await details.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(details.innerText()).resolves.toMatch(/Details\s+(⌥⌘O|Ctrl\+Alt\+O)/);
+        if (viewport === MOBILE) {
+            // A phone's card is titled with the session and drops the chords.
+            const text = await details.innerText();
+            expect(text).toContain('Details');
+            expect(text).not.toMatch(/⌥|⌘|Ctrl|Alt/);
+            await expect(page.getByTestId('session-actions-menu').getByText('Fix flaky auth timeout test', { exact: true }).count()).resolves.toBe(1);
+        } else {
+            await expect(details.innerText()).resolves.toMatch(/Details\s+(⌥⌘O|Ctrl\+Alt\+O)/);
+        }
         await expect(menu.getByRole('button', { name: /Continue with…/ }).isVisible()).resolves.toBe(true);
         await expect(menu.getByRole('button', { name: /Archive/ }).isVisible()).resolves.toBe(true);
         // Anchored under the button, right-aligned to it.

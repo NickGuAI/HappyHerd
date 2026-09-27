@@ -1,15 +1,16 @@
 import * as React from 'react';
-import { Modal as RNModal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Modal as RNModal, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
+import { useIsTablet } from '@/utils/responsive';
 import { herdWebClasses } from './motion';
 import { HERD_EXIT, useHerdExit } from './presence';
 import { useHerdEscapeToClose } from './escape';
 import { HerdExitLayer } from './HerdExitLayer';
-import { HerdBottomSheet, useInHerdSheet } from './mobile/HerdBottomSheet';
-import { isHerdPhoneWeb } from './mobile/useHerdPhone';
+import { HerdBottomSheet, HerdTouchMenuContext, useHerdTouchMenu } from './mobile/HerdBottomSheet';
+import { HERD_PHONE_FLOAT_MARGIN, isHerdPhoneWeb } from './mobile/useHerdPhone';
 
 // Existing callers import the Escape hook from here.
 export { useHerdEscapeToClose };
@@ -38,7 +39,8 @@ const POPOVER_FLIP_THRESHOLD = 280;
 /**
  * Places a popover below its trigger, aligned to the trigger's start or end
  * edge and kept inside the window. `auto` placement opens upward instead when
- * the trigger sits near the bottom of the window.
+ * the trigger sits near the bottom of the window. Phones pass a narrower
+ * `margin`, and a popover never grows wider than the window less its margins.
  */
 export function resolveHerdPopoverPosition(input: {
     anchor: HerdAnchorRect;
@@ -47,22 +49,27 @@ export function resolveHerdPopoverPosition(input: {
     windowWidth: number;
     windowHeight: number;
     placement?: 'below' | 'auto';
-}): { left: number; top?: number; bottom?: number; maxHeight: number } {
-    const { anchor, width, align, windowWidth, windowHeight } = input;
+    margin?: number;
+}): { left: number; width: number; top?: number; bottom?: number; maxHeight: number } {
+    const { anchor, align, windowWidth, windowHeight } = input;
+    const margin = input.margin ?? POPOVER_MARGIN;
+    const width = Math.min(input.width, windowWidth - margin * 2);
     const preferredLeft = align === 'end' ? anchor.x + anchor.width - width : anchor.x;
-    const left = Math.max(POPOVER_MARGIN, Math.min(windowWidth - width - POPOVER_MARGIN, preferredLeft));
+    const left = Math.max(margin, Math.min(windowWidth - width - margin, preferredLeft));
     const top = anchor.y + anchor.height + POPOVER_GAP;
-    const roomBelow = windowHeight - top - POPOVER_MARGIN;
-    const roomAbove = anchor.y - POPOVER_GAP - POPOVER_MARGIN;
+    const roomBelow = windowHeight - top - margin;
+    const roomAbove = anchor.y - POPOVER_GAP - margin;
     if (input.placement === 'auto' && roomBelow < POPOVER_FLIP_THRESHOLD && roomAbove > roomBelow) {
         return {
             left,
+            width,
             bottom: windowHeight - anchor.y + POPOVER_GAP,
             maxHeight: Math.max(POPOVER_MIN_HEIGHT, roomAbove),
         };
     }
     return {
         left,
+        width,
         top,
         maxHeight: Math.max(POPOVER_MIN_HEIGHT, roomBelow),
     };
@@ -72,8 +79,9 @@ export function resolveHerdPopoverPosition(input: {
 /**
  * Anchored dropdown used by the top bar menus. It scales in from its trigger
  * and out again, closes on an outside press or Escape, and never dims the page
- * behind it. On a phone-width Web window it presents the same content as a
- * bottom sheet.
+ * behind it. On a phone-width Web window it stays anchored, 8 px from the
+ * window's edges, with touch-size rows. Native phones present the same
+ * content as a bottom sheet that clears the home indicator.
  */
 export function HerdPopover(props: {
     visible: boolean;
@@ -87,17 +95,19 @@ export function HerdPopover(props: {
     children: React.ReactNode;
 }) {
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isTablet = useIsTablet();
     const open = props.visible && !!props.anchor;
     useHerdEscapeToClose(open, props.onClose);
-    const phone = isHerdPhoneWeb(windowWidth);
-    // The card, or the phone sheet, stays mounted with its last anchor while
-    // it leaves; a closed popover mounts neither.
-    const presence = useHerdExit(open ? props.anchor : null, phone ? HERD_EXIT.sheetDown : HERD_EXIT.pop);
+    const nativePhone = Platform.OS !== 'web' && !isTablet;
+    const phoneWeb = isHerdPhoneWeb(windowWidth);
+    // The card stays mounted with its last anchor while it leaves; a closed
+    // popover mounts nothing.
+    const presence = useHerdExit(open ? props.anchor : null, HERD_EXIT.pop);
     const anchor = presence.value;
     if (!anchor) {
         return null;
     }
-    if (phone) {
+    if (nativePhone) {
         return (
             <HerdBottomSheet
                 visible={open}
@@ -117,6 +127,7 @@ export function HerdPopover(props: {
         windowWidth,
         windowHeight,
         placement: props.placement,
+        margin: phoneWeb ? HERD_PHONE_FLOAT_MARGIN : undefined,
     });
 
     const card = (
@@ -124,15 +135,17 @@ export function HerdPopover(props: {
             accessibilityRole="menu"
             accessibilityLabel={props.accessibilityLabel}
             testID={props.testID}
-            style={[styles.card(presence.exiting), {
+            style={[styles.card(presence.exiting), phoneWeb && styles.cardPhone, {
                 left: position.left,
                 top: position.top,
                 bottom: position.bottom,
-                width: props.width,
+                width: position.width,
                 maxHeight: position.maxHeight,
             }]}
         >
-            {props.children}
+            <HerdTouchMenuContext.Provider value={phoneWeb}>
+                {props.children}
+            </HerdTouchMenuContext.Provider>
         </View>
     );
     // Closing ends the Modal at once; the card scales out on an inert layer.
@@ -156,7 +169,8 @@ export function HerdPopover(props: {
 
 /** Small mono section label at the top of a popover group. */
 export function HerdMenuTitle({ children }: { children: React.ReactNode }) {
-    return <Text style={styles.title}>{children}</Text>;
+    const touch = useHerdTouchMenu();
+    return <Text style={[styles.title, touch && styles.titleTouch]}>{children}</Text>;
 }
 
 export function HerdMenuSeparator() {
@@ -175,7 +189,7 @@ export function HerdMenuItem(props: {
     testID?: string;
 }) {
     const { theme } = useUnistyles();
-    const inSheet = useInHerdSheet();
+    const touch = useHerdTouchMenu();
     return (
         <Pressable
             accessibilityRole="menuitem"
@@ -186,16 +200,16 @@ export function HerdMenuItem(props: {
             testID={props.testID}
             style={({ pressed, hovered }: any) => [
                 styles.item,
-                inSheet && styles.itemInSheet,
+                touch && styles.itemTouch,
                 props.selected && styles.itemSelected,
                 (hovered || pressed) && !props.disabled && styles.itemHovered,
                 props.disabled && styles.itemDisabled,
             ]}
         >
             {props.leading ?? (props.icon ? (
-                <Ionicons name={props.icon} size={inSheet ? 18 : 16} color={theme.colors.textSecondary} />
+                <Ionicons name={props.icon} size={touch ? 18 : 16} color={theme.colors.textSecondary} />
             ) : null)}
-            <Text numberOfLines={1} style={[styles.itemLabel, inSheet && styles.itemLabelInSheet, props.selected && styles.itemLabelSelected]}>
+            <Text numberOfLines={1} style={[styles.itemLabel, touch && styles.itemLabelTouch, props.selected && styles.itemLabelSelected]}>
                 {props.label}
             </Text>
             {props.hint ? <Text numberOfLines={1} style={styles.itemHint}>{props.hint}</Text> : null}
@@ -232,6 +246,10 @@ const styles = StyleSheet.create((theme) => ({
             _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
         },
     }),
+    // Phones: rows pad 8 px inside 8 px of card, so their content sits on the 16 px gutter.
+    cardPhone: {
+        padding: 8,
+    },
     title: {
         paddingHorizontal: 10,
         paddingTop: 8,
@@ -241,6 +259,9 @@ const styles = StyleSheet.create((theme) => ({
         textTransform: 'uppercase',
         color: theme.colors.kilv.inkFaint,
         ...Typography.mono(),
+    },
+    titleTouch: {
+        paddingHorizontal: 8,
     },
     separator: {
         height: 1,
@@ -256,11 +277,11 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 10,
         borderRadius: theme.kilv.radius,
     },
-    // Phone sheets: touch-size rows (48 px) and 16 px labels.
-    itemInSheet: {
+    // Phone menus: touch-size rows (48 px) and 16 px labels, content on the gutter.
+    itemTouch: {
         minHeight: 48,
         gap: 12,
-        paddingHorizontal: 12,
+        paddingHorizontal: 8,
     },
     itemHovered: {
         backgroundColor: theme.colors.surfacePressedOverlay,
@@ -279,7 +300,7 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.text,
         ...Typography.default(),
     },
-    itemLabelInSheet: {
+    itemLabelTouch: {
         fontSize: 16,
         lineHeight: 22,
     },

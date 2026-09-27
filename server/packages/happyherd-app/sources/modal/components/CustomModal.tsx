@@ -18,7 +18,7 @@ export function CustomModal({ config, onClose }: CustomModalProps) {
     }
     
     return (
-        <BaseModal visible={true} onClose={onClose}>
+        <BaseModal visible={true} onClose={onClose} placement={config.presentation}>
             <Component {...config.props} onClose={onClose} />
         </BaseModal>
     );

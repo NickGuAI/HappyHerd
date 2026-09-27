@@ -462,22 +462,27 @@ describe('Streamline New Session in the production style runtime', () => {
         }
     }, 40_000);
 
-    it('opens a chip picker as a bottom sheet on a phone and applies the choice', async () => {
+    it('opens a chip picker as a card on a phone, inside the window, and applies the choice', async () => {
         for (const theme of ['light', 'dark'] as const) {
             const { page, errors } = await open({ theme, width: 390, height: 844 });
             await page.getByTestId('streamline-sections').waitFor();
             // Phones show the agent, permission and worktree chips.
+            const chip = (await page.getByTestId('streamline-chip-permission').boundingBox())!;
             await page.getByTestId('streamline-chip-permission').click();
             const picker = page.getByTestId('streamline-chip-picker');
             await picker.waitFor();
-            // Full width on the bottom edge, with a drag handle that is also Cancel.
+            // Anchored at the chip, as on desktop, never within 8 px of the window's edge.
+            expect(await picker.evaluate((element) => [...element.classList])).toContain('herd-pop');
+            await expect(page.getByTestId('streamline-chip-picker-handle').count()).resolves.toBe(0);
+            await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
             const box = (await picker.boundingBox())!;
-            expect(box.x).toBe(0);
-            expect(box.width).toBe(390);
-            await expect.poll(async () => { const current = (await picker.boundingBox())!; return Math.round(current.y + current.height); }).toBe(844);
-            await expect(page.getByTestId('streamline-chip-picker-handle').getAttribute('aria-label')).resolves.toBe('Cancel');
-            expect(await picker.evaluate((element) => [...element.classList])).toContain('herd-sheet-up');
-            await evidence(page, `streamline-chip-sheet-${theme}-390`);
+            expect(box.width).toBe(300);
+            expect(box.x).toBeGreaterThanOrEqual(8);
+            expect(box.x + box.width).toBeLessThanOrEqual(390 - 8);
+            expect(box.y + box.height <= chip.y || box.y >= chip.y + chip.height).toBe(true);
+            expect(box.y).toBeGreaterThanOrEqual(8);
+            expect(box.y + box.height).toBeLessThanOrEqual(844 - 8);
+            await evidence(page, `streamline-chip-picker-${theme}-390`);
             await picker.getByRole('radio', { name: 'plan' }).click();
             await expect.poll(() => picker.count()).toBe(0);
             await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.permissionMode)).toBe('plan');

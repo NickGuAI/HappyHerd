@@ -8,11 +8,14 @@ import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
 import { t } from '@/text';
 
-/** True inside a phone bottom sheet, so menu rows grow to touch size. */
-export const HerdSheetContext = React.createContext(false);
+/**
+ * True inside a phone menu (this sheet, or a popover card on Web Mobile), so
+ * menu rows grow to touch size and put their content on the 16 px gutter.
+ */
+export const HerdTouchMenuContext = React.createContext(false);
 
-export function useInHerdSheet(): boolean {
-    return React.useContext(HerdSheetContext);
+export function useHerdTouchMenu(): boolean {
+    return React.useContext(HerdTouchMenuContext);
 }
 
 /** A drag past this distance, or a fast downward flick, dismisses the sheet. */
@@ -24,11 +27,11 @@ export function shouldDismissHerdSheet(dy: number, vy: number): boolean {
 }
 
 /**
- * Phone presentation for menus and pickers (UI overhaul): a bottom sheet that
- * slides up over a scrim, and back down when it closes, with a drag handle.
- * Dragging the handle down past the threshold dismisses it; the handle is also
- * a labelled Cancel button for assistive technology. The sheet clears the home
- * indicator.
+ * Native phone presentation for menus and pickers (UI overhaul): a bottom
+ * sheet over a scrim with a drag handle. Dragging the handle down past the
+ * threshold dismisses it; the handle is also a labelled Cancel button for
+ * assistive technology. The sheet clears the home indicator. Native fades it
+ * in and out; on the web it slides up and back down.
  */
 export function HerdBottomSheet({
     visible,
@@ -95,7 +98,7 @@ export function HerdBottomSheet({
     if (!presence.value) return null;
     const exiting = presence.exiting;
     const layer = (
-        <HerdSheetContext.Provider value>
+        <HerdTouchMenuContext.Provider value>
             <View style={styles.root}>
                 <Pressable
                     accessible={false}
@@ -139,14 +142,14 @@ export function HerdBottomSheet({
                     </View>
                 </Animated.View>
             </View>
-        </HerdSheetContext.Provider>
+        </HerdTouchMenuContext.Provider>
     );
     // Closing ends the Modal at once; the sheet slides down on an inert layer.
     if (exiting) {
         return <HerdExitLayer>{layer}</HerdExitLayer>;
     }
     return (
-        <Modal transparent animationType="none" visible onRequestClose={onClose}>
+        <Modal transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} visible onRequestClose={onClose}>
             {layer}
         </Modal>
     );
@@ -172,7 +175,8 @@ const styles = StyleSheet.create((theme) => ({
     sheet: (exiting: boolean) => ({
         width: '100%',
         overflow: 'hidden',
-        paddingHorizontal: 10,
+        // With the rows' own 8 px, content sits on the 16 px gutter.
+        paddingHorizontal: 8,
         borderTopLeftRadius: theme.kilv.radiusBottomSheet,
         borderTopRightRadius: theme.kilv.radiusBottomSheet,
         borderWidth: 1,

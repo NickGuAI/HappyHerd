@@ -560,3 +560,4 @@ UI_OVERHAUL_TABLET_BACK_DOCS	accepted	docs(app): say which native tablet screens
 UI_OVERHAUL_GOLDENS_CHANGELOG	accepted	test(app): regenerate the KILV changelog baselines after the top bar entry changed	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UI_OVERHAUL_PHONE_SHELL	accepted	feat(app): give phones the top bar and the left panel as a drawer	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UI_OVERHAUL_PHONE_SESSION	accepted	feat(app): give the phone session the desktop header, gutter and right sheet	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_PHONE_MENUS	accepted	feat(app): keep phone menus anchored and rest dialogs on the bottom edge	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts

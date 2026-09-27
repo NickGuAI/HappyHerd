@@ -37,6 +37,7 @@ vi.mock('react-native', async () => {
     };
 });
 
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
 vi.mock('react-native-unistyles', async () => {
     const { lightTheme } = await import('@/theme');
     return {
