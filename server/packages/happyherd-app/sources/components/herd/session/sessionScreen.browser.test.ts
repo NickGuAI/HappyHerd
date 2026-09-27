@@ -76,7 +76,9 @@ const questions = [{
 
 // Oldest first here; the storage adapter hands the list over newest-first
 // with times relative to page load.
-function transcript(scene: 'permission' | 'question'): unknown[] {
+type Scene = 'permission' | 'permission-older' | 'question';
+
+function transcript(scene: Scene): unknown[] {
     const turnOne = [
         { kind: 'user-text', id: 'u1', localId: null, createdAt: -9 * minute, text: 'Fix the flaky auth timeout test in `auth.test.ts`.' },
         { kind: 'agent-text', id: 'a1', localId: null, createdAt: -9 * minute + 2000, text: 'I will trace the timeout path first.' },
@@ -102,12 +104,18 @@ function transcript(scene: 'permission' | 'question'): unknown[] {
         { kind: 'agent-text', id: 'a3', localId: null, createdAt: -2 * minute + 2000, text: 'Checking the Safari session fallback now.' },
         tool('t5', -2 * minute + 4000, 'Read', { file_path: '/work/web-app/src/auth/session.ts' }),
         tool('t6', -2 * minute + 6000, 'Edit', { file_path: '/work/web-app/src/auth/session.ts', old_string: 'return cached;', new_string: 'if (isPrivateMode()) return null;\nreturn cached;' }),
-        ...(scene === 'permission' ? [
+        ...(scene !== 'question' ? [
             tool('t7', -3000, 'Bash', { command: 'pnpm test:e2e --project=webkit' }, { state: 'running', result: undefined, completedAt: null }),
             tool('t8', -1000, 'Bash', { command: 'git push origin fix/auth-timeout', description: 'Push the fix branch' }, {
                 state: 'running', result: undefined, completedAt: null,
                 permission: { id: 'perm-push', status: 'pending', reason: 'Publishing the branch needs approval.' },
             }),
+            // The request stays pending while later rows arrive, so it scrolls up with the chat.
+            ...(scene === 'permission-older' ? Array.from({ length: 6 }, (_, index) => ({
+                kind: 'agent-text', id: `later-${index}`, localId: null, createdAt: -900 + index * 50,
+                text: `Webkit run ${index + 1}: the private-tab fallback returns null before the cache read, the token refresh path `
+                    + 'stays untouched, and the session store keeps its existing keys, so no migration is needed for this change.',
+            })) : []),
         ] : [
             tool('t9', -1000, 'AskUserQuestion', { questions }, {
                 state: 'running', result: undefined, completedAt: null,
@@ -235,7 +243,7 @@ function sessionScreenModules(): Record<string, string> {
         const screen = fixtureOptions.sessionScreen;
         if (screen) {
             const at = Date.now();
-            const permission = screen === 'permission';
+            const permission = screen === 'permission' || screen === 'permission-older';
             sessions.parent = {
                 ...sessions.parent,
                 thinking: false,
@@ -267,7 +275,11 @@ function sessionScreenModules(): Record<string, string> {
         const sessionList = Object.values(sessions);`, 'sessions');
     storage = replaceOnce(storage, 'const messages = Array.from', 'const oldFixtureMessages = Array.from', 'messages');
     storage = replaceOnce(storage, 'const localhostMessages =', `
-        const SESSION_SCREEN_TRANSCRIPTS = ${JSON.stringify({ permission: transcript('permission'), question: transcript('question') })};
+        const SESSION_SCREEN_TRANSCRIPTS = ${JSON.stringify({
+            permission: transcript('permission'),
+            'permission-older': transcript('permission-older'),
+            question: transcript('question'),
+        })};
         const shiftTime = (value, at) => typeof value === 'number' ? at + value : value;
         const messages = fixtureOptions.sessionScreen
             ? (() => {
@@ -439,7 +451,7 @@ describe('Session screen overhaul (Web)', () => {
         await new Promise<void>((done) => server ? server.close(() => done()) : done());
     });
 
-    async function openScene(options: { scene: 'permission' | 'question'; viewport: Viewport; theme?: 'light' | 'dark' }) {
+    async function openScene(options: { scene: Scene; viewport: Viewport; theme?: 'light' | 'dark' }) {
         const page = await browser.newPage({ viewport: options.viewport, deviceScaleFactor: 1, colorScheme: options.theme ?? 'light' });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
@@ -549,6 +561,93 @@ describe('Session screen overhaul (Web)', () => {
         await page.locator('textarea').first().fill('');
         await page.locator('body').click({ position: { x: 5, y: viewport.height / 2 } });
         await evidence(page, `permission-pending-light-${viewport.width}`);
+        await page.keyboard.press('1');
+        await expect.poll(() => page.evaluate(() => (window as any).__PERMISSION_CALLS__ ?? [])).toEqual([
+            ['allow', 'parent', 'perm-push'],
+        ]);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('never answers a permission card the chat list has scrolled out of view', async () => {
+        const { page, errors } = await openScene({ scene: 'permission', viewport: MOBILE });
+        const card = page.getByTestId('tool-permission-card');
+        await card.waitFor({ state: 'visible', timeout: 3_000 });
+        // Scroll the chat back until the card sits just past the list's edge:
+        // still mounted and inside the window, but clipped by the list.
+        const geometry = await page.evaluate(() => {
+            const node = document.querySelector('[data-testid="tool-permission-card"]') as HTMLElement;
+            let list = node.parentElement;
+            while (list && !(list.scrollHeight > list.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(list).overflowY))) {
+                list = list.parentElement;
+            }
+            if (!list) return null;
+            const target = list.getBoundingClientRect().bottom + 4;
+            const start = list.scrollTop;
+            const before = node.getBoundingClientRect().top;
+            // Inverted lists move their rows the other way; probe the direction first.
+            list.scrollTop = start + 10;
+            const direction = Math.sign(node.getBoundingClientRect().top - before) || 1;
+            list.scrollTop = start + direction * (target - before);
+            const rect = node.getBoundingClientRect();
+            return { top: rect.top, listBottom: list.getBoundingClientRect().bottom, windowHeight: window.innerHeight };
+        });
+        expect(geometry).not.toBeNull();
+        expect(geometry!.top).toBeGreaterThanOrEqual(geometry!.listBottom);
+        expect(geometry!.top).toBeLessThan(geometry!.windowHeight);
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+        await page.keyboard.press('1');
+        await page.waitForTimeout(150);
+        await expect(page.evaluate(() => (window as any).__PERMISSION_CALLS__ ?? [])).resolves.toEqual([]);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it.each([
+        ['Web Desktop', DESKTOP],
+        ['Web Mobile', MOBILE],
+    ] as const)('answers a permission card that "Jump to latest" partly covers on %s', async (_surface, viewport) => {
+        const { page, errors } = await openScene({ scene: 'permission-older', viewport });
+        const card = page.getByTestId('tool-permission-card');
+        await card.waitFor({ state: 'attached', timeout: 3_000 });
+        // Only the top of the choices shows above the chat's bottom edge, and
+        // "Jump to latest" sits over the middle of that visible part.
+        const place = (search: boolean) => page.evaluate((fine) => {
+            const node = document.querySelector('[data-testid="tool-permission-card"]') as HTMLElement;
+            const yes = [...node.querySelectorAll('*')].find((element) => element.textContent === 'Yes' && element.children.length === 0)!;
+            let choices = yes as HTMLElement;
+            while (choices.parentElement !== node) choices = choices.parentElement!;
+            let list = node.parentElement!;
+            while (!(list.scrollHeight > list.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(list).overflowY))) list = list.parentElement!;
+            const start = list.scrollTop;
+            const before = choices.getBoundingClientRect().top;
+            list.scrollTop = start + 10;
+            // Inverted lists move their rows the other way.
+            const direction = Math.sign(choices.getBoundingClientRect().top - before) || 1;
+            list.scrollTop = start;
+            const moveDown = (pixels: number) => { list.scrollTop += direction * pixels; };
+            const jump = document.querySelector('[aria-label="Jump to latest"]');
+            const centreCovered = () => {
+                const box = choices.getBoundingClientRect();
+                const edge = list.getBoundingClientRect().bottom;
+                const bottom = Math.min(box.bottom, edge);
+                if (bottom <= box.top) return false;
+                const hit = document.elementFromPoint((box.left + box.right) / 2, (box.top + bottom) / 2);
+                return Boolean(jump && hit && jump.contains(hit));
+            };
+            if (!fine) {
+                moveDown(list.getBoundingClientRect().bottom - 140 - choices.getBoundingClientRect().top);
+                return false;
+            }
+            moveDown(list.getBoundingClientRect().bottom - 140 - choices.getBoundingClientRect().top);
+            for (let step = 0; step < 70 && !centreCovered(); step += 1) moveDown(2);
+            return centreCovered();
+        }, search);
+        await place(false);
+        await page.getByRole('button', { name: 'Jump to latest' }).waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(place(true)).resolves.toBe(true);
+        await expect(card.getByText('Yes', { exact: true }).isVisible()).resolves.toBe(true);
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
         await page.keyboard.press('1');
         await expect.poll(() => page.evaluate(() => (window as any).__PERMISSION_CALLS__ ?? [])).toEqual([
             ['allow', 'parent', 'perm-push'],

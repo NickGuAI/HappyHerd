@@ -6,9 +6,9 @@ import { Platform } from 'react-native';
  *
  * One key press answers exactly one request: the oldest pending card that is
  * actually visible on screen. Hidden hosts (retained background sessions,
- * scrolled-away rows, display:none panels), editable focus and open modal
- * dialogs never receive the key, so typing digits in the composer or a form
- * cannot approve anything.
+ * rows scrolled out of the chat list, display:none panels, cards covered by
+ * an overlay), editable focus and open modal dialogs never receive the key,
+ * so typing digits in the composer or a form cannot approve anything.
  */
 
 export type PermissionShortcutKeyEvent = {
@@ -48,16 +48,67 @@ function isEditableElement(element: Element | null): boolean {
     return element instanceof HTMLElement && element.isContentEditable;
 }
 
-/** Visible means laid out, not hidden by an ancestor, and inside the viewport. */
+export type ShortcutRect = { left: number; top: number; right: number; bottom: number };
+
+/** What remains of `rect` inside every clip box, or null when nothing does. */
+export function clipShortcutRect(rect: ShortcutRect, clips: ReadonlyArray<ShortcutRect>): ShortcutRect | null {
+    let { left, top, right, bottom } = rect;
+    for (const clip of clips) {
+        left = Math.max(left, clip.left);
+        top = Math.max(top, clip.top);
+        right = Math.min(right, clip.right);
+        bottom = Math.min(bottom, clip.bottom);
+    }
+    return right > left && bottom > top ? { left, top, right, bottom } : null;
+}
+
+/** Nine points across `rect`, a little inside its edges. */
+export function shortcutSamplePoints(rect: ShortcutRect): Array<[number, number]> {
+    const across = (start: number, end: number) => {
+        const inset = Math.min(4, (end - start) / 2);
+        return [start + inset, (start + end) / 2, end - inset];
+    };
+    const xs = across(rect.left, rect.right);
+    const ys = across(rect.top, rect.bottom);
+    return xs.flatMap((x) => ys.map((y): [number, number] => [x, y]));
+}
+
+/** The viewport plus every ancestor that clips its overflow, per axis. */
+function shortcutClipBoxes(node: HTMLElement): ShortcutRect[] {
+    const boxes: ShortcutRect[] = [{ left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }];
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        const style = window.getComputedStyle(parent);
+        const clipsX = style.overflowX !== 'visible';
+        const clipsY = style.overflowY !== 'visible';
+        if (!clipsX && !clipsY) continue;
+        const box = parent.getBoundingClientRect();
+        boxes.push({
+            left: clipsX ? box.left : -Infinity,
+            right: clipsX ? box.right : Infinity,
+            top: clipsY ? box.top : -Infinity,
+            bottom: clipsY ? box.bottom : Infinity,
+        });
+    }
+    return boxes;
+}
+
+/**
+ * Visible means laid out, not hidden, not clipped away by a scrolling
+ * ancestor such as the chat list, inside the viewport, and not covered: the
+ * topmost element at one of nine points across what remains belongs to the
+ * card. An overlay over the whole card hides it; a small control such as
+ * "Jump to latest" over part of it does not.
+ */
 export function isShortcutNodeVisible(node: unknown): boolean {
     if (typeof window === 'undefined' || !(node instanceof HTMLElement)) return false;
     if (node.getClientRects().length === 0) return false;
-    const rect = node.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
-    if (rect.bottom <= 0 || rect.top >= window.innerHeight) return false;
-    if (rect.right <= 0 || rect.left >= window.innerWidth) return false;
-    const style = window.getComputedStyle(node);
-    return style.visibility !== 'hidden';
+    if (window.getComputedStyle(node).visibility === 'hidden') return false;
+    const visible = clipShortcutRect(node.getBoundingClientRect(), shortcutClipBoxes(node));
+    if (!visible) return false;
+    return shortcutSamplePoints(visible).some(([x, y]) => {
+        const hit = document.elementFromPoint(x, y);
+        return hit !== null && node.contains(hit);
+    });
 }
 
 /** First registered (oldest) target that is visible. */
