@@ -10,6 +10,7 @@ import { HappyHerdError } from '@/utils/errors';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { getDuplicateSheetFrame } from '@/utils/duplicateSheetLayout';
 import { useHerdPhoneDialog } from '@/components/herd/mobile/phoneDialog';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import {
     buildProviderContinuationPrompt,
     getProviderContinuationLabel,
@@ -38,8 +39,12 @@ export const ProviderContinuationSheet = React.memo(function ProviderContinuatio
     const navigateToSession = useNavigateToSession();
     const { theme } = useUnistyles();
     const windowSize = useWindowDimensions();
+    const windowInsets = useWindowSafeAreaInsets();
     const phoneDialog = useHerdPhoneDialog();
-    const sheetFrame = React.useMemo(() => getDuplicateSheetFrame(windowSize, phoneDialog), [phoneDialog, windowSize.width, windowSize.height]);
+    const sheetFrame = React.useMemo(
+        () => getDuplicateSheetFrame(windowSize, phoneDialog, windowInsets),
+        [phoneDialog, windowSize.width, windowSize.height, windowInsets.left, windowInsets.right],
+    );
     const sourceProvider = session ? getProviderContinuationSource(session.metadata?.flavor) : null;
     const targetProvider = session ? getProviderContinuationTarget(session.metadata?.flavor) : null;
     const canContinue = Boolean(

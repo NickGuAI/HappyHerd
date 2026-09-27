@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     refreshSessions: vi.fn(async () => undefined),
     sendMessage: vi.fn(),
     sourceFlavor: 'claude' as string | null | undefined,
+    window: { width: 1200, height: 900 },
+    insets: { top: 0, right: 0, bottom: 0, left: 0 },
     messagesLoaded: true,
     messages: [
         { kind: 'agent-text', id: 'a1', localId: null, createdAt: 2, text: 'Latest answer' },
@@ -26,7 +28,7 @@ vi.mock('react-native', async () => {
         Pressable: component('Pressable'),
         Text: component('Text'),
         View: component('View'),
-        useWindowDimensions: () => ({ width: 1200, height: 900 }),
+        useWindowDimensions: () => mocks.window,
     };
 });
 vi.mock('@expo/vector-icons', () => ({
@@ -87,8 +89,11 @@ vi.mock('./MobileGlass', async () => {
     const { View } = await import('react-native');
     return { MobileGlassSurface: (props: any) => ReactModule.createElement(View, props) };
 });
+vi.mock('@/components/herd/shell/windowInsets', () => ({ useWindowSafeAreaInsets: () => mocks.insets }));
 
 import { ProviderContinuationSheet } from './ProviderContinuationSheet';
+import { MobileGlassSurface } from './MobileGlass';
+import { HerdPhoneDialogContext } from '@/components/herd/mobile/phoneDialog';
 
 describe('ProviderContinuationSheet', () => {
     beforeAll(() => {
@@ -103,6 +108,8 @@ describe('ProviderContinuationSheet', () => {
         vi.clearAllMocks();
         mocks.messagesLoaded = true;
         mocks.sourceFlavor = 'claude';
+        mocks.window = { width: 1200, height: 900 };
+        mocks.insets = { top: 0, right: 0, bottom: 0, left: 0 };
         mocks.messages = [
             { kind: 'agent-text', id: 'a1', localId: null, createdAt: 2, text: 'Latest answer' },
             { kind: 'user-text', id: 'u1', localId: null, createdAt: 1, text: 'Please continue this work' },
@@ -223,6 +230,23 @@ describe('ProviderContinuationSheet', () => {
         await expect(target.props.onPress()).rejects.toThrow('session.providerContinuationHandoffFailed');
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
         expect(mocks.sendMessage).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the phone dialog 8 px inside a landscape phone\'s side insets', () => {
+        mocks.window = { width: 844, height: 390 };
+        mocks.insets = { top: 0, right: 47, bottom: 21, left: 47 };
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(
+                HerdPhoneDialogContext.Provider,
+                { value: true },
+                React.createElement(ProviderContinuationSheet, { sessionId: 'source-session' }),
+            ));
+        });
+
+        expect(renderer.root.findByType(MobileGlassSurface).props.style)
+            .toContainEqual({ width: 844 - 2 * 8 - 47 - 47, maxHeight: 332 });
         act(() => renderer.unmount());
     });
 });

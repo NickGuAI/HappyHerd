@@ -20,6 +20,9 @@ const webEventHandlers = Platform.OS === 'web'
     ? { onClick: stopPropagation, onPointerDown: stopPropagation, onTouchStart: stopPropagation }
     : {};
 
+// The centered placement's distance from the window's edges.
+const CENTERED_PADDING = 20;
+
 interface BaseModalProps {
     visible: boolean;
     onClose?: () => void;
@@ -29,8 +32,9 @@ interface BaseModalProps {
     closeOnBackdrop?: boolean;
     /**
      * `dialog`: on phones (UI overhaul) the content rests on the bottom edge,
-     * 8 px from the window's sides and bottom, and spans that width. Previews
-     * and other large content keep the centered default.
+     * 8 px from the window's sides and bottom plus their safe-area insets, and
+     * spans that width. Previews and other large content keep the centered
+     * default.
      */
     placement?: 'center' | 'dialog';
 }
@@ -48,6 +52,9 @@ export function BaseModal({
     const phoneLayout = useHerdPhoneLayout();
     const windowInsets = useWindowSafeAreaInsets();
     const phoneDialog = placement === 'dialog' && phoneLayout;
+    // Both placements also clear the window's side insets, such as a
+    // landscape phone's notch. Desktops and tablets have none.
+    const sidePadding = phoneDialog ? HERD_PHONE_FLOAT_MARGIN : CENTERED_PADDING;
 
     useEffect(() => {
         if (visible) {
@@ -85,6 +92,12 @@ export function BaseModal({
                         justifyContent: 'flex-end',
                         padding: HERD_PHONE_FLOAT_MARGIN,
                         paddingBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom,
+                    },
+                    // Last: react-native-web expands an inline `padding` in
+                    // key order, so it would override sides set before it.
+                    {
+                        paddingLeft: sidePadding + windowInsets.left,
+                        paddingRight: sidePadding + windowInsets.right,
                     },
                 ]}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -141,7 +154,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: CENTERED_PADDING,
         // On web, ensure modal can receive pointer events when body has pointer-events: none
         ...Platform.select({ web: { pointerEvents: 'auto' as const } })
     },

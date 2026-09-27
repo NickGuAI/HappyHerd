@@ -65,10 +65,10 @@ function DialogProbe() {
     return React.createElement('Probe', { phoneDialog: useHerdPhoneDialog() });
 }
 
-function renderDialog() {
+function renderDialog(placement: 'center' | 'dialog' = 'dialog') {
     let renderer!: ReactTestRenderer;
     act(() => {
-        renderer = create(React.createElement(BaseModal, { visible: true, placement: 'dialog', children: React.createElement(DialogProbe) }));
+        renderer = create(React.createElement(BaseModal, { visible: true, placement, children: React.createElement(DialogProbe) }));
     });
     renderers.push(renderer);
     return {
@@ -109,6 +109,34 @@ describe('dialog placement', () => {
         expect(renderDialog().container.justifyContent).toBe('flex-end');
         Object.assign(mocks, { tablet: true, window: { width: 1024, height: 1366 } });
         expect(renderDialog().container.justifyContent).toBe('center');
+    });
+
+    it('keeps a dialog 8 px inside a landscape phone\'s notch and home indicator', () => {
+        Object.assign(mocks, {
+            platform: 'ios',
+            window: { width: 844, height: 390 },
+            tablet: false,
+            insets: { top: 0, left: 47, right: 47, bottom: 21 },
+        });
+        expect(renderDialog().container).toMatchObject({
+            justifyContent: 'flex-end',
+            paddingLeft: 8 + 47,
+            paddingRight: 8 + 47,
+            paddingBottom: 8 + 21,
+        });
+    });
+
+    it('keeps a centered modal 20 px inside a landscape phone\'s side insets', () => {
+        Object.assign(mocks, {
+            platform: 'ios',
+            window: { width: 844, height: 390 },
+            tablet: false,
+            insets: { top: 0, left: 47, right: 47, bottom: 21 },
+        });
+        const { container, phoneDialog } = renderDialog('center');
+        expect(container).toMatchObject({ justifyContent: 'center', paddingLeft: 20 + 47, paddingRight: 20 + 47 });
+        expect(container.paddingBottom).toBeUndefined();
+        expect(phoneDialog).toBe(false);
     });
 
     it('spans a phone-width browser window with the alert, and keeps its own width in a 1024 × 768 one', () => {
