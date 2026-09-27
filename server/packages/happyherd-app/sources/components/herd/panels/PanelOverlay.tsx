@@ -5,8 +5,8 @@ import { useHerdEscapeToClose } from '@/components/herd/escape';
 import { herdWebClasses } from '@/components/herd/motion';
 
 /**
- * Below 1,100 px on desktop Web the right panel and the Workspace slide in
- * over the chat as a sheet (UI overhaul). The sheet host itself stays a plain
+ * Below 1,100 px on Web, phones included, the right panel and the Workspace
+ * slide in over the chat as a sheet (UI overhaul). The sheet host itself stays a plain
  * view in `DesktopFileWorkspaceSplit`, so closing only hides it and every
  * panel, editor and draft stays mounted. This module holds the scrim and the
  * Escape handling that the host shares.
@@ -54,9 +54,11 @@ export function useHerdOverlayEscape(open: boolean, onClose: () => void): void {
     useHerdEscapeToClose(open, onClose, sheetAcceptsEscape);
 }
 
-/** Width of a sheet: generous, but always leaving a strip of scrim to close it by. */
-export function resolveHerdSheetWidth(availableWidth: number, preferredWidth: number): number {
-    const leftover = 56;
+/** A phone keeps this much of the chat beside a sheet: the strip that closes it. */
+export const HERD_PHONE_SHEET_LEFTOVER = 16;
+
+/** Width of a sheet: generous, but always leaving a strip of scrim to close it by (56 px, 16 px on phones). */
+export function resolveHerdSheetWidth(availableWidth: number, preferredWidth: number, leftover = 56): number {
     return Math.max(0, Math.min(preferredWidth, availableWidth - leftover));
 }
 

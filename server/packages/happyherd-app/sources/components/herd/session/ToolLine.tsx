@@ -2,6 +2,7 @@ import * as React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useIsTablet } from '@/utils/responsive';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
@@ -101,6 +102,7 @@ export function ToolLine(props: {
     testID?: string;
 }) {
     const { theme } = useUnistyles();
+    const phone = !useIsTablet();
     const [hovered, setHovered] = React.useState(false);
     const card = props.variant === 'card';
     const finishedMs = props.completedAt && props.completedAt >= props.startedAt
@@ -136,7 +138,7 @@ export function ToolLine(props: {
 
     if (!props.onPress) {
         return (
-            <View style={[styles.line, !card && styles.lineRow]} accessibilityLabel={props.accessibilityLabel} testID={props.testID}>
+            <View style={[styles.line, !card && styles.lineRow, !card && phone && styles.lineRowPhone]} accessibilityLabel={props.accessibilityLabel} testID={props.testID}>
                 {content}
             </View>
         );
@@ -154,6 +156,7 @@ export function ToolLine(props: {
             style={({ pressed }: any) => [
                 styles.line,
                 !card && styles.lineRow,
+                !card && phone && styles.lineRowPhone,
                 styles.lineInteractive,
                 (hovered || pressed) && styles.lineHovered,
             ]}
@@ -178,6 +181,10 @@ const styles = StyleSheet.create((theme) => ({
     lineRow: {
         alignSelf: 'flex-start',
         maxWidth: '100%',
+    },
+    // Phones: the row's icon sits on the chat's 16 px gutter, level with the replies and cards.
+    lineRowPhone: {
+        paddingHorizontal: 0,
     },
     lineInteractive: {
         _web: {

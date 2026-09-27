@@ -55,9 +55,15 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
-    const showBackButton = !isTablet && !!onBackPress;
+    // Phones (UI overhaul) use the full-width bar under the HappyHerd top bar
+    // on Web and native alike; the native branch below now serves tablets.
+    const phone = !isTablet;
+    const barLayout = Platform.OS === 'web' || phone;
+    const showBackButton = phone && !!onBackPress;
     const hasExtra = !!extraPathSegment;
-    const glassEnabled = !isTablet && Platform.OS === 'ios' && !isRunningOnMac();
+    // Upstream's glass header was the native phone header. Phones now take the
+    // bar and tablets never used glass, so it stays off; kept for upstream merges.
+    const glassEnabled = false;
     const contentHeight = glassEnabled ? Math.max(headerHeight, MOBILE_GLASS_HEADER_HEIGHT) : headerHeight;
     const showFolderSubtitle = !!folderName && folderName !== title;
     const folderNameColor = glassEnabled
@@ -91,7 +97,7 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
         }).start();
     }, [backdropStrength, backdropVisible, glassEnabled]);
 
-    if (Platform.OS === 'web') {
+    if (barLayout) {
         // The shell's controls live in the top bar, so the header needs no left clearance.
         const headerLeftPadding = 16;
         // UI overhaul: one full-width bar with a hairline, the folder / title
@@ -100,14 +106,14 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
         return (
             <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.header.background }]}>
                 <View style={styles.contentWrapper}>
-                    <View style={[styles.webContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
+                    <View style={[styles.webContent, phone && styles.phoneContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
                         {showBackButton && (
                             <Pressable
                                 accessibilityRole="button"
                                 accessibilityLabel={t('common.back')}
                                 onPress={onBackPress}
                                 hitSlop={15}
-                                style={styles.webBackButton}
+                                style={phone ? styles.phoneBackButton : styles.webBackButton}
                             >
                                 <Ionicons
                                     name="arrow-back"
@@ -125,7 +131,30 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                                 onPress={onTitlePress}
                                 disabled={!onTitlePress}
                             >
-                                {folderName ? (
+                                {phone ? (
+                                    // Phones stack the folder (and, over a file, the title) above the
+                                    // line that matters, so neither is cut to a few letters.
+                                    <View style={styles.phoneCrumb}>
+                                        {(hasExtra || showFolderSubtitle) ? (
+                                            <Text
+                                                numberOfLines={1}
+                                                style={[styles.phoneCrumbFolder, { color: theme.colors.kilv.inkFaint, ...Typography.mono() }]}
+                                            >
+                                                {hasExtra ? [folderName, title].filter(Boolean).join(' / ') : folderName}
+                                            </Text>
+                                        ) : null}
+                                        <Text
+                                            numberOfLines={1}
+                                            ellipsizeMode={hasExtra ? 'middle' : 'tail'}
+                                            style={[
+                                                styles.phoneCrumbTitle,
+                                                { color: theme.colors.header.tint, ...(hasExtra ? Typography.mono() : Typography.default('semiBold')) },
+                                            ]}
+                                        >
+                                            {hasExtra ? extraPathSegment : title}
+                                        </Text>
+                                    </View>
+                                ) : folderName ? (
                                     <View style={styles.webTitleRow}>
                                         <Text
                                             numberOfLines={1}
@@ -505,6 +534,30 @@ const styles = StyleSheet.create((theme) => ({
     webBackButton: {
         paddingHorizontal: 8,
         paddingVertical: 4,
+    },
+    // Phones: the controls end on the 16 px gutter.
+    phoneContent: {
+        paddingRight: 16,
+    },
+    // A 44 px square whose arrow lands on the gutter.
+    phoneBackButton: {
+        width: 44,
+        height: 44,
+        marginLeft: -10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    phoneCrumb: {
+        minWidth: 0,
+        maxWidth: '100%',
+    },
+    phoneCrumbFolder: {
+        fontSize: 11.5,
+        lineHeight: 14,
+    },
+    phoneCrumbTitle: {
+        fontSize: 15.5,
+        lineHeight: 20,
     },
     subtitleRow: {
         flexDirection: 'row',

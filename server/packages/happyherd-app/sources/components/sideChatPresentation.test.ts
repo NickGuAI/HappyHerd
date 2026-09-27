@@ -12,7 +12,6 @@ function presentation(overrides: Partial<Parameters<typeof resolveSessionSidebar
         platform: 'web',
         runningOnMac: false,
         windowWidth: 1100,
-        deviceType: 'tablet',
         zenMode: false,
         workspaceLinkPanelOpen: false,
         canUseFilePanels: false,
@@ -30,11 +29,20 @@ describe('resolveSessionSidebarPresentation', () => {
         });
     });
 
-    it('uses the full-screen path on Web phones below 1100px and on native phones', () => {
-        expect(presentation({ windowWidth: 1099, deviceType: 'phone' }).sideChatSurface).toBe('fullscreen');
-        expect(presentation({ windowWidth: 390, deviceType: 'phone' }).rightPanelPresentation).toBe('docked');
+    it('slides the panels in as the same sheet on Web phones', () => {
+        expect(presentation({ windowWidth: 390, canUseFilePanels: true })).toEqual({
+            fileSidebarAvailable: true,
+            sideChatSidebarAvailable: true,
+            sideChatSurface: 'sidebar',
+            rightPanelPresentation: 'overlay',
+        });
+        expect(presentation({ windowWidth: 320 }).sideChatSurface).toBe('sidebar');
+    });
+
+    it('keeps the full-screen path on native phones and iPad', () => {
         expect(presentation({ platform: 'ios', windowWidth: 1400 }).sideChatSurface).toBe('fullscreen');
-        expect(presentation({ platform: 'ios', deviceType: 'phone', windowWidth: 390 }).sideChatSurface).toBe('fullscreen');
+        expect(presentation({ platform: 'ios', windowWidth: 390 })).toMatchObject({ sideChatSurface: 'fullscreen', rightPanelPresentation: 'docked' });
+        expect(presentation({ platform: 'android', windowWidth: 412 }).sideChatSurface).toBe('fullscreen');
     });
 
     it('presents the same panels as an overlay sheet on desktop Web below 1100px', () => {
@@ -67,7 +75,7 @@ describe('resolveSessionSidebarPresentation', () => {
     });
 
     it('retains the width and platform boundary for the file workspace host', () => {
-        expect(presentation({ windowWidth: 1099, deviceType: 'phone', canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
+        expect(presentation({ platform: 'android', windowWidth: 412, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
         expect(presentation({ platform: 'ios', windowWidth: 1400, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
     });
 

@@ -5,9 +5,10 @@ import { StyleSheet } from 'react-native-unistyles';
 import { SessionActionsPopover, type SessionActionsAnchor } from '@/components/SessionActionsPopover';
 import { t } from '@/text';
 import { HerdHeaderButton } from './HeaderButton';
+import { useIsTablet } from '@/utils/responsive';
 
 /**
- * Right side of the Web session header (UI overhaul): the Workspace toggle,
+ * Right side of the session header (UI overhaul; Web, and native phones): the Workspace toggle,
  * Side chats with its molten count, and the ⋯ session menu. The menu is the
  * existing SessionActionsPopover (same items, labels and shortcuts as the
  * session rows), anchored under the button.
@@ -39,8 +40,10 @@ export function SessionHeaderActions(props: {
     }, [props.sessionId]);
 
     const sideChats = props.sideChats;
+    // Phones: 44 px targets, so the buttons themselves stay about as far apart as on desktop.
+    const phone = !useIsTablet();
     return (
-        <View style={styles.row} testID="session-header-actions">
+        <View style={[styles.row, phone && styles.rowPhone]} testID="session-header-actions">
             {props.workspace ? (
                 <HerdHeaderButton
                     accessibilityLabel={t('workspace.title')}
@@ -92,5 +95,8 @@ const styles = StyleSheet.create(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+    },
+    rowPhone: {
+        gap: 0,
     },
 }));

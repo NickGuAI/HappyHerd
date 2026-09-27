@@ -414,13 +414,14 @@ describe('AgentInput Web composer chips', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps the agent and permission chips on Web Mobile', () => {
+    it('keeps every chip on Web Mobile, in one sideways-scrolling row above the actions', () => {
         const { renderer } = renderMobileActionInput({ agentChip: { label: 'Codex', providerKind: 'codex' } }, 390);
-        layoutComposer(renderer, 370);
-        expect(chip(renderer, 'composer-chip-agent')).toBeDefined();
-        expect(chip(renderer, 'composer-chip-permission')).toBeDefined();
-        expect(chip(renderer, 'composer-chip-model')).toBeUndefined();
-        expect(chip(renderer, 'composer-chip-effort')).toBeUndefined();
+        layoutComposer(renderer, 358);
+        const row = renderer.root.findAll((node: any) => node.props.testID === 'composer-phone-chips')[0];
+        expect(row).toBeDefined();
+        for (const id of ['composer-chip-agent', 'composer-chip-model', 'composer-chip-effort', 'composer-chip-permission']) {
+            expect(row.findAll((node: any) => node.props.testID === id && typeof node.type !== 'string').length).toBeGreaterThan(0);
+        }
         act(() => renderer.unmount());
     });
 

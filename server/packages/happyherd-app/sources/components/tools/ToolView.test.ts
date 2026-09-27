@@ -34,6 +34,7 @@ vi.mock('@/sync/storage', () => ({
 vi.mock('@/hooks/useElapsedTime', () => ({ useElapsedTime: () => 0 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('../layout', () => ({ layout: { maxWidth: 1200 } }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => settings.width > 700 }));
 vi.mock('../CodeView', async () => {
     const React = await import('react');
     return { CodeView: (props: any) => React.createElement('CodeView', props) };

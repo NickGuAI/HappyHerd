@@ -27,7 +27,6 @@ import { ProviderContinuationLinks } from '@/components/ProviderContinuationLink
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
-import { Avatar } from '@/components/Avatar';
 import { VoiceAssistantStatusBar, VOICE_PILL_TOTAL_HEIGHT } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -51,7 +50,7 @@ import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloo
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
-import { resolveHerdSheetWidth } from '@/components/herd/panels/PanelOverlay';
+import { HERD_PHONE_SHEET_LEFTOVER, resolveHerdSheetWidth } from '@/components/herd/panels/PanelOverlay';
 import {
     closeDesktopFile,
     deletedDesktopFilePaths,
@@ -82,7 +81,7 @@ import { MachineWorkspaceBrowser } from '@/app/(app)/workspace/index';
 import { prefetchPierreDiff } from '@/components/diff/PierreDiffView';
 import { GitFileStatus } from '@/sync/gitStatusFiles';
 import { useOverlayNav } from '@/-session/sessionOverlayNav';
-import { formatPathRelativeToHome, getResumeCommandBlock, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome, getResumeCommandBlock, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
 import { getHarnessName } from '@/utils/harnessCatalog';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
@@ -183,12 +182,11 @@ export const SessionView = React.memo((props: {
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const headerHeight = useHeaderHeight();
-    const mobileHeaderHeight = deviceType === 'phone' && Platform.OS !== 'web'
-        ? Math.max(headerHeight, MOBILE_GLASS_HEADER_HEIGHT)
-        : headerHeight;
-    const contentRunsUnderHeader = deviceType === 'phone'
-        && Platform.OS !== 'web'
-        && !isLandscape;
+    // Phones (UI overhaul): the session header is an opaque row under the
+    // HappyHerd top bar on Web and native alike, so the chat starts below it
+    // instead of running under a glass header.
+    const mobileHeaderHeight = headerHeight;
+    const contentRunsUnderHeader = false;
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
     const { width: windowWidth } = useWindowDimensions();
@@ -217,7 +215,6 @@ export const SessionView = React.memo((props: {
         platform: Platform.OS,
         runningOnMac: isRunningOnMac(),
         windowWidth,
-        deviceType,
         zenMode,
         workspaceLinkPanelOpen: false,
         canUseFilePanels: !session
@@ -234,6 +231,8 @@ export const SessionView = React.memo((props: {
     // Below 1,100 px on desktop Web the right panel and the Workspace slide in
     // over the chat instead of docking beside it (UI overhaul).
     const rightPanelOverlay = sidebarPresentation.rightPanelPresentation === 'overlay';
+    // A phone's sheet leaves a narrow strip of the chat, the mock's 16 px.
+    const sheetLeftover = deviceType === 'phone' ? HERD_PHONE_SHEET_LEFTOVER : undefined;
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
     const fixedSidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
@@ -1061,23 +1060,6 @@ export const SessionView = React.memo((props: {
             isConnected,
         };
     }, [session, isDataReady]);
-    const sessionInfoButton = session && deviceType === 'phone' && Platform.OS !== 'web'
-        ? (
-            <Pressable
-                onPress={() => router.push(`/session/${sessionId}/info`)}
-                hitSlop={10}
-            >
-                <Avatar
-                    id={getSessionAvatarId(session)}
-                    size={28}
-                    monochrome={!headerProps.isConnected}
-                    flavor={session.metadata?.flavor}
-                    clientId={session.metadata?.client?.id}
-                    badgeLocation="sessionHeader"
-                />
-            </Pressable>
-        )
-        : null;
     const sideChatAccessButton = session
         ? (
             <SideChatAccessButton
@@ -1097,8 +1079,9 @@ export const SessionView = React.memo((props: {
         sideChatCount: sideChats.length,
         canCreateSideChat: Boolean(session),
     });
-    // Web header controls (UI overhaul): the Workspace toggle hides or reveals
-    // the same Workspace the composer + menu opens, without closing its tabs.
+    // Header controls (UI overhaul), on Web and on native phones: the Workspace
+    // toggle (Web and Mac) hides or reveals the same Workspace the composer +
+    // menu opens without closing its tabs, then Side chats and the ⋯ menu.
     const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen || desktopFileWorkspaceOverlayOpen;
     const toggleWorkspaceFromHeader = React.useCallback(() => {
         if (!session) return;
@@ -1109,7 +1092,7 @@ export const SessionView = React.memo((props: {
         }
         openWorkspaceForSession(session);
     }, [headerWorkspaceShown, openWorkspaceForSession, session]);
-    const webHeaderActions = session && Platform.OS === 'web'
+    const webHeaderActions = session && (Platform.OS === 'web' || deviceType === 'phone')
         ? (
             <SessionHeaderActions
                 sessionId={sessionId}
@@ -1127,14 +1110,7 @@ export const SessionView = React.memo((props: {
             />
         )
         : null;
-    const headerRight = webHeaderActions ?? (sideChatAccessButton || sessionInfoButton
-        ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {sideChatAccessButton}
-                {sessionInfoButton}
-            </View>
-        )
-        : null);
+    const headerRight = webHeaderActions ?? sideChatAccessButton;
     const mobileSideChatWorkspaceOpen = sideChatOwnsFileWorkspace
         && (desktopFileWorkspaceActive || diffViewOpen || !!fileViewPath);
     const voiceStatusBarHeight = !isTablet && realtimeStatus !== 'disconnected'
@@ -1236,21 +1212,15 @@ export const SessionView = React.memo((props: {
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        onBackPress={() => {
-                            if (isWebMobileSessionViewport && overlayCurrent.kind !== 'none') {
-                                withFileDiscardConfirmation(() => setOverlayHistory((current) => (
-                                    current.cursor <= 0
-                                        ? current
-                                        : { ...current, cursor: current.cursor - 1 }
-                                )));
-                                return;
-                            }
-                            if (isWebMobileSessionViewport) {
-                                router.dismissTo('/');
-                                return;
-                            }
-                            router.back();
-                        }}
+                        // Phones leave the session through the top bar; Back only steps out
+                        // of a diff or file opened over the chat.
+                        onBackPress={overlayCurrent.kind !== 'none' ? () => {
+                            withFileDiscardConfirmation(() => setOverlayHistory((current) => (
+                                current.cursor <= 0
+                                    ? current
+                                    : { ...current, cursor: current.cursor - 1 }
+                            )));
+                        } : undefined}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
                     {!isTablet && realtimeStatus !== 'disconnected' && (
@@ -1489,8 +1459,8 @@ export const SessionView = React.memo((props: {
                             overlay={rightPanelOverlay ? {
                                 workspaceOpen: desktopFileWorkspaceOverlayOpen,
                                 panelOpen: rightPanelOverlayOpen,
-                                workspaceWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_WORKSPACE_SHEET_WIDTH),
-                                panelWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_PANEL_SHEET_WIDTH),
+                                workspaceWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_WORKSPACE_SHEET_WIDTH, sheetLeftover),
+                                panelWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_PANEL_SHEET_WIDTH, sheetLeftover),
                                 onDismiss: dismissRightOverlay,
                             } : null}
                         >
@@ -1704,15 +1674,13 @@ export function SessionViewLoaded({
     const pendingCommunications = useSessionPendingCommunications(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const zenMode = useLocalSetting('zenMode');
-    const sessionInputHorizontalPadding = Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
+    // Phones (UI overhaul) put the dock and composer on the 16 px page gutter.
+    const sessionInputHorizontalPadding = deviceType === 'phone'
+        ? 16
+        : Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
     const chatListTopContentInset = embedded || (isLandscape && deviceType === 'phone')
         ? 12
-        : deviceType === 'phone' && Platform.OS !== 'web'
-            ? safeArea.top
-                + MOBILE_GLASS_HEADER_HEIGHT
-                + (realtimeStatus !== 'disconnected' ? VOICE_PILL_TOTAL_HEIGHT : 0)
-                + 12
-            : undefined;
+        : undefined;
 
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;

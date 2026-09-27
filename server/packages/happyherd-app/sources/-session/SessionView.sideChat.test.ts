@@ -981,16 +981,20 @@ async function openAndCloseSideChatFileWorkspace(renderer: ReactTestRenderer) {
 }
 
 describe('SessionView mobile back navigation', () => {
-    it('dismisses the portrait narrow-Web session directly to the session list', () => {
-        mocks.width = 390;
-        mocks.height = 844;
+    it.each([
+        { label: 'portrait narrow Web', width: 390, height: 844, platform: 'web' },
+        { label: 'native portrait phone', width: 390, height: 844, platform: 'ios' },
+        { label: 'Web Desktop at the phone boundary', width: 1100, height: 800, platform: 'web' },
+        { label: 'wide short Web Desktop', width: 1440, height: 600, platform: 'web' },
+    ])('gives the $label session header no Back: the top bar leads away from a session', ({ width, height, platform }) => {
+        mocks.width = width;
+        mocks.height = height;
+        mocks.platform = platform;
         const renderer = renderParent();
 
-        act(() => chatHeader(renderer).props.onBackPress());
-
-        expect(mocks.routerDismissTo).toHaveBeenCalledOnce();
-        expect(mocks.routerDismissTo).toHaveBeenCalledWith('/');
+        expect(chatHeader(renderer).props.onBackPress).toBeUndefined();
         expect(mocks.routerBack).not.toHaveBeenCalled();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
     });
 
     it('dismisses the landscape narrow-Web session directly to the session list', () => {
@@ -1008,37 +1012,16 @@ describe('SessionView mobile back navigation', () => {
         expect(mocks.routerBack).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { orientation: 'portrait', width: 390, height: 844, landscape: false },
-        { orientation: 'landscape', width: 844, height: 390, landscape: true },
-    ])('keeps native $orientation navigation on router.back()', ({ width, height, landscape }) => {
-        mocks.width = width;
-        mocks.height = height;
+    it('keeps native landscape navigation on router.back()', () => {
+        mocks.width = 844;
+        mocks.height = 390;
         mocks.platform = 'ios';
-        mocks.landscape = landscape;
+        mocks.landscape = true;
         const renderer = renderParent();
 
-        if (landscape) {
-            const backButton = landscapeBackButton(renderer);
-            expect(backButton).toBeDefined();
-            act(() => backButton?.props.onPress());
-        } else {
-            act(() => chatHeader(renderer).props.onBackPress());
-        }
-
-        expect(mocks.routerBack).toHaveBeenCalledOnce();
-        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
-    });
-
-    it.each([
-        { label: 'production-phone at the desktop boundary', width: 1100, height: 800 },
-        { label: 'wide short desktop', width: 1440, height: 600 },
-    ])('keeps Web Desktop navigation on router.back() for $label', ({ width, height }) => {
-        mocks.width = width;
-        mocks.height = height;
-        const renderer = renderParent();
-
-        act(() => chatHeader(renderer).props.onBackPress());
+        const backButton = landscapeBackButton(renderer);
+        expect(backButton).toBeDefined();
+        act(() => backButton?.props.onPress());
 
         expect(mocks.routerBack).toHaveBeenCalledOnce();
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
@@ -1138,17 +1121,21 @@ describe('SessionView Web composer workspace access', () => {
             onOpenWorkspace: expect.any(Function),
         }));
 
+        // Back steps out of a diff opened over the chat, then leaves the header again.
         act(() => workspaceActions.onOpenChanges());
         expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(1);
         act(() => chatHeader(renderer).props.onBackPress());
         expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
+        expect(chatHeader(renderer).props.onBackPress).toBeUndefined();
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
 
+        // The Workspace opens in the phone's right sheet, not a compact full-screen view.
         act(() => workspaceActions.onOpenWorkspace());
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props).toMatchObject({ compact: true, machinePickerOpen: true });
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(split.props.overlay).toMatchObject({ workspaceOpen: true, workspaceWidth: 390 - 16 });
+        expect(workspace.props).toMatchObject({ compact: false, machinePickerOpen: true });
         expect(workspace.props.pickerOpen).toBeUndefined();
         expect(workspace.props.picker).toBeUndefined();
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
@@ -1233,7 +1220,8 @@ describe('SessionView Web composer workspace access', () => {
         });
 
         act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
-        if (width >= 900) pressByLabel(renderer, 'Open side chats (3)');
+        // The Workspace took the right panel (docked or the phone's sheet); reopen the side chats.
+        pressByLabel(renderer, 'Open side chats (3)');
         pressTab(renderer, 'oldest');
         const oldestComposer = composerForSession(renderer, 'oldest');
         expect(oldestComposer.props.showWebActionMenu).toBe(true);
@@ -1442,7 +1430,7 @@ describe('SessionView side-chat integration', () => {
         expect(panelTabs().map((node: any) => node.props['aria-selected'])).toEqual([true, false]);
     });
 
-    it('resizes the shared desktop side panel beyond 360px, clamps it, and keeps mobile full-screen', () => {
+    it('resizes the shared desktop side panel beyond 360px, clamps it, and moves it into the sheet below 1,100 px', () => {
         const renderer = renderParent();
         expect(sessionSidebarDividers(renderer)).toHaveLength(1);
 
@@ -1485,7 +1473,9 @@ describe('SessionView side-chat integration', () => {
             for (const listener of mocks.listeners) listener();
         });
         expect(sessionSidebarDividers(renderer)).toHaveLength(0);
-        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.overlay).toMatchObject({ panelOpen: true });
     });
 
     it('routes dsh Photos through the machine uploader instead of inline attachments', async () => {
@@ -1775,7 +1765,7 @@ describe('SessionView side-chat integration', () => {
     });
 
     it('opens and focuses same-session file links in the canonical deduplicated workspace', async () => {
-        mocks.width = 1000;
+        mocks.width = 1280;
         mocks.localSettings.zenMode = true;
         const renderer = renderParent();
         const initialComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
@@ -1842,11 +1832,13 @@ describe('SessionView side-chat integration', () => {
             for (const listener of mocks.listeners) listener();
         });
 
+        // On a phone the same Workspace, tabs and all, is the right sheet.
         split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(split.props.overlay).toMatchObject({ workspaceOpen: true });
+        expect(workspace.props.compact).toBe(false);
         expect(workspace.props.paths).toEqual(['/work/report.md', '/work/other.md']);
         expect(workspace.props.activePath).toBe('/work/report.md');
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
@@ -2029,7 +2021,7 @@ describe('SessionView side-chat integration', () => {
         });
     });
 
-    it('opens a first same-session file link directly in the compact mobile workspace', async () => {
+    it('opens a first same-session file link directly in the phone Workspace sheet', async () => {
         mocks.width = 390;
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
@@ -2052,8 +2044,9 @@ describe('SessionView side-chat integration', () => {
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(split.props.overlay).toMatchObject({ workspaceOpen: true });
+        expect(workspace.props.compact).toBe(false);
         expect(workspace.props.paths).toEqual(['/work/mobile.md']);
         expect(workspace.props.activePath).toBe('/work/mobile.md');
         expect(mocks.routerPush).not.toHaveBeenCalled();
@@ -2061,7 +2054,7 @@ describe('SessionView side-chat integration', () => {
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
-    it('shows and closes a zero-tab Workspace full-screen on compact Web', async () => {
+    it('shows and closes a zero-tab Workspace sheet on phone Web', async () => {
         mocks.width = 390;
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
@@ -2088,11 +2081,13 @@ describe('SessionView side-chat integration', () => {
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props).toMatchObject({ paths: [], compact: true, machinePickerOpen: true });
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(split.props.overlay).toMatchObject({ workspaceOpen: true });
+        expect(workspace.props).toMatchObject({ paths: [], compact: false, machinePickerOpen: true });
 
         act(() => workspace.props.onClosePicker());
         expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.overlay).toMatchObject({ workspaceOpen: false });
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
@@ -2296,9 +2291,11 @@ describe('SessionView side-chat integration', () => {
             .toEqual({ kind: 'localhost', machineId: 'machine-1', url });
         act(() => openLink({ kind: 'localhost', originSessionId: 'parent', machineId: 'machine-1', url }));
         expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths).toHaveLength(1);
+        // Docked beside the chat on desktop; the right sheet on a phone.
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        expect(split.props.workspaceVisible).toBe(width >= 900);
-        expect(split.props.workspaceFullscreen).toBe(width < 900);
+        expect(split.props.workspaceVisible).toBe(width >= 1100);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(Boolean(split.props.overlay?.workspaceOpen)).toBe(width < 1100);
         expect(mocks.routerPush).not.toHaveBeenCalled();
     });
 
@@ -2403,11 +2400,13 @@ describe('SessionView side-chat integration', () => {
             mocks.localSettings.sidebarPanelActive = 'allFiles';
             for (const listener of mocks.listeners) listener();
         });
+        // On a phone the active file stays presented, in the right sheet, tabs and all.
         split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(split.props.overlay).toMatchObject({ workspaceOpen: true });
+        expect(workspace.props.compact).toBe(false);
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 
@@ -2426,7 +2425,7 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.activePath).toBe('/work/a.ts');
     });
 
-    it('moves an open desktop Side chat to the narrow full-screen host before restoring the active file', () => {
+    it('moves an open desktop Side chat into the phone sheet and keeps the active file mounted behind it', () => {
         const renderer = renderParent();
         openParentWorkspaceFile(renderer, '/work/a.ts');
         pressByLabel(renderer, 'Open side chats (3)');
@@ -2439,17 +2438,18 @@ describe('SessionView side-chat integration', () => {
 
         let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+        expect(split.props.overlay).toMatchObject({ panelOpen: true });
         expect(split.props.workspaceVisible).toBe(false);
         expect(split.props.workspaceFullscreen).toBe(false);
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
 
-        act(() => fullscreenSideChatHosts(renderer)[0]?.props.onCollapse());
+        // Closing the sheet returns to the chat; the file is still open in the Workspace.
+        act(() => split.props.overlay.onDismiss());
         split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
+        expect(split.props.overlay).toMatchObject({ panelOpen: false, workspaceOpen: false });
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
         expect(workspace.props.activePath).toBe('/work/a.ts');
     });
@@ -2541,8 +2541,10 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
-    it('opens the same children in the narrow full-screen host and switches tabs before collapse', () => {
-        mocks.width = 700;
+    it('opens the same children in the native phone full-screen host and switches tabs before collapse', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        mocks.platform = 'ios';
         const renderer = renderParent();
 
         expect(hasNewSideChatAction(renderer)).toBe(false);
@@ -2568,7 +2570,7 @@ describe('SessionView side-chat integration', () => {
 
     it.each([
         { surface: 'wide right sidebar', width: 1280, trigger: 'text' as const },
-        { surface: 'narrow full-screen host', width: 700, trigger: 'label' as const },
+        { surface: 'phone sheet', width: 390, trigger: 'label' as const },
     ])('creates with one click and focuses the hydrated child in the $surface', async ({ width, trigger }) => {
         mocks.width = width;
         mocks.sessions = {

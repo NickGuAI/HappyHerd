@@ -2726,13 +2726,8 @@ describe('Side chats browser interaction', () => {
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await expect.poll(() => workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).toBe('/work/reports');
         await workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).click();
-        if (viewport.width < 900) {
-            await workspace.getByTestId('desktop-file-workspace-picker-close').click();
-            await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
-            await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
-        } else {
-            await workspace.getByLabel('Workspace', { exact: true }).click();
-        }
+        // Phones carry the full Workspace in their right sheet, so the same control returns to the folder.
+        await workspace.getByLabel('Workspace', { exact: true }).filter({ visible: true }).click();
         await expect(workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).resolves.toBe('/work/reports');
         await expect(workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).isVisible()).resolves.toBe(true);
         await page.close();
@@ -2915,14 +2910,17 @@ describe('Side chats browser interaction', () => {
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editorScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
+        // On a phone the same Workspace becomes the right sheet, leaving a 16 px strip of the chat.
         await page.setViewportSize({ width: 390, height: 844 });
         await foreground.getByTestId('desktop-file-workspace-divider').waitFor({ state: 'detached', timeout: 3_000 });
+        await host.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
         const narrowHostBox = await host.boundingBox();
         const narrowForegroundBox = await foreground.boundingBox();
-        if (!narrowHostBox || !narrowForegroundBox) throw new Error('fullscreen workspace link has no layout');
-        expect(Math.abs(narrowHostBox.width - narrowForegroundBox.width)).toBeLessThan(2);
+        if (!narrowHostBox || !narrowForegroundBox) throw new Error('phone Workspace sheet has no layout');
+        expect(Math.abs(narrowHostBox.x - (narrowForegroundBox.x + 16))).toBeLessThan(2);
+        expect(Math.abs(narrowHostBox.width - (narrowForegroundBox.width - 16))).toBeLessThan(2);
         expect(Math.abs(narrowHostBox.height - narrowForegroundBox.height)).toBeLessThan(2);
-        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(0);
+        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(1);
         await expect(workspace.isVisible()).resolves.toBe(true);
         await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
@@ -3025,7 +3023,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 20_000);
 
-    it('opens a same-session link directly in the compact mobile workspace', async () => {
+    it('opens a same-session link directly in the phone Workspace sheet', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -3047,8 +3045,12 @@ describe('Side chats browser interaction', () => {
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await foreground.getByTestId('desktop-file-workspace-fullscreen-header').waitFor({ state: 'visible' });
-        await expect(foreground.getByText('main-notes.md').isVisible()).resolves.toBe(true);
+        // The right sheet over a 16 px strip of the chat, not a full-screen view.
+        await foreground.getByTestId('desktop-panel-overlay-scrim').waitFor({ state: 'visible', timeout: 3_000 });
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        await host.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        await expect(host.boundingBox().then((box) => Math.round(box!.x))).resolves.toBe(16);
+        await expect(foreground.getByText('main-notes.md').filter({ visible: true }).first().isVisible()).resolves.toBe(true);
         await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
@@ -3222,18 +3224,20 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertMainComposerRetained();
 
+        // The Workspace opens in the phone's right sheet, over a 16 px strip of the chat.
         await openMainAction('workspace');
-        const compactWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
-        await compactWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Workspace').isVisible())
-            .resolves.toBe(true);
-        await expect(compactWorkspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
+        const sheetWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
+        await sheetWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(sheetWorkspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
         await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByText('Upload', { exact: true }).filter({ visible: true }).isVisible())
             .resolves.toBe(true);
         const machineFile = page.getByText('machine-file.md').filter({ visible: true });
         await machineFile.waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await page.mouse.click(8, 420);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
         await assertMainComposerRetained();
         await expect(page.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
 
@@ -3298,14 +3302,16 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
+        // The child's Workspace opens in the phone's right sheet; the strip beside it closes it.
         await openNewestAction('workspace');
-        await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
-            .getByText('Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByTestId('desktop-file-workspace').filter({ visible: true })
             .getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
         await page.getByText('child-newest-machine-file.md', { exact: true }).filter({ visible: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await page.mouse.click(8, 420);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
         await foreground.getByText('Oldest child', { exact: true }).click();
@@ -3328,7 +3334,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 30_000);
 
-    it('opens the same newest child in the narrow full-screen host and collapses it', async () => {
+    it('opens the same children in the phone sheet, switches between them, and closes it', async () => {
         const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -3342,22 +3348,22 @@ describe('Side chats browser interaction', () => {
 
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 2_000 });
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
+        // A sheet, not a docked panel: nothing to resize.
         await expect(foreground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(0);
-        const newestDraft = foreground.locator('textarea').last();
+        const newestDraft = foreground.locator('textarea').filter({ visible: true }).last();
         await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
-        await newestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'newest'; });
+        await newestDraft.fill('newest child draft');
         await foreground.getByText('Oldest child').click();
-        await foreground.locator('textarea[data-fullscreen-side-chat-composer="newest"]')
-            .waitFor({ state: 'detached', timeout: 2_000 });
-        const oldestDraft = foreground.locator('textarea').last();
+        const oldestDraft = foreground.locator('textarea').filter({ visible: true }).last();
         await oldestDraft.waitFor({ state: 'visible', timeout: 2_000 });
-        await oldestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'oldest'; });
+        await expect(oldestDraft.inputValue()).resolves.toBe('');
         await expect(page.evaluate(() => (window as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).resolves.toBe(0);
 
-        await foreground.getByRole('button', { name: 'Collapse side chats' }).last().click();
-        await foreground.locator('textarea[data-fullscreen-side-chat-composer="oldest"]')
-            .waitFor({ state: 'detached', timeout: 2_000 });
+        await foreground.getByTestId('files-sidebar-hide').click();
+        await scrim.waitFor({ state: 'detached', timeout: 2_000 });
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
@@ -3416,9 +3422,14 @@ describe('Side chats browser interaction', () => {
             expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://example.com/docs']);
             expect(await foreground.locator('iframe').count()).toBe(1);
             expect(await foreground.getByTestId('desktop-file-workspace-divider').count()).toBe(width >= 900 ? 1 : 0);
-            if (owner !== 'parent' && width >= 900) {
-                // Desktop Workspace replaces the Side chat sidebar. Reopening
-                // the child must hydrate its draft through the real useDraft.
+            if (owner !== 'parent') {
+                // The Workspace replaces the Side chat panel, docked or in the phone's
+                // sheet. Reopening the child must hydrate its draft through the real useDraft.
+                if (width < 1100) {
+                    // Phones: the strip beside the Workspace sheet leads back to the chat first.
+                    await page.mouse.click(8, height / 2);
+                    await foreground.getByTestId('desktop-panel-overlay-scrim').waitFor({ state: 'detached' });
+                }
                 await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
                 await foreground.getByRole('link', { name: `Hosted page ${owner}`, exact: true }).waitFor();
                 expect(await foreground.locator('textarea').filter({ visible: true }).last().inputValue())

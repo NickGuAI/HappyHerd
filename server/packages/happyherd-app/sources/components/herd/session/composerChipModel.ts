@@ -7,7 +7,7 @@
 
 /** Below this composer width the model and effort chips step aside. */
 export const COMPOSER_MODEL_CHIPS_MIN_WIDTH = 640;
-/** Below this composer width the permission chip steps aside (not on phones). */
+/** Below this composer width the permission chip steps aside (phones scroll their chips instead). */
 export const COMPOSER_PERMISSION_CHIP_MIN_WIDTH = 520;
 /** Below this width the context meter keeps its ring and drops its text. */
 export const COMPOSER_CONTEXT_TEXT_MIN_WIDTH = 520;
@@ -23,12 +23,12 @@ export type ComposerChipVisibility = {
 export function resolveComposerChipVisibility(options: {
     /** Measured composer width; 0 while unmeasured. */
     width: number;
-    /** Phone layout: agent and permission chips stay, model and effort move to the settings menu. */
+    /** Phone layout: every chip, on its own sideways-scrolling row above the buttons. */
     phone: boolean;
 }): ComposerChipVisibility {
     const width = options.width > 0 ? options.width : Number.POSITIVE_INFINITY;
     if (options.phone) {
-        return { agent: true, model: false, effort: false, permission: true, contextText: width >= COMPOSER_CONTEXT_TEXT_MIN_WIDTH };
+        return { agent: true, model: true, effort: true, permission: true, contextText: width >= COMPOSER_CONTEXT_TEXT_MIN_WIDTH };
     }
     const roomy = width >= COMPOSER_MODEL_CHIPS_MIN_WIDTH;
     return {

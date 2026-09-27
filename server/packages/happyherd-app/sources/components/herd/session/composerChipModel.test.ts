@@ -23,9 +23,9 @@ describe('composer chips', () => {
         expect(narrower).toMatchObject({ agent: true, model: false, effort: false, permission: false, contextText: false });
     });
 
-    it('keeps the agent and permission chips on phones', () => {
+    it('keeps all four chips on phones, where they scroll on their own row', () => {
         expect(resolveComposerChipVisibility({ width: 360, phone: true })).toMatchObject({
-            agent: true, model: false, effort: false, permission: true,
+            agent: true, model: true, effort: true, permission: true, contextText: false,
         });
     });
 

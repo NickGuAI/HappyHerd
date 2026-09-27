@@ -4,11 +4,12 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
+import { useIsTablet } from '@/utils/responsive';
 
 /**
  * Session header control (UI overhaul): hairline-bordered button with an
  * optional label and a molten count badge. `active` marks the panel or menu it
- * controls as open.
+ * controls as open. On phones the same 36 px button sits in a 44 px target.
  */
 export const HerdHeaderButton = React.forwardRef<View, {
     renderIcon: (color: string) => React.ReactNode;
@@ -21,11 +22,31 @@ export const HerdHeaderButton = React.forwardRef<View, {
     testID?: string;
 }>(function HerdHeaderButton(props, ref) {
     const { theme } = useUnistyles();
+    const phone = !useIsTablet();
     const [hovered, setHovered] = React.useState(false);
     const iconOnly = !props.label;
     const color = props.active
         ? theme.colors.textLink
         : hovered ? theme.colors.text : theme.colors.textSecondary;
+    const visual = (pressed: boolean) => [
+        styles.button,
+        iconOnly && styles.iconOnly,
+        (hovered || pressed) && !props.active && styles.hovered,
+        props.active && styles.active,
+    ];
+    const content = (
+        <>
+            {props.renderIcon(color)}
+            {props.label ? (
+                <Text numberOfLines={1} style={[styles.label, { color }]}>{props.label}</Text>
+            ) : null}
+            {props.count ? (
+                <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{props.count}</Text>
+                </View>
+            ) : null}
+        </>
+    );
     return (
         <Pressable
             ref={ref}
@@ -38,27 +59,20 @@ export const HerdHeaderButton = React.forwardRef<View, {
             onHoverOut={() => setHovered(false)}
             hitSlop={4}
             testID={props.testID}
-            style={({ pressed }: any) => [
-                styles.button,
-                iconOnly && styles.iconOnly,
-                (hovered || pressed) && !props.active && styles.hovered,
-                props.active && styles.active,
-            ]}
+            style={phone ? styles.phoneTarget : ({ pressed }: any) => visual(pressed)}
         >
-            {props.renderIcon(color)}
-            {props.label ? (
-                <Text numberOfLines={1} style={[styles.label, { color }]}>{props.label}</Text>
-            ) : null}
-            {props.count ? (
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{props.count}</Text>
-                </View>
-            ) : null}
+            {phone ? ({ pressed }: any) => <View style={visual(pressed)}>{content}</View> : content}
         </Pressable>
     );
 });
 
 const styles = StyleSheet.create((theme) => ({
+    phoneTarget: {
+        minWidth: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     button: {
         height: 36,
         paddingHorizontal: 12,

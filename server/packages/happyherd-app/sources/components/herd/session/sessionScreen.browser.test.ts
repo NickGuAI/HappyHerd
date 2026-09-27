@@ -486,9 +486,21 @@ describe('Session screen overhaul (Web)', () => {
         const foreground = page.getByTestId('foreground-session');
         const workspace = foreground.getByRole('button', { name: 'Workspace', exact: true });
         await expect(workspace.isVisible()).resolves.toBe(true);
-        // Phones get a labelled Back button in the session header.
         if (viewport === MOBILE) {
-            await expect(foreground.getByRole('button', { name: 'Back', exact: true }).isVisible()).resolves.toBe(true);
+            // Phones leave the session through the top bar: no Back in the chat header, and
+            // the crumb stacks the folder above the title so neither is cut short.
+            await expect(foreground.getByRole('button', { name: 'Back', exact: true }).count()).resolves.toBe(0);
+            const folder = (await foreground.getByText('web-app', { exact: true }).first().boundingBox())!;
+            const title = (await foreground.getByText('Fix flaky auth timeout test', { exact: true }).first().boundingBox())!;
+            expect(folder.y + folder.height).toBeLessThanOrEqual(title.y + 1);
+            expect(Math.round(folder.x)).toBe(16);
+            expect(Math.round(title.x)).toBe(16);
+            // The header's controls are 44 px targets.
+            for (const control of [workspace, foreground.getByRole('button', { name: 'Session', exact: true })]) {
+                const box = (await control.boundingBox())!;
+                expect(Math.round(box.height)).toBe(44);
+                expect(Math.round(box.width)).toBeGreaterThanOrEqual(44);
+            }
         }
         await expect(foreground.getByRole('button', { name: 'Open side chats (2)' }).isVisible()).resolves.toBe(true);
         const menuButton = foreground.getByRole('button', { name: 'Session', exact: true });
@@ -674,9 +686,19 @@ describe('Session screen overhaul (Web)', () => {
         const model = foreground.getByTestId('composer-chip-model');
         const effort = foreground.getByTestId('composer-chip-effort');
         if (viewport === MOBILE) {
-            await expect(model.count()).resolves.toBe(0);
-            await expect(effort.count()).resolves.toBe(0);
-        } else {
+            // Phones keep all four chips on a sideways-scrolling row of their own, above the + button.
+            await expect(effort.isVisible()).resolves.toBe(true);
+            const row = foreground.getByTestId('composer-phone-chips');
+            const [rowBox, plusBox] = await Promise.all([row.boundingBox(), foreground.getByTestId('mobile-composer-actions-trigger').boundingBox()]);
+            expect(rowBox!.y + rowBox!.height).toBeLessThanOrEqual(plusBox!.y + 1);
+            await expect(row.evaluate((element) => {
+                const scroller = element.firstElementChild instanceof HTMLElement && element.scrollWidth <= element.clientWidth
+                    ? element.firstElementChild
+                    : element;
+                return getComputedStyle(scroller).overflowX;
+            })).resolves.toMatch(/auto|scroll/);
+        }
+        {
             await expect(model.innerText()).resolves.toBe('claude-opus-5-5');
             await model.click();
             const popover = foreground.getByTestId('composer-chip-popover-model');
@@ -684,7 +706,15 @@ describe('Session screen overhaul (Web)', () => {
             await expect(popover.getByRole('button', { name: 'claude-sonnet-5', exact: true }).isVisible()).resolves.toBe(true);
             const [chipBox, popoverBox] = await Promise.all([model.boundingBox(), popover.boundingBox()]);
             expect(popoverBox!.y + popoverBox!.height).toBeLessThanOrEqual(chipBox!.y);
-            expect(Math.abs(popoverBox!.x - chipBox!.x)).toBeLessThan(24);
+            if (viewport === MOBILE) {
+                // Phones: the picker spans the composer card, over its chip row (measured once its pop-in settles).
+                await popover.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
+                const [settled, composer] = await Promise.all([popover.boundingBox(), foreground.getByTestId('composer-phone-chips').boundingBox()]);
+                expect(Math.abs(settled!.x - composer!.x)).toBeLessThanOrEqual(1);
+                expect(Math.abs(settled!.width - composer!.width)).toBeLessThanOrEqual(2);
+            } else {
+                expect(Math.abs(popoverBox!.x - chipBox!.x)).toBeLessThan(24);
+            }
             await evidence(page, `composer-model-popover-light-${viewport.width}`);
             await popover.getByRole('button', { name: 'claude-sonnet-5', exact: true }).click();
             await expect.poll(() => page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).toContainEqual(
@@ -709,6 +739,37 @@ describe('Session screen overhaul (Web)', () => {
         await page.getByTestId('fixture-global-modal').waitFor({ state: 'attached', timeout: 3_000 });
         expect(errors).toEqual([]);
         await page.close();
+    }, 40_000);
+
+    it('puts the phone session on the 16 px gutter: stream, dock and composer', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await openScene({ scene: 'permission', viewport: MOBILE, theme });
+            await page.waitForTimeout(600);
+            const edges = await page.getByTestId('foreground-session').evaluate((root) => {
+                const leaf = (text: string) => [...root.querySelectorAll('*')]
+                    .find((node) => node.children.length === 0 && node.textContent?.trim().startsWith(text)) as HTMLElement | undefined;
+                const drawn = (node: Element | null | undefined): number | null => {
+                    for (let box = node; box && box !== root; box = box.parentElement) {
+                        const cs = getComputedStyle(box);
+                        if (cs.borderLeftWidth !== '0px' && cs.borderLeftColor !== 'rgba(0, 0, 0, 0)') return Math.round(box.getBoundingClientRect().left);
+                    }
+                    return null;
+                };
+                const left = (node: Element | null | undefined) => node ? Math.round(node.getBoundingClientRect().left) : null;
+                const readRow = leaf('Read')?.closest('[aria-label], [data-testid]')?.querySelector('*');
+                return {
+                    toolRowIcon: left(readRow),
+                    permissionCard: drawn(leaf('Terminal')),
+                    queue: drawn(leaf('Verify the fix')),
+                    composerCard: drawn(root.querySelector('[data-testid="composer-phone-chips"]')),
+                    composerPlus: left(root.querySelector('[data-testid="mobile-composer-actions-trigger"]')),
+                };
+            });
+            expect(edges).toEqual({ toolRowIcon: 16, permissionCard: 16, queue: 16, composerCard: 16, composerPlus: 16 + 1 + 16 });
+            await evidence(page, `session-phone-gutter-${theme}-390`);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
     }, 40_000);
 
     it('reopens a finished turn from its "Worked …" row', async () => {

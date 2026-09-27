@@ -60,8 +60,9 @@ navigation is a mandatory shipped behavior that reveals the matching rendered
 review unit (including the matching table row for a line inside a table), not a
 mere scroll-or-highlight hint. Unsaved edits survive ordinary tab and layout
 transitions. Wide Web Desktop retains one mounted chat and Workspace with a
-draggable split up to 75% Workspace / 25% chat. Compact Web uses the
-full-screen Workspace without desktop tabs or a divider.
+draggable split up to 75% Workspace / 25% chat. Below 1,100 px, Web
+(phones included) opens the Workspace, with its tabs, in a sheet over the
+chat, without a divider; native phones open it full screen.
 
 The embedded Workspace also accepts an HTTP/HTTPS loopback URL spelled with
 `localhost`, `127.0.0.1`, or `[::1]`. The tab identity is the selected machine
@@ -193,8 +194,9 @@ Main Agent and an active Side chat:
    to the exact Main Agent or Side chat. Repeat with the same URL on another
    machine to prove machine-qualified identity; reject a non-loopback URL.
 6. On Web Desktop, drag to the 75% Workspace / 25% chat boundary while keeping
-   the chat mounted. On compact Web, prove the full-screen open/back flow and
-   the absence of desktop tabs and divider. Require one viewer/composer and
+   the chat mounted. On compact Web, prove the sheet opens over the chat and
+   closes from the chat strip and Escape, with no divider; on a native phone,
+   prove the full-screen open/back flow. Require one viewer/composer and
    zero page or console errors for ordinary flows. Treat the default HTML
    Preview sandbox-block message as expected enforcement.
 

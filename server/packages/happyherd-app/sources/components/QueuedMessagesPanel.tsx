@@ -8,6 +8,7 @@ import { Typography } from '@/constants/Typography';
 import type { QueuedMessageProjectionItem, SessionQueueProjection } from '@/sync/queueProjection';
 import { t } from '@/text';
 import { herdWebClasses } from './herd/motion';
+import { useIsTablet } from '@/utils/responsive';
 
 function attachmentNames(item: QueuedMessageProjectionItem): string[] {
     return item.attachments.flatMap((attachment) => {
@@ -63,6 +64,7 @@ export const QueuedMessagesPanel = React.memo(function QueuedMessagesPanel(props
     projection: SessionQueueProjection;
 }) {
     const { width } = useWindowDimensions();
+    const phone = !useIsTablet();
     const totalCount = props.projection.pendingCount + props.projection.currentCount;
     if (totalCount === 0) return null;
     // Narrow docks keep the count and drop the timing, so the message stays readable.
@@ -73,7 +75,7 @@ export const QueuedMessagesPanel = React.memo(function QueuedMessagesPanel(props
 
     return (
         <View
-            style={styles.panel}
+            style={[styles.panel, phone && styles.panelPhone]}
             testID="queued-messages-panel"
             accessible
             accessibilityLabel={`${t('happyHerd.composer.queueMessage')}. ${t('uiCopy.valueQueued', { value1: totalCount })}`}
@@ -102,6 +104,10 @@ export const QueuedMessagesPanel = React.memo(function QueuedMessagesPanel(props
 });
 
 const styles = StyleSheet.create((theme) => ({
+    // Phones: the dock already sits on the 16 px gutter, level with the composer.
+    panelPhone: {
+        marginHorizontal: 0,
+    },
     panel: {
         marginHorizontal: 8,
         marginBottom: 6,

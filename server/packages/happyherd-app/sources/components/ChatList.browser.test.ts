@@ -26,7 +26,7 @@ const virtualModules: Record<string, string> = {
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0 });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     'expo-router': `export const useRouter = () => ({ push: value => { window.__route = value; } });`,
-    '@/utils/responsive': `export const useHeaderHeight = () => 0; export const getDeviceType = () => 'phone';`,
+    '@/utils/responsive': `export const useHeaderHeight = () => 0; export const getDeviceType = () => 'phone'; export const useIsTablet = () => false;`,
     '@/utils/harnessCatalog': `export const getHarnessName = () => 'Agent';`,
     '@/sync/rig': `export const usesControlledSessionUi = () => false;`,
     '@/sync/controlHandoff': `export const resolveControlMode = () => 'agent';`,

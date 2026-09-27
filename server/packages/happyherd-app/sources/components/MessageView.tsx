@@ -15,6 +15,7 @@ import { sync } from '@/sync/sync';
 import { useSession, useSetting } from '@/sync/storage';
 import { Option } from './markdown/MarkdownView';
 import { layout } from "./layout";
+import { useIsTablet } from '@/utils/responsive';
 import { parseVisibleUserMessage } from './parseLocalCommandMessage';
 import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
@@ -408,11 +409,13 @@ function ToolCallBlock(props: {
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
 }) {
+  // Phones put tool cards on the chat's 16 px gutter, level with the replies (UI overhaul).
+  const phone = !useIsTablet();
   if (!props.message.tool) {
     return null;
   }
   return (
-    <View style={styles.toolContainer}>
+    <View style={[styles.toolContainer, phone && styles.toolContainerPhone]}>
       <ToolView
         tool={props.message.tool}
         metadata={props.metadata}
@@ -611,6 +614,9 @@ const styles = StyleSheet.create((theme) => ({
     marginHorizontal: 8,
     maxWidth: '100%',
     overflow: 'hidden',
+  },
+  toolContainerPhone: {
+    marginHorizontal: 16,
   },
   debugText: {
     color: theme.colors.agentEventText,

@@ -195,13 +195,20 @@ function texts(renderer: ReturnType<typeof create>): string[] {
 describe('chat header', () => {
     // HappyHerd keeps the folder/title/path header; the approved integration
     // does not relocate composer branch/count controls into this surface.
-    it.each(['ios', 'android', 'web'])('retains the folder and title hierarchy on %s', (platform) => {
-        state.platform = platform;
+    // Phones (UI overhaul) stack the folder above the title on every platform.
+    it.each([
+        ['an iPhone', 'ios', false, ['nice', 'Session title']],
+        ['an Android phone', 'android', false, ['nice', 'Session title']],
+        ['Web Mobile', 'web', false, ['nice', 'Session title']],
+        ['an iPad', 'ios', true, ['Session title', 'nice']],
+        ['desktop Web', 'web', true, ['nice', '/', 'Session title']],
+    ])('retains the folder and title hierarchy on %s', (_name, platform, tablet, expected) => {
+        state.platform = platform as string;
+        state.tablet = tablet as boolean;
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session title', folderName: 'nice',
         }));
-        expect(texts(renderer)).toEqual(platform === 'web'
-            ? ['nice', '/', 'Session title'] : ['Session title', 'nice']);
+        expect(texts(renderer)).toEqual(expected);
     });
 
     it('does not duplicate the folder when it equals the title', () => {
@@ -210,6 +217,11 @@ describe('chat header', () => {
 
     it('keeps file-overlay paths visible without inventing git information', () => {
         expect(texts(render(React.createElement(ChatHeaderView, { title: 'Session' })))).toEqual(['Session']);
+        // A phone puts the folder and title above the file's path.
+        expect(texts(render(React.createElement(ChatHeaderView, {
+            title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
+        })))).toEqual(['nice / Session', 'src/app.ts']);
+        state.tablet = true;
         expect(texts(render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         })))).toEqual(['Session', 'nice', '•', 'src/app.ts']);
@@ -219,7 +231,7 @@ describe('chat header', () => {
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         }));
-        expect(texts(renderer)).toEqual(['Session', 'nice', '•', 'src/app.ts']);
+        expect(texts(renderer)).toEqual(['nice / Session', 'src/app.ts']);
         act(() => renderer.update(React.createElement(ChatHeaderView, { title: 'Session' })));
         expect(texts(renderer)).toEqual(['Session']);
     });
@@ -328,7 +340,7 @@ describe('shared git-count typography', () => {
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'main',
         }));
-        expect(texts(renderer)).toEqual(['Session', 'main']);
+        expect(texts(renderer)).toEqual(['main', 'Session']);
         expect(renderer.root.findAllByType(GitLineChanges)).toHaveLength(0);
         expectCountTypography(render(React.createElement(GitLineChanges, { changes })));
     });

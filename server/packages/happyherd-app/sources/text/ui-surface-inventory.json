@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "661e411c415bee2658b547e9a301a44819c5e2e60faf97c0a85780a8281392da",
+  "sourceFingerprint": "ea75bec31f4ea581fa4b2210f453a5d42c8c900ca71edda29038d33a33f1dcbd",
   "routeCount": 43,
   "surfaceCount": 315,
   "hardcodedCopyCount": 0,
@@ -4214,6 +4214,7 @@
       "kind": "panel",
       "route": null,
       "exports": [
+        "HERD_PHONE_SHEET_LEFTOVER",
         "HerdPanelScrim",
         "resolveHerdSheetWidth",
         "useHerdOverlayEscape"

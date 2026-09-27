@@ -82,8 +82,9 @@ change. When behavior changes, update both this skill and
   Workspace use the standalone `WorkspaceLinkViewer` fallback.
 - **Layout.** Wide Web Desktop keeps one mounted chat and Workspace with a
   draggable split up to 75% Workspace / 25% chat and deduplicated tabs.
-  Compact Web uses the full-screen Workspace without desktop tabs or a
-  divider. Unsaved edits survive ordinary tab and layout transitions.
+  Below 1,100 px, Web (phones included) opens the Workspace, with its tabs,
+  in a sheet over the chat, without a divider; native phones open it full
+  screen. Unsaved edits survive ordinary tab and layout transitions.
 - **Human entry points.** Both Main Agent and active Side chat composers expose
   their file and workspace actions through the shared `+` menu; Microphone and
   Send stay direct and Send remains send-only. Workspace has no second header
@@ -273,8 +274,9 @@ Web Mobile `390 × 844` for a Main Agent and an active Side chat:
    non-loopback input and prove the same URL on two machines is two identities.
 6. Retain the active draft, selected mode, dirty edits, scroll, tab identity,
    and line/column metadata across tab switches; on wide Web Desktop drag to
-   the 75/25 boundary with the chat mounted; on compact Web prove the
-   full-screen open/back flow without desktop tabs or divider; require one
+   the 75/25 boundary with the chat mounted; on compact Web prove the sheet
+   opens over the chat and closes from the chat strip and Escape, with no
+   divider, and on a native phone the full-screen open/back flow; require one
    viewer/composer and zero unexpected page/console errors (the default HTML
    sandbox-block message is expected enforcement).
 7. On phone Web, prove the touched surfaces compute at least 16px while the

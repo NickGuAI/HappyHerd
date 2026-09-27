@@ -1,7 +1,7 @@
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import * as React from 'react';
-import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent } from 'react-native';
+import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent, ScrollView } from 'react-native';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
@@ -56,6 +56,7 @@ import { herdWebClasses } from './herd/motion';
 import { herdAlpha } from './herd/session/color';
 import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
 import { contextRemainingPercent, resolveComposerChipVisibility, resolvePermissionChipTone } from './herd/session/composerChipModel';
+import { useIsTablet } from '@/utils/responsive';
 
 interface AgentInputProps {
     // `initialValue` seeds the uncontrolled textarea once; keystrokes never
@@ -335,6 +336,22 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         flexShrink: 1,
         minWidth: 0,
         overflow: 'hidden',
+    },
+    // Phones: the card's content sits 16 px inside its edge, as on every phone card.
+    webUnifiedPanelPhone: {
+        paddingHorizontal: 16,
+    },
+    // Phones: the chips scroll edge to edge across the composer card, over its 16 px padding.
+    phoneChipsScroll: {
+        flexGrow: 0,
+        marginHorizontal: -16,
+        marginBottom: 6,
+    },
+    phoneChips: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
     },
     chipPopoverSection: {
         paddingVertical: 2,
@@ -789,6 +806,8 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
  */
 function WebStatusRow(p: StatusRowProps) {
     const { theme } = useUnistyles();
+    // Phones: the dot and the branch sit on the 16 px gutter, level with the composer card.
+    const phone = !useIsTablet();
     const status = p.connectionStatus;
     const state = status?.state;
     const tone = state === 'thinking'
@@ -801,7 +820,7 @@ function WebStatusRow(p: StatusRowProps) {
     const textColor = tone ?? status?.color ?? theme.colors.textSecondary;
     const dotColor = tone ?? status?.dotColor ?? theme.colors.textSecondary;
     return (
-        <View style={webStatusStyles.row}>
+        <View style={[webStatusStyles.row, phone && webStatusStyles.rowPhone]}>
             {status ? (
                 <View style={webStatusStyles.state}>
                     <StatusDot color={dotColor} isPulsing={status.isPulsing} size={7} />
@@ -873,6 +892,9 @@ const webStatusStyles = StyleSheet.create((theme) => ({
         gap: 8,
         minHeight: 30,
         paddingHorizontal: 6,
+    },
+    rowPhone: {
+        paddingHorizontal: 0,
     },
     state: {
         flex: 1,
@@ -1885,8 +1907,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     // Web composer chips (UI overhaul): agent, model, effort and permission,
     // each opening its picker in place. Model and effort step aside when the
-    // composer narrows; phones keep the agent and permission chips.
-    const chipVisibility = resolveComposerChipVisibility({ width: composerWidth, phone: screenWidth <= 700 });
+    // composer narrows; phones keep all four on a sideways-scrolling row of
+    // their own, above the buttons.
+    const phoneChipRow = screenWidth <= 700;
+    const chipVisibility = resolveComposerChipVisibility({ width: composerWidth, phone: phoneChipRow });
     const permissionSectionTitleForChip = isCodex
         ? t('agentInput.codexPermissionMode.title')
         : isGemini
@@ -1895,8 +1919,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const canOpenPermissionChip = !!props.onPermissionModeChange && availableModes.length > 0;
     const permissionChipTone = resolvePermissionChipTone(permissionModeKey);
     const agentChip = props.agentChip;
-    const webChips = webActionMenu && !props.zenMode ? (
-        <View style={styles.webChips}>
+    const chipElements = webActionMenu && !props.zenMode ? (
+        <>
             {chipVisibility.agent && agentChip ? (
                 <ComposerChip
                     tone="agent"
@@ -1953,12 +1977,26 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     testID="composer-chip-permission"
                 />
             ) : null}
-        </View>
+        </>
+    ) : null;
+    const webChips = chipElements && !phoneChipRow ? <View style={styles.webChips}>{chipElements}</View> : null;
+    const phoneChips = chipElements && phoneChipRow ? (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+            style={styles.phoneChipsScroll}
+            contentContainerStyle={styles.phoneChips}
+            testID="composer-phone-chips"
+        >
+            {chipElements}
+        </ScrollView>
     ) : null;
 
     const desktopActionControls = (
         <View style={styles.actionButtonsContainer}>
             <View style={{ flexDirection: 'column', flex: 1, gap: 2 }}>
+                {phoneChips}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     {props.zenMode && !webActionMenu && <View style={{ flex: 1 }} />}
                     {(!props.zenMode || webActionMenu) && <View style={styles.actionButtonsLeft}>
@@ -1990,7 +2028,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         />
                                     </View>
                                 </BubblePressable>
-                                {webChips ?? (showReadOnlyPermissionMode ? renderReadOnlyPermissionMode() : null)}
+                                {webChips ?? (phoneChips || !showReadOnlyPermissionMode ? null : renderReadOnlyPermissionMode())}
                             </>
                         ) : (
                             <>
@@ -2401,7 +2439,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     return (
         <View style={[
             styles.container,
-            { paddingHorizontal: screenWidth > 700 ? 12 : 8 }
+            // Phones (UI overhaul) put the composer on the 16 px page gutter.
+            { paddingHorizontal: screenWidth > 700 ? 12 : 16 }
         ]}>
             <View
                 ref={innerContainerRef}
@@ -2520,9 +2559,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <View style={styles.overlayBackdrop} />
                             </TouchableWithoutFeedback>
                         )}
+                        {/* Phones: the picker spans the composer, above its chip row. */}
                         <ComposerChipPopover
-                            left={chipAnchorLeft}
-                            width={chipPicker.value === 'permission-chip' ? 300 : chipPicker.value === 'model' ? 280 : 220}
+                            left={phoneChipRow ? 0 : chipAnchorLeft}
+                            width={phoneChipRow
+                                ? innerContainerWidth
+                                : chipPicker.value === 'permission-chip' ? 300 : chipPicker.value === 'model' ? 280 : 220}
                             containerWidth={innerContainerWidth}
                             exiting={chipPicker.exiting}
                             testID={`composer-chip-popover-${chipPicker.value}`}
@@ -2849,6 +2891,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 styles.unifiedPanel,
                                 compactMobileComposer && styles.mobileUnifiedPanel,
                                 webActionMenu && styles.webUnifiedPanel,
+                                webActionMenu && phoneChipRow && styles.webUnifiedPanelPhone,
                             ]}
                         >
                     {/* Attachment preview strip */}

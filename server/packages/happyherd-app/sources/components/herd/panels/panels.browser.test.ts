@@ -601,27 +601,40 @@ describe('Side panels and Workspace overhaul (Web, production style runtime)', (
         await page.close();
     }, 60_000);
 
-    it.each(THEMES)('opens Side chats and the Workspace full screen on Web Mobile with a back header (%s)', async (theme) => {
+    it.each(THEMES)('slides Side chats and the Workspace in as a sheet on Web Mobile, over a strip of the chat (%s)', async (theme) => {
         const { page, errors, foreground } = await open(MOBILE, theme);
+        const composer = foreground.locator('textarea').first();
+        await composer.fill('Main draft kept under the sheet');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
-        const collapse = foreground.getByRole('button', { name: 'Collapse side chats' }).last();
-        await collapse.waitFor({ state: 'visible' });
-        await expect(foreground.getByText('Side chats', { exact: true }).last().isVisible()).resolves.toBe(true);
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible' });
         await expect(foreground.getByRole('tab', { name: /Newest child/ }).isVisible()).resolves.toBe(true);
+        // Phones get the desktop sheet, leaving the mock's 16 px strip of the chat beside it.
+        const sheet = foreground.getByTestId('desktop-right-panel-host');
+        await sheet.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        const sheetBox = (await sheet.boundingBox())!;
+        expect(Math.round(sheetBox.x)).toBe(16);
+        expect(Math.round(sheetBox.width)).toBe(MOBILE.width - 16);
         await evidence(page, `mobile-${theme}-1-side-chats`);
-        await collapse.click();
-        await expect.poll(() => foreground.getByRole('tab', { name: /Newest child/ }).count()).toBe(0);
+        // The strip closes it.
+        await page.mouse.click(8, MOBILE.height / 2);
+        await scrim.waitFor({ state: 'detached' });
+        await expect.poll(() => foreground.getByRole('tab', { name: /Newest child/ }).isVisible()).toBe(false);
 
+        // The Workspace uses the same sheet, and the chat's draft survives underneath.
         await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
-        const header = foreground.getByTestId('desktop-file-workspace-fullscreen-header');
-        await header.waitFor({ state: 'visible' });
-        await expect(header.getByText('main-notes.md', { exact: true }).isVisible()).resolves.toBe(true);
-        const headerBox = (await header.boundingBox())!;
-        expect(Math.round(headerBox.width)).toBe(MOBILE.width);
+        await scrim.waitFor({ state: 'visible' });
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        await expect(host.getByText('main-notes.md', { exact: true }).first().isVisible()).resolves.toBe(true);
+        await host.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        const hostBox = (await host.boundingBox())!;
+        expect(Math.round(hostBox.x)).toBe(16);
+        expect(Math.round(hostBox.width)).toBe(MOBILE.width - 16);
         await evidence(page, `mobile-${theme}-2-workspace`);
-        await header.getByTestId('desktop-file-workspace-picker-close').click();
-        await header.waitFor({ state: 'detached' });
-        await evidence(page, `mobile-${theme}-3-back`);
+        await page.keyboard.press('Escape');
+        await scrim.waitFor({ state: 'detached' });
+        await expect(foreground.locator('textarea').first().inputValue()).resolves.toBe('Main draft kept under the sheet');
+        await evidence(page, `mobile-${theme}-3-closed`);
         expect(errors).toEqual([]);
         await page.close();
     }, 60_000);
