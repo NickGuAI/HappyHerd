@@ -551,3 +551,4 @@ UI_OVERHAUL_PANEL_FOCUS	accepted	fix(app): keep keyboard focus on visible panel 
 UI_OVERHAUL_IME_ESCAPE	accepted	fix(app): never navigate Back on an Escape that cancels IME input	server/packages/happyherd-app/sources/navigation/browserNavigation.test.ts
 UI_OVERHAUL_PARITY_RENAME_PRESERVE	accepted	docs(app): keep the parity record's upstream names out of the product rename	docs/upstream-ui-parity.md
 UI_OVERHAUL_TOOLVIEW_WHITESPACE	accepted	chore(app): strip whitespace-only lines in ToolView	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
+UI_OVERHAUL_GOLDENS	accepted	test(app): regenerate the KILV golden baselines for the redesigned interface	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
