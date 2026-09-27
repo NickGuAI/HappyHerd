@@ -80,10 +80,14 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
   browser's own controls, the mouse side buttons and an unconsumed Escape
   (`useBrowserNavigationShortcuts`), which still unwinds an open file diff or
   file view (`useOverlayNav`) before route history. The desktop app has no
-  browser controls, so it relies on the mouse buttons and Escape. Screen
-  headers keep hiding their own Back on tablet layouts (`ChatHeaderView`,
-  `navigation/Header`), so a native tablet has no on-screen Back; it uses the
-  stack's swipe-back on iOS and the system Back on Android.
+  browser controls, so it relies on the mouse buttons and Escape. On a native
+  iPad, routes that keep UIKit's header (most of them; see
+  `app/(app)/_layout.tsx`) still show its Back. The custom headers hide their
+  own Back on tablet layouts: `ChatHeaderView`, which includes the session
+  screen, and `navigation/Header`, which Android and the iOS app on a Mac use
+  for every route. Those screens have no on-screen Back. The top bar's brand
+  still returns to the session list, iOS keeps the stack's swipe-back and
+  Android the system Back.
 - **Panel toggle.** The toggle moved from the drawer boundary into the top bar,
   with ⌥⌘B (Ctrl+Alt+B off macOS). A secondary handle sits on the panel edge.
   It appears while the pointer is over the shell and stays visible, at the
