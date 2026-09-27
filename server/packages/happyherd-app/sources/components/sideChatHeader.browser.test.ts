@@ -81,6 +81,7 @@ const virtualModules: Record<string, string> = {
         });
         export const useNavigation = () => ({ setOptions() {} });
         export const useLocalSearchParams = () => globalThis.__HAPPYHERD_ROUTE_PARAMS__ ?? {};
+        export const usePathname = () => globalThis.__HAPPYHERD_ROUTE_PATHNAME__ ?? '/';
         export const Stack = { Screen: () => null };
     `,
     'react-native-reanimated': `

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Text } from '@/components/StyledText';
@@ -93,10 +93,13 @@ function NavItem({ entry, active, onPress }: { entry: SettingsNavEntry; active: 
 
 export function SettingsNav({ active }: { active: SettingsSectionId }) {
     const router = useRouter();
+    const pathname = usePathname();
     const experiments = useSetting('experiments');
     const sections = SETTINGS_SECTIONS.filter((entry) => !entry.experimental || experiments);
+    // A nested page (Voice language, Claude sign-in) highlights its section;
+    // choosing that section still returns to the section's own page.
     const open = (entry: SettingsNavEntry) => {
-        if (entry.id !== active) router.navigate(entry.route as never);
+        if (pathname !== entry.route) router.navigate(entry.route as never);
     };
     return (
         <ScrollView
@@ -120,11 +123,13 @@ export function SettingsNav({ active }: { active: SettingsSectionId }) {
 
 export function SettingsFrame({ section, children }: { section: SettingsSectionId; children: React.ReactNode }) {
     const visible = useSettingsFrameVisible();
-    if (!visible) return <>{children}</>;
+    if (Platform.OS !== 'web' && Platform.OS !== 'macos') return <>{children}</>;
+    // The page keeps the same two parent Views at every width, so crossing the
+    // frame width never remounts it and unsaved input survives a resize.
     return (
-        <View testID="settings-frame" style={styles.frame}>
-            <SettingsNav active={section} />
-            <View style={styles.body}>{children}</View>
+        <View testID={visible ? 'settings-frame' : undefined} style={visible ? styles.frame : styles.stack}>
+            {visible ? <SettingsNav active={section} /> : null}
+            <View style={visible ? styles.body : styles.stack}>{children}</View>
         </View>
     );
 }
@@ -143,6 +148,9 @@ export function withSettingsFrame<P extends object>(section: SettingsSectionId, 
 }
 
 const styles = StyleSheet.create((theme) => ({
+    stack: {
+        flex: 1,
+    },
     frame: {
         flex: 1,
         flexDirection: 'row',

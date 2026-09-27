@@ -54,6 +54,7 @@ const virtualModules: Record<string, string> = {
         export const useRouter = () => ({
             push(path) { globalThis.__SETTINGS_ROUTES__ = [...(globalThis.__SETTINGS_ROUTES__ ?? []), path]; },
         });
+        export const usePathname = () => location.pathname;
     `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/auth/AuthContext': `export const useAuth = () => ({ credentials: { token: 'test' } });`,
@@ -140,6 +141,7 @@ Object.assign(virtualModules, {
                 dispatchEvent(new PopStateEvent('popstate'));
             },
         });
+        export const usePathname = () => location.pathname;
     `,
     '@/sync/storage': `
         import React from 'react';

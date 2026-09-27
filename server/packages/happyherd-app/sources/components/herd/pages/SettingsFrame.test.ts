@@ -7,6 +7,7 @@ const testState = vi.hoisted(() => ({
     width: 1440,
     os: 'web',
     experiments: false,
+    pathname: '/settings',
     navigate: vi.fn(),
 }));
 
@@ -39,7 +40,10 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 
-vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: testState.navigate }) }));
+vi.mock('expo-router', () => ({
+    useRouter: () => ({ navigate: testState.navigate }),
+    usePathname: () => testState.pathname,
+}));
 
 vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
@@ -68,6 +72,7 @@ beforeEach(() => {
     testState.width = 1440;
     testState.os = 'web';
     testState.experiments = false;
+    testState.pathname = '/settings';
     testState.navigate.mockReset();
 });
 
@@ -119,6 +124,7 @@ describe('SettingsFrame', () => {
     });
 
     it('switches sections through their existing routes and ignores the active one', () => {
+        testState.pathname = '/settings/account';
         const renderer = render('account');
         const item = (id: string) => navItems(renderer).find((node: any) => node.props.testID === `settings-nav-${id}`)!;
 
@@ -145,6 +151,40 @@ describe('SettingsFrame', () => {
             '/settings/voice',
             '/settings/language',
         ]);
+    });
+
+    it('returns from a nested page to its highlighted section', () => {
+        testState.pathname = '/settings/voice/language';
+        const renderer = render('voice');
+        const voice = navItems(renderer).find((node: any) => node.props.testID === 'settings-nav-voice')!;
+        expect(voice.props.accessibilityState.selected).toBe(true);
+
+        act(() => voice.props.onPress());
+
+        expect(testState.navigate).toHaveBeenCalledWith('/settings/voice');
+    });
+
+    it('keeps the page mounted, with its unsaved state, when the window crosses the frame width', () => {
+        const mounts = vi.fn();
+        function DraftPage() {
+            React.useEffect(() => mounts(), []);
+            return React.createElement('Page', { testID: 'settings-page' });
+        }
+        const tree = () => React.createElement(SettingsFrame, { section: 'credentials', children: React.createElement(DraftPage) });
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(tree());
+        });
+        expect(navItems(renderer).length).toBeGreaterThan(0);
+
+        testState.width = 900;
+        act(() => renderer.update(tree()));
+        expect(navItems(renderer)).toHaveLength(0);
+
+        testState.width = 1440;
+        act(() => renderer.update(tree()));
+        expect(navItems(renderer).length).toBeGreaterThan(0);
+        expect(mounts).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the stacked phone and narrow-window navigation unchanged', () => {

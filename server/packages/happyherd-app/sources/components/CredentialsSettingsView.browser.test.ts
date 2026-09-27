@@ -61,6 +61,7 @@ const virtualModules: Record<string, string> = {
         };
         export const useRouter = () => router;
         export const useLocalSearchParams = () => globalThis.__FIXTURE_STATE__.route.params;
+        export const usePathname = () => location.pathname;
     `,
     './markdown/MarkdownView': `export const MarkdownView = () => null;`,
     './tools/ToolView': `export const ToolView = () => null;`,
