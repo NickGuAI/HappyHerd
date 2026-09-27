@@ -555,3 +555,4 @@ UI_OVERHAUL_GOLDENS	accepted	test(app): regenerate the KILV golden baselines for
 UI_OVERHAUL_TOPBAR_NO_HISTORY	accepted	feat(app): remove Back and Forward from the top bar	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
 UI_OVERHAUL_STREAMLINE_NO_GEMINI	accepted	refactor(app): remove the retired Gemini Streamline defaults	server/packages/happyherd-app/sources/sync/streamlineDefaults.test.ts
 UI_OVERHAUL_HISTORY_GEMINI_DOCS	accepted	docs(app): record the top bar without Back or Forward and Streamline without Gemini	docs/upstream-ui-parity.md
+UI_OVERHAUL_CONTEXT_METER_SETTING	accepted	test(app): prove the context meter follows the Always show context size setting	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts

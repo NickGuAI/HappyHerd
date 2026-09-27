@@ -435,6 +435,20 @@ describe('AgentInput Web composer chips', () => {
         expect(meterElement.props).toMatchObject({ remainingPercent: 82, label: 'agentInput.context.remaining', tone: 'normal' });
         act(() => renderer.unmount());
     });
+
+    it('follows the Always show context size setting until 10% or less is left', () => {
+        const usage = (contextSize: number) => ({ inputTokens: 1, outputTokens: 1, cacheCreation: 0, cacheRead: 0, contextSize, contextWindow: 200000 });
+        for (const [alwaysShowContextSize, contextSize, shown] of [
+            [false, 36000, false],
+            [true, 36000, true],
+            [false, 185000, true],
+        ] as const) {
+            const { renderer } = renderMobileActionInput({ alwaysShowContextSize, usageData: usage(contextSize) }, 1200);
+            const meters = renderer.root.findAll((node: any) => node.props.testID === 'composer-context-meter');
+            expect(meters.length > 0).toBe(shown);
+            act(() => renderer.unmount());
+        }
+    });
 });
 
 describe('AgentInput Web action menu', () => {
