@@ -537,3 +537,4 @@ UI_OVERHAUL_ROW_LONG_PRESS	accepted	feat(app): open session row actions with a l
 UI_OVERHAUL_SESSION_BACK_LABEL	accepted	fix(app): label the session header's Back button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_PHONE_RADII	accepted	feat(app): round phone sheets and the New session button like the mock	server/packages/happyherd-app/sources/components/herd/motion.test.ts
 UI_OVERHAUL_OVERLAY_EXIT	accepted	feat(app): let menus and sheets leave with motion	server/packages/happyherd-app/sources/components/herd/presence.test.ts
+UI_OVERHAUL_PARITY_MOBILE	accepted	docs(app): record the Web Mobile shell and overlay exits for upstream merges	docs/upstream-ui-parity.md
