@@ -8,6 +8,35 @@ import { t } from '@/text';
 import { herdWebClasses } from '../motion';
 import { useHerdSelectionGlide } from './selectionGlide';
 
+/** True in a touch-only browser, where rows have no hover ⋯. */
+export function isTouchOnlyWeb(): boolean {
+    return Platform.OS === 'web'
+        && typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(hover: none)').matches;
+}
+
+/**
+ * Row props for touch-only browsers. iOS Safari sends no context menu on a
+ * long press, so the row reads the long press itself and opens the same
+ * actions, as the native app does. The browser then clicks where the finger
+ * lifts, which is now the sheet's backdrop; cancelling that touch's release
+ * (its events still target the row) prevents the click.
+ */
+export function useHerdRowLongPress(open: (event: any) => void): Record<string, unknown> {
+    const pressedRef = React.useRef(false);
+    const onLongPress = React.useCallback((event: any) => {
+        pressedRef.current = true;
+        open(event);
+    }, [open]);
+    const onTouchEnd = React.useCallback((event: any) => {
+        if (!pressedRef.current) return;
+        pressedRef.current = false;
+        event.preventDefault?.();
+    }, []);
+    return isTouchOnlyWeb() ? { onLongPress, onTouchEnd } : {};
+}
+
 /** Web data attributes and host class every session row carries. */
 export function herdRowDataSet(sessionId: string): object {
     // React Native Web renders dataSet as data-* attributes; the glide finds rows by it.

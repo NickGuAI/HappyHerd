@@ -19,7 +19,7 @@ import { t } from '@/text';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import { SessionStatusAvatar } from './SessionStatusAvatar';
 import { herdStaggerClass, herdWebClasses } from './herd/motion';
-import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet } from './herd/shell/HerdSessionRowParts';
+import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet, useHerdRowLongPress } from './herd/shell/HerdSessionRowParts';
 import { resolveHerdRowAgentLabel, resolveHerdRowAttention } from './herd/shell/sessionRowPresentation';
 
 // Roughly three quarters of the row, the proportion a chat list uses: the row
@@ -124,8 +124,10 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
     }, []);
 
     const showActionAlert = useSessionActionAlert(session.id);
+    const longPressProps = useHerdRowLongPress(handleContextMenu);
     const menuProps = Platform.OS === 'web' ? {
         onContextMenu: handleContextMenu,
+        ...longPressProps,
     } as any : {
         onLongPress: showActionAlert,
     };

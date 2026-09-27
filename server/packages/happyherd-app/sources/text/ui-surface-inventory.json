@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "94a64fc83e123974b96b8cb751153d2b37bd0fb8080047349d13bfafb60501f6",
+  "sourceFingerprint": "bc26cb3a99534f130b8f5701b2a8204c5f9bdbdb3572d42fa8fe492b2abbf281",
   "routeCount": 43,
   "surfaceCount": 309,
   "hardcodedCopyCount": 0,
@@ -4322,7 +4322,9 @@
       "exports": [
         "HerdRowMoreButton",
         "HerdRowSelection",
-        "herdRowDataSet"
+        "herdRowDataSet",
+        "isTouchOnlyWeb",
+        "useHerdRowLongPress"
       ],
       "translationKeys": [
         "sessionInfo.quickActions"

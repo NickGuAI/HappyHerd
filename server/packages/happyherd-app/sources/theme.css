@@ -219,6 +219,8 @@ diffs-container {
 }
 @media (hover: none) {
     .herd-shell-reveal, .herd-row-reveal { display: none; }
+    /* A long press on a row opens its actions; it must not start selecting text. */
+    .herd-row, .herd-row * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

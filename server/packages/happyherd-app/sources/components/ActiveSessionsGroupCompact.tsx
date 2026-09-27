@@ -24,7 +24,7 @@ import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import { SessionStatusAvatar } from './SessionStatusAvatar';
-import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet } from './herd/shell/HerdSessionRowParts';
+import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet, useHerdRowLongPress } from './herd/shell/HerdSessionRowParts';
 
 interface ActiveSessionsGroupProps {
     sessions: SessionRowData[];
@@ -248,8 +248,10 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     }, []);
 
     const showActionAlert = useSessionActionAlert(session.id);
+    const longPressProps = useHerdRowLongPress(handleContextMenu);
     const menuProps = Platform.OS === 'web' ? {
         onContextMenu: handleContextMenu,
+        ...longPressProps,
     } as any : {
         onLongPress: showActionAlert,
     };

@@ -643,6 +643,32 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         }
     }, 40_000);
 
+    it('opens the session actions from a long press on a touch screen, without opening the session', async () => {
+        const { page, errors } = await open({ touch: true });
+        const cdp = await page.context().newCDPSession(page);
+        const row = page.locator('[data-herd-row="dock"]');
+        const box = (await row.boundingBox())!;
+        const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+        // iOS Safari sends no context menu on a long press; the row reads the press itself.
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+        await page.waitForTimeout(800);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        const sheet = page.getByTestId('session-actions-sheet');
+        await sheet.waitFor();
+        await expect(sheet.getAttribute('aria-label')).resolves.toBe('Composer chips and context meter');
+        // Lifting the finger neither clicks the new sheet's backdrop nor opens the session.
+        await page.waitForTimeout(300);
+        await expect(sheet.isVisible()).resolves.toBe(true);
+        expect(await routerCalls(page)).toEqual([]);
+        // A quick tap still opens the session.
+        await page.keyboard.press('Escape');
+        await expect.poll(() => sheet.count()).toBe(0);
+        await page.touchscreen.tap(point.x, point.y);
+        await expect.poll(() => routerCalls(page)).toEqual(['/session/dock']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
     it('dismisses the phone sheet with Escape, the scrim, the handle, or a downward drag', async () => {
         const { page, errors } = await open();
         const row = page.locator('[data-herd-row="question"]');
