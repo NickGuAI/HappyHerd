@@ -543,3 +543,4 @@ UI_OVERHAUL_PANELS_RIGHT	accepted	feat(app): restyle the right panel with pill t
 UI_OVERHAUL_PANELS_WORKSPACE	accepted	feat(app): restyle the Workspace tabs, file bar, comments and live view	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
 UI_OVERHAUL_PANELS_OVERLAY	accepted	feat(app): slide the right panel and Workspace over the chat below 1100px	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
 UI_OVERHAUL_PANELS_BROWSER	accepted	test(app): cover the side panels and Workspace in the production style runtime	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_ALPHA_CSS_VARS	accepted	fix(app): keep token washes translucent in the web style runtime	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts

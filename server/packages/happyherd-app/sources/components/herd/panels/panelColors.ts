@@ -1,21 +1,8 @@
 import type { Theme } from '@/theme';
 import { herdAlpha } from '@/components/herd/session/color';
 
-const CSS_VARIABLE = /^var\(--[\w-]+\)$/;
-
-/**
- * Token color at an opacity, for any runtime. On web the Unistyles runtime
- * hands style factories CSS variables (`var(--colors-kilv-ink)`) so themes
- * switch without recomputing styles; those are mixed with `color-mix`.
- * Native receives the hex or rgb(a) value, which `herdAlpha` converts.
- */
-export function panelAlpha(color: string | null | undefined, opacity: number): string {
-    if (typeof color === 'string' && CSS_VARIABLE.test(color.trim())) {
-        const percent = Math.round(Math.min(Math.max(opacity, 0), 1) * 1000) / 10;
-        return `color-mix(in srgb, ${color.trim()} ${percent}%, transparent)`;
-    }
-    return herdAlpha(color, opacity);
-}
+/** The shared token translucency (`herdAlpha`), which also mixes web CSS variables. */
+export const panelAlpha = herdAlpha;
 
 /**
  * Side panel and Workspace surfaces (UI overhaul). The approved mock uses a

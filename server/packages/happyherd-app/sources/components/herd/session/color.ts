@@ -1,11 +1,20 @@
+const CSS_VARIABLE = /^var\(--[\w-]+\)$/;
+
 /**
- * Token-derived translucency for the session surfaces. Theme colors are hex or
- * rgb(a) strings; glows and washes reuse them at a lower opacity instead of
- * introducing new literals.
+ * Token-derived translucency: glows, washes and translucent borders reuse
+ * theme colors at a lower opacity instead of introducing new literals. On web
+ * the Unistyles runtime hands style factories CSS variables
+ * (`var(--colors-kilv-ink)`) so themes switch without recomputing styles;
+ * those are mixed with `color-mix`. Native styles and the `useUnistyles()`
+ * theme carry hex or rgb(a) values, which are converted to rgba.
  */
 export function herdAlpha(color: string | null | undefined, opacity: number): string {
     if (typeof color !== 'string') return 'transparent';
     const value = color.trim();
+    if (CSS_VARIABLE.test(value)) {
+        const percent = Math.round(Math.min(Math.max(opacity, 0), 1) * 1000) / 10;
+        return `color-mix(in srgb, ${value} ${percent}%, transparent)`;
+    }
     const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value);
     if (hex) {
         const digits = hex[1].length === 3

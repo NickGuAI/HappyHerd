@@ -347,7 +347,7 @@ describe('Streamline New Session in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' } = {}) {
+    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' | 'alpha' } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
@@ -379,6 +379,20 @@ describe('Streamline New Session in the production style runtime', () => {
         await expect(page.getByTestId('streamline-github-badge').count()).resolves.toBe(1);
         await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
         await evidence(page, 'streamline-desktop-light-1440');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('draws token translucency in the real style runtime', async () => {
+        // Unistyles hands web style factories CSS variables; herdAlpha must mix
+        // them rather than pass the opaque token through.
+        const { page, errors } = await open({ screen: 'alpha' });
+        const alpha = await page.getByTestId('herd-alpha-probe').evaluate((element) => {
+            const color = getComputedStyle(element).borderTopColor;
+            const match = /\/\s*([\d.]+)\s*\)$/.exec(color) ?? /rgba\([^)]*,\s*([\d.]+)\)$/.exec(color);
+            return match ? Number(match[1]) : 1;
+        });
+        expect(alpha).toBeCloseTo(0.55, 2);
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
