@@ -6,7 +6,7 @@
 import * as React from 'react';
 import { View, ScrollView, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
@@ -40,6 +40,8 @@ import {
     safeHtmlPreviewDocument,
 } from '@/utils/filePreview';
 import { FileDocumentPreview } from '@/components/FileDocumentPreview';
+import { herdWebClasses } from '@/components/herd/motion';
+import { panelAlpha, panelHairline, panelHoverWash } from '@/components/herd/panels/panelColors';
 
 interface FileViewPanelProps {
     sessionId: string;
@@ -597,6 +599,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 canDownload={Platform.OS === 'web'}
                 downloading={isDownloading}
                 onDownload={handleDownload}
+                iconActions={Platform.OS === 'web' && headerVariant === 'desktop-workspace'}
             />
         );
         return () => onHeaderRightSlotChange(null);
@@ -616,13 +619,20 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     return (
         <View style={styles.outer}>
             {showEditActions && (
-                <View style={[styles.editorActionBar, { borderBottomColor: theme.colors.divider, backgroundColor: theme.colors.surfaceHigh }]}>
+                <View style={styles.editorActionBar}>
+                    <Text numberOfLines={1} style={styles.editorFileName}>{fileName}</Text>
                     {saveStatusLabel ? (
                         <Text
                             accessibilityLiveRegion="polite"
                             style={[
                                 styles.saveStatus,
-                                { color: hasChanges ? theme.colors.warning : theme.colors.textSecondary },
+                                {
+                                    color: hasChanges
+                                        ? theme.colors.warning
+                                        : saveStatus === 'saved' && !isSaving
+                                            ? theme.colors.gitAddedText
+                                            : theme.colors.textSecondary,
+                                },
                             ]}
                         >
                             {saveStatusLabel}
@@ -635,7 +645,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         onPress={handleCancel}
                         style={({ pressed }) => [
                             styles.secondaryActionButton,
-                            { borderColor: theme.colors.divider, opacity: isSaving ? 0.5 : pressed ? 0.75 : 1 },
+                            { opacity: isSaving ? 0.5 : pressed ? 0.75 : 1 },
                         ]}
                     >
                         <Text style={[styles.actionButtonTextSecondary, { color: theme.colors.text }]}>
@@ -649,7 +659,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         style={({ pressed }) => [
                             styles.actionButton,
                             {
-                                backgroundColor: hasChanges ? theme.colors.textLink : theme.colors.input.background,
+                                backgroundColor: hasChanges ? theme.colors.button.primary.background : theme.colors.input.background,
                                 opacity: !hasChanges ? 0.4 : isSaving ? 0.6 : pressed ? 0.8 : 1,
                             },
                         ]}
@@ -669,16 +679,16 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             )}
             {/* External change warning bar */}
             {externalChange && !showConflictDiff && (
-                <View style={[styles.warningBar, { backgroundColor: theme.colors.warning + '18', borderBottomColor: theme.colors.divider }]}>
+                <View style={styles.warningBar}>
                     <Ionicons name="alert-circle" size={16} color={theme.colors.warning} />
                     <Text style={[styles.warningText, { color: theme.colors.text }]}>
                         {t('files.fileConflict')}
                     </Text>
                     <View style={{ flex: 1 }} />
-                    <Pressable onPress={handleShowDiff} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
+                    <Pressable onPress={handleShowDiff} style={styles.warningAction}>
                         <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t("files.diff")}</Text>
                     </Pressable>
-                    <Pressable onPress={handleReload} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
+                    <Pressable onPress={handleReload} style={styles.warningAction}>
                         <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t('files.reload')}</Text>
                     </Pressable>
                     <Pressable onPress={handleDismissWarning} hitSlop={8}>
@@ -691,7 +701,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 <View
                     accessibilityRole="alert"
                     testID="file-download-error"
-                    style={[styles.downloadErrorBar, { backgroundColor: theme.colors.warning + '18', borderBottomColor: theme.colors.divider }]}
+                    style={styles.downloadErrorBar}
                 >
                     <Ionicons name="alert-circle-outline" size={16} color={theme.colors.textDestructive} />
                     <Text style={[styles.downloadErrorText, { color: theme.colors.text }]}>{downloadError}</Text>
@@ -699,7 +709,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         accessibilityRole="button"
                         onPress={handleDownload}
                         disabled={isDownloading}
-                        style={({ pressed }) => [styles.warningAction, { borderColor: theme.colors.divider, opacity: isDownloading ? 0.5 : pressed ? 0.7 : 1 }]}
+                        style={({ pressed }) => [styles.warningAction, { opacity: isDownloading ? 0.5 : pressed ? 0.7 : 1 }]}
                     >
                         <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t('common.retry')}</Text>
                     </Pressable>
@@ -709,7 +719,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             {/* Conflict diff view */}
             {showConflictDiff && externalChange && fileState.kind === 'loaded' ? (
                 <View style={{ flex: 1 }}>
-                    <View style={[styles.conflictHeader, { backgroundColor: theme.colors.surfaceHigh, borderBottomColor: theme.colors.divider }]}>
+                    <View style={styles.conflictHeader}>
                         <Text style={[styles.conflictTitle, { color: theme.colors.text }]}>
                             {t('files.fileConflictDescription')}
                         </Text>
@@ -1011,7 +1021,11 @@ export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
     );
 });
 
-/** Right-side header controls for the file-view overlay. */
+/**
+ * Right-side header controls for the file-view overlay (UI overhaul, mock
+ * `.ws-bar`): Preview and Edit as one segmented pair, then Download and the
+ * separate Delete action as icon buttons.
+ */
 const FileHeaderRight = React.memo(function FileHeaderRight({
     isLoaded,
     displayMode,
@@ -1023,6 +1037,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     canDownload,
     downloading,
     onDownload,
+    iconActions,
 }: {
     isLoaded: boolean;
     displayMode: FileDisplayMode;
@@ -1034,94 +1049,94 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     canDownload: boolean;
     downloading: boolean;
     onDownload: () => void;
+    /** The wide Workspace bar uses icon actions; compact headers keep labels. */
+    iconActions: boolean;
 }) {
     const { theme } = useUnistyles();
     const showControls = isLoaded || canDelete || canDownload;
     const previewSelected = isLoaded && displayMode === 'preview';
+    const editSelected = displayMode === 'edit';
+    if (!showControls) return null;
     return (
-        <>
-            {showControls && (
-                <View style={[styles.toggleRow, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
-                    {isLoaded && <Pressable
+        <View style={styles.headerControls}>
+            {isLoaded && (
+                <View style={styles.segmentTrack}>
+                    <Pressable
                         accessibilityRole="button"
                         accessibilityState={{ selected: previewSelected }}
+                        aria-pressed={previewSelected}
                         onPress={() => onDisplayModeChange('preview')}
-                        style={[
-                            styles.toggleButton,
-                            previewSelected && { backgroundColor: theme.colors.surface },
-                        ]}
+                        style={[styles.segment, previewSelected && styles.segmentSelected]}
                     >
-                        <Text style={[
-                            styles.toggleText,
-                            { color: theme.colors.textSecondary },
-                            previewSelected && styles.toggleTextActive,
-                            previewSelected && { color: theme.colors.text },
-                        ]}>
+                        <Text style={[styles.segmentText, previewSelected && styles.segmentTextSelected]}>
                             {t('uiCopy.preview')}
                         </Text>
-                    </Pressable>}
-                    {canWrite && isLoaded && (
+                    </Pressable>
+                    {canWrite && (
                         <Pressable
                             accessibilityRole="button"
-                            accessibilityState={{ selected: displayMode === 'edit' }}
+                            accessibilityState={{ selected: editSelected }}
+                            aria-pressed={editSelected}
                             onPress={() => onDisplayModeChange('edit')}
-                            style={[
-                                styles.toggleButton,
-                                displayMode === 'edit' && { backgroundColor: theme.colors.surface },
-                            ]}
+                            style={[styles.segment, editSelected && styles.segmentSelected]}
                         >
-                            <Text style={[
-                                styles.toggleText,
-                                { color: theme.colors.textSecondary },
-                                displayMode === 'edit' && styles.toggleTextActive,
-                                displayMode === 'edit' && { color: theme.colors.text },
-                            ]}>
+                            <Text style={[styles.segmentText, editSelected && styles.segmentTextSelected]}>
                                 {t('files.editFile')}
                             </Text>
                         </Pressable>
                     )}
-                    {canDelete && (
-                        <Pressable
-                            accessibilityRole="button"
-                            disabled={deleting}
-                            onPress={onDelete}
-                            style={[
-                                styles.toggleButton,
-                                deleting && { opacity: 0.5 },
-                            ]}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                { color: theme.colors.textDestructive },
-                            ]}>
-                                {t('files.deleteFile')}
-                            </Text>
-                        </Pressable>
-                    )}
-                    {canDownload && (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t('files.download')}
-                            disabled={downloading}
-                            onPress={onDownload}
-                            style={({ pressed }) => [
-                                styles.toggleButton,
-                                downloading && { opacity: 0.5 },
-                                pressed && !downloading && { opacity: 0.75 },
-                            ]}
-                        >
-                            {downloading ? (
-                                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                            ) : (
-                                <Text style={[styles.toggleText, { color: theme.colors.text }]}>
-                                    {t('files.download')}
-                                </Text>
-                            )}
-                        </Pressable>
-                    )}
                 </View>
             )}
-        </>
+            {canDownload && (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('files.download')}
+                    disabled={downloading}
+                    onPress={onDownload}
+                    style={({ pressed, hovered }: any) => [
+                        iconActions ? styles.iconAction : styles.labelAction,
+                        (pressed || hovered) && !downloading && styles.iconActionHovered,
+                        downloading && styles.actionBusy,
+                    ]}
+                >
+                    {downloading ? (
+                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                    ) : iconActions ? (
+                        <Octicons name="download" size={16} color={theme.colors.text} />
+                    ) : (
+                        <Text style={[styles.segmentText, { color: theme.colors.text }]}>{t('files.download')}</Text>
+                    )}
+                </Pressable>
+            )}
+            {canDelete && (iconActions ? (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('files.deleteFile')}
+                    disabled={deleting}
+                    onPress={onDelete}
+                    style={({ pressed, hovered }: any) => [
+                        styles.iconAction,
+                        styles.iconActionDanger,
+                        (pressed || hovered) && !deleting && styles.iconActionDangerHovered,
+                        deleting && styles.actionBusy,
+                    ]}
+                >
+                    <Octicons name="trash" size={16} color={theme.colors.textDestructive} />
+                </Pressable>
+            ) : (
+                // Native keeps the labelled Delete action.
+                <Pressable
+                    accessibilityRole="button"
+                    disabled={deleting}
+                    onPress={onDelete}
+                    style={[styles.segment, deleting && styles.actionBusy]}
+                >
+                    <Text style={[styles.segmentText, { color: theme.colors.textDestructive }]}>
+                        {t('files.deleteFile')}
+                    </Text>
+                </Pressable>
+            ))}
+        </View>
     );
 });
 
@@ -1221,31 +1236,43 @@ const styles = StyleSheet.create((theme) => ({
         alignSelf: 'center',
     },
     actionButton: {
+        minHeight: 32,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         paddingVertical: 6,
-        borderRadius: 6,
+        borderRadius: theme.kilv.radius,
     },
     secondaryActionButton: {
+        minHeight: 32,
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 6,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: theme.kilv.radius,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
     },
     editorActionBar: {
-        minHeight: 46,
+        minHeight: 44,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        gap: 10,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+        backgroundColor: theme.colors.surface,
+    },
+    editorFileName: {
+        flexShrink: 1,
+        minWidth: 0,
+        fontSize: 13,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.default(),
     },
     saveStatus: {
-        fontSize: 12,
-        ...Typography.default('semiBold'),
+        fontSize: 12.5,
+        ...Typography.mono(),
     },
     actionButtonText: {
         fontSize: 13,
@@ -1258,28 +1285,87 @@ const styles = StyleSheet.create((theme) => ({
         fontWeight: '600',
         ...Typography.default('semiBold'),
     },
-    toggleRow: {
+    headerControls: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    // Preview / Edit (mock small `.seg`): a sunken track with a raised thumb.
+    segmentTrack: {
         flexDirection: 'row',
         gap: 2,
         padding: 2,
-        borderRadius: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        marginRight: 4,
+        borderRadius: theme.kilv.radius,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        backgroundColor: theme.colors.input.background,
+        marginRight: 2,
     },
-    toggleButton: {
+    segment: {
+        minHeight: 26,
+        justifyContent: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingVertical: 3,
         borderRadius: 6,
+        _web: {
+            cursor: 'pointer',
+            _classNames: herdWebClasses('herd-transition'),
+        },
     },
-    toggleText: {
-        fontSize: 12,
+    // The selected mode is the molten thumb of the mock's small `.seg`.
+    segmentSelected: {
+        backgroundColor: theme.colors.button.primary.background,
+        _web: {
+            boxShadow: theme.kilv.glowMoltenSoft,
+        },
+    },
+    segmentText: {
+        fontSize: 12.5,
         color: theme.colors.textSecondary,
         ...Typography.default(),
     },
-    toggleTextActive: {
-        fontWeight: '600',
-        color: theme.colors.text,
+    segmentTextSelected: {
+        color: theme.colors.button.primary.tint,
         ...Typography.default('semiBold'),
+    },
+    iconAction: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.kilv.radius,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: {
+            cursor: 'pointer',
+            _classNames: herdWebClasses('herd-transition', 'herd-press'),
+        },
+    },
+    labelAction: {
+        minHeight: 32,
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        borderRadius: theme.kilv.radius,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: {
+            cursor: 'pointer',
+            _classNames: herdWebClasses('herd-transition', 'herd-press'),
+        },
+    },
+    iconActionHovered: {
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: panelHoverWash(theme),
+    },
+    iconActionDanger: {
+        borderColor: panelAlpha(theme.colors.textDestructive, 0.35),
+    },
+    iconActionDangerHovered: {
+        borderColor: theme.colors.textDestructive,
+        backgroundColor: theme.colors.box.error.background,
+    },
+    actionBusy: {
+        opacity: 0.5,
     },
     warningBar: {
         flexDirection: 'row',
@@ -1288,16 +1374,19 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+        backgroundColor: theme.colors.box.warning.background,
     },
     warningText: {
         fontSize: 13,
         ...Typography.default('semiBold'),
     },
     warningAction: {
-        paddingHorizontal: 8,
+        paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 4,
+        borderRadius: theme.borderRadius.sm,
         borderWidth: 1,
+        borderColor: theme.colors.divider,
         marginLeft: 4,
     },
     warningActionText: {
@@ -1311,6 +1400,8 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+        backgroundColor: theme.colors.box.warning.background,
     },
     downloadErrorText: {
         flex: 1,
@@ -1324,6 +1415,8 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+        backgroundColor: theme.colors.surface,
     },
     conflictTitle: {
         fontSize: 13,

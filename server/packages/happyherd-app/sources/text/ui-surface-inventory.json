@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "09b50f59c3ef71082729a034297d62bb7b2908c0618e6e924c6f3e3546b7713f",
+  "sourceFingerprint": "bc0ed8c1d0c76958a52b06a6e9b041c4d28a668562add8dcaadc9a9c6654668e",
   "routeCount": 43,
   "surfaceCount": 314,
   "hardcodedCopyCount": 0,
@@ -3378,6 +3378,7 @@
       "translationKeys": [
         "common.back",
         "files.closeFileTab",
+        "files.hidePanel",
         "files.openFileTab",
         "files.resizeWorkspace",
         "workspace.title"
@@ -4579,6 +4580,7 @@
         "files.editFile",
         "files.inlineComments",
         "files.pinComment",
+        "files.pinnedComment",
         "files.removeComment",
         "files.sendComments",
         "happyHerd.composer.sendFailedBody",
@@ -4650,7 +4652,9 @@
         "LocalhostLiveView",
         "workspaceLivePickFromMessage"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "workspace.liveLoading"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

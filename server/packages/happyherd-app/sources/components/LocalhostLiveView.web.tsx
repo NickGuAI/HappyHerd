@@ -1,5 +1,7 @@
 import { Typography } from '@/constants/Typography';
 import * as React from 'react';
+import { useUnistyles } from 'react-native-unistyles';
+import { t } from '@/text';
 import {
     registerWorkspaceLiveView,
     workspaceLiveProtocol,
@@ -95,6 +97,7 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
     onError,
     onCaptureError,
 }: LocalhostLiveViewProps) {
+    const { theme } = useUnistyles();
     const iframeRef = React.useRef<HTMLIFrameElement>(null);
     const viewIdRef = React.useRef(`view-${globalThis.crypto?.randomUUID?.()
         ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}`);
@@ -157,35 +160,62 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
         return () => window.removeEventListener('message', receiveMessage);
     }, [onCaptureError, onPick]);
 
+    // The Workspace bar above names the URL; the page sits framed on the
+    // Workspace ground (UI overhaul, mock `.lv-stage`). The crosshair shows
+    // while the element picker is armed.
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
-            <div
-                title={url}
-                style={{
-                    flex: '0 0 auto',
-                    overflow: 'hidden',
-                    padding: '7px 10px',
-                    borderBottom: '1px solid rgba(127,127,127,.24)',
-                    fontFamily: Typography.mono().fontFamily,
-                    fontSize: 12,
-                    lineHeight: '18px',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                }}
-            >
-                {url}
-            </div>
+        <div
+            data-testid="localhost-live-stage"
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                height: '100%',
+                minHeight: 0,
+                boxSizing: 'border-box',
+                padding: 12,
+                cursor: pickerEnabled ? 'crosshair' : undefined,
+            }}
+        >
             {iframeUrl ? (
-                <iframe
-                    ref={iframeRef}
-                    key={iframeUrl}
-                    title={url}
-                    src={iframeUrl}
-                    sandbox="allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
-                    onLoad={postPickerState}
-                    style={{ flex: 1, width: '100%', minHeight: 0, border: 0, background: 'white' }}
-                />
-            ) : null}
+                <div
+                    style={{
+                        display: 'flex',
+                        flex: 1,
+                        minHeight: 0,
+                        overflow: 'hidden',
+                        borderRadius: theme.kilv.radiusCard,
+                        border: `1px solid ${pickerEnabled ? theme.colors.kilv.accent : theme.colors.divider}`,
+                        boxShadow: pickerEnabled ? theme.kilv.glowMoltenSoft : theme.kilv.shadow,
+                        transition: `border-color ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}, box-shadow ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}`,
+                    }}
+                >
+                    <iframe
+                        ref={iframeRef}
+                        key={iframeUrl}
+                        title={url}
+                        src={iframeUrl}
+                        sandbox="allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
+                        onLoad={postPickerState}
+                        style={{ flex: 1, width: '100%', minHeight: 0, border: 0, background: 'white' }}
+                    />
+                </div>
+            ) : (
+                <div
+                    role="status"
+                    style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: theme.colors.kilv.inkFaint,
+                        fontFamily: Typography.default().fontFamily,
+                        fontSize: 14,
+                    }}
+                >
+                    {t('workspace.liveLoading')}
+                </div>
+            )}
         </div>
     );
 });

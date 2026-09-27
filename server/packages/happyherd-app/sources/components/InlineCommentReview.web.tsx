@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View, useWindowDimensions } from 'react-native';
+import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Text } from '@/components/StyledText';
@@ -10,6 +11,8 @@ import {
     type WorkspaceFeedbackComment,
 } from '@/sync/workspaceFeedback';
 import { t } from '@/text';
+import { herdWebClasses } from '@/components/herd/motion';
+import { panelHairline, panelMolten } from '@/components/herd/panels/panelColors';
 import type {
     InlineCommentAnchor,
     InlineCommentReviewProps,
@@ -47,8 +50,18 @@ function inputHeight(value: string): number {
     return Math.min(148, Math.max(52, 30 + (value.split('\n').length * 22)));
 }
 
+/**
+ * Wide layouts use the mock's compact review type (UI overhaul); phone widths
+ * keep 16 px text so fields never zoom and comments stay readable.
+ */
+const DENSE_REVIEW_MIN_WIDTH = 700;
+function useDenseReview(): boolean {
+    return useWindowDimensions().width >= DENSE_REVIEW_MIN_WIDTH;
+}
+
 export function InlineCommentThread(props: InlineCommentThreadProps) {
     const { theme } = useUnistyles();
+    const dense = useDenseReview();
     const [draft, setDraft] = React.useState('');
     const visibleComments = props.anchor
         ? props.comments.filter((comment) => matchesAnchor(comment, props.anchor!))
@@ -93,10 +106,10 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
     };
 
     const isInline = props.anchor?.line !== undefined;
-    const seamColor = theme.colors.kilv.olive;
+    const seamColor = panelMolten(theme, theme.dark ? 0.35 : 0.32);
     const glowColor = theme.colors.kilv.accent;
     const cardBackground = theme.colors.surface;
-    const cardBorder = theme.colors.kilv.rimLine;
+    const cardBorder = panelMolten(theme, theme.dark ? 0.35 : 0.32);
 
     return (
         <View
@@ -112,11 +125,11 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
             ) : null}
             <View style={[
                 styles.threadCard,
+                dense && styles.threadCardDense,
                 {
                     backgroundColor: isInline ? cardBackground : theme.colors.surface,
-                    borderColor: isInline ? cardBorder : theme.colors.divider,
+                    borderColor: isInline ? cardBorder : panelHairline(theme),
                 },
-                isInline && ({ boxShadow: theme.kilv.shadow } as any),
             ]}>
                 {isInline ? <View style={[styles.threadFace, styles.threadFaceTop, { backgroundColor: glowColor }]} /> : null}
                 {visibleComments.map((comment) => (
@@ -134,26 +147,30 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                                     autoFocus
                                     style={[
                                         styles.input,
-                                        { height: inputHeight(comment.editingDraft), color: theme.colors.text, borderColor: theme.colors.divider },
+                                        dense && styles.textDense,
+                                        { height: inputHeight(comment.editingDraft), color: theme.colors.text },
                                     ]}
                                     accessibilityLabel={t('files.commentPlaceholder')}
                                 />
                                 <View style={styles.actions}>
-                                    <Pressable accessibilityRole="button" disabled={!comment.editingDraft.trim()} onPress={() => updateComment(comment)} style={styles.action}>
-                                        <Text style={[styles.actionText, { color: theme.colors.textLink }]}>{t('common.save')}</Text>
+                                    <Pressable accessibilityRole="button" onPress={() => cancelEdit(comment)} style={[styles.action, dense && styles.actionDense]}>
+                                        <Text style={[styles.actionText, dense && styles.actionTextDense, { color: theme.colors.textSecondary }]}>{t('common.cancel')}</Text>
                                     </Pressable>
-                                    <Pressable accessibilityRole="button" onPress={() => cancelEdit(comment)} style={styles.action}>
-                                        <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{t('common.cancel')}</Text>
+                                    <Pressable accessibilityRole="button" disabled={!comment.editingDraft.trim()} onPress={() => updateComment(comment)} style={[styles.action, styles.primaryAction, dense && styles.actionDense]}>
+                                        <Text style={[styles.actionText, dense && styles.actionTextDense, styles.primaryActionText]}>{t('common.save')}</Text>
                                     </Pressable>
                                 </View>
                             </View>
                         ) : (
                             <>
                                 <View style={styles.commentBody}>
-                                    {!props.anchor ? (
-                                        <Text style={[styles.anchor, { color: theme.colors.textSecondary }]}>{labelForAnchor(comment)}</Text>
-                                    ) : null}
-                                    <Text style={[styles.commentText, { color: theme.colors.text }]}>{comment.feedback}</Text>
+                                    <View style={styles.who}>
+                                        <Octicons name="comment" size={dense ? 12 : 14} color={theme.colors.textLink} />
+                                        <Text style={[styles.anchor, dense && styles.anchorDense]}>
+                                            {props.anchor ? t('files.pinnedComment') : labelForAnchor(comment)}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.commentText, dense && styles.textDense, { color: theme.colors.text }]}>{comment.feedback}</Text>
                                 </View>
                                 <View style={styles.actions}>
                                     <Pressable
@@ -166,9 +183,9 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                                                 return item.acknowledged ? [] : [{ ...item, editingDraft: undefined }];
                                             }));
                                         }}
-                                        style={styles.action}
+                                        style={[styles.action, dense && styles.actionDense]}
                                     >
-                                        <Text style={[styles.actionText, { color: theme.colors.textLink }]}>{t('files.editFile')}</Text>
+                                        <Text style={[styles.actionText, dense && styles.actionTextDense, { color: theme.colors.textLink }]}>{t('files.editFile')}</Text>
                                     </Pressable>
                                     <Pressable
                                         accessibilityRole="button"
@@ -176,9 +193,9 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                                         onPress={() => {
                                             props.onCommentsChange(props.comments.filter((item) => item.id !== comment.id));
                                         }}
-                                        style={styles.action}
+                                        style={[styles.action, dense && styles.actionDense]}
                                     >
-                                        <Text style={[styles.actionText, { color: theme.colors.textDestructive }]}>{t('common.delete')}</Text>
+                                        <Text style={[styles.actionText, dense && styles.actionTextDense, { color: theme.colors.textDestructive }]}>{t('common.delete')}</Text>
                                     </Pressable>
                                 </View>
                             </>
@@ -187,25 +204,28 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                 ))}
                 {activeAnchor ? (
                     <View style={styles.composeRow} testID={props.anchor?.line !== undefined ? `inline-comment-composer:line:${props.anchor.line}` : 'inline-comment-composer:docked'}>
-                        <Text style={[styles.anchor, { color: theme.colors.textSecondary }]}>{labelForAnchor(activeAnchor)}</Text>
+                        <Text style={[styles.anchor, dense && styles.anchorDense]}>{labelForAnchor(activeAnchor)}</Text>
                         <TextInput
                             value={draft}
                             onChangeText={setDraft}
                             placeholder={t('files.commentPlaceholder')}
                             multiline
                             autoFocus
+                            placeholderTextColor={theme.colors.kilv.inkFaint}
                             style={[
                                 styles.input,
-                                { height: inputHeight(draft), color: theme.colors.text, borderColor: theme.colors.divider },
+                                dense && styles.textDense,
+                                { height: inputHeight(draft), color: theme.colors.text },
                             ]}
                             accessibilityLabel={t('files.commentPlaceholder')}
                         />
                         <View style={styles.actions}>
-                            <Pressable accessibilityRole="button" disabled={!draft.trim()} onPress={addComment} style={styles.action}>
-                                <Text style={[styles.actionText, { color: theme.colors.textLink }]}>{t('files.pinComment')}</Text>
+                            <Pressable accessibilityRole="button" onPress={() => props.onActiveAnchorChange(null)} style={[styles.action, dense && styles.actionDense]}>
+                                <Text style={[styles.actionText, dense && styles.actionTextDense, { color: theme.colors.textSecondary }]}>{t('common.cancel')}</Text>
                             </Pressable>
-                            <Pressable accessibilityRole="button" onPress={() => props.onActiveAnchorChange(null)} style={styles.action}>
-                                <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{t('common.cancel')}</Text>
+                            <Pressable accessibilityRole="button" accessibilityLabel={t('files.pinComment')} disabled={!draft.trim()} onPress={addComment} style={[styles.action, styles.primaryAction, dense && styles.actionDense, !draft.trim() && styles.primaryActionIdle]}>
+                                <Octicons name="pin" size={dense ? 13 : 16} color={theme.colors.button.primary.tint} />
+                                <Text style={[styles.actionText, dense && styles.actionTextDense, styles.primaryActionText]}>{t('files.pinComment')}</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -218,6 +238,7 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
 
 export function InlineCommentReview(props: InlineCommentReviewProps) {
     const { theme } = useUnistyles();
+    const dense = useDenseReview();
     const [sending, setSending] = React.useState(false);
     const [error, setError] = React.useState(false);
     const sendingRef = React.useRef(false);
@@ -271,18 +292,12 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                 />
             ) : null}
             {pendingCount > 0 ? (
-                <View
-                    testID="inline-comment-review-bar"
-                    style={[
-                        styles.reviewBar,
-                        { backgroundColor: theme.colors.glass.background, borderColor: theme.colors.divider },
-                        { backdropFilter: 'blur(16px)' } as any,
-                    ]}
-                >
-                    <Text style={[styles.reviewCount, { color: theme.colors.textSecondary }]}>{t('files.inlineComments')}</Text>
-                    {error ? <Text accessibilityRole="alert" style={[styles.reviewError, { color: theme.colors.textDestructive }]}>{t('happyHerd.composer.sendFailedBody')}</Text> : null}
-                    <Pressable accessibilityRole="button" disabled={sending} onPress={() => { void send(); }} style={[styles.send, { backgroundColor: theme.colors.button.primary.background }]}>
-                        <Text style={[styles.sendText, { color: theme.colors.button.primary.tint }]}>{sending ? t('common.loading') : t('files.sendComments', { count: pendingCount })}</Text>
+                <View testID="inline-comment-review-bar" style={styles.reviewBar}>
+                    <Octicons name="comment" size={dense ? 15 : 16} color={theme.colors.kilv.accent} />
+                    <Text style={[styles.reviewCount, dense && styles.textDense, { color: theme.colors.textSecondary }]}>{t('files.inlineComments')}</Text>
+                    {error ? <Text accessibilityRole="alert" style={[styles.reviewError, dense && styles.textDense, { color: theme.colors.textDestructive }]}>{t('happyHerd.composer.sendFailedBody')}</Text> : null}
+                    <Pressable accessibilityRole="button" disabled={sending} onPress={() => { void send(); }} style={[styles.send, dense && styles.sendDense, { backgroundColor: theme.colors.button.primary.background }]}>
+                        <Text style={[styles.sendText, dense && styles.actionTextDense, { color: theme.colors.button.primary.tint }]}>{sending ? t('common.loading') : t('files.sendComments', { count: pendingCount })}</Text>
                     </Pressable>
                 </View>
             ) : null}
@@ -296,25 +311,111 @@ const styles = StyleSheet.create((theme) => ({
     thread: { flexDirection: 'row', minWidth: 0 },
     inlineThread: { width: '100%', marginStart: -24, paddingVertical: 6, paddingEnd: 12 },
     seamColumn: { position: 'relative', width: 26, flexShrink: 0, alignItems: 'center' },
-    seam: { position: 'absolute', top: -7, bottom: -7, width: 3, borderRadius: 2 },
+    seam: { position: 'absolute', top: -7, bottom: -7, width: 2, borderRadius: 2 },
     seamDot: { position: 'absolute', top: 16, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-    threadCard: { position: 'relative', flex: 1, minWidth: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.xl, padding: 12, gap: 10, overflow: 'hidden' },
+    // Comment card (mock `.cmt-thread`): molten edge on the raised slate.
+    threadCard: {
+        position: 'relative',
+        flex: 1,
+        minWidth: 0,
+        maxWidth: 560,
+        borderWidth: 1,
+        borderRadius: theme.borderRadius.lg,
+        padding: 12,
+        gap: 10,
+        overflow: 'hidden',
+        _web: {
+            boxShadow: theme.kilv.glowMoltenSoft,
+            _classNames: herdWebClasses('herd-rise-sm'),
+        },
+    },
+    threadCardDense: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
     threadFace: { position: 'absolute', left: 14, right: 14, height: 1, opacity: 0.42 },
     threadFaceTop: { top: 0 },
     threadFaceBottom: { bottom: 0 },
     commentRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, minWidth: 0 },
-    commentBody: { flex: 1, minWidth: 160, gap: 2 },
+    commentBody: { flex: 1, minWidth: 160, gap: 4 },
     commentText: { ...Typography.default(), flex: 1, fontSize: 16, lineHeight: 22 },
+    who: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     editColumn: { flex: 1, minWidth: 0, gap: 6 },
     composeRow: { gap: 7 },
-    anchor: { ...Typography.mono('semiBold'), fontSize: 16, lineHeight: 22 },
-    input: { ...Typography.default(), minHeight: 52, maxHeight: 148, borderWidth: StyleSheet.hairlineWidth, borderRadius: theme.borderRadius.md, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, lineHeight: 22 },
-    actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 2 },
-    action: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 9, paddingVertical: 7 },
+    anchor: { ...Typography.mono(), fontSize: 16, lineHeight: 22, color: theme.colors.textLink },
+    anchorDense: { fontSize: 12, lineHeight: 16 },
+    input: {
+        ...Typography.default(),
+        minHeight: 52,
+        maxHeight: 148,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.input.background,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        fontSize: 16,
+        lineHeight: 22,
+        _web: {
+            outlineStyle: 'none',
+            _focus: { borderColor: panelMolten(theme, theme.dark ? 0.55 : 0.5) },
+        },
+    },
+    textDense: { fontSize: 13.5, lineHeight: 20 },
+    actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
+    action: {
+        minHeight: 40,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: theme.kilv.radius,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: {
+            cursor: 'pointer',
+            _classNames: herdWebClasses('herd-transition', 'herd-press'),
+        },
+    },
+    actionDense: { minHeight: 30, paddingHorizontal: 10, paddingVertical: 4 },
+    primaryAction: {
+        borderColor: theme.colors.button.primary.background,
+        backgroundColor: theme.colors.button.primary.background,
+    },
+    primaryActionIdle: { opacity: theme.kilv.disabledOpacity },
     actionText: { ...Typography.default('semiBold'), fontSize: 16, lineHeight: 22 },
-    reviewBar: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+    actionTextDense: { fontSize: 13, lineHeight: 18 },
+    primaryActionText: { color: theme.colors.button.primary.tint },
+    // Docked review bar (mock `.review-bar`): molten edge, comment mark, primary send.
+    reviewBar: {
+        minHeight: 58,
+        borderTopWidth: 1,
+        borderTopColor: panelMolten(theme, theme.dark ? 0.55 : 0.5),
+        backgroundColor: theme.colors.surface,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 10,
+        _web: {
+            boxShadow: theme.kilv.glowMoltenSoft,
+            _classNames: herdWebClasses('herd-rise-sm'),
+        },
+    },
     reviewCount: { ...Typography.default('semiBold'), flexGrow: 1, fontSize: 16, lineHeight: 22 },
     reviewError: { ...Typography.default(), fontSize: 16, lineHeight: 22 },
-    send: { minHeight: 40, justifyContent: 'center', borderRadius: theme.borderRadius.md, paddingHorizontal: 14, paddingVertical: 8 },
+    send: {
+        minHeight: 40,
+        justifyContent: 'center',
+        borderRadius: theme.kilv.radiusPill,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        _web: {
+            cursor: 'pointer',
+            boxShadow: theme.kilv.glowMoltenSoft,
+            _classNames: herdWebClasses('herd-press'),
+        },
+    },
+    sendDense: { minHeight: 32, paddingHorizontal: 14, paddingVertical: 5 },
     sendText: { ...Typography.default('semiBold'), fontSize: 16, lineHeight: 22 },
 }));

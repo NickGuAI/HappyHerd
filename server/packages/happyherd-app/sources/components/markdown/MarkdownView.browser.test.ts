@@ -46,6 +46,17 @@ const virtualModules: Record<string, string> = {
     `,
     '@/utils/openExternalUrl': `export const openExternalUrl = async () => {};`,
     '@/text': `export const t = (key) => key;`,
+    // Comment cards and their actions carry Octicons (UI overhaul).
+    '@expo/vector-icons': `
+        import React from 'react';
+        const Icon = ({ name, size, color }) => React.createElement('span', {
+            'data-icon': name, 'aria-hidden': true,
+            style: { color, fontSize: size, width: size, height: size, display: 'inline-block' },
+        });
+        Icon.glyphMap = {};
+        export const Octicons = Icon;
+        export const Ionicons = Icon;
+    `,
     '@/modal': `export const Modal = { alert() {}, show() {} };`,
     './MermaidRenderer': `
         import React from 'react';
