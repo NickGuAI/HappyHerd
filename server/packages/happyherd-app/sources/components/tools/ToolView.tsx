@@ -31,6 +31,7 @@ import {
 import { useSession, useSetting, useSessionAgentFormCommunication } from '@/sync/storage';
 import { canRenderAgentFormInline } from '@/sync/agentCommunications';
 import { hasPlanBody, readClaudeQuestions } from './views/questionPresentation';
+import { readTodos } from './views/TodoView';
 import { ToolLine, type ToolLineState } from '@/components/herd/session/ToolLine';
 import { HerdCollapse } from '@/components/herd/session/Collapse';
 import { resolveToolLineStats, resolveToolLineText } from '@/components/herd/session/toolLineModel';
@@ -329,8 +330,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 <Text style={styles.webDetailsText}>{t('profile.details')}</Text>
             </TouchableOpacity>
         ) : null;
+        // An empty todo list has no body of its own, so it keeps the card line.
         const bareContent = SpecificToolView !== null && (
-            tool.name === 'TodoWrite'
+            (tool.name === 'TodoWrite' && readTodos(tool).length > 0)
             || (tool.name === 'AskUserQuestion' && hasQuestionForm)
             || tool.name === 'request_user_input'
         );
@@ -340,6 +342,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 <View style={styles.webBare}>
                     {specificBody}
                     {specificError}
+                    {detailsLink}
                     {renderPermissionFooter()}
                 </View>
             );
@@ -370,6 +373,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                     <View style={styles.webCardBody}>
                         {specificBody ?? (needsApprovalInput ? defaultBody : null)}
                         {specificError ?? genericError}
+                        {detailsLink}
                     </View>
                     {renderPermissionFooter()}
                 </View>

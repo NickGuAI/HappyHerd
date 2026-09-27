@@ -15,7 +15,7 @@ export interface Todo {
     id?: string;
 }
 
-function readTodos(tool: ToolViewProps['tool']): Todo[] {
+export function readTodos(tool: ToolViewProps['tool']): Todo[] {
     let todosList: Todo[] = [];
 
     // Try to get todos from input first

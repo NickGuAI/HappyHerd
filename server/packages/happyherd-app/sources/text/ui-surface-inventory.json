@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "cba3de45e1220ecb9e378b2f648592037d30c83fcbf1a956e08dfbb2eb71872e",
+  "sourceFingerprint": "f3af17221696cb7b8b459331662a386232069f66fff5fb8e51340a4766f4d824",
   "routeCount": 43,
   "surfaceCount": 307,
   "hardcodedCopyCount": 0,
@@ -6152,7 +6152,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "TodoView"
+        "TodoView",
+        "readTodos"
       ],
       "translationKeys": [
         "tools.names.todoList"

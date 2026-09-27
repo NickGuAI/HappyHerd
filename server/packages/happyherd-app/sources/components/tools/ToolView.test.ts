@@ -6,6 +6,7 @@ import type { ToolCall } from '@/sync/typesMessage';
 import type { AgentFormCommunication } from '@/sync/agentCommunications';
 
 const settings = vi.hoisted(() => ({ compact: false, platform: 'ios', width: 390, communication: null as AgentFormCommunication | null }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('react-native', async () => {
     const React = await import('react');
     const host = (name: string) => (props: any) => React.createElement(name, props, props.children);
@@ -24,7 +25,7 @@ vi.mock('react-native-unistyles', async () => {
     };
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null, Octicons: () => null }));
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('expo-router', () => ({ useRouter: () => router }));
 vi.mock('@/sync/storage', () => ({
     useSetting: () => settings.compact, useLocalSetting: () => false, useSession: () => null,
     useSessionAgentFormCommunication: (_sessionId: string, toolUseId: string) =>
@@ -67,9 +68,11 @@ vi.mock('./views/_all', async () => {
     const { isTerminalToolName } = await import('@/utils/toolDisplay');
     const { BashViewFull } = await import('./views/BashViewFull');
     const { CodexPatchViewFull } = await import('./views/CodexPatchView');
+    const { TodoView } = await import('./views/TodoView');
     return {
-        getToolViewComponent: (name: string) => ['apply_patch', 'CodexPatch', 'request_user_input', 'file'].includes(name)
-            ? () => React.createElement('SpecializedView', { name }) : null,
+        getToolViewComponent: (name: string) => name === 'TodoWrite' ? TodoView
+            : ['apply_patch', 'CodexPatch', 'request_user_input', 'file'].includes(name)
+                ? () => React.createElement('SpecializedView', { name }) : null,
         getToolFullViewComponent: (name: string) => isTerminalToolName(name) ? BashViewFull
             : name === 'apply_patch' ? CodexPatchViewFull : null,
     };
@@ -115,7 +118,13 @@ afterEach(() => {
     settings.platform = 'ios';
     settings.width = 390;
     settings.communication = null;
+    router.push.mockClear();
 });
+
+function detailsLinks(row: ReturnType<typeof create>) {
+    return row.root.findAll((node: any) => node.type === 'TouchableOpacity'
+        && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'profile.details').length > 0);
+}
 
 describe('tool rendering on mobile and web', () => {
     it.each([
@@ -358,5 +367,44 @@ describe('web tool rows (UI overhaul)', () => {
         expect(row.root.findAllByType(ToolLine)[0].props).toMatchObject({ variant: 'card', state: 'pending' });
         expect(row.root.findAllByType('CodeView')).toHaveLength(1);
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+    });
+
+    it('keeps todo, question and pending approval cards navigable to the detail screen', () => {
+        settings.platform = 'web';
+        settings.communication = {
+            id: 'text-form', toolUseId: 'text-call', kind: 'form', createdAt: 1, status: 'pending',
+            questions: [{
+                id: 'text', header: 'Details', question: 'What should change?', options: [],
+                multiSelect: false, allowCustom: true,
+            }],
+        };
+        const todos = { todos: [{ content: 'Reproduce the timeout', status: 'in_progress', id: '1' }] };
+        const cards = [
+            tool('TodoWrite', todos),
+            { ...tool('request_user_input', { prompt: 'What should change?' }), callId: 'text-call' },
+            { ...tool('unknown', { path: '/sensitive' }), state: 'running' as const, permission: { id: 'p1', status: 'pending' as const } },
+        ];
+        for (const card of cards) {
+            router.push.mockClear();
+            const row = render(React.createElement(ToolView, { tool: card, metadata: null, sessionId: 's1', messageId: 'm1' }));
+            // Todo lists and question forms render bare, without a tool line.
+            if (card.name !== 'unknown') {
+                expect(row.root.findAllByType(ToolLine)).toHaveLength(0);
+                expect(JSON.stringify(row.toJSON())).toMatch(card.name === 'TodoWrite' ? /Reproduce the timeout/ : /SpecializedView/);
+            }
+            const [link] = detailsLinks(row);
+            expect(link).toBeDefined();
+            act(() => link.props.onPress());
+            expect(router.push).toHaveBeenCalledWith('/session/s1/message/m1');
+        }
+    });
+
+    it('keeps an empty todo list visible as a tool line', () => {
+        settings.platform = 'web';
+        const row = render(React.createElement(ToolView, {
+            tool: tool('TodoWrite', { todos: [] }), metadata: null, sessionId: 's1', messageId: 'm1',
+        }));
+        expect(row.root.findAllByType(ToolLine)).toHaveLength(1);
+        expect(detailsLinks(row)).toHaveLength(1);
     });
 });
