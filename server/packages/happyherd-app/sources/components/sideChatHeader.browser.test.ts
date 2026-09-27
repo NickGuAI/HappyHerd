@@ -477,6 +477,9 @@ const virtualModules: Record<string, string> = {
             'uiCopy.enterProjectPath': 'Enter project path',
             'workspace.recent': 'Recent',
             'sideChat.panelTitle': 'Side chats',
+            'sideChat.newChatDescription': 'Open a parallel chat forked from this session',
+            'files.changesPanelDescription': 'Files this session changed',
+            'files.hidePanel': 'Hide panel',
             'sideChat.resizePanel': 'Resize side panel',
             'sideChat.openCount': 'Open side chats (' + (params?.count ?? '') + ')',
             'sideChat.collapse': 'Collapse side chats',
@@ -2012,7 +2015,9 @@ describe('Side chats browser interaction', () => {
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).waitFor({ timeout: 2_000 });
-        await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(false);
+        // The picker gives way to the panel; Changes stays reachable as an unselected tab (UI overhaul).
+        await expect(foreground.getByText('Files this session changed').count()).resolves.toBe(0);
+        await expect(foreground.getByRole('tab', { name: /Changes/ }).getAttribute('aria-selected')).resolves.toBe('false');
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
         const newestDraft = foreground.locator('textarea').last();
         await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });

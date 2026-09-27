@@ -909,6 +909,7 @@
   },
   "files": {
     "changes": "Changes",
+    "changesPanelDescription": "Files this session changed",
     "searchPlaceholder": "Search files...",
     "detachedHead": "detached HEAD",
     "summary": "{staged} staged • {unstaged} unstaged",
@@ -943,6 +944,7 @@
     },
     "addPanel": "Add panel",
     "closePanel": "Close panel",
+    "hidePanel": "Hide panel",
     "openFileTab": "Open file tab {name}",
     "closeFileTab": "Close file tab {name}",
     "openExistingFile": "Open existing file",
@@ -988,6 +990,7 @@
     "panelTitle": "Side chats",
     "resizePanel": "Drag to resize the side panel",
     "newChat": "New side chat",
+    "newChatDescription": "Open a parallel chat forked from this session",
     "emptyTitle": "No side chats yet",
     "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",
     "creating": "Creating…",

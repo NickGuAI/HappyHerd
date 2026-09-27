@@ -909,6 +909,7 @@
   },
   "files": {
     "changes": "Änderungen",
+    "changesPanelDescription": "In dieser Sitzung geänderte Dateien",
     "searchPlaceholder": "Dateien durchsuchen...",
     "detachedHead": "abgetrennter KOPF",
     "summary": "{staged} bereitgestellt • {unstaged} nicht bereitgestellt",
@@ -943,6 +944,7 @@
     },
     "addPanel": "Panel hinzufügen",
     "closePanel": "Panel schließen",
+    "hidePanel": "Panel ausblenden",
     "openFileTab": "Datei-Tab {name} öffnen",
     "closeFileTab": "Datei-Tab {name} schließen",
     "openExistingFile": "Vorhandene Datei öffnen",
@@ -988,6 +990,7 @@
     "panelTitle": "Side-Chats",
     "resizePanel": "Ziehen, um die Größe des Seitenpanels zu ändern",
     "newChat": "Neuer Side-Chat",
+    "newChatDescription": "Einen von dieser Sitzung abgezweigten parallelen Chat öffnen",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",
     "creating": "Wird erstellt…",

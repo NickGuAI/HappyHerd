@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "cb939ff969577a5f80fed5aa74ba5d9be169ddaf921b1cc342f7b3fc397bad3a",
+  "sourceFingerprint": "09b50f59c3ef71082729a034297d62bb7b2908c0618e6e924c6f3e3546b7713f",
   "routeCount": 43,
   "surfaceCount": 314,
   "hardcodedCopyCount": 0,
@@ -3721,11 +3721,16 @@
       "translationKeys": [
         "files.addPanel",
         "files.changes",
+        "files.changesPanelDescription",
         "files.closePanel",
+        "files.hidePanel",
         "files.noChangesSubtitle",
         "files.noChangesTitle",
+        "files.summary",
         "sideChat.newChat",
+        "sideChat.newChatDescription",
         "sideChat.panelTitle",
+        "workspace.browseMachine",
         "workspace.title"
       ],
       "states": [],

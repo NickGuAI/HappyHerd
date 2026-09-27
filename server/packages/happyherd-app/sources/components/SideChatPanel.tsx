@@ -14,7 +14,13 @@ import {
     type SessionWorkspaceController,
 } from '@/-session/SessionView';
 import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
+import { getSessionName } from '@/utils/sessionUtils';
 import { resolveActiveSideChatId } from './sideChatPresentation';
+import { herdWebClasses } from './herd/motion';
+import { HerdPanelIconButton } from './herd/panels/PanelIconButton';
+import { HerdPanelScreenHeader } from './herd/panels/PanelScreenHeader';
+import { HerdPanelTab } from './herd/panels/PanelTab';
+import { panelHairline } from './herd/panels/panelColors';
 
 export type SideChatPanelProps = {
     sideChats: Session[];
@@ -87,7 +93,11 @@ export const SideChatPanel = React.memo(function SideChatPanel({
     creatingSideChat,
     canCreateSideChat,
     onCreateSideChat,
-}: SideChatPanelProps) {
+    newChatInTabs = true,
+}: SideChatPanelProps & {
+    /** The phone full-screen host offers New side chat in its header instead. */
+    newChatInTabs?: boolean;
+}) {
     const { theme } = useUnistyles();
     const activeSession = React.useMemo(() => {
         const resolvedId = resolveActiveSideChatId(
@@ -102,20 +112,23 @@ export const SideChatPanel = React.memo(function SideChatPanel({
     const activeId = activeSession?.id ?? null;
 
     if (sideChats.length === 0) {
+        const disabled = creatingSideChat || !canCreateSideChat;
         return (
             <View style={styles.emptyState}>
-                <Octicons name="comment-discussion" size={28} color={theme.colors.textSecondary} />
+                <View style={styles.emptyHero}>
+                    <Octicons name="comment-discussion" size={22} color={theme.colors.kilv.accent} />
+                </View>
                 <Text style={styles.emptyTitle}>{t('sideChat.emptyTitle')}</Text>
                 <Text style={styles.emptyDescription}>{t('sideChat.emptyDescription')}</Text>
                 <Pressable
                     onPress={() => void onCreateSideChat()}
-                    disabled={creatingSideChat || !canCreateSideChat}
+                    disabled={disabled}
                     accessibilityRole="button"
                     accessibilityLabel={t('sideChat.newChat')}
                     style={({ pressed, hovered }: any) => [
                         styles.primaryButton,
-                        (pressed || hovered) && { opacity: 0.82 },
-                        (creatingSideChat || !canCreateSideChat) && styles.buttonDisabled,
+                        (pressed || hovered) && !disabled && styles.primaryButtonHovered,
+                        disabled && styles.buttonDisabled,
                     ]}
                 >
                     {creatingSideChat
@@ -139,7 +152,7 @@ export const SideChatPanel = React.memo(function SideChatPanel({
                 activeId={activeId}
                 onSelect={onSelectSideChat}
                 onClose={onCloseSideChat}
-                onNew={() => void onCreateSideChat()}
+                onNew={newChatInTabs ? () => void onCreateSideChat() : undefined}
                 creating={creatingSideChat}
                 canCreate={canCreateSideChat}
             />
@@ -159,37 +172,38 @@ export const SideChatFullscreen = React.memo(function SideChatFullscreen({
 }) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
+    // The parent session names the stack of side chats (mock `.m-title .s`).
+    const parent = useSession(panelProps.sideChats[0]?.metadata?.parentSessionId ?? '');
 
     return (
         <View
             style={[
                 styles.fullscreen,
                 {
-                    paddingTop: safeArea.top,
                     paddingBottom: safeArea.bottom,
                     backgroundColor: theme.colors.groupped.background,
                 },
             ]}
         >
-            <View style={styles.fullscreenHeader}>
-                <Octicons name="comment-discussion" size={16} color={theme.colors.textSecondary} />
-                <Text style={styles.fullscreenTitle} numberOfLines={1}>
-                    {t('sideChat.panelTitle')}
-                </Text>
-                <Pressable
-                    onPress={onCollapse}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('sideChat.collapse')}
-                    hitSlop={8}
-                    style={({ pressed, hovered }: any) => [
-                        styles.toolbarButton,
-                        (pressed || hovered) && { backgroundColor: theme.colors.surface },
-                    ]}
-                >
-                    <Octicons name="chevron-down" size={18} color={theme.colors.text} />
-                </Pressable>
-            </View>
-            <SideChatPanel {...panelProps} />
+            <HerdPanelScreenHeader
+                backIcon="chevron-down"
+                backLabel={t('sideChat.collapse')}
+                onBack={onCollapse}
+                title={t('sideChat.panelTitle')}
+                subtitle={parent ? getSessionName(parent) : null}
+                topInset={safeArea.top}
+                actions={panelProps.sideChats.length > 0 ? (
+                    <HerdPanelIconButton
+                        accessibilityLabel={t('sideChat.newChat')}
+                        size={40}
+                        busy={panelProps.creatingSideChat}
+                        disabled={!panelProps.canCreateSideChat}
+                        onPress={() => void panelProps.onCreateSideChat()}
+                        renderIcon={(color) => <Octicons name="plus" size={20} color={color} />}
+                    />
+                ) : null}
+            />
+            <SideChatPanel {...panelProps} newChatInTabs={false} />
         </View>
     );
 });
@@ -201,7 +215,10 @@ function sideChatLabel(session: Session, index: number): string {
     return t('sideChat.tabLabel', { index: index + 1 });
 }
 
-/** Horizontal tab strip for existing side chats. */
+/**
+ * Tab strip for existing side chats: one pill per child (mock `.rtab`), New
+ * side chat, and Open full screen for the focused child.
+ */
 const SideChatTabs = React.memo(function SideChatTabs({
     sessions,
     activeId,
@@ -215,113 +232,63 @@ const SideChatTabs = React.memo(function SideChatTabs({
     activeId: string | null;
     onSelect: (id: string) => void;
     onClose: (id: string) => void;
-    onNew: () => void;
+    onNew?: () => void;
     creating: boolean;
     canCreate: boolean;
 }) {
-    const { theme } = useUnistyles();
+    const workspaceController = React.useContext(SessionWorkspaceControllerContext);
+    const openFullScreen = React.useCallback(() => {
+        if (!activeId) return;
+        Modal.show({ component: SideChatModal, props: { sessionId: activeId, workspaceController } });
+    }, [activeId, workspaceController]);
+
     return (
         <View style={styles.tabsRow}>
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={styles.tabsScroller}
                 contentContainerStyle={styles.tabsScroll}
             >
                 {sessions.map((session, index) => (
-                    <SideChatTab
+                    <HerdPanelTab
                         key={session.id}
                         label={sideChatLabel(session, index)}
                         active={session.id === activeId}
-                        onSelect={() => onSelect(session.id)}
+                        onPress={() => onSelect(session.id)}
                         onClose={() => onClose(session.id)}
+                        closeLabel={t('sideChat.close')}
+                        maxWidth={170}
+                        entrance
+                        renderIcon={(color) => <Octicons name="comment-discussion" size={13} color={color} />}
                     />
                 ))}
-                <Pressable
-                    onPress={onNew}
-                    disabled={creating || !canCreate}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('sideChat.newChat')}
-                    hitSlop={6}
-                    style={[
-                        styles.newTabButton,
-                        (creating || !canCreate) && styles.buttonDisabled,
-                    ]}
-                >
-                    {creating
-                        ? <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                        : <Octicons name="plus" size={13} color={theme.colors.textSecondary} />}
-                    <Text style={styles.newTabText}>
-                        {creating ? t('sideChat.creating') : t('sideChat.newChat')}
-                    </Text>
-                </Pressable>
             </ScrollView>
+            {onNew ? (
+                <HerdPanelIconButton
+                    accessibilityLabel={t('sideChat.newChat')}
+                    busy={creating}
+                    disabled={!canCreate}
+                    onPress={onNew}
+                    renderIcon={(color) => <Octicons name="plus" size={15} color={color} />}
+                />
+            ) : null}
+            <View style={styles.tabsSpacer} />
+            {activeId ? (
+                <HerdPanelIconButton
+                    accessibilityLabel={t('sideChat.expand')}
+                    onPress={openFullScreen}
+                    renderIcon={(color) => <Octicons name="screen-full" size={14} color={color} />}
+                />
+            ) : null}
         </View>
     );
 });
 
-const SideChatTab = React.memo(function SideChatTab({
-    label,
-    active,
-    onSelect,
-    onClose,
-}: {
-    label: string;
-    active: boolean;
-    onSelect: () => void;
-    onClose: () => void;
-}) {
-    const { theme } = useUnistyles();
-    return (
-        <Pressable
-            onPress={onSelect}
-            style={[styles.tab, active && styles.tabActive]}
-        >
-            <Octicons
-                name="comment-discussion"
-                size={12}
-                color={active ? theme.colors.text : theme.colors.textSecondary}
-            />
-            <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
-                {label}
-            </Text>
-            <Pressable
-                onPress={(e) => {
-                    e.stopPropagation?.();
-                    onClose();
-                }}
-                accessibilityLabel={t('sideChat.close')}
-                hitSlop={6}
-                style={styles.tabClose}
-            >
-                <Octicons name="x" size={11} color={active ? theme.colors.text : theme.colors.textSecondary} />
-            </Pressable>
-        </Pressable>
-    );
-});
-
-/** Focused side chat inside the panel: the real chat body + an expand button. */
+/** Focused side chat inside the panel: the real chat body. */
 const SideChatConversation = React.memo(function SideChatConversation({ session, active }: { session: Session; active: boolean }) {
-    const { theme } = useUnistyles();
-    const workspaceController = React.useContext(SessionWorkspaceControllerContext);
-    const openFullScreen = React.useCallback(() => {
-        Modal.show({ component: SideChatModal, props: { sessionId: session.id, workspaceController } });
-    }, [session.id, workspaceController]);
-
     return (
         <View style={styles.conversationContainer}>
-            <View style={styles.toolbar}>
-                <Pressable
-                    onPress={openFullScreen}
-                    accessibilityLabel={t('sideChat.expand')}
-                    hitSlop={6}
-                    style={({ pressed, hovered }: any) => [
-                        styles.toolbarButton,
-                        (pressed || hovered) && { backgroundColor: theme.colors.surface },
-                    ]}
-                >
-                    <Octicons name="screen-full" size={13} color={theme.colors.textSecondary} />
-                </Pressable>
-            </View>
             <View style={styles.chatWrap}>
                 <SessionViewLoaded sessionId={session.id} session={session} active={active} embedded />
             </View>
@@ -378,21 +345,16 @@ const SideChatModal = React.memo(function SideChatModal({
     return (
         <View style={[styles.modalContainer, { width, height, backgroundColor: theme.colors.groupped.background }]}>
             <View style={styles.modalHeader}>
-                <Octicons name="comment-discussion" size={15} color={theme.colors.textSecondary} />
+                <Octicons name="comment-discussion" size={17} color={theme.colors.kilv.accent} />
                 <Text style={styles.modalTitle} numberOfLines={1}>
                     {sideChatLabel(session, index)}
                 </Text>
-                <Pressable
-                    onPress={onClose}
+                <HerdPanelIconButton
                     accessibilityLabel={t('sideChat.close')}
-                    hitSlop={8}
-                    style={({ pressed, hovered }: any) => [
-                        styles.toolbarButton,
-                        (pressed || hovered) && { backgroundColor: theme.colors.surface },
-                    ]}
-                >
-                    <Octicons name="x" size={18} color={theme.colors.text} />
-                </Pressable>
+                    onPress={() => onClose?.()}
+                    size={34}
+                    renderIcon={(color) => <Octicons name="x" size={17} color={color} />}
+                />
             </View>
             <View style={styles.chatWrap}>
                 <SessionWorkspaceControllerContext.Provider value={visibleWorkspaceController}>
@@ -440,117 +402,54 @@ const styles = StyleSheet.create((theme) => ({
     fullscreen: {
         flex: 1,
     },
-    fullscreenHeader: {
-        minHeight: 48,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.divider,
-    },
-    fullscreenTitle: {
-        flex: 1,
-        color: theme.colors.text,
-        fontSize: 16,
-        ...Typography.default('semiBold'),
-    },
     tabsRow: {
+        height: 46,
+        flexShrink: 0,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: 8,
-        paddingRight: 6,
-        paddingBottom: 6,
-        gap: 4,
+        gap: 6,
+        paddingLeft: 10,
+        paddingRight: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+    },
+    // Hugs its tabs until they overflow, then scrolls; + stays beside them.
+    tabsScroller: {
+        flexGrow: 0,
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    tabsSpacer: {
+        flex: 1,
     },
     tabsScroll: {
         alignItems: 'center',
         gap: 4,
         paddingRight: 4,
     },
-    newTabButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        paddingHorizontal: 8,
-        paddingVertical: 5,
-        borderRadius: 4,
-    },
-    newTabText: {
-        color: theme.colors.textSecondary,
-        fontSize: 12,
-        ...Typography.default('semiBold'),
-    },
-    tab: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        paddingLeft: 8,
-        paddingRight: 5,
-        paddingVertical: 5,
-        borderRadius: 4,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'transparent',
-        maxWidth: 140,
-    },
-    tabActive: {
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.divider,
-    },
-    tabText: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        flexShrink: 1,
-        ...Typography.default(),
-    },
-    tabTextActive: {
-        color: theme.colors.text,
-        ...Typography.default('semiBold'),
-    },
-    tabClose: {
-        width: 16,
-        height: 16,
-        borderRadius: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     conversationContainer: {
         flex: 1,
-    },
-    toolbar: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-    },
-    toolbarButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     chatWrap: {
         flex: 1,
     },
     modalContainer: {
-        borderRadius: Platform.select({ web: 6, default: 0 }),
+        borderRadius: Platform.select({ web: theme.kilv.radiusSheet, default: 0 }),
         overflow: 'hidden',
     },
     modalHeader: {
+        height: 58,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.divider,
+        gap: 12,
+        paddingLeft: 22,
+        paddingRight: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
     },
     modalTitle: {
         flex: 1,
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 17,
         color: theme.colors.text,
         ...Typography.default('semiBold'),
     },
@@ -559,7 +458,21 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        paddingHorizontal: 24,
+        paddingHorizontal: 26,
+        paddingVertical: 30,
+    },
+    emptyHero: {
+        width: 54,
+        height: 54,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        _web: {
+            boxShadow: theme.kilv.glowMoltenSoft,
+        },
     },
     emptyTitle: {
         color: theme.colors.text,
@@ -568,34 +481,45 @@ const styles = StyleSheet.create((theme) => ({
         ...Typography.default('semiBold'),
     },
     emptyDescription: {
-        color: theme.colors.textSecondary,
-        fontSize: 13,
-        lineHeight: 19,
+        color: theme.colors.kilv.inkFaint,
+        fontSize: 14,
+        lineHeight: 20,
         textAlign: 'center',
         ...Typography.default(),
     },
     unavailableText: {
-        color: theme.colors.textSecondary,
+        color: theme.colors.kilv.inkFaint,
         fontSize: 12,
         lineHeight: 17,
+        textAlign: 'center',
         ...Typography.default(),
     },
     primaryButton: {
-        minHeight: 36,
+        minHeight: 38,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 7,
-        paddingHorizontal: 14,
-        borderRadius: 4,
+        paddingHorizontal: 16,
+        marginTop: 4,
+        borderRadius: theme.kilv.radius,
         backgroundColor: theme.colors.button.primary.background,
+        _web: {
+            cursor: 'pointer',
+            _classNames: herdWebClasses('herd-transition', 'herd-press'),
+        },
+    },
+    primaryButtonHovered: {
+        _web: {
+            boxShadow: theme.kilv.glowMoltenSoft,
+        },
     },
     primaryButtonText: {
         color: theme.colors.button.primary.tint,
-        fontSize: 13,
+        fontSize: 14,
         ...Typography.default('semiBold'),
     },
     buttonDisabled: {
-        opacity: 0.45,
+        opacity: theme.kilv.disabledOpacity,
     },
 }));

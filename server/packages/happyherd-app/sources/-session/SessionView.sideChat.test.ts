@@ -938,6 +938,11 @@ function openParentWorkspaceFile(renderer: ReactTestRenderer, path: string, mach
     act(() => browser.props.onFilePress({ machineId, path }));
 }
 
+// New side chat is an icon action (UI overhaul), so it is found by its label.
+function hasNewSideChatAction(renderer: ReactTestRenderer): boolean {
+    return pressables(renderer).some((node: any) => node.props.accessibilityLabel === 'sideChat.newChat');
+}
+
 function expectExactParentTabs(renderer: ReactTestRenderer) {
     const labels = textValues(renderer);
     expect(labels).toEqual(expect.arrayContaining(['oldest', 'stopped', 'newest']));
@@ -1365,6 +1370,27 @@ describe('SessionView Web composer workspace access', () => {
 });
 
 describe('SessionView side-chat integration', () => {
+    it('lists Changes before Side chats as the right panel tabs and opens either from its tab', () => {
+        const renderer = renderParent();
+        pressByLabel(renderer, 'Open side chats (3)');
+        const panelTabs = () => pressables(renderer).filter((node: any) => (
+            node.props.accessibilityRole === 'tab'
+            && node.findAllByType('Text' as any).some((text: any) => (
+                text.props.children === 'Changes' || text.props.children === 'Side chats'
+            ))
+        ));
+        const tabLabel = (node: any) => node.findAllByType('Text' as any)
+            .map((text: any) => text.props.children)
+            .find((label: unknown) => label === 'Changes' || label === 'Side chats');
+        expect(panelTabs().map(tabLabel)).toEqual(['Changes', 'Side chats']);
+        expect(panelTabs().map((node: any) => node.props['aria-selected'])).toEqual([false, true]);
+
+        act(() => panelTabs()[0].props.onPress());
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('changes');
+        expect(desktopSideChatHosts(renderer)[0]?.props.openPanels).toEqual(['sideChat', 'changes']);
+        expect(panelTabs().map((node: any) => node.props['aria-selected'])).toEqual([true, false]);
+    });
+
     it('resizes the shared desktop side panel beyond 360px, clamps it, and keeps mobile full-screen', () => {
         const renderer = renderParent();
         expect(sessionSidebarDividers(renderer)).toHaveLength(1);
@@ -2398,7 +2424,7 @@ describe('SessionView side-chat integration', () => {
         expect(sidebar.props.activeSideChatId).toBe('newest');
         expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
         expectExactParentTabs(renderer);
-        expect(textValues(renderer)).toContain('sideChat.newChat');
+        expect(hasNewSideChatAction(renderer)).toBe(true);
         expect(renderedComposerSessions(renderer)).toEqual(['parent', 'newest']);
 
         pressTab(renderer, 'stopped');
@@ -2468,10 +2494,10 @@ describe('SessionView side-chat integration', () => {
         mocks.width = 700;
         const renderer = renderParent();
 
-        expect(textValues(renderer)).not.toContain('sideChat.newChat');
+        expect(hasNewSideChatAction(renderer)).toBe(false);
         pressByLabel(renderer, 'Open side chats (3)');
         expectExactParentTabs(renderer);
-        expect(textValues(renderer)).toContain('sideChat.newChat');
+        expect(hasNewSideChatAction(renderer)).toBe(true);
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
 
         pressTab(renderer, 'oldest');

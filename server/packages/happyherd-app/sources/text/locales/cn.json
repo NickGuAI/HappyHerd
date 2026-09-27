@@ -823,6 +823,7 @@
   },
   "files": {
     "changes": "更改",
+    "changesPanelDescription": "此会话更改的文件",
     "searchPlaceholder": "搜索文件...",
     "detachedHead": "游离 HEAD",
     "summary": "{staged} 已暂存 • {unstaged} 未暂存",
@@ -857,6 +858,7 @@
     },
     "addPanel": "添加面板",
     "closePanel": "关闭面板",
+    "hidePanel": "隐藏面板",
     "openFileTab": "打开文件标签页 {name}",
     "closeFileTab": "关闭文件标签页 {name}",
     "openExistingFile": "打开现有文件",
@@ -902,6 +904,7 @@
     "panelTitle": "侧聊",
     "resizePanel": "拖动以调整侧边栏大小",
     "newChat": "新建侧聊",
+    "newChatDescription": "打开从此会话分叉的并行聊天",
     "emptyTitle": "暂无侧聊",
     "emptyDescription": "点击“新建侧聊”打开空白侧聊，然后像往常一样在输入框中输入消息。",
     "creating": "正在创建…",

@@ -26,9 +26,13 @@ vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Octicons: (props: any) => ReactModule.createElement('Octicons', props) };
 });
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    // Real tokens for the overhaul styles, with the fixed colors this test grew up with.
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             text: '#111',
             textSecondary: '#666',
             divider: '#ddd',
@@ -50,7 +54,7 @@ vi.mock('react-native-unistyles', () => {
 vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 20, right: 0, bottom: 10, left: 0 }),
 }));
-vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/text', () => ({
     t: (key: string, params?: { index?: number; count?: number }) => {
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
