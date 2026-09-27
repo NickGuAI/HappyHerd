@@ -508,3 +508,4 @@ UI_OVERHAUL_STREAMLINE_START	accepted	feat(app): start sessions from Streamline	
 UI_OVERHAUL_SESSION_STREAM	accepted	feat(app): restyle the session stream with tool rows and permission cards	server/packages/happyherd-app/sources/components/herd/session/permissionShortcuts.test.ts
 UI_OVERHAUL_SESSION_COMPOSER	accepted	feat(app): add composer chips, a context meter and a single-line dock	server/packages/happyherd-app/sources/components/herd/session/composerChipModel.test.ts
 UI_OVERHAUL_SESSION_HEADER	accepted	feat(app): add Workspace, Side chats and session actions to the chat header	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_SESSION_BROWSER	accepted	test(app): cover the session screen overhaul on Web Desktop and Web Mobile	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
