@@ -10,7 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { storage, useSessionGitStatus, useSessionGitStatusFiles } from '@/sync/storage';
-import { getGitStatusFiles, GitFileStatus } from '@/sync/gitStatusFiles';
+import { GitFileStatus } from '@/sync/gitStatusFiles';
+import { gitStatusSync } from '@/sync/gitStatusSync';
 import { FileIcon } from '@/components/FileIcon';
 import { Typography } from '@/constants/Typography';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -222,18 +223,12 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
 
     const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
 
+    // Each git status refresh also stores this file list, so opening the
+    // sidebar asks for one refresh instead of running git on every update.
     React.useEffect(() => {
-        let cancelled = false;
-        const pathKey = storage.getState().getSessionPathKey(sessionId);
-        if (!pathKey) return;
-        (async () => {
-            const result = await getGitStatusFiles(sessionId);
-            if (!cancelled && result) {
-                storage.getState().applyGitStatusFiles(pathKey, result);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [sessionId, gitStatus?.lastUpdatedAt]);
+        if (!storage.getState().getSessionPathKey(sessionId)) return;
+        gitStatusSync.getSync(sessionId).invalidate();
+    }, [sessionId]);
 
     const handleFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;

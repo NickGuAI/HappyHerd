@@ -75,7 +75,7 @@ export async function getGitStatusFiles(sessionId: string): Promise<GitStatusFil
 /**
  * Parse git status v2 and diff outputs into structured file data
  */
-function parseGitStatusFilesV2(
+export function parseGitStatusFilesV2(
     statusOutput: string,
     combinedDiffOutput: string
 ): GitStatusFiles {

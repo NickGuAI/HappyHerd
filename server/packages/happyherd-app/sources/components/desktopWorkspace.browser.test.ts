@@ -514,7 +514,17 @@ const virtualModules: Record<string, string> = {
         export const matchesShortcutChord = () => false;
         export const SIDEBAR_PICKER_SHORTCUTS = { changes: [], allFiles: [], newSideChat: [] };
     `,
-    '@/sync/gitStatusFiles': `export const getGitStatusFiles = async () => ({ stagedFiles: [], unstagedFiles: [] });`,
+    '@/sync/gitStatusFiles': `
+        export const getGitStatusFiles = async () => {
+            window.__GIT_STATUS_FILE_FETCHES__ = (window.__GIT_STATUS_FILE_FETCHES__ ?? 0) + 1;
+            return { stagedFiles: [], unstagedFiles: [] };
+        };
+    `,
+    '@/sync/gitStatusSync': `
+        export const gitStatusSync = { getSync: (sessionId) => ({ invalidate() {
+            window.__GIT_STATUS_REFRESH_CALLS__ = [...(window.__GIT_STATUS_REFRESH_CALLS__ ?? []), sessionId];
+        } }) };
+    `,
     '@/sync/projectFiles': `export const getProjectFiles = async () => ({ files: [{ fullPath: '/workspace/sidebar.md' }] });`,
     '@/components/WorkspaceLinkViewer': `export const WorkspaceLinkViewer = () => null;`,
     '@/components/WorkspaceLinkViewerModel': `export const workspaceLinkViewerKey = () => 'fixture';`,
@@ -2438,6 +2448,9 @@ describe('Desktop workspace browser interaction', () => {
 
         await sidebar.getByText('Changes', { exact: true }).click();
         await expect(sidebar.getByText('No changes', { exact: true }).isVisible()).resolves.toBe(true);
+        // The sidebar reuses the shared git status refresh instead of running git itself.
+        await expect(page.evaluate(() => (window as any).__GIT_STATUS_REFRESH_CALLS__ ?? [])).resolves.toContain('ordinary-session');
+        await expect(page.evaluate(() => (window as any).__GIT_STATUS_FILE_FETCHES__ ?? 0)).resolves.toBe(0);
 
         await page.reload();
         await expect(sidebar.getByText('Chat Workspace', { exact: true }).count()).resolves.toBe(0);
