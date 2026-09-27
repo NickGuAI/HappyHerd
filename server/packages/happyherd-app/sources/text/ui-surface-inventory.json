@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "6210d0f90f7f8519412ef8b792fad9a29abdf33acdb78319f97897291df1319f",
+  "sourceFingerprint": "94a64fc83e123974b96b8cb751153d2b37bd0fb8080047349d13bfafb60501f6",
   "routeCount": 43,
   "surfaceCount": 309,
   "hardcodedCopyCount": 0,
@@ -4002,8 +4002,7 @@
         "HerdMenuTitle",
         "HerdPopover",
         "measureHerdAnchor",
-        "resolveHerdPopoverPosition",
-        "useHerdEscapeToClose"
+        "resolveHerdPopoverPosition"
       ],
       "translationKeys": [],
       "states": [],

@@ -1,12 +1,16 @@
 import * as React from 'react';
-import { Modal as RNModal, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Modal as RNModal, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from './motion';
+import { useHerdEscapeToClose } from './escape';
 import { HerdBottomSheet, useInHerdSheet } from './mobile/HerdBottomSheet';
 import { isHerdPhoneWeb } from './mobile/useHerdPhone';
+
+// Existing callers import the Escape hook from here.
+export { useHerdEscapeToClose };
 
 /** A trigger's rectangle in window coordinates. */
 export type HerdAnchorRect = { x: number; y: number; width: number; height: number };
@@ -62,26 +66,6 @@ export function resolveHerdPopoverPosition(input: {
     };
 }
 
-/**
- * Web: Escape closes the popover and is consumed. The app's global
- * navigation treats an unhandled Escape as Back (and exits Zen), and it
- * runs on keydown, before React Native Web's Modal sees the keyup.
- */
-export function useHerdEscapeToClose(visible: boolean, onClose: () => void): void {
-    const onCloseRef = React.useRef(onClose);
-    onCloseRef.current = onClose;
-    React.useEffect(() => {
-        if (!visible || Platform.OS !== 'web' || typeof window === 'undefined') return;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || event.defaultPrevented) return;
-            event.preventDefault();
-            event.stopPropagation();
-            onCloseRef.current();
-        };
-        window.addEventListener('keydown', handleKeyDown, true);
-        return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [visible]);
-}
 
 /**
  * Anchored dropdown used by the top bar menus. It scales in from its trigger,

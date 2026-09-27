@@ -50,7 +50,7 @@ import {
     resolveMobileComposerMenuGeometry,
 } from './agentInputLayout';
 import { shouldUseExpoNativeSettingsMenu } from './glassInteractionPolicy';
-import { useHerdEscapeToClose } from './herd/HerdPopover';
+import { useHerdEscapeToClose } from './herd/escape';
 import { herdWebClasses } from './herd/motion';
 import { herdAlpha } from './herd/session/color';
 import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
