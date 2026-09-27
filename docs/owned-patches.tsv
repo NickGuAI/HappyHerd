@@ -581,3 +581,4 @@ UI_OVERHAUL_PHONE_PICKER_ANCHOR	accepted	fix(app): open native Streamline picker
 UI_OVERHAUL_MAC_NATIVE_DECISIONS	accepted	fix(app): keep the Mac app's Back and Advanced form in small windows	server/packages/happyherd-app/sources/-session/SessionView.sideChat.test.ts
 UI_OVERHAUL_PHONE_SHEET_KEYBOARD	accepted	fix(app): keep a searched phone sheet above the keyboard	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
 UI_OVERHAUL_SERVER_CONFIG_ALL_LAYOUTS	accepted	fix(app): keep server configuration on the Settings title row at every width	server/packages/happyherd-app/sources/app/(app)/settings/index.test.ts
+UI_OVERHAUL_DESKTOP_CONNECTION_LINE	accepted	fix(app): show the unhealthy-connection line in the desktop panel	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts

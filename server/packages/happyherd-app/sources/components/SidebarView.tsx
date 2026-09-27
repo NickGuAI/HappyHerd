@@ -205,8 +205,11 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                 </View>
             </View>
 
-            {/* The phone session list carries the connection line its home header used to. */}
-            {docked && <HerdConnectionStatus />}
+            {/*
+              * The connection line: the phone session list, which inherited it from the phone
+              * home header, and the desktop panel. The phone drawer, over another page, has none.
+              */}
+            {(docked || !phone) && <HerdConnectionStatus />}
 
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="sidebar" />

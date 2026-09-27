@@ -85,7 +85,7 @@ const virtualModules: Record<string, string> = {
     'react-native-reanimated': `
         import { View } from 'react-native';
         export const useReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        // The status dot's pulse (the phone list's connection line; the desktop never shows it).
+        // The status dot's pulse, in the connection line on the desktop panel.
         export default { View };
         export const useSharedValue = (value) => ({ value });
         export const useAnimatedStyle = (factory) => factory();
@@ -129,7 +129,8 @@ const virtualModules: Record<string, string> = {
         export const useFeedItems = () => feed;
         export const useFriendRequests = () => requests;
         export const useRealtimeStatus = () => 'disconnected';
-        export const useSocketStatus = () => ({ status: 'connected' });
+        const socket = { status: new URLSearchParams(window.location.search).get('socket') ?? 'connected' };
+        export const useSocketStatus = () => socket;
         export const useSessionGitStatus = () => null;
         export const storage = { getState: () => ({ localSettings: settings, applyLocalSettings(delta) { Object.assign(settings, delta); emit(); } }) };
         window.__SETTINGS__ = settings;
@@ -205,6 +206,7 @@ const virtualModules: Record<string, string> = {
             'inbox.emptyTitle': 'Empty Inbox', 'friends.pendingRequests': 'Pending Requests', 'settings.machines': 'Machines',
             'sessionInfo.viewMachine': 'View Machine', 'status.online': 'online', 'status.offline': 'offline',
             'status.permissionRequired': 'permission required', 'status.inputRequired': 'waiting for your answer',
+            'status.disconnected': 'disconnected', 'status.connecting': 'connecting', 'status.error': 'error',
             'sessionInfo.quickActions': 'Quick Actions', 'workspace.title': 'Workspace', 'sidebar.projects': 'Projects',
             'happyHerd.automations.title': 'Automations', 'sidebar.newSession': 'New session', 'settings.title': 'Settings',
             'sidebar.showArchived': 'Show archived', 'sidebar.hideArchived': 'Hide archived', 'superSession.pinned': 'Assistant',
@@ -349,14 +351,14 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean } = {}) {
+    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean; socket?: string } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(4_000);
         await page.emulateMedia({ reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference' });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
         page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}`);
+        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}${options.socket ? `&socket=${options.socket}` : ''}`);
         await page.getByTestId('herd-top-bar').waitFor();
         await page.evaluate(() => document.fonts.ready);
         return { page, errors };
@@ -384,6 +386,23 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 15_000);
+
+    it('shows an unhealthy connection in the desktop panel, and nothing while connected', async () => {
+        for (const socket of ['disconnected', 'connecting', 'error']) {
+            const { page, errors } = await openShell({ socket });
+            const status = page.getByTestId('herd-sidebar').getByTestId('herd-connection-status');
+            await status.waitFor();
+            await expect(status.innerText()).resolves.toBe(socket);
+            await expect(status.getAttribute('aria-live')).resolves.toBe('polite');
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+        const { page, errors } = await openShell();
+        await page.getByTestId('herd-sidebar').waitFor();
+        await expect(page.getByTestId('herd-connection-status').count()).resolves.toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
 
     it('shows a status line for sessions waiting on the user and reveals ⋯ on hover', async () => {
         const { page, errors } = await openShell();
