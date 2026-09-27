@@ -58,7 +58,8 @@ vi.mock('@/utils/sessionUtils', () => ({ getSessionName: (session: any) => sessi
 import { HerdMenuItem, HerdMenuSeparator, HerdMenuTitle, HerdPopover } from '../HerdPopover';
 import { SessionActionsPopover } from '../../SessionActionsPopover';
 import { HERD_SHEET_DISMISS_DISTANCE, HERD_SHEET_DISMISS_VELOCITY, HerdBottomSheet, shouldDismissHerdSheet } from './HerdBottomSheet';
-import { HERD_PHONE_SHEET_MAX_WIDTH, isHerdPhoneWeb } from './useHerdPhone';
+import { HERD_PHONE_SHEET_MAX_WIDTH, isHerdPhoneLayout, isHerdPhoneWeb } from './useHerdPhone';
+import { calculateDeviceDimensions, determineDeviceType } from '@/utils/deviceCalculations';
 
 beforeAll(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -99,6 +100,20 @@ describe('phone sheet dismissal', () => {
         expect(isHerdPhoneWeb(HERD_PHONE_SHEET_MAX_WIDTH - 1)).toBe(true);
         expect(isHerdPhoneWeb(HERD_PHONE_SHEET_MAX_WIDTH)).toBe(false);
         expect(isHerdPhoneWeb(1440)).toBe(false);
+    });
+
+    it('lays the web out by width, though the device rule calls a 1024 × 768 window a phone, and keeps the device rule in the apps', () => {
+        const deviceRule = (width: number, height: number) => determineDeviceType({
+            diagonalInches: calculateDeviceDimensions({ widthPoints: width, heightPoints: height, pointsPerInch: 160 }).diagonalInches,
+            platform: 'web',
+        });
+        expect(deviceRule(1024, 768)).toBe('phone');
+        expect(isHerdPhoneLayout({ platform: 'web', width: 1024, isTablet: false })).toBe(false);
+        expect(isHerdPhoneLayout({ platform: 'web', width: HERD_PHONE_SHEET_MAX_WIDTH, isTablet: false })).toBe(false);
+        expect(isHerdPhoneLayout({ platform: 'web', width: HERD_PHONE_SHEET_MAX_WIDTH - 1, isTablet: true })).toBe(true);
+        // A phone stays a phone in landscape; a tablet stays a tablet at any width.
+        expect(isHerdPhoneLayout({ platform: 'ios', width: 844, isTablet: false })).toBe(true);
+        expect(isHerdPhoneLayout({ platform: 'android', width: 600, isTablet: true })).toBe(false);
     });
 });
 

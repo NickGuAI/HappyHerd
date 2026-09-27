@@ -51,6 +51,7 @@ import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
 import { HERD_PHONE_SHEET_LEFTOVER, resolveHerdSheetWidth } from '@/components/herd/panels/PanelOverlay';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import {
     closeDesktopFile,
     deletedDesktopFilePaths,
@@ -189,6 +190,8 @@ export const SessionView = React.memo((props: {
     const contentRunsUnderHeader = false;
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
+    // The phone layout (UI overhaul): by width on the web, by device in the apps.
+    const phoneLayout = useHerdPhoneLayout();
     const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
@@ -232,7 +235,7 @@ export const SessionView = React.memo((props: {
     // over the chat instead of docking beside it (UI overhaul).
     const rightPanelOverlay = sidebarPresentation.rightPanelPresentation === 'overlay';
     // A phone's sheet leaves a narrow strip of the chat, the mock's 16 px.
-    const sheetLeftover = deviceType === 'phone' ? HERD_PHONE_SHEET_LEFTOVER : undefined;
+    const sheetLeftover = phoneLayout ? HERD_PHONE_SHEET_LEFTOVER : undefined;
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
     const fixedSidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
@@ -1067,7 +1070,7 @@ export const SessionView = React.memo((props: {
                 expanded={sidebarPresentation.sideChatSurface === 'sidebar'
                     ? sideChatSidebarShown
                     : sideChatFullscreenOpen}
-                compact={deviceType === 'phone' || windowWidth < 720}
+                compact={phoneLayout || windowWidth < 720}
                 onPress={toggleSideChats}
             />
         )
@@ -1092,7 +1095,7 @@ export const SessionView = React.memo((props: {
         }
         openWorkspaceForSession(session);
     }, [headerWorkspaceShown, openWorkspaceForSession, session]);
-    const webHeaderActions = session && (Platform.OS === 'web' || deviceType === 'phone')
+    const webHeaderActions = session && (Platform.OS === 'web' || phoneLayout)
         ? (
             <SessionHeaderActions
                 sessionId={sessionId}
@@ -1104,7 +1107,7 @@ export const SessionView = React.memo((props: {
                     expanded: sidebarPresentation.sideChatSurface === 'sidebar'
                         ? sideChatSidebarShown
                         : sideChatFullscreenOpen,
-                    compact: deviceType === 'phone' || windowWidth < 720,
+                    compact: phoneLayout || windowWidth < 720,
                     onToggle: toggleSideChats,
                 }}
             />
@@ -1113,7 +1116,7 @@ export const SessionView = React.memo((props: {
     const headerRight = webHeaderActions ?? sideChatAccessButton;
     const mobileSideChatWorkspaceOpen = sideChatOwnsFileWorkspace
         && (desktopFileWorkspaceActive || diffViewOpen || !!fileViewPath);
-    const voiceStatusBarHeight = !isTablet && realtimeStatus !== 'disconnected'
+    const voiceStatusBarHeight = phoneLayout && realtimeStatus !== 'disconnected'
         ? VOICE_PILL_TOTAL_HEIGHT
         : 0;
 
@@ -1121,7 +1124,7 @@ export const SessionView = React.memo((props: {
         <>
             <MobileGlassBackdrop enabled={deviceType === 'phone' && Platform.OS !== 'web'} />
             {/* Status bar shadow for landscape mode */}
-            {isLandscape && deviceType === 'phone' && (
+            {isLandscape && phoneLayout && (
                 <View style={{
                     position: 'absolute',
                     top: 0,
@@ -1224,7 +1227,7 @@ export const SessionView = React.memo((props: {
                         } : Platform.OS !== 'web' && isTablet ? () => router.back() : undefined}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
-                    {!isTablet && realtimeStatus !== 'disconnected' && (
+                    {phoneLayout && realtimeStatus !== 'disconnected' && (
                         <VoiceAssistantStatusBar variant="full" />
                     )}
                 </View>
@@ -1594,6 +1597,7 @@ export function SessionViewLoaded({
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
@@ -1676,10 +1680,10 @@ export function SessionViewLoaded({
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const zenMode = useLocalSetting('zenMode');
     // Phones (UI overhaul) put the dock and composer on the 16 px page gutter.
-    const sessionInputHorizontalPadding = deviceType === 'phone'
+    const sessionInputHorizontalPadding = phoneLayout
         ? 16
         : Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
-    const chatListTopContentInset = embedded || (isLandscape && deviceType === 'phone')
+    const chatListTopContentInset = embedded || (isLandscape && phoneLayout)
         ? 12
         : undefined;
 
@@ -2384,7 +2388,7 @@ export function SessionViewLoaded({
     return (
         <>
             {/* CLI Version Warning Overlay - Subtle centered pill */}
-            {shouldShowCliWarning && !(isLandscape && deviceType === 'phone') && (
+            {shouldShowCliWarning && !(isLandscape && phoneLayout) && (
                 <Pressable
                     onPress={handleDismissCliWarning}
                     style={{
@@ -2441,7 +2445,7 @@ export function SessionViewLoaded({
 
             {/* Back button for landscape phone mode when header is hidden */}
             {
-                isLandscape && deviceType === 'phone' && (
+                isLandscape && phoneLayout && (
                     <Pressable
                         onPress={() => isWebMobileSessionViewport
                             ? router.dismissTo('/')

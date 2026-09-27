@@ -9,10 +9,9 @@ import {
     Platform
 } from 'react-native';
 import { AnimatedBlurBackdrop } from '@/components/AnimatedOverlay';
-import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { HerdPhoneDialogContext } from '@/components/herd/mobile/phoneDialog';
 import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
-import { useIsTablet } from '@/utils/responsive';
 
 // On web, stop events from propagating to expo-router's modal overlay
 // which intercepts clicks when it applies pointer-events: none to body
@@ -46,9 +45,9 @@ export function BaseModal({
     placement = 'center',
 }: BaseModalProps) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const windowInsets = useWindowSafeAreaInsets();
-    const phoneDialog = placement === 'dialog' && !isTablet;
+    const phoneDialog = placement === 'dialog' && phoneLayout;
 
     useEffect(() => {
         if (visible) {

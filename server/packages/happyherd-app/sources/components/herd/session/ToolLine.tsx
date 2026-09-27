@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
@@ -102,7 +102,7 @@ export function ToolLine(props: {
     testID?: string;
 }) {
     const { theme } = useUnistyles();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const [hovered, setHovered] = React.useState(false);
     const card = props.variant === 'card';
     const finishedMs = props.completedAt && props.completedAt >= props.startedAt

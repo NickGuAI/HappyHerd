@@ -92,7 +92,12 @@ const virtualModules: Record<string, string> = {
     `,
     'react-native-gesture-handler': `import React from 'react'; export const Swipeable = React.forwardRef(({ children }, _ref) => children);`,
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
-    '@/utils/responsive': `export const useIsTablet = () => true; export const useHeaderHeight = () => 56; export const useDeviceType = () => 'tablet';`,
+    // The production device rule, so the shell's own width rule is what keeps it on desktop.
+    '@/utils/responsive': `
+        export * from '${resolve(sourcesRoot, 'utils/responsive.ts')}';
+        export const useHeaderHeight = () => 56;
+    `,
+    '@/utils/platform': `export const isRunningOnMac = () => false;`,
     '@/utils/isTauri': `export const isTauri = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/sync/storage': `
@@ -342,8 +347,8 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; reducedMotion?: boolean } = {}) {
-        const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: 900 } });
+    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean } = {}) {
+        const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(4_000);
         await page.emulateMedia({ reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference' });
         const errors: string[] = [];
@@ -553,6 +558,21 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await page.evaluate(() => (window as any).__SET_DRAFT_MACHINE__('removed-daemon'));
         await expect.poll(() => pill.innerText()).toContain('removed-daemon');
         await expect(pill.innerText()).resolves.toContain('offline');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it.each([
+        { width: 1024, height: 768 },
+        { width: 768, height: 1024 },
+        { width: 700, height: 900 },
+    ])('keeps the desktop shell in a $width × $height browser window, which the device rule calls a phone', async ({ width, height }) => {
+        // Diagonals under 9 inches: useIsTablet() is false, but the web lays out by width (UI overhaul).
+        const { page, errors } = await openShell({ width, height });
+        await expect(page.getByTestId('herd-zen-toggle').count()).resolves.toBe(1);
+        await expect(page.getByTestId('navigation-sidebar-edge-toggle').count()).resolves.toBe(1);
+        await expect(page.getByTestId('herd-phone-drawer-layer').count()).resolves.toBe(0);
+        await expect(page.evaluate(() => document.documentElement.scrollWidth)).resolves.toBeLessThanOrEqual(width);
         expect(errors).toEqual([]);
         await page.close();
     }, 15_000);

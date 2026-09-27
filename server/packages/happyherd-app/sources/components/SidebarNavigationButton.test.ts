@@ -6,7 +6,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
-    return { Pressable: host('Pressable'), Text: host('Text'), View: host('View') };
+    return {
+        Platform: { OS: 'web' },
+        Pressable: host('Pressable'),
+        Text: host('Text'),
+        View: host('View'),
+        useWindowDimensions: () => ({ width: 1440, height: 900 }),
+    };
 });
 
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));

@@ -7,7 +7,7 @@ import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { t } from '@/text';
 import { resolvePhoneSafeTextEntryFontSize } from '@/utils/mobileTypographyFloor';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 interface WebPromptModalProps {
     config: PromptModalConfig;
@@ -18,7 +18,7 @@ interface WebPromptModalProps {
 export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalProps) {
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the dialog rests on the bottom edge at the window's width less 8 px a side.
-    const phoneDialog = !useIsTablet();
+    const phoneDialog = useHerdPhoneLayout();
     const [inputValue, setInputValue] = useState(config.defaultValue || '');
     const [focused, setFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);

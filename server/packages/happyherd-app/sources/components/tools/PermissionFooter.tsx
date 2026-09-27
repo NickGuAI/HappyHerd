@@ -16,7 +16,7 @@ import {
 import { sessionAllow, sessionDeny, sessionSetAgentModes } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { Octicons } from '@expo/vector-icons';
 import { usePermissionShortcuts } from '@/components/herd/session/permissionShortcuts';
@@ -138,7 +138,8 @@ interface PermissionFooterProps {
 
 export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, sessionId, toolName, toolInput, metadata }) => {
     const { theme } = useUnistyles();
-    const isTablet = useIsTablet();
+    // The phone layout (UI overhaul) stretches the choices; wider layouts right-align them.
+    const phoneLayout = useHerdPhoneLayout();
     const { height: windowHeight } = useWindowDimensions();
     const [loadingButton, setLoadingButton] = useState<'allow' | 'deny' | 'abort' | null>(null);
     const [loadingAllEdits, setLoadingAllEdits] = useState(false);
@@ -321,12 +322,12 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         buttonContainer: {
             flexDirection: 'column',
             gap: 7,
-            alignItems: isTablet ? 'flex-end' : 'stretch',
+            alignItems: phoneLayout ? 'stretch' : 'flex-end',
         },
         providerHeader: {
             flexDirection: 'row',
             alignItems: 'center',
-            alignSelf: isTablet ? 'flex-end' : 'flex-start',
+            alignSelf: phoneLayout ? 'flex-start' : 'flex-end',
             gap: 6,
             paddingHorizontal: 4,
             paddingBottom: 7,

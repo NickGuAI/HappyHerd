@@ -4,7 +4,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 /**
  * Session header control (UI overhaul): hairline-bordered button with an
@@ -22,7 +22,7 @@ export const HerdHeaderButton = React.forwardRef<View, {
     testID?: string;
 }>(function HerdHeaderButton(props, ref) {
     const { theme } = useUnistyles();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const [hovered, setHovered] = React.useState(false);
     const iconOnly = !props.label;
     const color = props.active

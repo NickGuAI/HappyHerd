@@ -21,7 +21,7 @@ import { SessionStatusAvatar } from './SessionStatusAvatar';
 import { herdStaggerClass, herdWebClasses } from './herd/motion';
 import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet, useHerdRowLongPress } from './herd/shell/HerdSessionRowParts';
 import { resolveHerdRowAgentLabel, resolveHerdRowAttention } from './herd/shell/sessionRowPresentation';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 // Roughly three quarters of the row, the proportion a chat list uses: the row
 // is 10 + 61 + 10, so 60 leaves an even 10 either side of the avatar.
@@ -64,7 +64,7 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
     const { session, projectName, workspaceName } = row;
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const sessionPressHandlers = useSessionPressHandlers(session.id);
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';

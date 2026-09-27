@@ -14,7 +14,7 @@ import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
 import { MainView } from "@/components/MainView";
 import { PhoneHome } from "@/components/herd/mobile/PhoneHome";
-import { useIsTablet } from "@/utils/responsive";
+import { useHerdPhoneLayout } from "@/components/herd/mobile/useHerdPhone";
 import { t } from '@/text';
 import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
 
@@ -33,8 +33,7 @@ export default function Home() {
 
 function Authenticated() {
     // Tablets list sessions in the left panel; phones show that panel as the page (UI overhaul).
-    const isTablet = useIsTablet();
-    return isTablet ? <MainView variant="phone" /> : <PhoneHome />;
+    return useHerdPhoneLayout() ? <PhoneHome /> : <MainView variant="phone" />;
 }
 
 function NotAuthenticated() {

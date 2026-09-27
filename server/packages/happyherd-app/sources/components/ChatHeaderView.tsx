@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/constants/Typography';
 import { isRunningOnMac } from '@/utils/platform';
-import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
+import { useHeaderHeight } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -54,10 +55,9 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const { theme } = useUnistyles();
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
-    const isTablet = useIsTablet();
     // Phones (UI overhaul) use the full-width bar under the HappyHerd top bar
     // on Web and native alike; the native branch below now serves tablets.
-    const phone = !isTablet;
+    const phone = useHerdPhoneLayout();
     const barLayout = Platform.OS === 'web' || phone;
     // Phones show Back while there is somewhere to step back to; native tablets,
     // the iOS app on a Mac included, keep their own Back (owner decision,

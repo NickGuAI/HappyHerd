@@ -10,7 +10,7 @@ import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { MobileGlassBackdrop } from '@/components/MobileGlass';
 import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 export const unstable_settings = {
     initialRouteName: 'index',
@@ -24,7 +24,7 @@ export default function RootLayout() {
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the drawer and top bar lead away from their own
     // destinations, so those keep no Back, including UIKit's on iPhone.
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
 
     return (
         <View

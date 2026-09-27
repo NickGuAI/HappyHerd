@@ -9,10 +9,9 @@ import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
 import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
-import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
 import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
-import { useIsTablet } from '@/utils/responsive';
 import { useHerdWideLayout } from './HerdPage';
 
 /**
@@ -67,8 +66,8 @@ export function HerdSheet({
     const windowInsets = useWindowSafeAreaInsets();
     const { height: windowHeight } = useWindowDimensions();
     const wideLayout = useHerdWideLayout();
-    const isTablet = useIsTablet();
-    const phone = !wideLayout && !isTablet;
+    const phoneLayout = useHerdPhoneLayout();
+    const phone = !wideLayout && phoneLayout;
     const card = wideLayout || phone;
     useSheetEscapeKeydown(visible);
     // On the web the sheet plays its exit before it unmounts; native fades.

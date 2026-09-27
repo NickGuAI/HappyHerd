@@ -15,7 +15,7 @@ import { sync } from '@/sync/sync';
 import { useSession, useSetting } from '@/sync/storage';
 import { Option } from './markdown/MarkdownView';
 import { layout } from "./layout";
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { parseVisibleUserMessage } from './parseLocalCommandMessage';
 import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
@@ -410,7 +410,7 @@ function ToolCallBlock(props: {
   getMessageById?: (id: string) => Message | null;
 }) {
   // Phones put tool cards on the chat's 16 px gutter, level with the replies (UI overhaul).
-  const phone = !useIsTablet();
+  const phone = useHerdPhoneLayout();
   if (!props.message.tool) {
     return null;
   }

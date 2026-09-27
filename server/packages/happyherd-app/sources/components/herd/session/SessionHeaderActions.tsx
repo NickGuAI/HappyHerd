@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { SessionActionsPopover, type SessionActionsAnchor } from '@/components/SessionActionsPopover';
 import { t } from '@/text';
 import { HerdHeaderButton } from './HeaderButton';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 /**
  * Right side of the session header (UI overhaul; Web, and native phones): the Workspace toggle,
@@ -41,7 +41,7 @@ export function SessionHeaderActions(props: {
 
     const sideChats = props.sideChats;
     // Phones: 44 px targets, so the buttons themselves stay about as far apart as on desktop.
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     return (
         <View style={[styles.row, phone && styles.rowPhone]} testID="session-header-actions">
             {props.workspace ? (

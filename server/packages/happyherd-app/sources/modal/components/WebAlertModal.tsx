@@ -6,7 +6,7 @@ import { Typography } from '@/constants/Typography';
 import { StyleSheet } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { t } from '@/text';
 
 interface WebAlertModalProps {
@@ -18,7 +18,7 @@ interface WebAlertModalProps {
 export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps) {
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the dialog rests on the bottom edge at the window's width less 8 px a side.
-    const phoneDialog = !useIsTablet();
+    const phoneDialog = useHerdPhoneLayout();
     const isConfirm = config.type === 'confirm';
     
     const handleButtonPress = (buttonIndex: number) => {

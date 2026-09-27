@@ -2,7 +2,6 @@ import { useAuth } from '@/auth/AuthContext';
 import * as React from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { usePathname } from 'expo-router';
-import { useIsTablet } from '@/utils/responsive';
 import { SidebarView } from './SidebarView';
 import { useWindowDimensions, View } from 'react-native';
 import { useLocalSetting } from '@/sync/storage';
@@ -12,6 +11,7 @@ import { HerdTopBar } from './herd/shell/HerdTopBar';
 import { HerdPhoneTopBar } from './herd/shell/HerdPhoneTopBar';
 import { HerdPhoneDrawer } from './herd/shell/HerdPhoneDrawer';
 import { useHerdPhoneShell } from './herd/shell/phoneShell';
+import { useHerdPhoneLayout } from './herd/mobile/useHerdPhone';
 import { HerdSidebarEdgeToggle } from './herd/shell/HerdSidebarEdgeToggle';
 import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import {
@@ -26,13 +26,14 @@ import {
 
 export const SidebarNavigator = React.memo(() => {
     const auth = useAuth();
-    const isTablet = useIsTablet();
+    // Phones (UI overhaul) get the same top bar, with the panel as a drawer
+    // over the screen instead of the permanent drawer beside it. On the web a
+    // window 700 px or wider keeps the desktop shell.
+    const phoneLayout = useHerdPhoneLayout();
     const zenMode = useLocalSetting('zenMode');
     const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
-    const isDesktopLayout = auth.isAuthenticated && isTablet;
-    // Phones (UI overhaul) get the same top bar, with the panel as a drawer
-    // over the screen instead of the permanent drawer beside it.
-    const isPhoneLayout = auth.isAuthenticated && !isTablet;
+    const isDesktopLayout = auth.isAuthenticated && !phoneLayout;
+    const isPhoneLayout = auth.isAuthenticated && phoneLayout;
     const showTopBar = isDesktopLayout || isPhoneLayout;
     const { width: windowWidth } = useWindowDimensions();
     const safeArea = useSafeAreaInsets();

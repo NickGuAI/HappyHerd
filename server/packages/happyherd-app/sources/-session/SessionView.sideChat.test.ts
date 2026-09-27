@@ -1015,8 +1015,8 @@ describe('SessionView mobile back navigation', () => {
     });
 
     it('dismisses the landscape narrow-Web session directly to the session list', () => {
-        mocks.width = 844;
-        mocks.height = 390;
+        mocks.width = 667;
+        mocks.height = 375;
         mocks.landscape = true;
         const renderer = renderParent();
         const backButton = landscapeBackButton(renderer);
@@ -1027,6 +1027,18 @@ describe('SessionView mobile back navigation', () => {
         expect(mocks.routerDismissTo).toHaveBeenCalledOnce();
         expect(mocks.routerDismissTo).toHaveBeenCalledWith('/');
         expect(mocks.routerBack).not.toHaveBeenCalled();
+    });
+
+    it('lays an 844 × 390 browser window out as the desktop, with no landscape Back', () => {
+        // The device rule calls it a phone, but the web lays out by width (UI overhaul):
+        // 700 px and wider is the desktop layout, whose panel lists the sessions.
+        mocks.width = 844;
+        mocks.height = 390;
+        mocks.landscape = true;
+        const renderer = renderParent();
+
+        expect(landscapeBackButton(renderer)).toBeUndefined();
+        expect(chatHeader(renderer).props.onBackPress).toBeUndefined();
     });
 
     it('keeps native landscape navigation on router.back()', () => {

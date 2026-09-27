@@ -3,12 +3,17 @@ import * as React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ tablet: false, customServer: true, push: vi.fn() }));
+const state = vi.hoisted(() => ({ platform: 'web', width: 390, tablet: false, customServer: true, push: vi.fn() }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
-    return { Platform: { OS: 'web' }, Pressable: host('Pressable'), View: host('View') };
+    return {
+        Platform: { get OS() { return state.platform; } },
+        Pressable: host('Pressable'),
+        View: host('View'),
+        useWindowDimensions: () => ({ width: state.width, height: 768 }),
+    };
 });
 vi.mock('react-native-unistyles', async () => {
     const { lightTheme } = await import('@/theme');
@@ -42,7 +47,7 @@ beforeAll(() => {
 });
 afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
-    Object.assign(state, { tablet: false, customServer: true });
+    Object.assign(state, { platform: 'web', width: 390, tablet: false, customServer: true });
     state.push.mockClear();
 });
 
@@ -74,7 +79,25 @@ describe('Settings on a phone', () => {
     it('shows nothing there on the default server or on a tablet', () => {
         state.customServer = false;
         expect(headerRight()).toBeUndefined();
-        Object.assign(state, { customServer: true, tablet: true });
+        Object.assign(state, { customServer: true, tablet: true, width: 1024 });
         expect(headerRight()).toBeUndefined();
+    });
+
+    it('shows nothing there in a 1024 × 768 browser window, though the device rule calls it a phone', () => {
+        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width.
+        Object.assign(state, { tablet: false, width: 1024 });
+        expect(headerRight()).toBeUndefined();
+    });
+
+    it('keeps it at 699 px on the web and drops it at 700 px', () => {
+        Object.assign(state, { tablet: true, width: 699 });
+        expect(headerRight()).toEqual(expect.any(Function));
+        Object.assign(state, { tablet: false, width: 700 });
+        expect(headerRight()).toBeUndefined();
+    });
+
+    it('keeps it on a native phone in landscape, where the device decides', () => {
+        Object.assign(state, { platform: 'ios', tablet: false, width: 844 });
+        expect(headerRight()).toEqual(expect.any(Function));
     });
 });

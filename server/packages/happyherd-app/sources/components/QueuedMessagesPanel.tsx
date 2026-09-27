@@ -8,7 +8,7 @@ import { Typography } from '@/constants/Typography';
 import type { QueuedMessageProjectionItem, SessionQueueProjection } from '@/sync/queueProjection';
 import { t } from '@/text';
 import { herdWebClasses } from './herd/motion';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 function attachmentNames(item: QueuedMessageProjectionItem): string[] {
     return item.attachments.flatMap((attachment) => {
@@ -64,7 +64,7 @@ export const QueuedMessagesPanel = React.memo(function QueuedMessagesPanel(props
     projection: SessionQueueProjection;
 }) {
     const { width } = useWindowDimensions();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const totalCount = props.projection.pendingCount + props.projection.currentCount;
     if (totalCount === 0) return null;
     // Narrow docks keep the count and drop the timing, so the message stays readable.

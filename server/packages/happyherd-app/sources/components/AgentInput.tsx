@@ -56,7 +56,7 @@ import { herdWebClasses } from './herd/motion';
 import { herdAlpha } from './herd/session/color';
 import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
 import { contextRemainingPercent, resolveComposerChipVisibility, resolvePermissionChipTone } from './herd/session/composerChipModel';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 interface AgentInputProps {
     // `initialValue` seeds the uncontrolled textarea once; keystrokes never
@@ -807,7 +807,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
 function WebStatusRow(p: StatusRowProps) {
     const { theme } = useUnistyles();
     // Phones: the dot and the branch sit on the 16 px gutter, level with the composer card.
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const status = p.connectionStatus;
     const state = status?.state;
     const tone = state === 'thinking'

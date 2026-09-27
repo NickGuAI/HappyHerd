@@ -8,6 +8,8 @@ import type { Message, ToolCall } from '@/sync/typesMessage';
 const state = vi.hoisted(() => ({
     platform: 'ios',
     tablet: false,
+    // 0 takes a phone's or a desktop window's size from `tablet`.
+    width: 0,
     session: null as Session | null,
     message: null as Message | null,
     messagesLoaded: false,
@@ -27,6 +29,7 @@ vi.mock('react-native', async () => {
             select: (values: any) => values[state.platform] ?? values.default,
         },
         StyleSheet: { create: (styles: any) => styles, hairlineWidth: 1 },
+        useWindowDimensions: () => ({ width: state.width || (state.tablet ? 1440 : 390), height: state.tablet ? 900 : 844 }),
         View: host('View'), Text: host('Text'), TextInput: host('TextInput'), Pressable: host('Pressable'),
         ActivityIndicator: host('ActivityIndicator'), TouchableOpacity: host('TouchableOpacity'), Image: host('Image'),
         Animated: {
@@ -172,6 +175,7 @@ afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
     state.platform = 'ios';
     state.tablet = false;
+    state.width = 0;
     state.message = null;
     state.messagesLoaded = false;
     state.params = { id: 'session-id' };
@@ -228,6 +232,16 @@ describe('chat header', () => {
             act(() => back[0].props.onPress());
             expect(onBackPress).toHaveBeenCalledOnce();
         }
+    });
+
+    it('keeps the desktop header, with no Back, in a 1024 × 768 browser window the device rule calls a phone', () => {
+        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width.
+        state.platform = 'web';
+        state.tablet = false;
+        state.width = 1024;
+        const renderer = render(React.createElement(ChatHeaderView, { title: 'Session title', folderName: 'nice', onBackPress: vi.fn() }));
+        expect(texts(renderer)).toEqual(['nice', '/', 'Session title']);
+        expect(renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')).toHaveLength(0);
     });
 
     it('does not duplicate the folder when it equals the title', () => {

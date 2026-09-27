@@ -31,7 +31,7 @@ import { Avatar } from '@/components/Avatar';
 import { t } from '@/text';
 import { PRODUCT } from '@/constants/product';
 import { SettingsSectionList } from '@/components/herd/pages/SettingsFrame';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 type BuildConfig = {
     buildCommitSha?: unknown;
@@ -86,7 +86,7 @@ export const SettingsView = React.memo(function SettingsView({
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the section list card follows the profile and
     // replaces the groups that only repeat its pages.
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const router = useRouter();
     const appVersion = Constants.expoConfig?.version;
     const runtimeVersion = typeof Constants.expoConfig?.runtimeVersion === 'string'

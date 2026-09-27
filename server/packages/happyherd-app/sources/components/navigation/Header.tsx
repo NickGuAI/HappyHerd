@@ -22,6 +22,7 @@ import {
     MOBILE_GLASS_HEADER_HEIGHT,
 } from './headerMetrics';
 import { HerdWindowInsetsContext } from '../herd/shell/windowInsets';
+import { useHerdPhoneLayout } from '../herd/mobile/useHerdPhone';
 
 interface HeaderProps {
     title?: React.ReactNode;
@@ -77,14 +78,15 @@ export const Header = React.memo((props: HeaderProps) => {
     const paddingTop = safeAreaEnabled ? insets.top : 0;
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const isNativePhone = !isDesktop && !isTablet;
     // UI overhaul: Web at phone size gets the full-width back bar (56 px, hairline).
-    const isWebPhone = Platform.OS === 'web' && !isTablet;
+    const isWebPhone = Platform.OS === 'web' && phoneLayout;
     // Signed in, a phone header sits under the HappyHerd top bar: it reads as the
     // page's title row, with Back on the 16 px gutter and no glass or hairline.
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
-    const phoneShellHeader = !isTablet && underTopBar;
+    const phoneShellHeader = phoneLayout && underTopBar;
     const glassControlsEnabled = isNativePhone && Platform.OS === 'ios' && !phoneShellHeader;
     const isAndroidHeader = isNativePhone && Platform.OS === 'android';
     const headerLeftUsesGlass = headerLeftGlass && glassControlsEnabled;
@@ -273,9 +275,9 @@ interface ExtendedNavigationOptions extends Partial<NativeStackHeaderProps['opti
 const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> = ({ tintColor = '#000', onPress }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
-    if (!isTablet && underTopBar) {
+    if (phoneLayout && underTopBar) {
         // Phones under the top bar (UI overhaul), web and native: the mock's
         // arrow in a 44 px square, its icon on the 16 px gutter.
         return (
@@ -295,7 +297,7 @@ const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> =
             </Pressable>
         );
     }
-    if (Platform.OS === 'web' && !isTablet) {
+    if (Platform.OS === 'web' && phoneLayout) {
         return (
             <Pressable
                 accessibilityRole="button"
@@ -362,18 +364,18 @@ type NavigationHeaderComponentProps = NativeStackHeaderProps & {
 const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = React.memo((props) => {
     const { options, route, back, navigation } = props;
     const extendedOptions = options as ExtendedNavigationOptions;
-    const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
-    const isWebPhone = Platform.OS === 'web' && !isTablet;
+    const isWebPhone = Platform.OS === 'web' && phoneLayout;
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
     // Phones under the top bar (UI overhaul): the title row carries the page's
     // title, left-aligned at 24 px, or 22 px beside Back.
-    const phoneShell = !isTablet && underTopBar;
+    const phoneShell = phoneLayout && underTopBar;
 
-    // Web tablets and desktop hide Back: the browser keeps history. Native tablets,
+    // The web hides Back from 700 px wide: the browser keeps history. Native tablets,
     // the iOS app on a Mac included, show it (owner decision, 2026-09-27). Phones
     // hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
-    const shouldHideBackButton = isTablet && Platform.OS === 'web';
+    const shouldHideBackButton = Platform.OS === 'web' && !phoneLayout;
     const showsBack = !!options.headerLeft || (!!back && options.headerBackVisible !== false && !shouldHideBackButton);
     const titleFontSize = phoneShell ? (showsBack ? 22 : 24) : isDesktop && !isWebPhone ? 17 : 16;
     const titleAlign = phoneShell ? 'left' : options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');

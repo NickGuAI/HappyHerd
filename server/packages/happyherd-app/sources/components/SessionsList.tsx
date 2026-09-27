@@ -16,7 +16,7 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useFocusMode } from '@/hooks/useFocusMode';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import {
     type SessionListViewItem,
     useAllMachines,
@@ -212,11 +212,12 @@ export function SessionsList({
     const focus = useFocusMode();
     const machines = useAllMachines();
     const pathname = usePathname();
-    const isTablet = useIsTablet();
+    // The desktop panel marks the open session; the phone layout (UI overhaul) does not.
+    const phoneLayout = useHerdPhoneLayout();
     const selectedSessionId = React.useMemo<string | undefined>(() => {
-        if (!isTablet || !pathname.startsWith('/session/')) return undefined;
+        if (phoneLayout || !pathname.startsWith('/session/')) return undefined;
         return pathname.split('/')[2];
-    }, [isTablet, pathname]);
+    }, [phoneLayout, pathname]);
 
     React.useEffect(() => {
         if (sourceData && sourceData.length > 0) requestReview();

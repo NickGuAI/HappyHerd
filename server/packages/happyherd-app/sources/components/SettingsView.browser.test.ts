@@ -323,12 +323,25 @@ describe('Settings policy links browser interaction', () => {
         await page.close();
     }, 15_000);
 
-    it('keeps every Settings group, and no phone section list, on Web Desktop', async () => {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    it.each([
+        { label: 'on Web Desktop', width: 1440, height: 900 },
+        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width (UI overhaul).
+        { label: 'in a 1024 × 768 window, which the device rule calls a phone', width: 1024, height: 768 },
+        { label: 'at the 700 px web breakpoint', width: 700, height: 900 },
+    ])('keeps every Settings group, and no phone section list, $label', async ({ width, height }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
         await page.goto(`${origin}?theme=light`);
         await page.getByText('Support Us', { exact: true }).waitFor({ state: 'visible' });
         await expect(page.getByTestId('settings-section-list').count()).resolves.toBe(0);
         await expect(page.getByText('Credentials & Accounts', { exact: true }).count()).resolves.toBe(1);
+        await page.close();
+    }, 15_000);
+
+    it('opens Settings with its section list 1 px below the web breakpoint', async () => {
+        const page = await browser.newPage({ viewport: { width: 699, height: 900 } });
+        await page.goto(`${origin}?theme=light`);
+        await page.getByTestId('settings-section-list').waitFor({ state: 'visible' });
+        await expect(page.getByText('Add a device and open your connected machines', { exact: true }).count()).resolves.toBe(0);
         await page.close();
     }, 15_000);
 

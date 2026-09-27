@@ -610,6 +610,18 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await page.close();
     }, 40_000);
 
+    it('keeps the phone shell 1 px below the web breakpoint', async () => {
+        // 700 px and wider is the desktop shell (herdShell.browser.test.ts).
+        const { page, errors } = await open({ width: 699, height: 900 });
+        await expect(page.getByTestId('herd-zen-toggle').count()).resolves.toBe(0);
+        await page.evaluate(() => (window as any).__FIXTURE_ROUTER__.push('/settings'));
+        await page.getByTestId('fixture-page').waitFor();
+        await page.getByTestId('navigation-sidebar-toggle').click();
+        await expect.poll(async () => (await drawer(page)).x).toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
     it('closes the drawer when the page already open underneath is chosen again', async () => {
         const { page, errors } = await open();
         for (const [path, label] of [['/settings', /Settings/], ['/projects', /Projects/]] as const) {

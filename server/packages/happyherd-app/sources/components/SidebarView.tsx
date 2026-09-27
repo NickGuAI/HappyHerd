@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { HerdConnectionStatus } from './herd/shell/HerdConnectionStatus';
 import { useHerdPhoneShell } from './herd/shell/phoneShell';
 
@@ -111,7 +111,7 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
     // have no rename migration — but it hides archived sessions only.
     const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
     const { visible: shortcutHintsVisible } = useShortcutHints();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     // The bottom row owns the home-indicator inset, so the list above it must not add it again.
     const insets = useSafeAreaInsets();
     const listInsets = React.useMemo(() => ({ ...insets, bottom: 0 }), [insets]);

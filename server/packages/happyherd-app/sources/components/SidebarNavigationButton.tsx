@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 const stylesheet = StyleSheet.create((theme) => ({
     button: {
@@ -95,7 +95,7 @@ export const SidebarNavigationButton = React.memo((props: {
 }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const phone = !useIsTablet();
+    const phone = useHerdPhoneLayout();
     const setIconHint = React.useCallback((node: View | null) => {
         if (node && Platform.OS === 'web') {
             // React Native Web filters title out of forwarded View props.

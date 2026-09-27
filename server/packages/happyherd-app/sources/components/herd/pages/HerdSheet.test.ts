@@ -3,7 +3,7 @@ import * as React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const layout = vi.hoisted(() => ({ wide: true, tablet: true, insets: { top: 0, right: 0, bottom: 0, left: 0 } }));
+const layout = vi.hoisted(() => ({ wide: true, tablet: true, width: 0, insets: { top: 0, right: 0, bottom: 0, left: 0 } }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
@@ -14,7 +14,7 @@ vi.mock('react-native', async () => {
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
         View: host('View'),
-        useWindowDimensions: () => ({ width: layout.wide ? 1440 : 390, height: layout.wide ? 900 : 844 }),
+        useWindowDimensions: () => ({ width: layout.width || (layout.wide ? 1440 : 390), height: layout.wide ? 900 : 844 }),
     };
 });
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => layout.insets }));
@@ -68,7 +68,7 @@ afterAll(() => {
 const renderers: ReactTestRenderer[] = [];
 afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
-    Object.assign(layout, { wide: true, tablet: true, insets: { top: 0, right: 0, bottom: 0, left: 0 } });
+    Object.assign(layout, { wide: true, tablet: true, width: 0, insets: { top: 0, right: 0, bottom: 0, left: 0 } });
 });
 
 const flat = (style: any): Record<string, any> => Array.isArray(style)
@@ -133,8 +133,12 @@ describe('HerdSheet', () => {
         expect(flat(header.props.style)).toMatchObject({ paddingHorizontal: 16, paddingTop: 20 });
     });
 
-    it('keeps the bottom sheet with its handle on a narrow tablet layout', () => {
-        Object.assign(layout, { wide: false, tablet: true });
+    it.each([
+        ['a narrow tablet layout', true],
+        // An 8-inch diagonal: the device rule calls it a phone, but the web lays out by width.
+        ['an 800 px browser window the device rule calls a phone', false],
+    ])('keeps the bottom sheet with its handle on %s', (_name, tablet) => {
+        Object.assign(layout, { wide: false, tablet, width: 800 });
         let renderer!: ReactTestRenderer;
         act(() => {
             renderer = create(sheet(true, vi.fn()));
