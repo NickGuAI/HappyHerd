@@ -565,3 +565,4 @@ UI_OVERHAUL_PHONE_CAPABILITIES	accepted	fix(app): restore server configuration a
 UI_OVERHAUL_PHONE_STREAMLINE	accepted	feat(app): lay Streamline out for phones as the approved design	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
 UI_OVERHAUL_PHONE_REACH	accepted	fix(app): keep the phone sheet header, top bar and drawer within reach	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
 UI_OVERHAUL_PHONE_PAGES	accepted	feat(app): give phone Settings its section list and phone pages large titles	server/packages/happyherd-app/sources/components/SettingsView.browser.test.ts
+UI_OVERHAUL_PHONE_CHANGELOG	accepted	docs(app): describe the phone layout in the changelog	server/packages/happyherd-app/CHANGELOG.md
