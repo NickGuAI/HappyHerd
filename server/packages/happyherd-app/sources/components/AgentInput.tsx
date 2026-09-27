@@ -50,6 +50,7 @@ import {
     resolveMobileComposerMenuGeometry,
 } from './agentInputLayout';
 import { shouldUseExpoNativeSettingsMenu } from './glassInteractionPolicy';
+import { useHerdEscapeToClose } from './herd/HerdPopover';
 import { herdWebClasses } from './herd/motion';
 import { herdAlpha } from './herd/session/color';
 import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
@@ -1550,14 +1551,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     }, [closePicker, closeWebActionMenu, closeWebAttachmentMenu, openPicker]);
 
     const chipPickerOpen = openPicker === 'model' || openPicker === 'effort' || openPicker === 'permission-chip';
-    React.useEffect(() => {
-        if (Platform.OS !== 'web' || !chipPickerOpen || typeof window === 'undefined') return;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') closePicker();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [chipPickerOpen, closePicker]);
+    // Escape closes the chip picker and stops there, so it never also navigates Back.
+    useHerdEscapeToClose(chipPickerOpen, closePicker);
 
     // Handle settings selection
     const handleSettingsSelect = React.useCallback((mode: PermissionMode) => {

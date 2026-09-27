@@ -84,8 +84,9 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
   (`herd/shell/windowInsets.ts`). React Native modals inherit React context,
   so they would otherwise place their header under the status bar on
   tablets.
-- **Escape in menus.** `HerdPopover` and the web `SessionActionsPopover`
-  consume Escape on keydown in the capture phase (`useHerdEscapeToClose`).
+- **Escape in menus.** `HerdPopover`, the web `SessionActionsPopover` and
+  the composer's chip pickers consume Escape on keydown in the capture phase
+  (`useHerdEscapeToClose`).
   The app's global navigation handles an unconsumed Escape as Back or as
   leaving Zen, and it runs before React Native Web's modal sees the keyup.
 - **Compact widths (< 1,100 px).** The search control shrinks to an icon and

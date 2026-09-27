@@ -693,8 +693,13 @@ describe('Session screen overhaul (Web)', () => {
         await permissionPopover.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(permissionPopover.getByText('PERMISSION MODE', { exact: true }).isVisible()).resolves.toBe(true);
         await evidence(page, `composer-permission-popover-light-${viewport.width}`);
+        // Global navigation treats an unhandled Escape keydown as Back; the picker must consume it.
+        await page.evaluate(() => window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !event.defaultPrevented) (window as any).__ESCAPE_BACK__ = ((window as any).__ESCAPE_BACK__ ?? 0) + 1;
+        }));
         await page.keyboard.press('Escape');
         await expect.poll(() => permissionPopover.count()).toBe(0);
+        await expect(page.evaluate(() => (window as any).__ESCAPE_BACK__ ?? 0)).resolves.toBe(0);
         // The agent chip opens the existing "Continue with…" sheet.
         await agent.click();
         await page.getByTestId('fixture-global-modal').waitFor({ state: 'attached', timeout: 3_000 });

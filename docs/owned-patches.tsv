@@ -522,3 +522,4 @@ UI_OVERHAUL_STREAMLINE_HARDENING	accepted	fix(app): settle Streamline choices be
 UI_OVERHAUL_STREAMLINE_SETTINGS_APPLY	accepted	test(app): prove saved Streamline settings reach the launch	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_PERMISSION_KEYS_ON_SCREEN	accepted	fix(app): answer only permission cards that are really on screen	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_TOOL_DETAILS_LINK	accepted	fix(app): keep tool detail navigation on web cards	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
+UI_OVERHAUL_CHIP_PICKER_ESCAPE	accepted	fix(app): close composer chip pickers on Escape without going Back	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
