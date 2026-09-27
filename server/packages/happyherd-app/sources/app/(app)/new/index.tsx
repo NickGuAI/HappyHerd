@@ -992,8 +992,9 @@ function NewSessionScreen() {
     const streamlineGithubWorktree = useSetting('streamlineGithubWorktree');
     const isTablet = useIsTablet();
     // Streamline follows the synced mode on the web and on native phones (owner
-    // decision, 2026-09-27); native tablets and the iOS app on a Mac keep the full form.
-    const streamlineAvailable = Platform.OS === 'web' || !isTablet;
+    // decision, 2026-09-27). Native tablets keep the full form, as does the iOS app
+    // on a Mac in any window, even one the device rule calls a phone.
+    const streamlineAvailable = Platform.OS === 'web' || (!isTablet && !isRunningOnMac());
     const [sessionMode, setSessionMode] = React.useState<'streamline' | 'advanced'>(
         () => (streamlineAvailable ? newSessionMode : 'advanced'),
     );

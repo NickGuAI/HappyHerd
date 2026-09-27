@@ -8,6 +8,7 @@ import type { Message, ToolCall } from '@/sync/typesMessage';
 const state = vi.hoisted(() => ({
     platform: 'ios',
     tablet: false,
+    mac: false,
     // 0 takes a phone's or a desktop window's size from `tablet`.
     width: 0,
     session: null as Session | null,
@@ -41,7 +42,7 @@ vi.mock('react-native', async () => {
 });
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 vi.mock('react-native-reanimated', () => ({}));
-vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => state.mac }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 52, useIsTablet: () => state.tablet }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 800, headerMaxWidth: 800 } }));
 vi.mock('react-native-unistyles', async () => {
@@ -176,6 +177,7 @@ afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
     state.platform = 'ios';
     state.tablet = false;
+    state.mac = false;
     state.width = 0;
     state.message = null;
     state.messagesLoaded = false;
@@ -533,5 +535,20 @@ describe('page headers', () => {
         const destination = titleRow('automations/index', 'Automations');
         expect(destination.root.findAllByType('Pressable')).toHaveLength(0);
         expect(flattenStyle(destination.root.findByType('Text').props.style)).toMatchObject({ fontSize: 24, textAlign: 'left' });
+    });
+
+    it('keeps Back on the drawer\'s destinations in the iOS app on a Mac, in a window the device rule calls a phone', () => {
+        // Owner decision, 2026-09-27: the iOS app on a Mac keeps the tablet Back at any window size.
+        state.platform = 'ios';
+        state.tablet = false;
+        state.mac = true;
+        const options = { ...screenOptions('automations/index'), headerTitle: 'Automations' };
+        expect(options.header).toBe(createHeader);
+        expect(options).not.toHaveProperty('headerBackVisible');
+
+        const destination = render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, options.header({
+            options, route: { name: 'automations/index' }, back: { title: 'Home' }, navigation: { goBack: vi.fn() },
+        })));
+        expect(destination.root.findAllByType('Pressable').map((node: any) => node.props.testID)).toEqual(['header-back']);
     });
 });

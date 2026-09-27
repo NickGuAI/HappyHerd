@@ -578,3 +578,4 @@ UI_OVERHAUL_PHONE_IOS_HEADER	accepted	fix(app): give iPhone pages the phone titl
 UI_OVERHAUL_PHONE_DIALOG_INSETS	accepted	fix(app): keep phone dialogs clear of the landscape notch	server/packages/happyherd-app/sources/utils/duplicateSheetLayout.test.ts
 UI_OVERHAUL_PHONE_DIALOG_BOTTOM	accepted	fix(app): keep iPhone dialogs above the home indicator	server/packages/happyherd-app/sources/modal/components/BaseModal.test.ts
 UI_OVERHAUL_PHONE_PICKER_ANCHOR	accepted	fix(app): open native Streamline pickers above the whole pinned composer	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_MAC_NATIVE_DECISIONS	accepted	fix(app): keep the Mac app's Back and Advanced form in small windows	server/packages/happyherd-app/sources/-session/SessionView.sideChat.test.ts

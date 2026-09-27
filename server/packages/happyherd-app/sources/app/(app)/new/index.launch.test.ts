@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
     return {
         setOptions,
         platform: 'web',
+        mac: false,
         dimensions: { width: 844, height: 390 },
         renderMachines: [] as any[],
         liveMachines: {} as Record<string, any>,
@@ -174,7 +175,7 @@ vi.mock('@/utils/responsive', () => ({
     useHeaderHeight: () => 0,
     useIsTablet: () => mocks.dimensions.width >= 700,
 }));
-vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => mocks.mac }));
 vi.mock('@/utils/newSessionSidebarLayout', async (importOriginal) => ({
     ...await importOriginal<typeof import('@/utils/newSessionSidebarLayout')>(),
     NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH: 1100,
@@ -580,6 +581,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     completeSpawnRequest();
     mocks.platform = 'web';
+    mocks.mac = false;
     mocks.dimensions = { width: 844, height: 390 };
     mocks.overrides = {};
     mocks.places = [];
@@ -1535,6 +1537,18 @@ describe('Streamline on native phones', () => {
         const renderer = await renderScreen();
         await settle(renderer);
         expect(byTestID(renderer, 'streamline-sections')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the iOS app on a Mac on the full form in a small window, which the device rule calls a phone', async () => {
+        // This file's device rule calls a window under 700 px wide a phone.
+        mocks.mac = true;
+        mocks.dimensions = { width: 640, height: 900 };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestID(renderer, 'streamline-sections')).toHaveLength(0);
+        expect(byTestID(renderer, 'new-session-mode')).toHaveLength(0);
+        expect(renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'sessionInfo.path').length).toBeGreaterThan(0);
         act(() => renderer.unmount());
     });
 });

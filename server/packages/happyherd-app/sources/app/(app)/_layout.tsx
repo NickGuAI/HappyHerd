@@ -19,7 +19,8 @@ export const unstable_settings = {
 
 export default function RootLayout() {
     // Phones (UI overhaul): the drawer and top bar lead away from their own
-    // destinations, so those keep no Back.
+    // destinations, so those keep no Back. The iOS app on a Mac keeps it in any
+    // window, even one the device rule calls a phone (owner decision, 2026-09-27).
     const phone = useHerdPhoneLayout();
     // Signed in, the HappyHerd top bar sits above these screens.
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
@@ -44,7 +45,7 @@ export default function RootLayout() {
         <Stack
             initialRouteName='index'
             screenOptions={({ route }) => ({
-                ...(phone && isHerdPhoneTopLevelRoute(route.name) ? { headerBackVisible: false } : {}),
+                ...(phone && !isRunningOnMac() && isHerdPhoneTopLevelRoute(route.name) ? { headerBackVisible: false } : {}),
                 header: shouldUseCustomHeader ? createHeader : undefined,
                 headerBackTitle: t('common.back'),
                 headerBackButtonDisplayMode: Platform.OS === 'ios' ? 'minimal' : undefined,

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     width: 1280,
     height: 900,
     platform: 'web',
+    mac: false,
     landscape: false,
     realtimeStatus: 'disconnected' as 'connected' | 'disconnected',
     canAbort: false,
@@ -583,7 +584,7 @@ vi.mock('@/sync/workspaceContext', () => ({
 }));
 vi.mock('@/sync/queueProjection', () => ({ projectSessionQueue: () => ({ items: mocks.emptyArray }) }));
 
-vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => mocks.mac }));
 vi.mock('@/utils/responsive', async () => {
     const {
         calculateDeviceDimensions,
@@ -769,6 +770,7 @@ beforeEach(() => {
     mocks.width = 1280;
     mocks.height = 900;
     mocks.platform = 'web';
+    mocks.mac = false;
     mocks.landscape = false;
     mocks.realtimeStatus = 'disconnected';
     mocks.canAbort = false;
@@ -1005,6 +1007,21 @@ describe('SessionView mobile back navigation', () => {
         mocks.width = width;
         mocks.height = height;
         mocks.platform = platform;
+        const renderer = renderParent();
+
+        const onBackPress = chatHeader(renderer).props.onBackPress;
+        expect(onBackPress).toEqual(expect.any(Function));
+        act(() => onBackPress());
+        expect(mocks.routerBack).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+
+    it('gives the iOS app on a Mac its own session Back in an 800 × 1000 window, which the device rule calls a phone', () => {
+        // Owner decision, 2026-09-27: the iOS app on a Mac keeps the tablet Back at any window size.
+        mocks.width = 800;
+        mocks.height = 1000;
+        mocks.platform = 'ios';
+        mocks.mac = true;
         const renderer = renderParent();
 
         const onBackPress = chatHeader(renderer).props.onBackPress;
