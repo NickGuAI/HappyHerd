@@ -56,12 +56,13 @@ change that touches an inherited file.
 
 The desktop layout is now a HappyHerd top bar above the permanent drawer.
 Upstream's absolute `PersistentHeader` overlay (Zen, Back, Forward) and the
-boundary collapse toggle no longer exist; their behavior lives in
-`components/herd/shell/`.
+boundary collapse toggle no longer exist. Zen and the collapse toggle live in
+`components/herd/shell/`; the Back and Forward buttons were removed (see
+History below).
 
 | Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
 |---|---|---|---|---|
-| `sources/components/SidebarNavigator.tsx` | Replaced (layout) | Renders `HerdTopBar` above a body that holds the `Drawer` and `HerdSidebarEdgeToggle`. The drawer width follows `useHerdSidebarTransition` (content slides out, then the width snaps). The body overrides `SafeAreaInsetsContext` with `top: 0` because the top bar consumes the top inset. `PersistentHeader` and `DesktopNavigationBoundaryToggle` were deleted. | Drawer options (`permanent` on desktop, hidden `front` drawer on phones), `lazy: false`, the 250–360 px width rule, the rule that drawer width is never animated, the Zen and collapse semantics, and the element order, so the navigator never remounts when the layout changes. | Port upstream header controls (Zen, Back, Forward, anything new) into `herd/shell/HerdTopBar.tsx`, not back into this file. Take upstream drawer-option changes here. If upstream animates the drawer width, do not take it; see the comment above `drawerNavigationOptions`. |
+| `sources/components/SidebarNavigator.tsx` | Replaced (layout) | Renders `HerdTopBar` above a body that holds the `Drawer` and `HerdSidebarEdgeToggle`. The drawer width follows `useHerdSidebarTransition` (content slides out, then the width snaps). The body overrides `SafeAreaInsetsContext` with `top: 0` because the top bar consumes the top inset. `PersistentHeader` and `DesktopNavigationBoundaryToggle` were deleted. | Drawer options (`permanent` on desktop, hidden `front` drawer on phones), `lazy: false`, the 250–360 px width rule, the rule that drawer width is never animated, the Zen and collapse semantics, and the element order, so the navigator never remounts when the layout changes. | Port new upstream header controls into `herd/shell/HerdTopBar.tsx`, not back into this file. Do not port header Back or Forward buttons (see History below). Take upstream drawer-option changes here. If upstream animates the drawer width, do not take it; see the comment above `drawerNavigationOptions`. |
 | `sources/components/SidebarView.tsx` | Restyled | The top padding that reserved the old header strip is gone. Tokens replace hard-coded radii and colours. Destinations show an active state for the current route (`usePathname`). New session uses the `emphasis` button and Settings the `quiet` one. Border on the right edge only. | Both rows: icon-only Workspace (behind `machineWorkspace`), Projects, Automations; then New session with its `N` hint and the archive toggle. Also `VoiceAssistantStatusBar`, `MainView variant="sidebar"`, and Settings with its `,` hint. | Take upstream structure and behavior. Keep the two rows and the token styles. A new destination gets `active={pathname.startsWith(...)}`. |
 | `sources/components/FlatSessionRow.tsx` | Restyled + Extended | Inset rounded rows (`marginHorizontal` 8, `kilv.radius`), transparent on web with a hover tint. Adds an agent chip (`herd/shell/sessionRowPresentation.ts`), a status line while a session waits on the user (it takes the worktree line when that line is empty), `HerdRowMoreButton` (⋯), `HerdRowSelection` (gliding selection ring) and an `entranceIndex` stagger for the first 12 rows. On touch-only web (`hover: none`), a long press opens the actions (`useHerdRowLongPress`), because iOS Safari sends no context menu; the row cancels that touch's release so the browser does not click the new sheet's backdrop. Removed `showBorder` (no dividers). Titles are 16 px; timestamps and daemon identity use mono. | Every data line (title, project, daemon label and short id, worktree, git counts), the unread-ring grace period, the faded offline state, shortcut badges, right-click and `SessionActionsPopover` on web, long press, and swipe-to-archive on native (native rows stay opaque for the swipe). | Merge upstream row logic and data fields normally. Keep new visual elements inside the existing lines, and keep the row background transparent on web, or the glide cannot pass behind neighbouring rows. |
 | `sources/components/ActiveSessionsGroupCompact.tsx` (`CompactSessionRow`) | Extended (web) | Rounded inset rows with a hover tint, `HerdRowSelection` and `HerdRowMoreButton`. On web, dividers and the selected fill give way to the shared selection ring. The touch-only long press matches `FlatSessionRow`. | Native rendering, swipe, long press, right-click, the identity line and git counts. | Same rule as `FlatSessionRow`. |
@@ -74,10 +75,15 @@ boundary collapse toggle no longer exist; their behavior lives in
 
 Deliberate behavior changes (owner-approved in the overhaul issue):
 
-- **History.** The top bar shows Back and Forward arrows. This replaces the
-  September 3 change, which removed Forward and turned Back into a text
-  control. Back still unwinds an open file diff or file view before route
-  history, and Forward does the same with `useOverlayNav().forward()`.
+- **History.** The top bar has no Back or Forward buttons on any platform,
+  and upstream's header arrows are not ported. On web, history stays with the
+  browser's own controls, the mouse side buttons and an unconsumed Escape
+  (`useBrowserNavigationShortcuts`), which still unwinds an open file diff or
+  file view (`useOverlayNav`) before route history. The desktop app has no
+  browser controls, so it relies on the mouse buttons and Escape. Screen
+  headers keep hiding their own Back on tablet layouts (`ChatHeaderView`,
+  `navigation/Header`), so a native tablet has no on-screen Back; it uses the
+  stack's swipe-back on iOS and the system Back on Android.
 - **Panel toggle.** The toggle moved from the drawer boundary into the top bar,
   with ⌥⌘B (Ctrl+Alt+B off macOS). A secondary handle sits on the panel edge.
   It appears while the pointer is over the shell and stays visible, at the
@@ -103,8 +109,7 @@ Deliberate behavior changes (owner-approved in the overhaul issue):
   runs before React Native Web's modal sees the keyup. A new overlay must
   take one of these two paths.
 - **Compact widths (< 1,100 px).** The search control shrinks to an icon and
-  the brand shows only its mark. Back and Forward stay because tablets have no
-  screen-level Back.
+  the brand shows only its mark.
 - **Accessibility props.** New shell controls expose state through `aria-*`
   props (`aria-expanded`, `aria-selected`, `aria-checked`). React Native Web
   0.21 ignores `accessibilityState`, so upstream-style `accessibilityState` on
@@ -126,13 +131,14 @@ session per first message", retries and project assignment are unchanged.
 | `sources/sync/settings.ts` | Extended | Four synced settings: `newSessionMode` (default `'streamline'`), `streamlineAgent` (default `'claude'`; a plain string so newer agent keys survive sync, with `normalizeStreamlineAgent` owning the read fallback), `streamlineAgentDefaults` (default `{}`, the same override shape as `agentDefaultOverrides`) and `streamlineGithubWorktree` (default `true`). `settingsToSyncPayload` compacts both override maps the same way. | Every existing field, default and sync rule. | Merge upstream settings changes normally. Keep the four fields in `SettingsSchema` and `settingsDefaults`, and keep both override maps in the compaction loop. |
 
 The Streamline defaults are Claude Opus 5.5 at xhigh with accept edits; Codex
-gpt-6-astra at xhigh with default permissions; Gemini 3.1 Pro at high with auto
-edit (stored only, because Gemini is retired in the launch registry); GrokBuild
-on its catalog default at high with accept edits; and dsh deepseek-v4-flash at
-medium with default permissions. They live in `sync/streamlineDefaults.ts` and
-resolve against the exact machine's advertised catalog. Choices come from the
-machine, so display names are the daemon's values (for example
-`claude-opus-5-5`, `acceptEdits`), exactly as in the Advanced pickers.
+gpt-6-astra at xhigh with default permissions; GrokBuild on its catalog
+default at high with accept edits; and dsh deepseek-v4-flash at medium with
+default permissions. Gemini has none, because it is retired in the launch
+registry, and agy and rig start from Agent Defaults. The defaults live in
+`sync/streamlineDefaults.ts` and resolve against the exact machine's
+advertised catalog. Choices come from the machine, so display names are the
+daemon's values (for example `claude-opus-5-5`, `acceptEdits`), exactly as in
+the Advanced pickers.
 
 ## Session screen
 
@@ -238,7 +244,7 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/herd/mobile/useHerdPhone.ts` | The phone web rule: web and narrower than 700 px. |
 | `sources/components/herd/mobile/HerdBottomSheet.tsx` | The phone sheet: scrim, `herd-sheet-up` / `herd-sheet-down`, a drag handle that is also a labelled Cancel button (a drag past 72 px or a flick dismisses), and home-indicator padding. |
 | `sources/components/herd/mobile/MobileHome.tsx` | The phone home header, its icon buttons, the focus row and the floating New session button. |
-| `sources/components/herd/shell/HerdTopBar.tsx` | Desktop top bar: panel toggle, Zen, brand, history, command search, Focus mode, Inbox bell and machine menu. |
+| `sources/components/herd/shell/HerdTopBar.tsx` | Desktop top bar: panel toggle, Zen, brand, command search, Focus mode, Inbox bell and machine menu. |
 | `sources/components/herd/shell/HerdTopBarIconButton.tsx` | Square icon control for the top bar. |
 | `sources/components/herd/shell/HerdInboxBell.tsx` | Inbox bell with the friend-request count (or an unread dot) and the Updates dropdown. |
 | `sources/components/herd/shell/HerdMachineMenu.tsx` | Machine pill and menu. It shows and switches the machine New Session uses (`useNewSessionDraft.setMachineId`). |

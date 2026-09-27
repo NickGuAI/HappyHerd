@@ -554,3 +554,4 @@ UI_OVERHAUL_TOOLVIEW_WHITESPACE	accepted	chore(app): strip whitespace-only lines
 UI_OVERHAUL_GOLDENS	accepted	test(app): regenerate the KILV golden baselines for the redesigned interface	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UI_OVERHAUL_TOPBAR_NO_HISTORY	accepted	feat(app): remove Back and Forward from the top bar	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
 UI_OVERHAUL_STREAMLINE_NO_GEMINI	accepted	refactor(app): remove the retired Gemini Streamline defaults	server/packages/happyherd-app/sources/sync/streamlineDefaults.test.ts
+UI_OVERHAUL_HISTORY_GEMINI_DOCS	accepted	docs(app): record the top bar without Back or Forward and Streamline without Gemini	docs/upstream-ui-parity.md
