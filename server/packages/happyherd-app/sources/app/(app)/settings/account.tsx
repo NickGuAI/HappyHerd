@@ -29,6 +29,7 @@ import {
     type PushPermissionInfo,
 } from '@/sync/pushRegistration';
 import { AccountKeyPanel } from '@/components/AccountKeyPanel';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
 function formatPushPermissionLabel(permission: PushPermissionInfo | null): string {
     if (!permission) {
@@ -97,7 +98,7 @@ function buildPushTokenSubtitle(pushToken: PushToken, options: {
     return lines.join('\n');
 }
 
-export default React.memo(() => {
+const AccountSettingsScreen = React.memo(() => {
     const { theme } = useUnistyles();
     const auth = useAuth();
     const [analyticsOptOut, setAnalyticsOptOut] = useSettingMutable('analyticsOptOut');
@@ -537,3 +538,5 @@ export default React.memo(() => {
         </>
     );
 });
+
+export default withSettingsFrame('account', AccountSettingsScreen);

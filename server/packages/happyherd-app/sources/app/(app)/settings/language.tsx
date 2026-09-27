@@ -7,6 +7,7 @@ import { useSettingMutable } from '@/sync/storage';
 import { useUnistyles } from 'react-native-unistyles';
 import { t, getLanguageNativeName, resolveSupportedLanguage, SUPPORTED_LANGUAGE_CODES, type SupportedLanguage } from '@/text';
 import * as Localization from 'expo-localization';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
 type LanguageOption = 'auto' | SupportedLanguage;
 
@@ -16,7 +17,7 @@ interface LanguageItem {
     subtitle?: string;
 }
 
-export default function LanguageSettingsScreen() {
+function LanguageSettingsScreen() {
     const { theme } = useUnistyles();
     const [preferredLanguage, setPreferredLanguage] = useSettingMutable('preferredLanguage');
 
@@ -83,3 +84,5 @@ export default function LanguageSettingsScreen() {
         </ItemList>
     );
 }
+
+export default withSettingsFrame('language', LanguageSettingsScreen);

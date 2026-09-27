@@ -276,9 +276,11 @@ describe('Settings → Connections → Add device production component journeys'
         page.on('pageerror', error => console.error('Connections fixture page error:', error.message));
         page.setDefaultTimeout(2500);
         await page.goto(`${origin}/settings`);
-        await page.getByText('Connections', { exact: true }).waitFor();
+        // Desktop Settings also lists Connections in its section list; use the Settings row.
+        const entry = page.getByText('Connections', { exact: true }).last();
+        await entry.waitFor();
         if (evidenceWidth) await page.screenshot({ path: resolve(evidenceDir, `fixture-${evidenceWidth}-settings-entry.png`) });
-        await page.getByText('Connections', { exact: true }).click();
+        await entry.click();
         await page.getByRole('button', { name: 'Add device', exact: true }).waitFor();
     }
     async function enter(page: Page, code = '12345678') {

@@ -511,3 +511,4 @@ UI_OVERHAUL_SESSION_HEADER	accepted	feat(app): add Workspace, Side chats and ses
 UI_OVERHAUL_SESSION_BROWSER	accepted	test(app): cover the session screen overhaul on Web Desktop and Web Mobile	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_AUTOMATIONS_ROWS	accepted	feat(app): turn Automations into expandable rows	server/packages/happyherd-app/sources/components/AutomationsScreen.test.ts
 UI_OVERHAUL_COMMANDERS_PAGE	accepted	feat(app): add the Commanders page	server/packages/happyherd-app/sources/app/(app)/commanders/index.test.ts
+UI_OVERHAUL_SETTINGS_SECTIONS	accepted	feat(app): add a desktop section list to Settings	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts

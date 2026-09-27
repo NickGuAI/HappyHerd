@@ -25,6 +25,7 @@ import { t } from '@/text';
 import { Modal } from '@/modal';
 import { getVoiceExperimentStatus, getVoiceUpsellVariantLabel } from '@/realtime/voiceExperiment';
 import { getVoiceLocalCounters, resetVoiceLocalCounters } from '@/sync/persistence';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
 function formatVoiceTime(totalSeconds: number): string {
     const mins = Math.floor(totalSeconds / 60);
@@ -32,7 +33,7 @@ function formatVoiceTime(totalSeconds: number): string {
     return `${mins}m ${secs}s`;
 }
 
-export default React.memo(function VoiceSettingsScreen() {
+const VoiceSettingsScreen = React.memo(function VoiceSettingsScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
     const auth = useAuth();
@@ -363,3 +364,5 @@ export default React.memo(function VoiceSettingsScreen() {
         </ItemList>
     );
 });
+
+export default withSettingsFrame('voice', VoiceSettingsScreen);

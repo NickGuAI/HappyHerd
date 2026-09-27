@@ -38,6 +38,10 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }));
+// The desktop section list is covered by SettingsFrame.test.ts; the page renders alone here.
+vi.mock('@/components/herd/pages/SettingsFrame', () => ({
+    withSettingsFrame: (_section: string, Screen: unknown) => Screen,
+}));
 vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };

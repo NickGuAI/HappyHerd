@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "5cc452b9e938f60ec3c7cf0d64f8407c3efef10ea435ba819be75a59c7a9b2bc",
+  "sourceFingerprint": "3762ff93cde9808aaf348e570c112e867dd55fc0d52c520534e50c71206c56aa",
   "routeCount": 43,
-  "surfaceCount": 304,
+  "surfaceCount": 305,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2040,9 +2040,7 @@
       "owner": "sources/app/(app)/settings/agents.tsx",
       "kind": "route",
       "route": "/settings/agents",
-      "exports": [
-        "AgentDefaultsSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "agentDefaults.capabilitiesFromMachine",
         "agentDefaults.capabilitySource",
@@ -2072,9 +2070,7 @@
       "owner": "sources/app/(app)/settings/appearance.tsx",
       "kind": "route",
       "route": "/settings/appearance",
-      "exports": [
-        "AppearanceSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
@@ -2149,9 +2145,7 @@
       "owner": "sources/app/(app)/settings/connect/claude.tsx",
       "kind": "route",
       "route": "/settings/connect/claude",
-      "exports": [
-        "ClaudeOAuth"
-      ],
+      "exports": [],
       "translationKeys": [
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
@@ -2163,9 +2157,7 @@
       "owner": "sources/app/(app)/settings/connections.tsx",
       "kind": "route",
       "route": "/settings/connections",
-      "exports": [
-        "ConnectionsSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2183,9 +2175,7 @@
       "owner": "sources/app/(app)/settings/features.tsx",
       "kind": "route",
       "route": "/settings/features",
-      "exports": [
-        "FeaturesSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
@@ -2214,9 +2204,7 @@
       "owner": "sources/app/(app)/settings/index.tsx",
       "kind": "route",
       "route": "/settings",
-      "exports": [
-        "SettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2225,9 +2213,7 @@
       "owner": "sources/app/(app)/settings/language.tsx",
       "kind": "route",
       "route": "/settings/language",
-      "exports": [
-        "LanguageSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "settingsLanguage.automatic",
         "settingsLanguage.automaticSubtitle",
@@ -2286,9 +2272,7 @@
       "owner": "sources/app/(app)/settings/usage.tsx",
       "kind": "route",
       "route": "/settings/usage",
-      "exports": [
-        "UsageSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2357,9 +2341,7 @@
       "owner": "sources/app/(app)/settings/voice/language.tsx",
       "kind": "route",
       "route": "/settings/voice/language",
-      "exports": [
-        "LanguageSelectionScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "settingsVoice.language.autoDetect",
         "settingsVoice.language.footer",
@@ -4107,6 +4089,38 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/pages/SettingsFrame.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SETTINGS_ABOUT_LINKS",
+        "SETTINGS_FRAME_MIN_WIDTH",
+        "SETTINGS_SECTIONS",
+        "SettingsFrame",
+        "SettingsNav",
+        "useSettingsFrameVisible",
+        "withSettingsFrame"
+      ],
+      "translationKeys": [
+        "devicePairing.title",
+        "happyHerd.commander.category",
+        "settings.about",
+        "settings.account",
+        "settings.appearance",
+        "settings.featuresTitle",
+        "settings.sectionsLabel",
+        "settings.title",
+        "settings.usage",
+        "settings.voiceAssistant",
+        "settings.whatsNew",
+        "settingsCredentials.title",
+        "settingsLanguage.title",
+        "uiCopy.agentDefaults"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/SegmentedControl.tsx",
       "kind": "component",
       "route": null,
@@ -5418,6 +5432,8 @@
         "connect.enterUrlManually",
         "devicePairing.settingsSubtitle",
         "devicePairing.title",
+        "happyHerd.commander.browseSubtitle",
+        "happyHerd.commander.category",
         "modals.authenticateTerminal",
         "modals.developerMode",
         "modals.developerModeDisabled",

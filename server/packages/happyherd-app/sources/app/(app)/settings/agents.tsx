@@ -35,6 +35,7 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { findPreferredAvailableOptionIndex } from '@/utils/newSessionModeSelection';
 import { formatLastSeen } from '@/utils/sessionUtils';
 import { t } from '@/text';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
 type ExpandedField = {
     agent: AgentKey;
@@ -55,7 +56,7 @@ function optionName(options: ModeOption[], key: string | null | undefined): stri
     return options.find((option) => option.key === key)?.name ?? key;
 }
 
-export default function AgentDefaultsSettingsScreen() {
+function AgentDefaultsSettingsScreen() {
     const { theme } = useUnistyles();
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const draftMachineId = useNewSessionDraft((state) => state.selectedMachineId);
@@ -385,3 +386,5 @@ export default function AgentDefaultsSettingsScreen() {
         </ItemList>
     );
 }
+
+export default withSettingsFrame('agents', AgentDefaultsSettingsScreen);

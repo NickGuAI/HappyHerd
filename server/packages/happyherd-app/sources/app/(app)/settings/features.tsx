@@ -7,8 +7,9 @@ import { useSettingMutable, useLocalSettingMutable } from '@/sync/storage';
 import { Switch } from '@/components/Switch';
 import { t } from '@/text';
 import { CommanderAvatarSettings } from '@/components/CommanderAvatarSettings';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
-export default function FeaturesSettingsScreen() {
+function FeaturesSettingsScreen() {
     const { theme } = useUnistyles();
     const [experiments, setExperiments] = useSettingMutable('experiments');
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
@@ -123,3 +124,5 @@ export default function FeaturesSettingsScreen() {
         </ItemList>
     );
 }
+
+export default withSettingsFrame('features', FeaturesSettingsScreen);

@@ -33,6 +33,7 @@ import { AvatarBrutalist } from '@/components/AvatarBrutalist';
 import { AvatarSkia } from '@/components/AvatarSkia';
 import { AvatarGradient } from '@/components/AvatarGradient';
 import { AVATAR_STYLES, normalizeAvatarStyle, type AvatarStyle } from '@/utils/avatarStyle';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
 const getUserMessageBubbleColorLabel = (color: UserMessageBubbleColor): string => {
     switch (color) {
@@ -298,7 +299,7 @@ function BubbleColorOption(props: {
     );
 }
 
-export default function AppearanceSettingsScreen() {
+function AppearanceSettingsScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
     const [showLineNumbersInToolViews, setShowLineNumbersInToolViews] = useSettingMutable('showLineNumbersInToolViews');
@@ -803,3 +804,5 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderRadius: theme.borderRadius.xl,
     },
 }));
+
+export default withSettingsFrame('appearance', AppearanceSettingsScreen);

@@ -442,6 +442,12 @@ export const SettingsView = React.memo(function SettingsView({
                         onPress={() => router.push('/settings/usage')}
                     />
                 )}
+                <Item
+                    title={t('happyHerd.commander.category')}
+                    subtitle={t('happyHerd.commander.browseSubtitle')}
+                    icon={<Ionicons name="people-outline" size={29} color={theme.colors.textLink} />}
+                    onPress={() => router.push('/commanders' as any)}
+                />
             </ItemGroup>
 
             {/* Developer */}

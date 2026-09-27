@@ -2,8 +2,9 @@ import * as React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CredentialsSettingsView } from '@/components/CredentialsSettingsView';
 import { getCodexQuotaRecovery } from '@/utils/codexQuotaRecovery';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
-export default React.memo(function CredentialsSettingsScreen() {
+const CredentialsSettingsScreen = React.memo(function CredentialsSettingsScreen() {
     const params = useLocalSearchParams<{
         quotaRecovery?: string;
         sessionId?: string;
@@ -20,3 +21,5 @@ export default React.memo(function CredentialsSettingsScreen() {
         }) : undefined}
     />;
 });
+
+export default withSettingsFrame('credentials', CredentialsSettingsScreen);
