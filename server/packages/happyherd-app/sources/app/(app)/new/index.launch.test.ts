@@ -5,8 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { completeSpawnRequest } from '@/sync/spawnRequestId';
 
 const mocks = vi.hoisted(() => {
+    // Header visibility the screen asks its navigator for.
+    const setOptions = vi.fn();
     (globalThis as typeof globalThis & { __DEV__?: boolean }).__DEV__ = false;
     return {
+        setOptions,
         platform: 'web',
         dimensions: { width: 844, height: 390 },
         renderMachines: [] as any[],
@@ -82,6 +85,8 @@ vi.mock('react-native', async () => {
             get OS() { return mocks.platform; },
             select: (options: Record<string, unknown>) => options[mocks.platform] ?? options.default,
         },
+        // The native phone menu sheet (HerdBottomSheet) drags through PanResponder.
+        PanResponder: { create: () => ({ panHandlers: {} }) },
         Keyboard: {
             isVisible: () => false,
             dismiss: vi.fn(),
@@ -110,7 +115,7 @@ vi.mock('@expo/vector-icons', async () => {
 });
 vi.mock('expo-router', () => ({
     useLocalSearchParams: () => ({}),
-    useNavigation: () => ({ setOptions: vi.fn() }),
+    useNavigation: () => ({ setOptions: mocks.setOptions }),
     useRouter: () => ({ back: mocks.routerBack }),
 }));
 vi.mock('react-native-unistyles', async () => {
@@ -1445,6 +1450,94 @@ function summaryText(renderer: ReturnType<typeof create>): string {
     const summary = renderer.root.find((node: any) => node.props?.testID === 'streamline-summary');
     return summary.findAllByType('Text' as any).map((node: any) => [].concat(node.props.children).join('')).join(' ');
 }
+
+describe('New Session title on Web Mobile', () => {
+    it.each([
+        ['Streamline', 'streamline', false],
+        ['Advanced', 'advanced', true],
+    ] as const)('shows the header row in %s only when the page does not carry the title itself', async (_label, mode, headerShown) => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = mode;
+        mocks.dimensions = { width: 390, height: 844 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.setOptions.mockClear();
+        const renderer = await renderScreen();
+        await settle(renderer);
+        // Streamline's page opens with "Start New Session"; a header row would repeat it.
+        expect(mocks.setOptions).toHaveBeenLastCalledWith({ headerShown });
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Streamline on native phones', () => {
+    // Owner decision, 2026-09-27: native phones follow the synced New Session mode, as the web does.
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = 'streamline';
+        mocks.platform = 'ios';
+        mocks.dimensions = { width: 390, height: 844 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.streamlineLocations = [{ machineId: 'machine-1', path: '/Users/dev/repo', name: 'repo', machineName: 'studio', online: true }];
+    });
+    const byTestID = (renderer: ReturnType<typeof create>, testID: string) => renderer.root.findAll((node: any) => node.props?.testID === testID);
+
+    it('opens a native phone in Streamline, with the chips in the pinned composer, and starts the session from it', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestID(renderer, 'streamline-sections').length).toBeGreaterThan(0);
+        expect(byTestID(renderer, 'new-session-mode').length).toBeGreaterThan(0);
+        // The page carries the title: no header repeats it.
+        expect(renderer.root.findAllByType('Header' as any)).toHaveLength(0);
+        // The chips sit in the composer below the page, in place of the agent and settings buttons.
+        const composer = byTestID(renderer, 'streamline-composer')[0];
+        expect(composer.findAll((node: any) => node.props?.testID === 'streamline-composer-chips').length).toBeGreaterThan(0);
+        expect(renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'settings.title')).toHaveLength(0);
+        expect(byTestID(renderer, 'streamline-sections')[0].findAll((node: any) => node.props?.testID === 'streamline-composer').length).toBe(0);
+
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(1);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1', agent: 'claude', modelMode: 'claude-opus-5-5', effortLevel: 'xhigh', permissionMode: 'acceptEdits',
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('opens chip pickers as a sheet, and the folder browser in the full form\'s keyboard-aware popover', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-permission');
+        await act(async () => { chip.props.onPress(); });
+        await settle(renderer);
+        // One picker: the menu sheet, not the full form's popover as well.
+        expect(byTestID(renderer, 'streamline-chip-picker-handle').length).toBeGreaterThan(0);
+        expect(renderer.root.findAllByType('KeyboardStickyView' as any)).toHaveLength(0);
+        const option = byTestID(renderer, 'streamline-chip-picker')[0]
+            .findAll((node: any) => node.props?.accessibilityLabel === 'default' && typeof node.props?.onPress === 'function')[0];
+        await act(async () => { option.props.onPress(); });
+        expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('default');
+
+        const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
+        await act(async () => { browse.props.onPress(); });
+        await settle(renderer);
+        const sticky = renderer.root.findAllByType('KeyboardStickyView' as any);
+        expect(sticky).toHaveLength(1);
+        expect(sticky[0].props.enabled).toBe(true);
+        expect(byTestID(renderer, 'streamline-folder-browser')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps native tablets on the full form', async () => {
+        mocks.dimensions = { width: 1024, height: 1366 };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestID(renderer, 'streamline-sections')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+});
 
 describe('Streamline New Session review fixes', () => {
     beforeEach(() => {

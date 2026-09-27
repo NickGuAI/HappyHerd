@@ -990,15 +990,17 @@ function NewSessionScreen() {
     const streamlineAgentSetting = useSetting('streamlineAgent');
     const streamlineAgentDefaults = useSetting('streamlineAgentDefaults');
     const streamlineGithubWorktree = useSetting('streamlineGithubWorktree');
-    // Streamline is the web experience; native apps keep the full form.
+    const isTablet = useIsTablet();
+    // Streamline follows the synced mode on the web and on native phones (owner
+    // decision, 2026-09-27); native tablets and the iOS app on a Mac keep the full form.
+    const streamlineAvailable = Platform.OS === 'web' || !isTablet;
     const [sessionMode, setSessionMode] = React.useState<'streamline' | 'advanced'>(
-        () => (Platform.OS === 'web' ? newSessionMode : 'advanced'),
+        () => (streamlineAvailable ? newSessionMode : 'advanced'),
     );
     const streamline = sessionMode === 'streamline';
     const [streamlineAnchor, setStreamlineAnchor] = React.useState<HerdAnchorRect | null>(null);
     // Phones anchor a Streamline chip's picker to the composer (UI overhaul).
     const streamlineComposerRef = React.useRef<View>(null);
-    const isTablet = useIsTablet();
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
@@ -2515,7 +2517,8 @@ function NewSessionScreen() {
     });
     // Streamline lays out by width alone: phones get swipe rows and a pinned
     // composer; anything wider gets the centered column.
-    const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH;
+    // Native phones take the phone layout at every width, landscape included.
+    const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH || !isDesktop;
     const streamlineColumn = streamline && !streamlinePhone;
     const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
         platform: Platform.OS,
@@ -2524,10 +2527,12 @@ function NewSessionScreen() {
         desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
     });
     const isNativeMobile = !isDesktop;
+    // On phones the Streamline page carries its own title, so the header row would repeat it.
+    const streamlineCarriesTitle = streamline && streamlinePhone;
     React.useLayoutEffect(() => {
-        navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile });
+        navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile && !streamlineCarriesTitle });
         return () => navigation.setOptions({ headerShown: true });
-    }, [isNativeMobile, navigation, sidebarLayout.showSidebar]);
+    }, [isNativeMobile, navigation, sidebarLayout.showSidebar, streamlineCarriesTitle]);
 
     // Handle Enter/Cmd+Enter to send on web
     const handleKeyPress = React.useCallback((event: KeyPressEvent): boolean => {
@@ -2695,7 +2700,8 @@ function NewSessionScreen() {
         const headerBottom = safeArea.top + MOBILE_GLASS_HEADER_HEIGHT;
         const composerTop = windowHeight - safeArea.bottom - mobileComposerHeight;
         if (
-            activePicker === 'settings'
+            streamline
+            || activePicker === 'settings'
             || activePicker === 'agent'
             || activePicker === 'model'
             || activePicker === 'effort'
@@ -2719,7 +2725,7 @@ function NewSessionScreen() {
             headerBottom + 12,
             anchorY - NATIVE_PICKER_ESTIMATED_HEIGHT - 8,
         );
-    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, safeArea.bottom, safeArea.top, windowHeight]);
+    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, safeArea.bottom, safeArea.top, streamline, windowHeight]);
 
     const accountProjectPicker = (
         <>
@@ -3133,7 +3139,7 @@ function NewSessionScreen() {
                 />
             </View>
             {/* Phones give the Streamline chips their own row above the buttons. */}
-            {streamline && streamlinePhone && !isNativeMobile && (
+            {streamline && streamlinePhone && (
                 <View style={styles.streamlineChipsRow}>{streamlineChipsNode}</View>
             )}
             <View style={[
@@ -3145,7 +3151,9 @@ function NewSessionScreen() {
                         {streamline && !streamlinePhone && streamlineChipsNode}
                     </View>
                 )}
-                {isNativeMobile && (
+                {/* In Streamline the chips replace the agent and settings buttons; the rest keep the right side. */}
+                {isNativeMobile && streamline && <View style={styles.mobileComposerLeftControls} />}
+                {isNativeMobile && !streamline && (
                     <View style={styles.mobileComposerLeftControls}>
                         <BubblePressable
                             scaleFeedback={false}
@@ -3260,7 +3268,7 @@ function NewSessionScreen() {
     );
 
     // ---- Streamline (web) ----
-    const modeSwitchControl = Platform.OS === 'web' ? (
+    const modeSwitchControl = streamlineAvailable ? (
         <HerdSegmentedControl
             options={[
                 { value: 'streamline', label: t('newSession.streamline.modeStreamline') },
@@ -3277,7 +3285,7 @@ function NewSessionScreen() {
         />
     ) : null;
     // Phones stack the title, the intro and a full-width mode switch.
-    const modeHeader = Platform.OS === 'web' ? (
+    const modeHeader = streamlineAvailable ? (
         <View style={[styles.modeHeader, streamlinePhone && styles.modeHeaderPhone]}>
             <View style={[styles.modeHeaderText, streamlinePhone && styles.modeHeaderTextPhone]}>
                 <Text style={[styles.modeTitle, streamlinePhone && styles.modeTitlePhone]}>{t('newSession.title')}</Text>
@@ -3307,7 +3315,7 @@ function NewSessionScreen() {
 
     // Phones (UI overhaul): the folder browser floats above the page, 8 px from
     // the window's sides and bottom, and leaves with motion.
-    const phoneFolderBrowser = useHerdExit(streamline && streamlinePhone && activePicker === 'path' ? true : null, HERD_EXIT.pop);
+    const phoneFolderBrowser = useHerdExit(streamline && streamlinePhone && !isNativeMobile && activePicker === 'path' ? true : null, HERD_EXIT.pop);
     const phoneFolderBrowserCard = phoneFolderBrowser.value ? (
         <View
             pointerEvents="box-none"
@@ -3425,7 +3433,7 @@ function NewSessionScreen() {
                     isNativeMobile && { backgroundColor: 'transparent' },
                 ]}
             >
-            {isNativeMobile && (
+            {isNativeMobile && !streamline && (
                 <Header
                     title={<Text style={styles.mobileHeaderTitle}>{t('newSession.title')}</Text>}
                     // Phones (UI overhaul) reach New Session from the drawer, which leads away again, so it has no Back.
@@ -3506,7 +3514,7 @@ function NewSessionScreen() {
                         <>
                             <ScrollView
                                 style={styles.mobileConfigScroll}
-                                contentContainerStyle={styles.mobileConfigScrollContent}
+                                contentContainerStyle={streamline ? styles.streamlineNativeConfig : styles.mobileConfigScrollContent}
                                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                                 keyboardShouldPersistTaps="handled"
                                 onScrollBeginDrag={() => {
@@ -3514,30 +3522,48 @@ function NewSessionScreen() {
                                     closePicker();
                                 }}
                                 showsVerticalScrollIndicator={false}
+                                testID={streamline ? 'new-session-streamline' : undefined}
                             >
-                                <Pressable
-                                    onPress={() => {
-                                        Keyboard.dismiss();
-                                        closePicker();
-                                    }}
-                                    style={styles.mobileKeyboardDismissArea}
-                                >
-                                    <View
-                                        onLayout={(event) => {
-                                            const nextHeight = Math.round(event.nativeEvent.layout.height);
-                                            setMobileConfigHeight((currentHeight) => (
-                                                currentHeight === nextHeight ? currentHeight : nextHeight
-                                            ));
+                                {streamline ? (
+                                    // Native phones (owner decision, 2026-09-27): the Web Mobile page above
+                                    // the composer, which stays pinned as in the full form, so the
+                                    // keyboard handling is the full form's.
+                                    <>
+                                        {modeHeader}
+                                        {streamlineSections}
+                                    </>
+                                ) : (
+                                    <Pressable
+                                        onPress={() => {
+                                            Keyboard.dismiss();
+                                            closePicker();
                                         }}
-                                        style={[styles.inlineConfigWrap, styles.mobileInlineConfigWrap]}
+                                        style={styles.mobileKeyboardDismissArea}
                                     >
-                                        {configContent}
-                                    </View>
-                                </Pressable>
+                                        <View
+                                            onLayout={(event) => {
+                                                const nextHeight = Math.round(event.nativeEvent.layout.height);
+                                                setMobileConfigHeight((currentHeight) => (
+                                                    currentHeight === nextHeight ? currentHeight : nextHeight
+                                                ));
+                                            }}
+                                            style={[styles.inlineConfigWrap, styles.mobileInlineConfigWrap]}
+                                        >
+                                            {modeSwitchControl && <View style={styles.nativeModeSwitch}>{modeSwitchControl}</View>}
+                                            {configContent}
+                                        </View>
+                                    </Pressable>
+                                )}
                             </ScrollView>
-                            <View style={[styles.inlineComposerWrap, styles.mobileComposerShadow]}>
+                            <View
+                                ref={streamline ? streamlineComposerRef : undefined}
+                                style={[styles.inlineComposerWrap, styles.mobileComposerShadow]}
+                                testID={streamline ? 'streamline-composer' : undefined}
+                            >
                                 {composerNode}
+                                {streamline && streamlineSummary}
                             </View>
+                            {streamline && streamlineChipPicker}
                         </>
                     ) : streamline ? (
                         <>
@@ -3582,7 +3608,8 @@ function NewSessionScreen() {
                 </View>
             )}
 
-            {isNativeMobile && activePicker && nativePickerContent && (
+            {/* Streamline's chips open their own sheet; its folder browser reuses this popover. */}
+            {isNativeMobile && activePicker && nativePickerContent && (!streamline || activePicker === 'path') && (
                 <KeyboardStickyView
                     enabled={activePicker === 'path'}
                     style={[
@@ -3899,6 +3926,15 @@ const styles = StyleSheet.create((theme) => ({
     },
     streamlinePhoneComposer: {
         marginTop: 22,
+        marginBottom: 10,
+    },
+    // Native phones: the Streamline page scrolls above the pinned composer.
+    streamlineNativeConfig: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 16,
+    },
+    nativeModeSwitch: {
         marginBottom: 10,
     },
     streamlineFloatingLayer: {

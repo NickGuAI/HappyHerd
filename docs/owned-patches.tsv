@@ -568,3 +568,4 @@ UI_OVERHAUL_PHONE_PAGES	accepted	feat(app): give phone Settings its section list
 UI_OVERHAUL_PHONE_CHANGELOG	accepted	docs(app): describe the phone layout in the changelog	server/packages/happyherd-app/CHANGELOG.md
 UI_OVERHAUL_PHONE_TEST_FOCUS	accepted	test(app): give the New Session test's mocked nodes focus and blur	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_NATIVE_TABLET_BACK	accepted	feat(app): show the session and page Back on native tablets	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
+UI_OVERHAUL_NATIVE_STREAMLINE	accepted	feat(app): open native phones in Streamline, as the web does	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
