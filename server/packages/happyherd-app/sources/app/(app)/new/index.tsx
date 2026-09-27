@@ -2698,7 +2698,8 @@ function NewSessionScreen() {
             return 0;
         }
         const headerBottom = safeArea.top + MOBILE_GLASS_HEADER_HEIGHT;
-        const composerTop = windowHeight - safeArea.bottom - mobileComposerHeight;
+        // The pinned composer sits on its bottom spacer, at least 12 px tall.
+        const composerTop = windowHeight - Math.max(12, safeArea.bottom) - mobileComposerHeight;
         if (
             streamline
             || activePicker === 'settings'
@@ -3097,9 +3098,6 @@ function NewSessionScreen() {
             enabled={isNativeMobile}
             nativeEffect={isNativeMobile}
             intensity={88}
-            onLayout={isNativeMobile
-                ? (event) => setMobileComposerHeight(event.nativeEvent.layout.height)
-                : undefined}
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
             <WorkspaceContextStrip
@@ -3560,6 +3558,8 @@ function NewSessionScreen() {
                             </ScrollView>
                             <View
                                 ref={streamline ? streamlineComposerRef : undefined}
+                                // Native pickers anchor to the whole pinned composer, Streamline's summary included.
+                                onLayout={(event) => setMobileComposerHeight(event.nativeEvent.layout.height)}
                                 style={[styles.inlineComposerWrap, styles.mobileComposerShadow]}
                                 testID={streamline ? 'streamline-composer' : undefined}
                             >

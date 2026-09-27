@@ -1708,3 +1708,46 @@ describe('Streamline New Session review fixes', () => {
         act(() => renderer.unmount());
     });
 });
+
+describe('Streamline picker anchor on native phones', () => {
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = 'streamline';
+        mocks.platform = 'ios';
+        mocks.dimensions = { width: 390, height: 844 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.streamlineLocations = [{ machineId: 'machine-1', path: '/Users/dev/repo', name: 'repo', machineName: 'studio', online: true }];
+    });
+    // The platform reports a layout to each view that listens for one.
+    const fireLayout = (node: any, height: number) => act(() => {
+        node.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 366, height } } });
+    });
+
+    it('opens the folder picker above the whole pinned composer, its summary included', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const composer = renderer.root.findAll((node: any) => node.props?.testID === 'streamline-composer')[0];
+        expect(composer.findAll((node: any) => node.props?.testID === 'streamline-summary').length).toBeGreaterThan(0);
+        // The summary, its margin and the composer's gap add 56 px below the input surface.
+        const surfaceHeight = 120;
+        const composerHeight = surfaceHeight + 56;
+        fireLayout(composer.findAllByType('MobileGlassSurface' as any)[0], surfaceHeight);
+        fireLayout(composer, composerHeight);
+
+        const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
+        await act(async () => { browse.props.onPress(); });
+        await settle(renderer);
+        const sticky = () => renderer.root.findAllByType('KeyboardStickyView' as any)[0];
+        const pickerHeight = 240;
+        fireLayout(sticky().findAllByType('MobileGlassSurface' as any)[0], pickerHeight);
+
+        const safeAreaBottom = 0; // the safe-area mock's inset
+        const spacer = Math.max(12, safeAreaBottom); // the composer's bottom spacer
+        const gap = 10; // the page's space between a picker and the composer
+        const top = flattenStyle(sticky().props.style).top as number;
+        expect(top + pickerHeight + gap).toBeLessThanOrEqual(mocks.dimensions.height - spacer - composerHeight);
+        act(() => renderer.unmount());
+    });
+});
