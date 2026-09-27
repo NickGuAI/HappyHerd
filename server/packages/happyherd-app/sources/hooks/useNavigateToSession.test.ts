@@ -22,6 +22,7 @@ vi.mock('@/track', () => ({ trackSessionSwitched: mocks.trackSessionSwitched }))
 vi.mock('@/utils/perfLog', () => ({ perfMark: mocks.perfMark }));
 
 import { useSessionPressHandlers } from './useNavigateToSession';
+import { useHerdPhoneShell } from '@/components/herd/shell/phoneShell';
 
 let renderer: ReturnType<typeof create>;
 let handlers: ReturnType<typeof useSessionPressHandlers>;
@@ -60,6 +61,14 @@ describe('session row press contract', () => {
         expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/session/a');
         expect(mocks.trackSessionSwitched).toHaveBeenCalledExactlyOnceWith({ id: 'a' });
         expect(mocks.perfMark).toHaveBeenCalledWith('session-open:a');
+    });
+
+    it('closes the phone drawer on a press, even when the row is the session already open', () => {
+        mocks.state.currentViewingSessionId = 'a';
+        act(() => useHerdPhoneShell.getState().openDrawer());
+        handlers.onPress();
+        expect(useHerdPhoneShell.getState().drawerOpen).toBe(false);
+        expect(mocks.router.push).toHaveBeenCalledWith('/session/a');
     });
 
     it('supports activation without a prior touch-down', () => {

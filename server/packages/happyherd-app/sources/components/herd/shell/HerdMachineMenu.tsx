@@ -69,17 +69,18 @@ export function HerdMachineMenu({ compact, nameHidden = false }: { compact: bool
 
     return (
         <>
-            <View ref={triggerRef} collapsable={false}>
+            {/* Phones: every level may shrink, so a long name ellipsizes instead of pushing the bar offscreen. */}
+            <View ref={triggerRef} collapsable={false} style={phone ? styles.phoneShrink : undefined}>
                 <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`${t('settings.machines')}: ${currentLabel}, ${statusLabel}`}
                     aria-expanded={!!anchor}
                     onPress={toggle}
                     testID="herd-machine-menu"
-                    style={phone ? styles.phoneTarget : undefined}
+                    style={phone ? [styles.phoneTarget, styles.phoneShrink] : undefined}
                 >
                     {({ hovered, pressed }: any) => (
-                        <View style={[styles.pill, (hovered || pressed || anchor) && styles.pillHovered]}>
+                        <View style={[styles.pill, phone && styles.phoneShrink, (hovered || pressed || anchor) && styles.pillHovered]}>
                             {!nameHidden && <Ionicons name="desktop-outline" size={14} color={theme.colors.textSecondary} />}
                             {!nameHidden && <Text numberOfLines={1} style={styles.pillName}>{currentLabel}</Text>}
                             <View style={[styles.dot, online ? styles.dotOnline : styles.dotOffline]} />
@@ -139,6 +140,10 @@ const styles = StyleSheet.create((theme) => ({
         height: 44,
         justifyContent: 'center',
         paddingHorizontal: 2,
+    },
+    phoneShrink: {
+        flexShrink: 1,
+        minWidth: 0,
     },
     pill: {
         height: 32,

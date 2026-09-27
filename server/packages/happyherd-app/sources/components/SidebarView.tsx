@@ -13,6 +13,7 @@ import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
 import { useIsTablet } from '@/utils/responsive';
 import { HerdConnectionStatus } from './herd/shell/HerdConnectionStatus';
+import { useHerdPhoneShell } from './herd/shell/phoneShell';
 
 const stylesheet = StyleSheet.create((theme) => ({
     // Sits below the HappyHerd top bar, which owns the window's top edge.
@@ -115,11 +116,18 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
     const insets = useSafeAreaInsets();
     const listInsets = React.useMemo(() => ({ ...insets, bottom: 0 }), [insets]);
     const sessionList = list ?? <MainView variant="sidebar" />;
-    const openSettings = React.useCallback(() => router.push('/settings'), [router]);
+    // Phones (UI overhaul): choosing a destination closes the drawer, even the
+    // page already open underneath. Elsewhere the drawer is closed and this is a no-op.
+    const closePhoneDrawer = useHerdPhoneShell((state) => state.closeDrawer);
+    const go = React.useCallback((navigate: () => void) => {
+        closePhoneDrawer();
+        navigate();
+    }, [closePhoneDrawer]);
+    const openSettings = React.useCallback(() => go(() => router.push('/settings')), [go, router]);
 
     const handleNewSession = React.useCallback(() => {
-        router.navigate('/new');
-    }, [router]);
+        go(() => router.navigate('/new'));
+    }, [go, router]);
     const handleArchiveVisibility = React.useCallback(() => {
         setHideArchivedSessions(!hideArchivedSessions);
     }, [hideArchivedSessions, setHideArchivedSessions]);
@@ -133,7 +141,7 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                             icon="folder-open-outline"
                             label={t('workspace.title')}
                             active={pathname.startsWith('/workspace')}
-                            onPress={() => router.navigate('/workspace')}
+                            onPress={() => go(() => router.navigate('/workspace'))}
                         />
                     )}
                     <SidebarNavigationButton
@@ -141,14 +149,14 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                         icon="albums-outline"
                         label={t('sidebar.projects')}
                         active={pathname.startsWith('/projects')}
-                        onPress={() => router.navigate('/projects')}
+                        onPress={() => go(() => router.navigate('/projects'))}
                     />
                     <SidebarNavigationButton
                         iconOnly
                         icon="time-outline"
                         label={t('happyHerd.automations.title')}
                         active={pathname.startsWith('/automations')}
-                        onPress={() => router.navigate('/automations')}
+                        onPress={() => go(() => router.navigate('/automations'))}
                     />
                     {settingsInNav && (
                         <SidebarNavigationButton

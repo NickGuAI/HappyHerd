@@ -468,24 +468,33 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
         <View style={styles.container} onLayout={(event) => setPanelWidth(event.nativeEvent.layout.width)}>
             {/* Panel pill tabs + the add-panel menu, level with the chat header */}
             <View style={[styles.header, { height: headerHeight }]}>
-                {headerPanels.map((key) => {
-                    const open = openPanels.includes(key);
-                    return (
-                        <HerdPanelTab
-                            key={key}
-                            label={panelLabel(key)}
-                            active={key === activePanel}
-                            onPress={() => (open ? onSelectPanel(key) : onOpenPanel(key))}
-                            onClose={open ? () => onClosePanel(key) : undefined}
-                            closeLabel={t('files.closePanel')}
-                            maxWidth={200}
-                            renderIcon={(color) => <Octicons name={panelIcon(key)} size={14} color={color} />}
-                            meta={key === 'changes'
-                                ? (gitStatus ? <HerdLineCounts added={gitStatus.linesAdded} removed={gitStatus.linesRemoved} /> : null)
-                                : <HerdCountBadge count={sideChats.length} />}
-                        />
-                    );
-                })}
+                {/* The pills scroll sideways when the panel is narrow (the phone sheet), so Add and Hide always fit. */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.headerTabs}
+                    contentContainerStyle={styles.headerTabsContent}
+                    testID="files-sidebar-tabs"
+                >
+                    {headerPanels.map((key) => {
+                        const open = openPanels.includes(key);
+                        return (
+                            <HerdPanelTab
+                                key={key}
+                                label={panelLabel(key)}
+                                active={key === activePanel}
+                                onPress={() => (open ? onSelectPanel(key) : onOpenPanel(key))}
+                                onClose={open ? () => onClosePanel(key) : undefined}
+                                closeLabel={t('files.closePanel')}
+                                maxWidth={200}
+                                renderIcon={(color) => <Octicons name={panelIcon(key)} size={14} color={color} />}
+                                meta={key === 'changes'
+                                    ? (gitStatus ? <HerdLineCounts added={gitStatus.linesAdded} removed={gitStatus.linesRemoved} /> : null)
+                                    : <HerdCountBadge count={sideChats.length} />}
+                            />
+                        );
+                    })}
+                </ScrollView>
                 <View onLayout={(event) => setAddButtonX(event.nativeEvent.layout.x)}>
                     <HerdPanelIconButton
                         accessibilityLabel={t('files.addPanel')}
@@ -772,6 +781,17 @@ const styles = StyleSheet.create((theme) => ({
     },
     headerSpacer: {
         flex: 1,
+    },
+    // The pills take their own width until the row runs out, then scroll.
+    headerTabs: {
+        flexGrow: 0,
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    headerTabsContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     pickerContainer: {
         justifyContent: 'center',

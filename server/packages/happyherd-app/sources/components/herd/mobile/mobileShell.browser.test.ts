@@ -196,7 +196,7 @@ const virtualModules: Record<string, string> = {
         export const useSocketStatus = () => socket;
         export const useRealtimeStatus = () => 'disconnected';
         const machines = [
-            { id: 'studio-mac', active: true, createdAt: 3, metadata: { host: 'studio-mac', displayName: 'studio-mac', platform: 'darwin' } },
+            { id: 'studio-mac', active: true, createdAt: 3, metadata: { host: 'studio-mac', displayName: params.get('machine') === 'long' ? 'build-server-with-a-very-long-machine-name.internal' : 'studio-mac', platform: 'darwin' } },
             { id: 'build-box', active: true, createdAt: 1, metadata: { host: 'build-box', platform: 'linux' } },
             { id: 'gpu-lab', active: false, createdAt: 2, metadata: { host: 'gpu-lab', platform: 'linux' } },
         ];
@@ -610,6 +610,21 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await page.close();
     }, 40_000);
 
+    it('closes the drawer when the page already open underneath is chosen again', async () => {
+        const { page, errors } = await open();
+        for (const [path, label] of [['/settings', /Settings/], ['/projects', /Projects/]] as const) {
+            await page.evaluate((route) => (window as any).__FIXTURE_ROUTER__.push(route), path);
+            await page.getByTestId('fixture-page').waitFor();
+            await page.getByTestId('navigation-sidebar-toggle').click();
+            await expect.poll(async () => (await drawer(page)).x).toBe(0);
+            // The pathname does not change, so only the choice itself can close the drawer.
+            await page.getByTestId('herd-phone-drawer').getByRole('button', { name: label }).first().click();
+            await expect.poll(() => offscreen(page)).toBe(true);
+        }
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
     it('pulls the drawer in with a touch swipe from the left edge, and lets a short one fall back', async () => {
         const { page, errors } = await open({ touch: true });
         await page.locator('[data-herd-row="auth"]').first().tap();
@@ -683,9 +698,9 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
             const input = page.getByPlaceholder('Type a command or search...');
             await input.waitFor();
-            // The palette springs in through Animated rather than a CSS animation: wait until
-            // its scale has come to rest, which a rounded width alone does not show.
-            await expect.poll(async () => Math.abs((await box(page, 'command-palette')).width - (PHONE.width - 16)) < 0.05).toBe(true);
+            // The palette springs in through Animated rather than a CSS animation: wait until the
+            // spring ends at exactly full scale, which a nearly full width does not show.
+            await expect.poll(async () => (await box(page, 'command-palette')).width, { timeout: 10_000 }).toBe(PHONE.width - 16);
             await settled(page);
             // The palette spans the phone less 8 px a side and sits 8 px below the notch.
             const palette = await box(page, 'command-palette');
@@ -696,7 +711,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             await expect(page.getByTestId('command-palette-hints').count()).resolves.toBe(0);
             await expect(page.locator('[data-herd-key]').count()).resolves.toBe(0);
             const close = await box(page, 'command-palette-close');
-            expect(close).toMatchObject({ width: 44, height: 44 });
+            expect({ width: Math.round(close.width), height: Math.round(close.height) }).toEqual({ width: 44, height: 44 });
             expect(Math.round(palette.x + palette.width - (close.x + close.width))).toBe(5);
             // The search icon and every row's icon sit on the palette's 16 px gutter (inside its 1 px rim).
             const gutter = Math.round(palette.x) + 1 + 16;
@@ -794,6 +809,28 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await expect.poll(() => menu.count()).toBe(0);
         await page.touchscreen.tap(point.x, point.y);
         await expect.poll(() => routerCalls(page)).toEqual(['/session/dock']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('dismisses the session actions card with Escape or a tap outside, running nothing', async () => {
+        const { page, errors } = await open({ touch: true });
+        const menu = page.getByTestId('session-actions-menu');
+        const openMenu = async () => {
+            await page.locator('[data-herd-row="dock"]').click({ button: 'right', position: { x: 200, y: 20 } });
+            await menu.waitFor();
+        };
+        // Escape closes the card and stops there: it neither navigates Back nor reaches the page.
+        await openMenu();
+        await page.keyboard.press('Escape');
+        await expect.poll(() => menu.count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__UNHANDLED_ESCAPES__)).toBe(0);
+        // A tap outside closes it without opening the session under the tap.
+        await openMenu();
+        await page.touchscreen.tap(PHONE.width / 2, PHONE_INSETS.top + 52 + 30);
+        await expect.poll(() => menu.count()).toBe(0);
+        expect(await routerCalls(page)).toEqual([]);
+        expect(await page.evaluate(() => (window as any).__ACTIONS__ ?? [])).toEqual([]);
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
@@ -897,7 +934,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         await button.waitFor();
         await expect(button.getAttribute('aria-label')).resolves.toBe('Server Configuration');
         const frame = (await button.boundingBox())!;
-        expect(frame).toMatchObject({ width: 44, height: 44 });
+        expect({ width: Math.round(frame.width), height: Math.round(frame.height) }).toEqual({ width: 44, height: 44 });
         expect(Math.round(PHONE.width - (frame.x + frame.width))).toBe(4);
         const icon = (await button.locator('[data-icon="server-outline"]').boundingBox())!;
         expect(Math.round(PHONE.width - (icon.x + icon.width))).toBe(16);
@@ -907,6 +944,34 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    it.each([390, 320])('keeps the top bar inside a %i px phone with a long machine name', async (width) => {
+        const { page, errors } = await open({ width, height: 844, query: { machine: 'long' } });
+        await openSession(page);
+        // Every control stays on screen, the machine pill ending 4 px from the edge.
+        const controls = await page.getByTestId('herd-top-bar').evaluate((bar) => [...bar.querySelectorAll('[role="button"], button')]
+            .map((node) => node.getBoundingClientRect()).map((rect) => [Math.round(rect.left), Math.round(rect.right)]));
+        for (const [left, right] of controls) {
+            expect(left).toBeGreaterThanOrEqual(0);
+            expect(right).toBeLessThanOrEqual(width);
+        }
+        const machine = await box(page, 'herd-machine-menu');
+        expect(Math.round(width - (machine.x + machine.width))).toBe(4);
+        expect(await noHorizontalOverflow(page)).toBe(true);
+        // The other controls keep their 44 px targets; the name gives way, ellipsized (or hidden below 360 px).
+        for (const id of ['navigation-sidebar-toggle', 'herd-top-bar-brand', 'herd-inbox-bell']) {
+            expect(Math.round((await box(page, id)).width)).toBeGreaterThanOrEqual(44);
+        }
+        const name = page.getByTestId('herd-machine-menu').getByText('build-server-with-a-very-long-machine-name.internal', { exact: true });
+        if (width >= 360) {
+            await expect(name.evaluate((element) => element.scrollWidth > element.clientWidth)).resolves.toBe(true);
+        } else {
+            await expect(name.count()).resolves.toBe(0);
+        }
+        await evidence(page, `phone-top-bar-long-machine-light-${width}`);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('fits the top bar at 320 px and while the Focus countdown runs', async () => {
         const fits = async (page: Page, width: number) => {

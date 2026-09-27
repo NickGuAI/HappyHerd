@@ -120,7 +120,7 @@ function panelsModules(): Record<string, string> {
         }) : ({`, 'changed files');
     storage = replaceOnce(storage, 'export const useSessionGitStatus = () => null;',
         `export const useSessionGitStatus = (sessionId) => fixtureOptions.panelsEvidence && sessionId === 'parent'
-            ? { branch: 'fix/auth-timeout', linesAdded: 22, linesRemoved: 13, lastUpdatedAt: 1 }
+            ? { branch: 'fix/auth-timeout', linesAdded: fixtureOptions.linesAdded ?? 22, linesRemoved: fixtureOptions.linesRemoved ?? 13, lastUpdatedAt: 1 }
             : null;`, 'git status');
     storage += `\nexport const useRealtimeMode = () => 'idle';`;
     modules['@/sync/storage'] = storage;
@@ -597,6 +597,34 @@ describe('Side panels and Workspace overhaul (Web, production style runtime)', (
         await expect(editor.getAttribute('data-overlay-editor')).resolves.toBe('mounted');
         await expect(editor.inputValue()).resolves.toBe('# Overlay draft\n\nStill here after the sheet closes.\n');
         await expect(foreground.locator('textarea[data-overlay-composer="main"]').inputValue()).resolves.toBe('Main draft kept under the sheet');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 60_000);
+
+    it.each([390, 320])('keeps Add and Hide inside the phone sheet at %i px, the pills scrolling sideways', async (width) => {
+        // Two side chats and a Changes pill counting +100 −100 are wider than the phone's sheet.
+        const { page, errors, foreground } = await open({ width, height: 844 }, 'light', { linesAdded: 100, linesRemoved: 100 });
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        const sheet = foreground.getByTestId('desktop-right-panel-host');
+        await sheet.waitFor({ state: 'visible' });
+        await sheet.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        const sheetBox = (await sheet.boundingBox())!;
+        await expect(sheet.getByText('+100', { exact: true }).count()).resolves.toBe(1);
+        for (const control of [foreground.getByRole('button', { name: 'Add panel', exact: true }), foreground.getByTestId('files-sidebar-hide')]) {
+            const box = (await control.boundingBox())!;
+            expect(box.x).toBeGreaterThanOrEqual(sheetBox.x);
+            expect(Math.round(box.x + box.width)).toBeLessThanOrEqual(Math.round(sheetBox.x + sheetBox.width));
+        }
+        // The pills give way instead, scrolling sideways within their strip.
+        const strip = await foreground.getByTestId('files-sidebar-tabs').evaluate((element) => {
+            const scroller = [element, ...element.querySelectorAll('*')].find((node) => getComputedStyle(node).overflowX === 'auto' || getComputedStyle(node).overflowX === 'scroll')!;
+            return { scroll: scroller.scrollWidth, client: scroller.clientWidth };
+        });
+        expect(strip.scroll).toBeGreaterThan(strip.client);
+        await evidence(page, `mobile-light-sheet-header-${width}`);
+        // Hide still closes the sheet.
+        await foreground.getByTestId('files-sidebar-hide').click();
+        await foreground.getByTestId('desktop-panel-overlay-scrim').waitFor({ state: 'detached' });
         expect(errors).toEqual([]);
         await page.close();
     }, 60_000);
