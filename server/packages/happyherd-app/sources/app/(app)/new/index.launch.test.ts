@@ -511,7 +511,12 @@ async function renderScreen() {
     await act(async () => {
         renderer = create(React.createElement(NewSessionScreen), {
             // Chips measure themselves to anchor their picker.
-            createNodeMock: () => ({ measureInWindow: (done: (...rect: number[]) => void) => done(40, 700, 90, 28) }),
+            // Inputs focus on a timer (the path picker); a busy run can reach it before the test unmounts.
+            createNodeMock: () => ({
+                measureInWindow: (done: (...rect: number[]) => void) => done(40, 700, 90, 28),
+                focus: () => {},
+                blur: () => {},
+            }),
         });
         await Promise.resolve();
         await Promise.resolve();
