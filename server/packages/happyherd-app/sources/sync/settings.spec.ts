@@ -2,6 +2,53 @@ import { describe, it, expect } from 'vitest';
 import { SettingsSchema, settingsParse, applySettings, settingsDefaults, settingsToSyncPayload, type Settings } from './settings';
 
 describe('settings', () => {
+    describe('Streamline settings sync', () => {
+        it('adds defaults to older settings without importing Advanced preferences', () => {
+            const settings = settingsParse({ schemaVersion: 1, lastUsedAgent: 'codex', agentDefaultOverrides: { claude: { permissionMode: 'bypassPermissions' } } });
+            expect(settings.newSessionMode).toBe('streamline');
+            expect(settings.streamlineAgent).toBe('claude');
+            expect(settings.streamlineAgentDefaults).toEqual({});
+            expect(settings.streamlineGithubWorktree).toBe(true);
+            expect(settings.agentDefaultOverrides.claude?.permissionMode).toBe('bypassPermissions');
+        });
+
+        it.each(['streamline', 'advanced'] as const)('round trips %s and per-agent overrides through account sync', (newSessionMode) => {
+            const delta = {
+                newSessionMode,
+                streamlineAgent: 'codex',
+                streamlineAgentDefaults: { claude: { modelMode: 'claude-opus-5-5' }, codex: { effortLevel: 'high', permissionMode: 'default' }, gemini: { permissionMode: 'autoEdit' } },
+                streamlineGithubWorktree: false,
+            };
+            const settings = applySettings(settingsDefaults, delta);
+            expect(settingsParse(JSON.parse(JSON.stringify(settingsToSyncPayload(settings))))).toMatchObject(delta);
+        });
+
+        it('compacts both defaults fields independently without losing future preferences', () => {
+            const settings = settingsParse({
+                streamlineAgent: 'future-agent',
+                streamlineAgentDefaults: { claude: {}, codex: { futureField: 'keep' }, futureAgent: { modelMode: 'future-model' } },
+                agentDefaultOverrides: { claude: {} },
+                futureSetting: true,
+            });
+            const payload = settingsToSyncPayload(settings);
+            expect(payload).not.toHaveProperty('agentDefaultOverrides');
+            expect(payload.streamlineAgentDefaults).toEqual({ codex: { futureField: 'keep' }, futureAgent: { modelMode: 'future-model' } });
+            expect(payload.streamlineAgent).toBe('future-agent');
+            expect(payload).toHaveProperty('futureSetting', true);
+            expect(settings.streamlineAgentDefaults.claude).toEqual({});
+            expect(settingsToSyncPayload(settingsDefaults)).not.toHaveProperty('streamlineAgentDefaults');
+        });
+
+        it.each([
+            { newSessionMode: 'future-mode' },
+            { streamlineAgent: 7 },
+            { streamlineAgentDefaults: { codex: { effortLevel: 7 } } },
+            { streamlineGithubWorktree: 'yes' },
+        ])('uses the existing malformed-settings fallback: %j', (invalid) => {
+            expect(settingsParse({ ...invalid, futureField: 'keep' })).toEqual({ ...settingsDefaults, futureField: 'keep' });
+        });
+    });
+
     it.each(['flat', 'project', 'personal-project'] as const)('preserves the %s session list preference through sync', (mode) => {
         const settings = settingsParse({ sessionListGrouping: mode });
         expect(settings.sessionListGrouping).toBe(mode);
@@ -275,6 +322,10 @@ describe('settings', () => {
                 lastUsedPermissionMode: null,
                 lastUsedModelMode: null,
                 agentDefaultOverrides: {},
+                newSessionMode: 'streamline',
+                streamlineAgent: 'claude',
+                streamlineAgentDefaults: {},
+                streamlineGithubWorktree: true,
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
             });
         });
