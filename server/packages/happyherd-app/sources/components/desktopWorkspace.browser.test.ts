@@ -228,34 +228,6 @@ const virtualModules: Record<string, string> = {
     '@/utils/isTauri': `export const isTauri = () => false;`,
     '@/utils/platform': `export const isRunningOnMac = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
-    '@/navigation/browserNavigation': `
-        export const canRouteForward = () => false;
-        export const canUseRouteBack = () => !new URLSearchParams(window.location.search).has('back-disabled');
-        export const getNavigatorCanGoBack = () => true;
-    `,
-    '@/navigation/browserNavigationStore': `
-        const state = {
-            routeHistory: {},
-            markRouteBack() { window.__ROUTE_BACK_MARK_COUNT__ = (window.__ROUTE_BACK_MARK_COUNT__ ?? 0) + 1; },
-            markRouteForward() {},
-        };
-        export const useBrowserNavigationStore = (selector) => selector(state);
-        useBrowserNavigationStore.getState = () => state;
-    `,
-    '@/-session/sessionOverlayNav': `
-        const state = {
-            canBack: !new URLSearchParams(window.location.search).has('back-disabled'),
-            canForward: false,
-            back: () => {
-                if (window.__OVERLAY_BACK_ENABLED__ === false) return false;
-                window.__OVERLAY_BACK_COUNT__ = (window.__OVERLAY_BACK_COUNT__ ?? 0) + 1;
-                return true;
-            },
-            forward: () => false,
-        };
-        export const useOverlayNav = (selector) => selector(state);
-        useOverlayNav.getState = () => state;
-    `,
     '@/components/StyledText': `
         import React from 'react';
         import { Text as NativeText } from 'react-native';
@@ -560,7 +532,6 @@ const virtualModules: Record<string, string> = {
             ? german(key) ?? key
             : ({
             'common.back': 'Back',
-            'common.forward': 'Forward',
             'common.cancel': 'Cancel',
             'common.delete': 'Delete',
             'common.error': 'Error',
@@ -966,62 +937,19 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 15_000);
 
-    it('shows Back and Forward in the top bar and consumes overlays before route history', async () => {
-        const page = await browser.newPage({ viewport: { width: 1200, height: 360 } });
-        const pageErrors = recordPageErrors(page);
-        await page.goto(origin);
-        await page.waitForTimeout(100);
-        if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
-
-        const topBar = page.getByTestId('collapsed-navigation-header-demo').getByTestId('herd-top-bar');
-        const back = topBar.getByLabel('Back', { exact: true });
-        const forward = topBar.getByLabel('Forward', { exact: true });
-
-        await expect(back.locator('[data-icon="chevron-back"]').count()).resolves.toBe(1);
-        await expect(forward.locator('[data-icon="chevron-forward"]').count()).resolves.toBe(1);
-        await expect(back.isEnabled()).resolves.toBe(true);
-        const backBox = await back.boundingBox();
-        const forwardBox = await forward.boundingBox();
-        if (!backBox || !forwardBox) throw new Error('history controls have no layout');
-        expect(backBox.width).toBeGreaterThanOrEqual(28);
-        expect(forwardBox.x).toBeGreaterThan(backBox.x + backBox.width - 1);
-        // The fixture has no forward history and no forward overlay.
-        await expect(forward.isDisabled()).resolves.toBe(true);
-        await expect(forward.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0.3');
-
-        await back.click();
-        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
-        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(0);
-        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(0);
-
-        await page.evaluate(() => { (window as any).__OVERLAY_BACK_ENABLED__ = false; });
-        await back.click();
-        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
-        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(1);
-        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(1);
-
-        const evidencePath = process.env.HAPPYHERD_SIDEBAR_BACK_EVIDENCE_PATH?.trim();
-        if (evidencePath) await topBar.screenshot({ path: resolve(evidencePath) });
-        expect(pageErrors).toEqual([]);
-        await page.close();
-
-        const disabledPage = await browser.newPage({ viewport: { width: 1200, height: 360 } });
-        await disabledPage.goto(origin + '?back-disabled=1');
-        const disabledBack = disabledPage
-            .getByTestId('collapsed-navigation-header-demo')
-            .getByTestId('herd-top-bar')
-            .getByLabel('Back', { exact: true });
-        await expect(disabledBack.isDisabled()).resolves.toBe(true);
-        await expect(disabledBack.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0.3');
-        await disabledPage.close();
-
-        const compactPage = await browser.newPage({ viewport: { width: 1000, height: 360 } });
-        await compactPage.goto(origin);
-        const compactTopBar = compactPage.getByTestId('collapsed-navigation-header-demo').getByTestId('herd-top-bar');
-        await compactTopBar.waitFor();
-        // History stays at compact widths: tablets have no screen-level Back.
-        await expect(compactTopBar.getByLabel('Back', { exact: true }).count()).resolves.toBe(1);
-        await compactPage.close();
+    it('keeps Back and Forward out of the top bar at every width', async () => {
+        for (const width of [1200, 1000]) {
+            const page = await browser.newPage({ viewport: { width, height: 360 } });
+            const pageErrors = recordPageErrors(page);
+            await page.goto(origin);
+            const topBar = page.getByTestId('collapsed-navigation-header-demo').getByTestId('herd-top-bar');
+            await topBar.waitFor();
+            await expect(topBar.getByTestId('navigation-sidebar-toggle').count()).resolves.toBe(1);
+            await expect(topBar.getByLabel('Back', { exact: true }).count()).resolves.toBe(0);
+            await expect(topBar.getByLabel('Forward', { exact: true }).count()).resolves.toBe(0);
+            expect(pageErrors).toEqual([]);
+            await page.close();
+        }
     }, 15_000);
 
     it('collapses and reopens the real panel without remounting the chat beside it', async () => {

@@ -123,7 +123,6 @@ export type TranslationKey =
     | "common.error"
     | "common.fileViewer"
     | "common.files"
-    | "common.forward"
     | "common.home"
     | "common.loading"
     | "common.logout"

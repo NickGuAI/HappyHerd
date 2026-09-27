@@ -48,11 +48,6 @@ const virtualModules: Record<string, string> = {
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
     '@/utils/isTauri': `export const isTauri = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
-    '@/-session/sessionOverlayNav': `
-        const state = { canBack: false, back: () => false };
-        export const useOverlayNav = (selector) => selector(state);
-        useOverlayNav.getState = () => state;
-    `,
     'react-native-safe-area-context': `
         import React from 'react';
         export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });
@@ -733,14 +728,16 @@ describe('Projects and Super Session production UI gestures', () => {
 
     it('starts all four focus durations through the real desktop header and restores the list on exit', async () => {
         const { page, errors } = await openFocusPage(surfaces[0]);
-        // Top bar order: panel toggle, history, …, Focus mode on the right.
-        const [back, tomato, collapse] = await Promise.all([
-            page.getByRole('button', { name: 'Back', exact: true }).boundingBox(),
-            page.getByTestId('focus-mode-enter').boundingBox(),
-            page.getByTestId('navigation-sidebar-toggle').boundingBox(),
+        // Top bar order: panel toggle on the left, Focus mode on the right, and no Back or Forward.
+        const topBar = page.getByTestId('herd-top-bar');
+        const [tomato, collapse] = await Promise.all([
+            topBar.getByTestId('focus-mode-enter').boundingBox(),
+            topBar.getByTestId('navigation-sidebar-toggle').boundingBox(),
         ]);
-        expect(collapse!.x + collapse!.width).toBeLessThanOrEqual(back!.x);
-        expect(tomato!.x).toBeGreaterThan(back!.x + back!.width);
+        expect(tomato!.x).toBeGreaterThan(collapse!.x + collapse!.width);
+        for (const name of ['Back', 'Forward']) {
+            expect(await topBar.getByRole('button', { name, exact: true }).count()).toBe(0);
+        }
         for (const minutes of [15, 30, 45, 60]) {
             await startFocus(page, minutes);
             expect(await page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);

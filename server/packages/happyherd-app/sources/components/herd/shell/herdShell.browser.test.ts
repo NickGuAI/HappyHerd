@@ -86,21 +86,6 @@ const virtualModules: Record<string, string> = {
     '@/utils/responsive': `export const useIsTablet = () => true; export const useHeaderHeight = () => 56; export const useDeviceType = () => 'tablet';`,
     '@/utils/isTauri': `export const isTauri = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
-    '@/navigation/browserNavigation': `
-        export const canUseRouteBack = () => true;
-        export const canRouteForward = () => true;
-        export const getNavigatorCanGoBack = () => true;
-    `,
-    '@/navigation/browserNavigationStore': `
-        const state = { routeHistory: {}, markRouteBack() {}, markRouteForward() { window.__ROUTE_FORWARD__ = (window.__ROUTE_FORWARD__ ?? 0) + 1; } };
-        export const useBrowserNavigationStore = (selector) => selector(state);
-        useBrowserNavigationStore.getState = () => state;
-    `,
-    '@/-session/sessionOverlayNav': `
-        const state = { canBack: false, canForward: false, back: () => false, forward: () => false };
-        export const useOverlayNav = (selector) => selector(state);
-        useOverlayNav.getState = () => state;
-    `,
     '@/sync/storage': `
         import React from 'react';
         const settings = { navigationSidebarCollapsed: false, zenMode: false, machineWorkspace: true, hideInactiveSessions: true, commandPaletteEnabled: true };
@@ -198,7 +183,7 @@ const virtualModules: Record<string, string> = {
     '@/text': `
         const labels = {
             'navigation.collapseSidebar': 'Collapse navigation sidebar', 'navigation.expandSidebar': 'Expand navigation sidebar',
-            'zen.toggle': 'Zen mode', 'sidebar.sessionsTitle': 'HappyHerd', 'common.back': 'Back', 'common.forward': 'Forward',
+            'zen.toggle': 'Zen mode', 'sidebar.sessionsTitle': 'HappyHerd', 'common.back': 'Back',
             'commandPalette.placeholder': 'Type a command or search...', 'tabs.inbox': 'Inbox', 'inbox.updates': 'Updates',
             'inbox.emptyTitle': 'Empty Inbox', 'friends.pendingRequests': 'Pending Requests', 'settings.machines': 'Machines',
             'sessionInfo.viewMachine': 'View Machine', 'status.online': 'online', 'status.offline': 'offline',
@@ -562,13 +547,13 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await page.close();
     }, 15_000);
 
-    it('opens the command palette from the search control and moves through history', async () => {
+    it('opens the command palette from the search control and has no Back or Forward', async () => {
         const { page, errors } = await openShell();
         await page.getByTestId('herd-command-search').click();
         expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
-        await page.getByTestId('herd-top-bar-back').click();
-        expect(await page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__)).toBe(1);
-        await expect(page.getByTestId('herd-top-bar-forward').isEnabled()).resolves.toBe(true);
+        const topBar = page.getByTestId('herd-top-bar');
+        await expect(topBar.getByRole('button', { name: 'Back', exact: true }).count()).resolves.toBe(0);
+        await expect(topBar.getByRole('button', { name: 'Forward', exact: true }).count()).resolves.toBe(0);
         await evidence(page, 'shell-top-bar-light-1440');
         expect(errors).toEqual([]);
         await page.close();
@@ -582,8 +567,7 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         const compact = await openShell({ width: 1024 });
         const search = compact.page.getByTestId('herd-command-search');
         expect((await search.boundingBox())!.width).toBeLessThanOrEqual(40);
-        // Tablets have no screen-level Back, so history stays; the brand keeps only its mark.
-        expect(await compact.page.getByTestId('herd-top-bar-back').count()).toBe(1);
+        // The brand keeps only its mark.
         expect(await compact.page.getByTestId('herd-top-bar-brand').innerText()).toBe('');
         await evidence(compact.page, 'shell-compact-light-1024');
         await compact.page.close();

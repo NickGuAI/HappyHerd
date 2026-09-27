@@ -6,13 +6,10 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
-import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { FocusModeControl } from '@/components/FocusModeControl';
 import { Typography } from '@/constants/Typography';
 import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
 import { formatShortcut } from '@/keyboard/shortcuts';
-import { canRouteForward, canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
-import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
 import { useLocalSettingMutable } from '@/sync/storage';
 import { t } from '@/text';
 import { isTauri } from '@/utils/isTauri';
@@ -35,8 +32,9 @@ export const HERD_TOP_BAR_COMPACT_WIDTH = 1100;
 
 /**
  * The desktop top bar (HappyHerd-owned; replaces the inherited persistent
- * header overlay). Left to right: panel toggle, Zen, brand, history, command
- * search, then Focus mode, the Inbox bell and the machine menu.
+ * header overlay). Left to right: panel toggle, Zen, brand, command search,
+ * then Focus mode, the Inbox bell and the machine menu. There are no Back or
+ * Forward buttons; Escape, mouse side buttons and the browser keep history.
  */
 export const HerdTopBar = React.memo(function HerdTopBar() {
     const { theme } = useUnistyles();
@@ -54,32 +52,6 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
     const browserSafeShortcuts = Platform.OS === 'web' && !inTauri;
 
     useSidebarToggleShortcut(true);
-
-    const routeHistory = useBrowserNavigationStore((state) => state.routeHistory);
-    const overlayCanBack = useOverlayNav((state) => state.canBack);
-    const overlayCanForward = useOverlayNav((state) => state.canForward);
-    const canGoBack = overlayCanBack
-        || (routeHistory ? canUseRouteBack(routeHistory, getNavigatorCanGoBack(router)) : false);
-    const canGoForward = Platform.OS === 'web'
-        && (overlayCanForward || (routeHistory ? canRouteForward(routeHistory) : false));
-
-    const handleBack = React.useCallback(() => {
-        // An open file diff or file view inside the session unwinds first.
-        if (useOverlayNav.getState().back()) return;
-        const nav = useBrowserNavigationStore.getState();
-        if (!nav.routeHistory || !canUseRouteBack(nav.routeHistory, getNavigatorCanGoBack(router))) return;
-        nav.markRouteBack();
-        router.back();
-    }, [router]);
-
-    const handleForward = React.useCallback(() => {
-        if (useOverlayNav.getState().forward()) return;
-        if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-        const nav = useBrowserNavigationStore.getState();
-        if (!nav.routeHistory || !canRouteForward(nav.routeHistory)) return;
-        nav.markRouteForward();
-        window.history.forward();
-    }, []);
 
     const collapseLabel = navigationSidebarCollapsed ? t('navigation.expandSidebar') : t('navigation.collapseSidebar');
     const dragRegion = inTauri ? { dataSet: { tauriDragRegion: 'true' } } : {};
@@ -137,17 +109,6 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                     />
                     {!compact && <Text numberOfLines={1} style={styles.brandText}>{t('sidebar.sessionsTitle')}</Text>}
                 </Pressable>
-                {/* History stays at every width: tablets have no screen-level Back. */}
-                <View style={styles.history}>
-                    <HerdTopBarIconButton label={t('common.back')} onPress={handleBack} disabled={!canGoBack} testID="herd-top-bar-back">
-                        <Ionicons name="chevron-back" size={18} color={theme.colors.header.tint} />
-                    </HerdTopBarIconButton>
-                    {Platform.OS === 'web' && (
-                        <HerdTopBarIconButton label={t('common.forward')} onPress={handleForward} disabled={!canGoForward} testID="herd-top-bar-forward">
-                            <Ionicons name="chevron-forward" size={18} color={theme.colors.header.tint} />
-                        </HerdTopBarIconButton>
-                    )}
-                </View>
             </View>
 
             <View style={styles.center} pointerEvents="box-none">
@@ -235,12 +196,6 @@ const styles = StyleSheet.create((theme) => ({
         letterSpacing: -0.1,
         color: theme.colors.text,
         ...Typography.default('semiBold'),
-    },
-    history: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 2,
-        marginLeft: 4,
     },
     search: {
         width: '100%',
