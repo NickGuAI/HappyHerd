@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "3762ff93cde9808aaf348e570c112e867dd55fc0d52c520534e50c71206c56aa",
+  "sourceFingerprint": "467b22d87d9c40d05315849a6b9352f52ef668ea0ce639d404e49b74ad97d011",
   "routeCount": 43,
-  "surfaceCount": 305,
+  "surfaceCount": 307,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -395,6 +395,7 @@
       "owner": "sources/app/(app)/projects/index.tsx",
       "translationKeys": [
         "common.error",
+        "focusMode.enter",
         "happyHerd.automations.unknownError"
       ],
       "states": [
@@ -1695,6 +1696,7 @@
       ],
       "translationKeys": [
         "common.error",
+        "focusMode.enter",
         "happyHerd.automations.unknownError"
       ],
       "states": [
@@ -4058,6 +4060,18 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/pages/HerdList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdItem",
+        "HerdItemGroup"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/pages/HerdPage.tsx",
       "kind": "component",
       "route": null,
@@ -4083,6 +4097,17 @@
       "route": null,
       "exports": [
         "HerdSheet"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdTimeline.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdTimelineGroup"
       ],
       "translationKeys": [],
       "states": [],

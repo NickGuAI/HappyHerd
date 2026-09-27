@@ -14,7 +14,7 @@ import { useAcceptedFriends, useFriendRequests, useRequestedFriends, useFeedItem
 import { UserCard } from '@/components/UserCard';
 import { t } from '@/text';
 import { trackFriendsSearch, trackFriendsProfileView } from '@/track';
-import { ItemGroup } from '@/components/ItemGroup';
+import { HerdItemGroup as ItemGroup } from '@/components/herd/pages/HerdList';
 import { UpdateBanner } from './UpdateBanner';
 import { Typography } from '@/constants/Typography';
 import { useRouter } from 'expo-router';

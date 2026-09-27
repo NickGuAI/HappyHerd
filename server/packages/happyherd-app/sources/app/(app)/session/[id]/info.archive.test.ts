@@ -126,6 +126,12 @@ vi.mock('@/components/ItemGroup', async () => {
     const ReactModule = await import('react');
     return { ItemGroup: (props: any) => ReactModule.createElement('ItemGroup', props, props.children) };
 });
+// The page imports the overhaul's drop-in list wrappers; route them to the mocks above.
+vi.mock('@/components/herd/pages/HerdList', async () => {
+    const { Item } = await import('@/components/Item');
+    const { ItemGroup } = await import('@/components/ItemGroup');
+    return { HerdItem: Item, HerdItemGroup: ItemGroup };
+});
 vi.mock('@/components/ItemList', async () => {
     const ReactModule = await import('react');
     return { ItemList: (props: any) => ReactModule.createElement('ItemList', props, props.children) };

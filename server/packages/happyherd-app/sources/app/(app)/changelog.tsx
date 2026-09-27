@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { ItemList } from '@/components/ItemList';
-import { ItemGroup } from '@/components/ItemGroup';
+import { HerdTimelineGroup } from '@/components/herd/pages/HerdTimeline';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { getChangelogEntries, getLatestTitle, setLastViewedTitle } from '@/changelog';
 import { Typography } from '@/constants/Typography';
@@ -99,13 +99,13 @@ export default function ChangelogScreen() {
 
     return (
         <ItemList
-            containerStyle={{
+            containerStyle={[styles.timeline, {
                 paddingTop: Platform.OS === 'ios' ? MOBILE_GLASS_HEADER_HEIGHT : 0,
-            }}
+            }]}
             automaticallyAdjustsScrollIndicatorInsets={Platform.OS !== 'ios'}
             scrollIndicatorInsets={Platform.OS === 'ios' ? { top: indicatorTopInset } : undefined}
         >
-            {entries.map((entry) => {
+            {entries.map((entry, index) => {
                 const titleImage = entry.titleImage ? CHANGELOG_IMAGES[entry.titleImage] : undefined;
                 const title = titleImage ? (
                     <View style={styles.titleRow}>
@@ -118,7 +118,7 @@ export default function ChangelogScreen() {
                     </View>
                 ) : entry.title;
                 return (
-                <ItemGroup key={entry.title} title={title} titleStyle={styles.titleText}>
+                <HerdTimelineGroup key={entry.title} index={index} title={title} titleStyle={styles.titleText}>
                     <View style={styles.cardContent}>
                         {entry.summary ? (
                             <SummaryLine summary={entry.summary} />
@@ -127,7 +127,7 @@ export default function ChangelogScreen() {
                             <MarkdownView markdown={entry.markdown} />
                         ) : null}
                     </View>
-                </ItemGroup>
+                </HerdTimelineGroup>
                 );
             })}
         </ItemList>
@@ -135,10 +135,17 @@ export default function ChangelogScreen() {
 }
 
 const styles = StyleSheet.create((theme) => ({
+    timeline: {
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
+        paddingHorizontal: 24,
+        marginTop: 24,
+    },
     titleText: {
         ...Typography.default('semiBold'),
-        fontSize: 20,
-        lineHeight: 28,
+        fontSize: 18,
+        lineHeight: 26,
         color: theme.colors.text,
         textTransform: 'none',
         letterSpacing: 0,
@@ -149,9 +156,7 @@ const styles = StyleSheet.create((theme) => ({
         gap: 8,
     },
     cardContent: {
-        paddingHorizontal: 16,
-        paddingTop: 14,
-        paddingBottom: 6,
+        paddingTop: 2,
     },
     // 16 matches MarkdownView's gap between the bullet list and the paragraph
     // after it (list marginBottom 8 + text marginTop 8), so the space above and

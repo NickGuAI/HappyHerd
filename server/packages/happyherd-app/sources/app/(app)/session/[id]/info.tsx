@@ -6,8 +6,7 @@ import { CommonActions, StackActions, useNavigation } from '@react-navigation/na
 import { Ionicons } from '@expo/vector-icons';
 import { randomUUID } from 'expo-crypto';
 import { Typography } from '@/constants/Typography';
-import { Item } from '@/components/Item';
-import { ItemGroup } from '@/components/ItemGroup';
+import { HerdItem as Item, HerdItemGroup as ItemGroup } from '@/components/herd/pages/HerdList';
 import { ItemList } from '@/components/ItemList';
 import { storage, useProjects, useSession, useIsDataReady } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getResumeCommand } from '@/utils/sessionUtils';
