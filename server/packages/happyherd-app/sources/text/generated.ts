@@ -1177,6 +1177,7 @@ export type TranslationKey =
     | "superSession.pinned"
     | "tabs.inbox"
     | "tabs.sessions"
+    | "tabs.sessionsTab"
     | "tabs.settings"
     | "terminal.acceptConnection"
     | "terminal.clientSideProcessing"

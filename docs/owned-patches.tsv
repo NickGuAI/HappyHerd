@@ -528,3 +528,4 @@ UI_OVERHAUL_SHEET_ESCAPE	accepted	fix(app): close page sheets on Escape without 
 UI_OVERHAUL_PENDING_DETAILS_FOOTER	accepted	fix(app): put a pending card's Details link after its choices	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_OVERHAUL_PARITY_SETTINGS_GAPS	accepted	docs(app): record the Streamline settings fields for upstream merges	docs/upstream-ui-parity.md
 UI_OVERHAUL_MOBILE_SHEETS	accepted	feat(app): open Web phone menus as bottom sheets	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
+UI_OVERHAUL_MOBILE_TAB_BAR	accepted	feat(app): restyle the Web Mobile tab bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts

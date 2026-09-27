@@ -2,7 +2,6 @@ import * as React from 'react';
 import { LayoutChangeEvent, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -21,6 +20,7 @@ import { layout } from '@/components/layout';
 import { useInboxHasContent } from '@/hooks/useInboxHasContent';
 import { MobileGlassSurface } from './MobileGlass';
 import { hapticsLight } from './haptics';
+import { herdWebClasses } from './herd/motion';
 
 export type TabType = 'inbox' | 'sessions' | 'settings';
 
@@ -63,48 +63,70 @@ const styles = StyleSheet.create((theme) => ({
         borderTopColor: theme.colors.divider,
     },
     webInnerContainer: {
+        position: 'relative',
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'flex-start',
+        alignItems: 'stretch',
         maxWidth: layout.maxWidth,
         width: '100%',
         alignSelf: 'center',
     },
+    // A molten bar along the top edge slides to the active tab.
+    webIndicator: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        height: 2,
+        borderRadius: 1,
+        backgroundColor: theme.colors.kilv.accent,
+        _web: { _classNames: herdWebClasses('herd-glide'), boxShadow: theme.kilv.glowMoltenSoft },
+    },
     webTab: {
         flex: 1,
+        height: 58,
         alignItems: 'center',
-        paddingTop: 8,
-        paddingBottom: 4,
+        justifyContent: 'center',
+        gap: 4,
+        _web: { _classNames: herdWebClasses('herd-transition'), cursor: 'pointer' },
+    },
+    webTabPressed: {
+        opacity: 0.75,
     },
     webTabContent: {
         alignItems: 'center',
         position: 'relative',
     },
     webLabel: {
-        fontSize: 10,
-        marginTop: 3,
+        fontSize: 11,
+        lineHeight: 14,
         ...Typography.default(),
     },
     webBadge: {
         position: 'absolute',
-        top: -4,
-        right: -8,
-        backgroundColor: theme.colors.status.error,
-        borderRadius: 4,
+        top: -5,
+        right: -12,
+        backgroundColor: theme.colors.kilv.accent,
+        borderRadius: 8,
         minWidth: 16,
         height: 16,
         paddingHorizontal: 4,
         justifyContent: 'center',
         alignItems: 'center',
     },
+    webBadgeText: {
+        color: theme.colors.kilv.accentInk,
+        fontSize: 10,
+        lineHeight: 12,
+        ...Typography.default('semiBold'),
+    },
     webIndicatorDot: {
         position: 'absolute',
-        top: 0,
-        right: -2,
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: theme.colors.text,
+        top: -1,
+        right: -7,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: theme.colors.kilv.accent,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
     },
     nativeSafeArea: {
         paddingHorizontal: 18,
@@ -354,8 +376,8 @@ export const TabBar = React.memo(({ activeTab, onTabPress, inboxBadgeCount = 0 }
         { key: 'settings', icon: require('@/assets/images/brutalist/Brutalism-9.png'), iconName: 'settings-outline', activeIconName: 'settings', label: t('tabs.settings') },
     ], []);
     const webTabs: TabDefinition[] = React.useMemo(() => [
-        { key: 'inbox', icon: require('@/assets/images/brutalist/Brutalism-27.png'), iconName: 'mail-outline', activeIconName: 'mail', label: t('tabs.inbox') },
-        { key: 'sessions', icon: require('@/assets/images/brutalist/Brutalism-15.png'), iconName: 'code-slash-outline', activeIconName: 'code-slash', label: t('tabs.sessions') },
+        { key: 'inbox', icon: require('@/assets/images/brutalist/Brutalism-27.png'), iconName: 'file-tray-outline', activeIconName: 'file-tray', label: t('tabs.inbox') },
+        { key: 'sessions', icon: require('@/assets/images/brutalist/Brutalism-15.png'), iconName: 'chatbubbles-outline', activeIconName: 'chatbubbles', label: t('tabs.sessionsTab') },
         { key: 'settings', icon: require('@/assets/images/brutalist/Brutalism-9.png'), iconName: 'settings-outline', activeIconName: 'settings', label: t('tabs.settings') },
     ], []);
     const tabs = Platform.OS === 'web' ? webTabs : nativeTabs;
@@ -519,35 +541,43 @@ export const TabBar = React.memo(({ activeTab, onTabPress, inboxBadgeCount = 0 }
     if (Platform.OS === 'web') {
         return (
             <View style={[styles.webOuterContainer, { paddingBottom: insets.bottom }]}>
-                <View style={styles.webInnerContainer}>
+                <View role="tablist" style={styles.webInnerContainer}>
+                    <View
+                        pointerEvents="none"
+                        testID="tab-indicator"
+                        style={[styles.webIndicator, {
+                            width: `${100 / tabs.length}%`,
+                            transform: [{ translateX: `${activeIndex * 100}%` }],
+                        }]}
+                    />
                     {tabs.map((tab) => {
                         const isActive = activeTab === tab.key;
+                        const tint = isActive ? theme.colors.textLink : theme.colors.kilv.inkFaint;
                         return (
                             <Pressable
                                 key={tab.key}
-                                style={styles.webTab}
+                                testID={`tab-${tab.key}`}
+                                accessibilityRole="tab"
+                                accessibilityLabel={tab.label}
+                                aria-selected={isActive}
+                                style={({ pressed }) => [styles.webTab, pressed && styles.webTabPressed]}
                                 onPress={() => onTabPress(tab.key)}
                                 hitSlop={8}
                             >
                                 <View style={styles.webTabContent}>
-                                    <Image
-                                        source={tab.icon}
-                                        contentFit="contain"
-                                        style={{ width: 24, height: 24 }}
-                                        tintColor={isActive ? theme.colors.text : theme.colors.textSecondary}
-                                    />
+                                    <Ionicons name={isActive ? tab.activeIconName : tab.iconName} size={23} color={tint} />
                                     {tab.key === 'inbox' && inboxBadgeCount > 0 && (
-                                        <View style={styles.webBadge}>
-                                            <Text style={styles.badgeText}>
+                                        <View testID="tab-inbox-badge" style={styles.webBadge}>
+                                            <Text style={styles.webBadgeText}>
                                                 {inboxBadgeCount > 99 ? '99+' : inboxBadgeCount}
                                             </Text>
                                         </View>
                                     )}
                                     {tab.key === 'inbox' && inboxHasContent && inboxBadgeCount === 0 && (
-                                        <View style={styles.webIndicatorDot} />
+                                        <View testID="tab-inbox-unread" style={styles.webIndicatorDot} />
                                     )}
                                 </View>
-                                <Text style={[styles.webLabel, isActive ? styles.labelActive : styles.labelInactive]}>
+                                <Text style={[styles.webLabel, { color: tint }]}>
                                     {tab.label}
                                 </Text>
                             </Pressable>

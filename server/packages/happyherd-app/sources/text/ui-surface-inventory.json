@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "1e836e1e7e39bdd9c077bfa761c46885dc790ba7b3031ddcbec316eaf59e72b3",
+  "sourceFingerprint": "a8cec2024bffe815899ee039d867da0df18f124270572690f365880e08a493b1",
   "routeCount": 43,
   "surfaceCount": 308,
   "hardcodedCopyCount": 0,
@@ -5762,6 +5762,7 @@
       "translationKeys": [
         "tabs.inbox",
         "tabs.sessions",
+        "tabs.sessionsTab",
         "tabs.settings"
       ],
       "states": [],

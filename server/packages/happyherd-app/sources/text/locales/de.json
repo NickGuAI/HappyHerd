@@ -8,6 +8,7 @@
   "tabs": {
     "inbox": "Posteingang",
     "sessions": "Terminalsitzungen",
+    "sessionsTab": "Sitzungen",
     "settings": "Einstellungen"
   },
   "inbox": {
