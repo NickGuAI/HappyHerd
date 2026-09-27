@@ -17,7 +17,9 @@ vi.mock('react-native', () => ({
 vi.mock('react-native-unistyles', () => ({
     useUnistyles: () => ({
         theme: {
+            borderRadius: { sm: 6, md: 8 },
             colors: {
+                textLink: '#f0dcb0',
                 surfaceHigh: '#242424',
                 surfacePressed: '#303030',
                 text: '#ffffff',

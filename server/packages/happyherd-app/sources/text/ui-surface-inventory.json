@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "c7751b520244d1d05a0056c39936ad5767b4880f980ed4d2abee4b6b94ccd912",
+  "sourceFingerprint": "3f6c8406cd0c4835d24cfce87fdf9ceb69266ed6b4a94feb3c06ba5cb094347e",
   "routeCount": 42,
-  "surfaceCount": 297,
+  "surfaceCount": 298,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2620,6 +2620,7 @@
         "agentInput.context.detailContext",
         "agentInput.context.percentContext",
         "agentInput.context.percentWeek",
+        "agentInput.context.remaining",
         "agentInput.effort.title",
         "agentInput.geminiPermissionMode.title",
         "agentInput.model.configureInCli",
@@ -2642,6 +2643,7 @@
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
         "happyHerd.composer.transcribingVoice",
+        "session.providerContinuationAction",
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
@@ -4029,6 +4031,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/session/ComposerChips.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ComposerChip",
+        "ComposerChipPopover",
+        "ContextMeter"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/session/ToolLine.tsx",
       "kind": "component",
       "route": null,
@@ -5042,6 +5057,7 @@
       ],
       "translationKeys": [
         "happyHerd.composer.queueMessage",
+        "message.sendsAfterThisTurn",
         "uiCopy.valueQueued"
       ],
       "states": [],
