@@ -28,14 +28,13 @@ describe('Streamline defaults on the exact selected machine', () => {
     it.each([
         ['claude', HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG, 'xhigh', 'acceptEdits'],
         ['codex', 'gpt-6-astra', 'xhigh', 'default'],
-        ['gemini', 'gemini-3.1-pro-preview', 'high', 'autoEdit'],
         ['grok', 'latest-grok', 'high', 'acceptEdits'],
         ['dsh', 'deepseek-v4-flash', 'medium', 'default'],
     ])('uses the advertised Streamline defaults for %s', (agent, modelMode, effortLevel, permissionMode) => {
         expect(resolveStreamlineSelection({ agent, machineMetadata: metadata(agent) })).toEqual({ permissionMode, modelMode, effortLevel });
     });
 
-    it.each(['claude', 'codex', 'gemini', 'grok', 'dsh'])('preserves valid %s overrides independently of Agent Defaults', (agent) => {
+    it.each(['claude', 'codex', 'grok', 'dsh'])('preserves valid %s overrides independently of Agent Defaults', (agent) => {
         const overrides = { [agent]: { modelMode: 'first-model', permissionMode: 'first-permission', effortLevel: 'low' } };
         expect(resolveStreamlineSelection({
             agent, machineMetadata: metadata(agent), streamlineAgentDefaults: overrides,
@@ -43,7 +42,7 @@ describe('Streamline defaults on the exact selected machine', () => {
         })).toEqual(overrides[agent]);
     });
 
-    it.each(['claude', 'codex', 'gemini', 'grok', 'dsh'])('falls back from unadvertised %s preferences without rewriting them', (agent) => {
+    it.each(['claude', 'codex', 'grok', 'dsh'])('falls back from unadvertised %s preferences without rewriting them', (agent) => {
         const overrides = { [agent]: { modelMode: 'removed', permissionMode: 'removed', effortLevel: 'removed' } };
         expect(resolveStreamlineSelection({ agent, machineMetadata: metadata(agent), streamlineAgentDefaults: overrides })).toEqual({
             modelMode: STREAMLINE_CODE_DEFAULTS[normalizeStreamlineAgent(agent)]?.modelMode || 'latest-grok',
@@ -53,7 +52,7 @@ describe('Streamline defaults on the exact selected machine', () => {
         expect(overrides[agent].modelMode).toBe('removed');
     });
 
-    it.each(['claude', 'codex', 'gemini', 'grok', 'dsh'])('prefers %s accept-edits permission over a more permissive catalog default', (agent) => {
+    it.each(['claude', 'codex', 'grok', 'dsh'])('prefers %s accept-edits permission over a more permissive catalog default', (agent) => {
         const permission = STREAMLINE_CODE_DEFAULTS[normalizeStreamlineAgent(agent)]!.permissionMode;
         const machineMetadata = metadata(agent, { permissionModes: [option('yolo', true), option(permission)] });
         expect(resolveStreamlineSelection({ agent, machineMetadata, streamlineAgentDefaults: { [agent]: { permissionMode: 'removed' } } }).permissionMode).toBe(permission);

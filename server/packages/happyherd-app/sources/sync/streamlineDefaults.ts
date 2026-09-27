@@ -25,7 +25,6 @@ export type StreamlineAgent = NonNullable<ReturnType<typeof normalizeAgentKey>>;
 export const STREAMLINE_CODE_DEFAULTS: Readonly<Partial<Record<StreamlineAgent, AgentDefaultConfig>>> = {
     claude: { modelMode: HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG, effortLevel: 'xhigh', permissionMode: 'acceptEdits' },
     codex: { modelMode: 'gpt-6-astra', effortLevel: 'xhigh', permissionMode: 'default' },
-    gemini: { modelMode: 'gemini-3.1-pro-preview', effortLevel: 'high', permissionMode: 'autoEdit' },
     // An empty model preference follows this machine's catalog default.
     grok: { modelMode: '', effortLevel: 'high', permissionMode: 'acceptEdits' },
     dsh: { modelMode: 'deepseek-v4-flash', effortLevel: 'medium', permissionMode: 'default' },
