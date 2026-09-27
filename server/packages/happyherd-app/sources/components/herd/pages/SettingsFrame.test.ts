@@ -9,6 +9,7 @@ const testState = vi.hoisted(() => ({
     experiments: false,
     pathname: '/settings',
     navigate: vi.fn(),
+    push: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -41,7 +42,7 @@ vi.mock('@expo/vector-icons', async () => {
 });
 
 vi.mock('expo-router', () => ({
-    useRouter: () => ({ navigate: testState.navigate }),
+    useRouter: () => ({ navigate: testState.navigate, push: testState.push }),
     usePathname: () => testState.pathname,
 }));
 
@@ -54,7 +55,7 @@ vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mo
 vi.mock('@/sync/storage', () => ({ useSetting: (key: string) => (key === 'experiments' ? testState.experiments : undefined) }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
-import { SETTINGS_SECTIONS, SettingsFrame, withSettingsFrame } from './SettingsFrame';
+import { SETTINGS_SECTIONS, SettingsFrame, SettingsSectionList, withSettingsFrame } from './SettingsFrame';
 
 const originalConsoleError = console.error;
 
@@ -74,6 +75,7 @@ beforeEach(() => {
     testState.experiments = false;
     testState.pathname = '/settings';
     testState.navigate.mockReset();
+    testState.push.mockReset();
 });
 
 function render(section: React.ComponentProps<typeof SettingsFrame>['section']): ReactTestRenderer {
@@ -210,5 +212,38 @@ describe('SettingsFrame', () => {
         expect(renderer.root.findByType('Page' as any).props.label).toBe('voice page');
         expect(navItems(renderer).find((node: any) => node.props.accessibilityState.selected)?.props.testID)
             .toBe('settings-nav-voice');
+    });
+});
+
+describe('SettingsSectionList (phones)', () => {
+    function sections(): ReactTestRenderer {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(SettingsSectionList));
+        });
+        return renderer;
+    }
+    const rows = (renderer: ReactTestRenderer) => renderer.root.findAll((node: any) => (
+        node.type === 'Pressable' && typeof node.props.testID === 'string' && node.props.testID.startsWith('settings-section-')
+    ));
+
+    it('lists every section page, then Commanders, as the Settings home does on phones', () => {
+        const renderer = sections();
+        expect(rows(renderer).map((node: any) => node.props.testID.replace('settings-section-', ''))).toEqual([
+            'account', 'streamline', 'appearance', 'agents', 'credentials', 'connections', 'features', 'voice', 'language', 'commanders',
+        ]);
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'settings-section-list' && node.type === 'View')[0]
+            .props.accessibilityLabel).toBe('settings.sectionsLabel');
+        const appearance = rows(renderer).find((node: any) => node.props.testID === 'settings-section-appearance')!;
+        expect(appearance.props.accessibilityLabel).toBe('settings.appearance');
+        act(() => appearance.props.onPress());
+        act(() => rows(renderer).find((node: any) => node.props.testID === 'settings-section-commanders')!.props.onPress());
+        // Pushed, so Back returns to the Settings home.
+        expect(testState.push.mock.calls.map(([route]) => route)).toEqual(['/settings/appearance', '/commanders']);
+    });
+
+    it('adds Usage when experiments are on', () => {
+        testState.experiments = true;
+        expect(rows(sections()).map((node: any) => node.props.testID)).toContain('settings-section-usage');
     });
 });

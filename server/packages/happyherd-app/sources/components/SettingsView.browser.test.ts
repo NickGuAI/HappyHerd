@@ -53,6 +53,7 @@ const virtualModules: Record<string, string> = {
         export const useRouter = () => ({
             push(path) { globalThis.__SETTINGS_ROUTES__ = [...(globalThis.__SETTINGS_ROUTES__ ?? []), path]; },
         });
+        export const usePathname = () => '/settings';
     `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/auth/AuthContext': `export const useAuth = () => ({ credentials: { token: 'test' } });`,
@@ -122,6 +123,20 @@ const virtualModules: Record<string, string> = {
             'settings.whatsNewSubtitle': 'Recent changes',
             'settingsCredentials.settingsRow': 'Credentials & Accounts',
             'settingsCredentials.settingsRowSubtitle': 'Provider accounts and saved credentials',
+            // The phone section list's labels, and the subtitles of the rows it replaces.
+            'settings.sectionsLabel': 'Settings sections',
+            'settings.account': 'Account',
+            'settings.accountSubtitle': 'Manage your account details',
+            'newSession.streamline.modeStreamline': 'Streamline',
+            'settings.appearance': 'Appearance',
+            'uiCopy.agentDefaults': 'Agent Defaults',
+            'settingsCredentials.title': 'Credentials & Accounts',
+            'devicePairing.title': 'Connections',
+            'devicePairing.settingsSubtitle': 'Add a device and open your connected machines',
+            'settings.featuresTitle': 'Features',
+            'settings.voiceAssistant': 'Voice Assistant',
+            'settingsLanguage.title': 'Language',
+            'happyHerd.commander.category': 'Commanders',
         };
         export const t = (key) => labels[key] ?? key;
     `,
@@ -266,6 +281,56 @@ describe('Settings policy links browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it.each(['light', 'dark'] as const)('opens Settings on Web Mobile (%s) with its section list after the profile, in place of the groups it repeats', async (theme) => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        await page.addInitScript(() => {
+            (window as any).__OPEN_CALLS__ = [];
+            (window as any).__PAYWALL_CALLS__ = [];
+            (window as any).__SETTINGS_ROUTES__ = [];
+        });
+        await page.goto(`${origin}?theme=${theme}`);
+        const list = page.getByTestId('settings-section-list');
+        await list.waitFor({ state: 'visible' });
+        await expect(list.getAttribute('aria-label')).resolves.toBe('Settings sections');
+        const labels = await list.getByRole('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
+        expect(labels).toEqual([
+            'Account', 'Streamline', 'Appearance', 'Agent Defaults', 'Credentials & Accounts',
+            'Connections', 'Features', 'Voice Assistant', 'Language', 'Commanders',
+        ]);
+        // The card sits on the 16 px gutter; its 48 px rows put their icons 16 px inside it.
+        const card = (await list.boundingBox())!;
+        expect({ x: Math.round(card.x), width: Math.round(card.width) }).toEqual({ x: 16, width: 390 - 32 });
+        for (const row of await list.getByRole('button').evaluateAll((nodes) => nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            const icon = node.querySelector('[data-icon]')!.getBoundingClientRect();
+            return { height: Math.round(rect.height), icon: Math.round(icon.left) };
+        }))) {
+            expect(row.height).toBeGreaterThanOrEqual(48);
+            expect(row.icon).toBe(Math.round(card.x) + 1 + 16);
+        }
+        // The Features group and the device pairing row only repeated these pages.
+        await expect(page.getByText('Add a device and open your connected machines', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('Manage your account details', { exact: true }).count()).resolves.toBe(0);
+        // Everything else stays, and a row opens its page.
+        await expect(page.getByText('Support Us', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
+        await list.getByRole('button', { name: 'Appearance', exact: true }).click();
+        await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toEqual(['/settings/appearance']);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('keeps every Settings group, and no phone section list, on Web Desktop', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.goto(`${origin}?theme=light`);
+        await page.getByText('Support Us', { exact: true }).waitFor({ state: 'visible' });
+        await expect(page.getByTestId('settings-section-list').count()).resolves.toBe(0);
+        await expect(page.getByText('Credentials & Accounts', { exact: true }).count()).resolves.toBe(1);
+        await page.close();
+    }, 15_000);
 
     it('retains the voluntary-support paywall on the non-Web platform branch', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });

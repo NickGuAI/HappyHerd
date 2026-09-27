@@ -660,9 +660,12 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             await page.getByTestId('fixture-page').waitFor();
             expect(await routerCalls(page)).toEqual(['/settings']);
             await expect(page.getByTestId('header-back').count()).resolves.toBe(0);
-            // The title row is the page's first line: right under the bar (no second notch inset), on the gutter.
-            const title = (await page.getByTestId('fixture-page').getByText('Settings', { exact: true }).boundingBox())!;
+            // The title row is the page's first line: right under the bar (no second notch inset), on the gutter,
+            // with the page's title at the mock's 24 px, left-aligned.
+            const titleText = page.getByTestId('fixture-page').getByText('Settings', { exact: true });
+            const title = (await titleText.boundingBox())!;
             expect(title.x).toBeCloseTo(16, 0);
+            await expect(titleText.evaluate((element) => [getComputedStyle(element).fontSize, getComputedStyle(element).textAlign])).resolves.toEqual(['24px', 'left']);
             expect(title.y).toBeGreaterThan(PHONE_INSETS.top + 52);
             expect(title.y).toBeLessThan(PHONE_INSETS.top + 52 + 56);
             // No hairline of its own: the bar above already has one.
@@ -676,8 +679,12 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             await back.waitFor();
             await expect(back.getAttribute('aria-label')).resolves.toBe('Back');
             expect(await box(page, 'header-back')).toMatchObject({ x: 5, width: 44, height: 44 });
-            const chevron = (await back.locator('[data-icon="chevron-back"]').boundingBox())!;
-            expect(chevron.x).toBe(16);
+            // The mock's arrow, on the gutter; the nested title follows at 22 px.
+            const arrow = (await back.locator('[data-icon="arrow-back"]').boundingBox())!;
+            expect(arrow.x).toBe(16);
+            const nested = page.getByTestId('fixture-page').getByText('Settings · Appearance', { exact: true });
+            await expect(nested.evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('22px');
+            expect((await nested.boundingBox())!.x).toBeGreaterThan(arrow.x + arrow.width);
             await evidence(page, `phone-page-nested-${theme}-390`);
             await back.click();
             expect(await page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__)).toBe(1);

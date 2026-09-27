@@ -390,7 +390,8 @@ const styles = StyleSheet.create((theme) => ({
     page: { flex: 1, width: '100%' },
     scroll: { flex: 1 },
     content: { width: '100%', maxWidth: 1120, alignSelf: 'center', paddingHorizontal: 34, paddingTop: 28, paddingBottom: 80 },
-    contentCompact: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 48 },
+    // Phones (UI overhaul): the page content sits on the 16 px gutter.
+    contentCompact: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 48 },
     notices: { gap: 10, marginBottom: 12 },
     loading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 32 },
     loadingText: { ...Typography.default(), fontSize: 14, color: theme.colors.textSecondary },

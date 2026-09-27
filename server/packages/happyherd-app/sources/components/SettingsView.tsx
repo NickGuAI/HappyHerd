@@ -30,6 +30,8 @@ import { getDisplayName, getAvatarUrl, getBio } from '@/sync/profile';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/text';
 import { PRODUCT } from '@/constants/product';
+import { SettingsSectionList } from '@/components/herd/pages/SettingsFrame';
+import { useIsTablet } from '@/utils/responsive';
 
 type BuildConfig = {
     buildCommitSha?: unknown;
@@ -82,6 +84,9 @@ export const SettingsView = React.memo(function SettingsView({
     onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }) {
     const { theme } = useUnistyles();
+    // Phones (UI overhaul): the section list card follows the profile and
+    // replaces the groups that only repeat its pages.
+    const phone = !useIsTablet();
     const router = useRouter();
     const appVersion = Constants.expoConfig?.version;
     const runtimeVersion = typeof Constants.expoConfig?.runtimeVersion === 'string'
@@ -248,6 +253,8 @@ export const SettingsView = React.memo(function SettingsView({
                 </View>
             </View>
 
+            {phone && <SettingsSectionList />}
+
             {/* Connect Terminal - Only show on native platforms */}
             {Platform.OS !== 'web' && (
                 <ItemGroup>
@@ -292,14 +299,16 @@ export const SettingsView = React.memo(function SettingsView({
                 />
             </ItemGroup>
 
-            <ItemGroup>
-                <Item
-                    title={t('devicePairing.title')}
-                    subtitle={t('devicePairing.settingsSubtitle')}
-                    icon={<Ionicons name="link-outline" size={29} color={theme.colors.textLink} />}
-                    onPress={() => router.push('/settings/connections' as any)}
-                />
-            </ItemGroup>
+            {!phone && (
+                <ItemGroup>
+                    <Item
+                        title={t('devicePairing.title')}
+                        subtitle={t('devicePairing.settingsSubtitle')}
+                        icon={<Ionicons name="link-outline" size={29} color={theme.colors.textLink} />}
+                        onPress={() => router.push('/settings/connections' as any)}
+                    />
+                </ItemGroup>
+            )}
 
             <ItemGroup title={t('settings.connectedAccounts')}>
                 <Item
@@ -396,8 +405,8 @@ export const SettingsView = React.memo(function SettingsView({
                 </ItemGroup>
             )}
 
-            {/* Features */}
-            <ItemGroup title={t('settings.features')}>
+            {/* Features (phones reach these pages from the section list) */}
+            {!phone && <ItemGroup title={t('settings.features')}>
                 <Item
                     title={t('settings.account')}
                     subtitle={t('settings.accountSubtitle')}
@@ -454,7 +463,7 @@ export const SettingsView = React.memo(function SettingsView({
                     icon={<Ionicons name="people-outline" size={29} color={theme.colors.textLink} />}
                     onPress={() => router.push('/commanders' as any)}
                 />
-            </ItemGroup>
+            </ItemGroup>}
 
             {/* Developer */}
             {(__DEV__ || devModeEnabled) && (

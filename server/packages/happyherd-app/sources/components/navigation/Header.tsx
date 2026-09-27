@@ -275,6 +275,26 @@ const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> =
     const { theme } = useUnistyles();
     const isTablet = useIsTablet();
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    if (!isTablet && underTopBar) {
+        // Phones under the top bar (UI overhaul), web and native: the mock's
+        // arrow in a 44 px square, its icon on the 16 px gutter.
+        return (
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+                onPress={onPress}
+                hitSlop={4}
+                testID="header-back"
+                style={({ pressed, hovered }: any) => [
+                    styles.webPhoneBackButton,
+                    styles.phoneShellBackButton,
+                    (pressed || hovered) && styles.webPhoneBackButtonActive,
+                ]}
+            >
+                <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+            </Pressable>
+        );
+    }
     if (Platform.OS === 'web' && !isTablet) {
         return (
             <Pressable
@@ -285,7 +305,6 @@ const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> =
                 testID="header-back"
                 style={({ pressed, hovered }: any) => [
                     styles.webPhoneBackButton,
-                    underTopBar && styles.phoneShellBackButton,
                     (pressed || hovered) && styles.webPhoneBackButtonActive,
                 ]}
             >
@@ -346,12 +365,17 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
     const isTablet = useIsTablet();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const isWebPhone = Platform.OS === 'web' && !isTablet;
-    const titleFontSize = isDesktop && !isWebPhone ? 17 : 16;
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    // Phones under the top bar (UI overhaul): the title row carries the page's
+    // title, left-aligned at 24 px, or 22 px beside Back.
+    const phoneShell = !isTablet && underTopBar;
 
     // Hide back button on tablet — navigation is handled via sidebar and persistent header.
     // Phones hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
     const shouldHideBackButton = isTablet;
-    const titleAlign = options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');
+    const showsBack = !!options.headerLeft || (!!back && options.headerBackVisible !== false && !shouldHideBackButton);
+    const titleFontSize = phoneShell ? (showsBack ? 22 : 24) : isDesktop && !isWebPhone ? 17 : 16;
+    const titleAlign = phoneShell ? 'left' : options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');
 
     // Extract title - handle both string and function types
     let title: React.ReactNode | null = null;
@@ -387,7 +411,7 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
                 numberOfLines={1}
                 ellipsizeMode="tail"
                 style={[
-                    { fontSize: isWebPhone ? 16 : 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
+                    { fontSize: phoneShell ? titleFontSize : isWebPhone ? 16 : 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
                     Typography.default('semiBold'),
                     options.headerTitleStyle
                 ]}

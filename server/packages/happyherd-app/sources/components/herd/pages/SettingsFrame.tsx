@@ -121,6 +121,38 @@ export function SettingsNav({ active }: { active: SettingsSectionId }) {
     );
 }
 
+/**
+ * Phones (UI overhaul): the desktop section list as a card on the Settings
+ * home, one 48 px row per section and then Commanders, each opening its page.
+ */
+export function SettingsSectionList() {
+    const router = useRouter();
+    const { theme } = useUnistyles();
+    const experiments = useSetting('experiments');
+    const entries = [
+        ...SETTINGS_SECTIONS.filter((entry) => entry.id !== 'general' && (!entry.experimental || experiments)),
+        ...SETTINGS_ABOUT_LINKS.filter((entry) => entry.id === 'commanders'),
+    ];
+    return (
+        <View role="navigation" accessibilityLabel={t('settings.sectionsLabel')} style={styles.phoneList} testID="settings-section-list">
+            {entries.map((entry) => (
+                <Pressable
+                    key={entry.id}
+                    testID={`settings-section-${entry.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={entry.title()}
+                    onPress={() => router.push(entry.route as never)}
+                    style={({ pressed, hovered }: any) => [styles.phoneRow, (pressed || hovered) && styles.phoneRowPressed]}
+                >
+                    <Ionicons name={entry.icon} size={18} color={theme.colors.textLink} />
+                    <Text numberOfLines={1} style={styles.phoneRowText}>{entry.title()}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.colors.kilv.inkFaint} />
+                </Pressable>
+            ))}
+        </View>
+    );
+}
+
 export function SettingsFrame({ section, children }: { section: SettingsSectionId; children: React.ReactNode }) {
     const visible = useSettingsFrameVisible();
     if (Platform.OS !== 'web' && Platform.OS !== 'macos') return <>{children}</>;
@@ -150,6 +182,36 @@ export function withSettingsFrame<P extends object>(section: SettingsSectionId, 
 const styles = StyleSheet.create((theme) => ({
     stack: {
         flex: 1,
+    },
+    // Phones: the section list card, its rows' content on the 16 px gutter inside it.
+    phoneList: {
+        marginHorizontal: 16,
+        marginTop: 20,
+        padding: 8,
+        borderRadius: theme.kilv.radiusCard,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+    },
+    phoneRow: {
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 8,
+        borderRadius: theme.kilv.radius,
+        _web: { _classNames: herdWebClasses('herd-transition'), cursor: 'pointer' },
+    },
+    phoneRowPressed: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
+    },
+    phoneRowText: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 15,
+        lineHeight: 20,
+        color: theme.colors.text,
+        ...Typography.default(),
     },
     frame: {
         flex: 1,

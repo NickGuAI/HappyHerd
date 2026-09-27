@@ -176,7 +176,8 @@ export default function ProjectsScreen() {
 const styles = StyleSheet.create((theme) => ({
     scroll: { flex: 1 },
     content: { width: '100%', maxWidth: 1120, alignSelf: 'center', paddingHorizontal: 34, paddingTop: 28, paddingBottom: 80 },
-    contentCompact: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 48 },
+    // Phones (UI overhaul): the page content sits on the 16 px gutter.
+    contentCompact: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 48 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP },
     // The only style in a card's list that sets web classes (Unistyles merges `_web` key by key).
     card: (index: number) => ({
