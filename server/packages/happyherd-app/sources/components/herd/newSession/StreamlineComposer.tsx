@@ -19,18 +19,17 @@ export type StreamlineChip = {
 
 /**
  * Streamline's launch choices as composer chips. Each opens the same picker
- * as the Advanced form; phones keep the agent, permission and worktree chips.
+ * as the Advanced form. Every chip stays on phones too (they wrap), because
+ * Streamline has no other place to change a launch choice.
  */
-export function StreamlineComposerChips({ chips, activeKey, compact, onPress }: {
+export function StreamlineComposerChips({ chips, activeKey, onPress }: {
     chips: readonly StreamlineChip[];
     activeKey: StreamlineChipKey | null;
-    compact: boolean;
     /** The pressed chip's window rectangle anchors its picker. */
     onPress: (key: StreamlineChipKey, anchor: HerdAnchorRect | null) => void;
 }) {
     const { theme } = useUnistyles();
     const refs = React.useRef<Partial<Record<StreamlineChipKey, View | null>>>({});
-    const visible = compact ? chips.filter((chip) => chip.key !== 'model' && chip.key !== 'effort') : chips;
     const press = React.useCallback((key: StreamlineChipKey) => {
         const node = refs.current[key];
         if (!node) {
@@ -41,7 +40,7 @@ export function StreamlineComposerChips({ chips, activeKey, compact, onPress }: 
     }, [onPress]);
     return (
         <View style={styles.chips} testID="streamline-composer-chips">
-            {visible.map((chip) => {
+            {chips.map((chip) => {
                 const active = activeKey === chip.key;
                 return (
                     <Pressable

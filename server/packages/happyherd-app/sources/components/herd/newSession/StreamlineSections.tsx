@@ -40,6 +40,8 @@ export function StreamlineSections(props: {
     onCreateCommander: () => void;
     folders: readonly StreamlineFolderOption[];
     selectedFolder: { machineId: string | null; path: string | null; name: string; machineName: string | null } | null;
+    /** Canonical match of a folder against the selection (machine and normalized path). */
+    isFolderSelected: (folder: { machineId: string; path: string }) => boolean;
     onSelectFolder: (folder: StreamlineFolderOption) => void;
     onChooseFolder: () => void;
     chooseFolderOpen: boolean;
@@ -50,9 +52,7 @@ export function StreamlineSections(props: {
     onSelectProject: (id: string | null) => void;
 }) {
     const { theme } = useUnistyles();
-    const selectedKnown = !!props.selectedFolder && props.folders.some((folder) => (
-        folder.machineId === props.selectedFolder!.machineId && folder.path === props.selectedFolder!.path
-    ));
+    const selectedKnown = props.folders.some(props.isFolderSelected);
 
     let index = 0;
     const commanderCards = [
@@ -108,7 +108,7 @@ export function StreamlineSections(props: {
                 key={`${folder.machineId}:${folder.path}`}
                 index={index++}
                 folder={folder}
-                selected={props.selectedFolder?.machineId === folder.machineId && props.selectedFolder?.path === folder.path}
+                selected={props.isFolderSelected(folder)}
                 onPress={() => props.onSelectFolder(folder)}
             />
         )),

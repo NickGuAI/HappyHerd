@@ -42,6 +42,11 @@ const mocks = vi.hoisted(() => {
         uploadPhase: 'idle',
         newSessionMode: 'advanced' as 'streamline' | 'advanced',
         githubStatus: 'unknown' as 'github' | 'git' | 'none' | 'unknown',
+        githubStatusByPath: {} as Record<string, 'github' | 'git' | 'none' | 'unknown'>,
+        githubLoading: false,
+        lastCommanderWorkspaces: null as any,
+        draftVersion: 0,
+        draftListeners: new Set<() => void>(),
         streamlineLocations: [] as any[],
         streamlineGithubWorktree: true,
         setAgentDefaultOverrides: vi.fn(),
@@ -252,11 +257,17 @@ vi.mock('@/components/CommanderSessionAvatar', async () => {
     return { CommanderSessionAvatar: (props: any) => ReactModule.createElement('CommanderSessionAvatar', props) };
 });
 vi.mock('@/sync/githubRepository', () => ({
-    useGithubRepository: () => ({ status: mocks.githubStatus, loading: false }),
+    useGithubRepository: (_machineId: string | null, path: string | null) => ({
+        status: (path && mocks.githubStatusByPath[path]) || mocks.githubStatus,
+        loading: mocks.githubLoading,
+    }),
     detectGithubRepository: async () => mocks.githubStatus,
 }));
 vi.mock('@/hooks/useStreamlineLocations', () => ({
-    useStreamlineLocations: () => mocks.streamlineLocations,
+    useStreamlineLocations: (commanderWorkspaces: unknown) => {
+        mocks.lastCommanderWorkspaces = commanderWorkspaces;
+        return mocks.streamlineLocations;
+    },
 }));
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.renderMachines,
@@ -277,8 +288,18 @@ vi.mock('@/sync/storage', () => ({
     useLocalSetting: () => false,
     storage: { getState: () => ({ machines: mocks.liveMachines, projects: mocks.projects, settings: { focusMode: mocks.focusMode } }) },
 }));
-vi.mock('@/hooks/useNewSessionDraft', () => {
-    const useNewSessionDraft = (selector: (state: any) => unknown) => selector(mocks.draft);
+vi.mock('@/hooks/useNewSessionDraft', async () => {
+    const ReactModule = await import('react');
+    const subscribe = (listener: () => void) => {
+        mocks.draftListeners.add(listener);
+        return () => { mocks.draftListeners.delete(listener); };
+    };
+    const version = () => mocks.draftVersion;
+    // Like the real store, writes through a live draft re-render its readers.
+    const useNewSessionDraft = (selector: (state: any) => unknown) => {
+        ReactModule.useSyncExternalStore(subscribe, version, version);
+        return selector(mocks.draft);
+    };
     useNewSessionDraft.getState = () => mocks.draft;
     return { useNewSessionDraft };
 });
@@ -556,6 +577,11 @@ beforeEach(() => {
     mocks.uploadPhase = 'idle';
     mocks.newSessionMode = 'advanced';
     mocks.githubStatus = 'unknown';
+    mocks.githubStatusByPath = {};
+    mocks.githubLoading = false;
+    mocks.lastCommanderWorkspaces = null;
+    mocks.draftVersion = 0;
+    mocks.draftListeners.clear();
     mocks.streamlineLocations = [];
     mocks.streamlineGithubWorktree = true;
     mocks.draft = createDraft();
@@ -1266,7 +1292,12 @@ function createClaudeMachine() {
     };
 }
 
-/** A draft whose setters write back, as the real store does. */
+function notifyDraft() {
+    mocks.draftVersion += 1;
+    mocks.draftListeners.forEach((listener) => listener());
+}
+
+/** A draft whose setters write back and notify readers, as the real store does. */
 function createLiveDraft(overrides: Record<string, unknown> = {}) {
     const draft: any = createDraft(overrides);
     for (const [setter, field] of [
@@ -1279,15 +1310,31 @@ function createLiveDraft(overrides: Record<string, unknown> = {}) {
         ['setSessionType', 'sessionType'],
         ['setWorktreeKey', 'worktreeKey'],
     ] as const) {
-        draft[setter] = vi.fn((value: unknown) => { mocks.draft[field] = value; });
+        draft[setter] = vi.fn((value: unknown) => { mocks.draft[field] = value; notifyDraft(); });
     }
+    // The real store clears machine-bound fields and resets fields on an agent change.
+    draft.setMachineId = vi.fn((id: string) => {
+        Object.assign(mocks.draft, {
+            selectedMachineId: id, selectedPath: null, selectedCommanderId: null,
+            permissionMode: null, modelMode: null, effortLevel: null, sessionType: 'simple', worktreeKey: null,
+        });
+        notifyDraft();
+    });
+    draft.setAgentType = vi.fn((agent: string) => {
+        Object.assign(mocks.draft, agent === mocks.draft.agentType
+            ? { agentType: agent }
+            : { agentType: agent, permissionMode: null, modelMode: null, effortLevel: null });
+        notifyDraft();
+    });
     return draft;
 }
 
-async function settle(renderer: ReturnType<typeof create>) {
+async function settle(_renderer: ReturnType<typeof create>) {
+    // Mock-only inputs (GitHub status, loading) change outside React; a store
+    // notification re-renders the screen so it reads them, then effects settle.
     for (let pass = 0; pass < 3; pass += 1) {
         await act(async () => {
-            renderer.update(React.createElement(NewSessionScreen));
+            notifyDraft();
             await Promise.resolve();
         });
     }
@@ -1380,6 +1427,136 @@ describe('Streamline New Session', () => {
         await act(async () => { option.props.onPress(); });
         expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('read-only');
         expect(mocks.setAgentDefaultOverrides).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+});
+
+function summaryText(renderer: ReturnType<typeof create>): string {
+    const summary = renderer.root.find((node: any) => node.props?.testID === 'streamline-summary');
+    return summary.findAllByType('Text' as any).map((node: any) => [].concat(node.props.children).join('')).join(' ');
+}
+
+describe('Streamline New Session review fixes', () => {
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = 'streamline';
+        mocks.dimensions = { width: 1440, height: 900 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.streamlineLocations = [
+            { machineId: 'machine-1', path: '/Users/dev/repo', name: 'repo', machineName: 'studio', online: true },
+            { machineId: 'machine-1', path: '/Users/dev/notes', name: 'notes', machineName: 'studio', online: true },
+        ];
+    });
+
+    const sendButton = (renderer: ReturnType<typeof create>) => renderer.root.findAllByType('Pressable' as any)
+        .find((item: any) => item.props.accessibilityLabel === 'happyHerd.composer.send');
+    const folderCard = (renderer: ReturnType<typeof create>, name: string) => renderer.root
+        .find((node: any) => node.props?.testID === `streamline-folder-machine-1-${name}`);
+
+    it('waits for the folder check before sending when it decides the worktree', async () => {
+        mocks.githubStatus = 'github';
+        mocks.githubLoading = true;
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(sendButton(renderer)?.props.disabled).toBe(true);
+        mocks.githubLoading = false;
+        await settle(renderer);
+        await pressSend(renderer);
+        expect(mocks.createWorktree).toHaveBeenCalledTimes(1);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the Streamline effort when Agent Defaults had selected another model', async () => {
+        const efforts = (codes: string[]) => codes.map((code) => ({ code, value: code }));
+        const machine = createDshMachine();
+        (machine.metadata.agentCapabilities.dsh as any).models = [
+            { code: 'deepseek-v4-pro', value: 'DeepSeek V4 Pro', isDefault: true, effortLevels: efforts(['low']) },
+            { code: 'deepseek-v4-flash', value: 'DeepSeek V4 Flash', effortLevels: efforts(['low', 'medium', 'high']) },
+        ];
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.overrides = { dsh: { modelMode: 'deepseek-v4-pro', effortLevel: 'low' } };
+        mocks.draft = createLiveDraft({ agentType: 'dsh', selectedPath: '/Users/dev/repo' });
+        const renderer = await renderScreen();
+        await settle(renderer);
+        await settle(renderer);
+        expect(mocks.draft.modelMode).toBe('deepseek-v4-flash');
+        expect(mocks.draft.effortLevel).toBe('medium');
+        act(() => renderer.unmount());
+    });
+
+    it('applies the defaults again after a detour through Advanced', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(mocks.draft.modelMode).toBe('claude-opus-5-5');
+        const mode = () => renderer.root.find((node: any) => node.props?.testID === 'new-session-mode');
+        await act(async () => { mode().props.onChange('advanced'); });
+        // Switching agent away and back clears the launch fields, as the real store does.
+        await act(async () => { mocks.draft.setAgentType('codex'); mocks.draft.setAgentType('claude'); });
+        await settle(renderer);
+        expect(mocks.draft.modelMode).toBeNull();
+        await act(async () => { mode().props.onChange('streamline'); });
+        await settle(renderer);
+        expect(mocks.draft.modelMode).toBe('claude-opus-5-5');
+        act(() => renderer.unmount());
+    });
+
+    it('lets a worktree chip edit hold for its folder only', async () => {
+        mocks.githubStatusByPath = { '/Users/dev/repo': 'github', '/Users/dev/notes': 'none' };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOn');
+        // Choose no worktree on the chip for the GitHub folder.
+        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-worktree');
+        await act(async () => { chip.props.onPress(); });
+        await settle(renderer);
+        const none = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-picker')
+            .findAll((node: any) => node.props?.accessibilityLabel === 'uiCopy.noWorktree' && typeof node.props?.onPress === 'function')[0];
+        await act(async () => { none.props.onPress(); });
+        await settle(renderer);
+        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOff');
+        // Visit the plain folder and come back: the GitHub rule applies again.
+        await act(async () => { folderCard(renderer, 'notes').props.onPress(); });
+        await settle(renderer);
+        await act(async () => { folderCard(renderer, 'repo').props.onPress(); });
+        await settle(renderer);
+        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOn');
+        act(() => renderer.unmount());
+    });
+
+    it('never attributes one machine\'s Commander workspaces to another', async () => {
+        const second = { ...createClaudeMachine(), id: 'machine-2' };
+        mocks.renderMachines = [createClaudeMachine(), second];
+        mocks.liveMachines = Object.fromEntries(mocks.renderMachines.map((machine: any) => [machine.id, machine]));
+        mocks.machineListCommanders.mockImplementation((machineId: string) => machineId === 'machine-1'
+            ? Promise.resolve({ commanders: [{ id: 'athena', name: 'Athena', workspace: '/Users/dev/athena', commanderPath: '/c', agentContextPath: '/c/ctx' }] })
+            : new Promise(() => {}));
+        mocks.streamlineLocations = [
+            ...mocks.streamlineLocations,
+            { machineId: 'machine-2', path: '/Users/dev/other', name: 'other', machineName: 'second', online: true },
+        ];
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(mocks.lastCommanderWorkspaces).toEqual([{ machineId: 'machine-1', path: '/Users/dev/athena' }]);
+        const other = renderer.root.find((node: any) => node.props?.testID === 'streamline-folder-machine-2-other');
+        await act(async () => { other.props.onPress(); });
+        await settle(renderer);
+        expect(mocks.draft.selectedMachineId).toBe('machine-2');
+        // machine-2's Commanders are still loading, so machine-1's workspace is not offered for it.
+        expect(mocks.lastCommanderWorkspaces).toEqual([]);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps model and effort chips on a phone', async () => {
+        mocks.dimensions = { width: 390, height: 844 };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        for (const key of ['agent', 'model', 'effort', 'permission']) {
+            expect(renderer.root.findAll((node: any) => node.props?.testID === `streamline-chip-${key}`).length).toBeGreaterThan(0);
+        }
         act(() => renderer.unmount());
     });
 });

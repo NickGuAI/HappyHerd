@@ -51,6 +51,7 @@ import {
 import { normalizeStreamlineAgent, resolveStreamlineSelection } from '@/sync/streamlineDefaults';
 import { useGithubRepository } from '@/sync/githubRepository';
 import { useStreamlineLocations } from '@/hooks/useStreamlineLocations';
+import { normalizeMachinePath } from '@/utils/normalizeMachinePath';
 import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { createWorktree } from '@/utils/worktree';
 import { useWorktrees } from '@/hooks/useWorktrees';
@@ -198,6 +199,7 @@ type PickerItem = NewSessionPickerItem & { dimmed?: boolean };
 
 /** Streamline switches to swipe rows and a pinned composer below this width. */
 const STREAMLINE_PHONE_MAX_WIDTH = 700;
+const EMPTY_COMMANDERS: HappyHerdCommanderSummary[] = [];
 
 type PickerType = 'machine' | 'path' | 'accountProject' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
@@ -1572,8 +1574,17 @@ function NewSessionScreen() {
         ? JSON.stringify([selectedAgent, selectedMachine.id, streamlineCatalogReady, streamlineAgentDefaults?.[selectedAgent] ?? null])
         : null;
     const streamlineDefaultsAppliedRef = React.useRef<string | null>(null);
+    // Effort belongs to a model: it waits until the model index follows the new
+    // model, or the existing effort clamp would judge it against the old one.
+    const streamlinePendingEffortRef = React.useRef<{ model: string | null; effort: string } | null>(null);
     React.useEffect(() => {
-        if (!streamlineDefaultsKey || streamlineDefaultsAppliedRef.current === streamlineDefaultsKey) return;
+        if (!streamlineDefaultsKey) {
+            // Leaving Streamline: re-entry resolves its defaults again.
+            streamlineDefaultsAppliedRef.current = null;
+            streamlinePendingEffortRef.current = null;
+            return;
+        }
+        if (streamlineDefaultsAppliedRef.current === streamlineDefaultsKey) return;
         streamlineDefaultsAppliedRef.current = streamlineDefaultsKey;
         const selection = resolveStreamlineSelection({
             agent: selectedAgent,
@@ -1583,7 +1594,9 @@ function NewSessionScreen() {
         });
         if (selection.permissionMode) draft.setPermissionMode(selection.permissionMode);
         if (selection.modelMode) draft.setModelMode(selection.modelMode);
-        if (selection.effortLevel) draft.setEffortLevel(selection.effortLevel);
+        streamlinePendingEffortRef.current = selection.effortLevel
+            ? { model: selection.modelMode, effort: selection.effortLevel }
+            : null;
     }, [
         agentDefaultOverrides,
         draft.setEffortLevel,
@@ -1594,6 +1607,12 @@ function NewSessionScreen() {
         streamlineAgentDefaults,
         streamlineDefaultsKey,
     ]);
+    React.useEffect(() => {
+        const pending = streamlinePendingEffortRef.current;
+        if (!pending || (pending.model !== null && currentModelKey !== pending.model)) return;
+        streamlinePendingEffortRef.current = null;
+        draft.setEffortLevel(pending.effort);
+    }, [currentModelKey, draft.setEffortLevel, streamlineDefaultsKey]);
 
     // GitHub repositories start in a new worktree (Streamline settings). A
     // Commander runs in its own workspace, and a worktree chip edit holds
@@ -1604,33 +1623,47 @@ function NewSessionScreen() {
     );
     const streamlineLocationKey = JSON.stringify([selectedMachineId, resolvedSelectedPath, selectedCommanderId]);
     const streamlineWorktreeEditedRef = React.useRef<string | null>(null);
+    const streamlineAutoWorktree = streamline
+        && streamlineGithubWorktree
+        && !selectedCommanderId
+        && !picksWorkspaces
+        && canCreateWorktree;
+    // Sending waits for the folder check when it decides the worktree.
+    const streamlineDetectionPending = streamlineAutoWorktree && streamlineRepository.loading;
     React.useEffect(() => {
-        if (!streamline || streamlineWorktreeEditedRef.current === streamlineLocationKey) return;
-        const wantsWorktree = streamlineGithubWorktree
-            && !selectedCommanderId
-            && !picksWorkspaces
-            && canCreateWorktree
-            && streamlineRepository.status === 'github';
-        setWorktreeKey(wantsWorktree ? '__new__' : '__none__');
+        if (!streamline) return;
+        // A chip edit holds for its folder only.
+        if (streamlineWorktreeEditedRef.current !== null && streamlineWorktreeEditedRef.current !== streamlineLocationKey) {
+            streamlineWorktreeEditedRef.current = null;
+        }
+        if (streamlineWorktreeEditedRef.current === streamlineLocationKey || streamlineDetectionPending) return;
+        setWorktreeKey(streamlineAutoWorktree && streamlineRepository.status === 'github' ? '__new__' : '__none__');
     }, [
-        canCreateWorktree,
-        picksWorkspaces,
-        selectedCommanderId,
         streamline,
-        streamlineGithubWorktree,
+        streamlineAutoWorktree,
+        streamlineDetectionPending,
         streamlineLocationKey,
         streamlineRepository.status,
     ]);
+    // The Commander list belongs to the machine that returned it; while another
+    // machine's list loads, the previous one must not be attributed to it.
+    const streamlineCommanders = selectedMachineId && commanderLoadedMachineId === selectedMachineId ? commanders : EMPTY_COMMANDERS;
     const streamlineCommanderWorkspaces = React.useMemo(
-        () => (selectedMachineId ? commanders.map((commander) => ({ machineId: selectedMachineId, path: commander.workspace })) : []),
-        [commanders, selectedMachineId],
+        () => (selectedMachineId ? streamlineCommanders.map((commander) => ({ machineId: selectedMachineId, path: commander.workspace })) : []),
+        [selectedMachineId, streamlineCommanders],
     );
     const streamlineFolders = useStreamlineLocations(streamlineCommanderWorkspaces);
     const selectStreamlineCommander = React.useCallback((commanderId: string | null) => {
         setSelectedCommanderId(commanderId);
-        const commander = commanderId ? commanders.find((candidate) => candidate.id === commanderId) : null;
+        const commander = commanderId ? streamlineCommanders.find((candidate) => candidate.id === commanderId) : null;
         if (commander) setSelectedPath(commander.workspace);
-    }, [commanders, setSelectedCommanderId, setSelectedPath]);
+    }, [setSelectedCommanderId, setSelectedPath, streamlineCommanders]);
+    // Folders match by machine and canonical path, so `~/repo/` and `/Users/me/repo` are one choice.
+    const isStreamlineFolderSelected = React.useCallback((folder: { machineId: string; path: string }) => {
+        if (folder.machineId !== selectedMachineId || !selectedPath) return false;
+        const homeDir = allMachines.find((machine) => machine.id === folder.machineId)?.metadata?.homeDir;
+        return normalizeMachinePath(folder.path, homeDir) === normalizeMachinePath(selectedPath, selectedHomeDir);
+    }, [allMachines, selectedHomeDir, selectedMachineId, selectedPath]);
     const selectStreamlineFolder = React.useCallback((folder: StreamlineFolderOption) => {
         // Switching machines clears the machine-bound draft fields first.
         if (folder.machineId !== selectedMachineId) setSelectedMachineId(folder.machineId);
@@ -2443,7 +2476,8 @@ function NewSessionScreen() {
         && currentLaunchSelectionError === null
         && !currentRigSelectionIncomplete
         && !isSpawning
-        && !dshUploadBusy;
+        && !dshUploadBusy
+        && !streamlineDetectionPending;
     React.useEffect(() => {
         if (
             autoSubmit !== '1'
@@ -3019,7 +3053,6 @@ function NewSessionScreen() {
         <StreamlineComposerChips
             chips={streamlineChips}
             activeKey={activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree' ? activePicker : null}
-            compact={streamlinePhone}
             onPress={openStreamlineChip}
         />
     ) : null;
@@ -3258,7 +3291,7 @@ function NewSessionScreen() {
     const streamlineSections = streamline ? (
         <StreamlineSections
             compact={streamlinePhone}
-            commanders={commanders.map((commander) => ({ id: commander.id, name: commander.name, role: commander.role }))}
+            commanders={streamlineCommanders.map((commander) => ({ id: commander.id, name: commander.name, role: commander.role }))}
             commanderMachineId={selectedMachineId}
             commanderId={selectedCommanderId}
             commanderNote={commanderLoadError}
@@ -3271,6 +3304,7 @@ function NewSessionScreen() {
                 name: trimTrailingPathSeparator(trimPathInput(selectedPath)).split(/[\\/]/).pop() || selectedPath,
                 machineName: selectedMachine ? getMachineName(selectedMachine) : null,
             } : null}
+            isFolderSelected={isStreamlineFolderSelected}
             onSelectFolder={selectStreamlineFolder}
             onChooseFolder={() => togglePicker('path')}
             chooseFolderOpen={activePicker === 'path'}
