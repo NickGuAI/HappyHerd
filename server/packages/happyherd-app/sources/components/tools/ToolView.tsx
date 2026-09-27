@@ -101,7 +101,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         ?? <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
     let noStatus = false;
     let hideDefaultError = false;
-    
+
     // For Gemini: unknown tools should be rendered as minimal (hidden)
     // This prevents showing raw INPUT/OUTPUT for internal Gemini tools
     // that we haven't explicitly added to knownTools
@@ -121,7 +121,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Handle optional title and function type
     const providerTitle = tool.title?.trim();
     let toolTitle = getToolDisplayTitle(tool);
-    
+
     // Special handling for MCP tools
     if (tool.name.startsWith('mcp__')) {
         if (!providerTitle) {
@@ -150,7 +150,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             minimal = knownTool.minimal;
         }
     }
-    
+
     // Special handling for CodexBash to determine icon based on parsed_cmd
     if (tool.name === 'CodexBash' && tool.input?.parsed_cmd && Array.isArray(tool.input.parsed_cmd) && tool.input.parsed_cmd.length > 0) {
         const parsedCmd = tool.input.parsed_cmd[0];
@@ -164,7 +164,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     } else if (knownTool && typeof knownTool.icon === 'function') {
         icon = knownTool.icon(18, theme.colors.text);
     }
-    
+
     if (knownTool && typeof knownTool.noStatus === 'boolean') {
         noStatus = knownTool.noStatus;
     }
