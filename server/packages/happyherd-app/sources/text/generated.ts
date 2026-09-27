@@ -106,6 +106,10 @@ export type TranslationKey =
     | "claude.permissions.yesForTool"
     | "codex.permissions.stopAndExplain"
     | "codex.permissions.yesForSession"
+    | "commandPalette.hintClose"
+    | "commandPalette.hintNavigate"
+    | "commandPalette.hintOpen"
+    | "commandPalette.keyEscape"
     | "commandPalette.placeholder"
     | "common.authenticate"
     | "common.back"
@@ -478,10 +482,18 @@ export type TranslationKey =
     | "happyHerd.automations.unknownError"
     | "happyHerd.automations.untagged"
     | "happyHerd.automations.workspace"
+    | "happyHerd.commander.browseSubtitle"
     | "happyHerd.commander.category"
     | "happyHerd.commander.createSubtitle"
     | "happyHerd.commander.createTitle"
+    | "happyHerd.commander.emptyTitle"
+    | "happyHerd.commander.machineLoadFailed"
+    | "happyHerd.commander.memoryEmpty"
+    | "happyHerd.commander.memoryReadFailed"
+    | "happyHerd.commander.newSessionWith"
+    | "happyHerd.commander.noOnlineMachine"
     | "happyHerd.commander.onboardingPrompt"
+    | "happyHerd.commander.pageSubtitle"
     | "happyHerd.commanderAvatars.description"
     | "happyHerd.commanderAvatars.empty"
     | "happyHerd.commanderAvatars.invalidFormat"
@@ -885,6 +897,7 @@ export type TranslationKey =
     | "settings.privacyPolicy"
     | "settings.reportIssue"
     | "settings.scanQrCodeToAuthenticate"
+    | "settings.sectionsLabel"
     | "settings.showOfflineMachines"
     | "settings.social"
     | "settings.supportUs"
@@ -1697,6 +1710,8 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.nextRunIn": { duration: string };
     "happyHerd.automations.openDetails": { name: string };
     "happyHerd.automations.openSession": { id: string };
+    "happyHerd.commander.machineLoadFailed": { message: string; name: string };
+    "happyHerd.commander.newSessionWith": { name: string };
     "happyHerd.commanderAvatars.updated": { name: string };
     "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
     "happyHerd.heartbeat.countdownIn": { duration: string };

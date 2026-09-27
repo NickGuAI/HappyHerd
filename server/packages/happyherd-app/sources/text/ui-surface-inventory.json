@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "8ae3883d79e3299c3590c1112f59879ca516296e76ec9261bf3cf8204dd7de3e",
-  "routeCount": 42,
-  "surfaceCount": 303,
+  "sourceFingerprint": "5cc452b9e938f60ec3c7cf0d64f8407c3efef10ea435ba819be75a59c7a9b2bc",
+  "routeCount": 43,
+  "surfaceCount": 304,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -141,6 +141,31 @@
         "changelog.noEntriesAvailable"
       ],
       "states": []
+    },
+    {
+      "path": "/commanders",
+      "owner": "sources/app/(app)/commanders/index.tsx",
+      "translationKeys": [
+        "common.cancel",
+        "common.retry",
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "happyHerd.commander.emptyTitle",
+        "happyHerd.commander.machineLoadFailed",
+        "happyHerd.commander.memoryEmpty",
+        "happyHerd.commander.memoryReadFailed",
+        "happyHerd.commander.newSessionWith",
+        "happyHerd.commander.noOnlineMachine",
+        "happyHerd.commander.pageSubtitle",
+        "happyHerd.commanderAvatars.loading",
+        "happyHerd.commanderAvatars.machineOffline",
+        "happyHerd.commanderAvatars.noMachines",
+        "sidebar.newSession"
+      ],
+      "states": [
+        "loading"
+      ]
     },
     {
       "path": "/friends",
@@ -1375,6 +1400,36 @@
         "changelog.noEntriesAvailable"
       ],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/commanders/index.tsx",
+      "kind": "route",
+      "route": "/commanders",
+      "exports": [
+        "CommandersScreen"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.retry",
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "happyHerd.commander.emptyTitle",
+        "happyHerd.commander.machineLoadFailed",
+        "happyHerd.commander.memoryEmpty",
+        "happyHerd.commander.memoryReadFailed",
+        "happyHerd.commander.newSessionWith",
+        "happyHerd.commander.noOnlineMachine",
+        "happyHerd.commander.pageSubtitle",
+        "happyHerd.commanderAvatars.loading",
+        "happyHerd.commanderAvatars.machineOffline",
+        "happyHerd.commanderAvatars.noMachines",
+        "sidebar.newSession"
+      ],
+      "states": [
+        "loading"
+      ],
       "hardcodedCopy": []
     },
     {

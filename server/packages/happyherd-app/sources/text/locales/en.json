@@ -161,7 +161,8 @@
           "false": "{feature} disabled"
         }
       }
-    }
+    },
+    "sectionsLabel": "Settings sections"
   },
   "settingsAppearance": {
     "theme": "Theme",
@@ -513,7 +514,11 @@
     "forkClaudeOnly": "Fork is currently only supported for Claude sessions."
   },
   "commandPalette": {
-    "placeholder": "Type a command or search..."
+    "placeholder": "Type a command or search...",
+    "hintNavigate": "Navigate",
+    "hintOpen": "Open",
+    "hintClose": "Close",
+    "keyEscape": "esc"
   },
   "server": {
     "serverConfiguration": "Server Configuration",
@@ -1359,7 +1364,15 @@
       "category": "Commanders",
       "createTitle": "Create Commander",
       "createSubtitle": "Start a guided onboarding session",
-      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happyherd commander create --manifest <file>`, verify with `happyherd commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content."
+      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happyherd commander create --manifest <file>`, verify with `happyherd commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content.",
+      "pageSubtitle": "Each Commander keeps its memory and workspace on its machine. Read what it remembers or start a session with it.",
+      "emptyTitle": "No Commanders found",
+      "noOnlineMachine": "Commanders load from a connected machine. Start the HappyHerd daemon on a machine to see its Commanders.",
+      "machineLoadFailed": "Could not load Commanders from {name}: {message}",
+      "memoryReadFailed": "Could not read the memory file.",
+      "memoryEmpty": "The memory file is empty.",
+      "newSessionWith": "New session with {name}",
+      "browseSubtitle": "Read Commander memory and start sessions"
     },
     "composer": {
       "queueMessage": "Queue Msg",
