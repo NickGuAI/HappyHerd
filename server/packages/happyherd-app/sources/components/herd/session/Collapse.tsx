@@ -7,7 +7,8 @@ import { StyleSheet } from 'react-native-unistyles';
  * mounted inside a CSS grid whose single row animates between `0fr` and `1fr`,
  * so the height follows the real content without measuring it. The body mounts
  * on first open and is kept afterwards, which keeps collapsed rows cheap and
- * lets a closing body animate out. Native renders the body only while open.
+ * lets a closing body animate out. A collapsed body is `inert`, so keyboard
+ * focus cannot enter it. Native renders the body only while open.
  */
 export function HerdCollapse(props: {
     open: boolean;
@@ -17,6 +18,14 @@ export function HerdCollapse(props: {
     const { open } = props;
     const [mounted, setMounted] = React.useState(open);
     const [expanded, setExpanded] = React.useState(open);
+    const outerRef = React.useRef<View>(null);
+
+    React.useLayoutEffect(() => {
+        const node = outerRef.current as unknown as HTMLElement | null;
+        if (Platform.OS !== 'web' || !node?.setAttribute) return;
+        if (open) node.removeAttribute('inert');
+        else node.setAttribute('inert', '');
+    }, [open, mounted]);
 
     React.useEffect(() => {
         if (!open) {
@@ -40,6 +49,7 @@ export function HerdCollapse(props: {
 
     return (
         <View
+            ref={outerRef}
             testID={props.testID}
             aria-hidden={!expanded}
             style={[styles.outer, expanded && styles.outerOpen]}

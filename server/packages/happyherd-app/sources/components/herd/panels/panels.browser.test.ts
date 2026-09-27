@@ -411,6 +411,35 @@ describe('Side panels and Workspace overhaul (Web, production style runtime)', (
         await page.close();
     }, 60_000);
 
+    it('keeps keyboard focus on controls that are visible', async () => {
+        const { page, errors, foreground } = await open(DESKTOP, 'light');
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        const oldest = foreground.getByRole('tab', { name: /Oldest child/ });
+        await oldest.waitFor({ state: 'visible' });
+        await expect(oldest.getAttribute('aria-selected')).resolves.toBe('false');
+        // Tab from an inactive tab reaches its close button, which shows.
+        await oldest.focus();
+        await page.keyboard.press('Tab');
+        const focusedClose = await page.evaluate(() => {
+            const element = document.activeElement as HTMLElement | null;
+            return element ? { label: element.getAttribute('aria-label'), opacity: Number(getComputedStyle(element).opacity) } : null;
+        });
+        expect(focusedClose?.label).toBe('Close side chat');
+        await expect.poll(() => page.evaluate(() => Number(getComputedStyle(document.activeElement as HTMLElement).opacity))).toBe(1);
+
+        // A collapsed Changes folder keeps its rows out of the tab order.
+        await foreground.getByRole('button', { name: 'Add panel', exact: true }).click();
+        await foreground.getByRole('menuitem', { name: 'Changes', exact: true }).click();
+        const folder = foreground.getByRole('button', { name: /__tests__/ });
+        await folder.click();
+        await expect.poll(() => folder.getAttribute('aria-expanded')).toBe('false');
+        await folder.focus();
+        await page.keyboard.press('Tab');
+        await expect(page.evaluate(() => Boolean(document.activeElement?.closest('[aria-hidden="true"]')))).resolves.toBe(false);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 40_000);
+
     it('gives Escape to the sheet ahead of Back and to its menu first, and keeps a hidden panel quiet', async () => {
         // Stand-in for the app's global navigation, which is registered first
         // and treats an unhandled Escape keydown as Back.

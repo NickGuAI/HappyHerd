@@ -12,8 +12,9 @@ import { panelHoverWash, panelRimFaint } from './panelColors';
 /**
  * Pill tab of the side panel and Workspace strips (UI overhaul, mock
  * `.rtab`): icon, one-line label, optional meta (count or +N −N) and a close
- * button that shows while the tab is hovered or active. Tabs without an
- * explicit label keep their visible text as the accessible name.
+ * button that shows while the tab is hovered, focused or active, so keyboard
+ * focus never lands on a hidden control. Tabs without an explicit label keep
+ * their visible text as the accessible name.
  */
 export function HerdPanelTab(props: {
     label: string;
@@ -32,6 +33,10 @@ export function HerdPanelTab(props: {
 }) {
     const { theme } = useUnistyles();
     const [hovered, setHovered] = React.useState(false);
+    // Focus on the tab or its close button; focus moving between them keeps it.
+    const [focused, setFocused] = React.useState(false);
+    const onFocus = React.useCallback(() => setFocused(true), []);
+    const onBlur = React.useCallback(() => setFocused(false), []);
     const color = props.active || hovered ? theme.colors.text : theme.colors.textSecondary;
     const role = props.accessibilityRole ?? 'tab';
     return (
@@ -46,6 +51,8 @@ export function HerdPanelTab(props: {
             // onto the close button does not hide it.
             onPointerEnter={() => setHovered(true)}
             onPointerLeave={() => setHovered(false)}
+            onFocus={onFocus}
+            onBlur={onBlur}
             testID={props.testID}
             style={[
                 props.entrance ? styles.tabEntrance : styles.tab,
@@ -70,9 +77,11 @@ export function HerdPanelTab(props: {
                     accessibilityRole="button"
                     accessibilityLabel={props.closeLabel}
                     hitSlop={6}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
                     style={({ hovered: closeHovered }: any) => [
                         styles.close,
-                        !(hovered || props.active) && styles.closeHidden,
+                        !(hovered || focused || props.active) && styles.closeHidden,
                         closeHovered && styles.closeHovered,
                     ]}
                 >

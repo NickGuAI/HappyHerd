@@ -547,3 +547,4 @@ UI_OVERHAUL_ALPHA_CSS_VARS	accepted	fix(app): keep token washes translucent in t
 UI_OVERHAUL_PARITY_PANELS	accepted	docs(app): record the side panels and Workspace for upstream merges	docs/upstream-ui-parity.md
 UI_OVERHAUL_CHANGELOG	accepted	docs(app): add the redesigned interface and Streamline to the changelog	server/packages/happyherd-app/CHANGELOG.md
 UI_OVERHAUL_PANEL_SHEET_KEYS	accepted	fix(app): keep panel sheet keys on the sheet and off a hidden panel	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANEL_FOCUS	accepted	fix(app): keep keyboard focus on visible panel controls	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
