@@ -6,7 +6,8 @@ import { CommandPalette } from './CommandPalette';
 import { Command } from './types';
 import { useGlobalKeyboard } from '@/hooks/useGlobalKeyboard';
 import { useAuth } from '@/auth/AuthContext';
-import { storage, useAllMachines } from '@/sync/storage';
+import { storage, useAllMachines, useSetting } from '@/sync/storage';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { useShallow } from 'zustand/react/shallow';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { ShortcutHintsProvider } from '@/components/ShortcutHints';
@@ -20,6 +21,7 @@ import { getSessionShortcutIdsInDisplayOrder } from '@/utils/sessionDisplayOrder
 import { t } from '@/text';
 import { getRecentTopLevelSessions } from '@/sync/sessionListVisibility';
 import { HerdCommandPaletteContext } from '@/components/herd/shell/commandPaletteBridge';
+import { buildNavigationCommands } from './navigationCommands';
 
 const EMPTY_SESSION_IDS: readonly string[] = [];
 
@@ -31,6 +33,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     const sessionListViewData = useVisibleSessionListViewData();
     const machines = useAllMachines();
     const navigateToSession = useNavigateToSession();
+    const machineWorkspace = useSetting('machineWorkspace');
+    const focusActive = useFocusMode() !== null;
     const preferredModifier = useMemo(() => getPreferredShortcutModifier(
         typeof navigator === 'undefined' ? undefined : navigator
     ), []);
@@ -86,6 +90,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
                     router.push('/');
                 }
             },
+            ...buildNavigationCommands({ machineWorkspace: !!machineWorkspace, focusActive, web: Platform.OS === 'web', push: (route) => router.push(route as never) }),
             {
                 id: 'settings',
                 title: t("tabs.settings"),
@@ -163,7 +168,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         }
 
         return cmds;
-    }, [browserSafeShortcuts, router, logout, sessions, navigateToSession, preferredModifier]);
+    }, [browserSafeShortcuts, router, logout, sessions, navigateToSession, preferredModifier, machineWorkspace, focusActive]);
 
     const showCommandPalette = useCallback(() => {
         if (Platform.OS !== 'web' || !isAuthenticated || !commandPaletteEnabled) return;
