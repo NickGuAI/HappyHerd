@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Pressable } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
@@ -7,8 +7,9 @@ import { useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage
 import { MainView } from './MainView';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
-import { Ionicons } from '@expo/vector-icons';
-import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
+import { useShortcutHints } from './ShortcutHints';
+import { Typography } from '@/constants/Typography';
+import { HerdShellIcon } from './herd/shell/HerdShellIcon';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
 import { SidebarNavigationButton } from './SidebarNavigationButton';
 import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
@@ -66,9 +67,9 @@ const stylesheet = StyleSheet.create((theme) => ({
     archiveButtonHovered: {
         borderColor: theme.colors.kilv.rimLine,
     },
+    // The mock's `.sb-arch.on`: molten line and icon, no fill.
     archiveButtonActive: {
         borderColor: theme.colors.selection.border,
-        backgroundColor: theme.colors.selection.background,
     },
     archiveButtonPressed: {
         backgroundColor: theme.colors.surfacePressed,
@@ -85,7 +86,46 @@ const stylesheet = StyleSheet.create((theme) => ({
     settingsRowPhone: {
         paddingHorizontal: 8,
     },
+    // The mock's `kbd`: sunken keycap with a 2 px bottom edge.
+    kbd: {
+        minWidth: 20,
+        height: 20,
+        paddingHorizontal: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 5,
+        borderWidth: 1,
+        borderBottomWidth: 2,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.input.background,
+    },
+    kbdLit: {
+        borderColor: theme.colors.kilv.accent,
+    },
+    kbdText: {
+        fontSize: 11,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
 }));
+
+/**
+ * The shortcut on a panel control, always shown on web desktop as the mock
+ * draws it (the real chord, such as ⌥⌘N). Holding the modifier lights it.
+ */
+// The mock's panel `kbd` names only the key, as the held-modifier hints do;
+// it lights while the shortcut modifiers are held.
+function PanelShortcutKbd({ shortcutKey }: { shortcutKey: string }) {
+    const styles = stylesheet;
+    const phone = useHerdPhoneLayout();
+    const { visible } = useShortcutHints();
+    if (Platform.OS !== 'web' || phone) return null;
+    return (
+        <View pointerEvents="none" style={[styles.kbd, visible && styles.kbdLit]} testID={`herd-panel-kbd-${shortcutKey}`}>
+            <Text style={styles.kbdText}>{shortcutKey}</Text>
+        </View>
+    );
+}
 
 type SidebarViewProps = {
     /** Phones (UI overhaul): the panel is the session list, docked at full width. */
@@ -138,7 +178,7 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                     {machineWorkspaceEnabled && (
                         <SidebarNavigationButton
                             iconOnly
-                            icon="folder-open-outline"
+                            icon="split"
                             label={t('workspace.title')}
                             active={pathname.startsWith('/workspace')}
                             onPress={() => go(() => router.navigate('/workspace'))}
@@ -146,14 +186,14 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                     )}
                     <SidebarNavigationButton
                         iconOnly
-                        icon="albums-outline"
+                        icon="folders"
                         label={t('sidebar.projects')}
                         active={pathname.startsWith('/projects')}
                         onPress={() => go(() => router.navigate('/projects'))}
                     />
                     <SidebarNavigationButton
                         iconOnly
-                        icon="time-outline"
+                        icon="bolt"
                         label={t('happyHerd.automations.title')}
                         active={pathname.startsWith('/automations')}
                         onPress={() => go(() => router.navigate('/automations'))}
@@ -161,7 +201,7 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                     {settingsInNav && (
                         <SidebarNavigationButton
                             iconOnly
-                            icon="settings-outline"
+                            icon="gear"
                             label={t('settings.title')}
                             active={pathname.startsWith('/settings')}
                             onPress={openSettings}
@@ -171,13 +211,13 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                 <View style={styles.sessionActions}>
                     <View style={styles.newSession}>
                         <SidebarNavigationButton
-                            icon="create-outline"
+                            icon="pen"
                             label={t('sidebar.newSession')}
                             onPress={handleNewSession}
                             emphasis
                             active={pathname.startsWith('/new')}
                             highlighted={shortcutHintsVisible}
-                            trailing={<ShortcutHintBadge shortcutKey="N" />}
+                            trailing={<PanelShortcutKbd shortcutKey="N" />}
                         />
                     </View>
                     {hasArchivedSessions && (
@@ -187,7 +227,8 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                                 ? t('sidebar.showArchived')
                                 : t('sidebar.hideArchived')}
                             accessibilityRole="button"
-                            accessibilityState={{ selected: !hideArchivedSessions }}
+                            aria-pressed={!hideArchivedSessions}
+                            testID="herd-archive-toggle"
                             style={({ pressed, hovered }: any) => [
                                 styles.archiveButton,
                                 hovered && styles.archiveButtonHovered,
@@ -195,11 +236,13 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
                                 pressed && styles.archiveButtonPressed,
                             ]}
                         >
-                            <Ionicons
-                                name={hideArchivedSessions ? 'archive-outline' : 'archive'}
-                                size={18}
-                                color={hideArchivedSessions ? theme.colors.text : theme.colors.textLink}
-                            />
+                            {({ hovered }: any) => (
+                                <HerdShellIcon
+                                    name={hideArchivedSessions ? 'archive' : 'unarchive'}
+                                    size={18}
+                                    color={!hideArchivedSessions ? theme.colors.textLink : hovered ? theme.colors.text : theme.colors.textSecondary}
+                                />
+                            )}
                         </Pressable>
                     )}
                 </View>
@@ -224,13 +267,14 @@ export const SidebarView = React.memo(({ docked = false, list, settingsInNav = f
             {!settingsInNav && (
                 <View style={[styles.settingsRow, phone && styles.settingsRowPhone, { paddingBottom: 8 + insets.bottom }]}>
                     <SidebarNavigationButton
-                        icon="settings-outline"
+                        icon="gear"
                         label={t('settings.title')}
                         onPress={openSettings}
                         quiet
                         active={pathname.startsWith('/settings')}
                         highlighted={shortcutHintsVisible}
-                        trailing={<ShortcutHintBadge shortcutKey="," />}
+                        trailing={<PanelShortcutKbd shortcutKey="," />}
+                        testID="herd-panel-settings"
                     />
                 </View>
             )}

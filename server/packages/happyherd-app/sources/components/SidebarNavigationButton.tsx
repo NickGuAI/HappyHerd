@@ -1,11 +1,14 @@
 import * as React from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, Text, View } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Typography } from '@/constants/Typography';
 import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HerdShellIcon, type HerdShellIconName } from '@/components/herd/shell/HerdShellIcon';
+import { HerdTooltip } from './herd/shell/HerdTooltip';
 
+// The approved mock's left panel controls (UI overhaul): `.sb-nav-btn`,
+// `.sb-new` (emphasis) and `.sb-settings` (quiet).
 const stylesheet = StyleSheet.create((theme) => ({
     button: {
         width: '100%',
@@ -33,9 +36,11 @@ const stylesheet = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         paddingHorizontal: 10,
     },
-    // New session: the sidebar's primary action.
+    // New session: the panel's primary action.
     emphasis: {
         minHeight: 44,
+        paddingLeft: 14,
+        paddingRight: 12,
         borderColor: theme.colors.kilv.rimLine,
     },
     emphasisHovered: {
@@ -44,6 +49,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     // Settings: a plain row at the foot of the panel.
     quiet: {
+        paddingHorizontal: 12,
         borderColor: 'transparent',
         backgroundColor: 'transparent',
     },
@@ -60,18 +66,26 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.selection.background,
         _web: { boxShadow: theme.kilv.glowMoltenSoft },
     },
+    quietActive: {
+        borderColor: 'transparent',
+        backgroundColor: theme.colors.selection.background,
+        _web: { boxShadow: 'none' },
+    },
     buttonHighlighted: {
         backgroundColor: theme.colors.surfaceSelected,
         borderColor: theme.colors.kilv.accent,
     },
     label: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: theme.colors.text,
-        ...Typography.default('semiBold'),
-    },
-    labelEmphasis: {
         fontSize: 15,
+        color: theme.colors.text,
+        ...Typography.logo(),
+    },
+    labelQuiet: {
+        color: theme.colors.textSecondary,
+        ...Typography.default(),
+    },
+    labelHovered: {
+        color: theme.colors.text,
     },
     labelActive: {
         color: theme.colors.textLink,
@@ -82,7 +96,7 @@ const stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export const SidebarNavigationButton = React.memo((props: {
-    icon: React.ComponentProps<typeof Ionicons>['name'];
+    icon: HerdShellIconName;
     label: string;
     onPress: () => void;
     trailing?: React.ReactNode;
@@ -92,26 +106,22 @@ export const SidebarNavigationButton = React.memo((props: {
     active?: boolean;
     emphasis?: boolean;
     quiet?: boolean;
+    /** A toggle's pressed state (web: aria-pressed). */
+    pressed?: boolean;
+    testID?: string;
 }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const phone = useHerdPhoneLayout();
-    const setIconHint = React.useCallback((node: View | null) => {
-        if (node && Platform.OS === 'web') {
-            // React Native Web filters title out of forwarded View props.
-            // Use the native browser hint on the same accessible button.
-            (node as unknown as HTMLElement).setAttribute('title', props.label);
-        }
-    }, [props.label]);
-    const tint = props.active ? theme.colors.textLink : theme.colors.text;
 
     return (
         <Pressable
-            ref={props.iconOnly ? setIconHint : undefined}
             onPress={props.onPress}
             accessibilityRole="button"
             accessibilityLabel={props.label}
             aria-selected={props.active ? true : undefined}
+            aria-pressed={props.pressed}
+            testID={props.testID}
             style={({ pressed, hovered }: any) => [
                 styles.button,
                 props.iconOnly && styles.iconButton,
@@ -119,18 +129,33 @@ export const SidebarNavigationButton = React.memo((props: {
                 props.quiet && styles.quiet,
                 props.quiet && phone && styles.quietPhone,
                 hovered && (props.quiet ? styles.quietHovered : props.emphasis ? styles.emphasisHovered : styles.buttonHovered),
-                props.active && styles.buttonActive,
+                props.active && (props.quiet ? styles.quietActive : styles.buttonActive),
                 props.highlighted && styles.buttonHighlighted,
                 pressed && styles.buttonPressed,
             ]}
         >
-            <Ionicons name={props.icon} size={props.iconOnly ? 19 : 17} color={tint} />
-            {!props.iconOnly && (
-                <Text style={[styles.label, props.emphasis && styles.labelEmphasis, props.active && styles.labelActive]}>
-                    {props.label}
-                </Text>
-            )}
-            {props.trailing ? <View style={styles.trailing}>{props.trailing}</View> : null}
+            {({ hovered }: any) => {
+                const tint = props.active || props.pressed
+                    ? theme.colors.textLink
+                    : props.emphasis || hovered ? theme.colors.text : theme.colors.textSecondary;
+                return (
+                    <>
+                        <HerdShellIcon name={props.icon} size={props.iconOnly ? 19 : props.quiet ? 18 : 17} color={tint} />
+                        {!props.iconOnly && (
+                            <Text style={[
+                                styles.label,
+                                props.quiet && styles.labelQuiet,
+                                props.quiet && hovered && styles.labelHovered,
+                                props.active && styles.labelActive,
+                            ]}>
+                                {props.label}
+                            </Text>
+                        )}
+                        {props.trailing ? <View style={styles.trailing}>{props.trailing}</View> : null}
+                        {props.iconOnly && hovered && !phone && <HerdTooltip label={props.label} />}
+                    </>
+                );
+            }}
         </Pressable>
     );
 });

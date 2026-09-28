@@ -10,6 +10,9 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../../../..');
 const sourcesRoot = resolve(appRoot, 'sources');
+const iconsRoot = resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons');
+// Evidence captures draw the real Ionicons and Octicons glyphs with their bundled fonts.
+const REAL_ICON_FONTS = !!process.env.HERD_SHELL_EVIDENCE_DIR?.trim();
 
 /**
  * The fluid shell is rendered through the same Unistyles Babel transform and
@@ -104,18 +107,21 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/sync/storage': `
         import React from 'react';
-        const settings = { navigationSidebarCollapsed: false, zenMode: false, machineWorkspace: true, hideInactiveSessions: true, commandPaletteEnabled: true };
+        const settings = { navigationSidebarCollapsed: false, zenMode: false, machineWorkspace: true, hideInactiveSessions: true, commandPaletteEnabled: true, focusMode: new URLSearchParams(window.location.search).get('focus') === 'on' ? { projectId: 'web-app', endsAt: Date.now() + 25 * 60_000, startedAt: Date.now() } : null };
         const listeners = new Set();
         const subscribe = (l) => { listeners.add(l); return () => listeners.delete(l); };
         const emit = () => listeners.forEach((l) => l());
         const read = (key) => React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
         const write = (key) => (value) => { settings[key] = value; emit(); };
         const now = 1_800_000_000_000;
-        const machines = [
+        // ?machines=none: an account without machines; ?machines=loading: not synced yet.
+        const machineMode = new URLSearchParams(window.location.search).get('machines');
+        const machines = machineMode === 'none' || machineMode === 'loading' ? [] : [
             { id: 'studio-mac', active: true, createdAt: 3, metadata: { host: 'studio-mac', displayName: 'studio-mac', platform: 'darwin' } },
             { id: 'gpu-lab', active: false, createdAt: 2, metadata: { host: 'gpu-lab', platform: 'linux' } },
             { id: 'build-box', active: true, createdAt: 1, metadata: { host: 'build-box', platform: 'linux' } },
         ];
+        export const useSessionListViewData = () => (machineMode === 'loading' ? null : []);
         const feed = [
             { id: 'feed-1', body: { kind: 'text', text: 'Automation "Nightly triage" finished' } },
             { id: 'feed-2', body: { kind: 'text', text: 'Session "Refresh token rotation" needs approval' } },
@@ -126,6 +132,7 @@ const virtualModules: Record<string, string> = {
         export const useSetting = read;
         export const useSettingMutable = (key) => [read(key), write(key)];
         export const useAllMachines = () => machines;
+        export const useProjects = () => ({ 'web-app': { id: 'web-app', name: 'Web App Suite', kind: 'personal' } });
         export const useFeedItems = () => feed;
         export const useFriendRequests = () => requests;
         export const useRealtimeStatus = () => 'disconnected';
@@ -143,14 +150,6 @@ const virtualModules: Record<string, string> = {
         const listeners = new Set();
         window.__SET_DRAFT_MACHINE__ = (id) => { state.selectedMachineId = id; listeners.forEach((l) => l()); };
         export const useNewSessionDraft = (selector) => React.useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => selector(state), () => selector(state));
-    `,
-    '@/components/FocusModeControl': `
-        import React from 'react';
-        import { Pressable, Text } from 'react-native';
-        export function FocusModeControl() {
-            return React.createElement(Pressable, { accessibilityRole: 'button', accessibilityLabel: 'Focus mode', testID: 'focus-mode-enter', style: { height: 32, paddingHorizontal: 10, justifyContent: 'center' } },
-                React.createElement(Text, { style: { fontSize: 12.5, opacity: 0.8 } }, 'Focus mode'));
-        }
     `,
     '@/components/FeedItemCard': `
         import React from 'react';
@@ -212,6 +211,8 @@ const virtualModules: Record<string, string> = {
             'sidebar.showArchived': 'Show archived', 'sidebar.hideArchived': 'Hide archived', 'superSession.pinned': 'Assistant',
             'agentInput.agent.claude': 'Claude', 'agentInput.agent.codex': 'Codex', 'agentInput.agent.gemini': 'Gemini',
             'agentInput.agent.grok': 'GrokBuild', 'agentInput.agent.dsh': 'dsh', 'sessionInfo.archiveSession': 'Archive',
+            'focusMode.enter': 'Focus mode', 'common.loading': 'Loading...', 'devicePairing.title': 'Connections',
+            'topBar.noMachine': 'No machine', 'topBar.addMachine': 'Add a machine', 'topBar.noMachinesYet': 'No machines on this account yet',
         };
         export const t = (key) => labels[key] ?? key;
     `,
@@ -300,6 +301,25 @@ async function watchClass(page: Page, testId: string, className: string): Promis
     return () => page.evaluate(() => (window as any).__HERD_CLASS_SEEN__ as Promise<boolean>);
 }
 
+if (REAL_ICON_FONTS) {
+    virtualModules['@expo/vector-icons'] = `
+        import React from 'react';
+        import ionicons from '${resolve(iconsRoot, 'glyphmaps/Ionicons.json')}';
+        import octicons from '${resolve(iconsRoot, 'glyphmaps/Octicons.json')}';
+        const icon = (map, fontFamily) => {
+            const Icon = ({ name, color, size = 16 }) => React.createElement('span', {
+                'data-icon': name, 'aria-hidden': true,
+                style: { fontFamily, fontStyle: 'normal', fontWeight: 'normal', color, fontSize: size, width: size, height: size, lineHeight: size + 'px', textAlign: 'center', display: 'inline-block', flexShrink: 0, userSelect: 'none' },
+            }, map[name] ? String.fromCodePoint(map[name]) : '•');
+            Icon.glyphMap = map;
+            return Icon;
+        };
+        export const Ionicons = icon(ionicons, 'ionicons');
+        export const Octicons = icon(octicons, 'octicons');
+        export const MaterialCommunityIcons = icon({}, 'ionicons');
+    `;
+}
+
 describe('HappyHerd fluid shell in the production style runtime', () => {
     let browser: Browser;
     let server: Server;
@@ -329,10 +349,16 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
                 response.end(readFileSync(resolve(sourcesRoot, 'assets/fonts', `${font[1]}.ttf`)));
                 return;
             }
+            const iconFont = url.pathname.match(/^\/fonts\/(Ionicons|Octicons)\.ttf$/);
+            if (iconFont) {
+                response.setHeader('content-type', 'font/ttf');
+                response.end(readFileSync(resolve(iconsRoot, `Fonts/${iconFont[1]}.ttf`)));
+                return;
+            }
             const background = url.searchParams.get('theme') === 'dark' ? '#151B28' : '#FFF9EC';
             response.setHeader('content-type', 'text/html; charset=utf-8');
             const navigationProbe = `window.__UNHANDLED_ESCAPES__=0;window.addEventListener('keydown',function(e){if(e.key==='Escape'&&!e.defaultPrevented)window.__UNHANDLED_ESCAPES__++;});`;
-            response.end(`<script>${navigationProbe}</script><style>${['SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'].map((family) => `@font-face{font-family:${family};src:url(/fonts/${family}.ttf)}`).join('')}html,body,#root{height:100%;margin:0;background:${background}}*{box-sizing:border-box}</style><style>${themeCss}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
+            response.end(`<script>${navigationProbe}</script><style>${['SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'].map((family) => `@font-face{font-family:${family};src:url(/fonts/${family}.ttf)}`).join('')}@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}html,body,#root{height:100%;margin:0;background:${background}}*{box-sizing:border-box}</style><style>${themeCss}</style><main id="root"></main><script>globalThis.global=globalThis;${script.replaceAll('</script', '<\\/script')}</script>`);
         });
         await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready));
         const address = server.address();
@@ -351,14 +377,14 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean; socket?: string } = {}) {
+    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean; socket?: string; machines?: 'none' | 'loading' } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(4_000);
         await page.emulateMedia({ reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference' });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
         page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}${options.socket ? `&socket=${options.socket}` : ''}`);
+        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}${options.socket ? `&socket=${options.socket}` : ''}${options.machines ? `&machines=${options.machines}` : ''}`);
         await page.getByTestId('herd-top-bar').waitFor();
         await page.evaluate(() => document.fonts.ready);
         return { page, errors };
@@ -403,6 +429,79 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    it('draws the top bar and the panel as the mock: masked brand and Zen marks, Focus mode, the machine pill and the panel icons', async () => {
+        for (const [theme, width, height] of [['light', 1440, 900], ['dark', 1440, 900], ['light', 1024, 768], ['dark', 1024, 768]] as const) {
+            const { page, errors } = await openShell({ theme, width, height });
+            const bar = page.getByTestId('herd-top-bar');
+            // The brand mark and Zen icon are CSS masks over a painted fill (no SVG tint filter), so they show on either bar.
+            for (const id of ['herd-brand-mark', 'herd-zen-icon']) {
+                const paint = await bar.getByTestId(id).evaluate((element) => {
+                    const style = getComputedStyle(element);
+                    const rect = element.getBoundingClientRect();
+                    return { mask: style.maskImage || (style as any).webkitMaskImage, image: style.backgroundImage, color: style.backgroundColor, filter: style.filter, width: rect.width };
+                });
+                expect(paint.mask).toMatch(/^url\("data:image\/png/);
+                expect(paint.filter).toBe('none');
+                expect(paint.width).toBeGreaterThan(0);
+                expect(paint.image !== 'none' || paint.color !== 'rgba(0, 0, 0, 0)').toBe(true);
+            }
+            const brandFill = await bar.getByTestId('herd-brand-mark').evaluate((element) => getComputedStyle(element).backgroundImage);
+            expect(brandFill).toBe(theme === 'dark'
+                ? 'linear-gradient(160deg, rgb(255, 249, 236) 5%, rgb(240, 220, 176) 45%, rgb(201, 174, 133) 92%)'
+                : 'linear-gradient(160deg, rgb(143, 110, 54), rgb(110, 82, 34))');
+            // Focus mode is the mock's labelled pill with the focus icon, not a tomato.
+            const focus = bar.getByTestId('focus-mode-enter');
+            await expect(focus.innerText()).resolves.toBe('Focus mode');
+            await expect(focus.locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+            expect((await focus.boundingBox())!.height).toBe(32);
+            await expect(bar.getByTestId('herd-inbox-bell').locator('[data-herd-icon="bell"]').count()).resolves.toBe(1);
+            const machine = bar.getByTestId('herd-machine-menu');
+            await expect(machine.innerText()).resolves.toMatch(/studio-mac\s*online/);
+            await expect(machine.locator('[data-herd-icon="monitor"]').count()).resolves.toBe(1);
+            // The panel: the mock's three destinations, New session with its pen and shortcut, and Settings.
+            const panel = page.getByTestId('herd-sidebar');
+            for (const [label, icon] of [['Workspace', 'split'], ['Projects', 'folders'], ['Automations', 'bolt']] as const) {
+                await expect(panel.getByRole('button', { name: label, exact: true }).locator(`[data-herd-icon="${icon}"]`).count()).resolves.toBe(1);
+            }
+            const newSession = panel.getByRole('button', { name: 'New session', exact: true });
+            await expect(newSession.locator('[data-herd-icon="pen"]').count()).resolves.toBe(1);
+            // The mock's kbd names only the key, so the label stays on one line in the narrower panel.
+            await expect(newSession.getByTestId('herd-panel-kbd-N').innerText()).resolves.toBe('N');
+            expect((await newSession.boundingBox())!.height).toBe(44);
+            const settingsRow = page.getByTestId('herd-panel-settings');
+            await expect(settingsRow.locator('[data-herd-icon="gear"]').count()).resolves.toBe(1);
+            await expect(settingsRow.getByTestId('herd-panel-kbd-,').innerText()).resolves.toBe(',');
+            // No browser title tooltips remain on the shell's icon controls.
+            await expect(page.locator('[data-testid="herd-top-bar"] [title], [data-testid="herd-sidebar"] [title]').count()).resolves.toBe(0);
+            await evidence(page, `shell-top-bar-mock-${theme}-${width}`);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 60_000);
+
+    it('keeps the machine pill in the top bar while machines load and when the account has none', async () => {
+        const loading = await openShell({ machines: 'loading' });
+        const busy = loading.page.getByTestId('herd-machine-menu');
+        await expect(busy.innerText()).resolves.toContain('Loading...');
+        await expect(busy.getAttribute('aria-busy')).resolves.toBe('true');
+        await expect(busy.getAttribute('aria-disabled')).resolves.toBe('true');
+        expect(loading.errors).toEqual([]);
+        await loading.page.close();
+
+        const { page, errors } = await openShell({ machines: 'none' });
+        const pill = page.getByTestId('herd-machine-menu');
+        await expect(pill.innerText()).resolves.toContain('No machine');
+        await pill.click();
+        const menu = page.getByTestId('herd-machine-popover');
+        await menu.waitFor();
+        await expect(menu.getByTestId('herd-machine-empty').innerText()).resolves.toBe('No machines on this account yet');
+        await menu.getByTestId('herd-machine-connections').click();
+        await expect.poll(() => page.evaluate(() => (window as any).__ROUTER_CALLS__ ?? [])).toContain('/settings/connections');
+        await evidence(page, 'shell-machine-pill-empty-light-1440');
+        expect(errors).toEqual([]);
+        await page.close();
+    });
 
     it('shows a status line for sessions waiting on the user and reveals ⋯ on hover', async () => {
         const { page, errors } = await openShell();
@@ -500,7 +599,17 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         expect(await page.evaluate(() => (window as any).__SETTINGS__.navigationSidebarCollapsed)).toBe(true);
         const toggle = page.getByTestId('navigation-sidebar-toggle');
         await expect(toggle.getAttribute('aria-label')).resolves.toBe('Expand navigation sidebar');
-        await expect(toggle.getAttribute('title')).resolves.toBe('Expand navigation sidebar  Ctrl+Alt+B');
+        // No native title: hovering shows the mock's tooltip under the toggle, with the shortcut.
+        await expect(toggle.getAttribute('title')).resolves.toBeNull();
+        await toggle.hover();
+        const tooltip = page.getByRole('tooltip');
+        await expect(tooltip.innerText()).resolves.toContain('Expand navigation sidebar');
+        await expect(tooltip.getByTestId('herd-tooltip-hint').innerText()).resolves.toBe('Ctrl+Alt+B');
+        const [toggleBox, tipBox] = [(await toggle.boundingBox())!, (await tooltip.boundingBox())!];
+        expect(Math.round(tipBox.y - (toggleBox.y + toggleBox.height))).toBe(8);
+        expect(Math.round(tipBox.x)).toBe(Math.round(toggleBox.x));
+        await page.mouse.move(700, 600);
+        await expect(tooltip.count()).resolves.toBe(0);
         await evidence(page, 'shell-collapsed-light-1440');
 
         const enteringWidth = page.waitForFunction(() => {
@@ -618,8 +727,8 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         const compact = await openShell({ width: 1024 });
         const search = compact.page.getByTestId('herd-command-search');
         expect((await search.boundingBox())!.width).toBeLessThanOrEqual(40);
-        // The brand keeps only its mark.
-        expect(await compact.page.getByTestId('herd-top-bar-brand').innerText()).toBe('');
+        // As in the mock, only the search collapses; the brand keeps its name.
+        expect(await compact.page.getByTestId('herd-top-bar-brand').innerText()).toBe('HappyHerd');
         await evidence(compact.page, 'shell-compact-light-1024');
         await compact.page.close();
     }, 15_000);

@@ -61,6 +61,8 @@ const virtualModules: Record<string, string> = {
         export const Swipeable = React.forwardRef(({ children }, _ref) => children);
     `,
     'react-native-reanimated': `export const useReducedMotion = () => false;`,
+    // The Focus control's phone menu is a HerdPopover, whose phone sheet imports the keyboard controller.
+    'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
     'focus-mode-icons': `export { default as Ionicons } from '@expo/vector-icons/build/Ionicons';`,
     'expo-font': `export const isLoaded = () => true; export const loadAsync = async () => {};`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
@@ -838,6 +840,9 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toEqual(original);
         }
         expect(focusAccounts.get(account)?.writes).toBe(1);
+        // On the phone the countdown opens a menu with Exit, as the phone mock draws it.
+        await phone.page.getByTestId('focus-mode-pill').click();
+        await phone.page.clock.runFor(100);
         await phone.page.getByTestId('focus-mode-exit').click();
         await desktop.page.getByTestId('focus-mode-enter').waitFor();
         await desktop.page.getByText('Unassigned work', { exact: true }).waitFor();
@@ -854,13 +859,18 @@ describe('Projects and Super Session production UI gestures', () => {
         await startFocus(page, 60, true);
         expect(await page.getByTestId('focus-mode-timer').innerText()).toBe('60:00');
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
-        const timer = await page.getByTestId('focus-mode-timer').boundingBox();
-        const exit = await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).boundingBox();
-        expect(timer!.x).toBeGreaterThanOrEqual(0);
+        const pill = await page.getByTestId('focus-mode-pill').boundingBox();
+        expect(pill!.x).toBeGreaterThanOrEqual(0);
+        expect(pill!.x + pill!.width).toBeLessThanOrEqual(360);
+        // The phone countdown's menu holds the project, the time left and Exit.
+        await page.getByTestId('focus-mode-pill').click();
+        await page.clock.runFor(100);
+        const exit = await page.getByRole('menuitem', { name: 'Fokusmodus beenden', exact: true }).boundingBox();
+        expect(exit!.x).toBeGreaterThanOrEqual(0);
         expect(exit!.x + exit!.width).toBeLessThanOrEqual(360);
-        expect(exit!.x).toBeGreaterThanOrEqual(timer!.x + timer!.width);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
         await screenshot(page, 'focus-active-mobile-german-dark');
-        await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Fokusmodus beenden', exact: true }).click();
         await page.getByTestId('focus-mode-enter').waitFor();
         expect(errors).toEqual([]);
         await page.close();
@@ -1059,8 +1069,12 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(boxes[index]!.height).toBeGreaterThanOrEqual(20);
             expect(boxes[index]!.y).toBe(boxes[0]!.y);
             expect(Math.abs(boxes[index]!.width - boxes[0]!.width)).toBeLessThan(1);
-            expect((await icons[index].innerText()).trim()).toBe('•');
-            expect(await icons[index].getAttribute('title')).toBe(labels[index]);
+            // The mock's SVG icon, and its anchored tooltip on hover instead of a browser title.
+            await expect(icons[index].locator('[data-herd-icon]').count()).resolves.toBe(1);
+            expect(await icons[index].getAttribute('title')).toBeNull();
+            await icons[index].hover();
+            expect(await page.getByRole('tooltip').innerText()).toBe(labels[index]);
+            await page.mouse.move(900, 700);
             if (index) expect(boxes[index]!.x).toBeGreaterThan(boxes[index - 1]!.x);
         }
         const newButton = page.getByRole('button', { name: 'New Session', exact: true });
