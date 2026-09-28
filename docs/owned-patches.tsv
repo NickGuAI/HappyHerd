@@ -604,3 +604,7 @@ UI_OVERHAUL_VALUE_ROWS	accepted	feat(herd): add one-line value rows and a list-a
 UI_OVERHAUL_MACHINE_PAGE_MOCK	accepted	feat(machine): give the machine page the mock's header, path chips and daemon rows	server/packages/happyherd-app/sources/app/(app)/machine/machinePage.test.ts
 UI_OVERHAUL_SESSION_INFO_MOCK	accepted	feat(session-info): add the session details header and one-line value rows	server/packages/happyherd-app/sources/app/(app)/session/[id]/info.archive.test.ts
 UI_OVERHAUL_PROJECTS_MACHINE_DOCS	accepted	docs(app): record the Projects, machine and session details pages for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PROFILE_CARD	accepted	feat(app): lay the Settings profile out as the mock's one-row card	server/packages/happyherd-app/sources/components/SettingsView.browser.test.ts
+UI_OVERHAUL_PALETTE_NAVIGATION	accepted	feat(app): list the panel's destinations and Focus mode in the command palette	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
+UI_OVERHAUL_TOUCH_ROW_MORE	accepted	fix(app): keep the session row ⋯ visible on touch screens	server/packages/happyherd-app/sources/components/herd/shell/HerdRowMoreButton.test.ts
+UI_OVERHAUL_PROFILE_PALETTE_DOCS	accepted	docs(app): record the profile card, palette navigation and touch ⋯ for upstream merges	docs/upstream-ui-parity.md

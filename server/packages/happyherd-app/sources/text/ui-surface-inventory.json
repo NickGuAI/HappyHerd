@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e1ac62bd523bec9d8c95462dd3a172c8e7a8773502a60161c377dfd5bebaf64e",
+  "sourceFingerprint": "c1c0d6148eb445486cb146357e2c3f146fb89731e797eee81686fca52f39c56b",
   "routeCount": 43,
-  "surfaceCount": 323,
+  "surfaceCount": 324,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3166,6 +3166,26 @@
       ],
       "translationKeys": [
         "uiCopy.noCommandsFound"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/navigationCommands.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FOCUS_MODE_ENTER_SELECTOR",
+        "buildNavigationCommands"
+      ],
+      "translationKeys": [
+        "focusMode.enter",
+        "focusMode.title",
+        "happyHerd.automations.subtitle",
+        "happyHerd.automations.title",
+        "sidebar.projects",
+        "workspace.featureSubtitle",
+        "workspace.title"
       ],
       "states": [],
       "hardcodedCopy": []
