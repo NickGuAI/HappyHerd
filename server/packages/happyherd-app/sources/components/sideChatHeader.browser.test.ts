@@ -575,6 +575,7 @@ const virtualModules: Record<string, string> = {
         export const formatShortcutChord = () => '';
         export const getPreferredShortcutModifier = () => 'meta';
         export const matchesShortcutChord = () => false;
+        export const formatShortcut = () => '';
     `,
     '@/components/AnimatedOverlay': `
         import { View } from 'react-native';
@@ -893,7 +894,7 @@ const virtualModules: Record<string, string> = {
         export const resolvePath = (path, metadata) => metadata?.path && path.startsWith(metadata.path + '/') ? path.slice(metadata.path.length + 1) : path;
     `,
     '@/components/DuplicateSheet': `export const DuplicateSheet = () => null;`,
-    '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null;`,
+    '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null; export const useShortcutHints = () => ({ visible: false, modifier: null, browserSafeShortcuts: true });`,
     '@/components/RigGitLineChanges': `export const RigGitLineChanges = () => null;`,
     '@/components/SessionStatusAvatar': `export const SessionStatusAvatar = () => null;`,
     '@/sync/messageMeta': `
@@ -1299,7 +1300,7 @@ async function swipeUp(page: Page, x: number, startY: number, endY: number) {
     await session.detach();
 }
 
-async function expectUntruncatedText(locator: Locator) {
+async function expectUntruncatedText(locator: Locator, fontSize: string | null = '16px') {
     const dimensions = await locator.evaluate((element) => ({
         width: element.clientWidth,
         scrollWidth: element.scrollWidth,
@@ -1307,7 +1308,7 @@ async function expectUntruncatedText(locator: Locator) {
     }));
     expect(dimensions.width).toBeGreaterThan(0);
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
-    expect(dimensions.fontSize).toBe('16px');
+    if (fontSize) expect(dimensions.fontSize).toBe(fontSize);
 }
 
 async function touchToEnd(page: Page, scrollRegion: Locator, finalRow: Locator) {
@@ -1585,12 +1586,13 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin + '?theme=' + theme);
             const route = page.getByTestId('full-new-session');
-            const trigger = route.getByTestId('new-session-account-project');
-            await trigger.waitFor();
-            expect(await trigger.innerText()).toContain(activeFocus ? 'Focused work' : 'No Project');
+            // Advanced on the web (UI overhaul) is the mock's form: the project chips.
+            const projectChip = (label: string) => route.getByRole('radio', { name: label, exact: true });
+            const initial = projectChip(activeFocus ? 'Focused work' : 'No Project');
+            await initial.waitFor();
+            expect(await initial.getAttribute('aria-checked')).toBe('true');
             if (choice) {
-                await trigger.click();
-                const option = page.getByText(choice, { exact: true }).filter({ visible: true }).last();
+                const option = projectChip(choice);
                 await option.waitFor();
                 expect(await page.getByText('Agent workspace', { exact: true }).count()).toBe(0);
                 const bounds = await option.boundingBox();
@@ -1600,7 +1602,7 @@ describe('Side chats browser interaction', () => {
                 await page.evaluate(() => document.fonts.ready);
                 await page.screenshot({ path: '/tmp/happyherd-new-session-project-menu-' + width + '-' + theme + '.png', fullPage: true });
                 await option.click();
-                expect(await trigger.innerText()).toContain(choice);
+                await expect.poll(() => option.getAttribute('aria-checked')).toBe('true');
             }
             await page.evaluate(() => document.fonts.ready);
             await page.screenshot({ path: '/tmp/happyherd-new-session-project-' + width + '-' + theme + '-' + (expected ?? 'none') + '.png', fullPage: true });
@@ -1647,7 +1649,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 20_000);
 
-    it.each([1440, 1920])('renders the production New Session route with a readable 720px panel at %ipx', async (width) => {
+    it.each([1440, 1920])('renders the production New Session route as the mock\'s card at %ipx', async (width) => {
         const page = await browser.newPage({ viewport: { width, height: 900 } });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
@@ -1660,12 +1662,15 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            const sidebar = route.getByTestId('new-session-right-sidebar');
+            // Advanced (UI overhaul): the mock's New Session card, no side panel.
+            const sidebar = route.getByTestId('new-session-card');
             await sidebar.waitFor();
-            expect((await sidebar.boundingBox())?.width).toBeCloseTo(720, 0);
-            await expectUntruncatedText(sidebar.getByText('claude-sonnet-4-5', { exact: true }));
+            expect((await sidebar.boundingBox())?.width).toBeLessThanOrEqual(977);
+            await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
+            // The mock's chips and path button use its own sizes; the path browser rows stay at 16 px.
+            await expectUntruncatedText(sidebar.getByTestId('advanced-sections').getByText('claude-sonnet-4-5', { exact: true }), null);
             const pathTrigger = sidebar.getByText(newSessionProjectPath, { exact: true });
-            await expectUntruncatedText(pathTrigger);
+            await expectUntruncatedText(pathTrigger, null);
             await pathTrigger.click();
             const recent = sidebar.getByTestId('new-session-recent-path-list');
             await recent.waitFor();
@@ -1681,7 +1686,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 20_000);
 
-    it('keeps the production New Session route single-pane below 1100px', async () => {
+    it('keeps the production New Session route in the mock\'s card below 1100px', async () => {
         const page = await browser.newPage({ viewport: { width: 1099, height: 900 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
@@ -1691,7 +1696,7 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            await route.getByTestId('new-session-single-pane').waitFor();
+            await route.getByTestId('new-session-card').waitFor();
             await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
             await route.getByText(newSessionProjectPath, { exact: true }).click();
             await route.getByTestId('machine-path-browser-tree').waitFor();
@@ -1713,18 +1718,30 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            await route.getByTestId('new-session-single-pane').waitFor();
+            await route.getByTestId('new-session-advanced').waitFor();
             await expect(page.evaluate(() => window.innerWidth)).resolves.toBe(390);
             await route.getByText(newSessionProjectPath, { exact: true }).tap();
             const tree = route.getByTestId('machine-path-browser-tree');
             const recent = route.getByTestId('new-session-recent-path-list');
             await tree.waitFor();
             const lastFolder = tree.getByRole('button', { name: 'Open folder folder-23', exact: true });
+            // Advanced (UI overhaul) scrolls in its own page; opening the browser focuses its
+            // path field, which scrolls that page. Gestures wait for it to come to rest.
+            const outerPage = route.getByTestId('new-session-advanced');
+            const settled = () => expect.poll(async () => {
+                const first = await outerPage.evaluate((element) => element.scrollTop);
+                await page.waitForTimeout(150);
+                return first === await outerPage.evaluate((element) => element.scrollTop);
+            }).toBe(true);
+            await settled();
             await touchToEnd(page, tree, lastFolder);
             await tapVisibleRow(page, lastFolder);
             await route.getByText('/work/project/folder-23', { exact: true }).waitFor();
             await expect(tree.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
             const lastRecent = recent.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
+            // The mock's phone form scrolls as one page; bring the recent list on screen first.
+            await recent.scrollIntoViewIfNeeded();
+            await settled();
             await touchToEnd(page, recent, lastRecent);
             const recentBox = await recent.boundingBox();
             const lastRecentBox = await lastRecent.boundingBox();
@@ -1734,12 +1751,16 @@ describe('Side chats browser interaction', () => {
             // The inner-list gestures are already proved above. Establish a
             // non-terminal starting position for the independent outer-page
             // gesture; browser momentum may have reached the outer bottom.
-            await page.evaluate(() => window.scrollTo(0, 0));
-            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
-            await expect(page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) > innerHeight)).resolves.toBe(true);
-            const scrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
+            await outerPage.evaluate((element) => element.scrollTo(0, 0));
+            await expect.poll(() => outerPage.evaluate((element) => element.scrollTop)).toBe(0);
+            await expect(outerPage.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            const scrollBefore = await outerPage.evaluate((element) => element.scrollTop);
             await swipeUp(page, 385, 780, 240);
-            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBeGreaterThan(scrollBefore);
+            await expect.poll(() => outerPage.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollBefore);
+            // A coordinate tap needs the page's momentum to have settled first.
+            await settled();
+            await lastRecent.scrollIntoViewIfNeeded();
+            await settled();
             await tapVisibleRow(page, lastRecent);
             await expect.poll(() => page.evaluate(() => (window as any).__MODEL_PICKER_DRAFT__?.selectedPath))
                 .toBe(newSessionRecentPath(23));
@@ -1799,7 +1820,8 @@ describe('Side chats browser interaction', () => {
             if (surface === 'Agent Settings') {
                 await page.getByText('uiCopy.model', { exact: true }).click();
             } else if (surface === 'Full New Session') {
-                await page.getByText('Gemini 3.6 Flash (High)', { exact: true }).filter({ visible: true }).click();
+                // Advanced (UI overhaul): the model choices are always visible in the form.
+                await page.getByTestId('advanced-sections').waitFor();
             } else if (surface === 'active session') {
                 await page.getByTestId('foreground-session').getByTestId('mobile-composer-actions-trigger').click();
                 await page.getByTestId('foreground-session').getByTestId('mobile-composer-action-settings').click();

@@ -305,6 +305,14 @@ const fixturePlugin: Plugin = {
     },
 };
 
+// Fidelity captures (UI overhaul) render the real icon fonts and images: the
+// stubs above keep ordinary runs fast, but they once hid invisible icons.
+const REAL_ASSETS = process.env.HERD_REAL_ASSETS === '1';
+if (REAL_ASSETS) {
+    delete virtualModules['@expo/vector-icons'];
+    delete virtualModules['expo-image'];
+}
+
 describe('Streamline New Session in the production style runtime', () => {
     let browser: Browser;
     let server: Server;
@@ -446,13 +454,85 @@ describe('Streamline New Session in the production style runtime', () => {
         await page.getByTestId('streamline-sections').waitFor();
         await page.getByTestId('new-session-mode').getByRole('radio', { name: 'Advanced' }).click();
         await expect(page.getByTestId('streamline-sections').count()).resolves.toBe(0);
-        await page.getByTestId('new-session-right-sidebar').waitFor();
+        // Advanced (UI overhaul): the mock's full form in the same New Session card.
+        await page.getByTestId('new-session-card').getByTestId('advanced-sections').waitFor();
+        await expect(page.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
         await evidence(page, 'advanced-desktop-light-1440');
         await page.getByTestId('new-session-mode').getByRole('radio', { name: 'Streamline' }).click();
         await page.getByTestId('streamline-sections').waitFor();
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
+
+    // Advanced (UI overhaul): the mock's full form, two columns wide and stacked on phones.
+    it('lays Advanced out as the mock: paired columns on Web Desktop, one column on Web Mobile', async () => {
+        const box = async (page: Page, testID: string) => (await page.getByTestId(testID).first().boundingBox())!;
+        const desktop = await open({ mode: 'advanced', width: 1440, height: 900 });
+        await desktop.page.getByTestId('advanced-sections').waitFor();
+        const card = await box(desktop.page, 'new-session-card');
+        expect(card.width).toBeLessThanOrEqual(977);
+        const path = await box(desktop.page, 'advanced-path');
+        const provider = await box(desktop.page, 'advanced-provider-claude');
+        // Workspace and AI provider share a row, the provider in the right column.
+        expect(Math.abs(path.y - provider.y)).toBeLessThan(12);
+        expect(provider.x).toBeGreaterThan(path.x + path.width);
+        const effort = await box(desktop.page, 'advanced-effort');
+        const permission = await box(desktop.page, 'advanced-permission');
+        expect(permission.y).toBeGreaterThan(effort.y + effort.height);
+        // The permission mode spans the card's content.
+        expect(permission.width).toBeGreaterThan(card.width * 0.85);
+        const machineA = await box(desktop.page, 'advanced-machine-studio-mac');
+        const machineB = await box(desktop.page, 'advanced-machine-gpu-lab');
+        expect(Math.abs(machineA.y - machineB.y)).toBeLessThan(2);
+        expect(Math.abs(machineA.width - machineB.width)).toBeLessThan(2);
+        expect(desktop.errors).toEqual([]);
+        await desktop.page.close();
+
+        const phone = await open({ mode: 'advanced', width: 390, height: 844 });
+        await phone.page.getByTestId('advanced-sections').waitFor();
+        expect(await phone.page.getByTestId('new-session-card').count()).toBe(0);
+        // The page opens at its title, as the mock does; the composer waits at its end.
+        await phone.page.waitForTimeout(400);
+        expect(await phone.page.getByTestId('new-session-advanced').evaluate((element) => element.scrollTop)).toBe(0);
+        const phonePath = await box(phone.page, 'advanced-path');
+        const phoneProvider = await box(phone.page, 'advanced-provider-claude');
+        expect(phoneProvider.y).toBeGreaterThan(phonePath.y + phonePath.height);
+        expect(Math.round(phonePath.x)).toBe(16);
+        expect(Math.round(phonePath.width)).toBe(390 - 32);
+        const phoneMachine = await box(phone.page, 'advanced-machine-studio-mac');
+        expect(Math.round(phoneMachine.width)).toBe(390 - 32);
+        // Stacked sections never overlap: every project chip takes its own clicks.
+        for (const chip of await phone.page.getByTestId('advanced-sections').getByRole('radio').all()) {
+            const chipBox = await chip.boundingBox();
+            if (!chipBox) continue;
+            await chip.scrollIntoViewIfNeeded();
+            const hit = await chip.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                return !!top && (top === element || element.contains(top));
+            });
+            expect(hit).toBe(true);
+        }
+        expect(await phone.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect(phone.errors).toEqual([]);
+        await phone.page.close();
+    }, 40_000);
+
+    it.runIf(!!process.env.HERD_STREAMLINE_EVIDENCE_DIR)('captures Advanced for the fidelity record', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+                const { page } = await open({ theme, mode: 'advanced', width, height });
+                await page.getByTestId('advanced-sections').waitFor();
+                await page.waitForTimeout(700);
+                await evidence(page, `advanced-${width}-${theme}`);
+                await page.getByTestId('advanced-path').click();
+                await page.getByTestId('new-session-recent-path-list').first().waitFor();
+                await page.waitForTimeout(400);
+                await evidence(page, `advanced-${width}-${theme}-path-open`);
+                await page.close();
+            }
+        }
+    }, 90_000);
 
     const settle = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations()
         .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))

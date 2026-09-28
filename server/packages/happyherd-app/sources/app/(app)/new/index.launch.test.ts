@@ -556,8 +556,20 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 }
 
 function findPathTrigger(renderer: ReturnType<typeof create>, label: string) {
+    // Advanced on the web (UI overhaul) is the mock's form: the Workspace path button.
+    const advanced = renderer.root.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate.props.testID === 'advanced-path' && candidate.props.accessibilityValue?.text === label
+    ));
+    if (advanced) return advanced;
     return renderer.root.findAllByType('BubblePressable' as any).find((candidate: any) => (
         candidate.findAllByType('Text' as any).some((text: any) => text.props.children === label)
+    ));
+}
+
+/** A rendered radio (chip, card or segment) by its accessibility label. */
+function findRadio(renderer: ReturnType<typeof create>, label: string) {
+    return renderer.root.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate.props.accessibilityRole === 'radio' && candidate.props.accessibilityLabel === label
     ));
 }
 
@@ -716,12 +728,9 @@ describe('Full New Session path selection', () => {
 
         expect(renderer.root.findByType('MobileTypographyFloor' as any).props.active).toBe(true);
 
+        // The path button's label takes the floor from the document-wide rule on the web.
         const trigger = findPathTrigger(renderer, '~/starting');
         expect(trigger).toBeDefined();
-        const pathConfigLabel = trigger!.findAllByType('Text' as any).find((text: any) => (
-            text.props.children === '~/starting'
-        ));
-        expect(flattenStyle(pathConfigLabel?.props.style).fontSize).toBe(16);
         await act(async () => trigger!.props.onPress());
 
         for (const input of renderer.root.findAllByType('TextInput' as any)) {
@@ -741,10 +750,37 @@ describe('Full New Session path selection', () => {
 
 describe('New Session Commander onboarding', () => {
     it.each([
-        ['ios', 390, 844],
-        ['ios', 1024, 1366],
         ['web', 1440, 900],
         ['web', 390, 844],
+    ])('shows Create Commander after the Commander cards and keeps the selections on %s %dx%d', async (platform, width, height) => {
+        mocks.platform = platform as string;
+        mocks.dimensions = { width: width as number, height: height as number };
+        mocks.machineListCommanders.mockResolvedValue({ commanders: [
+            { id: 'athena', name: 'Athena', workspace: '/Users/dev/athena' },
+        ] });
+        mocks.draft = createDraft({ selectedCommanderId: 'athena' });
+        const renderer = await renderScreen();
+        await act(async () => { await Promise.resolve(); });
+        const ids = renderer.root.findAllByType('Pressable' as any)
+            .map((item: any) => item.props.testID)
+            .filter((id: unknown) => typeof id === 'string' && id.startsWith('advanced-commander-'));
+        expect(ids).toEqual(['advanced-commander-none', 'advanced-commander-athena', 'advanced-commander-create']);
+        const athena = renderer.root.findAllByType('Pressable' as any).find((item: any) => item.props.testID === 'advanced-commander-athena');
+        expect(athena!.props['aria-checked']).toBe(true);
+        const create = renderer.root.findAllByType('Pressable' as any).find((item: any) => item.props.testID === 'advanced-commander-create');
+        await act(async () => create!.props.onPress());
+
+        expect(mocks.draft.setInput).toHaveBeenCalledWith('happyHerd.commander.onboardingPrompt');
+        for (const setter of ['setMachineId', 'setPath', 'setCommanderId', 'setAgentType', 'setPermissionMode', 'setModelMode', 'setEffortLevel']) {
+            expect(mocks.draft[setter]).not.toHaveBeenCalled();
+        }
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it.each([
+        ['ios', 390, 844],
+        ['ios', 1024, 1366],
     ])('exposes creation after Commander rows and retains selections on %s %dx%d', async (platform, width, height) => {
         mocks.platform = platform as string;
         mocks.dimensions = { width: width as number, height: height as number };
@@ -794,25 +830,22 @@ describe('Full New Session account project selection', () => {
     });
 
     it('shows the focused project and lets the user select another account project or no project', async () => {
+        mocks.draft = createLiveDraft();
         const renderer = await renderScreen();
-        const findTrigger = () => renderer.root.findAllByType('BubblePressable' as any)
-            .find((node: any) => node.props.testID === 'new-session-account-project')!;
-        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'Project Alpha' });
-        await act(async () => findTrigger().props.onPress());
-        const options = renderer.root.findAllByType('BubblePressable' as any)
-            .filter((node: any) => node.props.accessibilityRole === 'radio');
-        expect(options.map((node: any) => node.props.accessibilityLabel)).toEqual([
+        // Advanced on the web (UI overhaul): the project chips, No Project first.
+        const projectChips = () => renderer.root.findAllByType('Pressable' as any)
+            .filter((node: any) => node.props.accessibilityRole === 'radio'
+                && ['projects.noProject', 'Project Alpha', 'Project Beta', 'System Project'].includes(node.props.accessibilityLabel));
+        expect(projectChips().map((node: any) => node.props.accessibilityLabel)).toEqual([
             'projects.noProject', 'Project Alpha', 'Project Beta',
         ]);
-        await act(async () => options.find((node: any) => node.props.accessibilityLabel === 'Project Beta')!.props.onPress());
+        expect(findRadio(renderer, 'Project Alpha')!.props['aria-checked']).toBe(true);
+        await act(async () => findRadio(renderer, 'Project Beta')!.props.onPress());
         expect(mocks.draft.selectedAccountProjectId).toBe('project-b');
-        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'Project Beta' });
-        await act(async () => findTrigger().props.onPress());
-        const noProject = renderer.root.findAllByType('BubblePressable' as any)
-            .find((node: any) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'projects.noProject')!;
-        await act(async () => noProject.props.onPress());
+        expect(findRadio(renderer, 'Project Beta')!.props['aria-checked']).toBe(true);
+        await act(async () => findRadio(renderer, 'projects.noProject')!.props.onPress());
         expect(mocks.draft.selectedAccountProjectId).toBe(null);
-        expect(findTrigger().props.accessibilityValue).toEqual({ text: 'projects.noProject' });
+        expect(findRadio(renderer, 'projects.noProject')!.props['aria-checked']).toBe(true);
         expect(mocks.draft.setPath).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
@@ -901,6 +934,128 @@ describe('Full New Session account project selection', () => {
         expect(mocks.sendMessage).not.toHaveBeenCalled();
         expect(mocks.navigateToSession).not.toHaveBeenCalled();
         expect(mocks.draft.selectedAccountProjectId).toBe(null);
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Advanced New Session as the mock lays it out (UI overhaul)', () => {
+    const byTestId = (renderer: ReturnType<typeof create>, id: string) => renderer.root
+        .findAll((node: any) => node.props?.testID === id);
+    const testIds = (renderer: ReturnType<typeof create>, prefix: string) => [...new Set(renderer.root
+        .findAll((node: any) => typeof node.props?.testID === 'string' && node.props.testID.startsWith(prefix))
+        .map((node: any) => node.props.testID as string))];
+    const offlineMachine = () => ({ ...createClaudeMachine(), id: 'machine-2', active: false, activeAt: 1, metadata: { ...createClaudeMachine().metadata, host: 'travel-air' } });
+
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [offlineMachine(), machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.newSessionMode = 'advanced';
+        mocks.dimensions = { width: 1440, height: 900 };
+        mocks.projects = { 'project-a': { id: 'project-a', name: 'Project Alpha', kind: 'personal' } };
+        mocks.machineListCommanders.mockResolvedValue({ commanders: [{ id: 'athena', name: 'Athena', workspace: '/Users/dev/athena' }] });
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+    });
+
+    it('shows the full form in the New Session card on Web Desktop, without the old dropdown rows', async () => {
+        mocks.setOptions.mockClear();
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const card = byTestId(renderer, 'new-session-card')[0];
+        expect(card).toBeDefined();
+        expect(card.findAll((node: any) => node.props?.testID === 'advanced-sections').length).toBeGreaterThan(0);
+        // Machines online first, as cards; the selected one is checked.
+        expect(testIds(renderer, 'advanced-machine-')).toEqual(['advanced-machine-machine-1', 'advanced-machine-machine-2']);
+        expect(byTestId(renderer, 'advanced-machine-machine-1').find((node: any) => node.props['aria-checked'] !== undefined)!.props['aria-checked']).toBe(true);
+        // Provider, model, effort and permission straight from this machine's catalog.
+        expect(testIds(renderer, 'advanced-provider-')).toContain('advanced-provider-claude');
+        expect(testIds(renderer, 'advanced-provider-')).not.toContain('advanced-provider-gemini');
+        expect(testIds(renderer, 'advanced-model-')).toEqual(['advanced-model-claude-opus-5', 'advanced-model-claude-opus-5-5']);
+        expect(byTestId(renderer, 'advanced-effort')[0].findAllByType('Pressable' as any).map((node: any) => node.props.accessibilityLabel))
+            .toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(byTestId(renderer, 'advanced-permission')[0].findAllByType('Pressable' as any).map((node: any) => node.props.accessibilityLabel))
+            .toEqual(['default', 'acceptEdits', 'bypassPermissions']);
+        expect(testIds(renderer, 'advanced-commander-')).toEqual(['advanced-commander-none', 'advanced-commander-athena', 'advanced-commander-create']);
+        expect(findRadio(renderer, 'Project Alpha')).toBeDefined();
+        // The composer echoes the choices; the page carries its title, so no header row.
+        expect(testIds(renderer, 'advanced-chip-')).toEqual(['advanced-chip-agent', 'advanced-chip-model', 'advanced-chip-effort', 'advanced-chip-permission']);
+        expect(mocks.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
+        expect(byTestId(renderer, 'new-session-right-sidebar')).toHaveLength(0);
+        expect(renderer.root.findAllByType('BubblePressable' as any)
+            .filter((node: any) => node.props.accessibilityLabel === 'happyHerd.automations.commander')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('launches with every choice made in the form', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const segment = (group: string, label: string) => byTestId(renderer, group)[0].findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === label)!;
+        await act(async () => findRadio(renderer, 'Opus 5.5')!.props.onPress());
+        await act(async () => segment('advanced-effort', 'high').props.onPress());
+        await act(async () => segment('advanced-permission', 'acceptEdits').props.onPress());
+        await act(async () => findRadio(renderer, 'Project Alpha')!.props.onPress());
+        await settle(renderer);
+        expect(mocks.draft.setModelMode).toHaveBeenLastCalledWith('claude-opus-5-5');
+        expect(mocks.draft.setEffortLevel).toHaveBeenLastCalledWith('high');
+        expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('acceptEdits');
+        expect(mocks.draft.selectedAccountProjectId).toBe('project-a');
+        // Advanced still saves no Claude picks to Agent Defaults (only GrokBuild, dsh and rig).
+        expect(mocks.setAgentDefaultOverrides).not.toHaveBeenCalled();
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'claude',
+            directory: '/Users/dev/repo',
+            modelMode: 'claude-opus-5-5',
+            effortLevel: 'high',
+            permissionMode: 'acceptEdits',
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('saves dsh picks to Agent Defaults from the form, as the full form always has', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createLiveDraft({ agentType: 'dsh', selectedPath: '/Users/dev/repo' });
+        const renderer = await renderScreen();
+        await settle(renderer);
+        await act(async () => findRadio(renderer, 'DeepSeek V4 Flash')!.props.onPress());
+        expect(mocks.setAgentDefaultOverrides).toHaveBeenCalledWith(expect.objectContaining({
+            dsh: expect.objectContaining({ modelMode: 'deepseek-v4-flash' }),
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('stacks the form on Web Mobile, and the composer keeps the agent and permission chips', async () => {
+        mocks.dimensions = { width: 390, height: 844 };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestId(renderer, 'new-session-advanced').length).toBeGreaterThan(0);
+        expect(byTestId(renderer, 'new-session-card')).toHaveLength(0);
+        const machines = byTestId(renderer, 'advanced-machine-machine-1').find((node: any) => node.props['aria-checked'] !== undefined)!;
+        // One machine card per row, as wide as the page.
+        expect(machines).toBeDefined();
+        expect(testIds(renderer, 'advanced-chip-')).toEqual(['advanced-chip-agent', 'advanced-chip-permission']);
+        act(() => renderer.unmount());
+    });
+
+    it('explains an offline machine and keeps the rest of the form inert', async () => {
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestId(renderer, 'advanced-offline-notice')).toHaveLength(0);
+        const offline = byTestId(renderer, 'advanced-machine-machine-2').find((node: any) => typeof node.props.onPress === 'function')!;
+        await act(async () => offline.props.onPress());
+        await settle(renderer);
+        expect(mocks.draft.setMachineId).toHaveBeenCalledWith('machine-2');
+        const notice = byTestId(renderer, 'advanced-offline-notice')[0];
+        expect(notice).toBeDefined();
+        const texts = notice.findAllByType('Text' as any).map((node: any) => [].concat(node.props.children).join(''));
+        expect(texts[0]).toBe('newSession.machineOffline');
+        expect(texts[1]).toContain('upstreamSync.cliOffline');
+        expect(renderer.root.findAll((node: any) => node.props?.pointerEvents === 'none'
+            && node.findAll((child: any) => child.props?.testID === 'advanced-path').length > 0).length).toBeGreaterThan(0);
         act(() => renderer.unmount());
     });
 });
@@ -1146,18 +1301,11 @@ describe('Full New Session provider launch', () => {
         mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
         const renderer = await renderScreen();
 
-        const permissionTrigger = renderer.root.findAllByType('BubblePressable' as any)
-            .find((candidate: any) => candidate.findAllByType('Text' as any).some((text: any) => (
-                text.props.children === 'workspace-write'
-            )));
-        expect(permissionTrigger).toBeDefined();
-        await act(async () => permissionTrigger!.props.onPress());
-
-        const dangerMode = renderer.root.findAllByType('BubblePressable' as any)
-            .find((candidate: any) => candidate.props.accessibilityRole === 'radio'
-                && candidate.findAllByType('Text' as any).some((text: any) => (
-                    text.props.children === 'danger-full-access'
-                )));
+        // Advanced on the web (UI overhaul): the permission mode is a segmented control.
+        const permission = renderer.root.find((node: any) => node.props?.testID === 'advanced-permission');
+        expect(findRadio(renderer, 'workspace-write')!.props['aria-checked']).toBe(true);
+        const dangerMode = permission.findAllByType('Pressable' as any)
+            .find((candidate: any) => candidate.props.accessibilityLabel === 'danger-full-access');
         expect(dangerMode).toBeDefined();
         await act(async () => dangerMode!.props.onPress());
         await pressSend(renderer);
@@ -1333,6 +1481,7 @@ function createLiveDraft(overrides: Record<string, unknown> = {}) {
         ['setCommanderId', 'selectedCommanderId'],
         ['setSessionType', 'sessionType'],
         ['setWorktreeKey', 'worktreeKey'],
+        ['setAccountProjectId', 'selectedAccountProjectId'],
     ] as const) {
         draft[setter] = vi.fn((value: unknown) => { mocks.draft[field] = value; notifyDraft(); });
     }
@@ -1383,6 +1532,7 @@ describe('Streamline New Session', () => {
         const mode = renderer.root.find((node: any) => node.props?.testID === 'new-session-mode');
         await act(async () => { mode.props.onChange('advanced'); });
         expect(streamlineRoots()).toHaveLength(0);
+        expect(renderer.root.findAll((node: any) => node.props?.testID === 'advanced-sections').length).toBeGreaterThan(0);
         expect(renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'sessionInfo.path').length).toBeGreaterThan(0);
         act(() => renderer.unmount());
     });
@@ -1463,7 +1613,8 @@ function summaryText(renderer: ReturnType<typeof create>): string {
 describe('New Session title on Web Mobile', () => {
     it.each([
         ['Streamline', 'streamline', false],
-        ['Advanced', 'advanced', true],
+        // Advanced (UI overhaul) is the mock's page too, and carries its own title.
+        ['Advanced', 'advanced', false],
     ] as const)('shows the header row in %s only when the page does not carry the title itself', async (_label, mode, headerShown) => {
         const machine = createClaudeMachine();
         mocks.renderMachines = [machine];
