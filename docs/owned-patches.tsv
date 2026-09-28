@@ -629,3 +629,4 @@ UI_OVERHAUL_SESSION_INFO_TITLE_TEST	accepted	test(app): expect the session detai
 UI_OVERHAUL_FOCUS_GLYPH_DOCS	accepted	docs(app): record HerdButton's render prop for upstream merges	docs/upstream-ui-parity.md
 UI_OVERHAUL_LANDING_RISE_SETTLE	accepted	test(app): measure the landing once its entrance rise settles	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
 UI_OVERHAUL_ROUTES_CAPTURE_REDUCED_MOTION	accepted	fix(ci): give the routes capture the reduced-motion hook Session Info now reads	scripts/kilv-capture/routes.mjs
+UI_OVERHAUL_GOLDENS_FIDELITY	accepted	test(app): regenerate the KILV baselines the mock fidelity pass changed	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
