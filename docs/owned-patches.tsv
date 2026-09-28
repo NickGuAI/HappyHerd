@@ -628,3 +628,4 @@ UI_OVERHAUL_FOCUS_GLYPH_RENDER_PROP	accepted	fix(app): draw the project Focus gl
 UI_OVERHAUL_SESSION_INFO_TITLE_TEST	accepted	test(app): expect the session details title row on wide Session Info	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 UI_OVERHAUL_FOCUS_GLYPH_DOCS	accepted	docs(app): record HerdButton's render prop for upstream merges	docs/upstream-ui-parity.md
 UI_OVERHAUL_LANDING_RISE_SETTLE	accepted	test(app): measure the landing once its entrance rise settles	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
+UI_OVERHAUL_ROUTES_CAPTURE_REDUCED_MOTION	accepted	fix(ci): give the routes capture the reduced-motion hook Session Info now reads	scripts/kilv-capture/routes.mjs
