@@ -9,6 +9,7 @@ import { MarkdownView } from '@/components/markdown/MarkdownView';
 import {
     happyHerdAutomationKindLabel,
     happyHerdAutomationRunStatusLabel,
+    happyHerdAutomationNextRun,
 } from '@/components/happyHerdAutomationPresentation';
 import { HerdButton, HerdSectionLabel } from '@/components/herd/pages/HerdPage';
 import { herdWebClasses } from '@/components/herd/motion';
@@ -110,6 +111,7 @@ export function HappyHerdAutomationDetail({
         ? new Date(automation.lastRunAt).toLocaleString()
         : t('happyHerd.automations.neverRun');
     const runs = history ?? [];
+    const nextRun = happyHerdAutomationNextRun(automation, translateAutomation);
     const visibleRuns = allRuns ? runs : runs.slice(0, HAPPYHERD_AUTOMATION_RECENT_RUNS);
 
     React.useEffect(() => {
@@ -125,40 +127,7 @@ export function HappyHerdAutomationDetail({
 
     return (
         <View accessibilityLabel={t('happyHerd.automations.details')} style={styles.body}>
-            <View style={styles.actions}>
-                {!heartbeat && (
-                    <HerdButton
-                        size="sm"
-                        variant="primary"
-                        icon="play"
-                        label={t('happyHerd.automations.runNow')}
-                        onPress={onRunNow}
-                    />
-                )}
-                {!heartbeat && (
-                    <HerdButton
-                        size="sm"
-                        icon={active ? 'pause' : 'play-outline'}
-                        label={active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}
-                        onPress={onToggleStatus}
-                    />
-                )}
-                <HerdButton
-                    size="sm"
-                    variant={heartbeat ? 'primary' : 'default'}
-                    icon={heartbeat ? 'open-outline' : 'create-outline'}
-                    label={heartbeat ? t('happyHerd.heartbeat.openTarget') : t('happyHerd.automations.editAction')}
-                    onPress={onEdit}
-                />
-                <HerdButton
-                    size="sm"
-                    icon="time-outline"
-                    label={t('happyHerd.automations.history')}
-                    selected={allRuns}
-                    onPress={toggleHistory}
-                />
-            </View>
-
+            {/* Instructions (or the command) first, then the actions, as in the mock. */}
             {automation.rail === 'exec' ? (
                 <>
                     <HerdSectionLabel>{t('happyHerd.automations.command')}</HerdSectionLabel>
@@ -213,6 +182,44 @@ export function HappyHerdAutomationDetail({
                     </View>
                 </>
             )}
+
+            <View style={styles.actions}>
+                {!heartbeat && (
+                    <HerdButton
+                        size="sm"
+                        variant="primary"
+                        icon="play"
+                        label={t('happyHerd.automations.runNow')}
+                        onPress={onRunNow}
+                    />
+                )}
+                {!heartbeat && (
+                    <HerdButton
+                        size="sm"
+                        icon={active ? 'pause' : 'play-outline'}
+                        label={active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}
+                        onPress={onToggleStatus}
+                    />
+                )}
+                <HerdButton
+                    size="sm"
+                    variant={heartbeat ? 'primary' : 'default'}
+                    icon={heartbeat ? 'open-outline' : 'create-outline'}
+                    label={heartbeat ? t('happyHerd.heartbeat.openTarget') : t('happyHerd.automations.editAction')}
+                    onPress={onEdit}
+                />
+                <HerdButton
+                    size="sm"
+                    icon="time-outline"
+                    label={t('happyHerd.automations.history')}
+                    selected={allRuns}
+                    onPress={toggleHistory}
+                />
+                {/* The mock's action row ends with the next run, or Paused, at the right. */}
+                <StyledText testID="automation-next-run" style={[styles.nextRun, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                    {nextRun ?? (active ? '' : t('happyHerd.automations.statusPaused'))}
+                </StyledText>
+            </View>
 
             <HerdSectionLabel>{t('happyHerd.automations.details')}</HerdSectionLabel>
             <View style={styles.grid}>
@@ -277,7 +284,9 @@ export function HappyHerdAutomationDetail({
                                 {run.message ?? ''}
                             </Text>
                             {run.sessionId && (
-                                <Ionicons name="chevron-forward" size={15} color={theme.colors.textLink} />
+                                <StyledText style={[styles.linkText, styles.runOpen, { color: theme.colors.textLink }]} numberOfLines={1}>
+                                    {t('happyHerd.automations.openSessionLink')}
+                                </StyledText>
                             )}
                         </>
                     );
@@ -338,6 +347,15 @@ const styles = StyleSheet.create((theme) => ({
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: 8,
+    },
+    nextRun: {
+        marginLeft: 'auto',
+        fontSize: 12,
+        ...Typography.mono(),
+    },
+    runOpen: {
+        marginLeft: 'auto',
+        flexShrink: 0,
     },
     grid: {
         flexDirection: 'row',

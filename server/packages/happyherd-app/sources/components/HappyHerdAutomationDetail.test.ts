@@ -189,6 +189,28 @@ describe('HappyHerdAutomationDetail', () => {
         ));
     }
 
+    it('puts the instructions before the action row, which ends with the next run, as in the mock', () => {
+        const { renderer } = renderDetail();
+        const order = renderer.root.findAll((node: any) => (
+            node.props.testID === 'automation-instruction-markdown'
+            || (node.type === 'Pressable' && node.props.accessibilityLabel === 'happyHerd.automations.runNow')
+        )).map((node: any) => node.props.testID ?? 'run-now');
+        expect(order[0]).toBe('automation-instruction-markdown');
+        expect(order).toContain('run-now');
+        // The action row sits after the instruction card, not inside it.
+        const card = renderer.root.findAll((node: any) => node.props?.testID === 'automation-instruction-markdown')[0].parent;
+        expect(card.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'happyHerd.automations.runNow')).toHaveLength(0);
+        const next = byTestId(renderer, 'Text', 'automation-next-run');
+        expect(next).toHaveLength(1);
+        expect(String([next[0].props.children].flat().join(''))).toMatch(/^happyHerd\.automations\.nextRun/);
+    });
+
+    it('labels a previous run that has a session "Open session"', () => {
+        const { renderer } = renderDetail();
+        expect(renderedText(renderer)).toContain('happyHerd.automations.openSessionLink');
+        expect(renderer.root.findAll((node: any) => node.type === 'Ionicons' && node.props.name === 'chevron-forward')).toHaveLength(0);
+    });
+
     it('offers Pause for an active automation and Resume for a paused one', () => {
         const active = renderedText(renderDetail().renderer);
         expect(active).toContain('happyHerd.automations.pause');

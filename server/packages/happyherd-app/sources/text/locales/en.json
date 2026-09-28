@@ -1534,6 +1534,7 @@
       "editAction": "Edit",
       "noRuns": "No runs yet.",
       "openSession": "Open session {id}",
+      "openSessionLink": "Open session",
       "commanderValue": "Commander {id}",
       "attempt": "attempt {count}"
     },

@@ -1534,6 +1534,7 @@
       "editAction": "Bearbeiten",
       "noRuns": "Noch keine Ausführungen.",
       "openSession": "Sitzung {id} öffnen",
+      "openSessionLink": "Sitzung öffnen",
       "commanderValue": "Kommandant {id}",
       "attempt": "Versuch {count}"
     },

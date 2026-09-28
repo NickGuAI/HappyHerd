@@ -1059,3 +1059,38 @@ describe('AutomationsScreen expandable rows', () => {
         );
     });
 });
+
+describe('AutomationsScreen page frame (UI overhaul, mock fidelity)', () => {
+    const one = () => ({
+        definitionSchemaVersion: 3,
+        automations: [automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', ['dream', 'health'])],
+    });
+    const titles = (renderer: ReactTestRenderer) => renderer.root.findAll((node: any) => (
+        node.type === 'Text' && node.props.accessibilityRole === 'header' && nodeText(node) === 'happyHerd.automations.title'
+    ));
+
+    it('draws the large title in the page and hides the header bar on wide web, and keeps the header row on phones', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue(one());
+        const wide = await renderScreen();
+        expect(wide.root.findByType('StackScreen' as any).props.options).toMatchObject({ headerShown: false });
+        expect(titles(wide)).toHaveLength(1);
+        act(() => wide.unmount());
+
+        testState.width = 600;
+        testState.listAutomations.mockResolvedValue(one());
+        const phone = await renderScreen();
+        expect(phone.root.findByType('StackScreen' as any).props.options).toMatchObject({ headerShown: true });
+        expect(titles(phone)).toHaveLength(0);
+    });
+
+    it('reads the count inline after the tag chips', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue(one());
+        const renderer = await renderScreen();
+        const tags = renderer.root.findByProps({ accessibilityLabel: 'Automation tags' });
+        const count = tags.findAll((node: any) => node.type === 'Text' && node.props.testID === 'automations-count');
+        expect(count).toHaveLength(1);
+        expect(nodeText(count[0])).toBe('1 automations');
+    });
+});

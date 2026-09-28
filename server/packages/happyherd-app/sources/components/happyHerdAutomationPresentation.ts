@@ -244,6 +244,32 @@ export function happyHerdAutomationRunStatusLabel(
     return translate('happyHerd.automations.runStatusMissed');
 }
 
+/**
+ * "Next run in …" for an active automation whose next run is known, or null.
+ * The row meta and the expanded row's action line share it (UI overhaul).
+ */
+export function happyHerdAutomationNextRun(
+    automation: HappyHerdAutomation,
+    translate: Translate,
+    now: number = Date.now(),
+): string | null {
+    if (automation.status === 'paused') return null;
+    const simpleSchedule = automation.kind === 'heartbeat'
+        ? null
+        : parseSimpleSchedule(automation.schedule);
+    const nextRunAt = automation.kind === 'heartbeat'
+        ? automation.nextDueAt ? Date.parse(automation.nextDueAt) : Number.NaN
+        : simpleSchedule ? nextSimpleOccurrence(simpleSchedule, automation.timezone, now) : null;
+    if (nextRunAt === null || !Number.isFinite(nextRunAt)) return null;
+
+    const remainingSeconds = Math.max(0, Math.ceil((nextRunAt - now) / 1_000));
+    return remainingSeconds === 0
+        ? translate('happyHerd.automations.nextRunNow')
+        : translate('happyHerd.automations.nextRunIn', {
+            duration: formatCompactCountdown(remainingSeconds),
+        });
+}
+
 export function happyHerdAutomationRowMeta(
     automation: HappyHerdAutomation,
     translate: Translate,
@@ -262,16 +288,6 @@ export function happyHerdAutomationRowMeta(
         return `${cadence} · ${translate('happyHerd.automations.statusPaused')}`;
     }
 
-    const nextRunAt = automation.kind === 'heartbeat'
-        ? automation.nextDueAt ? Date.parse(automation.nextDueAt) : Number.NaN
-        : simpleSchedule ? nextSimpleOccurrence(simpleSchedule, automation.timezone, now) : null;
-    if (nextRunAt === null || !Number.isFinite(nextRunAt)) return cadence;
-
-    const remainingSeconds = Math.max(0, Math.ceil((nextRunAt - now) / 1_000));
-    const nextRun = remainingSeconds === 0
-        ? translate('happyHerd.automations.nextRunNow')
-        : translate('happyHerd.automations.nextRunIn', {
-            duration: formatCompactCountdown(remainingSeconds),
-        });
-    return `${cadence} · ${nextRun}`;
+    const nextRun = happyHerdAutomationNextRun(automation, translate, now);
+    return nextRun ? `${cadence} · ${nextRun}` : cadence;
 }

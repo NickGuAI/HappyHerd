@@ -800,7 +800,8 @@ export default function AutomationsScreen() {
 
     return (
         <View style={styles.page}>
-            <Stack.Screen options={{ title: t('happyHerd.automations.title') }} />
+            {/* Wide layouts draw the mock's large title in the page, so the header bar would repeat it. */}
+            <Stack.Screen options={{ title: t('happyHerd.automations.title'), headerShown: !desktop }} />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={[styles.content, !desktop && styles.contentCompact]}
@@ -809,6 +810,7 @@ export default function AutomationsScreen() {
             >
                 <HerdPageHeader
                     compact={!desktop}
+                    title={desktop ? t('happyHerd.automations.title') : undefined}
                     subtitle={t('happyHerd.automations.subtitle')}
                     actions={!formOpenInline ? (
                         <HerdButton
@@ -906,10 +908,11 @@ export default function AutomationsScreen() {
                                         onPress={() => setSelectedTag(tag)}
                                     />
                                 ))}
+                                {/* The count reads inline after the chips, as in the mock. */}
+                                <Text testID="automations-count" style={styles.count}>
+                                    {t('happyHerd.automations.automationCount', { count: filteredAutomations.length })}
+                                </Text>
                             </ScrollView>
-                            <Text style={[styles.count, !desktop && styles.countCompact]}>
-                                {t('happyHerd.automations.automationCount', { count: filteredAutomations.length })}
-                            </Text>
                         </View>
 
                         {loading && <ActivityIndicator style={styles.loading} color={theme.colors.textSecondary} />}
@@ -1084,8 +1087,7 @@ const styles = StyleSheet.create((theme) => ({
     tagBar: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     tagBarCompact: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
     tagScroller: { flexGrow: 1, flexShrink: 1 },
-    count: { flexShrink: 0, fontSize: 12, color: theme.colors.textSecondary, ...Typography.mono() },
-    countCompact: { alignSelf: 'flex-end' },
+    count: { flexShrink: 0, alignSelf: 'center', marginLeft: 4, fontSize: 12, color: theme.colors.textSecondary, ...Typography.mono() },
     loading: { marginVertical: 24 },
     rows: { gap: 9 },
     // One style carries the row's web classes: Unistyles merges `_web` objects

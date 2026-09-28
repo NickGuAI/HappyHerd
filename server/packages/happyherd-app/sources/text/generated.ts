@@ -446,6 +446,7 @@ export type TranslationKey =
     | "happyHerd.automations.none"
     | "happyHerd.automations.openDetails"
     | "happyHerd.automations.openSession"
+    | "happyHerd.automations.openSessionLink"
     | "happyHerd.automations.pause"
     | "happyHerd.automations.previousRuns"
     | "happyHerd.automations.project"
