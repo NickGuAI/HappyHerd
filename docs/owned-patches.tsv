@@ -593,3 +593,9 @@ UI_OVERHAUL_STREAMLINE_SHARED_CHOICES	accepted	refactor(app): share Streamline's
 UI_OVERHAUL_ADVANCED_MOCK_LAYOUT	accepted	feat(app): lay Advanced New Session out as the approved mock	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_ADVANCED_MOCK_TESTS	accepted	test(app): cover the mock's Advanced New Session layout	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_ADVANCED_DOCS	accepted	docs(app): record the Advanced mock layout for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PAGE_BACKGROUND	accepted	fix(app): paint desktop pages on the mock's page background	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
+UI_OVERHAUL_AUTOMATIONS_MOCK	accepted	feat(app): lay Automations out as the mock draws it	server/packages/happyherd-app/sources/components/HappyHerdAutomationDetail.test.ts
+UI_OVERHAUL_COMMANDERS_TITLE	accepted	feat(app): give Commanders the mock's page title and session counts	server/packages/happyherd-app/sources/app/(app)/commanders/index.test.ts
+UI_OVERHAUL_WHATS_NEW_TITLE	accepted	feat(app): give What's New the mock's page title and timeline rings	server/packages/happyherd-app/sources/components/herd/pages/ChangelogPageFrame.test.ts
+UI_OVERHAUL_INBOX_CARDS	accepted	feat(app): show Inbox updates as the mock's cards under a page title	server/packages/happyherd-app/sources/components/InboxView.test.ts
+UI_OVERHAUL_PAGES_DOCS	accepted	docs(app): record the mock's secondary pages for upstream merges	docs/upstream-ui-parity.md

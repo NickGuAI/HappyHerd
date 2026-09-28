@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "ebf2df9863f62688cb4a72126e7b8230e4c420d203be2cf995316121909c84dd",
+  "sourceFingerprint": "d73cae732804c5966ef3a3a8bcc334bbfbbc460770ec2358010d7c3e6a039a95",
   "routeCount": 43,
-  "surfaceCount": 322,
+  "surfaceCount": 323,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1219,6 +1219,7 @@
         "common.message",
         "devicePairing.title",
         "friends.addFriend",
+        "happyHerd.automations.title",
         "machine.back",
         "navigation.connectTerminal",
         "navigation.friends",
@@ -3934,6 +3935,7 @@
         "happyHerd.automations.noRuns",
         "happyHerd.automations.none",
         "happyHerd.automations.openSession",
+        "happyHerd.automations.openSessionLink",
         "happyHerd.automations.pause",
         "happyHerd.automations.previousRuns",
         "happyHerd.automations.project",
@@ -3943,6 +3945,7 @@
         "happyHerd.automations.scheduleSection",
         "happyHerd.automations.showFullInstruction",
         "happyHerd.automations.showLessInstruction",
+        "happyHerd.automations.statusPaused",
         "happyHerd.automations.timezone",
         "happyHerd.automations.unableHistory",
         "happyHerd.automations.untagged",
@@ -3960,6 +3963,7 @@
       "route": null,
       "exports": [
         "happyHerdAutomationKindLabel",
+        "happyHerdAutomationNextRun",
         "happyHerdAutomationRowMeta",
         "happyHerdAutomationRunStatusLabel"
       ],
@@ -4126,6 +4130,20 @@
       "states": [
         "offline"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/ChangelogPageFrame.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ChangelogPageFrame"
+      ],
+      "translationKeys": [
+        "navigation.whatsNew",
+        "updateBanner.seeLatest"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -4694,6 +4712,7 @@
         "InboxView"
       ],
       "translationKeys": [
+        "friends.findFriends",
         "friends.myFriends",
         "friends.pendingRequests",
         "friends.requestPending",
