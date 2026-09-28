@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "04350f8974bb0db5328071e97304dde4cf52e8338b1ba6b3b29fa206553e318b",
+  "sourceFingerprint": "ebf2df9863f62688cb4a72126e7b8230e4c420d203be2cf995316121909c84dd",
   "routeCount": 43,
-  "surfaceCount": 321,
+  "surfaceCount": 322,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -312,6 +312,7 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyherdAgentUnsupported",
+        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
         "newSession.streamline.defaultsSummary",
@@ -327,6 +328,7 @@
         "projects.project",
         "sessionInfo.path",
         "settings.title",
+        "sidebar.newSession",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
@@ -357,6 +359,7 @@
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
@@ -1605,6 +1608,7 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyherdAgentUnsupported",
+        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
         "newSession.streamline.defaultsSummary",
@@ -1620,6 +1624,7 @@
         "projects.project",
         "sessionInfo.path",
         "settings.title",
+        "sidebar.newSession",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
@@ -1650,6 +1655,7 @@
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
@@ -4050,11 +4056,37 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/newSession/AdvancedSections.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AdvancedSections",
+        "resolveMachineCardWidth"
+      ],
+      "translationKeys": [
+        "agentInput.effort.title",
+        "agentInput.model.title",
+        "happyHerd.automations.machine",
+        "happyHerd.commander.category",
+        "newSession.workspace",
+        "projects.project",
+        "sessionInfo.aiProvider",
+        "sessionInfo.path",
+        "status.offline",
+        "status.online"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/newSession/StreamlineComposer.tsx",
       "kind": "component",
       "route": null,
       "exports": [
         "StreamlineComposerChips",
+        "StreamlineComposerLabels",
         "StreamlineSummary"
       ],
       "translationKeys": [
@@ -4070,7 +4102,9 @@
       "kind": "component",
       "route": null,
       "exports": [
+        "StreamlineCommanderChoices",
         "StreamlineLabel",
+        "StreamlineProjectChoices",
         "StreamlineSections"
       ],
       "translationKeys": [

@@ -589,3 +589,7 @@ UI_OVERHAUL_SHEET_WINDOW_INSETS	accepted	fix(app): keep native sheets below the 
 UI_OVERHAUL_LANDING_PAGE	accepted	feat(app): give the signed-in landing the mock's page and horizon	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
 UI_OVERHAUL_SETTINGS_PAGE_TITLE	accepted	feat(app): give desktop Settings pages the mock's large page title	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
 UI_OVERHAUL_CONNECTIONS_LAYOUT	accepted	feat(app): lay Settings → Connections out as the mock draws it	server/packages/happyherd-app/sources/components/ConnectionsSettingsView.browser.test.ts
+UI_OVERHAUL_STREAMLINE_SHARED_CHOICES	accepted	refactor(app): share Streamline's Commander and project choices	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_ADVANCED_MOCK_LAYOUT	accepted	feat(app): lay Advanced New Session out as the approved mock	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_ADVANCED_MOCK_TESTS	accepted	test(app): cover the mock's Advanced New Session layout	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_ADVANCED_DOCS	accepted	docs(app): record the Advanced mock layout for upstream merges	docs/upstream-ui-parity.md
