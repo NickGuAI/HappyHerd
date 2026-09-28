@@ -10,6 +10,7 @@ const testState = vi.hoisted(() => ({
     pathname: '/settings',
     navigate: vi.fn(),
     push: vi.fn(),
+    trackWhatsNew: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -59,6 +60,7 @@ vi.mock('@/components/StyledText', async () => {
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('@/sync/storage', () => ({ useSetting: (key: string) => (key === 'experiments' ? testState.experiments : undefined) }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/track', () => ({ trackWhatsNewClicked: testState.trackWhatsNew }));
 
 import { SETTINGS_SECTIONS, SettingsFrame, SettingsSectionList, useSettingsFrameAction, withSettingsFrame } from './SettingsFrame';
 
@@ -81,6 +83,7 @@ beforeEach(() => {
     testState.pathname = '/settings';
     testState.navigate.mockReset();
     testState.push.mockReset();
+    testState.trackWhatsNew.mockReset();
 });
 
 function render(section: React.ComponentProps<typeof SettingsFrame>['section']): ReactTestRenderer {
@@ -303,6 +306,22 @@ describe('SettingsSectionList (phones)', () => {
         act(() => rows(renderer).find((node: any) => node.props.testID === 'settings-section-whatsNew')!.props.onPress());
         // Pushed, so Back returns to the section list.
         expect(testState.push.mock.calls.map(([route]) => route)).toEqual(['/settings/appearance', '/settings/about', '/commanders', '/changelog']);
+    });
+
+    it('reports What\'s New opened from the section list and the nav, as the old Settings home did', () => {
+        const list = sections();
+        act(() => rows(list).find((node: any) => node.props.testID === 'settings-section-commanders')!.props.onPress());
+        expect(testState.trackWhatsNew).not.toHaveBeenCalled();
+        act(() => rows(list).find((node: any) => node.props.testID === 'settings-section-whatsNew')!.props.onPress());
+        expect(testState.trackWhatsNew).toHaveBeenCalledTimes(1);
+
+        testState.pathname = '/settings/account';
+        const frame = render('account');
+        const item = (id: string) => navItems(frame).find((node: any) => node.props.testID === `settings-nav-${id}`)!;
+        act(() => item('about').props.onPress());
+        expect(testState.trackWhatsNew).toHaveBeenCalledTimes(1);
+        act(() => item('whatsNew').props.onPress());
+        expect(testState.trackWhatsNew).toHaveBeenCalledTimes(2);
     });
 
     it('adds Usage when experiments are on', () => {

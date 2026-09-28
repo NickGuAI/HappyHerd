@@ -379,7 +379,7 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = (action) => [false, action];`,
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ exitCode: 0 });`,
     '@/utils/errors': `export class HappyHerdError extends Error {}`,
-    '@/track': `export const trackSessionSwitched = () => {}; export const trackFriendsSearch = () => {};`,
+    '@/track': `export const trackSessionSwitched = () => {}; export const trackFriendsSearch = () => {}; export const trackWhatsNewClicked = () => {};`,
     '@/utils/requestReview': `export const requestReview = () => {};`,
     '@/components/UpdateBanner': `export const UpdateBanner = () => null;`,
     '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null;`,

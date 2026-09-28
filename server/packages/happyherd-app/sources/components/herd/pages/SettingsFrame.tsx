@@ -10,6 +10,7 @@ import { herdWebClasses } from '@/components/herd/motion';
 import { layout } from '@/components/layout';
 import { useSetting } from '@/sync/storage';
 import { t } from '@/text';
+import { trackWhatsNewClicked } from '@/track';
 
 /**
  * Desktop Settings layout (UI overhaul): a left-hand section list with the
@@ -93,6 +94,11 @@ function NavItem({ entry, active, onPress }: { entry: SettingsNavEntry; active: 
     );
 }
 
+/** Settings' What's New entry reports its open, as the old Settings home's row did. */
+function trackSettingsEntry(entry: SettingsNavEntry) {
+    if (entry.id === 'whatsNew') trackWhatsNewClicked();
+}
+
 export function SettingsNav({ active }: { active: SettingsSectionId }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -101,6 +107,7 @@ export function SettingsNav({ active }: { active: SettingsSectionId }) {
     // A nested page (Voice language, Claude sign-in) highlights its section;
     // choosing that section still returns to the section's own page.
     const open = (entry: SettingsNavEntry) => {
+        trackSettingsEntry(entry);
         if (pathname !== entry.route) router.navigate(entry.route as never);
     };
     return (
@@ -144,7 +151,10 @@ export function SettingsSectionList() {
                     testID={`settings-section-${entry.id}`}
                     accessibilityRole="button"
                     accessibilityLabel={entry.title()}
-                    onPress={() => router.push(entry.route as never)}
+                    onPress={() => {
+                        trackSettingsEntry(entry);
+                        router.push(entry.route as never);
+                    }}
                     style={({ pressed, hovered }: any) => [styles.phoneRow, (pressed || hovered) && styles.phoneRowPressed]}
                 >
                     <Ionicons name={entry.icon} size={18} color={theme.colors.textLink} />

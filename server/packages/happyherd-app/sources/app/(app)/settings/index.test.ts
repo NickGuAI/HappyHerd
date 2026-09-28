@@ -50,6 +50,7 @@ vi.mock('@/sync/storage', () => ({ useSetting: () => false }));
 vi.mock('@/sync/serverConfig', () => ({ isUsingCustomServer: () => state.customServer }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => state.tablet }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/track', () => ({ trackWhatsNewClicked: () => {} }));
 
 import SettingsPage from './index';
 
