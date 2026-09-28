@@ -44,6 +44,7 @@ const virtualModules: Record<string, string> = {
     '@expo/vector-icons': `
         import React from 'react';
         export const Ionicons = ({ name }) => React.createElement('span', { 'data-icon': name });
+        export const Octicons = Ionicons;
     `,
     'react-native-device-info': `export const getDeviceType = () => 'Handset';`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
@@ -284,10 +285,10 @@ describe('Settings → Connections → Add device production component journeys'
         await entry.waitFor();
         if (evidenceWidth) await page.screenshot({ path: resolve(evidenceDir, `fixture-${evidenceWidth}-settings-entry.png`) });
         await entry.click();
-        await page.getByRole('button', { name: 'Add device', exact: true }).waitFor();
+        // The mock's Add device form is always on the page, with no button to open it.
+        await page.getByRole('textbox', { name: 'Pairing code', exact: true }).waitFor();
     }
     async function enter(page: Page, code = '12345678') {
-        await page.getByRole('button', { name: 'Add device', exact: true }).click();
         await page.getByRole('textbox', { name: 'Pairing code', exact: true }).fill(code);
         await page.getByRole('button', { name: 'Check code', exact: true }).click();
     }
@@ -304,12 +305,21 @@ describe('Settings → Connections → Add device production component journeys'
             const errors: string[] = [];
             page.on('pageerror', (error) => errors.push(error.message));
             await open(page, viewport.width);
-            await page.getByRole('button', { name: 'Add device', exact: true }).click();
+            // The mock's command block: a $ prompt, then the real CLI command.
+            const command = page.getByText('happyherd machine pair', { exact: true });
+            await command.waitFor();
+            expect(await command.evaluate((element) => element.previousElementSibling?.textContent)).toBe('$');
             const input = page.getByRole('textbox', { name: 'Pairing code', exact: true });
             await input.pressSequentially('12345678');
             expect(await input.inputValue()).toBe('1234-5678');
             await page.screenshot({ path: resolve(evidenceDir, `fixture-${viewport.width}-code-entry.png`) });
-            expect(await input.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+            // 16 px on phones, which iOS Safari will not zoom; the mock's 14 px mono on desktop.
+            expect(await input.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(viewport.width < 700 ? 16 : 14);
+            // Check code sits beside the input on its row, as the mock draws it.
+            const inputBox = (await input.boundingBox())!;
+            const checkBox = (await page.getByRole('button', { name: 'Check code', exact: true }).boundingBox())!;
+            expect(checkBox.x).toBeGreaterThanOrEqual(inputBox.x + inputBox.width);
+            expect(Math.abs((checkBox.y + checkBox.height / 2) - (inputBox.y + inputBox.height / 2))).toBeLessThanOrEqual(1);
             await page.getByRole('button', { name: 'Check code', exact: true }).click();
             await page.getByText('Machine ID: target-machine', { exact: true }).waitFor();
             await page.screenshot({ path: resolve(evidenceDir, `fixture-${viewport.width}-confirmation.png`) });
@@ -323,11 +333,14 @@ describe('Settings → Connections → Add device production component journeys'
             expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBe('target-machine');
             expect(await page.evaluate(() => (globalThis as any).__ROUTES__.at(-1))).toBe('/new');
             await page.goto(`${origin}/settings/connections`);
-            await page.getByText('online · Selected for new sessions', { exact: true }).waitFor();
+            // The device row: its status, and the selection as its own tag.
+            await page.getByText('online', { exact: true }).waitFor();
+            await page.getByText('Selected for new sessions', { exact: true }).waitFor();
             expect((await calls(page)).map((call) => call.method)).toEqual(['happyherd-device-pairing-identity']);
             expect(await page.evaluate(() => (globalThis as any).__STATE__.machines.length)).toBe(1);
             expect(await page.evaluate(() => localStorage.getItem('new-session-draft'))).not.toContain('12345678');
-            expect(await page.getByRole('textbox', { name: 'Pairing code' }).count()).toBe(0);
+            expect(await page.getByRole('textbox', { name: 'Pairing code' }).inputValue()).toBe('');
+            expect(await page.getByRole('button', { name: 'Connect', exact: true }).count()).toBe(0);
             expect(errors).toEqual([]);
             await page.close();
         });
@@ -379,14 +392,14 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
         await page.getByRole('button', { name: 'New Session', exact: true }).waitFor();
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: false })) }));
-        await page.getByText('offline · Selected for new sessions', { exact: true }).waitFor();
+        await page.getByText('offline', { exact: true }).waitFor();
         expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: true })) }));
-        await page.getByText('online · Selected for new sessions', { exact: true }).waitFor();
+        await page.getByText('online', { exact: true }).waitFor();
         await patch(page, { socketStatus: 'disconnected' });
-        await page.getByText('offline · Selected for new sessions', { exact: true }).waitFor();
+        await page.getByText('offline', { exact: true }).waitFor();
         await patch(page, { socketStatus: 'connected' });
-        await page.getByText('online · Selected for new sessions', { exact: true }).waitFor();
+        await page.getByText('online', { exact: true }).waitFor();
         expect((await calls(page)).filter((call) => call.method.endsWith('-identity')).length).toBeGreaterThanOrEqual(3);
         await page.close();
     });
@@ -402,14 +415,16 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
         await page.getByRole('button', { name: 'Cancel', exact: true }).click();
         await page.evaluate(() => (globalThis as any).__RELEASE_CONFIRM__());
-        await page.getByRole('button', { name: 'Add device', exact: true }).waitFor();
+        await page.getByRole('textbox', { name: 'Pairing code', exact: true }).waitFor();
+        expect(await page.getByRole('button', { name: 'Cancel', exact: true }).count()).toBe(0);
         expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
         expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBeNull();
         await enter(page);
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
         await patch(page, { profile: { id: 'account-two', firstName: 'Test', connectedServices: [] } });
         await page.evaluate(() => (globalThis as any).__RELEASE_CONFIRM__());
-        await page.getByRole('button', { name: 'Add device', exact: true }).waitFor();
+        await page.getByRole('textbox', { name: 'Pairing code', exact: true }).waitFor();
+        expect(await page.getByRole('button', { name: 'Connect', exact: true }).count()).toBe(0);
         expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
         expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBeNull();
         await page.close();
@@ -425,7 +440,8 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByText('Refresh devices', { exact: true }).click();
         await page.getByRole('alert').filter({ hasText: 'server setting changed' }).waitFor();
         await page.getByText('Connected server: https://server.example', { exact: true }).waitFor();
-        expect(await page.getByRole('button', { name: 'Add device', exact: true }).isDisabled()).toBe(true);
+        expect(await page.getByRole('button', { name: 'Check code', exact: true }).isDisabled()).toBe(true);
+        expect(await page.getByRole('textbox', { name: 'Pairing code', exact: true }).isEditable()).toBe(false);
         expect((await calls(page)).filter((call) => call.method.endsWith('-check'))).toHaveLength(0);
         await page.close();
     });

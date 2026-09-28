@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "2c734f2f70e49bc359ce00ad2edfedb718a1caf0aeb52dac5ec9b88ebccebdfa",
+  "sourceFingerprint": "04350f8974bb0db5328071e97304dde4cf52e8338b1ba6b3b29fa206553e318b",
   "routeCount": 43,
   "surfaceCount": 321,
   "hardcodedCopyCount": 0,
@@ -3253,9 +3253,9 @@
         "devicePairing.selected",
         "devicePairing.server",
         "devicePairing.serverChanged",
-        "devicePairing.title",
         "devicePairing.unavailable",
         "devicePairing.used",
+        "status.lastSeen",
         "status.offline",
         "status.online",
         "workspace.title"

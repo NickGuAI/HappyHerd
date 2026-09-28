@@ -216,7 +216,7 @@ It reads memory files through the existing `machineReadFileWithinRoot` call,
 bounded to each Commander's AgentContext folder, so older daemons show an
 error with Retry.
 
-Known gaps: the Usage page keeps its current look; Credentials, Connections,
+Known gaps: the Usage page keeps its current look; Credentials,
 Commander avatar settings and the Inbox update banner were outside this pass;
 Settings sub-pages keep the base list look until `ItemGroup`/`Item` adopt the
 `HerdList` treatment.
@@ -330,5 +330,6 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/herd/pages/HerdLanding.tsx`, `HerdLandingArt.tsx`, `HerdLandingArt.web.tsx` | The signed-in landing: the gradient brush mark, title, subtitle, Start New Session / Automations / Workspace (Workspace behind `machineWorkspace`), the What's new pill for the latest changelog entry and, on web, the horizon backdrop (the body fading into `kilv.bg`, the masked molten rim and its glow). Colors come from kilv tokens through `herdAlpha` and `color-mix`; `herd-rise` and `herd-fade` respect reduced motion. Native tablets get it without the horizon. |
 | `sources/app/(app)/commanders/index.tsx` | The Commanders page. |
 | `sources/app/(app)/settings/{connections,credentials,features}.tsx` | HappyHerd-owned settings pages. Their default exports are wrapped in `withSettingsFrame`, like the inherited ones. |
+| `sources/components/ConnectionsSettingsView.tsx` | The mock's Connections layout: a description with Server and Account ID muted; an always-visible Add device card with the `happyherd machine pair` command block, the code input with an inline Check code, and a confirm card; device rows with an icon tile, the name in mono, status or last seen, and a "Selected for new sessions" tag before the chevron. The pairing logic is unchanged. |
 | `sources/components/SidebarNavigationButton.tsx` | HappyHerd-owned; restyled with tokens and given `active`, `emphasis` and `quiet` variants. |
 | `sources/components/sidebarNavigationLayout.ts` | HappyHerd-owned; the boundary-toggle, persistent-header and header-clearance helpers were removed with those controls. |
