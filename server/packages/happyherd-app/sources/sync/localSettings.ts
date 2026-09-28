@@ -9,7 +9,9 @@ export const LocalSettingsSchema = z.object({
     debugMode: z.boolean().describe('Enable debug logging'),
     devModeEnabled: z.boolean().describe('Enable developer menu in settings'),
     voiceUpsellOverride: z.enum(['control', 'show-paywall-before-first-voice-chat', 'voice-onboarding-and-upsell']).nullable().describe('Developer-only local override for the voice-upsell PostHog flag'),
-    commandPaletteEnabled: z.boolean().describe('Enable CMD+K command palette (web only)'),
+    commandPaletteEnabled: z.boolean().describe('Enable CMD+K command palette and the top bar search (web only)'),
+    // Marks the one-time move to the palette being on by default (UI overhaul).
+    commandPaletteOnByDefault: z.boolean().describe('The command palette default has been applied to this device'),
     themePreference: z.enum(['light', 'dark', 'adaptive']).describe('Theme preference: light, dark, or adaptive (follows system)'),
     markdownCopyV2: z.boolean().describe('Replace native paragraph selection with long-press modal for full markdown copy'),
     consoleLoggingEnabled: z.boolean().describe('Enable console output in production builds'),
@@ -44,7 +46,9 @@ export const localSettingsDefaults: LocalSettings = {
     debugMode: false,
     devModeEnabled: false,
     voiceUpsellOverride: null,
-    commandPaletteEnabled: false,
+    // The top bar search opens the palette, so both are on unless the user turns them off.
+    commandPaletteEnabled: true,
+    commandPaletteOnByDefault: true,
     themePreference: 'adaptive',
     markdownCopyV2: false,
     consoleLoggingEnabled: false,
@@ -68,7 +72,13 @@ export function localSettingsParse(settings: unknown): LocalSettings {
     if (!parsed.success) {
         return { ...localSettingsDefaults };
     }
-    return { ...localSettingsDefaults, ...parsed.data };
+    const stored = parsed.data;
+    // Before the UI overhaul the palette was opt-in, and every saved setting
+    // stored its `false` default. Turn it on once; later opt-outs are kept.
+    if (stored.commandPaletteOnByDefault !== true) {
+        return { ...localSettingsDefaults, ...stored, commandPaletteEnabled: true, commandPaletteOnByDefault: true };
+    }
+    return { ...localSettingsDefaults, ...stored };
 }
 
 //

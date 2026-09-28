@@ -33,3 +33,24 @@ describe('desktop navigation local setting', () => {
         expect(legacy.sidebarSideChatSessionId).toBeNull();
     });
 });
+
+describe('command palette local setting (UI overhaul)', () => {
+    it('turns the palette and the top bar search on by default', () => {
+        expect(localSettingsParse({}).commandPaletteEnabled).toBe(true);
+        expect(localSettingsParse(undefined).commandPaletteEnabled).toBe(true);
+    });
+
+    it('turns on the palette a device saved while it was opt-in, once', () => {
+        // Every saved setting from before stored the old `false` default.
+        const legacy = localSettingsParse({ commandPaletteEnabled: false, zenMode: true });
+        expect(legacy.commandPaletteEnabled).toBe(true);
+        expect(legacy.commandPaletteOnByDefault).toBe(true);
+        expect(legacy.zenMode).toBe(true);
+    });
+
+    it('keeps an opt-out made after the default applies', () => {
+        const optedOut = applyLocalSettings(localSettingsParse({}), { commandPaletteEnabled: false });
+        const reloaded = localSettingsParse(JSON.parse(JSON.stringify(optedOut)));
+        expect(reloaded.commandPaletteEnabled).toBe(false);
+    });
+});
