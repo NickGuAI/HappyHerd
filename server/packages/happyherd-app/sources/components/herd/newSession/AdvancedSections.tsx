@@ -164,6 +164,7 @@ export function AdvancedSections(props: {
                 value={props.effortKey ?? effortSegments[0].value}
                 onChange={props.onSelectEffort}
                 size={props.compact ? 'touch' : 'md'}
+                fit={props.compact}
                 accessibilityLabel={t('agentInput.effort.title')}
                 testID="advanced-effort"
             />
@@ -228,6 +229,7 @@ export function AdvancedSections(props: {
                             value={props.permissionKey ?? permissionSegments[0].value}
                             onChange={props.onSelectPermission}
                             size={props.compact ? 'touch' : 'md'}
+                            fit={props.compact}
                             accessibilityLabel={props.permissionTitle}
                             testID="advanced-permission"
                         />
@@ -252,6 +254,7 @@ export function AdvancedSections(props: {
                                 value={worktreeOnFixed ? worktreeValue : null}
                                 onChange={props.worktree.onSelect}
                                 size={props.compact ? 'touch' : 'md'}
+                                fit={props.compact}
                                 accessibilityLabel={props.worktree.title}
                                 testID="advanced-worktree"
                             />

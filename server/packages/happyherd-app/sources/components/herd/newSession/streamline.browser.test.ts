@@ -384,6 +384,8 @@ describe('Streamline New Session in the production style runtime', () => {
     }
 
     const summaryText = (page: Page) => page.getByTestId('streamline-summary').innerText();
+    // A chip's label, without its chevron glyph.
+    const chipLabel = async (page: Page, key: string) => (await page.getByTestId(`streamline-chip-${key}`).innerText()).split('\n')[0];
 
     it('starts in Streamline with the Claude defaults and a worktree for the GitHub folder', async () => {
         const { page, errors } = await open();
@@ -392,8 +394,12 @@ describe('Streamline New Session in the production style runtime', () => {
         for (const label of ['Commanders', 'Working folder', 'Project']) {
             await expect(page.getByTestId('streamline-sections').getByRole('heading', { name: label, exact: true }).count()).resolves.toBe(1);
         }
-        await expect.poll(() => summaryText(page)).toContain('Uses claude-opus-5-5 with xhigh effort and acceptEdits.');
+        // Display labels, not the daemon's values (UI overhaul).
+        await expect.poll(() => summaryText(page)).toContain('Uses Opus 5.5 with xhigh effort and accept edits.');
         await expect(summaryText(page)).resolves.toContain('Creates a new git worktree');
+        await expect(chipLabel(page, 'agent')).resolves.toBe('Claude');
+        await expect(chipLabel(page, 'model')).resolves.toBe('Opus 5.5');
+        await expect(chipLabel(page, 'permission')).resolves.toBe('accept edits');
         await expect(page.getByTestId('streamline-github-badge').count()).resolves.toBe(1);
         await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
         await evidence(page, 'streamline-desktop-light-1440');
@@ -435,7 +441,7 @@ describe('Streamline New Session in the production style runtime', () => {
         await picker.waitFor();
         await evidence(page, 'streamline-chip-picker-dark-1440');
         await picker.getByRole('radio', { name: 'claude-sonnet-5' }).click();
-        await expect.poll(() => summaryText(page)).toContain('Uses claude-sonnet-5 with');
+        await expect.poll(() => summaryText(page)).toContain('Uses Sonnet 5 with');
         await evidence(page, 'streamline-desktop-dark-1440');
         expect(errors).toEqual([]);
         await page.close();
@@ -519,6 +525,33 @@ describe('Streamline New Session in the production style runtime', () => {
         expect(phone.errors).toEqual([]);
         await phone.page.close();
     }, 40_000);
+
+    it('fits long display labels in the phone segments at the 16 px floor', async () => {
+        const { page, errors } = await open({ mode: 'advanced', width: 390, height: 844 });
+        await page.getByTestId('advanced-sections').waitFor();
+        // A phone browser floors every label at 16 px.
+        await page.addStyleTag({ content: '[data-testid="advanced-sections"] [role="radiogroup"] div[dir] { font-size: 16px !important; }' });
+        await page.waitForTimeout(300);
+        for (const group of ['advanced-effort', 'advanced-permission', 'advanced-worktree']) {
+            const truncated = await page.getByTestId(group).evaluate((element) => [...element.querySelectorAll<HTMLElement>('[role="radio"] div[dir]')]
+                .filter((label) => label.scrollWidth > label.clientWidth + 1 || label.scrollHeight > label.clientHeight + 1)
+                .map((label) => label.textContent));
+            expect(truncated, group).toEqual([]);
+            const track = (await page.getByTestId(group).boundingBox())!;
+            expect(Math.round(track.width)).toBe(390 - 32);
+        }
+        await expect(page.getByTestId('advanced-permission').getByRole('radio', { name: 'accept edits' }).count()).resolves.toBe(1);
+        // The thumb sits under the selected segment, whatever its width.
+        const [thumb, selected] = await page.getByTestId('advanced-permission').evaluate((element) => {
+            const segment = element.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')!.getBoundingClientRect();
+            const bar = [...element.children].find((child) => child.getAttribute('role') !== 'radio')!.getBoundingClientRect();
+            return [[Math.round(bar.x), Math.round(bar.width)], [Math.round(segment.x), Math.round(segment.width)]];
+        });
+        expect(Math.abs(thumb[0] - selected[0])).toBeLessThanOrEqual(1);
+        expect(Math.abs(thumb[1] - selected[1])).toBeLessThanOrEqual(1);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it.runIf(!!process.env.HERD_STREAMLINE_EVIDENCE_DIR)('captures Advanced for the fidelity record', async () => {
         for (const theme of ['light', 'dark'] as const) {

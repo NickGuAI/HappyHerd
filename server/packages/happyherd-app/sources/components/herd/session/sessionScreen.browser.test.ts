@@ -690,7 +690,9 @@ describe('Session screen overhaul (Web)', () => {
         const permission = foreground.getByTestId('composer-chip-permission');
         await expect(agent.isVisible()).resolves.toBe(true);
         await expect(permission.isVisible()).resolves.toBe(true);
-        await expect(agent.innerText()).resolves.toContain('Claude Code');
+        // The chip names the harness as the mock does (UI overhaul).
+        await expect(agent.innerText()).resolves.toContain('Claude');
+        await expect(agent.innerText()).resolves.not.toContain('Claude Code');
         const model = foreground.getByTestId('composer-chip-model');
         const effort = foreground.getByTestId('composer-chip-effort');
         if (viewport === MOBILE) {
@@ -707,7 +709,7 @@ describe('Session screen overhaul (Web)', () => {
             })).resolves.toMatch(/auto|scroll/);
         }
         {
-            await expect(model.innerText()).resolves.toBe('claude-opus-5-5');
+            await expect(model.innerText()).resolves.toBe('Opus 5.5');
             await model.click();
             const popover = foreground.getByTestId('composer-chip-popover-model');
             await popover.waitFor({ state: 'visible', timeout: 3_000 });

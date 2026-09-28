@@ -27,6 +27,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSetting } from '@/sync/storage';
 import { hackMode, hackModes } from '@/sync/modeHacks';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
+import { getModelDisplayName, getPermissionModeDisplayName } from '@/utils/launchChoiceLabels';
 import { getUsageLimitDisplayPercentage, getUsageLimitRows, formatUsageLimitResetTime, type UsageLimitsLike } from '@/utils/sessionStatusBar';
 import { compactCount } from '@/utils/rigGitLineChanges';
 import { Theme } from '@/theme';
@@ -1918,6 +1919,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             : t('agentInput.permissionMode.title');
     const canOpenPermissionChip = !!props.onPermissionModeChange && availableModes.length > 0;
     const permissionChipTone = resolvePermissionChipTone(permissionModeKey);
+    // Chips show display labels ("Opus 5.5", "accept edits"), not the daemon's values.
+    const modelChipLabel = props.modelMode ? getModelDisplayName(props.modelMode) : modelLabel;
+    const permissionChipLabel = displayPermissionMode ? getPermissionModeDisplayName(displayPermissionMode) : null;
     const agentChip = props.agentChip;
     const chipElements = webActionMenu && !props.zenMode ? (
         <>
@@ -1940,7 +1944,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             {chipVisibility.model && props.modelMode ? (
                 <ComposerChip
                     ref={modelChipRef}
-                    label={modelLabel}
+                    label={modelChipLabel}
                     accessibilityLabel={t('agentInput.model.title')}
                     active={openPicker === 'model'}
                     onPress={canOpenModelPicker ? () => openChipPicker('model', modelChipRef) : undefined}
@@ -1959,8 +1963,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             ) : null}
             {chipVisibility.permission && showReadOnlyPermissionMode ? (
                 <ComposerChip
-                    label={permissionShortLabel ?? ''}
-                    accessibilityLabel={`${t('agentInput.permissionMode.title')}: ${permissionShortLabel}`}
+                    label={permissionChipLabel ?? ''}
+                    accessibilityLabel={`${t('agentInput.permissionMode.title')}: ${permissionChipLabel}`}
                     accessibilityRole="text"
                     tone={permissionChipTone}
                     testID="composer-permission-mode-readonly"
@@ -1968,8 +1972,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             ) : chipVisibility.permission && canOpenPermissionChip ? (
                 <ComposerChip
                     ref={permissionChipRef}
-                    label={permissionShortLabel ?? ''}
-                    icon={permissionShortLabel ? undefined : <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />}
+                    label={permissionChipLabel ?? ''}
+                    icon={permissionChipLabel ? undefined : <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />}
                     accessibilityLabel={permissionSectionTitleForChip}
                     tone={permissionChipTone}
                     active={openPicker === 'permission-chip'}

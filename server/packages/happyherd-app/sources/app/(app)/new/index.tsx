@@ -153,6 +153,7 @@ import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { useShortcutHints } from '@/components/ShortcutHints';
 import { formatShortcut } from '@/keyboard/shortcuts';
+import { getHarnessChipName, getModelDisplayName, getPermissionModeDisplayName } from '@/utils/launchChoiceLabels';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -3091,13 +3092,13 @@ function NewSessionScreen() {
     const streamlineChips = React.useMemo<StreamlineChip[]>(() => [
         {
             key: 'agent',
-            label: getHarnessName(agent.key),
+            label: getHarnessChipName(agent.key),
             accent: true,
             icon: <AgentProviderIcon agent={agent.key} size={13} tintColor={theme.colors.textLink} />,
         },
-        ...(showModel && currentModel ? [{ key: 'model' as const, label: currentModel.name }] : []),
+        ...(showModel && currentModel ? [{ key: 'model' as const, label: getModelDisplayName(currentModel) }] : []),
         ...(showEffort && currentEffort ? [{ key: 'effort' as const, label: currentEffort.name }] : []),
-        ...(showPermission && currentPermission ? [{ key: 'permission' as const, label: currentPermission.name }] : []),
+        ...(showPermission && currentPermission ? [{ key: 'permission' as const, label: getPermissionModeDisplayName(currentPermission) }] : []),
         ...(canPickWorktree ? [{
             key: 'worktree' as const,
             label: worktreeLabel,
@@ -3493,7 +3494,7 @@ function NewSessionScreen() {
             pathOpen={activePicker === 'path'}
             onTogglePath={() => togglePicker('path')}
             pathPopover={streamlinePathPicker}
-            providers={availableAgents.map((candidate) => ({ key: candidate.key, label: candidate.label, disabled: candidate.disabled }))}
+            providers={availableAgents.map((candidate) => ({ key: candidate.key, label: getHarnessChipName(candidate.key), disabled: candidate.disabled }))}
             providerKey={selectedAgent}
             // The mock shows Claude's mark in its own color.
             renderProviderIcon={(key, color) => (
@@ -3502,7 +3503,7 @@ function NewSessionScreen() {
             onSelectProvider={(key) => applyPickerSelection('agent', key)}
             // The model picker's order and provider groups; unavailable models last, disabled.
             models={modelModes.length > 0
-                ? getModePickerItems(modelModes).map((item) => ({ key: item.key, label: item.label, disabled: !!item.disabled, section: item.section }))
+                ? getModePickerItems(modelModes).map((item) => ({ key: item.key, label: getModelDisplayName({ key: item.key, name: item.label }), disabled: !!item.disabled, section: item.section }))
                 : null}
             modelKey={currentModelKey}
             onSelectModel={(key) => applyPickerSelection('model', key)}
@@ -3513,7 +3514,7 @@ function NewSessionScreen() {
             onSelectEffort={(key) => applyPickerSelection('effort', key)}
             permissionTitle={selectedAgent === 'codex' ? t('agentInput.codexPermissionMode.title') : t('agentInput.permissionMode.title')}
             permissions={showPermission
-                ? permissionModes.map((mode) => ({ key: mode.key, label: mode.name, disabled: !!(mode.disabled || mode.unavailable) }))
+                ? permissionModes.map((mode) => ({ key: mode.key, label: getPermissionModeDisplayName(mode), disabled: !!(mode.disabled || mode.unavailable) }))
                 : null}
             permissionKey={currentPermission?.key ?? null}
             onSelectPermission={(key) => applyPickerSelection('permission', key)}
@@ -3559,9 +3560,9 @@ function NewSessionScreen() {
     const streamlineSummary = streamline && currentModel && currentEffort && currentPermission ? (
         <StreamlineSummary
             summary={t('newSession.streamline.defaultsSummary', {
-                model: currentModel.name,
+                model: getModelDisplayName(currentModel),
                 effort: currentEffort.name,
-                permission: currentPermission.name,
+                permission: getPermissionModeDisplayName(currentPermission),
             })}
             worktree={worktreeKey === '__new__'}
             onOpenSettings={() => router.push('/settings/streamline' as any)}

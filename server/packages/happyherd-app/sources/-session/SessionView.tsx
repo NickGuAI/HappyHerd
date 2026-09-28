@@ -84,7 +84,7 @@ import { GitFileStatus } from '@/sync/gitStatusFiles';
 import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { formatPathRelativeToHome, getResumeCommandBlock, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
-import { getHarnessName } from '@/utils/harnessCatalog';
+import { getHarnessChipName } from '@/utils/launchChoiceLabels';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons, Octicons } from '@expo/vector-icons';
@@ -1843,7 +1843,7 @@ export function SessionViewLoaded({
     const composerAgentChip = React.useMemo(() => (
         Platform.OS === 'web' && !embedded && agentChipFlavor
             ? {
-                label: getHarnessName(agentChipFlavor),
+                label: getHarnessChipName(agentChipFlavor),
                 providerKind: agentChipFlavor,
                 onPress: canContinueWithProvider ? openProviderContinuationSheet : undefined,
             }

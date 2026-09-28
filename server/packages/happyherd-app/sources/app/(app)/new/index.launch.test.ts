@@ -974,7 +974,7 @@ describe('Advanced New Session as the mock lays it out (UI overhaul)', () => {
         expect(byTestId(renderer, 'advanced-effort')[0].findAllByType('Pressable' as any).map((node: any) => node.props.accessibilityLabel))
             .toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
         expect(byTestId(renderer, 'advanced-permission')[0].findAllByType('Pressable' as any).map((node: any) => node.props.accessibilityLabel))
-            .toEqual(['default', 'acceptEdits', 'bypassPermissions']);
+            .toEqual(['agentInput.permissionMode.default', 'agentInput.permissionMode.acceptEdits', 'agentInput.permissionMode.bypassPermissions']);
         expect(testIds(renderer, 'advanced-commander-')).toEqual(['advanced-commander-none', 'advanced-commander-athena', 'advanced-commander-create']);
         expect(findRadio(renderer, 'Project Alpha')).toBeDefined();
         // The composer echoes the choices; the page carries its title, so no header row.
@@ -1011,7 +1011,7 @@ describe('Advanced New Session as the mock lays it out (UI overhaul)', () => {
             .find((node: any) => node.props.accessibilityLabel === label)!;
         await act(async () => findRadio(renderer, 'Opus 5.5')!.props.onPress());
         await act(async () => segment('advanced-effort', 'high').props.onPress());
-        await act(async () => segment('advanced-permission', 'acceptEdits').props.onPress());
+        await act(async () => segment('advanced-permission', 'agentInput.permissionMode.acceptEdits').props.onPress());
         await act(async () => findRadio(renderer, 'Project Alpha')!.props.onPress());
         await settle(renderer);
         expect(mocks.draft.setModelMode).toHaveBeenLastCalledWith('claude-opus-5-5');

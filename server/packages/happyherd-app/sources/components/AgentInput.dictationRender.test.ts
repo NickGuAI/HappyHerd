@@ -368,6 +368,18 @@ describe('AgentInput Web composer chips', () => {
         act(() => composer.props.onLayout({ nativeEvent: { layout: { width, height: 120, x: 0, y: 0 } } }));
     }
 
+    it('labels the model and permission chips with display names, not the daemon values', () => {
+        const { renderer } = renderMobileActionInput({
+            modelMode: { key: 'claude-opus-5-5', name: 'claude-opus-5-5' },
+            permissionMode: { key: 'acceptEdits', name: 'acceptEdits' },
+        }, 1200);
+        const label = (testID: string) => chip(renderer, testID).findAllByType('Text' as any)
+            .map((node: any) => node.props.children).join('');
+        expect(label('composer-chip-model')).toBe('Opus 5.5');
+        expect(label('composer-chip-permission')).toBe('agentInput.permissionMode.acceptEdits');
+        act(() => renderer.unmount());
+    });
+
     it('shows agent, model, effort and permission chips on Web Desktop and opens each picker', () => {
         const onContinue = vi.fn();
         const { callbacks, renderer } = renderMobileActionInput({

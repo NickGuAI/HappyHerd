@@ -1668,7 +1668,7 @@ describe('Side chats browser interaction', () => {
             expect((await sidebar.boundingBox())?.width).toBeLessThanOrEqual(977);
             await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
             // The mock's chips and path button use its own sizes; the path browser rows stay at 16 px.
-            await expectUntruncatedText(sidebar.getByTestId('advanced-sections').getByText('claude-sonnet-4-5', { exact: true }), null);
+            await expectUntruncatedText(sidebar.getByTestId('advanced-sections').getByText('Sonnet 4.5', { exact: true }), null);
             const pathTrigger = sidebar.getByText(newSessionProjectPath, { exact: true });
             await expectUntruncatedText(pathTrigger, null);
             await pathTrigger.click();
