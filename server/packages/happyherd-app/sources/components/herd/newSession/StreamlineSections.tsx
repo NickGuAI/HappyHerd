@@ -57,97 +57,8 @@ export function StreamlineSections(props: {
     const { theme } = useUnistyles();
     const selectedKnown = props.folders.some(props.isFolderSelected);
 
-    let index = 0;
-    const commanderCards = props.compact ? [
-        <SquareCard
-            key="none"
-            index={index++}
-            selected={!props.commanderId}
-            onPress={() => props.onSelectCommander(null)}
-            testID="streamline-commander-none"
-            accessibilityLabel={`${t('uiCopy.noCommander')}, ${t('uiCopy.useGlobalAgentsMdOnly')}`}
-            leading={<View style={[styles.glyph, styles.glyphSquare]}><Ionicons name="document-text-outline" size={18} color={theme.colors.textSecondary} /></View>}
-            title={t('uiCopy.noCommander')}
-        />,
-        ...props.commanders.map((commander) => (
-            <SquareCard
-                key={commander.id}
-                index={index++}
-                selected={props.commanderId === commander.id}
-                onPress={() => props.onSelectCommander(commander.id)}
-                testID={`streamline-commander-${commander.id}`}
-                accessibilityLabel={commander.role ? `${commander.name}, ${commander.role}` : commander.name}
-                leading={(
-                    <CommanderSessionAvatar
-                        accessible={false}
-                        machineId={props.commanderMachineId}
-                        commanderId={commander.id}
-                        commanderName={commander.name}
-                        size={44}
-                    />
-                )}
-                title={commander.name}
-            />
-        )),
-        <SquareCard
-            key="create"
-            index={index++}
-            dashed
-            accent
-            role="button"
-            onPress={props.onCreateCommander}
-            testID="streamline-commander-create"
-            accessibilityLabel={t('happyHerd.commander.createTitle')}
-            leading={<View style={[styles.glyph, styles.glyphSquare, styles.glyphDashed]}><Ionicons name="add" size={18} color={theme.colors.textLink} /></View>}
-            title={t('common.create')}
-        />,
-    ] : [
-        <ChoiceCard
-            key="none"
-            index={index++}
-            width={COMMANDER_CARD_WIDTH}
-            selected={!props.commanderId}
-            onPress={() => props.onSelectCommander(null)}
-            testID="streamline-commander-none"
-            leading={<View style={styles.glyph}><Ionicons name="document-text-outline" size={16} color={theme.colors.textSecondary} /></View>}
-            title={t('uiCopy.noCommander')}
-            subtitle={t('uiCopy.useGlobalAgentsMdOnly')}
-        />,
-        ...props.commanders.map((commander) => (
-            <ChoiceCard
-                key={commander.id}
-                index={index++}
-                width={COMMANDER_CARD_WIDTH}
-                selected={props.commanderId === commander.id}
-                onPress={() => props.onSelectCommander(commander.id)}
-                testID={`streamline-commander-${commander.id}`}
-                leading={(
-                    <CommanderSessionAvatar
-                        accessible={false}
-                        machineId={props.commanderMachineId}
-                        commanderId={commander.id}
-                        commanderName={commander.name}
-                        size={34}
-                    />
-                )}
-                title={commander.name}
-                subtitle={commander.role ?? undefined}
-            />
-        )),
-        <ChoiceCard
-            key="create"
-            index={index++}
-            width={COMMANDER_CARD_WIDTH}
-            dashed
-            onPress={props.onCreateCommander}
-            testID="streamline-commander-create"
-            leading={<View style={[styles.glyph, styles.glyphDashed]}><Ionicons name="add" size={16} color={theme.colors.textLink} /></View>}
-            title={t('happyHerd.commander.createTitle')}
-            subtitle={t('happyHerd.commander.createSubtitle')}
-            accent
-        />,
-    ];
-
+    // Folder cards continue the Commander cards' entrance stagger.
+    let index = props.commanders.length + 2;
     const folderCards = props.compact ? [
         ...props.folders.map((folder) => (
             <StreamlineFolderChip
@@ -229,24 +140,17 @@ export function StreamlineSections(props: {
         />,
     ];
 
-    const projectChips = [
-        <ProjectChip key="none" label={t('projects.noProject')} selected={!props.projectId} touch={props.compact} onPress={() => props.onSelectProject(null)} />,
-        ...props.projects.map((project) => (
-            <ProjectChip
-                key={project.id}
-                label={project.name}
-                selected={props.projectId === project.id}
-                focus={props.focusProjectId === project.id}
-                touch={props.compact}
-                onPress={() => props.onSelectProject(project.id)}
-            />
-        )),
-    ];
-
     return (
         <View style={styles.root} testID="streamline-sections">
             <StreamlineLabel>{t('happyHerd.commander.category')}</StreamlineLabel>
-            <ChoiceRow compact={props.compact}>{commanderCards}</ChoiceRow>
+            <StreamlineCommanderChoices
+                compact={props.compact}
+                commanders={props.commanders}
+                machineId={props.commanderMachineId}
+                selectedId={props.commanderId}
+                onSelect={props.onSelectCommander}
+                onCreate={props.onCreateCommander}
+            />
             {props.commanderNote ? <Text style={styles.note}>{props.commanderNote}</Text> : null}
 
             <StreamlineLabel>{t('newSession.streamline.whereLabel')}</StreamlineLabel>
@@ -254,9 +158,150 @@ export function StreamlineSections(props: {
             {props.chooseFolderPopover}
 
             <StreamlineLabel>{t('projects.project')}</StreamlineLabel>
-            {/* Project chips wrap on every width. */}
-            <ChoiceRow compact={false} chips>{projectChips}</ChoiceRow>
+            <StreamlineProjectChoices
+                compact={props.compact}
+                projects={props.projects}
+                projectId={props.projectId}
+                focusProjectId={props.focusProjectId}
+                onSelect={props.onSelectProject}
+            />
         </View>
+    );
+}
+
+/**
+ * The Commander choices: no Commander, each Commander, and Create Commander.
+ * Wide layouts wrap cards; phones scroll square cards sideways. Streamline and
+ * Advanced share them (UI overhaul).
+ */
+export function StreamlineCommanderChoices(props: {
+    compact: boolean;
+    commanders: readonly StreamlineCommanderOption[];
+    machineId: string | null;
+    selectedId: string | null;
+    onSelect: (id: string | null) => void;
+    onCreate: () => void;
+    /** Test ID prefix; Streamline keeps `streamline`. */
+    testIDPrefix?: string;
+}) {
+    const { theme } = useUnistyles();
+    const prefix = props.testIDPrefix ?? 'streamline';
+    let index = 0;
+    const commanderCards = props.compact ? [
+        <SquareCard
+            key="none"
+            index={index++}
+            selected={!props.selectedId}
+            onPress={() => props.onSelect(null)}
+            testID={`${prefix}-commander-none`}
+            accessibilityLabel={`${t('uiCopy.noCommander')}, ${t('uiCopy.useGlobalAgentsMdOnly')}`}
+            leading={<View style={[styles.glyph, styles.glyphSquare]}><Ionicons name="document-text-outline" size={18} color={theme.colors.textSecondary} /></View>}
+            title={t('uiCopy.noCommander')}
+        />,
+        ...props.commanders.map((commander) => (
+            <SquareCard
+                key={commander.id}
+                index={index++}
+                selected={props.selectedId === commander.id}
+                onPress={() => props.onSelect(commander.id)}
+                testID={`${prefix}-commander-${commander.id}`}
+                accessibilityLabel={commander.role ? `${commander.name}, ${commander.role}` : commander.name}
+                leading={(
+                    <CommanderSessionAvatar
+                        accessible={false}
+                        machineId={props.machineId}
+                        commanderId={commander.id}
+                        commanderName={commander.name}
+                        size={44}
+                    />
+                )}
+                title={commander.name}
+            />
+        )),
+        <SquareCard
+            key="create"
+            index={index++}
+            dashed
+            accent
+            role="button"
+            onPress={props.onCreate}
+            testID={`${prefix}-commander-create`}
+            accessibilityLabel={t('happyHerd.commander.createTitle')}
+            leading={<View style={[styles.glyph, styles.glyphSquare, styles.glyphDashed]}><Ionicons name="add" size={18} color={theme.colors.textLink} /></View>}
+            title={t('common.create')}
+        />,
+    ] : [
+        <ChoiceCard
+            key="none"
+            index={index++}
+            width={COMMANDER_CARD_WIDTH}
+            selected={!props.selectedId}
+            onPress={() => props.onSelect(null)}
+            testID={`${prefix}-commander-none`}
+            leading={<View style={styles.glyph}><Ionicons name="document-text-outline" size={16} color={theme.colors.textSecondary} /></View>}
+            title={t('uiCopy.noCommander')}
+            subtitle={t('uiCopy.useGlobalAgentsMdOnly')}
+        />,
+        ...props.commanders.map((commander) => (
+            <ChoiceCard
+                key={commander.id}
+                index={index++}
+                width={COMMANDER_CARD_WIDTH}
+                selected={props.selectedId === commander.id}
+                onPress={() => props.onSelect(commander.id)}
+                testID={`${prefix}-commander-${commander.id}`}
+                leading={(
+                    <CommanderSessionAvatar
+                        accessible={false}
+                        machineId={props.machineId}
+                        commanderId={commander.id}
+                        commanderName={commander.name}
+                        size={34}
+                    />
+                )}
+                title={commander.name}
+                subtitle={commander.role ?? undefined}
+            />
+        )),
+        <ChoiceCard
+            key="create"
+            index={index++}
+            width={COMMANDER_CARD_WIDTH}
+            dashed
+            onPress={props.onCreate}
+            testID={`${prefix}-commander-create`}
+            leading={<View style={[styles.glyph, styles.glyphDashed]}><Ionicons name="add" size={16} color={theme.colors.textLink} /></View>}
+            title={t('happyHerd.commander.createTitle')}
+            subtitle={t('happyHerd.commander.createSubtitle')}
+            accent
+        />,
+    ];
+
+    return <ChoiceRow compact={props.compact}>{commanderCards}</ChoiceRow>;
+}
+
+/** The project chips, No Project first; they wrap on every width. */
+export function StreamlineProjectChoices(props: {
+    compact: boolean;
+    projects: readonly StreamlineProjectOption[];
+    projectId: string | null;
+    focusProjectId?: string | null;
+    onSelect: (id: string | null) => void;
+}) {
+    return (
+        <ChoiceRow compact={false} chips>
+            <ProjectChip key="none" label={t('projects.noProject')} selected={!props.projectId} touch={props.compact} onPress={() => props.onSelect(null)} />
+            {props.projects.map((project) => (
+                <ProjectChip
+                    key={project.id}
+                    label={project.name}
+                    selected={props.projectId === project.id}
+                    focus={props.focusProjectId === project.id}
+                    touch={props.compact}
+                    onPress={() => props.onSelect(project.id)}
+                />
+            ))}
+        </ChoiceRow>
     );
 }
 
