@@ -10,6 +10,7 @@ import { herdStaggerClass, herdWebClasses } from '../motion';
 import {
     StreamlineCommanderChoices,
     StreamlineLabel,
+    StreamlineLabelLink,
     StreamlineProjectChoices,
     type StreamlineCommanderOption,
     type StreamlineProjectOption,
@@ -277,16 +278,11 @@ export function AdvancedSections(props: {
                     ) : <View style={styles.column} />}
                 </Grid>
                 <StreamlineLabel trailing={(
-                    <Pressable
-                        accessibilityRole="link"
-                        accessibilityLabel={t('happyHerd.commander.category')}
+                    <StreamlineLabelLink
+                        label={t('happyHerd.commander.category')}
                         onPress={props.onOpenCommanders}
                         testID="advanced-open-commanders"
-                        style={({ hovered, pressed }: any) => [styles.labelLink, (hovered || pressed) && styles.labelLinkHovered]}
-                    >
-                        <Text style={styles.labelLinkText}>{t('happyHerd.commander.category')}</Text>
-                        <Ionicons name="chevron-forward" size={13} color={theme.colors.textSecondary} />
-                    </Pressable>
+                    />
                 )}>
                     {t('happyHerd.commander.category')}
                 </StreamlineLabel>
@@ -555,24 +551,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     disabled: {
         opacity: theme.kilv.disabledOpacity,
-    },
-    labelLink: {
-        marginLeft: 'auto',
-        height: 30,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        borderRadius: theme.kilv.radius,
-        _web: { _classNames: herdWebClasses('herd-transition') },
-    },
-    labelLinkHovered: {
-        backgroundColor: theme.colors.surfaceHighest,
-    },
-    labelLinkText: {
-        fontSize: 13.5,
-        color: theme.colors.text,
-        ...Typography.default(),
     },
     note: {
         marginTop: 8,

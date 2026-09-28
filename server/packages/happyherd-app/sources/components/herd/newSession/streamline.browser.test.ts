@@ -402,6 +402,19 @@ describe('Streamline New Session in the production style runtime', () => {
         await expect(chipLabel(page, 'permission')).resolves.toBe('accept edits');
         await expect(page.getByTestId('streamline-github-badge').count()).resolves.toBe(1);
         await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
+        // Folders show home-relative paths, as the mock does.
+        await expect(page.getByTestId('streamline-folder-studio-mac-notes').innerText()).resolves.toContain('~/notes');
+        await expect(page.getByTestId('streamline-folder-gpu-lab-bench').innerText()).resolves.toContain('~/bench');
+        await expect(page.getByTestId('streamline-sections').innerText()).resolves.not.toContain('/Users/example-user');
+        // "Commanders ›" on the COMMANDERS label row opens the Commanders page.
+        const commandersLink = page.getByTestId('streamline-open-commanders');
+        const [linkBox, headingBox] = await Promise.all([
+            commandersLink.boundingBox(),
+            page.getByTestId('streamline-sections').getByRole('heading', { name: 'Commanders', exact: true }).boundingBox(),
+        ]);
+        expect(Math.abs((linkBox!.y + linkBox!.height / 2) - (headingBox!.y + headingBox!.height / 2))).toBeLessThanOrEqual(2);
+        await commandersLink.click();
+        await expect.poll(() => page.evaluate(() => (window as any).__ROUTES__ ?? [])).toContain('/commanders');
         await evidence(page, 'streamline-desktop-light-1440');
         expect(errors).toEqual([]);
         await page.close();

@@ -7,10 +7,12 @@ import { CommanderSessionAvatar } from '@/components/CommanderSessionAvatar';
 import { Typography } from '@/constants/Typography';
 import { useGithubRepository, type GithubRepositoryStatus } from '@/sync/githubRepository';
 import { t } from '@/text';
+import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { herdStaggerClass, herdWebClasses } from '../motion';
 
 export type StreamlineCommanderOption = { id: string; name: string; role?: string | null };
-export type StreamlineFolderOption = { machineId: string; path: string; name: string; machineName: string; online: boolean };
+/** `homeDir` lets the folder show home-relative (`~/code/web-app`). */
+export type StreamlineFolderOption = { machineId: string; path: string; name: string; machineName: string; online: boolean; homeDir?: string | null };
 export type StreamlineProjectOption = { id: string; name: string };
 
 const FOLDER_CARD_WIDTH = 246;
@@ -28,6 +30,23 @@ export function StreamlineLabel({ children, trailing }: { children: React.ReactN
     );
 }
 
+/** A section label's trailing link, such as "Commanders ›" (UI overhaul). */
+export function StreamlineLabelLink({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) {
+    const { theme } = useUnistyles();
+    return (
+        <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={label}
+            onPress={onPress}
+            testID={testID}
+            style={({ hovered, pressed }: any) => [styles.labelLink, (hovered || pressed) && styles.labelLinkHovered]}
+        >
+            <Text style={styles.labelLinkText}>{label}</Text>
+            <Ionicons name="chevron-forward" size={13} color={theme.colors.textSecondary} />
+        </Pressable>
+    );
+}
+
 /**
  * The three Streamline choices: Commander, working folder and project. Wide
  * layouts wrap the cards. Phones (UI overhaul) scroll square Commander cards
@@ -41,8 +60,9 @@ export function StreamlineSections(props: {
     commanderNote?: string | null;
     onSelectCommander: (id: string | null) => void;
     onCreateCommander: () => void;
+    onOpenCommanders: () => void;
     folders: readonly StreamlineFolderOption[];
-    selectedFolder: { machineId: string | null; path: string | null; name: string; machineName: string | null } | null;
+    selectedFolder: { machineId: string | null; path: string | null; name: string; machineName: string | null; homeDir?: string | null } | null;
     /** Canonical match of a folder against the selection (machine and normalized path). */
     isFolderSelected: (folder: { machineId: string; path: string }) => boolean;
     onSelectFolder: (folder: StreamlineFolderOption) => void;
@@ -77,6 +97,7 @@ export function StreamlineSections(props: {
                     name: props.selectedFolder.name,
                     machineName: props.selectedFolder.machineName ?? props.selectedFolder.machineId,
                     online: true,
+                    homeDir: props.selectedFolder.homeDir,
                 }}
                 selected
                 onPress={props.onChooseFolder}
@@ -120,6 +141,7 @@ export function StreamlineSections(props: {
                     name: props.selectedFolder.name,
                     machineName: props.selectedFolder.machineName ?? props.selectedFolder.machineId,
                     online: true,
+                    homeDir: props.selectedFolder.homeDir,
                 }}
                 selected
                 onPress={props.onChooseFolder}
@@ -142,7 +164,13 @@ export function StreamlineSections(props: {
 
     return (
         <View style={styles.root} testID="streamline-sections">
-            <StreamlineLabel>{t('happyHerd.commander.category')}</StreamlineLabel>
+            <StreamlineLabel trailing={(
+                <StreamlineLabelLink
+                    label={t('happyHerd.commander.category')}
+                    onPress={props.onOpenCommanders}
+                    testID="streamline-open-commanders"
+                />
+            )}>{t('happyHerd.commander.category')}</StreamlineLabel>
             <StreamlineCommanderChoices
                 compact={props.compact}
                 commanders={props.commanders}
@@ -411,7 +439,7 @@ function StreamlineFolderChip({ folder, selected, onPress }: {
     const repository = useGithubRepository(folder.online ? folder.machineId : null, folder.path);
     const label = [
         folder.name,
-        folder.path,
+        formatPathRelativeToHome(folder.path, folder.homeDir ?? undefined),
         folder.machineName,
         repository.status === 'github' ? t('newSession.streamline.githubBadge') : null,
         folder.online ? null : t('status.offline'),
@@ -473,7 +501,7 @@ function StreamlineFolderCard({ folder, selected, index, onPress }: {
                     </Text>
                 </View>
             ) : null}
-            subtitle={folder.path}
+            subtitle={formatPathRelativeToHome(folder.path, folder.homeDir ?? undefined)}
             detail={(
                 <View style={styles.machineLine}>
                     <View style={[styles.dot, folder.online ? styles.dotOnline : styles.dotOffline]} />
@@ -524,6 +552,24 @@ const styles = StyleSheet.create((theme) => ({
         textTransform: 'uppercase',
         color: theme.colors.textLink,
         ...Typography.mono('semiBold'),
+    },
+    labelLink: {
+        marginLeft: 'auto',
+        height: 30,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        borderRadius: theme.kilv.radius,
+        _web: { _classNames: herdWebClasses('herd-transition') },
+    },
+    labelLinkHovered: {
+        backgroundColor: theme.colors.surfaceHighest,
+    },
+    labelLinkText: {
+        fontSize: 13.5,
+        color: theme.colors.text,
+        ...Typography.default(),
     },
     note: {
         marginTop: 8,

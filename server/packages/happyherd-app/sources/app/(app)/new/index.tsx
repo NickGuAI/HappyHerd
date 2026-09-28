@@ -1693,6 +1693,11 @@ function NewSessionScreen() {
         [selectedMachineId, streamlineCommanders],
     );
     const streamlineFolders = useStreamlineLocations(streamlineCommanderWorkspaces);
+    // Folder cards show home-relative paths, as the mock does.
+    const streamlineFolderOptions = React.useMemo<StreamlineFolderOption[]>(() => streamlineFolders.map((folder) => ({
+        ...folder,
+        homeDir: allMachines.find((machine) => machine.id === folder.machineId)?.metadata?.homeDir ?? null,
+    })), [allMachines, streamlineFolders]);
     const selectStreamlineCommander = React.useCallback((commanderId: string | null) => {
         setSelectedCommanderId(commanderId);
         const commander = commanderId ? streamlineCommanders.find((candidate) => candidate.id === commanderId) : null;
@@ -3457,12 +3462,14 @@ function NewSessionScreen() {
             commanderNote={commanderLoadError}
             onSelectCommander={selectStreamlineCommander}
             onCreateCommander={applyCommanderOnboardingIntent}
-            folders={streamlineFolders}
+            onOpenCommanders={() => router.push('/commanders' as any)}
+            folders={streamlineFolderOptions}
             selectedFolder={selectedMachineId && selectedPath ? {
                 machineId: selectedMachineId,
                 path: selectedPath,
                 name: trimTrailingPathSeparator(trimPathInput(selectedPath)).split(/[\\/]/).pop() || selectedPath,
                 machineName: selectedMachine ? getMachineName(selectedMachine) : null,
+                homeDir: selectedHomeDir,
             } : null}
             isFolderSelected={isStreamlineFolderSelected}
             onSelectFolder={selectStreamlineFolder}
