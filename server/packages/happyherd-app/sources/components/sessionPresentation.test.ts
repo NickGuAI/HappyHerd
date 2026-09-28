@@ -512,6 +512,19 @@ describe('page headers', () => {
         expect(screenOptions('settings/appearance').header).toBe(header);
     });
 
+    it('paints desktop Web pages on the mock\'s page background and takes the Automations title from the catalog', async () => {
+        const { useUnistyles } = await import('react-native-unistyles');
+        const page = (useUnistyles as any)().theme.colors.groupped.background;
+        state.platform = 'web';
+        state.tablet = true;
+        const options = screenOptions('index');
+        expect(options.contentStyle.backgroundColor).toBe(page);
+        expect(options.contentStyle.backgroundColor).not.toBe('surface');
+        const layout = render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 0, bottom: 0, left: 0, right: 0 } }, React.createElement(RootLayout)));
+        const automations = layout.root.findAll((node: any) => node.type === 'StackScreen' && node.props.name === 'automations/index');
+        expect(automations[0].props.options.headerTitle).toBe('happyHerd.automations.title');
+    });
+
     it('keeps UIKit\'s header on a signed-out iPhone page, with no top bar above it', () => {
         state.platform = 'ios';
         state.tablet = false;

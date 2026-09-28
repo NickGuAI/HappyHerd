@@ -36,9 +36,8 @@ export default function RootLayout() {
         <View
             style={{
                 flex: 1,
-                backgroundColor: isDesktop
-                    ? theme.colors.surface
-                    : theme.colors.groupped.background,
+                // The mock's near-black page (light: warm paper) on every platform; cards stay on surface.
+                backgroundColor: theme.colors.groupped.background,
             }}
         >
             <MobileGlassBackdrop enabled={!isDesktop} />
@@ -51,9 +50,7 @@ export default function RootLayout() {
                 headerBackButtonDisplayMode: Platform.OS === 'ios' ? 'minimal' : undefined,
                 headerShadowVisible: false,
                 contentStyle: {
-                    backgroundColor: isDesktop
-                        ? theme.colors.surface
-                        : theme.colors.groupped.background,
+                    backgroundColor: theme.colors.groupped.background,
                 },
                 headerStyle: {
                     backgroundColor: isDesktop ? theme.colors.header.background : 'transparent',
@@ -188,7 +185,7 @@ export default function RootLayout() {
                 name="automations/index"
                 options={{
                     headerShown: true,
-                    headerTitle: 'Automations',
+                    headerTitle: t('happyHerd.automations.title'),
                     headerBackTitle: t('common.back'),
                 }}
             />
