@@ -205,6 +205,14 @@ describe('HappyHerdAutomationDetail', () => {
         expect(String([next[0].props.children].flat().join(''))).toMatch(/^happyHerd\.automations\.nextRun/);
     });
 
+    it('leaves the mock\'s 14 px between the instructions and the action row', () => {
+        const { renderer } = renderDetail();
+        const row = renderer.root.findByProps({ testID: 'automation-actions' });
+        const style = Object.assign({}, ...[row.props.style].flat(Infinity).filter(Boolean));
+        expect(style.marginTop).toBe(14);
+        expect(row.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'happyHerd.automations.runNow')).toHaveLength(1);
+    });
+
     it('labels a previous run that has a session "Open session"', () => {
         const { renderer } = renderDetail();
         expect(renderedText(renderer)).toContain('happyHerd.automations.openSessionLink');

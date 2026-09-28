@@ -183,7 +183,7 @@ export function HappyHerdAutomationDetail({
                 </>
             )}
 
-            <View style={styles.actions}>
+            <View testID="automation-actions" style={[styles.actions, styles.actionsAfterContent]}>
                 {!heartbeat && (
                     <HerdButton
                         size="sm"
@@ -347,6 +347,10 @@ const styles = StyleSheet.create((theme) => ({
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: 8,
+    },
+    // The mock's 14 px between the instructions (or command) and the action row.
+    actionsAfterContent: {
+        marginTop: 14,
     },
     nextRun: {
         marginLeft: 'auto',
