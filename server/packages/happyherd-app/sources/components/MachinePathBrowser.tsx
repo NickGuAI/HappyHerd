@@ -40,47 +40,21 @@ export function MachinePathBrowser({
     onDone?: () => void;
 }) {
     const { theme } = useUnistyles();
-    const root = React.useMemo(() => hostRoot(homeDir, platform), [homeDir, platform]);
-    const [currentDirectory, setCurrentDirectory] = React.useState(homeDir || root);
-    const [tree, setTree] = React.useState<DirectoryTreeNode | null>(null);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
-    const [showHidden, setShowHidden] = React.useState(true);
-
-    React.useEffect(() => {
-        setCurrentDirectory(homeDir || root);
-    }, [homeDir, machineId, root]);
-
-    const load = React.useCallback(async () => {
-        if (!machineId || !online) {
-            setTree(null);
-            setError(machineId ? 'Machine is offline' : 'Select a machine first');
-            return;
-        }
-        setLoading(true);
-        setError(null);
-        const result = await machineGetDirectoryTree(machineId, currentDirectory, 1);
-        setLoading(false);
-        if (!result.success || !result.tree) {
-            setTree(null);
-            setError(result.error || 'Unable to read this directory');
-            return;
-        }
-        setTree(result.tree);
-    }, [currentDirectory, machineId, online]);
-
-    React.useEffect(() => {
-        void load();
-    }, [load]);
-
+    const {
+        root,
+        currentDirectory,
+        setCurrentDirectory,
+        load,
+        loading,
+        error,
+        showHidden,
+        setShowHidden,
+        directories,
+        files,
+    } = useMachinePathTree({ machineId, homeDir, platform, online });
     const isFavorite = favorites.some((favorite) => (
         favorite.machineId === machineId && favorite.path === currentDirectory
     ));
-    const visibleEntries = tree?.children?.filter((entry) => (
-        showHidden || !entry.name.startsWith('.')
-    )) ?? [];
-    const directories = visibleEntries.filter((entry) => entry.type === 'directory');
-    const files = visibleEntries.filter((entry) => entry.type === 'file');
 
     return (
         <View style={styles.container}>
@@ -221,6 +195,67 @@ export function MachinePathBrowser({
             )}
         </View>
     );
+}
+
+/**
+ * One machine's folder listing: the directory being browsed, its entries, and
+ * the root, parent and refresh moves. New Session's browsers share it.
+ */
+export function useMachinePathTree({ machineId, homeDir, platform, online }: {
+    machineId: string | null;
+    homeDir?: string;
+    platform?: string;
+    online: boolean;
+}) {
+    const root = React.useMemo(() => hostRoot(homeDir, platform), [homeDir, platform]);
+    const [currentDirectory, setCurrentDirectory] = React.useState(homeDir || root);
+    const [tree, setTree] = React.useState<DirectoryTreeNode | null>(null);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [showHidden, setShowHidden] = React.useState(true);
+
+    React.useEffect(() => {
+        setCurrentDirectory(homeDir || root);
+    }, [homeDir, machineId, root]);
+
+    const load = React.useCallback(async () => {
+        if (!machineId || !online) {
+            setTree(null);
+            setError(machineId ? 'Machine is offline' : 'Select a machine first');
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        const result = await machineGetDirectoryTree(machineId, currentDirectory, 1);
+        setLoading(false);
+        if (!result.success || !result.tree) {
+            setTree(null);
+            setError(result.error || 'Unable to read this directory');
+            return;
+        }
+        setTree(result.tree);
+    }, [currentDirectory, machineId, online]);
+
+    React.useEffect(() => {
+        void load();
+    }, [load]);
+
+    const visibleEntries = tree?.children?.filter((entry) => (
+        showHidden || !entry.name.startsWith('.')
+    )) ?? [];
+    return {
+        root,
+        currentDirectory,
+        setCurrentDirectory,
+        goToParent: () => setCurrentDirectory(parentHostPath(currentDirectory, platform)),
+        load,
+        loading,
+        error,
+        showHidden,
+        setShowHidden,
+        directories: visibleEntries.filter((entry) => entry.type === 'directory'),
+        files: visibleEntries.filter((entry) => entry.type === 'file'),
+    };
 }
 
 const styles = StyleSheet.create({

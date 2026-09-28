@@ -1674,7 +1674,8 @@ describe('Side chats browser interaction', () => {
             await pathTrigger.click();
             const recent = sidebar.getByTestId('new-session-recent-path-list');
             await recent.waitFor();
-            await expectUntruncatedText(recent.getByText(newSessionRecentPath(0), { exact: true }));
+            // The mock's dropdown rows are 13 px mono.
+            await expectUntruncatedText(recent.getByText(newSessionRecentPath(0), { exact: true }), '13px');
             const hidden = sidebar.getByTestId('machine-path-show-hidden').getByRole('switch');
             await expect(hidden.isChecked()).resolves.toBe(true);
             await sidebar.getByRole('button', { name: 'Open folder .hidden', exact: true }).waitFor();
@@ -1705,7 +1706,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 15_000);
 
-    it('touch-scrolls the production New Session route folder list, recent list, and outer page on mobile', async () => {
+    it('touch-scrolls the production New Session route folder dropdown and outer page on mobile', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
@@ -1721,51 +1722,43 @@ describe('Side chats browser interaction', () => {
             await route.getByTestId('new-session-advanced').waitFor();
             await expect(page.evaluate(() => window.innerWidth)).resolves.toBe(390);
             await route.getByText(newSessionProjectPath, { exact: true }).tap();
-            const tree = route.getByTestId('machine-path-browser-tree');
-            const recent = route.getByTestId('new-session-recent-path-list');
-            await tree.waitFor();
-            const lastFolder = tree.getByRole('button', { name: 'Open folder folder-23', exact: true });
-            // Advanced (UI overhaul) scrolls in its own page; opening the browser focuses its
-            // path field, which scrolls that page. Gestures wait for it to come to rest.
+            // The mock's dropdown (UI overhaul): recent paths, then host folders, in one body.
+            const body = route.getByTestId('new-session-path-dropdown-body');
+            const dropdown = route.getByTestId('new-session-path-dropdown');
+            await route.getByTestId('machine-path-browser-tree').waitFor();
+            const lastFolder = body.getByRole('button', { name: 'Open folder folder-23', exact: true });
+            // Advanced scrolls in its own page. Gestures wait for it to come to rest.
             const outerPage = route.getByTestId('new-session-advanced');
+            const outerTop = () => outerPage.evaluate((element) => element.scrollTop);
             const settled = () => expect.poll(async () => {
-                const first = await outerPage.evaluate((element) => element.scrollTop);
+                const first = await outerTop();
                 await page.waitForTimeout(150);
-                return first === await outerPage.evaluate((element) => element.scrollTop);
+                return first === await outerTop();
             }).toBe(true);
+            await dropdown.scrollIntoViewIfNeeded();
             await settled();
-            await touchToEnd(page, tree, lastFolder);
+            // The body scrolls to its last folder; the page under it stays put.
+            const pageBefore = await outerTop();
+            await touchToEnd(page, body, lastFolder);
+            await expect(outerTop()).resolves.toBe(pageBefore);
             await tapVisibleRow(page, lastFolder);
-            await route.getByText('/work/project/folder-23', { exact: true }).waitFor();
-            await expect(tree.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
-            const lastRecent = recent.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
-            // The mock's phone form scrolls as one page; bring the recent list on screen first.
-            await recent.scrollIntoViewIfNeeded();
-            await settled();
-            await touchToEnd(page, recent, lastRecent);
-            const recentBox = await recent.boundingBox();
-            const lastRecentBox = await lastRecent.boundingBox();
-            if (!recentBox || !lastRecentBox) throw new Error('Recent path geometry is unavailable');
-            expect(lastRecentBox.y).toBeGreaterThanOrEqual(recentBox.y - 1);
-            expect(lastRecentBox.y + lastRecentBox.height).toBeLessThanOrEqual(recentBox.y + recentBox.height + 1);
-            // The inner-list gestures are already proved above. Establish a
-            // non-terminal starting position for the independent outer-page
-            // gesture; browser momentum may have reached the outer bottom.
-            await outerPage.evaluate((element) => element.scrollTo(0, 0));
-            await expect.poll(() => outerPage.evaluate((element) => element.scrollTop)).toBe(0);
-            await expect(outerPage.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
-            const scrollBefore = await outerPage.evaluate((element) => element.scrollTop);
-            await swipeUp(page, 385, 780, 240);
-            await expect.poll(() => outerPage.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollBefore);
-            // A coordinate tap needs the page's momentum to have settled first.
-            await settled();
+            await expect.poll(() => dropdown.innerText()).toContain('/work/project/folder-23');
+            await expect(body.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            // The last recent path, brought on screen inside the body, is chosen by a tap.
+            const lastRecent = body.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
             await lastRecent.scrollIntoViewIfNeeded();
             await settled();
             await tapVisibleRow(page, lastRecent);
             await expect.poll(() => page.evaluate(() => (window as any).__MODEL_PICKER_DRAFT__?.selectedPath))
                 .toBe(newSessionRecentPath(23));
-            await expect(route.getByTestId('new-session-recent-path-list').count()).resolves.toBe(0);
+            await expect(route.getByTestId('new-session-path-dropdown').count()).resolves.toBe(0);
             await route.getByText(newSessionRecentPath(23), { exact: true }).waitFor({ state: 'visible' });
+            // The outer page still takes its own gesture.
+            await outerPage.evaluate((element) => element.scrollTo(0, 0));
+            await expect.poll(outerTop).toBe(0);
+            await expect(outerPage.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            await swipeUp(page, 385, 780, 240);
+            await expect.poll(outerTop).toBeGreaterThan(0);
             expect(errors).toEqual([]);
         } finally {
             await page.close();

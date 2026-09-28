@@ -48,6 +48,7 @@ import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/m
 import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
 import { HerdWindowInsetsContext, useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { StreamlineSections, type StreamlineFolderOption } from '@/components/herd/newSession/StreamlineSections';
+import { PathDropdown } from '@/components/herd/newSession/PathDropdown';
 import { AdvancedSections, type AdvancedMachineOption } from '@/components/herd/newSession/AdvancedSections';
 import {
     StreamlineComposerChips,
@@ -612,6 +613,9 @@ function ComposerSettingsPickerContent({
         </View>
     );
 }
+
+/** Streamline's Choose folder card is narrower than the dropdown's bar. */
+const STREAMLINE_PATH_DROPDOWN_MIN_WIDTH = 360;
 
 function PathPickerContent({
     title,
@@ -3379,23 +3383,24 @@ function NewSessionScreen() {
         </View>
     ) : null;
 
-    // Advanced keeps the mock's inline folder browser under the path, on phones too.
+    // The mock's working-folder dropdown (UI overhaul), below the Advanced path
+    // field or Streamline's Choose folder card, over the form; on phones too for Advanced.
+    const pathDropdownProps = {
+        machineId: selectedMachineId,
+        machineName: selectedMachine ? getMachineName(selectedMachine) : null,
+        homeDir: selectedHomeDir,
+        platform: selectedMachine?.metadata?.platform,
+        online: !!selectedMachine && isMachineOnline(selectedMachine),
+        value: selectedPath,
+        recent: pathItems,
+        favorites: selectedMachineFavorites,
+        onToggleFavorite: toggleFavoritePath,
+        onChangeValue: setSelectedPath,
+        onDone: closePicker,
+        onClose: closePicker,
+    };
     const streamlinePathPicker = formPage && activePicker === 'path' && (!streamlinePhone || advancedPage) ? (
-        <View style={styles.streamlinePathPicker}>
-            <PathPickerContent
-                title={t('sessionInfo.path')}
-                items={pathItems}
-                value={selectedPath}
-                homeDir={selectedHomeDir}
-                machineId={selectedMachineId}
-                platform={selectedMachine?.metadata?.platform}
-                machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
-                favorites={selectedMachineFavorites}
-                onToggleFavorite={toggleFavoritePath}
-                onChangeValue={setSelectedPath}
-                onDone={closePicker}
-            />
-        </View>
+        <PathDropdown variant="anchored" touch={streamlinePhone} minWidth={streamline ? STREAMLINE_PATH_DROPDOWN_MIN_WIDTH : undefined} {...pathDropdownProps} />
     ) : null;
 
     // Phones (UI overhaul): the folder browser floats above the page, 8 px from
@@ -3430,19 +3435,7 @@ function NewSessionScreen() {
             >
                 {/* The card keeps its cap; the whole picker scrolls inside it. */}
                 <ScrollView style={styles.streamlinePathPickerPhoneBody} keyboardShouldPersistTaps="handled">
-                    <PathPickerContent
-                        title={t('sessionInfo.path')}
-                        items={pathItems}
-                        value={selectedPath}
-                        homeDir={selectedHomeDir}
-                        machineId={selectedMachineId}
-                        platform={selectedMachine?.metadata?.platform}
-                        machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
-                        favorites={selectedMachineFavorites}
-                        onToggleFavorite={toggleFavoritePath}
-                        onChangeValue={setSelectedPath}
-                        onDone={closePicker}
-                    />
+                    <PathDropdown variant="sheet" touch {...pathDropdownProps} />
                 </ScrollView>
             </View>
         </View>

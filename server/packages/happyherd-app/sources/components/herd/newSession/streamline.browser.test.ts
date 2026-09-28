@@ -539,6 +539,101 @@ describe('Streamline New Session in the production style runtime', () => {
         await phone.page.close();
     }, 40_000);
 
+    // Every visible control of the dropdown takes its own press: nothing below draws over it.
+    const dropdownOnTop = (page: Page) => page.getByTestId('new-session-path-dropdown').evaluate((dropdown) => {
+        const misses: string[] = [];
+        const bounds = dropdown.getBoundingClientRect();
+        let checked = 0;
+        for (const control of dropdown.querySelectorAll<HTMLElement>('[role="button"], [role="radio"], input')) {
+            const box = control.getBoundingClientRect();
+            const x = box.left + box.width / 2;
+            const y = box.top + box.height / 2;
+            // Rows scrolled out of the dropdown's own body are not on screen.
+            if (box.height === 0 || y <= bounds.top || y >= bounds.bottom || y >= innerHeight) continue;
+            checked += 1;
+            const top = document.elementFromPoint(x, y);
+            if (!top || !dropdown.contains(top)) misses.push(`${control.getAttribute('aria-label') ?? control.tagName} under ${top?.getAttribute('data-testid') ?? top?.tagName}`);
+        }
+        return checked > 4 ? misses : ['fewer than five controls on screen'];
+    });
+
+    it('opens the mock\'s folder dropdown over the form, from the Advanced path and Streamline\'s Choose folder', async () => {
+        const box = async (page: Page, testID: string) => (await page.getByTestId(testID).first().boundingBox())!;
+        const draftPath = (page: Page) => page.evaluate(() => (window as any).__DRAFT__?.selectedPath);
+        for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+            const { page, errors } = await open({ mode: 'advanced', width, height });
+            await page.getByTestId('advanced-sections').waitFor();
+            const provider = page.getByTestId(width < 700 ? 'advanced-effort' : 'advanced-model-claude-opus-5-5');
+            const before = (await provider.boundingBox())!;
+            await page.getByTestId('advanced-path').click();
+            const dropdown = page.getByTestId('new-session-path-dropdown');
+            await dropdown.getByRole('button', { name: 'Open folder code', exact: true }).waitFor();
+            await settle(page);
+            await expect(page.getByTestId('advanced-path').getAttribute('aria-expanded')).resolves.toBe('true');
+            // It hangs 8 px below the field, as wide as it, and floats: the form below does not move.
+            const path = await box(page, 'advanced-path');
+            const menu = await box(page, 'new-session-path-dropdown');
+            expect(Math.round(menu.x)).toBe(Math.round(path.x));
+            expect(Math.round(menu.width)).toBe(Math.round(path.width));
+            expect(Math.round(menu.y - (path.y + path.height))).toBe(8);
+            expect(menu.height).toBeLessThanOrEqual(360);
+            expect((await provider.boundingBox())!.y).toBeCloseTo(before.y, 0);
+            await expect(dropdownOnTop(page)).resolves.toEqual([]);
+            // The mock's order: Recent, Favorites (none saved here), Host folders.
+            const sections = await dropdown.evaluate((element) => [...element.querySelectorAll('div')]
+                .map((node) => node.textContent ?? '')
+                .filter((text) => text === 'Recent' || text === 'Host folders'));
+            expect([...new Set(sections)]).toEqual(['Recent', 'Host folders']);
+            // Browse into a folder, then use it.
+            await dropdown.getByRole('button', { name: 'Open folder code', exact: true }).click();
+            await expect.poll(() => dropdown.innerText()).toContain('studio-mac · ~/code');
+            await dropdown.getByRole('button', { name: 'Browse parent folder', exact: true }).click();
+            await expect.poll(() => dropdown.innerText()).toContain('studio-mac · ~\n');
+            await dropdown.getByRole('button', { name: 'Open folder code', exact: true }).click();
+            await dropdown.getByRole('button', { name: /^Use .*\/code as workspace$/ }).click();
+            await expect.poll(() => draftPath(page)).toBe('/Users/example-user/code');
+            await expect.poll(() => dropdown.count()).toBe(0);
+            // A typed path, Escape, a press outside, and the field itself close it.
+            await page.getByTestId('advanced-path').click();
+            await dropdown.getByPlaceholder('Enter project path').fill('/Users/example-user/typed');
+            await expect.poll(() => draftPath(page)).toBe('/Users/example-user/typed');
+            await page.keyboard.press('Escape');
+            await expect.poll(() => dropdown.count()).toBe(0);
+            await page.getByTestId('advanced-path').click();
+            await dropdown.waitFor();
+            await page.mouse.click(width - 4, 4);
+            await expect.poll(() => dropdown.count()).toBe(0);
+            await page.getByTestId('advanced-path').click();
+            await dropdown.waitFor();
+            await page.getByTestId('advanced-path').click();
+            await expect.poll(() => dropdown.count()).toBe(0);
+            await expect(page.getByTestId('advanced-path').getAttribute('aria-expanded')).resolves.toBe('false');
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+
+        const { page, errors } = await open({ width: 1440, height: 900 });
+        await page.getByTestId('streamline-sections').waitFor();
+        const project = page.getByRole('radio', { name: 'Docs site' });
+        const before = (await project.boundingBox())!;
+        await page.getByTestId('streamline-choose-folder').click();
+        const dropdown = page.getByTestId('new-session-path-dropdown');
+        await dropdown.getByRole('button', { name: 'Open folder code', exact: true }).waitFor();
+        await settle(page);
+        const card = await box(page, 'streamline-choose-folder');
+        const menu = await box(page, 'new-session-path-dropdown');
+        expect(Math.round(menu.x)).toBe(Math.round(card.x));
+        expect(Math.round(menu.width)).toBe(360);
+        expect(Math.round(menu.y - (card.y + card.height))).toBe(8);
+        expect((await project.boundingBox())!.y).toBeCloseTo(before.y, 0);
+        await expect(dropdownOnTop(page)).resolves.toEqual([]);
+        await page.getByTestId('streamline-choose-folder').click();
+        await expect.poll(() => dropdown.count()).toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 60_000);
+
     it('fits long display labels in the phone segments at the 16 px floor', async () => {
         const { page, errors } = await open({ mode: 'advanced', width: 390, height: 844 });
         await page.getByTestId('advanced-sections').waitFor();
@@ -573,14 +668,31 @@ describe('Streamline New Session in the production style runtime', () => {
                 await page.getByTestId('advanced-sections').waitFor();
                 await page.waitForTimeout(700);
                 await evidence(page, `advanced-${width}-${theme}`);
+                if (width < 700) {
+                    // Phones: the effort and permission segments, further down the page.
+                    await page.getByTestId('advanced-effort').scrollIntoViewIfNeeded();
+                    await page.waitForTimeout(300);
+                    await evidence(page, `advanced-${width}-${theme}-segments`);
+                    await page.getByTestId('new-session-advanced').evaluate((element) => element.scrollTo(0, 0));
+                }
                 await page.getByTestId('advanced-path').click();
                 await page.getByTestId('new-session-recent-path-list').first().waitFor();
                 await page.waitForTimeout(400);
                 await evidence(page, `advanced-${width}-${theme}-path-open`);
                 await page.close();
+                // Streamline, at rest and with its folder dropdown (a card on phones) open.
+                const streamline = (await open({ theme, width, height })).page;
+                await streamline.getByTestId('streamline-sections').waitFor();
+                await streamline.waitForTimeout(700);
+                await evidence(streamline, `streamline-${width}-${theme}`);
+                await streamline.getByTestId('streamline-choose-folder').click();
+                await streamline.getByTestId('new-session-recent-path-list').first().waitFor();
+                await streamline.waitForTimeout(400);
+                await evidence(streamline, `streamline-${width}-${theme}-path-open`);
+                await streamline.close();
             }
         }
-    }, 90_000);
+    }, 150_000);
 
     const settle = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations()
         .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))

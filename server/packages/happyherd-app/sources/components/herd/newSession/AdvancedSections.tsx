@@ -92,6 +92,8 @@ export function AdvancedSections(props: {
     const workspaceBlock = (
         <View style={styles.column}>
             <StreamlineLabel>{t('newSession.workspace')}</StreamlineLabel>
+            {/* The dropdown floats from here, over the sections below. */}
+            <View style={[styles.anchor, props.pathOpen && styles.anchorOpen]}>
             <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('sessionInfo.path')}
@@ -106,6 +108,7 @@ export function AdvancedSections(props: {
                 <Ionicons name={props.pathOpen ? 'chevron-up' : 'chevron-down'} size={15} color={theme.colors.kilv.inkFaint} />
             </Pressable>
             {props.pathPopover}
+            </View>
         </View>
     );
 
@@ -214,7 +217,7 @@ export function AdvancedSections(props: {
 
             {/* An offline machine keeps the rest of the form visible but inert. */}
             <View style={offline && styles.inert} pointerEvents={offline ? 'none' : 'auto'} aria-disabled={offline || undefined}>
-                <Grid compact={props.compact}>
+                <Grid compact={props.compact} raised={props.pathOpen ? 0 : null}>
                     {workspaceBlock}
                     {providerBlock}
                 </Grid>
@@ -336,11 +339,16 @@ function segmentOptions(options: readonly AdvancedChoiceOption[] | null, selecte
  * stacked on phones, each cell is as tall as its own content, so wrapping
  * chips never run under the next section.
  */
-function Grid({ compact, children }: { compact: boolean; children: React.ReactNode }) {
+/**
+ * Paired columns on wide layouts, one column on phones. `raised` lifts one cell
+ * and the row above the rest of the form, for a dropdown that floats from it:
+ * every web View is its own stacking layer.
+ */
+function Grid({ compact, raised, children }: { compact: boolean; raised?: number | null; children: React.ReactNode }) {
     return (
-        <View style={[styles.grid, compact && styles.gridCompact]}>
-            {React.Children.map(children, (child) => (
-                <View style={compact ? styles.cellCompact : styles.cell}>{child}</View>
+        <View style={[styles.grid, compact && styles.gridCompact, raised != null && styles.raised]}>
+            {React.Children.map(children, (child, index) => (
+                <View style={[compact ? styles.cellCompact : styles.cell, raised === index && styles.raised]}>{child}</View>
             ))}
         </View>
     );
@@ -473,8 +481,17 @@ const styles = StyleSheet.create((theme) => ({
     cellCompact: {
         minWidth: 0,
     },
+    raised: {
+        zIndex: 1,
+    },
     column: {
         minWidth: 0,
+    },
+    anchor: {
+        position: 'relative',
+    },
+    anchorOpen: {
+        zIndex: 30,
     },
     pathButton: {
         height: 44,

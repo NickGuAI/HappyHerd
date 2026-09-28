@@ -147,23 +147,27 @@ export function StreamlineSections(props: {
                 onPress={props.onChooseFolder}
             />,
         ] : []),
-        <ChoiceCard
-            key="browse"
-            index={index++}
-            width={FOLDER_CARD_WIDTH}
-            dashed
-            accent
-            selected={props.chooseFolderOpen}
-            onPress={props.onChooseFolder}
-            testID="streamline-choose-folder"
-            leading={<View style={styles.folderGlyph}><Ionicons name="add" size={17} color={theme.colors.textLink} /></View>}
-            title={t('newSession.streamline.browseFolder')}
-            subtitle={t('workspace.browseMachine')}
-        />,
+        // The folder dropdown floats from the Choose folder card, over the form.
+        <View key="browse" style={[styles.anchor, props.chooseFolderOpen && styles.anchorOpen]}>
+            <ChoiceCard
+                index={index++}
+                width={FOLDER_CARD_WIDTH}
+                dashed
+                accent
+                selected={props.chooseFolderOpen}
+                onPress={props.onChooseFolder}
+                testID="streamline-choose-folder"
+                leading={<View style={styles.folderGlyph}><Ionicons name="add" size={17} color={theme.colors.textLink} /></View>}
+                title={t('newSession.streamline.browseFolder')}
+                subtitle={t('workspace.browseMachine')}
+            />
+            {props.chooseFolderPopover}
+        </View>,
     ];
 
     return (
-        <View style={styles.root} testID="streamline-sections">
+        // The folder dropdown floats over what follows; every web View is its own stacking layer.
+        <View style={[styles.root, props.chooseFolderOpen && styles.anchorOpen]} testID="streamline-sections">
             <StreamlineLabel trailing={(
                 <StreamlineLabelLink
                     label={t('happyHerd.commander.category')}
@@ -182,8 +186,7 @@ export function StreamlineSections(props: {
             {props.commanderNote ? <Text style={styles.note}>{props.commanderNote}</Text> : null}
 
             <StreamlineLabel>{t('newSession.streamline.whereLabel')}</StreamlineLabel>
-            <ChoiceRow compact={props.compact}>{folderCards}</ChoiceRow>
-            {props.chooseFolderPopover}
+            <ChoiceRow compact={props.compact} raised={props.chooseFolderOpen}>{folderCards}</ChoiceRow>
 
             <StreamlineLabel>{t('projects.project')}</StreamlineLabel>
             <StreamlineProjectChoices
@@ -333,7 +336,7 @@ export function StreamlineProjectChoices(props: {
     );
 }
 
-function ChoiceRow({ compact, chips, children }: { compact: boolean; chips?: boolean; children: React.ReactNode }) {
+function ChoiceRow({ compact, chips, raised, children }: { compact: boolean; chips?: boolean; raised?: boolean; children: React.ReactNode }) {
     if (compact) {
         return (
             <ScrollView
@@ -347,7 +350,7 @@ function ChoiceRow({ compact, chips, children }: { compact: boolean; chips?: boo
             </ScrollView>
         );
     }
-    return <View style={[styles.row, styles.wrapRow, chips && styles.chipRow]}>{children}</View>;
+    return <View style={[styles.row, styles.wrapRow, chips && styles.chipRow, raised && styles.anchorOpen]}>{children}</View>;
 }
 
 function ChoiceCard(props: {
@@ -552,6 +555,12 @@ const styles = StyleSheet.create((theme) => ({
         textTransform: 'uppercase',
         color: theme.colors.textLink,
         ...Typography.mono('semiBold'),
+    },
+    anchor: {
+        position: 'relative',
+    },
+    anchorOpen: {
+        zIndex: 30,
     },
     labelLink: {
         marginLeft: 'auto',

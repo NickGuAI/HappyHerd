@@ -211,7 +211,27 @@ vi.mock('@/components/MachineWorkspaceContextPicker', async () => {
 });
 vi.mock('@/components/MachinePathBrowser', async () => {
     const ReactModule = await import('react');
-    return { MachinePathBrowser: (props: any) => ReactModule.createElement('MachinePathBrowser', props) };
+    return {
+        MachinePathBrowser: (props: any) => ReactModule.createElement('MachinePathBrowser', props),
+        // The web dropdown's listing: one folder, so it renders without a daemon.
+        useMachinePathTree: () => ({
+            root: '/',
+            currentDirectory: '/Users/dev',
+            setCurrentDirectory: () => {},
+            goToParent: () => {},
+            load: async () => {},
+            loading: false,
+            error: null,
+            showHidden: true,
+            setShowHidden: () => {},
+            directories: [{ name: 'project', path: '/Users/dev/project', type: 'directory' }],
+            files: [],
+        }),
+    };
+});
+vi.mock('@/components/Switch', async () => {
+    const ReactModule = await import('react');
+    return { Switch: (props: any) => ReactModule.createElement('Switch', props) };
 });
 vi.mock('@/components/MachineFileUploadStatus', async () => {
     const ReactModule = await import('react');
@@ -660,22 +680,22 @@ describe('Full New Session path selection', () => {
         expect(initialTrigger).toBeDefined();
         await act(async () => initialTrigger!.props.onPress());
 
-        const recentPathList = renderer.root.findAllByType('ScrollView' as any).find((node: any) => (
-            node.props.testID === 'new-session-recent-path-list'
-        ));
-        expect(recentPathList).toBeDefined();
-        expect(recentPathList!.props.nestedScrollEnabled).toBe(true);
-        expect(flattenStyle(recentPathList!.props.style)).toMatchObject({
-            maxHeight: 176,
+        // The mock's dropdown (UI overhaul) scrolls as one body under its bar, inside the page.
+        const dropdown = renderer.root.findByProps({ testID: 'new-session-path-dropdown' });
+        const dropdownBody = dropdown.findAllByType('ScrollView' as any)[0];
+        expect(dropdownBody.props.nestedScrollEnabled).toBe(true);
+        expect(flattenStyle(dropdownBody.props.style)).toMatchObject({
+            maxHeight: 308,
             overscrollBehaviorY: 'contain',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
         });
+        expect(dropdownBody.findAllByProps({ testID: 'new-session-recent-path-list' }).length).toBeGreaterThan(0);
 
         const secondRecent = renderer.root.findByProps({
             testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
         });
-        expect(secondRecent.props.accessibilityState).toEqual({ selected: false });
+        expect(secondRecent.props['aria-checked']).toBe(false);
         expect(secondRecent.props.accessibilityLabel).toBe(`Repeated project, ${secondPath}`);
         expect(secondRecent.findAllByType('Text' as any).map((text: any) => text.props.children)).toEqual([
             'Repeated project',
@@ -704,10 +724,10 @@ describe('Full New Session path selection', () => {
         await act(async () => updatedTrigger!.props.onPress());
         expect(renderer.root.findByProps({
             testID: `new-session-recent-path-${encodeURIComponent(firstPath)}`,
-        }).props.accessibilityState).toEqual({ selected: false });
+        }).props['aria-checked']).toBe(false);
         expect(renderer.root.findByProps({
             testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
-        }).props.accessibilityState).toEqual({ selected: true });
+        }).props['aria-checked']).toBe(true);
 
         await pressSend(renderer);
         expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
@@ -739,11 +759,12 @@ describe('Full New Session path selection', () => {
         const firstRecentPath = renderer.root.findByProps({
             testID: `new-session-recent-path-${encodeURIComponent('/Users/dev/project-0')}`,
         }).findAllByType('Text' as any)[0];
-        expect(flattenStyle(firstRecentPath.props.style).fontSize).toBe(16);
+        // The dropdown's rows and labels use the mock's sizes; the document-wide rule floors them on phones.
+        expect(flattenStyle(firstRecentPath.props.style).fontSize).toBe(13);
         const recentSectionLabel = renderer.root.findAllByType('Text' as any).find((text: any) => (
             text.props.children === 'workspace.recent'
         ));
-        expect(flattenStyle(recentSectionLabel?.props.style).fontSize).toBe(13);
+        expect(flattenStyle(recentSectionLabel?.props.style).fontSize).toBe(10.5);
         act(() => renderer.unmount());
     });
 });
