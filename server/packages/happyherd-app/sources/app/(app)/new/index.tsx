@@ -44,7 +44,9 @@ import { HerdPopover, type HerdAnchorRect } from '@/components/herd/HerdPopover'
 import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
 import { herdWebClasses } from '@/components/herd/motion';
-import { HERD_PHONE_FLOAT_MARGIN } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
+import { HerdWindowInsetsContext, useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { StreamlineSections, type StreamlineFolderOption } from '@/components/herd/newSession/StreamlineSections';
 import {
     StreamlineComposerChips,
@@ -1008,6 +1010,10 @@ function NewSessionScreen() {
     const zenMode = useLocalSetting('zenMode');
     const deviceType = useDeviceType();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const windowInsets = useWindowSafeAreaInsets();
+    const phoneLayout = useHerdPhoneLayout();
+    // Signed in, the HappyHerd top bar sits above this screen.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
 
     // Persisted draft state (survives navigation).
     //
@@ -2528,6 +2534,12 @@ function NewSessionScreen() {
         desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
     });
     const isNativeMobile = !isDesktop;
+    // Native phones: the phone top bar takes the window's top inset, so this
+    // screen starts this far below the window's top. Its pickers and the
+    // keyboard's overlap are measured from there.
+    const nativeScreenTop = isNativeMobile && phoneLayout && underTopBar
+        ? windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT
+        : 0;
     // On phones the Streamline page carries its own title, so the header row would repeat it.
     const streamlineCarriesTitle = streamline && streamlinePhone;
     React.useLayoutEffect(() => {
@@ -2699,8 +2711,9 @@ function NewSessionScreen() {
             return 0;
         }
         const headerBottom = safeArea.top + MOBILE_GLASS_HEADER_HEIGHT;
-        // The pinned composer sits on its bottom spacer, at least 12 px tall.
-        const composerTop = windowHeight - Math.max(12, safeArea.bottom) - mobileComposerHeight;
+        // The popover's top is measured from the screen's top. The pinned
+        // composer sits on its bottom spacer, at least 12 px tall.
+        const composerTop = windowHeight - nativeScreenTop - Math.max(12, safeArea.bottom) - mobileComposerHeight;
         if (
             streamline
             || activePicker === 'settings'
@@ -2727,7 +2740,7 @@ function NewSessionScreen() {
             headerBottom + 12,
             anchorY - NATIVE_PICKER_ESTIMATED_HEIGHT - 8,
         );
-    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, safeArea.bottom, safeArea.top, streamline, windowHeight]);
+    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, nativeScreenTop, safeArea.bottom, safeArea.top, streamline, windowHeight]);
 
     const accountProjectPicker = (
         <>
@@ -3427,9 +3440,10 @@ function NewSessionScreen() {
 
     return (
         <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
+            {/* The keyboard's overlap counts from the window's top; this view knows only its place in its parent. */}
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : nativeScreenTop}
                 style={[
                     styles.container,
                     isNativeMobile && { backgroundColor: 'transparent' },

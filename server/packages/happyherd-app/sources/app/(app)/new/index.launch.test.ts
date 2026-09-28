@@ -2,7 +2,10 @@ import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 import { completeSpawnRequest } from '@/sync/spawnRequestId';
+import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
+import { HerdWindowInsetsContext } from '@/components/herd/shell/windowInsets';
 
 const mocks = vi.hoisted(() => {
     // Header visibility the screen asks its navigator for.
@@ -512,10 +515,14 @@ function createDshMachine() {
     };
 }
 
-async function renderScreen() {
+/** With `windowInsets`, the screen renders under the signed-in shell's top bar, which hands the window's insets past it. */
+async function renderScreen(windowInsets?: EdgeInsets) {
     let renderer!: ReturnType<typeof create>;
+    const screen = React.createElement(NewSessionScreen);
     await act(async () => {
-        renderer = create(React.createElement(NewSessionScreen), {
+        renderer = create(windowInsets
+            ? React.createElement(HerdWindowInsetsContext.Provider, { value: windowInsets }, screen)
+            : screen, {
             // Chips measure themselves to anchor their picker.
             // Inputs focus on a timer (the path picker); a busy run can reach it before the test unmounts.
             createNodeMock: () => ({
@@ -1762,6 +1769,101 @@ describe('Streamline picker anchor on native phones', () => {
         const gap = 10; // the page's space between a picker and the composer
         const top = flattenStyle(sticky().props.style).top as number;
         expect(top + pickerHeight + gap).toBeLessThanOrEqual(mocks.dimensions.height - spacer - composerHeight);
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Native phone New Session under the phone top bar', () => {
+    // Signed in, the phone top bar sits above the screen and takes the window's top inset,
+    // so the screen sees a top inset of 0 (SidebarNavigator). The other insets are the mock's 0.
+    const windowInsets = { top: 59, right: 0, bottom: 0, left: 0 };
+    const screenTop = windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT;
+    beforeEach(() => {
+        const machine = createClaudeMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.platform = 'ios';
+        mocks.dimensions = { width: 390, height: 844 };
+        mocks.draft = createLiveDraft({ agentType: 'claude', selectedPath: '/Users/dev/repo' });
+        mocks.streamlineLocations = [{ machineId: 'machine-1', path: '/Users/dev/repo', name: 'repo', machineName: 'studio', online: true }];
+    });
+    const fireLayout = (node: any, height: number) => act(() => {
+        node.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 366, height } } });
+    });
+    const sticky = (renderer: ReturnType<typeof create>) => renderer.root.findAllByType('KeyboardStickyView' as any)[0];
+    // The one view that reports the pinned composer's height holds the send button.
+    const pinnedComposer = (renderer: ReturnType<typeof create>) => renderer.root.findAll((node: any) => (
+        node.type === 'View'
+        && typeof node.props.onLayout === 'function'
+        && node.findAll((child: any) => child.props?.accessibilityLabel === 'happyHerd.composer.send').length > 0
+    ))[0];
+    const keyboardOffset = (renderer: ReturnType<typeof create>) => renderer.root
+        .findAllByType('KeyboardAvoidingView' as any)[0].props.keyboardVerticalOffset;
+    // The popover's top counts from the screen's top; the screen is the window less the top bar.
+    const expectRightAboveComposer = (renderer: ReturnType<typeof create>, composerHeight: number, pickerHeight: number) => {
+        const spacer = 12; // the composer's bottom spacer: at least 12 px
+        const gap = 10; // the page's space between a picker and the composer
+        const top = flattenStyle(sticky(renderer).props.style).top as number;
+        expect(top + pickerHeight + gap).toBe(mocks.dimensions.height - screenTop - spacer - composerHeight);
+    };
+
+    it('opens the Streamline folder picker right above the pinned composer', async () => {
+        mocks.newSessionMode = 'streamline';
+        const renderer = await renderScreen(windowInsets);
+        await settle(renderer);
+        const composerHeight = 176;
+        fireLayout(renderer.root.findAll((node: any) => node.props?.testID === 'streamline-composer')[0], composerHeight);
+        const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
+        await act(async () => { browse.props.onPress(); });
+        await settle(renderer);
+        const pickerHeight = 240;
+        fireLayout(sticky(renderer).findAllByType('MobileGlassSurface' as any)[0], pickerHeight);
+        expectRightAboveComposer(renderer, composerHeight, pickerHeight);
+        act(() => renderer.unmount());
+    });
+
+    it('opens the Advanced composer\'s agent picker right above the pinned composer', async () => {
+        mocks.newSessionMode = 'advanced';
+        const renderer = await renderScreen(windowInsets);
+        await settle(renderer);
+        const composerHeight = 120;
+        fireLayout(pinnedComposer(renderer), composerHeight);
+        const agent = renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'uiCopy.agentValue' && typeof node.props?.onPress === 'function')[0];
+        await act(async () => { agent.props.onPress(); });
+        await settle(renderer);
+        const pickerHeight = 200;
+        fireLayout(sticky(renderer).findAllByType('MobileGlassSurface' as any)[0], pickerHeight);
+        expectRightAboveComposer(renderer, composerHeight, pickerHeight);
+        act(() => renderer.unmount());
+    });
+
+    it.each([
+        ['an iPhone', 'ios'],
+        ['an Android phone', 'android'],
+    ] as const)('measures the keyboard\'s overlap from below the top bar on %s', async (_label, platform) => {
+        // keyboard-controller compares the view's place in its parent with the window's keyboard.
+        mocks.platform = platform;
+        const renderer = await renderScreen(windowInsets);
+        await settle(renderer);
+        expect(keyboardOffset(renderer)).toBe(screenTop);
+        act(() => renderer.unmount());
+    });
+
+    it.each([
+        // keyboard-controller does not move a web page.
+        ['the web at phone width', 'web', { width: 390, height: 844 }, windowInsets, false],
+        // Tablets keep the desktop top bar (SidebarNavigator); this rule is the phone top bar's.
+        ['a native tablet', 'ios', { width: 1024, height: 1366 }, windowInsets, false],
+        ['a native phone signed out, with no top bar', 'ios', { width: 390, height: 844 }, undefined, false],
+        // The iOS app on a Mac lays out as a desktop at any window size (owner decision).
+        ['the iOS app on a Mac in a phone-size window', 'ios', { width: 390, height: 844 }, windowInsets, true],
+    ] as const)('keeps the keyboard offset at 0 on %s', async (_label, platform, dimensions, insets, mac) => {
+        mocks.platform = platform;
+        mocks.dimensions = dimensions;
+        mocks.mac = mac;
+        const renderer = await renderScreen(insets);
+        await settle(renderer);
+        expect(keyboardOffset(renderer)).toBe(0);
         act(() => renderer.unmount());
     });
 });
