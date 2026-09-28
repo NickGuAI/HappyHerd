@@ -94,7 +94,9 @@ const virtualModules: Record<string, string> = {
         export const useAllMachines = () => [];
         export const useEntitlement = () => false;
         export const useLocalSettingMutable = () => [false, () => {}];
-        export const useProfile = () => ({ id: 'profile-test', firstName: 'Test', avatar: null, connectedServices: [] });
+        const fixtureEmail = new URLSearchParams(location.search).get('email');
+        export const useProfile = () => ({ id: 'profile-test', firstName: 'Test', avatar: null, connectedServices: [],
+            github: fixtureEmail ? { id: 1, login: 'test-user', name: 'Test User', avatar_url: '', email: fixtureEmail } : null });
         export const useSetting = () => false;
     `,
     '@/sync/sync': `
@@ -220,6 +222,38 @@ describe('Settings policy links browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['Web Mobile', { width: 390, height: 844 }],
+    ] as const)('lays the profile out as the mock\'s one-row card on %s, and opens Account from it', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        await page.addInitScript(() => { (window as any).__SETTINGS_ROUTES__ = []; });
+        await page.goto(`${origin}?theme=dark&email=test%40example.com`);
+        const card = page.getByTestId('settings-profile-card');
+        await card.waitFor();
+        const name = card.getByText('Test User', { exact: true });
+        const email = card.getByText('test@example.com', { exact: true });
+        const account = card.getByRole('button', { name: 'Account', exact: true });
+        const [cardBox, nameBox, emailBox, accountBox] = await Promise.all([card, name, email, account].map(async (item) => (await item.boundingBox())!));
+        // One row: the ringed avatar, then the name over the email, then Account at the end.
+        expect(cardBox.height).toBeLessThanOrEqual(100);
+        expect(emailBox.y).toBeGreaterThan(nameBox.y);
+        expect(accountBox.x).toBeGreaterThan(Math.max(nameBox.x + nameBox.width, emailBox.x + emailBox.width));
+        expect(Math.abs((accountBox.y + accountBox.height / 2) - (cardBox.y + cardBox.height / 2))).toBeLessThanOrEqual(2);
+        const ring = await card.evaluate((element) => [...element.querySelectorAll('*')].filter((node) => {
+            const style = getComputedStyle(node);
+            return style.position === 'absolute' && style.borderTopWidth === '2px' && style.borderRadius !== '0px';
+        }).map((node) => node.getBoundingClientRect()));
+        expect(ring).toHaveLength(1);
+        expect(ring[0].right).toBeLessThanOrEqual(nameBox.x);
+        await account.click();
+        await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toEqual(['/settings/account']);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    });
 
     it.each([
         ['Web Desktop Light', { width: 1440, height: 900 }, 'light'],

@@ -20,7 +20,7 @@ import { Modal } from '@/modal';
 import { useMultiClick } from '@/hooks/useMultiClick';
 import { useAllMachines } from '@/sync/storage';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { useUnistyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
 import { getGitHubOAuthParams, disconnectGitHub } from '@/sync/apiGithub';
@@ -28,6 +28,7 @@ import { disconnectService } from '@/sync/apiServices';
 import { useProfile } from '@/sync/storage';
 import { getDisplayName, getAvatarUrl, getBio } from '@/sync/profile';
 import { Avatar } from '@/components/Avatar';
+import { herdWebClasses } from '@/components/herd/motion';
 import { t } from '@/text';
 import { PRODUCT } from '@/constants/product';
 import { SettingsSectionList } from '@/components/herd/pages/SettingsFrame';
@@ -206,50 +207,38 @@ export const SettingsView = React.memo(function SettingsView({
             onScroll={onScroll}
             scrollEventThrottle={16}
         >
-            {/* App Info Header */}
-            <View style={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
-                <View
-                    style={{
-                    alignItems: 'center',
-                    paddingVertical: 24,
-                    backgroundColor: theme.colors.surface,
-                    marginTop: 16,
-                    borderRadius: theme.borderRadius.xl,
-                    marginHorizontal: 16,
-                    borderWidth: Platform.OS === 'web' ? 0 : 0.5,
-                    borderColor: theme.colors.divider,
-                }}>
-                    {profile.firstName ? (
-                        // Profile view: Avatar + name + version
-                        <>
-                            <View style={{ marginBottom: 12 }}>
-                                <Avatar
-                                    id={profile.id}
-                                    size={90}
-                                    imageUrl={avatarUrl}
-                                    thumbhash={profile.avatar?.thumbhash}
+            {/* The mock's profile card: one row, a ringed avatar, the name and email, and Account. */}
+            <View style={profileStyles.wrap}>
+                <View style={profileStyles.card} testID="settings-profile-card">
+                    <View style={profileStyles.avatar}>
+                        {profile.firstName ? (
+                            <Avatar id={profile.id} size={56} imageUrl={avatarUrl} thumbhash={profile.avatar?.thumbhash} />
+                        ) : (
+                            <View style={profileStyles.logoTile}>
+                                <Image
+                                    source={require('@/assets/images/logo-black.png')}
+                                    contentFit="contain"
+                                    style={{ width: 32, height: 32 }}
+                                    tintColor={theme.colors.kilv.accent}
                                 />
                             </View>
-                            <Text style={{ fontSize: 20, fontWeight: '600', color: theme.colors.text, marginBottom: bio ? 4 : 8 }}>
-                                {displayName}
-                            </Text>
-                            {bio && (
-                                <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 8, paddingHorizontal: 16 }}>
-                                    {bio}
-                                </Text>
-                            )}
-                        </>
-                    ) : (
-                        // Logo view: Original logo + version
-                        <>
-                            <Image
-                                source={require('@/assets/images/logo-black.png')}
-                                contentFit="contain"
-                                style={{ width: 120, height: 120, marginBottom: 12 }}
-                                tintColor={theme.colors.text}
-                            />
-                        </>
-                    )}
+                        )}
+                        <View pointerEvents="none" style={profileStyles.ring} />
+                    </View>
+                    <View style={profileStyles.identity}>
+                        <Text numberOfLines={1} style={profileStyles.name}>{profile.firstName ? displayName : PRODUCT.displayName}</Text>
+                        {profile.github?.email ? <Text numberOfLines={1} selectable style={profileStyles.email}>{profile.github.email}</Text> : null}
+                        {bio ? <Text numberOfLines={2} style={profileStyles.bio}>{bio}</Text> : null}
+                    </View>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t('settings.account')}
+                        testID="settings-profile-account"
+                        onPress={() => router.push('/settings/account')}
+                        style={({ pressed, hovered }: any) => [profileStyles.accountButton, (pressed || hovered) && profileStyles.accountButtonHover]}
+                    >
+                        <Text numberOfLines={1} style={profileStyles.accountText}>{t('settings.account')}</Text>
+                    </Pressable>
                 </View>
             </View>
 
@@ -533,3 +522,92 @@ export const SettingsView = React.memo(function SettingsView({
         </ItemList>
     );
 });
+
+const profileStyles = StyleSheet.create((theme) => ({
+    wrap: {
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        width: '100%',
+    },
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        padding: 18,
+        marginTop: 16,
+        marginHorizontal: 16,
+        borderRadius: theme.kilv.radiusCard,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        _web: { _classNames: herdWebClasses('herd-rise') },
+    },
+    avatar: {
+        width: 56,
+        height: 56,
+        flexShrink: 0,
+    },
+    logoTile: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surfaceHighest,
+    },
+    // The mock's live ring: 2 px of molten, 3 px outside the avatar.
+    ring: {
+        position: 'absolute',
+        top: -3,
+        right: -3,
+        bottom: -3,
+        left: -3,
+        borderRadius: 31,
+        borderWidth: 2,
+        borderColor: theme.colors.kilv.accent,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
+    },
+    identity: {
+        flex: 1,
+        minWidth: 0,
+    },
+    name: {
+        ...Typography.default('semiBold'),
+        fontSize: 19,
+        lineHeight: 25,
+        color: theme.colors.text,
+    },
+    email: {
+        ...Typography.mono(),
+        fontSize: 13.5,
+        lineHeight: 19,
+        color: theme.colors.kilv.inkFaint,
+    },
+    bio: {
+        ...Typography.default(),
+        marginTop: 2,
+        fontSize: 13.5,
+        lineHeight: 19,
+        color: theme.colors.textSecondary,
+    },
+    accountButton: {
+        height: 30,
+        paddingHorizontal: 11,
+        flexShrink: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        _web: { _classNames: herdWebClasses('herd-transition', 'herd-press'), cursor: 'pointer' },
+    },
+    accountButtonHover: {
+        borderColor: theme.colors.kilv.rimLine,
+    },
+    accountText: {
+        ...Typography.default('semiBold'),
+        fontSize: 13,
+        color: theme.colors.kilv.inkDim,
+    },
+}));
