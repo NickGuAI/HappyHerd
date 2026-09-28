@@ -6,6 +6,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { ItemList } from '@/components/ItemList';
 import { HerdTimelineGroup } from '@/components/herd/pages/HerdTimeline';
+import { ChangelogPageFrame } from '@/components/herd/pages/ChangelogPageFrame';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { getChangelogEntries, getLatestTitle, setLastViewedTitle } from '@/changelog';
 import { Typography } from '@/constants/Typography';
@@ -90,6 +91,7 @@ export default function ChangelogScreen() {
     if (entries.length === 0) {
         return (
             <View style={styles.emptyState}>
+                <ChangelogPageFrame />
                 <Text style={styles.emptyText}>
                     {t('changelog.noEntriesAvailable')}
                 </Text>
@@ -105,6 +107,7 @@ export default function ChangelogScreen() {
             automaticallyAdjustsScrollIndicatorInsets={Platform.OS !== 'ios'}
             scrollIndicatorInsets={Platform.OS === 'ios' ? { top: indicatorTopInset } : undefined}
         >
+            <ChangelogPageFrame />
             {entries.map((entry, index) => {
                 const titleImage = entry.titleImage ? CHANGELOG_IMAGES[entry.titleImage] : undefined;
                 const title = titleImage ? (
@@ -142,10 +145,11 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 24,
         marginTop: 24,
     },
+    // The mock's entry title: 16.5 px, medium weight.
     titleText: {
         ...Typography.default('semiBold'),
-        fontSize: 18,
-        lineHeight: 26,
+        fontSize: 16.5,
+        lineHeight: 24,
         color: theme.colors.text,
         textTransform: 'none',
         letterSpacing: 0,
