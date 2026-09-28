@@ -613,3 +613,9 @@ UI_OVERHAUL_PALETTE_DEFAULT_ON	accepted	fix(app): turn the command palette and t
 UI_OVERHAUL_TOPBAR_MOCK	accepted	feat(app): give the top bar the mock's Focus mode, machine pill and icons	server/packages/happyherd-app/sources/components/herd/shell/topBarControls.test.ts
 UI_OVERHAUL_PANEL_MOCK	accepted	feat(app): give the left panel the mock's icons, shortcuts and archive toggle	server/packages/happyherd-app/sources/components/SidebarNavigationButton.test.ts
 UI_OVERHAUL_TOPBAR_PANEL_DOCS	accepted	docs(app): record the top bar and left panel fidelity work for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_STREAMLINE_STACK_STUB	accepted	test(app): stub the Stack screen in the Streamline browser fixture	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_SEGMENT_NO_MATCH	accepted	fix(app): leave a segmented control unselected when no option matches	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_LAUNCH_LABELS	accepted	feat(app): show launch choices by their display names	server/packages/happyherd-app/sources/utils/launchChoiceLabels.test.ts
+UI_OVERHAUL_STREAMLINE_LINK_PATHS	accepted	feat(app): link Commanders from Streamline and show its folders home-relative	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PATH_DROPDOWN	accepted	feat(app): open the mock's folder dropdown from the working-folder field	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_NEW_SESSION_FOLLOWUP_DOCS	accepted	docs(app): record the path dropdown and launch labels for upstream merges	docs/upstream-ui-parity.md

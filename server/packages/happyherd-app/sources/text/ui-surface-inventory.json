@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "6a3c8c2420e9a72b4a9a5f2c83316f821351f93df52cce6746dfe620a9bef5d5",
+  "sourceFingerprint": "7925291e49a3140bcdebe3634a187ea4fcb8f04ac913ee36babd53e24f6cf09f",
   "routeCount": 43,
-  "surfaceCount": 328,
+  "surfaceCount": 329,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4113,6 +4113,35 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/newSession/PathDropdown.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PathDropdown"
+      ],
+      "translationKeys": [
+        "newSession.showHidden",
+        "uiCopy.addWorkspaceFavorite",
+        "uiCopy.browseFilesystemRoot",
+        "uiCopy.browseParentFolder",
+        "uiCopy.enterProjectPath",
+        "uiCopy.folderIsEmpty",
+        "uiCopy.hostFolders",
+        "uiCopy.noRecentProjectsYet",
+        "uiCopy.openFolderValue",
+        "uiCopy.refreshFolder",
+        "uiCopy.removeWorkspaceFavorite",
+        "uiCopy.useFavoriteValue",
+        "uiCopy.useThisFolder",
+        "uiCopy.useValueAsWorkspace",
+        "workspace.browseMachine",
+        "workspace.favorites",
+        "workspace.recent"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/newSession/StreamlineComposer.tsx",
       "kind": "component",
       "route": null,
@@ -4136,6 +4165,7 @@
       "exports": [
         "StreamlineCommanderChoices",
         "StreamlineLabel",
+        "StreamlineLabelLink",
         "StreamlineProjectChoices",
         "StreamlineSections"
       ],
@@ -4957,7 +4987,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "MachinePathBrowser"
+        "MachinePathBrowser",
+        "useMachinePathTree"
       ],
       "translationKeys": [
         "newSession.showHidden",
