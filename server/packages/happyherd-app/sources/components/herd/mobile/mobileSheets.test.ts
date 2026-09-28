@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     window: { width: 390, height: 844 },
     platform: 'web',
     tablet: false,
+    insets: { top: 47, right: 0, bottom: 34, left: 0 },
     panConfig: null as any,
     actions: [] as Array<{ id: string; icon: string; label: string; onPress: () => void; destructive?: boolean }>,
 }));
@@ -41,7 +42,7 @@ vi.mock('react-native', () => {
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 vi.mock('react-native-keyboard-controller', () => ({ KeyboardAvoidingView: 'KeyboardAvoidingView' }));
-vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, right: 0, bottom: 34, left: 0 }) }));
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mocks.insets }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
 vi.mock('react-native-unistyles', () => {
     const theme: any = new Proxy({}, { get: () => theme });
@@ -62,6 +63,7 @@ import { HerdMenuItem, HerdMenuSeparator, HerdMenuTitle, HerdPopover } from '../
 import { SessionActionsPopover } from '../../SessionActionsPopover';
 import { HERD_SHEET_DISMISS_DISTANCE, HERD_SHEET_DISMISS_VELOCITY, HerdBottomSheet, shouldDismissHerdSheet } from './HerdBottomSheet';
 import { HERD_PHONE_SHEET_MAX_WIDTH, isHerdPhoneLayout, isHerdPhoneWeb } from './useHerdPhone';
+import { HerdWindowInsetsContext } from '../shell/windowInsets';
 import { calculateDeviceDimensions, determineDeviceType } from '@/utils/deviceCalculations';
 
 beforeAll(() => {
@@ -72,6 +74,7 @@ beforeEach(() => {
     mocks.window = { width: 390, height: 844 };
     mocks.platform = 'web';
     mocks.tablet = false;
+    mocks.insets = { top: 47, right: 0, bottom: 34, left: 0 };
     mocks.panConfig = null;
 });
 
@@ -249,6 +252,18 @@ describe('HerdBottomSheet', () => {
 
         mocks.platform = 'android';
         expect(render(searchedSheet()).root.findByType('KeyboardAvoidingView').props.behavior).toBe('height');
+    });
+
+    it('clears the window\'s status bar when it opens in a screen under the phone top bar', () => {
+        mocks.platform = 'ios';
+        // The shell gives screens under the top bar a zero top inset and keeps the window's own.
+        mocks.insets = { top: 0, right: 0, bottom: 34, left: 0 };
+        const windowInsets = { top: 47, right: 0, bottom: 34, left: 0 };
+        const renderer = render(React.createElement(HerdWindowInsetsContext.Provider, { value: windowInsets }, searchedSheet()));
+        const keyboard = renderer.root.findByType('KeyboardAvoidingView');
+        expect(flatStyle(keyboard.props.style).paddingTop).toBe(47);
+        const [sheet] = byTestID(renderer, 'probe-sheet');
+        expect(flatStyle(sheet.props.style).paddingBottom).toBe(34 + 8);
     });
 
     it('keeps the web sheet out of the keyboard container', () => {

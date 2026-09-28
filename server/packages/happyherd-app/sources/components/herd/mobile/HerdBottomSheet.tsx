@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Animated, Modal, PanResponder, Platform, Pressable, ScrollView, View, useWindowDimensions, type Role } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 
 import { herdWebClasses } from '@/components/herd/motion';
 import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
 import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { t } from '@/text';
 
 /**
@@ -69,7 +69,9 @@ export function HerdBottomSheet({
     testID?: string;
     children: React.ReactNode;
 }) {
-    const safeArea = useSafeAreaInsets();
+    // The sheet covers the window, so it clears the window's own status bar and
+    // home indicator. A screen under the phone top bar sees a zero top inset.
+    const safeArea = useWindowSafeAreaInsets();
     const { height: windowHeight } = useWindowDimensions();
     const drag = React.useRef(new Animated.Value(0)).current;
     const onCloseRef = React.useRef(onClose);
