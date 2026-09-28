@@ -28,10 +28,13 @@ import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { machineListCommanders, machineReadFileWithinRoot } from '@/sync/ops';
-import { useAllMachines } from '@/sync/storage';
+import { useAllMachines, useAllSessions } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { t } from '@/text';
 import { isMachineOnline } from '@/utils/machineUtils';
+
+// Plural catalog entries take their `count` through the plain signature.
+const commanderText = t as (key: string, params?: Record<string, string | number>) => string;
 
 type CommanderEntry = {
     machine: Machine;
@@ -119,6 +122,7 @@ function CommanderCard({
     index,
     width,
     memoryLine,
+    sessionCount,
     onOpenMemory,
     onNewSession,
 }: {
@@ -126,6 +130,8 @@ function CommanderCard({
     index: number;
     width: number | undefined;
     memoryLine: string | null | undefined;
+    /** Synced sessions that ran with this Commander on its machine. */
+    sessionCount: number;
     onOpenMemory: (file: CommanderMemoryFile) => void;
     onNewSession: () => void;
 }) {
@@ -172,6 +178,12 @@ function CommanderCard({
                 ) : null}
             </View>
             <View style={styles.cardFooter}>
+                <View testID={`commander-session-count-${commander.id}`} style={styles.sessionCount}>
+                    <Ionicons name="chatbubble-outline" size={13} color={theme.colors.textSecondary} />
+                    <Text style={styles.sessionCountText} numberOfLines={1}>
+                        {commanderText('projects.sessionCount', { count: sessionCount })}
+                    </Text>
+                </View>
                 <HerdButton
                     size="sm"
                     icon="create-outline"
@@ -213,6 +225,19 @@ export default function CommandersScreen() {
     const router = useRouter();
     const wide = useHerdWideLayout();
     const { entries, failures, loading, machineCount, onlineCount } = useCommanderEntries();
+    const sessions = useAllSessions();
+    // Sessions keep the Commander they ran with; ids are per machine.
+    const sessionCounts = React.useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const session of sessions) {
+            const commanderId = session.metadata?.commanderId;
+            const machineId = session.metadata?.machineId;
+            if (!commanderId || !machineId) continue;
+            const key = `${machineId}\u0000${commanderId}`;
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+        }
+        return counts;
+    }, [sessions]);
     const [gridWidth, setGridWidth] = React.useState(0);
     const [memoryLines, setMemoryLines] = React.useState<Record<string, string | null>>({});
     const [reader, setReader] = React.useState<{ entry: CommanderEntry; file: CommanderMemoryFile } | null>(null);
@@ -271,13 +296,15 @@ export default function CommandersScreen() {
 
     return (
         <View style={styles.page}>
-            <Stack.Screen options={{ headerTitle: t('happyHerd.commander.category') }} />
+            {/* Wide layouts draw the mock's large title in the page, so the header bar would repeat it. */}
+            <Stack.Screen options={{ headerTitle: t('happyHerd.commander.category'), headerShown: !wide }} />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={[styles.content, !wide && styles.contentCompact]}
             >
                 <HerdPageHeader
                     compact={!wide}
+                    title={wide ? t('happyHerd.commander.category') : undefined}
                     subtitle={t('happyHerd.commander.pageSubtitle')}
                     actions={(
                         <HerdButton
@@ -339,6 +366,7 @@ export default function CommandersScreen() {
                                 index={index}
                                 width={cardWidth}
                                 memoryLine={memoryLines[entryKey(entry)]}
+                                sessionCount={sessionCounts.get(`${entry.machine.id}\u0000${entry.commander.id}`) ?? 0}
                                 onOpenMemory={(file) => setReader({ entry, file })}
                                 onNewSession={() => startSessionWith(entry, () => router.navigate('/new'))}
                             />
@@ -460,7 +488,9 @@ const styles = StyleSheet.create((theme) => ({
         lineHeight: 23,
         color: theme.colors.text,
     },
-    cardFooter: { marginTop: 16, flexDirection: 'row', justifyContent: 'flex-end' },
+    cardFooter: { marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    sessionCount: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0, flexShrink: 1 },
+    sessionCountText: { fontSize: 12.5, color: theme.colors.textSecondary, ...Typography.default() },
     createCard: {
         minHeight: 300,
         alignItems: 'center',

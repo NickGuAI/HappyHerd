@@ -8,6 +8,7 @@ import type { Machine } from '@/sync/storageTypes';
 
 const testState = vi.hoisted(() => ({
     machines: [] as Machine[],
+    sessions: [] as Array<{ id: string; metadata?: { machineId?: string; commanderId?: string } }>,
     listCommanders: vi.fn(),
     readWithinRoot: vi.fn(),
     navigate: vi.fn(),
@@ -96,6 +97,7 @@ vi.mock('@/sync/ops', () => ({
 
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => testState.machines,
+    useAllSessions: () => testState.sessions,
 }));
 
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
@@ -153,6 +155,7 @@ function encoded(text: string): string {
 beforeEach(() => {
     testState.machines = [machine('machine-a'), machine('machine-b'), machine('machine-off', false)];
     testState.homeDockListening = false;
+    testState.sessions = [];
     testState.navigate.mockReset();
     testState.draft.selectedMachineId = null;
     for (const setter of ['setMachineId', 'setCommanderId', 'setPath', 'setSessionType', 'setWorktreeKey'] as const) {
@@ -334,5 +337,26 @@ describe('Commanders page', () => {
             'happyHerd.commander.emptyTitle',
             'happyHerd.commander.createSubtitle',
         ]));
+    });
+
+    it('shows each card\'s session count, counting only sessions with that Commander on its machine', async () => {
+        testState.sessions = [
+            { id: 's1', metadata: { machineId: 'machine-a', commanderId: 'athena' } },
+            { id: 's2', metadata: { machineId: 'machine-a', commanderId: 'athena' } },
+            { id: 's3', metadata: { machineId: 'machine-b', commanderId: 'athena' } },
+            { id: 's4', metadata: { machineId: 'machine-b', commanderId: 'hermes' } },
+            { id: 's5', metadata: { machineId: 'machine-a' } },
+        ];
+        const renderer = await renderScreen();
+        expect(text(hostNode(renderer, 'View', 'commander-session-count-athena'))).toEqual(['projects.sessionCount(count=2)']);
+        expect(text(hostNode(renderer, 'View', 'commander-session-count-hermes'))).toEqual(['projects.sessionCount(count=1)']);
+    });
+
+    it('draws the large title in the page and hides the header bar on wide web', async () => {
+        const renderer = await renderScreen();
+        expect(renderer.root.findByType('StackScreen' as any).props.options).toMatchObject({ headerShown: false });
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'happyHerd.commander.category'
+        ))).toHaveLength(1);
     });
 });
