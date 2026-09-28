@@ -11,6 +11,8 @@ const testState = vi.hoisted(() => ({
     sessions: [] as Array<{ id: string; metadata?: { machineId?: string; commanderId?: string } }>,
     listCommanders: vi.fn(),
     readWithinRoot: vi.fn(),
+    writeFile: vi.fn(),
+    confirmDiscard: vi.fn(),
     navigate: vi.fn(),
     homeDockListening: false,
     draft: {
@@ -77,6 +79,30 @@ vi.mock('@/components/markdown/MarkdownView', async () => {
     return { MarkdownView: (props: any) => ReactModule.createElement('MarkdownView', props) };
 });
 
+vi.mock('@/components/FileViewPanel', async () => {
+    const ReactModule = await import('react');
+    return { FileContentPanel: (props: any) => ReactModule.createElement('FileContentPanel', props) };
+});
+
+// The Workspace's dirty guard, with its discard prompt answered by the test.
+vi.mock('@/-session/workspaceLinkNavigation', async () => {
+    const ReactModule = await import('react');
+    return {
+        useWorkspaceLinkDismissGuard: () => {
+            const dirtyRef = ReactModule.useRef(false);
+            return {
+                dirtyRef,
+                onDirtyChange: ReactModule.useCallback((dirty: boolean) => { dirtyRef.current = dirty; }, []),
+                guardDismiss: ReactModule.useCallback((action: () => void) => {
+                    if (!dirtyRef.current) { action(); return; }
+                    void Promise.resolve(testState.confirmDiscard()).then((confirmed) => { if (confirmed) action(); });
+                }, []),
+                reset: ReactModule.useCallback(() => { dirtyRef.current = false; }, []),
+            };
+        },
+    };
+});
+
 vi.mock('@/components/CommanderSessionAvatar', async () => {
     const ReactModule = await import('react');
     return { CommanderSessionAvatar: (props: any) => ReactModule.createElement('CommanderAvatar', props) };
@@ -93,6 +119,7 @@ vi.mock('@/hooks/useNewSessionDraft', () => ({
 vi.mock('@/sync/ops', () => ({
     machineListCommanders: testState.listCommanders,
     machineReadFileWithinRoot: testState.readWithinRoot,
+    machineWriteFile: testState.writeFile,
 }));
 
 vi.mock('@/sync/storage', () => ({
@@ -157,6 +184,8 @@ beforeEach(() => {
     testState.homeDockListening = false;
     testState.sessions = [];
     testState.navigate.mockReset();
+    testState.writeFile.mockReset().mockResolvedValue({ success: true, hash: 'saved-hash' });
+    testState.confirmDiscard.mockReset().mockResolvedValue(true);
     testState.draft.selectedMachineId = null;
     for (const setter of ['setMachineId', 'setCommanderId', 'setPath', 'setSessionType', 'setWorktreeKey'] as const) {
         testState.draft[setter].mockReset();
@@ -309,6 +338,127 @@ describe('Commanders page', () => {
             await Promise.resolve();
         });
         expect(hostNode(renderer, 'View', 'commander-memory-sheet').findAllByType('MarkdownView' as any)).toHaveLength(1);
+    });
+
+    async function openMemory(renderer: ReactTestRenderer, label: string) {
+        await act(async () => {
+            renderer.root.findByProps({ accessibilityLabel: label }).props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        return hostNode(renderer, 'View', 'commander-memory-sheet');
+    }
+
+    async function startEditing(renderer: ReactTestRenderer) {
+        await act(async () => {
+            hostNode(renderer, 'View', 'commander-memory-sheet')
+                .findAll((node: any) => node.props.testID === 'commander-memory-edit')[0].props.onPress();
+        });
+        return hostNode(renderer, 'View', 'commander-memory-sheet').findByType('FileContentPanel' as any);
+    }
+
+    it('edits a memory file in its sheet through the Workspace file editor, bound to the AgentContext', async () => {
+        const renderer = await renderScreen();
+        const path = '/home/me/.happyherd/commanders/athena/agentcontext/memory/1-working-memory.md';
+        const root = '/home/me/.happyherd/commanders/athena/agentcontext';
+        await openMemory(renderer, 'Athena · memory/1-working-memory.md');
+        const editor = await startEditing(renderer);
+
+        // One file-content surface, in Edit, with no Delete and no comments.
+        expect(editor.props.filePath).toBe(path);
+        expect(editor.props.canWrite).toBe(true);
+        expect(editor.props.initialDisplayMode).toBe('edit');
+        expect(editor.props.deleteFile).toBeUndefined();
+        expect(editor.props.reviewContext).toBeUndefined();
+        expect(editor.props.markdownSessionId).toBeUndefined();
+        expect(hostNode(renderer, 'View', 'commander-memory-sheet').findAllByType('MarkdownView' as any)).toHaveLength(0);
+
+        testState.readWithinRoot.mockClear();
+        await act(async () => { await editor.props.readFile(path); });
+        expect(testState.readWithinRoot).toHaveBeenCalledWith('machine-a', path, root);
+
+        // The editor's own controls take the Edit button's place in the sheet header.
+        await act(async () => {
+            editor.props.onHeaderRightSlotChange(React.createElement('View', { testID: 'file-controls' }));
+        });
+        const sheet = hostNode(renderer, 'View', 'commander-memory-sheet');
+        expect(sheet.findAll((node: any) => node.props.testID === 'file-controls')).toHaveLength(1);
+        expect(sheet.findAll((node: any) => node.props.testID === 'commander-memory-edit')).toHaveLength(0);
+
+        // Saving goes through the hash-guarded machine write and refreshes the card's memory line.
+        const saved = encoded('# Working memory\n\n- Rewrote the plan for the Settings lane.\n');
+        let result: unknown;
+        await act(async () => { result = await editor.props.writeFile(path, saved, 'read-hash'); });
+        expect(testState.writeFile).toHaveBeenCalledWith('machine-a', path, saved, 'read-hash');
+        expect(result).toEqual({ success: true, hash: 'saved-hash' });
+        const line = hostNode(renderer, 'Text', 'commander-memory-line-athena');
+        expect(line.props.children).toBe('“Rewrote the plan for the Settings lane.”');
+    });
+
+    it('keeps the card line when a save is refused, and edits the long-term file too', async () => {
+        const renderer = await renderScreen();
+        await openMemory(renderer, 'Athena · memory/2-long-term-memory.md');
+        const editor = await startEditing(renderer);
+        expect(editor.props.filePath).toBe('/home/me/.happyherd/commanders/athena/agentcontext/memory/2-long-term-memory.md');
+
+        testState.writeFile.mockResolvedValueOnce({ success: false, error: 'hash mismatch' });
+        let result: unknown;
+        await act(async () => { result = await editor.props.writeFile(editor.props.filePath, encoded('x'), 'old'); });
+        expect(result).toEqual({ success: false, error: 'hash mismatch' });
+        expect(hostNode(renderer, 'Text', 'commander-memory-line-athena').props.children)
+            .toBe('“Shipping the pages slice today.”');
+    });
+
+    it('returns to the rendered memory, read again, when the editor leaves Edit with nothing unsaved', async () => {
+        const renderer = await renderScreen();
+        await openMemory(renderer, 'Athena · memory/1-working-memory.md');
+        let editor = await startEditing(renderer);
+
+        // Unsaved edits keep the editor, even in its Preview.
+        await act(async () => {
+            editor.props.onDirtyChange(true);
+            editor.props.onDisplayModeChange('preview');
+        });
+        editor = hostNode(renderer, 'View', 'commander-memory-sheet').findByType('FileContentPanel' as any);
+
+        testState.readWithinRoot.mockClear();
+        await act(async () => {
+            editor.props.onDirtyChange(false);
+            editor.props.onDisplayModeChange('preview');
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        const sheet = hostNode(renderer, 'View', 'commander-memory-sheet');
+        expect(sheet.findAllByType('FileContentPanel' as any)).toHaveLength(0);
+        expect(sheet.findAllByType('MarkdownView' as any)).toHaveLength(1);
+        expect(testState.readWithinRoot).toHaveBeenCalledTimes(1);
+        expect(sheet.findAll((node: any) => node.props.testID === 'commander-memory-edit').length).toBeGreaterThan(0);
+    });
+
+    it('asks before closing the sheet over unsaved edits', async () => {
+        const renderer = await renderScreen();
+        await openMemory(renderer, 'Athena · memory/1-working-memory.md');
+        const editor = await startEditing(renderer);
+        await act(async () => { editor.props.onDirtyChange(true); });
+
+        testState.confirmDiscard.mockResolvedValueOnce(false);
+        const close = () => hostNode(renderer, 'View', 'commander-memory-sheet')
+            .findAll((node: any) => node.props.accessibilityLabel === 'common.cancel' && typeof node.props.onPress === 'function')[0];
+        await act(async () => {
+            close().props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(testState.confirmDiscard).toHaveBeenCalledTimes(1);
+        expect(hostNode(renderer, 'View', 'commander-memory-sheet').findAllByType('FileContentPanel' as any)).toHaveLength(1);
+
+        await act(async () => {
+            close().props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(testState.confirmDiscard).toHaveBeenCalledTimes(2);
+        expect(hostNode(renderer, 'View', 'commander-memory-sheet')).toBeUndefined();
     });
 
     it('reports a machine whose Commanders could not be listed and keeps the others', async () => {

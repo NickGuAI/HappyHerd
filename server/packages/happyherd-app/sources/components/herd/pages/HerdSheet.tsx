@@ -43,6 +43,7 @@ export function HerdSheet({
     title,
     subtitle,
     leading,
+    actions,
     closeLabel,
     onClose,
     footer,
@@ -54,6 +55,8 @@ export function HerdSheet({
     title: string;
     subtitle?: string;
     leading?: React.ReactNode;
+    /** Header controls drawn before the close button. */
+    actions?: React.ReactNode;
     closeLabel: string;
     onClose: () => void;
     footer?: React.ReactNode;
@@ -116,6 +119,7 @@ export function HerdSheet({
                         <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
                         {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
                     </View>
+                    {!phone ? actions : null}
                     <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={closeLabel}
@@ -126,6 +130,8 @@ export function HerdSheet({
                         <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
                     </Pressable>
                 </View>
+                {/* Phones give header actions their own row, so the title keeps its width. */}
+                {phone && actions ? <View style={styles.actionsPhone}>{actions}</View> : null}
                 <ScrollView
                     style={styles.body}
                     contentContainerStyle={[styles.bodyContent, phone && styles.bodyContentPhone]}
@@ -222,6 +228,15 @@ const styles = StyleSheet.create((theme) => ({
     headerCopy: {
         flex: 1,
         minWidth: 0,
+    },
+    actionsPhone: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingBottom: 12,
     },
     title: {
         ...Typography.default('semiBold'),

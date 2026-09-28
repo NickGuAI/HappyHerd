@@ -37,7 +37,12 @@ export async function readCommanderMemory(
     if (!result.success || typeof result.content !== 'string') {
         throw new Error(result.error || file);
     }
-    return decodeUTF8(decodeBase64(result.content));
+    return decodeCommanderMemory(result.content);
+}
+
+/** Decodes the base64 file content the daemon's file read and write carry. */
+export function decodeCommanderMemory(base64: string): string {
+    return decodeUTF8(decodeBase64(base64));
 }
 
 const MEMORY_LINE_LIMIT = 180;

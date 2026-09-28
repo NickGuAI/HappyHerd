@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { HappyHerdCommanderSummary } from '@happyherd/wire';
 
 import { CommanderSessionAvatar } from '@/components/CommanderSessionAvatar';
+import { FileContentPanel, type FileDisplayMode } from '@/components/FileViewPanel';
 import { Text } from '@/components/StyledText';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { requestHomeDockFocus } from '@/components/homeDockFocus';
@@ -21,13 +22,15 @@ import {
     COMMANDER_MEMORY_FILES,
     commanderMemoryLine,
     commanderMemoryPath,
+    decodeCommanderMemory,
     readCommanderMemory,
     type CommanderMemoryFile,
 } from '@/components/herd/pages/commanderMemory';
 import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
+import { useWorkspaceLinkDismissGuard } from '@/-session/workspaceLinkNavigation';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
-import { machineListCommanders, machineReadFileWithinRoot } from '@/sync/ops';
+import { machineListCommanders, machineReadFileWithinRoot, machineWriteFile } from '@/sync/ops';
 import { useAllMachines, useAllSessions } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { t } from '@/text';
@@ -243,6 +246,11 @@ export default function CommandersScreen() {
     const [reader, setReader] = React.useState<{ entry: CommanderEntry; file: CommanderMemoryFile } | null>(null);
     const [readerState, setReaderState] = React.useState<MemoryState>({ status: 'loading' });
     const [readerAttempt, setReaderAttempt] = React.useState(0);
+    // Edit swaps the rendered memory for the Workspace's own file editor, in this sheet.
+    const [editing, setEditing] = React.useState(false);
+    const [editorControls, setEditorControls] = React.useState<React.ReactNode>(null);
+    const { dirtyRef, onDirtyChange, guardDismiss, reset: resetDirty } = useWorkspaceLinkDismissGuard();
+    const { height: windowHeight } = useWindowDimensions();
 
     const columns = Math.max(1, Math.floor((gridWidth + CARD_GAP) / (CARD_MIN_WIDTH + CARD_GAP)));
     const cardWidth = gridWidth > 0 && columns > 1
@@ -289,6 +297,43 @@ export default function CommandersScreen() {
             active = false;
         };
     }, [reader, readerAttempt]);
+
+    const openReader = React.useCallback((entry: CommanderEntry, file: CommanderMemoryFile) => {
+        setEditing(false);
+        setReader({ entry, file });
+    }, []);
+    const closeReader = React.useCallback(() => {
+        guardDismiss(() => {
+            resetDirty();
+            setEditing(false);
+            setReader(null);
+        });
+    }, [guardDismiss, resetDirty]);
+    const readerMachineId = reader?.entry.machine.id;
+    const readerRoot = reader?.entry.commander.agentContextPath;
+    const readEditedMemory = React.useCallback((path: string) => (
+        machineReadFileWithinRoot(readerMachineId ?? '', path, readerRoot ?? '')
+    ), [readerMachineId, readerRoot]);
+    const writeEditedMemory = React.useCallback(async (path: string, content: string, expectedHash?: string | null) => {
+        const result = await machineWriteFile(readerMachineId ?? '', path, content, expectedHash);
+        if (result.success && reader?.file === COMMANDER_MEMORY_FILES[0]) {
+            const key = entryKey(reader.entry);
+            let line: string | null = null;
+            try {
+                line = commanderMemoryLine(decodeCommanderMemory(content));
+            } catch {
+                line = null;
+            }
+            setMemoryLines((current) => ({ ...current, [key]: line }));
+        }
+        return result;
+    }, [reader, readerMachineId]);
+    // Leaving Edit with nothing unsaved returns to the rendered memory, read again.
+    const onEditorModeChange = React.useCallback((mode: FileDisplayMode) => {
+        if (mode !== 'preview' || dirtyRef.current) return;
+        setEditing(false);
+        setReaderAttempt((value) => value + 1);
+    }, [dirtyRef]);
 
     const createCommander = React.useCallback(() => {
         router.navigate({ pathname: '/new', params: { intent: 'create-commander' } });
@@ -367,7 +412,7 @@ export default function CommandersScreen() {
                                 width={cardWidth}
                                 memoryLine={memoryLines[entryKey(entry)]}
                                 sessionCount={sessionCounts.get(`${entry.machine.id}\u0000${entry.commander.id}`) ?? 0}
-                                onOpenMemory={(file) => setReader({ entry, file })}
+                                onOpenMemory={(file) => openReader(entry, file)}
                                 onNewSession={() => startSessionWith(entry, () => router.navigate('/new'))}
                             />
                         ))}
@@ -391,9 +436,35 @@ export default function CommandersScreen() {
                     />
                 ) : null}
                 closeLabel={t('common.cancel')}
-                onClose={() => setReader(null)}
+                onClose={closeReader}
+                actions={editing ? editorControls : readerState.status === 'ready' ? (
+                    <HerdButton
+                        size="sm"
+                        icon="create-outline"
+                        label={t('files.editFile')}
+                        onPress={() => setEditing(true)}
+                        testID="commander-memory-edit"
+                    />
+                ) : null}
             >
-                {readerState.status === 'loading' ? (
+                {editing && reader ? (
+                    <View
+                        testID="commander-memory-editor"
+                        style={[styles.editor, { height: Math.max(320, Math.min(640, Math.round(windowHeight * 0.6))) }]}
+                    >
+                        <FileContentPanel
+                            resourceKey={`${reader.entry.machine.id}\u0000${commanderMemoryPath(reader.entry.commander, reader.file)}`}
+                            filePath={commanderMemoryPath(reader.entry.commander, reader.file)}
+                            readFile={readEditedMemory}
+                            writeFile={writeEditedMemory}
+                            canWrite
+                            initialDisplayMode="edit"
+                            onDisplayModeChange={onEditorModeChange}
+                            onHeaderRightSlotChange={setEditorControls}
+                            onDirtyChange={onDirtyChange}
+                        />
+                    </View>
+                ) : readerState.status === 'loading' ? (
                     <View style={styles.loading}>
                         <ActivityIndicator color={theme.colors.textSecondary} />
                     </View>
@@ -513,6 +584,13 @@ const styles = StyleSheet.create((theme) => ({
     createTitle: { ...Typography.default('semiBold'), fontSize: 18, color: theme.colors.textLink },
     createSubtitle: { ...Typography.default(), fontSize: 13.5, color: theme.colors.textSecondary, textAlign: 'center' },
     readerError: { gap: 12, alignItems: 'flex-start' },
+    editor: {
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: theme.kilv.radiusCard,
+        backgroundColor: theme.colors.input.background,
+    },
     reader: {
         paddingHorizontal: 16,
         paddingVertical: 8,
