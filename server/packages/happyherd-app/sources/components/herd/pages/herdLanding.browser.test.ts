@@ -182,6 +182,11 @@ describe('Signed-in landing in the production style runtime', () => {
         await page.goto(`${origin}/?theme=${options.theme}${options.workspace === false ? '&workspace=off' : ''}`);
         await page.getByTestId('herd-landing').waitFor();
         await page.evaluate(() => document.fonts.ready);
+        // On a loaded host the blocks can still be rising here (about 0.55 s), and a box
+        // measured mid-slide is off by a rounding step: 45.99997 px for a 46 px button.
+        await page.evaluate(() => Promise.all(document.getAnimations()
+            .filter((animation) => (animation as CSSAnimation).animationName?.startsWith('herd-rise'))
+            .map((animation) => animation.finished.catch(() => undefined))));
         return { page, errors };
     }
 
@@ -243,7 +248,6 @@ describe('Signed-in landing in the production style runtime', () => {
     it('keeps the mock\'s vertical rhythm in the 1440 main area', async () => {
         // Measured from the approved mock's main area (1108 × 848) at 1440 × 900.
         const { page, errors } = await openLanding({ theme: 'dark', width: 1108, height: 848 });
-        await page.waitForTimeout(600);
         const top = async (locator: ReturnType<Page['getByTestId']>) => (await locator.boundingBox())!;
         const mark = await top(page.getByTestId('herd-landing-mark'));
         const title = await top(page.getByRole('heading', { name: en.sidebar.sessionsTitle }));
