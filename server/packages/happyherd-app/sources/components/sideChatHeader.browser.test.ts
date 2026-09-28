@@ -3490,7 +3490,16 @@ describe('Side chats browser interaction', () => {
             const changesBox = await changes.boundingBox();
             if (!quickActionsBox || !changesBox) throw new Error('Session Info actions have no visible geometry');
             expect(changesBox.y).toBeGreaterThan(quickActionsBox.y);
-            await expect(info.getByText('parent', { exact: true }).count()).resolves.toBe(0);
+            // The mock's title row names the session once from 900 px up, above Quick Actions;
+            // narrower layouts leave the name to the Stack header.
+            const wide = width >= 900;
+            await expect(info.getByText('parent', { exact: true }).count()).resolves.toBe(wide ? 1 : 0);
+            if (wide) {
+                const titleBox = await info.getByTestId('session-info-header')
+                    .getByText('parent', { exact: true }).boundingBox();
+                if (!titleBox) throw new Error('Session Info title row has no visible geometry');
+                expect(quickActionsBox.y).toBeGreaterThan(titleBox.y);
+            }
 
             await changes.click();
             await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'visible' });
