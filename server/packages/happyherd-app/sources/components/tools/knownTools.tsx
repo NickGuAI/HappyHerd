@@ -1013,7 +1013,11 @@ export const knownTools = {
         input: z.object({
             skill: z.string().optional().describe('The skill to load')
         }).partial().passthrough(),
-        result: z.object({}).partial().passthrough()
+        result: z.object({}).partial().passthrough(),
+        // Shown only on its permission card, which names the skill it would load.
+        extractSubtitle: (opts: { metadata: Metadata | null, tool: ToolCall }) => (
+            typeof opts.tool.input?.skill === 'string' ? opts.tool.input.skill : null
+        ),
     },
     'ToolSearch': {
         icon: ICON_SEARCH,

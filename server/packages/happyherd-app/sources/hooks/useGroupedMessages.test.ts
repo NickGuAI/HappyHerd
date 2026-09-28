@@ -333,6 +333,18 @@ describe('useGroupedMessages', () => {
         expect(flat.map((item) => item.id)).toEqual(['user']);
     });
 
+    it('keeps a hidden tool on display while its permission request is pending', () => {
+        const base = toolMessage('skill-pending', 3, { pendingPermission: true, state: 'running' });
+        const pendingSkill: ToolCallMessage = { ...base, tool: { ...base.tool, name: 'Skill' } };
+        const messages: Message[] = [
+            pendingSkill,
+            { kind: 'user-text', id: 'user', localId: null, createdAt: 1, text: 'hi' },
+        ];
+
+        expect(groupMessagesForDisplay(messages, false).map((item) => item.id)).toContain('skill-pending');
+        expect(JSON.stringify(groupMessagesForDisplay(messages, true))).toContain('skill-pending');
+    });
+
     it('passes messages through chronologically when grouping is disabled', () => {
         const messages: Message[] = [
             {

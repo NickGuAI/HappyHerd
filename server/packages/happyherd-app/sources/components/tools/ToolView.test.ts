@@ -370,6 +370,28 @@ describe('web tool rows (UI overhaul)', () => {
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
     });
 
+    it('shows a hidden internal tool only while its permission request is pending', () => {
+        const skill = { ...tool('Skill', { skill: 'workspace-manage-tasks' }), state: 'running' as const };
+        const pendingSkill = { ...skill, permission: { id: 'p1', status: 'pending' as const } };
+        for (const platform of ['web', 'ios'] as const) {
+            settings.platform = platform;
+            const row = render(React.createElement(ToolView, { tool: pendingSkill, metadata: null, sessionId: 's1' }));
+            expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+            if (platform === 'web') {
+                expect(row.root.findAll((node: any) => node.props.testID === 'tool-permission-card').length).toBeGreaterThan(0);
+            }
+            // The card names the skill it asks to load.
+            expect(JSON.stringify(row.toJSON())).toContain('workspace-manage-tasks');
+        }
+        // Answered, or never asked: the internal tool stays out of the chat.
+        for (const permission of [undefined, { id: 'p2', status: 'approved' as const }, { id: 'p3', status: 'denied' as const }]) {
+            const row = render(React.createElement(ToolView, { tool: permission ? { ...skill, permission } : skill, metadata: null, sessionId: 's1' }));
+            expect(row.toJSON()).toBeNull();
+        }
+        const search = render(React.createElement(ToolView, { tool: tool('ToolSearch', { query: 'select:Read' }), metadata: null, sessionId: 's1' }));
+        expect(search.toJSON()).toBeNull();
+    });
+
     it('keeps todo, question and pending approval cards navigable to the detail screen', () => {
         settings.platform = 'web';
         settings.communication = {

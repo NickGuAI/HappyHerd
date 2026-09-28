@@ -169,10 +169,11 @@ function collectAgentWorkGroups(messages: Message[], turnOf: number[], collapseC
 
 /** Returns true for messages that render as null and should be excluded entirely */
 function isInvisibleMessage(msg: Message): boolean {
-    // Hidden tools (ToolSearch, CodexReasoning, etc.)
+    // Hidden tools (ToolSearch, CodexReasoning, etc.), except while a permission
+    // request waits on one: ToolView then draws its card so it can be answered.
     if (msg.kind === 'tool-call') {
         const known = knownTools[msg.tool.name as keyof typeof knownTools] as any;
-        return known?.hidden === true;
+        return known?.hidden === true && msg.tool.permission?.status !== 'pending';
     }
     // Thinking messages render as null in MessageView
     if (msg.kind === 'agent-text') {

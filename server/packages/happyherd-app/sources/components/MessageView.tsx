@@ -464,9 +464,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: Platform.select({ web: theme.borderRadius.xxl, default: theme.borderRadius.sm }),
     marginBottom: 4,
     maxWidth: '100%',
-    _web: {
-      maxWidth: 'min(88%, 640px)',
-    },
   },
   // The corner nearest the sender stays tight, like a speech bubble tail.
   userMessageBubbleOwn: {
@@ -550,6 +547,12 @@ const styles = StyleSheet.create((theme) => ({
   userMessageBody: {
     alignItems: 'flex-end',
     maxWidth: '100%',
+    // Web caps the bubbles here, where 88% resolves against the chat's row. On
+    // the bubble it resolved against its own shrink-to-fit wrapper, so short
+    // messages were held just below their width and wrapped mid-word.
+    _web: {
+      maxWidth: 'min(88%, 640px)',
+    },
   },
   // Another participant's message: everything on the reader's side is on the
   // right, so the other side of the chat is the left, like any messenger.

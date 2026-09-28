@@ -643,3 +643,6 @@ UI_OVERHAUL_ROUND3_DOCS	accepted	docs(app): record one-panel Settings, the Focus
 UI_OVERHAUL_TRACK_FIXTURE_STUBS	accepted	test(app): stub @/track in the fixtures that bundle Settings	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 UI_OVERHAUL_GOLDENS_SETTINGS_ONE_PANEL	accepted	test(app): regenerate the Appearance baselines for one-panel Settings	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
 UI_OVERHAUL_HEADER_COUNT_BUTTON	accepted	fix(app): widen an icon-only header button to hold its count	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_HIDDEN_TOOL_PERMISSION	accepted	fix(app): show a pending permission request on a hidden tool	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
+UI_SHORT_USER_BUBBLE	accepted	fix(app): size short user bubbles to their text	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_FIX_350_351_DOCS	accepted	docs(app): record the hidden-tool permission and bubble width fixes for upstream merges	docs/upstream-ui-parity.md

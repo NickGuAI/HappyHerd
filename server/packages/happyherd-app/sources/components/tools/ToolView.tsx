@@ -89,8 +89,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         ? knownTools[tool.name as keyof typeof knownTools] as any
         : undefined;
 
-    // Internal Claude Code tools (e.g. ToolSearch) are completely hidden from the UI
-    if (knownTool?.hidden) {
+    // Internal Claude Code tools (e.g. ToolSearch, Skill) stay out of the chat,
+    // except while a permission request waits on them: it must be answerable.
+    if (knownTool?.hidden && tool.permission?.status !== 'pending') {
         return null;
     }
 

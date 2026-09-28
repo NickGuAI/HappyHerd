@@ -76,7 +76,7 @@ const questions = [{
 
 // Oldest first here; the storage adapter hands the list over newest-first
 // with times relative to page load.
-type Scene = 'permission' | 'permission-older' | 'question';
+type Scene = 'permission' | 'permission-older' | 'question' | 'short-reply' | 'skill-permission';
 
 function transcript(scene: Scene): unknown[] {
     const turnOne = [
@@ -104,7 +104,13 @@ function transcript(scene: Scene): unknown[] {
         { kind: 'agent-text', id: 'a3', localId: null, createdAt: -2 * minute + 2000, text: 'Checking the Safari session fallback now.' },
         tool('t5', -2 * minute + 4000, 'Read', { file_path: '/work/web-app/src/auth/session.ts' }),
         tool('t6', -2 * minute + 6000, 'Edit', { file_path: '/work/web-app/src/auth/session.ts', old_string: 'return cached;', new_string: 'if (isPrivateMode()) return null;\nreturn cached;' }),
-        ...(scene !== 'question' ? [
+        ...(scene === 'skill-permission' ? [
+            // Claude Code asks before loading a skill; the Skill tool is otherwise hidden.
+            tool('t10', -1000, 'Skill', { skill: 'workspace-manage-tasks' }, {
+                state: 'running', result: undefined, completedAt: null,
+                permission: { id: 'perm-skill', status: 'pending' },
+            }),
+        ] : scene !== 'question' ? [
             tool('t7', -3000, 'Bash', { command: 'pnpm test:e2e --project=webkit' }, { state: 'running', result: undefined, completedAt: null }),
             tool('t8', -1000, 'Bash', { command: 'git push origin fix/auth-timeout', description: 'Push the fix branch' }, {
                 state: 'running', result: undefined, completedAt: null,
@@ -122,6 +128,10 @@ function transcript(scene: Scene): unknown[] {
                 permission: { id: 'perm-question', status: 'pending' },
             }),
         ]),
+        // A one-word reply, which must fit its bubble on one line.
+        ...(scene === 'short-reply' ? [
+            { kind: 'user-text', id: 'u3', localId: null, createdAt: -700, text: 'continue' },
+        ] : []),
         {
             kind: 'user-text', id: 'q1-message', localId: 'q1', createdAt: -500,
             text: 'Verify the fix using the simulator before committing the changes.',
@@ -279,6 +289,8 @@ function sessionScreenModules(): Record<string, string> {
             permission: transcript('permission'),
             'permission-older': transcript('permission-older'),
             question: transcript('question'),
+            'short-reply': transcript('short-reply'),
+            'skill-permission': transcript('skill-permission'),
         })};
         const shiftTime = (value, at) => typeof value === 'number' ? at + value : value;
         const messages = fixtureOptions.sessionScreen
@@ -809,6 +821,65 @@ describe('Session screen overhaul (Web)', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    it.each([
+        ['Web Desktop', DESKTOP],
+        ['Web Mobile', MOBILE],
+    ])('keeps a one-word message on one line and long ones within the bubble limit on %s', async (_label, viewport) => {
+        const { page, errors } = await openScene({ scene: 'short-reply', viewport });
+        const bubbles = await page.getByTestId('foreground-session').evaluate((root) => {
+            const measure = (text: string) => {
+                const leaf = [...root.querySelectorAll('*')]
+                    .find((node) => node.children.length === 0 && node.textContent?.trim() === text) as HTMLElement | undefined;
+                if (!leaf) return null;
+                const range = document.createRange();
+                range.selectNodeContents(leaf);
+                const lines = new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top))).size;
+                // The bubble is the nearest ancestor with the hairline border.
+                let bubble: HTMLElement | null = leaf;
+                while (bubble && getComputedStyle(bubble).borderTopWidth !== '1px') bubble = bubble.parentElement;
+                return { lines, width: bubble ? bubble.getBoundingClientRect().width : null };
+            };
+            return {
+                short: measure('continue'),
+                long: measure('Also verify on mobile Safari before committing.'),
+                row: (root as HTMLElement).getBoundingClientRect().width,
+            };
+        });
+        expect(bubbles.short).toMatchObject({ lines: 1 });
+        expect(bubbles.long?.width).not.toBeNull();
+        // Long messages keep the 88% / 640 px limit of the chat's row (16 px gutters).
+        const limit = Math.min(0.88 * (bubbles.row - 32), 640);
+        expect(bubbles.long!.width!).toBeLessThanOrEqual(limit + 1);
+        if (viewport === MOBILE) expect(bubbles.long!.lines).toBeGreaterThan(1);
+        await evidence(page, `session-short-reply-${viewport.width}`);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it.each([
+        ['Web Desktop', DESKTOP],
+        ['Web Mobile', MOBILE],
+    ])('shows a pending Skill permission as an answerable card on %s', async (_label, viewport) => {
+        const { page, errors } = await openScene({ scene: 'skill-permission', viewport });
+        const card = page.getByTestId('tool-permission-card');
+        await card.waitFor({ state: 'visible' });
+        await card.scrollIntoViewIfNeeded();
+        await expect(card.getByText('workspace-manage-tasks').count()).resolves.toBeGreaterThan(0);
+        for (const [index, label] of ['Yes', "Yes, don't ask again for this tool", 'No, and provide feedback'].entries()) {
+            await expect(card.getByText(label, { exact: true }).isVisible()).resolves.toBe(true);
+            await expect(card.getByText(String(index + 1), { exact: true }).isVisible()).resolves.toBe(true);
+        }
+        await evidence(page, `session-skill-permission-${viewport.width}`);
+        // The number key answers it like any other permission request.
+        await page.locator('body').click({ position: { x: 5, y: viewport.height / 2 } });
+        await page.keyboard.press('1');
+        await expect.poll(() => page.evaluate(() => (window as any).__PERMISSION_CALLS__ ?? [])).toEqual([
+            ['allow', 'parent', 'perm-skill'],
+        ]);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('reopens a finished turn from its "Worked …" row', async () => {
         const { page, errors } = await openScene({ scene: 'permission', viewport: DESKTOP });
