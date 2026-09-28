@@ -48,7 +48,7 @@ const virtualModules: Record<string, string> = {
     '@/auth/authQRStart': `export const generateAuthKeyPair = () => ({ publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) }); export const authQRStart = () => new Promise(() => {});`,
     '@/auth/authQRWait': `export const authQRWait = () => new Promise(() => {});`,
     '@/encryption/base64': `export const encodeBase64 = () => 'fixture-key'; export const decodeBase64 = () => new Uint8Array(32);`,
-    '@/components/MainView': `export const MainView = () => null;`,
+    '@/components/herd/pages/HerdLanding': `export const HerdLanding = () => null;`,
     '@/components/herd/mobile/PhoneHome': `export const PhoneHome = () => null;`,
     '@/components/qr/QRCode': `export const QRCode = () => null;`,
     '@/components/MobileGlass': `import { View } from 'react-native'; export const MobileGlassSurface = View;`,

@@ -12,7 +12,7 @@ import { getRandomBytesAsync } from "expo-crypto";
 import { Typography } from "@/constants/Typography";
 import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
-import { MainView } from "@/components/MainView";
+import { HerdLanding } from "@/components/herd/pages/HerdLanding";
 import { PhoneHome } from "@/components/herd/mobile/PhoneHome";
 import { useHerdPhoneLayout } from "@/components/herd/mobile/useHerdPhone";
 import { t } from '@/text';
@@ -32,8 +32,9 @@ export default function Home() {
 }
 
 function Authenticated() {
-    // Tablets list sessions in the left panel; phones show that panel as the page (UI overhaul).
-    return useHerdPhoneLayout() ? <PhoneHome /> : <MainView variant="phone" />;
+    // Phones show the left panel as the page. Wider layouts list sessions in the
+    // panel and show the landing beside it (UI overhaul).
+    return useHerdPhoneLayout() ? <PhoneHome /> : <HerdLanding />;
 }
 
 function NotAuthenticated() {

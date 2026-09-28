@@ -586,3 +586,4 @@ UI_OVERHAUL_PREVIEW_MODAL_WIDTH	accepted	fix(app): fit image previews inside the
 UI_OVERHAUL_NEW_SESSION_UNDER_TOP_BAR	accepted	fix(app): measure native New Session from the screen under the phone top bar	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_MAC_LANDSCAPE_HEADER	accepted	fix(app): keep the Mac app's session header in landscape windows	server/packages/happyherd-app/sources/-session/SessionView.sideChat.test.ts
 UI_OVERHAUL_SHEET_WINDOW_INSETS	accepted	fix(app): keep native sheets below the status bar under the phone top bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
+UI_OVERHAUL_LANDING_PAGE	accepted	feat(app): give the signed-in landing the mock's page and horizon	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts

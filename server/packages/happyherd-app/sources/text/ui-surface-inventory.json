@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "5009c8f8411d053eb8508a91f5f1a8d6e14645f955dfd373820c47f1f5361cde",
+  "sourceFingerprint": "f2f71383dfc120816b3237018dee38c992f0b34eb5a5dd71ef752a1671125e03",
   "routeCount": 43,
-  "surfaceCount": 318,
+  "surfaceCount": 321,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4096,6 +4096,48 @@
       "route": null,
       "exports": [
         "HerdCollapse"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLanding.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdLanding"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.title",
+        "newSession.title",
+        "sidebar.sessionsTitle",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "updateBanner.whatsNew",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLandingArt.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdBrandMark",
+        "HerdHorizon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLandingArt.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdBrandMark",
+        "HerdHorizon"
       ],
       "translationKeys": [],
       "states": [],
