@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
@@ -16,7 +17,7 @@ import { useConnectAccount } from '@/hooks/useConnectAccount';
 import { getDisplayName } from '@/sync/profile';
 import { Image } from 'expo-image';
 import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
-import { disconnectGitHub } from '@/sync/apiGithub';
+import { disconnectGitHub, getGitHubOAuthParams } from '@/sync/apiGithub';
 import { disconnectService } from '@/sync/apiServices';
 import { fetchPushTokens, type PushToken } from '@/sync/apiPush';
 import {
@@ -29,7 +30,9 @@ import {
     type PushPermissionInfo,
 } from '@/sync/pushRegistration';
 import { AccountKeyPanel } from '@/components/AccountKeyPanel';
+import { SettingsProfileCard } from '@/components/SettingsProfileCard';
 import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
+import { openExternalUrl } from '@/utils/openExternalUrl';
 
 function formatPushPermissionLabel(permission: PushPermissionInfo | null): string {
     if (!permission) {
@@ -101,6 +104,7 @@ function buildPushTokenSubtitle(pushToken: PushToken, options: {
 const AccountSettingsScreen = React.memo(() => {
     const { theme } = useUnistyles();
     const auth = useAuth();
+    const router = useRouter();
     const [analyticsOptOut, setAnalyticsOptOut] = useSettingMutable('analyticsOptOut');
     const { connectAccount, isLoading: isConnecting } = useConnectAccount();
     const profile = useProfile();
@@ -157,6 +161,14 @@ const AccountSettingsScreen = React.memo(() => {
             void loadPushSettings();
         }, [loadPushSettings])
     );
+
+    // Connecting: Claude Code signs in on its own page; GitHub opens its OAuth consent.
+    const isAnthropicConnected = profile.connectedServices?.includes('anthropic') ?? false;
+    const isGitHubConnected = !!profile.github;
+    const [connectingGitHub, connectGitHub] = useHappyHerdAction(async () => {
+        const params = await getGitHubOAuthParams(auth.credentials!);
+        await openExternalUrl(params.url);
+    });
 
     // GitHub disconnection
     const [disconnecting, handleDisconnectGitHub] = useHappyHerdAction(async () => {
@@ -291,6 +303,8 @@ const AccountSettingsScreen = React.memo(() => {
     return (
         <>
             <ItemList>
+                <SettingsProfileCard />
+
                 {/* Account Info */}
                 <ItemGroup title={t('settingsAccount.accountInformation')}>
                     <Item
@@ -357,8 +371,8 @@ const AccountSettingsScreen = React.memo(() => {
                     </ItemGroup>
                 )}
 
-                {/* Connected Services Section */}
-                {profile.connectedServices && profile.connectedServices.length > 0 && (() => {
+                {/* Connected Services Section: the connected ones disconnect, the others connect. */}
+                {(() => {
                     // Map of service IDs to display names and icons
                     const knownServices = {
                         anthropic: { name: 'Claude Code', icon: require('@/assets/images/icon-claude.png'), tintColor: null },
@@ -367,11 +381,11 @@ const AccountSettingsScreen = React.memo(() => {
                     };
                     
                     // Filter to only known services
-                    const displayServices = profile.connectedServices.filter(
+                    const displayServices = (profile.connectedServices ?? []).filter(
                         service => service in knownServices
                     );
-                    
-                    if (displayServices.length === 0) return null;
+
+                    if (displayServices.length === 0 && isAnthropicConnected && isGitHubConnected) return null;
                     
                     return (
                         <ItemGroup title={t('settings.connectedAccounts')}>
@@ -399,6 +413,31 @@ const AccountSettingsScreen = React.memo(() => {
                                     />
                                 );
                             })}
+                            {!isAnthropicConnected && (
+                                <Item
+                                    title={knownServices.anthropic.name}
+                                    subtitle={t('settings.connectAccount')}
+                                    onPress={() => router.push('/settings/connect/claude')}
+                                    showChevron={false}
+                                    icon={
+                                        <Image
+                                            source={knownServices.anthropic.icon}
+                                            style={{ width: 29, height: 29 }}
+                                            contentFit="contain"
+                                        />
+                                    }
+                                />
+                            )}
+                            {!isGitHubConnected && (
+                                <Item
+                                    title={t('settings.github')}
+                                    subtitle={t('settings.connectGithubAccount')}
+                                    onPress={connectGitHub}
+                                    loading={connectingGitHub}
+                                    showChevron={false}
+                                    icon={<Ionicons name="logo-github" size={29} color={theme.colors.textSecondary} />}
+                                />
+                            )}
                         </ItemGroup>
                     );
                 })()}

@@ -9,7 +9,8 @@ const metadata = JSON.parse(readFileSync(resolve(appRoot, 'product-metadata.json
 const cliPackage = JSON.parse(readFileSync(resolve(appRoot, '../happyherd-cli/package.json'), 'utf8'));
 const appConfig = readFileSync(resolve(appRoot, 'app.config.js'), 'utf8');
 const productSource = readFileSync(resolve(appRoot, 'sources/constants/product.ts'), 'utf8');
-const settingsView = readFileSync(resolve(appRoot, 'sources/components/SettingsView.tsx'), 'utf8');
+// Settings → About carries the product's support, repository and issue links.
+const settingsView = readFileSync(resolve(appRoot, 'sources/components/SettingsAboutView.tsx'), 'utf8');
 
 if (metadata.displayName !== 'HappyHerd') {
   throw new Error('product metadata displayName must be HappyHerd');

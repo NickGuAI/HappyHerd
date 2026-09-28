@@ -15,11 +15,12 @@ import { t } from '@/text';
  * Desktop Settings layout (UI overhaul): a left-hand section list with the
  * selected page beside it, headed by the page's large title as the mock
  * draws it. Each settings route keeps its own screen and URL; phones and
- * narrow windows keep the stacked navigation and its header unchanged.
+ * narrow windows keep the stacked navigation and its header, and open
+ * Settings on the same list (SettingsSectionList). There is no separate
+ * Settings home: every option lives on one of these pages.
  */
 
 export type SettingsSectionId =
-    | 'general'
     | 'account'
     | 'streamline'
     | 'appearance'
@@ -29,7 +30,8 @@ export type SettingsSectionId =
     | 'features'
     | 'usage'
     | 'voice'
-    | 'language';
+    | 'language'
+    | 'about';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -42,12 +44,8 @@ export type SettingsNavEntry = {
     experimental?: boolean;
 };
 
-/**
- * Section order of the desktop list. The Streamline settings page, when it
- * lands, is inserted directly after Account.
- */
+/** Section order of the list, on desktop and in the narrow layouts' Settings page. */
 export const SETTINGS_SECTIONS: readonly SettingsNavEntry[] = [
-    { id: 'general', route: '/settings', icon: 'settings-outline', title: () => t('settings.title') },
     { id: 'account', route: '/settings/account', icon: 'person-circle-outline', title: () => t('settings.account') },
     { id: 'streamline', route: '/settings/streamline', icon: 'flash-outline', title: () => t('newSession.streamline.modeStreamline') },
     { id: 'appearance', route: '/settings/appearance', icon: 'color-palette-outline', title: () => t('settings.appearance') },
@@ -60,7 +58,9 @@ export const SETTINGS_SECTIONS: readonly SettingsNavEntry[] = [
     { id: 'language', route: '/settings/language', icon: 'language-outline', title: () => t('settingsLanguage.title') },
 ];
 
+/** The ABOUT group: the About page, then two pages outside Settings. */
 export const SETTINGS_ABOUT_LINKS: readonly SettingsNavEntry[] = [
+    { id: 'about', route: '/settings/about', icon: 'information-circle-outline', title: () => t('settings.about') },
     { id: 'commanders', route: '/commanders', icon: 'people-outline', title: () => t('happyHerd.commander.category') },
     { id: 'whatsNew', route: '/changelog', icon: 'sparkles-outline', title: () => t('settings.whatsNew') },
 ];
@@ -117,23 +117,24 @@ export function SettingsNav({ active }: { active: SettingsSectionId }) {
             ))}
             <Text style={styles.sectionLabel}>{t('settings.about')}</Text>
             {SETTINGS_ABOUT_LINKS.map((entry) => (
-                <NavItem key={entry.id} entry={entry} active={false} onPress={() => open(entry)} />
+                <NavItem key={entry.id} entry={entry} active={entry.id === active} onPress={() => open(entry)} />
             ))}
         </ScrollView>
     );
 }
 
 /**
- * Phones (UI overhaul): the desktop section list as a card on the Settings
- * home, one 48 px row per section and then Commanders, each opening its page.
+ * Phones and narrow windows (UI overhaul): Settings opens on the desktop
+ * section list as a card, one 48 px row per section and then the ABOUT
+ * group's About, Commanders and What's New, each opening its page.
  */
 export function SettingsSectionList() {
     const router = useRouter();
     const { theme } = useUnistyles();
     const experiments = useSetting('experiments');
     const entries = [
-        ...SETTINGS_SECTIONS.filter((entry) => entry.id !== 'general' && (!entry.experimental || experiments)),
-        ...SETTINGS_ABOUT_LINKS.filter((entry) => entry.id === 'commanders'),
+        ...SETTINGS_SECTIONS.filter((entry) => !entry.experimental || experiments),
+        ...SETTINGS_ABOUT_LINKS,
     ];
     return (
         <View role="navigation" accessibilityLabel={t('settings.sectionsLabel')} style={styles.phoneList} testID="settings-section-list">
@@ -173,7 +174,7 @@ export function useSettingsFrameAction(action: React.ComponentType | null) {
 }
 
 function sectionTitle(section: SettingsSectionId): string {
-    return (SETTINGS_SECTIONS.find((entry) => entry.id === section) ?? SETTINGS_SECTIONS[0]).title();
+    return ([...SETTINGS_SECTIONS, ...SETTINGS_ABOUT_LINKS].find((entry) => entry.id === section) ?? SETTINGS_SECTIONS[0]).title();
 }
 
 export function SettingsFrame({ section, title, children }: { section: SettingsSectionId; title?: () => string; children: React.ReactNode }) {

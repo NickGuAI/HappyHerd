@@ -11,6 +11,7 @@ vi.mock('react-native', async () => {
     return {
         Platform: { get OS() { return state.platform; } },
         Pressable: host('Pressable'),
+        ScrollView: host('ScrollView'),
         View: host('View'),
         useWindowDimensions: () => ({ width: state.width, height: 768 }),
     };
@@ -29,12 +30,23 @@ vi.mock('@expo/vector-icons', async () => {
 vi.mock('expo-router', async () => {
     const ReactModule = await import('react');
     return {
+        Redirect: (props: any) => ReactModule.createElement('Redirect', props),
         Stack: { Screen: (props: any) => ReactModule.createElement('StackScreen', props) },
         useRouter: () => ({ push: state.push }),
+        usePathname: () => '/settings',
     };
 });
-vi.mock('@/components/SettingsView', () => ({ SettingsView: () => null }));
-vi.mock('@/components/herd/pages/SettingsFrame', () => ({ withSettingsFrame: (_section: string, Screen: React.ComponentType) => Screen, useSettingsFrameAction: () => undefined }));
+vi.mock('@/components/SettingsView', async () => {
+    const ReactModule = await import('react');
+    return { SettingsView: () => ReactModule.createElement('SettingsView') };
+});
+vi.mock('@/components/StyledText', async () => {
+    const ReactModule = await import('react');
+    return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
+});
+vi.mock('@/components/layout', () => ({ layout: { maxWidth: 800 } }));
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mono: () => ({}) } }));
+vi.mock('@/sync/storage', () => ({ useSetting: () => false }));
 vi.mock('@/sync/serverConfig', () => ({ isUsingCustomServer: () => state.customServer }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => state.tablet }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
@@ -51,16 +63,50 @@ afterEach(() => {
     state.push.mockClear();
 });
 
-function headerRight() {
+function render(): ReactTestRenderer {
     let renderer!: ReactTestRenderer;
     act(() => {
         renderer = create(React.createElement(SettingsPage));
     });
     renderers.push(renderer);
-    return renderer.root.findByType('StackScreen' as any).props.options.headerRight as (() => React.ReactElement) | undefined;
+    return renderer;
 }
 
-describe('Settings server configuration', () => {
+function headerRight() {
+    return render().root.findByType('StackScreen' as any).props.options.headerRight as (() => React.ReactElement) | undefined;
+}
+
+describe('Settings without a home page', () => {
+    // The desktop section list sits beside the page from 1,000 px on the web.
+    it.each([
+        ['a desktop window', { width: 1440 }],
+        ['a 1024 × 768 browser window', { width: 1024 }],
+        ['the frame width exactly', { width: 1000 }],
+        ['the macOS build', { platform: 'macos', width: 1280 }],
+    ])('opens Account in place of this route in %s', (_label, layout) => {
+        Object.assign(state, layout);
+        const renderer = render();
+        const redirects = renderer.root.findAllByType('Redirect' as any);
+        expect(redirects.map((node: any) => node.props.href)).toEqual(['/settings/account']);
+        expect(renderer.root.findAllByType('SettingsView' as any)).toHaveLength(0);
+    });
+
+    it.each([
+        ['a 390 px phone browser', { width: 390 }],
+        ['an 800 px window', { width: 800 }],
+        ['1 px below the frame width', { width: 999 }],
+        ['a native phone', { platform: 'ios', width: 390 }],
+        ['a native tablet', { platform: 'ios', width: 1366, tablet: true }],
+        ['Android', { platform: 'android', width: 412 }],
+    ])('is the section list on %s', (_label, layout) => {
+        Object.assign(state, layout);
+        const renderer = render();
+        expect(renderer.root.findAllByType('Redirect' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('SettingsView' as any)).toHaveLength(1);
+    });
+});
+
+describe('Settings server configuration on the section list', () => {
     it('opens a custom server\'s configuration from the title row', () => {
         const right = headerRight();
         expect(right).toEqual(expect.any(Function));
@@ -77,7 +123,7 @@ describe('Settings server configuration', () => {
     });
 
     it('shows nothing there on the default server', () => {
-        for (const layout of [{ width: 390, tablet: false }, { width: 1024, tablet: true }, { platform: 'ios', width: 844, tablet: false }]) {
+        for (const layout of [{ width: 390, tablet: false }, { width: 800, tablet: true }, { platform: 'ios', width: 844, tablet: false }]) {
             Object.assign(state, { customServer: false, platform: 'web', ...layout });
             expect(headerRight()).toBeUndefined();
         }
@@ -88,8 +134,7 @@ describe('Settings server configuration', () => {
         ['a 390 px phone browser', { width: 390, tablet: false }],
         ['699 px on the web', { width: 699, tablet: true }],
         ['700 px on the web', { width: 700, tablet: false }],
-        ['a 1024 × 768 browser window', { width: 1024, tablet: false }],
-        ['a desktop window', { width: 1440, tablet: true }],
+        ['999 px on the web', { width: 999, tablet: false }],
         ['a native phone in landscape', { platform: 'ios', width: 844, tablet: false }],
         ['a native tablet', { platform: 'ios', width: 1024, tablet: true }],
     ])('keeps it on %s with a custom server', (_label, layout) => {

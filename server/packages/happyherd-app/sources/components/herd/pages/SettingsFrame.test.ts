@@ -101,12 +101,12 @@ function navItems(renderer: ReactTestRenderer) {
 }
 
 describe('SettingsFrame', () => {
-    it('lists every settings section and the About links beside the page on desktop', () => {
+    it('lists every settings section and the About links beside the page on desktop, with no Settings home', () => {
         const renderer = render('appearance');
 
         expect(renderer.root.findAllByType('Page' as any)).toHaveLength(1);
+        // Settings has no home page of its own: the list starts at Account.
         expect(navItems(renderer).map((node: any) => node.props.accessibilityLabel)).toEqual([
-            'settings.title',
             'settings.account',
             'newSession.streamline.modeStreamline',
             'settings.appearance',
@@ -116,9 +116,11 @@ describe('SettingsFrame', () => {
             'settings.featuresTitle',
             'settings.voiceAssistant',
             'settingsLanguage.title',
+            'settings.about',
             'happyHerd.commander.category',
             'settings.whatsNew',
         ]);
+        expect(navItems(renderer).some((node: any) => node.props.testID === 'settings-nav-general')).toBe(false);
         expect(navItems(renderer).filter((node: any) => node.props.accessibilityState.selected)
             .map((node: any) => node.props.testID)).toEqual(['settings-nav-appearance']);
         expect(renderer.root.findAll((node: any) => node.type === 'ScrollView' && node.props.testID === 'settings-nav')[0]
@@ -127,7 +129,7 @@ describe('SettingsFrame', () => {
 
     it('shows Usage only when experiments are on, like the Settings list', () => {
         testState.experiments = true;
-        expect(navItems(render('general')).map((node: any) => node.props.testID)).toContain('settings-nav-usage');
+        expect(navItems(render('account')).map((node: any) => node.props.testID)).toContain('settings-nav-usage');
     });
 
     it('switches sections through their existing routes and ignores the active one', () => {
@@ -138,15 +140,14 @@ describe('SettingsFrame', () => {
         act(() => item('account').props.onPress());
         act(() => item('language').props.onPress());
         act(() => item('commanders').props.onPress());
-        act(() => item('general').props.onPress());
+        act(() => item('about').props.onPress());
 
         expect(testState.navigate.mock.calls.map(([route]) => route)).toEqual([
             '/settings/language',
             '/commanders',
-            '/settings',
+            '/settings/about',
         ]);
         expect(SETTINGS_SECTIONS.map((entry) => entry.route)).toEqual([
-            '/settings',
             '/settings/account',
             '/settings/streamline',
             '/settings/appearance',
@@ -158,6 +159,15 @@ describe('SettingsFrame', () => {
             '/settings/voice',
             '/settings/language',
         ]);
+    });
+
+    it('highlights About, in the ABOUT group, on its own page', () => {
+        testState.pathname = '/settings/about';
+        const renderer = render('about');
+        expect(navItems(renderer).filter((node: any) => node.props.accessibilityState.selected)
+            .map((node: any) => node.props.testID)).toEqual(['settings-nav-about']);
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'settings-page-title' && node.type === 'Text')[0]
+            .props.children).toBe('settings.about');
     });
 
     it('returns from a nested page to its highlighted section', () => {
@@ -254,7 +264,7 @@ describe('SettingsFrame page title', () => {
             useSettingsFrameAction(on ? Action : null);
             return React.createElement('Page');
         }
-        const tree = (on: boolean) => React.createElement(SettingsFrame, { section: 'general', children: React.createElement(Page, { on }) });
+        const tree = (on: boolean) => React.createElement(SettingsFrame, { section: 'connections', children: React.createElement(Page, { on }) });
         let renderer!: ReactTestRenderer;
         act(() => {
             renderer = create(tree(true));
@@ -277,19 +287,22 @@ describe('SettingsSectionList (phones)', () => {
         node.type === 'Pressable' && typeof node.props.testID === 'string' && node.props.testID.startsWith('settings-section-')
     ));
 
-    it('lists every section page, then Commanders, as the Settings home does on phones', () => {
+    it('lists every section page, then About, Commanders and What\'s New, as Settings opens on phones', () => {
         const renderer = sections();
         expect(rows(renderer).map((node: any) => node.props.testID.replace('settings-section-', ''))).toEqual([
-            'account', 'streamline', 'appearance', 'agents', 'credentials', 'connections', 'features', 'voice', 'language', 'commanders',
+            'account', 'streamline', 'appearance', 'agents', 'credentials', 'connections', 'features', 'voice', 'language',
+            'about', 'commanders', 'whatsNew',
         ]);
         expect(renderer.root.findAll((node: any) => node.props.testID === 'settings-section-list' && node.type === 'View')[0]
             .props.accessibilityLabel).toBe('settings.sectionsLabel');
         const appearance = rows(renderer).find((node: any) => node.props.testID === 'settings-section-appearance')!;
         expect(appearance.props.accessibilityLabel).toBe('settings.appearance');
         act(() => appearance.props.onPress());
+        act(() => rows(renderer).find((node: any) => node.props.testID === 'settings-section-about')!.props.onPress());
         act(() => rows(renderer).find((node: any) => node.props.testID === 'settings-section-commanders')!.props.onPress());
-        // Pushed, so Back returns to the Settings home.
-        expect(testState.push.mock.calls.map(([route]) => route)).toEqual(['/settings/appearance', '/commanders']);
+        act(() => rows(renderer).find((node: any) => node.props.testID === 'settings-section-whatsNew')!.props.onPress());
+        // Pushed, so Back returns to the section list.
+        expect(testState.push.mock.calls.map(([route]) => route)).toEqual(['/settings/appearance', '/settings/about', '/commanders', '/changelog']);
     });
 
     it('adds Usage when experiments are on', () => {

@@ -387,7 +387,6 @@ const virtualModules: Record<string, string> = {
     '@/components/EmptyMainScreen': `export const EmptyMainScreen = () => null;`,
     '@/components/InboxView': `export const InboxView = () => null;`,
     '@/components/HomeDock': `export const HomeDock = () => null; export const MOBILE_HOME_DOCK_CONTENT_INSET = 128;`,
-    '@/components/SettingsViewWrapper': `export const SettingsViewWrapper = () => null;`,
     '@/components/HeaderLogo': `export const HeaderLogo = () => null;`,
     '@/components/navigation/Header': `
         import React from 'react';
@@ -433,7 +432,6 @@ const fixturePlugin: Plugin = {
                 './EmptyMainScreen': '@/components/EmptyMainScreen',
                 './InboxView': '@/components/InboxView',
                 './HomeDock': '@/components/HomeDock',
-                './SettingsViewWrapper': '@/components/SettingsViewWrapper',
                 './HeaderLogo': '@/components/HeaderLogo',
                 './navigation/Header': '@/components/navigation/Header',
                 './NativeSettingsMenu': '@/components/NativeSettingsMenu',

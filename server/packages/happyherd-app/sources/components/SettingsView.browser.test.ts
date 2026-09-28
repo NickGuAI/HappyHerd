@@ -180,7 +180,11 @@ describe('Settings policy links browser interaction', () => {
                     import React from 'react';
                     import { createRoot } from 'react-dom/client';
                     import { SettingsView } from '@/components/SettingsView';
-                    createRoot(document.getElementById('root')).render(React.createElement(SettingsView));
+                    import { SettingsAboutView } from '@/components/SettingsAboutView';
+                    import { SettingsProfileCard } from '@/components/SettingsProfileCard';
+                    const view = new URLSearchParams(location.search).get('view');
+                    const Screen = view === 'about' ? SettingsAboutView : view === 'card' ? SettingsProfileCard : SettingsView;
+                    createRoot(document.getElementById('root')).render(React.createElement(Screen));
                 `,
                 loader: 'tsx',
                 resolveDir: appRoot,
@@ -226,31 +230,27 @@ describe('Settings policy links browser interaction', () => {
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
         ['Web Mobile', { width: 390, height: 844 }],
-    ] as const)('lays the profile out as the mock\'s one-row card on %s, and opens Account from it', async (_surface, viewport) => {
+    ] as const)('lays the Account profile out as the mock\'s one-row card on %s', async (_surface, viewport) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
         await page.addInitScript(() => { (window as any).__SETTINGS_ROUTES__ = []; });
-        await page.goto(`${origin}?theme=dark&email=test%40example.com`);
+        await page.goto(`${origin}?view=card&theme=dark&email=test%40example.com`);
         const card = page.getByTestId('settings-profile-card');
         await card.waitFor();
         const name = card.getByText('Test User', { exact: true });
         const email = card.getByText('test@example.com', { exact: true });
-        const account = card.getByRole('button', { name: 'Account', exact: true });
-        const [cardBox, nameBox, emailBox, accountBox] = await Promise.all([card, name, email, account].map(async (item) => (await item.boundingBox())!));
-        // One row: the ringed avatar, then the name over the email, then Account at the end.
+        const [cardBox, nameBox, emailBox] = await Promise.all([card, name, email].map(async (item) => (await item.boundingBox())!));
+        // One row: the ringed avatar, then the name over the email. It heads Account, so it has no Account button.
         expect(cardBox.height).toBeLessThanOrEqual(100);
         expect(emailBox.y).toBeGreaterThan(nameBox.y);
-        expect(accountBox.x).toBeGreaterThan(Math.max(nameBox.x + nameBox.width, emailBox.x + emailBox.width));
-        expect(Math.abs((accountBox.y + accountBox.height / 2) - (cardBox.y + cardBox.height / 2))).toBeLessThanOrEqual(2);
+        await expect(card.getByRole('button').count()).resolves.toBe(0);
         const ring = await card.evaluate((element) => [...element.querySelectorAll('*')].filter((node) => {
             const style = getComputedStyle(node);
             return style.position === 'absolute' && style.borderTopWidth === '2px' && style.borderRadius !== '0px';
         }).map((node) => node.getBoundingClientRect()));
         expect(ring).toHaveLength(1);
         expect(ring[0].right).toBeLessThanOrEqual(nameBox.x);
-        await account.click();
-        await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toEqual(['/settings/account']);
         expect(pageErrors).toEqual([]);
         await page.close();
     });
@@ -260,7 +260,7 @@ describe('Settings policy links browser interaction', () => {
         ['Web Desktop Dark', { width: 1440, height: 900 }, 'dark'],
         ['Web Mobile Light', { width: 390, height: 844 }, 'light'],
         ['Web Mobile Dark', { width: 390, height: 844 }, 'dark'],
-    ] as const)('renders no About footer and opens the configured Web destinations on %s', async (_surface, viewport, theme) => {
+    ] as const)('renders no About footer on the About page and opens the configured Web destinations on %s', async (_surface, viewport, theme) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -276,11 +276,9 @@ describe('Settings policy links browser interaction', () => {
                 return null;
             }) as typeof window.open;
         });
-        await page.goto(`${origin}?theme=${theme}`);
+        await page.goto(`${origin}?view=about&theme=${theme}`);
 
         await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
-        const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');
-        await expect(aboutGroup.locator(':scope > *').count()).resolves.toBe(2);
         const support = page.getByText('Support Us', { exact: true });
         await support.waitFor({ state: 'visible' });
         await expect(page.locator('[data-icon="heart"]').count()).resolves.toBe(1);
@@ -298,11 +296,8 @@ describe('Settings policy links browser interaction', () => {
         await page.getByText('GitHub', { exact: true }).last().click();
         await page.getByText('Report Issue', { exact: true }).click();
         await page.getByText('Terms of Service', { exact: true }).click();
-        await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Version', { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('HappyHerd 1.2.2 · Runtime 21', { exact: true }).count()).resolves.toBe(1);
-        await page.getByText('Credentials & Accounts', { exact: true }).click();
-        await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toContain('/settings/credentials');
 
         await page.waitForFunction(() => (window as any).__OPEN_CALLS__.length === 5);
         await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([
@@ -317,7 +312,7 @@ describe('Settings policy links browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it.each(['light', 'dark'] as const)('opens Settings on Web Mobile (%s) with its section list after the profile, in place of the groups it repeats', async (theme) => {
+    it.each(['light', 'dark'] as const)('opens Settings on Web Mobile (%s) with only its section list', async (theme) => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -333,7 +328,7 @@ describe('Settings policy links browser interaction', () => {
         const labels = await list.getByRole('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
         expect(labels).toEqual([
             'Account', 'Streamline', 'Appearance', 'Agent Defaults', 'Credentials & Accounts',
-            'Connections', 'Features', 'Voice Assistant', 'Language', 'Commanders',
+            'Connections', 'Features', 'Voice Assistant', 'Language', 'About', 'Commanders', "What's New",
         ]);
         // The card sits on the 16 px gutter; its 48 px rows put their icons 16 px inside it.
         const card = (await list.boundingBox())!;
@@ -346,41 +341,33 @@ describe('Settings policy links browser interaction', () => {
             expect(row.height).toBeGreaterThanOrEqual(48);
             expect(row.icon).toBe(Math.round(card.x) + 1 + 16);
         }
-        // The Features group and the device pairing row only repeated these pages.
+        // The old home's groups moved to their pages (Account, Connections, About).
         await expect(page.getByText('Add a device and open your connected machines', { exact: true }).count()).resolves.toBe(0);
         await expect(page.getByText('Manage your account details', { exact: true }).count()).resolves.toBe(0);
-        // Everything else stays, and a row opens its page.
-        await expect(page.getByText('Support Us', { exact: true }).count()).resolves.toBe(1);
-        await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('Support Us', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByTestId('settings-profile-card').count()).resolves.toBe(0);
+        // A row opens its page.
         await list.getByRole('button', { name: 'Appearance', exact: true }).click();
         await expect(page.evaluate(() => (window as any).__SETTINGS_ROUTES__)).resolves.toEqual(['/settings/appearance']);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 15_000);
 
+    // Below the desktop frame's 1,000 px the section list is the whole page at every width.
     it.each([
-        { label: 'on Web Desktop', width: 1440, height: 900 },
-        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width (UI overhaul).
-        { label: 'in a 1024 × 768 window, which the device rule calls a phone', width: 1024, height: 768 },
+        { label: '1 px below the web phone breakpoint', width: 699, height: 900 },
         { label: 'at the 700 px web breakpoint', width: 700, height: 900 },
-    ])('keeps every Settings group, and no phone section list, $label', async ({ width, height }) => {
+        { label: '1 px below the desktop frame', width: 999, height: 900 },
+    ])('opens Settings with only its section list $label', async ({ width, height }) => {
         const page = await browser.newPage({ viewport: { width, height } });
         await page.goto(`${origin}?theme=light`);
-        await page.getByText('Support Us', { exact: true }).waitFor({ state: 'visible' });
-        await expect(page.getByTestId('settings-section-list').count()).resolves.toBe(0);
-        await expect(page.getByText('Credentials & Accounts', { exact: true }).count()).resolves.toBe(1);
-        await page.close();
-    }, 15_000);
-
-    it('opens Settings with its section list 1 px below the web breakpoint', async () => {
-        const page = await browser.newPage({ viewport: { width: 699, height: 900 } });
-        await page.goto(`${origin}?theme=light`);
         await page.getByTestId('settings-section-list').waitFor({ state: 'visible' });
+        await expect(page.getByText('Support Us', { exact: true }).count()).resolves.toBe(0);
         await expect(page.getByText('Add a device and open your connected machines', { exact: true }).count()).resolves.toBe(0);
         await page.close();
     }, 15_000);
 
-    it('retains the voluntary-support paywall on the non-Web platform branch', async () => {
+    it('retains the voluntary-support paywall on the About page\'s non-Web platform branch', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -392,12 +379,10 @@ describe('Settings policy links browser interaction', () => {
                 return null;
             }) as typeof window.open;
         });
-        await page.goto(`${origin}/?platform=ios`);
+        await page.goto(`${origin}/?view=about&platform=ios`);
 
         await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
         await expect(page.getByText('HappyHerd 1.2.2 · Runtime 21', { exact: true }).count()).resolves.toBe(1);
-        const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');
-        await expect(aboutGroup.locator(':scope > *').count()).resolves.toBe(2);
         const support = page.getByText('Support Us', { exact: true });
         await support.waitFor({ state: 'visible', timeout: 3_000 }).catch(async (error) => {
             throw new Error(`${String(error)}\nBrowser errors:\n${pageErrors.join('\n')}\nBody:\n${await page.locator('body').innerText()}`);

@@ -185,4 +185,4 @@ const styles = StyleSheet.create((theme) => ({
     },
 }));
 
-export default withSettingsFrame('general', ClaudeOAuth, { title: () => t('settings.connectClaudeTitle') });
+export default withSettingsFrame('account', ClaudeOAuth, { title: () => t('settings.connectClaudeTitle') });

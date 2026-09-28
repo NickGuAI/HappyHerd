@@ -13,6 +13,8 @@ import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useConnectTerminal } from '@/hooks/useConnectTerminal';
+import { Modal } from '@/modal';
 import { useAllMachines, useProfile, useSocketStatus } from '@/sync/storage';
 import { apiSocket } from '@/sync/apiSocket';
 import { getServerUrl } from '@/sync/serverConfig';
@@ -22,6 +24,7 @@ import {
     type PairingFailure, type PairingTarget,
 } from '@/sync/devicePairing';
 import { formatLastSeen } from '@/utils/sessionUtils';
+import { isMachineOnline } from '@/utils/machineUtils';
 import { t } from '@/text';
 
 // CLI syntax is executable data and must remain identical in every locale.
@@ -97,6 +100,10 @@ export function ConnectionsSettingsView() {
     const [busy, setBusy] = React.useState(false);
     const [checks, setChecks] = React.useState<Record<string, boolean>>({});
     const [refresh, setRefresh] = React.useState(0);
+    const [showOfflineMachines, setShowOfflineMachines] = React.useState(false);
+    const offlineMachineCount = machines.filter((machine) => !isMachineOnline(machine)).length;
+    const listedMachines = showOfflineMachines ? machines : machines.filter(isMachineOnline);
+    const { connectTerminal, connectWithUrl, isLoading: connectingTerminal } = useConnectTerminal();
     const generation = React.useRef(0);
     // Only identity and capability affect this request; heartbeat updates must not restart it.
     const supportedIds = machines.filter((machine) => machine.metadata?.devicePairingProtocolVersion === 1 && machine.active).map((machine) => machine.id).sort().join('\n');
@@ -208,6 +215,34 @@ export function ConnectionsSettingsView() {
                 {canCancel && <View style={styles.actions}><Action label={t('common.cancel')} onPress={clearForm} /></View>}
             </View>
         </ItemGroup>
+        {/* The apps sign a terminal in from its QR code or its pasted URL. */}
+        {Platform.OS !== 'web' && <ItemGroup>
+            <Item
+                title={t('settings.scanQrCodeToAuthenticate')}
+                icon={<Ionicons name="qr-code-outline" size={29} color={theme.colors.textLink} />}
+                onPress={connectTerminal}
+                loading={connectingTerminal}
+                showChevron={false}
+            />
+            <Item
+                title={t('connect.enterUrlManually')}
+                icon={<Ionicons name="link-outline" size={29} color={theme.colors.textLink} />}
+                onPress={async () => {
+                    const url = await Modal.prompt(
+                        t('modals.authenticateTerminal'),
+                        t('modals.pasteUrlFromTerminal'),
+                        {
+                            placeholder: t('uiCopy.happyherdTerminal'),
+                            confirmText: t('common.authenticate'),
+                        }
+                    );
+                    if (url?.trim()) {
+                        connectWithUrl(url.trim());
+                    }
+                }}
+                showChevron={false}
+            />
+        </ItemGroup>}
         {connected && socketStatus === 'connected' && checks[connected.machineId] === true && machines.some((machine) => machine.id === connected.machineId && machine.active) && <ItemGroup title={<GroupHeader title={t('devicePairing.connected')} />}>
             <View style={styles.addBody}>
                 <Text style={styles.connectedText}>{t('devicePairing.connectedDetail', { host: connected.host })}</Text>
@@ -223,7 +258,7 @@ export function ConnectionsSettingsView() {
         </ItemGroup>}
         <ItemGroup title={<GroupHeader title={t('devicePairing.devices')} description={t('devicePairing.devicesFooter')} />}>
             {machines.length === 0 && <Item title={t('devicePairing.noDevices')} showChevron={false} />}
-            {machines.map((machine) => {
+            {listedMachines.map((machine) => {
                 const supported = machine.metadata?.devicePairingProtocolVersion === 1;
                 const status = !supported ? t('devicePairing.needsUpdate')
                     : !machine.active ? (machine.activeAt ? t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }) : t('status.offline'))
@@ -235,6 +270,14 @@ export function ConnectionsSettingsView() {
                     rightElement={selected ? <SelectedTag /> : undefined}
                     onPress={() => router.push(`/machine/${machine.id}`)} />;
             })}
+            {offlineMachineCount > 0 && <Item
+                title={showOfflineMachines
+                    ? t('settings.hideOfflineMachines')
+                    : t('settings.showOfflineMachines', { count: offlineMachineCount })}
+                onPress={() => setShowOfflineMachines((value) => !value)}
+                showChevron={false}
+                titleStyle={styles.offlineToggle}
+            />}
             <Item title={t('devicePairing.refresh')} onPress={() => setRefresh((value) => value + 1)} showChevron={false} />
         </ItemGroup>
     </ItemList>;
@@ -433,6 +476,10 @@ const styles = StyleSheet.create((theme) => ({
     },
     deviceName: {
         ...Typography.mono(),
+    },
+    offlineToggle: {
+        textAlign: 'center',
+        color: theme.colors.textLink,
     },
     selectedAccessory: {
         flexDirection: 'row',

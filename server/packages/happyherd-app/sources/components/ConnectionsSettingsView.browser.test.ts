@@ -134,15 +134,26 @@ const virtualModules: Record<string, string> = {
 Object.assign(virtualModules, {
     'expo-crypto': `export const randomUUID = () => crypto.randomUUID();`,
     'expo-router': `
-        export const useRouter = () => ({
+        import React from 'react';
+        const go = (path, method) => {
+            const route = typeof path === 'string' ? path : path.pathname;
+            history[method]({}, '', route);
+            dispatchEvent(new PopStateEvent('popstate'));
+        };
+        const router = {
             push(path) {
                 globalThis.__ROUTES__.push(path);
-                const route = typeof path === 'string' ? path : path.pathname;
-                history.pushState({}, '', route);
-                dispatchEvent(new PopStateEvent('popstate'));
+                go(path, 'pushState');
             },
-        });
+            navigate(path) { go(path, 'pushState'); },
+            replace(path) { go(path, 'replaceState'); },
+        };
+        export const useRouter = () => router;
         export const usePathname = () => location.pathname;
+        export function Redirect({ href }) {
+            React.useEffect(() => router.replace(href), [href]);
+            return null;
+        }
         export const Stack = { Screen: () => null };
     `,
     '@/sync/storage': `
@@ -166,7 +177,9 @@ Object.assign(virtualModules, {
     '@/text': `
         import catalog from '@/text/locales/en.json';
         export const t = (key, params = {}) => {
-            const text = key.split('.').reduce((value, part) => value?.[part], catalog) ?? key;
+            let text = key.split('.').reduce((value, part) => value?.[part], catalog) ?? key;
+            // Plural entries select their case by count, as the production catalog does.
+            if (text && typeof text === 'object' && text.select) text = text.select.cases[params[text.select.param] === 1 ? 'one' : 'other'] ?? text.select.cases.other;
             return Object.entries(params).reduce((value, [name, replacement]) => value.replaceAll('{' + name + '}', String(replacement)), text);
         };
     `,
@@ -202,6 +215,9 @@ Object.assign(virtualModules, {
     `,
 });
 
+// Connections lists offline machines behind a toggle by the real online rule (machine.active).
+delete virtualModules['@/utils/machineUtils'];
+
 const fixturePlugin: Plugin = {
     name: 'settings-browser-fixture',
     setup(bundle) {
@@ -235,6 +251,7 @@ describe('Settings → Connections → Add device production component journeys'
                     import { createRoot } from 'react-dom/client';
                     import SettingsScreen from '@/app/(app)/settings/index';
                     import ConnectionsScreen from '@/app/(app)/settings/connections';
+                    import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
                     import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
                     globalThis.__ROUTES__ = [];
                     globalThis.__DRAFT__ = useNewSessionDraft;
@@ -246,9 +263,12 @@ describe('Settings → Connections → Add device production component journeys'
                     };
                     globalThis.__UPDATE__ = (patch) => { Object.assign(globalThis.__STATE__, patch); dispatchEvent(new Event('fixture-state')); };
                     const subscribe = (fn) => { addEventListener('popstate', fn); return () => removeEventListener('popstate', fn); };
+                    // Desktop Settings opens on Account; this stand-in keeps its real section list.
+                    const AccountScreen = withSettingsFrame('account', () => <div>Account page</div>);
                     function Host() {
                         const path = React.useSyncExternalStore(subscribe, () => location.pathname);
-                        return path === '/settings/connections' ? <ConnectionsScreen /> : <SettingsScreen />;
+                        return path === '/settings/connections' ? <ConnectionsScreen />
+                            : path === '/settings/account' ? <AccountScreen /> : <SettingsScreen />;
                     }
                     createRoot(document.getElementById('root')).render(<Host />);
                 `,
@@ -392,6 +412,8 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
         await page.getByRole('button', { name: 'New Session', exact: true }).waitFor();
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: false })) }));
+        // An offline machine waits behind the list's offline toggle, as it did on the Settings home.
+        await page.getByText('Show 1 offline machine', { exact: true }).click();
         await page.getByText('offline', { exact: true }).waitFor();
         expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: true })) }));
