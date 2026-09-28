@@ -1,22 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
-import { buildNavigationCommands, FOCUS_MODE_ENTER_SELECTOR } from './navigationCommands';
+import { closeFocusSetup, useFocusSetupRequest } from '@/components/focusSetup';
+import { buildNavigationCommands } from './navigationCommands';
 
 function build(overrides: Partial<Parameters<typeof buildNavigationCommands>[0]> = {}) {
     const push = vi.fn();
-    const click = vi.fn();
     const commands = buildNavigationCommands({
         machineWorkspace: true,
         focusActive: false,
-        web: true,
         push,
-        findFocusControl: () => ({ click }),
         ...overrides,
     });
-    return { commands, push, click };
+    return { commands, push };
 }
+
+afterEach(() => closeFocusSetup());
 
 describe('command palette Navigation destinations', () => {
     it('lists Workspace, Automations, Projects and Focus mode in the Navigation group, as the mock does', () => {
@@ -36,21 +36,18 @@ describe('command palette Navigation destinations', () => {
         expect(build({ machineWorkspace: false }).commands.map((command) => command.id)).toEqual(['automations', 'projects', 'focus-mode']);
     });
 
-    it('opens the Focus setup by pressing the top bar\'s Focus control', () => {
-        const { commands, click, push } = build();
-        commands.find((command) => command.id === 'focus-mode')!.action();
-        expect(click).toHaveBeenCalledTimes(1);
+    it('opens the Focus setup through its opener, drawn with the shell\'s Focus glyph', () => {
+        const { commands, push } = build();
+        const focus = commands.find((command) => command.id === 'focus-mode')!;
+        expect(focus.glyph).toBe('focus');
+        expect(focus.icon).toBeUndefined();
+        expect(useFocusSetupRequest.getState().request).toBeNull();
+        focus.action();
+        expect(useFocusSetupRequest.getState().request).toMatchObject({ projectId: undefined });
         expect(push).not.toHaveBeenCalled();
-        expect(FOCUS_MODE_ENTER_SELECTOR).toBe('[data-testid="focus-mode-enter"]');
     });
 
-    it('offers Focus mode only while focus is off and only on web, where the control shows', () => {
+    it('offers Focus mode only while focus is off', () => {
         expect(build({ focusActive: true }).commands.some((command) => command.id === 'focus-mode')).toBe(false);
-        expect(build({ web: false }).commands.some((command) => command.id === 'focus-mode')).toBe(false);
-    });
-
-    it('does nothing when no Focus control is on the page', () => {
-        const { commands } = build({ findFocusControl: () => null });
-        expect(() => commands.find((command) => command.id === 'focus-mode')!.action()).not.toThrow();
     });
 });

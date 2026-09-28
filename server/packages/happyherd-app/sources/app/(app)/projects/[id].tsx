@@ -10,17 +10,15 @@ import { Text } from '@/components/StyledText';
 import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
 import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
+import { openFocusSetup } from '@/components/focusSetup';
 import { useFocusMode } from '@/hooks/useFocusMode';
 import { Modal } from '@/modal';
-import { useProjects, useProjectsLoaded, useSessionListViewData, useSettingMutable } from '@/sync/storage';
+import { useProjects, useProjectsLoaded, useSessionListViewData } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { buildProjectSessionList } from '@/utils/projectSessionList';
 
 const projectText = t as (key: string, params?: Record<string, string | number>) => string;
-
-/** The Focus setup's default duration; the project page starts Focus preset to its project. */
-const PROJECT_FOCUS_MINUTES = 30;
 
 export default React.memo(function ProjectSessionsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,7 +27,6 @@ export default React.memo(function ProjectSessionsScreen() {
     const safeArea = useSafeAreaInsets();
     const wide = useHerdWideLayout();
     const focus = useFocusMode();
-    const [, setFocusMode] = useSettingMutable('focusMode');
     const projects = useProjects();
     const projectsLoaded = useProjectsLoaded();
     const sourceData = useSessionListViewData();
@@ -58,14 +55,13 @@ export default React.memo(function ProjectSessionsScreen() {
         }
     }, [project, renaming]);
 
-    // Starts Focus on this project through the synced `focusMode` setting, the same value
-    // FocusModeControl's setup writes; the top bar then shows the countdown and its exit.
+    // Opens the Focus setup preset to this project, as the mock does; the top bar
+    // then shows the countdown and its exit.
     const focusOnProject = focus?.projectId === project?.id;
     const startFocus = React.useCallback(() => {
         if (!project) return;
-        const startedAt = Date.now();
-        setFocusMode({ projectId: project.id, endsAt: startedAt + PROJECT_FOCUS_MINUTES * 60_000, startedAt });
-    }, [project, setFocusMode]);
+        openFocusSetup({ projectId: project.id });
+    }, [project]);
 
     const projectActions = (
         <>
@@ -79,7 +75,7 @@ export default React.memo(function ProjectSessionsScreen() {
             <HerdButton
                 testID="project-focus"
                 variant="primary"
-                icon="pie-chart-outline"
+                glyph="focus"
                 label={t('focusMode.enter')}
                 selected={focusOnProject}
                 disabled={focusOnProject}

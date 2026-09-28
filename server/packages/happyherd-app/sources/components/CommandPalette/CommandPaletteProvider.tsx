@@ -90,7 +90,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
                     router.push('/');
                 }
             },
-            ...buildNavigationCommands({ machineWorkspace: !!machineWorkspace, focusActive, web: Platform.OS === 'web', push: (route) => router.push(route as never) }),
+            ...buildNavigationCommands({ machineWorkspace: !!machineWorkspace, focusActive, push: (route) => router.push(route as never) }),
             {
                 id: 'settings',
                 title: t("tabs.settings"),

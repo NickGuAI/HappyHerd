@@ -520,6 +520,7 @@ describe('Projects and Super Session production UI gestures', () => {
                     import { PhoneHome } from '@/components/herd/mobile/PhoneHome';
                     import AppearanceScreen from '@/app/(app)/settings/appearance';
                     import ProjectDetailScreen from '@/app/(app)/projects/[id]';
+                    import { FocusModeControl } from '@/components/FocusModeControl';
                     import ProjectsScreen from '@/app/(app)/projects/index';
                     import SessionProjectScreen from '@/app/(app)/session/[id]/project';
 
@@ -533,7 +534,10 @@ describe('Projects and Super Session production UI gestures', () => {
                         const query = new URLSearchParams(window.location.search);
                         let content;
                         if (pathname === '/projects') content = React.createElement(ProjectsScreen);
-                        else if (pathname.startsWith('/projects/')) content = React.createElement(ProjectDetailScreen);
+                        // The app's top bar hosts the Focus setup on every route; here its real control stands in.
+                        else if (pathname.startsWith('/projects/')) content = React.createElement(React.Fragment, null,
+                            React.createElement('div', { 'data-testid': 'fixture-top-bar-focus', style: { display: 'flex', justifyContent: 'flex-end', padding: 8 } }, React.createElement(FocusModeControl)),
+                            React.createElement(ProjectDetailScreen));
                         else if (pathname.endsWith('/project')) content = React.createElement(SessionProjectScreen);
                         else if (pathname === '/settings/appearance') content = React.createElement(AppearanceScreen);
                         else if (pathname.startsWith('/session/')) content = React.createElement(SessionDestination, { id: pathname.split('/')[2] });
@@ -667,14 +671,45 @@ describe('Projects and Super Session production UI gestures', () => {
         return { page, errors };
     }
 
+    /** The mock's Focus sheet: a centered card over the dimmed app, its title and labels inside and centered. */
+    async function expectFocusDialog(page: Page, headline: string) {
+        const setup = page.getByTestId('focus-mode-setup');
+        const heading = setup.getByRole('heading', { name: headline, exact: true });
+        await heading.waitFor();
+        expect(await page.getByTestId('focus-mode-pixel-swap').count()).toBe(0);
+        await expect(page.getByTestId('focus-mode-scrim').count()).resolves.toBe(1);
+        const viewport = page.viewportSize()!;
+        const card = (await setup.boundingBox())!;
+        expect(card.width).toBeLessThanOrEqual(520);
+        const mark = (await setup.getByTestId('focus-mode-mark').boundingBox())!;
+        const title = (await heading.boundingBox())!;
+        // The glyph's ring, then the title, both centered in the card.
+        expect(mark.width).toBe(64);
+        expect(title.y).toBeGreaterThan(mark.y + mark.height);
+        expect(Math.abs(mark.x + mark.width / 2 - (card.x + card.width / 2))).toBeLessThanOrEqual(1);
+        expect(Math.abs(title.x + title.width / 2 - (card.x + card.width / 2))).toBeLessThanOrEqual(2);
+        await expect(setup.locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+        if (viewport.width >= 700) {
+            // Centered on wide windows; phones rest the card on the bottom edge.
+            expect(Math.abs(card.x + card.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+            expect(Math.abs(card.y + card.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1);
+        } else {
+            expect(Math.round(viewport.height - (card.y + card.height))).toBeGreaterThanOrEqual(8);
+        }
+    }
+
+    /** The setup opened preset to one project: exactly that chip is checked. */
+    async function expectPresetProject(page: Page, name: string) {
+        const checked = page.getByTestId('focus-mode-setup').getByRole('radiogroup', { name: 'Project', exact: true }).locator('[role="radio"][aria-checked="true"]');
+        await expect(checked.count()).resolves.toBe(1);
+        await expect(checked.innerText()).resolves.toBe(name);
+    }
+
     async function startFocus(page: Page, minutes: number, german = false, projectId = 'project-alpha') {
         await page.getByTestId('focus-mode-enter').click();
-        await page.getByTestId('focus-mode-pixel-swap').waitFor();
-        await page.clock.runFor(1500);
+        await page.clock.runFor(500);
         const headline = german ? 'Fokus zurückgewinnen' : 'Reclaim Your Focus';
-        await page.getByRole('heading', { name: headline, exact: true }).waitFor();
-        expect(await page.getByTestId('focus-mode-pixel-swap').count()).toBe(0);
-        expect(await page.getByTestId('focus-mode-setup').evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(240, 220, 176)');
+        await expectFocusDialog(page, headline);
         const start = page.getByRole('button', { name: german ? 'Fokus starten' : 'Start focus', exact: true });
         expect(await start.isDisabled()).toBe(true);
         expect(await page.getByTestId('focus-mode-setup').locator('select').count()).toBe(0);
@@ -715,12 +750,14 @@ describe('Projects and Super Session production UI gestures', () => {
                 await page.clock.runFor(50);
                 expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
                 await page.keyboard.press('Escape');
+                await page.clock.runFor(300);
                 await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
                 expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
                 await page.getByTestId('focus-mode-enter').click();
                 await page.clock.runFor(1500);
                 await screenshot(page, `focus-cancel-${surface.name}-${theme}`);
                 await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+                await page.clock.runFor(300);
                 await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
                 expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
                 expect(errors).toEqual([]);
@@ -1194,7 +1231,14 @@ describe('Projects and Super Session production UI gestures', () => {
         ]);
         expect(Math.abs(rename!.y - focusButton!.y)).toBeLessThanOrEqual(2);
         expect(focusButton!.x).toBeGreaterThan(rename!.x);
+        // Focus mode opens the setup preset to this project, as the mock does, and starts on it.
+        await expect(page.getByTestId('project-focus').locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
         await page.getByTestId('project-focus').click();
+        await expectFocusDialog(page, 'Reclaim Your Focus');
+        expect(await page.evaluate(() => ((window as any).__FOCUS_WRITES__ ?? []).length)).toBe(0);
+        await expectPresetProject(page, 'Project Alpha');
+        await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+        await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
         const value = await page.evaluate(() => (window as any).__FOCUS_VALUE__());
         expect(value.projectId).toBe('project-alpha');
         expect(value.endsAt - value.startedAt).toBe(30 * 60_000);
@@ -1223,6 +1267,11 @@ describe('Projects and Super Session production UI gestures', () => {
         expect(count!.height).toBeLessThanOrEqual(24);
         expect(focusBox!.y).toBeGreaterThanOrEqual(count!.y + count!.height);
         await page.getByTestId('project-focus').click();
+        await expectFocusDialog(page, 'Reclaim Your Focus');
+        await expectPresetProject(page, 'Project Alpha');
+        await screenshot(page, 'project-focus-setup-mobile');
+        await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+        await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
         expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__().projectId)).toBe('project-alpha');
         expect(errors).toEqual([]);
         await page.close();

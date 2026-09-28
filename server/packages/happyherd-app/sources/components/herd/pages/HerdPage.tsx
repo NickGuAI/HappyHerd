@@ -6,6 +6,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
+import { HerdShellIcon, type HerdShellIconName } from '@/components/herd/shell/HerdShellIcon';
 
 /**
  * Shared building blocks for the overhauled secondary pages (Automations,
@@ -74,6 +75,7 @@ export type HerdButtonVariant = 'primary' | 'default' | 'ghost' | 'danger';
 export function HerdButton({
     label,
     icon,
+    glyph,
     onPress,
     variant = 'default',
     size = 'md',
@@ -86,6 +88,8 @@ export function HerdButton({
 }: {
     label?: string;
     icon?: React.ComponentProps<typeof Ionicons>['name'];
+    /** One of the shell's own glyphs, drawn in place of `icon`. */
+    glyph?: HerdShellIconName;
     onPress?: () => void;
     variant?: HerdButtonVariant;
     size?: 'md' | 'sm';
@@ -129,6 +133,8 @@ export function HerdButton({
         >
             {loading ? (
                 <ActivityIndicator size="small" color={tint} />
+            ) : glyph ? (
+                <HerdShellIcon name={glyph} size={iconSize} color={tint} />
             ) : icon ? (
                 <Ionicons name={icon} size={iconSize} color={tint} />
             ) : null}

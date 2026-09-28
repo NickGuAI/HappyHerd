@@ -5,6 +5,7 @@ import { Command } from './types';
 import { Typography } from '@/constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import { HerdKey } from '@/components/herd/pages/HerdPage';
+import { HerdShellIcon } from '@/components/herd/shell/HerdShellIcon';
 import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
 
 interface CommandPaletteItemProps {
@@ -53,13 +54,21 @@ export function CommandPaletteItem({ command, isSelected, onPress, onHover }: Co
         <Pressable {...pressableProps} accessibilityRole="button" accessibilityState={{ selected: isSelected }} aria-selected={isSelected}>
             {isSelected && <View testID="command-palette-accent" style={styles.accentBar} />}
             <View style={styles.content}>
-                {command.icon && (
+                {(command.glyph || command.icon) && (
                     <View style={styles.iconContainer}>
-                        <Ionicons
-                            name={command.icon as any}
-                            size={17}
-                            color={isSelected ? theme.colors.textLink : theme.colors.textSecondary}
-                        />
+                        {command.glyph ? (
+                            <HerdShellIcon
+                                name={command.glyph}
+                                size={17}
+                                color={isSelected ? theme.colors.textLink : theme.colors.textSecondary}
+                            />
+                        ) : (
+                            <Ionicons
+                                name={command.icon as any}
+                                size={17}
+                                color={isSelected ? theme.colors.textLink : theme.colors.textSecondary}
+                            />
+                        )}
                     </View>
                 )}
                 <Text numberOfLines={1} style={[styles.title, Typography.default(), isSelected && styles.titleSelected]}>
