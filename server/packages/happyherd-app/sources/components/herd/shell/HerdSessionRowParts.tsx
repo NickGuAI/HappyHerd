@@ -7,6 +7,7 @@ import type { SessionActionsAnchor } from '@/components/SessionActionsPopover';
 import { t } from '@/text';
 import { herdWebClasses } from '../motion';
 import { useHerdSelectionGlide } from './selectionGlide';
+import { useHerdPhoneLayout } from '../mobile/useHerdPhone';
 
 /** True in a touch-only browser, where rows have no hover ⋯. */
 export function isTouchOnlyWeb(): boolean {
@@ -61,21 +62,33 @@ export function HerdRowSelection({ sessionId, selected, radius }: { sessionId: s
 }
 
 /**
- * The row's ⋯ button (web). It appears while the row is hovered or keyboard
- * focused and opens the same actions menu as a right-click, anchored to itself.
+ * The row's ⋯ button. With a pointer (web) it appears while the row is hovered
+ * or keyboard focused and opens the same actions menu as a right-click,
+ * anchored to itself. Touch screens have no hover, so on touch-only web and on
+ * native phones it stays visible in its own column at the row's end, as the
+ * phone mock draws it; native phones open the row's long-press actions.
  */
-export function HerdRowMoreButton({ open, onOpen, top = 8 }: {
+export function HerdRowMoreButton({ open, onOpen, onNativePress, top = 8 }: {
     open: boolean;
     onOpen: (anchor: SessionActionsAnchor) => void;
+    /** Native phones: the row's long-press actions. */
+    onNativePress?: () => void;
     top?: number;
 }) {
     const { theme } = useUnistyles();
     const ref = React.useRef<View | null>(null);
+    const phoneLayout = useHerdPhoneLayout();
+    const web = Platform.OS === 'web';
+    const touch = web ? isTouchOnlyWeb() : phoneLayout && !!onNativePress;
     const handlePress = React.useCallback((event: any) => {
         event?.stopPropagation?.();
+        if (!web) {
+            onNativePress?.();
+            return;
+        }
         ref.current?.measureInWindow((x, y, width, height) => onOpen({ type: 'rect', x, y, width, height }));
-    }, [onOpen]);
-    if (Platform.OS !== 'web') return null;
+    }, [onNativePress, onOpen, web]);
+    if (!web && !touch) return null;
     return (
         <Pressable
             ref={ref}
@@ -83,11 +96,14 @@ export function HerdRowMoreButton({ open, onOpen, top = 8 }: {
             accessibilityLabel={t('sessionInfo.quickActions')}
             aria-expanded={open}
             onPress={handlePress}
+            hitSlop={touch ? { top: 8, bottom: 8, left: 8, right: 8 } : undefined}
             testID="session-row-more"
-            {...({ dataSet: { open: open ? 'true' : 'false' } } as any)}
-            style={({ hovered }: any) => [styles.more, { top }, hovered && styles.moreHovered]}
+            {...({ dataSet: { open: open ? 'true' : 'false', touch: touch ? 'true' : 'false' } } as any)}
+            style={({ hovered }: any) => touch
+                ? styles.moreTouch
+                : [styles.more, { top }, hovered && styles.moreHovered]}
         >
-            <Ionicons name="ellipsis-horizontal" size={15} color={theme.colors.textSecondary} />
+            <Ionicons name="ellipsis-horizontal" size={touch ? 17 : 15} color={theme.colors.textSecondary} />
         </Pressable>
     );
 }
@@ -123,5 +139,15 @@ const styles = StyleSheet.create((theme) => ({
     },
     moreHovered: {
         borderColor: theme.colors.kilv.rimLine,
+    },
+    // Touch: the mock's trailing column, always shown, beside the row's text.
+    moreTouch: {
+        width: 28,
+        height: 28,
+        flexShrink: 0,
+        alignSelf: 'center',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 4,
     },
 }));

@@ -807,6 +807,45 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         }
     }, 40_000);
 
+    it.each(['light', 'dark'] as const)('keeps every row\'s ⋯ visible in its own column on a touch screen (%s), and opens the actions from it', async (theme) => {
+        const { page, errors } = await open({ touch: true, theme });
+        const rows = page.locator('[data-herd-row]');
+        await rows.first().waitFor();
+        const count = await rows.count();
+        expect(count).toBeGreaterThan(1);
+        for (let index = 0; index < count; index += 1) {
+            const row = rows.nth(index);
+            const more = row.getByTestId('session-row-more');
+            await expect(more.isVisible()).resolves.toBe(true);
+            await expect(more.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('1');
+            const box = (await more.boundingBox())!;
+            const rowBox = (await row.boundingBox())!;
+            // The phone mock's trailing column: centred on the row, clear of every line of text.
+            expect(Math.abs((box.y + box.height / 2) - (rowBox.y + rowBox.height / 2))).toBeLessThanOrEqual(2);
+            expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+            const overlaps = await row.evaluate((element, rect) => [...element.querySelectorAll('[dir="auto"]')]
+                .map((node) => node.getBoundingClientRect())
+                .filter((text) => text.width > 0 && text.left < rect.x + rect.width && text.right > rect.x && text.top < rect.y + rect.height && text.bottom > rect.y).length, box);
+            expect(overlaps).toBe(0);
+        }
+        await evidence(page, `phone-row-more-touch-${theme}-390`);
+        await rows.first().getByTestId('session-row-more').tap();
+        await page.getByTestId('session-actions-menu').waitFor();
+        expect(await routerCalls(page)).toEqual([]);
+        expect(errors).toEqual([]);
+        await page.close();
+    });
+
+    it('keeps ⋯ for hover without a touch screen', async () => {
+        const { page, errors } = await open();
+        const more = page.locator('[data-herd-row]').first().getByTestId('session-row-more');
+        await more.waitFor({ state: 'attached' });
+        await expect(more.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0');
+        expect(await more.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+        expect(errors).toEqual([]);
+        await page.close();
+    });
+
     it('opens the session actions from a long press on a touch screen, without opening the session', async () => {
         const { page, errors } = await open({ touch: true });
         const cdp = await page.context().newCDPSession(page);

@@ -331,7 +331,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     </View>
                 )}
             </View>
-            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} top={15} />
+            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} onNativePress={showActionAlert} top={15} />
         </Pressable>
     );
 

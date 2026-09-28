@@ -258,7 +258,7 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
                 )}
             </View>
 
-            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} />
+            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} onNativePress={showActionAlert} />
         </Pressable>
     );
 
