@@ -619,3 +619,7 @@ UI_OVERHAUL_LAUNCH_LABELS	accepted	feat(app): show launch choices by their displ
 UI_OVERHAUL_STREAMLINE_LINK_PATHS	accepted	feat(app): link Commanders from Streamline and show its folders home-relative	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
 UI_OVERHAUL_PATH_DROPDOWN	accepted	feat(app): open the mock's folder dropdown from the working-folder field	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
 UI_OVERHAUL_NEW_SESSION_FOLLOWUP_DOCS	accepted	docs(app): record the path dropdown and launch labels for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_FOCUS_DIALOG	accepted	feat(app): open the Focus setup as the mock's dialog	server/packages/happyherd-app/sources/components/herd/shell/topBarControls.test.ts
+UI_OVERHAUL_FOCUS_OPENER	accepted	feat(app): open Focus from the palette and project pages through one opener	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
+UI_OVERHAUL_PHONE_LIST_TOGGLE	accepted	feat(app): give the phone session list the mock's panel toggle and search	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_FOCUS_DOCS	accepted	docs(app): record the Focus dialog, its opener and the phone list toggle for upstream merges	docs/upstream-ui-parity.md

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "7925291e49a3140bcdebe3634a187ea4fcb8f04ac913ee36babd53e24f6cf09f",
+  "sourceFingerprint": "232b66f0488e914cb972198477c7deb3b566410b67940cbe378b0d2bf9e94aef",
   "routeCount": 43,
-  "surfaceCount": 329,
+  "surfaceCount": 330,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3172,10 +3172,9 @@
     },
     {
       "owner": "sources/components/CommandPalette/navigationCommands.ts",
-      "kind": "component",
+      "kind": "ui-module",
       "route": null,
       "exports": [
-        "FOCUS_MODE_ENTER_SELECTOR",
         "buildNavigationCommands"
       ],
       "translationKeys": [
@@ -4084,6 +4083,17 @@
         "common.cancel",
         "tools.names.search"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/mobile/PhoneHomeRoute.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PhoneHomeRoute"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
