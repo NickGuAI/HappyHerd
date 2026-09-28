@@ -104,6 +104,7 @@ vi.mock('@/sync/storage', () => ({
     useMessage: () => state.message,
     useSessionMessages: () => ({ isLoaded: state.messagesLoaded }),
     useIsDataReady: () => true,
+    useMachine: () => null,
     useLocalSetting: () => false,
     useSessionGitStatus: () => null,
     useSessionGitStatusFiles: () => null,
@@ -137,6 +138,7 @@ vi.mock('@/components/ItemList', async () => {
     return { ItemList: (props: any) => ReactModule.createElement('ItemList', props, props.children) };
 });
 vi.mock('@/components/CodeView', () => ({ CodeView: () => null }));
+vi.mock('@/components/SessionStatusAvatar', () => ({ SessionStatusAvatar: () => null }));
 vi.mock('@react-navigation/native', () => ({
     useNavigation: () => ({ getState: () => ({ routes: [] }), dispatch: vi.fn() }),
     CommonActions: { navigate: vi.fn() }, StackActions: { pop: vi.fn() },
@@ -291,8 +293,9 @@ describe('session details', () => {
         expect(items[0].props.title).toBe('files.changes');
         expect(items[0].props.subtitle).toBeUndefined();
         expect(items[0].props.rightElement).toBeUndefined();
-        expect(texts(renderer)).toEqual([]);
-        expect(items.some((item: any) => item.props.title === 'sessionInfo.connectionStatus')).toBe(true);
+        // The cached git counts (5 files, +120 −34) appear nowhere on the page.
+        expect(texts(renderer).filter((text) => /changed files|120|34/.test(text))).toEqual([]);
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'session-info-connection').length).toBeGreaterThan(0);
         expect(renderer.root.findAllByType('Glass')).toHaveLength(0);
         expect(renderer.root.findByType('StackScreen').props.options.headerTitle).toBe('A long session title that needs the available header width');
         act(() => items[0].props.onPress());
