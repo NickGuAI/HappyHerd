@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 
-import { PhoneHome } from '@/components/herd/mobile/PhoneHome';
+import { PhoneHomeRoute } from '@/components/herd/mobile/PhoneHomeRoute';
 import { SettingsServerButton } from '@/components/herd/pages/SettingsServerButton';
 import { isUsingCustomServer } from '@/sync/serverConfig';
 import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
@@ -59,7 +59,7 @@ function SessionStandIn({ path }: { path: string }) {
 /** Stands in for the navigator's stack: the screen for the fixture router's current path. */
 export function FixtureScreens() {
     const path = useFixturePath();
-    if (path === '/') return <PhoneHome />;
+    if (path === '/') return <PhoneHomeRoute />;
     if (path.startsWith('/session/')) return <SessionStandIn path={path} />;
     return <PageStandIn path={path} />;
 }

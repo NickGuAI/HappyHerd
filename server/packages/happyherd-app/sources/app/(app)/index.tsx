@@ -13,7 +13,7 @@ import { Typography } from "@/constants/Typography";
 import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
 import { HerdLanding } from "@/components/herd/pages/HerdLanding";
-import { PhoneHome } from "@/components/herd/mobile/PhoneHome";
+import { PhoneHomeRoute } from "@/components/herd/mobile/PhoneHomeRoute";
 import { useHerdPhoneLayout } from "@/components/herd/mobile/useHerdPhone";
 import { t } from '@/text';
 import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
@@ -32,9 +32,10 @@ export default function Home() {
 }
 
 function Authenticated() {
-    // Phones show the left panel as the page. Wider layouts list sessions in the
-    // panel and show the landing beside it (UI overhaul).
-    return useHerdPhoneLayout() ? <PhoneHome /> : <HerdLanding />;
+    // Phones show the left panel as the page, or the landing once it is folded
+    // away. Wider layouts list sessions in the panel and show the landing beside
+    // it (UI overhaul).
+    return useHerdPhoneLayout() ? <PhoneHomeRoute /> : <HerdLanding />;
 }
 
 function NotAuthenticated() {

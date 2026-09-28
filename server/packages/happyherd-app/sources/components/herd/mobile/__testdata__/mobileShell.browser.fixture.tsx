@@ -5,6 +5,7 @@ import { SidebarNavigator } from '@/components/SidebarNavigator';
 import { CommandPalette } from '@/components/CommandPalette/CommandPalette';
 import { CommandPaletteModal } from '@/components/CommandPalette/CommandPaletteModal';
 import { HerdCommandPaletteContext } from '@/components/herd/shell/commandPaletteBridge';
+import { useLocalSetting } from '@/sync/storage';
 
 const record = (id: string) => () => {
     (window as any).__PALETTE_RUNS__ = [...((window as any).__PALETTE_RUNS__ ?? []), id];
@@ -19,9 +20,10 @@ const COMMANDS = [
 ];
 
 /**
- * The signed-in phone shell exactly as the root layout mounts it. With
- * `palette=on` the search control opens the real command palette, as
- * CommandPaletteProvider does.
+ * The signed-in phone shell exactly as the root layout mounts it. The search
+ * control opens the real command palette whenever the local setting allows
+ * it, as CommandPaletteProvider does; the setting starts from the app's real
+ * default and `palette=off` turns it off.
  */
 function Fixture() {
     const [paletteOpen, setPaletteOpen] = React.useState(false);
@@ -29,7 +31,7 @@ function Fixture() {
         (window as any).__PALETTE_OPENS__ = ((window as any).__PALETTE_OPENS__ ?? 0) + 1;
         setPaletteOpen(true);
     }, []);
-    const palette = new URLSearchParams(window.location.search).get('palette') === 'on' ? openPalette : null;
+    const palette = useLocalSetting('commandPaletteEnabled') ? openPalette : null;
     const closePalette = React.useCallback(() => setPaletteOpen(false), []);
     return (
         <HerdCommandPaletteContext.Provider value={palette}>

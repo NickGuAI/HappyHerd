@@ -24,8 +24,8 @@ const PHONE_MACHINE_NAME_MIN_WIDTH = 360;
  * The desktop top bar at phone width (UI overhaul), shared by Web Mobile and
  * the native phone app. Left to right: the panel toggle, the brand (back to
  * the session list), search, then Focus mode, the Inbox bell and the machine
- * pill. On the session list the panel is docked open, so the toggle steps
- * aside. Search opens the command palette where the Web build has it, and the
+ * pill. On the session list the panel is docked open and the toggle folds it
+ * away to show the landing, as the phone mock does. Search opens the command palette where the Web build has it, and the
  * session search at the top of the list on native phones.
  */
 export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { home: boolean }) {
@@ -37,6 +37,9 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
     const openCommandPalette = useHerdCommandPalette();
     const drawerOpen = useHerdPhoneShell((state) => state.drawerOpen);
     const toggleDrawer = useHerdPhoneShell((state) => state.toggleDrawer);
+    const homeCollapsed = useHerdPhoneShell((state) => state.homeCollapsed);
+    const toggleHome = useHerdPhoneShell((state) => state.toggleHome);
+    const expandHome = useHerdPhoneShell((state) => state.expandHome);
     const searchOpen = useHerdPhoneShell((state) => state.searchOpen);
     const toggleSearch = useHerdPhoneShell((state) => state.toggleSearch);
     const nativeSearch = Platform.OS !== 'web';
@@ -47,8 +50,13 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
             return;
         }
         if (!home) router.navigate('/');
+        expandHome();
         toggleSearch();
-    }, [home, nativeSearch, openCommandPalette, router, toggleSearch]);
+    }, [expandHome, home, nativeSearch, openCommandPalette, router, toggleSearch]);
+
+    // As in the phone mock: on the session list the toggle folds the docked
+    // panel away to show the landing; elsewhere it opens the drawer.
+    const panelExpanded = home ? !homeCollapsed : drawerOpen;
 
     return (
         <HerdTopBarLayoutContext.Provider value="phone">
@@ -56,20 +64,24 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                 testID="herd-top-bar"
                 style={[styles.bar, { height: safeArea.top + HERD_PHONE_TOP_BAR_HEIGHT, paddingTop: safeArea.top }]}
             >
-                {!home && (
-                    <HerdTopBarIconButton
-                        label={drawerOpen ? t('navigation.collapseSidebar') : t('navigation.expandSidebar')}
-                        expanded={drawerOpen}
-                        onPress={toggleDrawer}
-                        testID="navigation-sidebar-toggle"
-                    >
+                <HerdTopBarIconButton
+                    label={panelExpanded ? t('navigation.collapseSidebar') : t('navigation.expandSidebar')}
+                    expanded={panelExpanded}
+                    onPress={home ? toggleHome : toggleDrawer}
+                    testID="navigation-sidebar-toggle"
+                >
+                    {/* The mock mirrors the glyph while the panel is folded away. */}
+                    <View style={[styles.toggleGlyph, !panelExpanded && styles.toggleGlyphCollapsed]}>
                         <HerdShellIcon name="panelLeft" size={20} color={theme.colors.header.tint} />
-                    </HerdTopBarIconButton>
-                )}
+                    </View>
+                </HerdTopBarIconButton>
                 <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t('sidebar.sessionsTitle')}
-                    onPress={() => router.navigate('/')}
+                    onPress={() => {
+                        expandHome();
+                        router.navigate('/');
+                    }}
                     style={({ pressed }) => [styles.square, pressed && styles.pressed]}
                     testID="herd-top-bar-brand"
                 >
@@ -130,6 +142,12 @@ const styles = StyleSheet.create((theme) => ({
     },
     pressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
+    },
+    toggleGlyph: {
+        _web: { _classNames: ['herd-transition'] },
+    },
+    toggleGlyphCollapsed: {
+        transform: [{ scaleX: -1 }],
     },
     search: {
         width: 36,

@@ -174,12 +174,15 @@ const virtualModules: Record<string, string> = {
     '@/sync/storage': `
         import React from 'react';
         import * as fixtureList from '${testData('mobileShellFixtureList.tsx')}';
+        import { localSettingsDefaults } from '${resolve(sourcesRoot, 'sync/localSettings.ts')}';
         const params = new URLSearchParams(window.location.search);
         const settings = {
             machineWorkspace: params.get('workspace') !== 'off', sessionListGrouping: 'flat',
             focusMode: params.get('focus') === 'on' ? { projectId: 'web-app', endsAt: Date.now() + 25 * 60_000, startedAt: Date.now(), durationMinutes: 25 } : null,
             hideInactiveSessions: true, expResumeSession: false, devModeEnabled: false,
             navigationSidebarCollapsed: false, zenMode: false,
+            // The app's real default; \`palette=off\` is the opt-out in Settings -> Appearance.
+            commandPaletteEnabled: params.get('palette') === 'off' ? false : localSettingsDefaults.commandPaletteEnabled,
         };
         window.__SETTINGS__ = settings;
         const listeners = new Set();
@@ -204,7 +207,11 @@ const virtualModules: Record<string, string> = {
         export const useAllMachines = () => (params.get('machines') === 'none' ? [] : machines);
         export const useSessionListViewData = () => [];
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
-        export const useProjects = () => ({ 'web-app': { id: 'web-app', name: 'Web App Suite' } });
+        export const useProjects = () => ({
+            'web-app': { id: 'web-app', name: 'Web App Suite', kind: 'personal' },
+            'backend-api': { id: 'backend-api', name: 'Backend API', kind: 'personal' },
+            'client-shop': { id: 'client-shop', name: 'Client Shop', kind: 'personal' },
+        });
         export const useFeedItems = () => [
             { id: 'feed-1', body: { kind: 'text', text: 'Automation "Nightly triage" finished' } },
             { id: 'feed-2', body: { kind: 'text', text: 'Session "Refresh token rotation" needs approval' } },
@@ -500,9 +507,12 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             const bar = await box(page, 'herd-top-bar');
             // The bar clears the notch, then keeps the mock's 52 px row.
             expect(bar).toMatchObject({ x: 0, y: 0, width: PHONE.width, height: PHONE_INSETS.top + 52 });
-            // The list is the panel, docked open, so the brand leads and there is no panel toggle.
-            await expect(page.getByTestId('navigation-sidebar-toggle').count()).resolves.toBe(0);
-            expect(await box(page, 'herd-top-bar-brand')).toMatchObject({ x: 4, width: 44, height: 44 });
+            // As in the phone mock, the panel toggle leads, expanded: the list is the panel, docked open.
+            const toggle = page.getByTestId('navigation-sidebar-toggle');
+            expect(await box(page, 'navigation-sidebar-toggle')).toMatchObject({ x: 4, width: 44, height: 44 });
+            await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('true');
+            await expect(toggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation sidebar');
+            expect(await box(page, 'herd-top-bar-brand')).toMatchObject({ x: 4 + 44 + 2, width: 44, height: 44 });
             // Focus, the Inbox bell and the machine pill are 44 px targets ending 4 px from the edge.
             for (const id of ['focus-mode-enter', 'herd-inbox-bell', 'herd-machine-menu']) {
                 expect((await box(page, id)).height).toBeGreaterThanOrEqual(44);
@@ -510,8 +520,8 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             const machine = await box(page, 'herd-machine-menu');
             expect(PHONE.width - (machine.x + machine.width)).toBeCloseTo(4, 0);
             await expect(page.getByTestId('herd-machine-menu').innerText()).resolves.toContain('studio-mac');
-            // Search is the command palette, off by default in Features.
-            await expect(page.getByTestId('herd-command-search').count()).resolves.toBe(0);
+            // Search is the command palette, on by default: the fixture registers it from the app's real default.
+            expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + (44 + 2) * 2, width: 44, height: 44 });
 
             // The docked panel fills the screen below the bar.
             const panel = await box(page, 'herd-sidebar-docked');
@@ -551,6 +561,74 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             await page.close();
         }
     }, 40_000);
+
+    it('folds the docked list away to the landing from the panel toggle, and brings it back, as the phone mock does', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme });
+            await page.getByTestId('herd-sidebar-docked').waitFor();
+            const toggle = page.getByTestId('navigation-sidebar-toggle');
+            const glyph = () => toggle.locator('[data-herd-icon="panelLeft"]').evaluate((icon) => getComputedStyle(icon.parentElement!).transform);
+            expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(await glyph());
+            await evidence(page, `phone-list-top-bar-${theme}-390`);
+            await toggle.click();
+            await page.getByTestId('herd-landing').waitFor();
+            await expect(page.getByTestId('herd-sidebar-docked').count()).resolves.toBe(0);
+            await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('false');
+            await expect(toggle.getAttribute('aria-label')).resolves.toBe('Expand navigation sidebar');
+            // Folded away, the mock mirrors the glyph.
+            await expect.poll(glyph).toBe('matrix(-1, 0, 0, 1, 0, 0)');
+            await evidence(page, `phone-list-folded-${theme}-390`);
+            await toggle.click();
+            await page.getByTestId('herd-sidebar-docked').waitFor();
+            await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('true');
+            // The brand returns to the list docked open, too.
+            await toggle.click();
+            await page.getByTestId('herd-landing').waitFor();
+            await page.getByTestId('herd-top-bar-brand').click();
+            await page.getByTestId('herd-sidebar-docked').waitFor();
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('rests the Focus setup card on the bottom edge of the phone, below the top bar', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.waitFor();
+            await settled(page);
+            const card = await box(page, 'focus-mode-setup');
+            // 8 px from the sides and from the bottom inset, as HerdSheet's phone card rests.
+            expect(Math.round(card.x)).toBe(8);
+            expect(Math.round(card.width)).toBe(PHONE.width - 16);
+            expect(Math.round(PHONE.height - PHONE_INSETS.bottom - (card.y + card.height))).toBe(8);
+            expect(card.y).toBeGreaterThan(PHONE_INSETS.top + 52);
+            await setup.getByRole('heading', { name: 'Reclaim Your Focus', exact: true }).waitFor();
+            await expect(setup.locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+            // The phone mock's actions: two equal 46 px buttons across the card.
+            const cancel = (await setup.getByRole('button', { name: 'Cancel', exact: true }).boundingBox())!;
+            const start = (await setup.getByRole('button', { name: 'Start focus', exact: true }).boundingBox())!;
+            expect(Math.round(cancel.height)).toBe(46);
+            expect(Math.abs(cancel.width - start.width)).toBeLessThanOrEqual(1);
+            expect(Math.round(start.x - (cancel.x + cancel.width))).toBe(8);
+            expect(await noHorizontalOverflow(page)).toBe(true);
+            await evidence(page, `phone-focus-setup-${theme}-390`);
+            await setup.getByRole('button', { name: 'Cancel', exact: true }).click();
+            await setup.waitFor({ state: 'detached' });
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('keeps the search square out of the phone top bar when the palette setting is off', async () => {
+        const { page, errors } = await open({ query: { palette: 'off' } });
+        await page.getByTestId('herd-sidebar-docked').waitFor();
+        await expect(page.getByTestId('herd-command-search').count()).resolves.toBe(0);
+        expect(await box(page, 'herd-top-bar-brand')).toMatchObject({ x: 4 + 44 + 2 });
+        expect(errors).toEqual([]);
+        await page.close();
+    });
 
     it('slides the panel in as a drawer, and closes it with the scrim, Escape, a drag, or a row', async () => {
         const { page, errors } = await open();
@@ -710,11 +788,11 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
 
     it('opens the command palette from the search square, across the phone below the notch', async () => {
         for (const theme of ['light', 'dark'] as const) {
-            const { page, errors } = await open({ theme, query: { palette: 'on' } });
+            const { page, errors } = await open({ theme });
             const search = page.getByTestId('herd-command-search');
             await search.waitFor();
-            // A 44 px square right after the brand.
-            expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + 44 + 2, width: 44, height: 44 });
+            // A 44 px square right after the panel toggle and the brand.
+            expect(await box(page, 'herd-command-search')).toMatchObject({ x: 4 + (44 + 2) * 2, width: 44, height: 44 });
             await search.click();
             expect(await page.evaluate(() => (window as any).__PALETTE_OPENS__)).toBe(1);
             const input = page.getByPlaceholder('Type a command or search...');
