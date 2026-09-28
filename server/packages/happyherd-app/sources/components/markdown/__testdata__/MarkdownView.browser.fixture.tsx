@@ -111,6 +111,7 @@ function MarkdownFixture() {
             >
                 <MarkdownView
                     markdown={markdown}
+                    tone={new URLSearchParams(window.location.search).get('tone') === 'reply' ? 'reply' : undefined}
                     textAlign={new URLSearchParams(window.location.search).get('align') === 'center'
                         ? 'center'
                         : undefined}
