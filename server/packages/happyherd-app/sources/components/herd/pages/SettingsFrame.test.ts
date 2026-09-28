@@ -41,10 +41,15 @@ vi.mock('@expo/vector-icons', async () => {
     return { Ionicons: (props: any) => ReactModule.createElement('Ionicons', props) };
 });
 
-vi.mock('expo-router', () => ({
-    useRouter: () => ({ navigate: testState.navigate, push: testState.push }),
-    usePathname: () => testState.pathname,
-}));
+vi.mock('expo-router', async () => {
+    const ReactModule = await import('react');
+    return {
+        Stack: { Screen: (props: any) => ReactModule.createElement('StackScreen', props) },
+        useRouter: () => ({ navigate: testState.navigate, push: testState.push }),
+        usePathname: () => testState.pathname,
+    };
+});
+vi.mock('@/components/layout', () => ({ layout: { maxWidth: 800 } }));
 
 vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
@@ -55,7 +60,7 @@ vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}), mo
 vi.mock('@/sync/storage', () => ({ useSetting: (key: string) => (key === 'experiments' ? testState.experiments : undefined) }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
-import { SETTINGS_SECTIONS, SettingsFrame, SettingsSectionList, withSettingsFrame } from './SettingsFrame';
+import { SETTINGS_SECTIONS, SettingsFrame, SettingsSectionList, useSettingsFrameAction, withSettingsFrame } from './SettingsFrame';
 
 const originalConsoleError = console.error;
 
@@ -212,6 +217,51 @@ describe('SettingsFrame', () => {
         expect(renderer.root.findByType('Page' as any).props.label).toBe('voice page');
         expect(navItems(renderer).find((node: any) => node.props.accessibilityState.selected)?.props.testID)
             .toBe('settings-nav-voice');
+    });
+});
+
+describe('SettingsFrame page title', () => {
+    const title = (renderer: ReactTestRenderer) => renderer.root.findAll((node: any) => node.props.testID === 'settings-page-title' && node.type === 'Text');
+    const headerShown = (renderer: ReactTestRenderer) => renderer.root.findByType('StackScreen' as any).props.options.headerShown;
+
+    it('draws the section title in the page and hides the stack header beside the section list', () => {
+        const renderer = render('connections');
+        expect(title(renderer)).toHaveLength(1);
+        expect(title(renderer)[0].props.children).toBe('devicePairing.title');
+        expect(title(renderer)[0].props).toMatchObject({ role: 'heading', 'aria-level': 1 });
+        expect(headerShown(renderer)).toBe(false);
+    });
+
+    it('keeps the stack header, and no page title, below the frame width', () => {
+        testState.width = 999;
+        const renderer = render('connections');
+        expect(title(renderer)).toHaveLength(0);
+        expect(headerShown(renderer)).toBe(true);
+    });
+
+    it('titles a nested page with its own title', () => {
+        const Framed = withSettingsFrame('voice', () => React.createElement('Page'), { title: () => 'settingsVoice.preferredLanguage' });
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(Framed));
+        });
+        expect(title(renderer)[0].props.children).toBe('settingsVoice.preferredLanguage');
+    });
+
+    it('shows a page action beside the title, which the header would otherwise carry', () => {
+        const Action = () => React.createElement('ServerButton');
+        function Page({ on }: { on: boolean }) {
+            useSettingsFrameAction(on ? Action : null);
+            return React.createElement('Page');
+        }
+        const tree = (on: boolean) => React.createElement(SettingsFrame, { section: 'general', children: React.createElement(Page, { on }) });
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(tree(true));
+        });
+        expect(renderer.root.findAllByType('ServerButton' as any)).toHaveLength(1);
+        act(() => renderer.update(tree(false)));
+        expect(renderer.root.findAllByType('ServerButton' as any)).toHaveLength(0);
     });
 });
 

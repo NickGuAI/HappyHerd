@@ -148,6 +148,7 @@
     "githubConnected": "Connected as @{login}",
     "connectGithubAccount": "Connect your GitHub account",
     "claudeAuthSuccess": "Successfully connected to Claude",
+    "connectClaudeTitle": "Connect to Claude",
     "exchangingTokens": "Exchanging tokens...",
     "usage": "Usage",
     "usageSubtitle": "View your API usage and costs",

@@ -34,7 +34,7 @@ vi.mock('expo-router', async () => {
     };
 });
 vi.mock('@/components/SettingsView', () => ({ SettingsView: () => null }));
-vi.mock('@/components/herd/pages/SettingsFrame', () => ({ withSettingsFrame: (_section: string, Screen: React.ComponentType) => Screen }));
+vi.mock('@/components/herd/pages/SettingsFrame', () => ({ withSettingsFrame: (_section: string, Screen: React.ComponentType) => Screen, useSettingsFrameAction: () => undefined }));
 vi.mock('@/sync/serverConfig', () => ({ isUsingCustomServer: () => state.customServer }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => state.tablet }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));

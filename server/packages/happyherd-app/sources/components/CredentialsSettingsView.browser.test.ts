@@ -60,6 +60,7 @@ const virtualModules: Record<string, string> = {
             dismissTo: (target) => globalThis.__NAVIGATE__('dismissTo', target),
         };
         export const useRouter = () => router;
+        export const Stack = { Screen: () => null };
         export const useLocalSearchParams = () => globalThis.__FIXTURE_STATE__.route.params;
         export const usePathname = () => location.pathname;
     `,

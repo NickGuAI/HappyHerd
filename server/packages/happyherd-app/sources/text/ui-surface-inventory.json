@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "f2f71383dfc120816b3237018dee38c992f0b34eb5a5dd71ef752a1671125e03",
+  "sourceFingerprint": "2c734f2f70e49bc359ce00ad2edfedb718a1caf0aeb52dac5ec9b88ebccebdfa",
   "routeCount": 43,
   "surfaceCount": 321,
   "hardcodedCopyCount": 0,
@@ -792,6 +792,7 @@
       "path": "/settings/connect/claude",
       "owner": "sources/app/(app)/settings/connect/claude.tsx",
       "translationKeys": [
+        "settings.connectClaudeTitle",
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
@@ -962,7 +963,8 @@
         "settingsVoice.language.autoDetect",
         "settingsVoice.language.footer",
         "settingsVoice.language.searchPlaceholder",
-        "settingsVoice.language.title"
+        "settingsVoice.language.title",
+        "settingsVoice.preferredLanguage"
       ],
       "states": []
     },
@@ -2145,6 +2147,7 @@
       "route": "/settings/connect/claude",
       "exports": [],
       "translationKeys": [
+        "settings.connectClaudeTitle",
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
@@ -2342,7 +2345,8 @@
         "settingsVoice.language.autoDetect",
         "settingsVoice.language.footer",
         "settingsVoice.language.searchPlaceholder",
-        "settingsVoice.language.title"
+        "settingsVoice.language.title",
+        "settingsVoice.preferredLanguage"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -4209,6 +4213,7 @@
         "SettingsFrame",
         "SettingsNav",
         "SettingsSectionList",
+        "useSettingsFrameAction",
         "useSettingsFrameVisible",
         "withSettingsFrame"
       ],

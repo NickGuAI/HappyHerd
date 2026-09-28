@@ -54,6 +54,7 @@ const virtualModules: Record<string, string> = {
             push(path) { globalThis.__SETTINGS_ROUTES__ = [...(globalThis.__SETTINGS_ROUTES__ ?? []), path]; },
         });
         export const usePathname = () => '/settings';
+        export const Stack = { Screen: () => null };
     `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/auth/AuthContext': `export const useAuth = () => ({ credentials: { token: 'test' } });`,

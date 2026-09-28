@@ -880,6 +880,7 @@ export type TranslationKey =
     | "settings.appearanceSubtitle"
     | "settings.claudeAuthSuccess"
     | "settings.connectAccount"
+    | "settings.connectClaudeTitle"
     | "settings.connectGithubAccount"
     | "settings.connectedAccounts"
     | "settings.developer"

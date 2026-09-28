@@ -1,19 +1,21 @@
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { usePathname, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { herdWebClasses } from '@/components/herd/motion';
+import { layout } from '@/components/layout';
 import { useSetting } from '@/sync/storage';
 import { t } from '@/text';
 
 /**
  * Desktop Settings layout (UI overhaul): a left-hand section list with the
- * selected page beside it. Each settings route keeps its own screen and URL;
- * phones and narrow windows keep the stacked navigation unchanged.
+ * selected page beside it, headed by the page's large title as the mock
+ * draws it. Each settings route keeps its own screen and URL; phones and
+ * narrow windows keep the stacked navigation and its header unchanged.
  */
 
 export type SettingsSectionId =
@@ -153,24 +155,69 @@ export function SettingsSectionList() {
     );
 }
 
-export function SettingsFrame({ section, children }: { section: SettingsSectionId; children: React.ReactNode }) {
+/**
+ * A settings page's control for the right of its title (UI overhaul). Where
+ * the frame draws the title, the page's `headerRight` has no header to sit in,
+ * so the page hands the frame a component to show beside the title instead.
+ */
+const SettingsFrameActionContext = React.createContext<React.Dispatch<React.SetStateAction<React.ComponentType | null>> | null>(null);
+
+/** Shows `action` beside the framed page's title; pass a stable component, or null for none. */
+export function useSettingsFrameAction(action: React.ComponentType | null) {
+    const setAction = React.useContext(SettingsFrameActionContext);
+    React.useLayoutEffect(() => {
+        if (!setAction) return undefined;
+        setAction(() => action);
+        return () => setAction(null);
+    }, [action, setAction]);
+}
+
+function sectionTitle(section: SettingsSectionId): string {
+    return (SETTINGS_SECTIONS.find((entry) => entry.id === section) ?? SETTINGS_SECTIONS[0]).title();
+}
+
+export function SettingsFrame({ section, title, children }: { section: SettingsSectionId; title?: () => string; children: React.ReactNode }) {
     const visible = useSettingsFrameVisible();
+    const [Action, setAction] = React.useState<React.ComponentType | null>(null);
     if (Platform.OS !== 'web' && Platform.OS !== 'macos') return <>{children}</>;
     // The page keeps the same two parent Views at every width, so crossing the
     // frame width never remounts it and unsaved input survives a resize.
     return (
-        <View testID={visible ? 'settings-frame' : undefined} style={visible ? styles.frame : styles.stack}>
-            {visible ? <SettingsNav active={section} /> : null}
-            <View style={visible ? styles.body : styles.stack}>{children}</View>
-        </View>
+        <SettingsFrameActionContext.Provider value={setAction}>
+            {/* The frame draws the title in the page, so the stack header steps aside while it shows. */}
+            <Stack.Screen options={{ headerShown: !visible }} />
+            <View testID={visible ? 'settings-frame' : undefined} style={visible ? styles.frame : styles.stack}>
+                {visible ? <SettingsNav active={section} /> : null}
+                <View style={visible ? styles.body : styles.stack}>
+                    {visible ? (
+                        <View style={styles.titleRow}>
+                            <View style={styles.titleInner}>
+                                <Text testID="settings-page-title" role="heading" aria-level={1} accessibilityRole="header" numberOfLines={1} style={styles.title}>
+                                    {(title ?? (() => sectionTitle(section)))()}
+                                </Text>
+                                {Action ? <View style={styles.titleAction}><Action /></View> : null}
+                            </View>
+                        </View>
+                    ) : null}
+                    {children}
+                </View>
+            </View>
+        </SettingsFrameActionContext.Provider>
     );
 }
 
-/** Wraps a settings route's screen in the desktop frame without touching its body. */
-export function withSettingsFrame<P extends object>(section: SettingsSectionId, Screen: React.ComponentType<P>) {
+/**
+ * Wraps a settings route's screen in the desktop frame without touching its
+ * body. A nested page passes its own `title`; others take their section's.
+ */
+export function withSettingsFrame<P extends object>(
+    section: SettingsSectionId,
+    Screen: React.ComponentType<P>,
+    options: { title?: () => string } = {},
+) {
     function SettingsFramedScreen(props: P) {
         return (
-            <SettingsFrame section={section}>
+            <SettingsFrame section={section} title={options.title}>
                 <Screen {...props} />
             </SettingsFrame>
         );
@@ -234,6 +281,33 @@ const styles = StyleSheet.create((theme) => ({
         flex: 1,
         minWidth: 0,
         _web: { _classNames: herdWebClasses('herd-fade') },
+    },
+    // The mock's page title, over the page and on the left edge of its cards.
+    titleRow: {
+        flexShrink: 0,
+        alignItems: 'center',
+        backgroundColor: theme.colors.groupped.background,
+    },
+    titleInner: {
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingTop: 28,
+        paddingHorizontal: 16,
+    },
+    title: {
+        ...Typography.default('semiBold'),
+        flex: 1,
+        minWidth: 0,
+        fontSize: 28,
+        lineHeight: 34,
+        letterSpacing: -0.4,
+        color: theme.colors.text,
+    },
+    titleAction: {
+        flexShrink: 0,
     },
     sectionLabel: {
         ...Typography.mono('semiBold'),

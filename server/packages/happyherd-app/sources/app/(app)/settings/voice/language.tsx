@@ -120,4 +120,4 @@ function LanguageSelectionScreen() {
     );
 }
 
-export default withSettingsFrame('voice', LanguageSelectionScreen);
+export default withSettingsFrame('voice', LanguageSelectionScreen, { title: () => t('settingsVoice.preferredLanguage') });

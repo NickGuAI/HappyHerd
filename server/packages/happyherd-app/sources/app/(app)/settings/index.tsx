@@ -3,7 +3,7 @@ import { SettingsView } from "@/components/SettingsView";
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
-import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
+import { useSettingsFrameAction, withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 import { SettingsServerButton } from '@/components/herd/pages/SettingsServerButton';
 import { isUsingCustomServer } from '@/sync/serverConfig';
 
@@ -11,6 +11,8 @@ function SettingsScreen() {
     // A custom server's configuration stays one tap away on the title row, on
     // every layout: it is the only signed-in way to /server (UI overhaul).
     const serverButton = isUsingCustomServer();
+    // Where the desktop frame draws the title, the button sits beside it instead.
+    useSettingsFrameAction(serverButton ? SettingsServerButton : null);
     return (
         <>
             <Stack.Screen options={{ headerRight: serverButton ? () => <SettingsServerButton /> : undefined }} />
