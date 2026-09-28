@@ -65,6 +65,8 @@ const virtualModules: Record<string, string> = {
         export const useLocalSearchParams = () => ({});
         export const useNavigation = () => ({ setOptions() {}, addListener: () => () => {} });
         export const usePathname = () => '/new';
+        // Settings pages set their header through the Stack screen.
+        export const Stack = { Screen: () => null };
     `,
     'react-native-safe-area-context': `
         import React from 'react';
