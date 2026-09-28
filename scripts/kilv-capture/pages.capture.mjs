@@ -253,15 +253,17 @@ const scenes = [
         id: 'focus', label: 'Focus mode', sources: ['components/FocusModeControl.tsx', 'components/herd/SegmentedControl.tsx'],
         async run(page, shot) {
             await page.getByTestId('focus-mode-enter').click();
-            await page.getByTestId('focus-mode-pixel-swap').waitFor();
-            await page.waitForTimeout(650);
-            await shot('pixel-swap');
             await page.getByRole('heading', { name: 'Reclaim Your Focus', exact: true }).waitFor({ timeout: 5000 });
             await page.getByRole('radio', { name: '45 min', exact: true }).click();
             await page.getByRole('radio', { name: 'Web app', exact: true }).click();
             await page.waitForTimeout(150);
             await shot('setup');
             await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+            // Start plays the diagonal pixel swap and clears it onto the countdown.
+            // Screenshots fast-forward animations, so the swap itself is proven by
+            // the herd shell browser suite rather than captured here.
+            await page.getByTestId('focus-mode-pixel-swap').waitFor();
+            await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'detached', timeout: 10000 });
             await page.getByTestId('focus-mode-timer').waitFor();
             await page.waitForTimeout(150);
             await shot('countdown-pill');
