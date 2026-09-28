@@ -76,7 +76,7 @@ const questions = [{
 
 // Oldest first here; the storage adapter hands the list over newest-first
 // with times relative to page load.
-type Scene = 'permission' | 'permission-older' | 'question' | 'skill-permission';
+type Scene = 'permission' | 'permission-older' | 'question' | 'short-reply' | 'skill-permission';
 
 function transcript(scene: Scene): unknown[] {
     const turnOne = [
@@ -128,6 +128,10 @@ function transcript(scene: Scene): unknown[] {
                 permission: { id: 'perm-question', status: 'pending' },
             }),
         ]),
+        // A one-word reply, which must fit its bubble on one line.
+        ...(scene === 'short-reply' ? [
+            { kind: 'user-text', id: 'u3', localId: null, createdAt: -700, text: 'continue' },
+        ] : []),
         {
             kind: 'user-text', id: 'q1-message', localId: 'q1', createdAt: -500,
             text: 'Verify the fix using the simulator before committing the changes.',
@@ -285,6 +289,7 @@ function sessionScreenModules(): Record<string, string> {
             permission: transcript('permission'),
             'permission-older': transcript('permission-older'),
             question: transcript('question'),
+            'short-reply': transcript('short-reply'),
             'skill-permission': transcript('skill-permission'),
         })};
         const shiftTime = (value, at) => typeof value === 'number' ? at + value : value;
@@ -813,6 +818,41 @@ describe('Session screen overhaul (Web)', () => {
         expect(geometry.drawn.width).toBeGreaterThan(36);
         expect(geometry.drawn.width).toBeLessThanOrEqual(60);
         expect(geometry.drawn.height).toBe(36);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it.each([
+        ['Web Desktop', DESKTOP],
+        ['Web Mobile', MOBILE],
+    ])('keeps a one-word message on one line and long ones within the bubble limit on %s', async (_label, viewport) => {
+        const { page, errors } = await openScene({ scene: 'short-reply', viewport });
+        const bubbles = await page.getByTestId('foreground-session').evaluate((root) => {
+            const measure = (text: string) => {
+                const leaf = [...root.querySelectorAll('*')]
+                    .find((node) => node.children.length === 0 && node.textContent?.trim() === text) as HTMLElement | undefined;
+                if (!leaf) return null;
+                const range = document.createRange();
+                range.selectNodeContents(leaf);
+                const lines = new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top))).size;
+                // The bubble is the nearest ancestor with the hairline border.
+                let bubble: HTMLElement | null = leaf;
+                while (bubble && getComputedStyle(bubble).borderTopWidth !== '1px') bubble = bubble.parentElement;
+                return { lines, width: bubble ? bubble.getBoundingClientRect().width : null };
+            };
+            return {
+                short: measure('continue'),
+                long: measure('Also verify on mobile Safari before committing.'),
+                row: (root as HTMLElement).getBoundingClientRect().width,
+            };
+        });
+        expect(bubbles.short).toMatchObject({ lines: 1 });
+        expect(bubbles.long?.width).not.toBeNull();
+        // Long messages keep the 88% / 640 px limit of the chat's row (16 px gutters).
+        const limit = Math.min(0.88 * (bubbles.row - 32), 640);
+        expect(bubbles.long!.width!).toBeLessThanOrEqual(limit + 1);
+        if (viewport === MOBILE) expect(bubbles.long!.lines).toBeGreaterThan(1);
+        await evidence(page, `session-short-reply-${viewport.width}`);
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
