@@ -2,15 +2,16 @@ import { Text } from '@/components/StyledText';
 import React, { useState, useMemo, useRef } from 'react';
 import { View, ActivityIndicator, RefreshControl, Pressable, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { HerdItem as Item, HerdItemGroup as ItemGroup } from '@/components/herd/pages/HerdList';
+import { HerdItem as Item, HerdItemGroup as ItemGroup, HerdListHeader, HerdValueItem } from '@/components/herd/pages/HerdList';
+import { HerdButton, HerdChip, HerdDot, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
 import { ItemList } from '@/components/ItemList';
 import { Typography } from '@/constants/Typography';
 import { useSessions, useMachine, useSetting } from '@/sync/storage';
-import { Ionicons, Octicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import type { Session } from '@/sync/storageTypes';
 import { machineStopDaemon, machineUpdateMetadata, machineDelete, machineSpawnNewSession } from '@/sync/ops';
 import { Modal } from '@/modal';
-import { formatPathRelativeToHome, getSessionName, getSessionSubtitle } from '@/utils/sessionUtils';
+import { formatOSPlatform, formatPathRelativeToHome, getSessionName, getSessionSubtitle } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { sync } from '@/sync/sync';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -18,6 +19,7 @@ import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
+import { getHarnessName } from '@/utils/harnessCatalog';
 import { MultiTextInput, type MultiTextInputHandle } from '@/components/MultiTextInput';
 
 const styles = StyleSheet.create((theme) => ({
@@ -55,6 +57,23 @@ const styles = StyleSheet.create((theme) => ({
     inlineSendActive: {
         backgroundColor: theme.colors.button.primary.background,
     },
+    headerTile: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surfaceHighest,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+    },
+    pathChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        paddingHorizontal: 16,
+        paddingBottom: 14,
+    },
     inlineSendInactive: {
         backgroundColor: Platform.select({
             ios: theme.colors.permissionButton?.inactive?.background ?? theme.colors.surfaceHigh,
@@ -71,6 +90,8 @@ export default function MachineDetailScreen() {
     const sessions = useSessions();
     const machine = useMachine(machineId!);
     const machineWorkspaceEnabled = useSetting('machineWorkspace');
+    // Wide web draws the title in the page, so the stack header steps aside (UI overhaul).
+    const wide = useHerdWideLayout();
     const navigateToSession = useNavigateToSession();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isStoppingDaemon, setIsStoppingDaemon] = useState(false);
@@ -279,29 +300,29 @@ export default function MachineDetailScreen() {
     const machineName = metadata?.displayName || metadata?.host || 'unknown machine';
     const machineOnline = isMachineOnline(machine);
     const spawnButtonDisabled = !customPath.trim() || isSpawning || !machineOnline;
+    const machineSummary = [
+        machineOnline ? t('status.online') : t('status.offline'),
+        metadata?.platform ? formatOSPlatform(metadata.platform) : null,
+        metadata?.host || null,
+    ].filter(Boolean).join(' · ');
+    const cliAvailability = metadata?.cliAvailability;
+    // The active harnesses in pick order, then the retired Gemini CLI the daemon still reports.
+    const cliRows = cliAvailability ? ([
+        ['claude', t('agentInput.agent.claude'), cliAvailability.claude],
+        ['codex', t('agentInput.agent.codex'), cliAvailability.codex],
+        ['grok', t('agentInput.agent.grok'), cliAvailability.grok],
+        ['dsh', t('agentInput.agent.dsh'), cliAvailability.dsh],
+        ['agy', getHarnessName('agy'), cliAvailability.agy],
+        ['rig', t('uiCopy.rig'), cliAvailability.rig],
+        ['gemini', t('agentInput.agent.gemini'), cliAvailability.gemini],
+    ] as const).filter(([, , available]) => available !== undefined) : [];
 
     return (
         <>
             <Stack.Screen
                 options={{
-                    headerShown: true,
+                    headerShown: !wide,
                     headerTitle: machineName,
-                    headerRight: () => (
-                        <Pressable
-                            onPress={handleRenameMachine}
-                            hitSlop={10}
-                            style={{
-                                opacity: isRenamingMachine ? 0.5 : 1
-                            }}
-                            disabled={isRenamingMachine}
-                        >
-                            <Octicons
-                                name="pencil"
-                                size={24}
-                                color={theme.colors.text}
-                            />
-                        </Pressable>
-                    ),
                     headerBackTitle: t('machine.back')
                 }}
             />
@@ -317,6 +338,37 @@ export default function MachineDetailScreen() {
                 }
                 keyboardShouldPersistTaps="handled"
             >
+                {/* The machine's title row: its tile, name, state and Rename (the mock's page head). */}
+                <HerdListHeader testID="machine-page-header">
+                    <HerdPageHeader
+                        compact={!wide}
+                        title={wide ? machineName : undefined}
+                        titleStyle={{ ...Typography.mono('semiBold'), fontSize: 24, lineHeight: 30, letterSpacing: 0 }}
+                        subtitle={machineSummary}
+                        subtitlePrefix={<HerdDot tone={machineOnline ? 'ok' : 'off'} />}
+                        leading={(
+                            <View style={styles.headerTile}>
+                                <Ionicons
+                                    name={metadata?.platform === 'darwin' ? 'laptop-outline' : 'server-outline'}
+                                    size={24}
+                                    color={theme.colors.textLink}
+                                />
+                            </View>
+                        )}
+                        actions={(
+                            <HerdButton
+                                icon="pencil-outline"
+                                // Narrow layouts keep the machine's state line on one row.
+                                label={wide ? t('uiCopy.renameMachine') : undefined}
+                                accessibilityLabel={t('uiCopy.renameMachine')}
+                                loading={isRenamingMachine}
+                                disabled={isRenamingMachine}
+                                onPress={handleRenameMachine}
+                                testID="machine-rename"
+                            />
+                        )}
+                    />
+                </HerdListHeader>
                 {/* Launch section */}
                 {machine && (
                     <>
@@ -361,45 +413,35 @@ export default function MachineDetailScreen() {
                                     </Pressable>
                                 </View>
                             </View>
-                            <View style={{ paddingTop: 4 }} />
-                            {pathsToShow.map((path, index) => {
-                                const display = formatPathRelativeToHome(path, machine.metadata?.homeDir);
-                                const isSelected = customPath.trim() === display;
-                                const isLast = index === pathsToShow.length - 1;
-                                const hideDivider = isLast && pathsToShow.length <= 5;
-                                return (
-                                    <Item
-                                        key={path}
-                                        title={display}
-                                        leftElement={<Ionicons name="folder-outline" size={18} color={theme.colors.textSecondary} />}
-                                        onPress={isMachineOnline(machine) ? () => {
-                                            setCustomPath(display);
-                                            setTimeout(() => inputRef.current?.focus(), 50);
-                                        } : undefined}
-                                        disabled={!isMachineOnline(machine)}
-                                        selected={isSelected}
-                                        showChevron={false}
-                                        pressableStyle={isSelected ? {
-                                            backgroundColor: Platform.select({
-                                                web: theme.colors.surfaceSelected,
-                                                default: theme.colors.glass.backgroundSubtle,
-                                            }),
-                                        } : undefined}
-                                        showDivider={!hideDivider}
-                                    />
-                                );
-                            })}
-                            {recentPaths.length > 5 && (
-                                <Item
-                                    title={showAllPaths ? t('machineLauncher.showLess') : t('machineLauncher.showAll', { count: recentPaths.length })}
-                                    onPress={() => setShowAllPaths(!showAllPaths)}
-                                    showChevron={false}
-                                    showDivider={false}
-                                    titleStyle={{
-                                        textAlign: 'center',
-                                        color: (theme as any).dark ? theme.colors.button.primary.tint : theme.colors.button.primary.background
-                                    }}
-                                />
+                            {recentPaths.length > 0 && (
+                                <View style={styles.pathChips} testID="machine-recent-paths">
+                                    {pathsToShow.map((path) => {
+                                        const display = formatPathRelativeToHome(path, machine.metadata?.homeDir);
+                                        return (
+                                            <HerdChip
+                                                key={path}
+                                                label={display}
+                                                mono
+                                                accessibilityRole="button"
+                                                selected={customPath.trim() === display}
+                                                disabled={!machineOnline}
+                                                onPress={() => {
+                                                    setCustomPath(display);
+                                                    setTimeout(() => inputRef.current?.focus(), 50);
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                    {recentPaths.length > 5 && (
+                                        <HerdChip
+                                            label={showAllPaths ? t('machineLauncher.showLess') : t('machineLauncher.showAll', { count: recentPaths.length })}
+                                            mono
+                                            accessibilityRole="button"
+                                            onPress={() => setShowAllPaths(!showAllPaths)}
+                                            testID="machine-paths-show-all"
+                                        />
+                                    )}
+                                </View>
                             )}
                         </View>
                         </ItemGroup>
@@ -423,19 +465,30 @@ export default function MachineDetailScreen() {
                     </ItemGroup>
                 )}
                 {/* Daemon */}
-                <ItemGroup>
-                        <Item
+                <ItemGroup title={t('machine.daemon')}>
+                        <HerdValueItem
                             title={t('machine.status')}
-                            detail={machineOnline ? t('status.online') : t('status.offline')}
-                            detailStyle={{
-                                color: machineOnline ? theme.colors.success : theme.colors.textSecondary
-                            }}
-                            showChevron={false}
+                            value={machineOnline ? t('status.online') : t('status.offline')}
+                            prefix={<HerdDot tone={machineOnline ? 'ok' : 'off'} />}
+                            testID="machine-daemon-status"
                         />
+                        {machine.daemonState?.pid ? (
+                            <HerdValueItem title={t('sessionInfo.processId')} value={String(machine.daemonState.pid)} mono testID="machine-daemon-pid" />
+                        ) : null}
+                        {machine.daemonState?.httpPort ? (
+                            <HerdValueItem title={t('machine.lastKnownHttpPort')} value={String(machine.daemonState.httpPort)} mono testID="machine-daemon-port" />
+                        ) : null}
+                        {machine.daemonState?.startedWithCliVersion ? (
+                            <HerdValueItem title={t('machine.cliVersion')} value={machine.daemonState.startedWithCliVersion} mono testID="machine-daemon-cli-version" />
+                        ) : null}
+                        {machine.daemonState?.startTime ? (
+                            <HerdValueItem title={t('machine.startedAt')} value={new Date(machine.daemonState.startTime).toLocaleString()} />
+                        ) : null}
+                        <HerdValueItem title={t('machine.daemonStateVersion')} value={String(machine.daemonStateVersion)} mono />
                         <Item
                             title={t('machine.stopDaemon')}
                             titleStyle={{
-                                color: machineOnline ? theme.colors.warning : theme.colors.textSecondary
+                                color: machineOnline ? theme.colors.textDestructive : theme.colors.textSecondary
                             }}
                             onPress={machineOnline ? handleStopDaemon : undefined}
                             disabled={isStoppingDaemon || !machineOnline}
@@ -443,96 +496,37 @@ export default function MachineDetailScreen() {
                                 isStoppingDaemon ? (
                                     <ActivityIndicator size="small" color={theme.colors.textSecondary} />
                                 ) : (
-                                    <Ionicons 
-                                        name="stop-circle" 
-                                        size={20} 
-                                        color={machineOnline ? theme.colors.warning : theme.colors.textSecondary}
+                                    <Ionicons
+                                        name="stop-circle"
+                                        size={20}
+                                        color={machineOnline ? theme.colors.textDestructive : theme.colors.textSecondary}
                                     />
                                 )
                             }
                         />
-                        {machine.daemonState && (
-                            <>
-                                {machine.daemonState.pid && (
-                                    <Item
-                                        title={t('machine.lastKnownPid')}
-                                        subtitle={String(machine.daemonState.pid)}
-                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
-                                    />
-                                )}
-                                {machine.daemonState.httpPort && (
-                                    <Item
-                                        title={t('machine.lastKnownHttpPort')}
-                                        subtitle={String(machine.daemonState.httpPort)}
-                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
-                                    />
-                                )}
-                                {machine.daemonState.startTime && (
-                                    <Item
-                                        title={t('machine.startedAt')}
-                                        subtitle={new Date(machine.daemonState.startTime).toLocaleString()}
-                                    />
-                                )}
-                                {machine.daemonState.startedWithCliVersion && (
-                                    <Item
-                                        title={t('machine.cliVersion')}
-                                        subtitle={machine.daemonState.startedWithCliVersion}
-                                        subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
-                                    />
-                                )}
-                            </>
-                        )}
-                        <Item
-                            title={t('machine.daemonStateVersion')}
-                            subtitle={String(machine.daemonStateVersion)}
-                        />
                 </ItemGroup>
 
                 {/* CLI Availability */}
-                {metadata?.cliAvailability && (
+                {cliAvailability && (
                     <ItemGroup title={t('machine.cliAvailability')}>
-                        <Item
-                            title={t("agentInput.agent.claude")}
-                            showChevron={false}
-                            rightElement={
-                                <Text style={{ color: metadata.cliAvailability.claude ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
-                                    {metadata.cliAvailability.claude ? t('machine.cliInstalled') : t('machine.cliNotFound')}
-                                </Text>
-                            }
-                        />
-                        <Item
-                            title={t("agentInput.agent.codex")}
-                            showChevron={false}
-                            rightElement={
-                                <Text style={{ color: metadata.cliAvailability.codex ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
-                                    {metadata.cliAvailability.codex ? t('machine.cliInstalled') : t('machine.cliNotFound')}
-                                </Text>
-                            }
-                        />
-                        <Item
-                            title={t("agentInput.agent.gemini")}
-                            showChevron={false}
-                            rightElement={
-                                <Text style={{ color: metadata.cliAvailability.gemini ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
-                                    {metadata.cliAvailability.gemini ? t('machine.cliInstalled') : t('machine.cliNotFound')}
-                                </Text>
-                            }
-                        />
-                        {metadata.cliAvailability.rig !== undefined && (
-                            <Item
-                                title={t('uiCopy.rig')}
-                                showChevron={false}
-                                rightElement={
-                                    <Text style={{ color: metadata.cliAvailability.rig ? theme.colors.success : theme.colors.textSecondary, fontSize: 14 }}>
-                                        {metadata.cliAvailability.rig ? t('machine.cliInstalled') : t('machine.cliNotFound')}
-                                    </Text>
-                                }
+                        {cliRows.map(([key, label, available]) => (
+                            <HerdValueItem
+                                key={key}
+                                title={label}
+                                testID={`machine-cli-${key}`}
+                                trailing={(
+                                    <Ionicons
+                                        name={available ? 'checkmark' : 'remove'}
+                                        size={16}
+                                        accessibilityLabel={available ? t('machine.cliInstalled') : t('machine.cliNotFound')}
+                                        color={available ? theme.colors.success : theme.colors.textSecondary}
+                                    />
+                                )}
                             />
-                        )}
-                        <Item
+                        ))}
+                        <HerdValueItem
                             title={t('machine.lastDetected')}
-                            subtitle={new Date(metadata.cliAvailability.detectedAt).toLocaleString()}
-                            showChevron={false}
+                            value={new Date(cliAvailability.detectedAt).toLocaleString()}
                         />
                     </ItemGroup>
                 )}
@@ -554,48 +548,17 @@ export default function MachineDetailScreen() {
 
                 {/* Machine */}
                 <ItemGroup title={t('machine.machineGroup')}>
-                        <Item
-                            title={t('machine.host')}
-                            subtitle={metadata?.host || machineId}
-                        />
-                        <Item
-                            title={t('machine.machineId')}
-                            subtitle={machineId}
-                            subtitleStyle={{ ...Typography.mono(), fontSize: 12 }}
-                        />
-                        {metadata?.username && (
-                            <Item
-                                title={t('machine.username')}
-                                subtitle={metadata.username}
-                            />
-                        )}
-                        {metadata?.homeDir && (
-                            <Item
-                                title={t('machine.homeDirectory')}
-                                subtitle={metadata.homeDir}
-                                subtitleStyle={{ ...Typography.mono(), fontSize: 13 }}
-                            />
-                        )}
-                        {metadata?.platform && (
-                            <Item
-                                title={t('machine.platform')}
-                                subtitle={metadata.platform}
-                            />
-                        )}
-                        {metadata?.arch && (
-                            <Item
-                                title={t('machine.architecture')}
-                                subtitle={metadata.arch}
-                            />
-                        )}
-                        <Item
+                        <HerdValueItem title={t('machine.host')} value={metadata?.host || machineId} mono />
+                        <HerdValueItem title={t('machine.machineId')} value={machineId} mono copyText={machineId} testID="machine-id" />
+                        {metadata?.username ? <HerdValueItem title={t('machine.username')} value={metadata.username} mono /> : null}
+                        {metadata?.homeDir ? <HerdValueItem title={t('machine.homeDirectory')} value={metadata.homeDir} mono /> : null}
+                        {metadata?.platform ? <HerdValueItem title={t('machine.platform')} value={metadata.platform} mono /> : null}
+                        {metadata?.arch ? <HerdValueItem title={t('machine.architecture')} value={metadata.arch} mono /> : null}
+                        <HerdValueItem
                             title={t('machine.lastSeen')}
-                            subtitle={machine.activeAt ? new Date(machine.activeAt).toLocaleString() : t('machine.never')}
+                            value={machine.activeAt ? new Date(machine.activeAt).toLocaleString() : t('machine.never')}
                         />
-                        <Item
-                            title={t('machine.metadataVersion')}
-                            subtitle={String(machine.metadataVersion)}
-                        />
+                        <HerdValueItem title={t('machine.metadataVersion')} value={String(machine.metadataVersion)} mono />
                 </ItemGroup>
 
                 {/* Danger zone */}
