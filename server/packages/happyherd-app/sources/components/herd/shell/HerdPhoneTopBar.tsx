@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
-import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -12,6 +11,7 @@ import { useHerdCommandPalette } from './commandPaletteBridge';
 import { HerdInboxBell } from './HerdInboxBell';
 import { HerdMachineMenu } from './HerdMachineMenu';
 import { HerdMaskImage } from './HerdMaskImage';
+import { HerdShellIcon } from './HerdShellIcon';
 import { herdBrandMarkFill } from './brandMark';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { useHerdPhoneShell } from './phoneShell';
@@ -63,11 +63,7 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                         onPress={toggleDrawer}
                         testID="navigation-sidebar-toggle"
                     >
-                        <Octicons
-                            name={drawerOpen ? 'sidebar-collapse' : 'sidebar-expand'}
-                            size={20}
-                            color={theme.colors.header.tint}
-                        />
+                        <HerdShellIcon name="panelLeft" size={20} color={theme.colors.header.tint} />
                     </HerdTopBarIconButton>
                 )}
                 <Pressable
@@ -79,7 +75,7 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                 >
                     <HerdMaskImage
                         source={require('@/assets/images/logo-black.png')}
-                        size={22}
+                        size={24}
                         tint={theme.colors.textLink}
                         fill={herdBrandMarkFill(theme)}
                         testID="herd-brand-mark"
@@ -96,7 +92,7 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                     >
                         {({ pressed }) => (
                             <View style={[styles.search, (pressed || (nativeSearch && searchOpen)) && styles.searchActive]}>
-                                <Ionicons name="search" size={16} color={theme.colors.kilv.inkFaint} />
+                                <HerdShellIcon name="search" size={17} color={theme.colors.kilv.inkFaint} />
                             </View>
                         )}
                     </Pressable>
@@ -105,7 +101,7 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                 <View style={styles.trailing}>
                     <FocusModeControl />
                     <HerdInboxBell />
-                    <HerdMachineMenu compact nameHidden={!!focus || width < PHONE_MACHINE_NAME_MIN_WIDTH} />
+                    <HerdMachineMenu nameHidden={!!focus || width < PHONE_MACHINE_NAME_MIN_WIDTH} />
                 </View>
             </View>
         </HerdTopBarLayoutContext.Provider>

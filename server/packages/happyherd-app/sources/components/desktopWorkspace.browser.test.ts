@@ -884,8 +884,8 @@ describe('Desktop workspace browser interaction', () => {
         };
 
         await expect(toggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-        await expect(toggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
-        await expect(toggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(0);
+        await expect(toggle.locator('[data-herd-icon="panelLeft"]').count()).resolves.toBe(1);
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('true');
         const toggleBox = await toggle.boundingBox();
         if (!toggleBox) throw new Error('top bar toggle has no layout');
         expect(toggleBox.width).toBeGreaterThanOrEqual(28);
@@ -907,15 +907,15 @@ describe('Desktop workspace browser interaction', () => {
 
         await toggle.click();
         await expect(toggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
-        await expect(toggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
-        await expect(toggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(0);
+        await expect(toggle.locator('[data-herd-icon="panelLeft"]').count()).resolves.toBe(1);
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('false');
         await expect.poll(async () => (await drawer.boundingBox())?.width).toBe(0);
 
         // Clicking leaves the pointer over the toggle; move away to see the idle state.
+        // Collapsed, the toggle keeps the mock's lit `.icon-btn.on` fill while idle.
         await page.mouse.move(toggleBox.x + toggleBox.width + 400, toggleBox.y + 200);
-        await expect.poll(async () => ['transparent', 'rgba(0, 0, 0, 0)'].includes(
-            await toggle.evaluate((element) => getComputedStyle(element).backgroundColor),
-        )).toBe(true);
+        const collapsedBackground = await toggle.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(collapsedBackground);
         await toggle.hover();
         const hoverBackground = await toggle.evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(hoverBackground);
@@ -934,7 +934,12 @@ describe('Desktop workspace browser interaction', () => {
 
         await edge.click();
         await expect(toggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-        await expect(toggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
+        // Expanded and idle, the toggle is transparent again.
+        await expect.poll(async () => ['transparent', 'rgba(0, 0, 0, 0)'].includes(
+            await toggle.evaluate((element) => getComputedStyle(element).backgroundColor),
+        )).toBe(true);
+        await expect(toggle.locator('[data-herd-icon="panelLeft"]').count()).resolves.toBe(1);
+        await expect(toggle.getAttribute('aria-expanded')).resolves.toBe('true');
         await expect.poll(async () => (await drawer.boundingBox())?.width ?? 0).toBeGreaterThan(0);
         expect(pageErrors).toEqual([]);
         await page.close();
@@ -968,7 +973,8 @@ describe('Desktop workspace browser interaction', () => {
         const edge = sidebarDemo.getByTestId('navigation-sidebar-edge-toggle');
         await collapse.waitFor();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
+        await expect(collapse.locator('[data-herd-icon="panelLeft"]').count()).resolves.toBe(1);
+        await expect(collapse.getAttribute('aria-expanded')).resolves.toBe('true');
         const drawerBox = await drawer.boundingBox();
         const edgeBox = await edge.boundingBox();
         if (!drawerBox || !edgeBox) throw new Error('sidebar fixture has no layout');
@@ -1035,7 +1041,7 @@ describe('Desktop workspace browser interaction', () => {
 
         await collapse.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Expand navigation');
-        await expect(collapse.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
+        await expect(collapse.getAttribute('aria-expanded')).resolves.toBe('false');
         await expect.poll(async () => (await drawer.boundingBox())?.width).toBe(0);
         const collapsedSplitBox = await splitDemo.boundingBox();
         if (!collapsedSplitBox) throw new Error('collapsed split has no layout');
@@ -1049,7 +1055,8 @@ describe('Desktop workspace browser interaction', () => {
 
         await edge.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
+        await expect(collapse.locator('[data-herd-icon="panelLeft"]').count()).resolves.toBe(1);
+        await expect(collapse.getAttribute('aria-expanded')).resolves.toBe('true');
         await expect.poll(async () => Math.abs(((await splitDemo.boundingBox())?.width ?? 0) - initialSplitBox.width)).toBeLessThan(2);
         await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);

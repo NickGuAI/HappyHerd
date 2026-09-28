@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,17 +13,10 @@ import { HerdSegmentedControl } from '@/components/herd/SegmentedControl';
 import { HerdButton, HerdChip, HerdSectionLabel } from '@/components/herd/pages/HerdPage';
 import { herdWebClasses } from '@/components/herd/motion';
 import { focusModeProgress } from '@/components/herd/pages/focusProgress';
-
-function TomatoIcon({ size = 24 }: { size?: number }) {
-    const { theme } = useUnistyles();
-    return (
-        <Svg width={size} height={size} viewBox="0 0 24 24"
-            {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
-            <Path d="M12 7C5 3 1 9 3 16c2 7 16 7 18 0 2-7-2-13-9-9Z" fill={theme.colors.textDestructive} />
-            <Path d="m12 9-6-3 5 1-1-4 3 3 4-2-2 4 4 2-6-1-2 3Z" fill={theme.colors.kilv.olive} />
-        </Svg>
-    );
-}
+import { HerdMenuSeparator, HerdMenuItem, HerdMenuTitle, HerdPopover, measureHerdAnchor, type HerdAnchorRect } from '@/components/herd/HerdPopover';
+import { HerdShellIcon } from '@/components/herd/shell/HerdShellIcon';
+import { HerdTopBarIconButton } from '@/components/herd/shell/HerdTopBarIconButton';
+import { useHerdTopBarLayout } from '@/components/herd/shell/topBarLayout';
 
 // App-only adaptation of React Bits Pixel Swap's staggered, growing windows.
 // The incoming content is solid amber, so tiles need no cloned DOM or native snapshots.
@@ -89,7 +81,7 @@ function FocusModeSetup({ onClose }: { onClose: () => void }) {
                             {t('focusMode.title')}
                         </Text>
                         <View style={styles.card}>
-                            <View style={styles.tomato}><TomatoIcon size={30} /></View>
+                            <View style={styles.focusMark}><HerdShellIcon name="focus" size={28} color={theme.colors.textLink} /></View>
                             <View>
                                 <HerdSectionLabel first>{t('focusMode.duration')}</HerdSectionLabel>
                                 <HerdSegmentedControl
@@ -166,38 +158,102 @@ function FocusRing({ progress }: { progress: number }) {
     );
 }
 
+/**
+ * The top bar's Focus mode control (UI overhaul, as the approved mock draws
+ * it). Desktop: a "Focus mode" pill, then the live countdown pill with its
+ * ring, time, project and exit. Phones: an icon button, then a compact
+ * ring-and-time pill whose menu shows the project, the time left and Exit.
+ */
 export function FocusModeControl() {
     const { theme } = useUnistyles();
     const dimensions = useWindowDimensions();
+    const phone = useHerdTopBarLayout() === 'phone';
     const focus = useFocusMode();
     const projectsById = useProjects();
     const [, setFocusMode] = useSettingMutable('focusMode');
     const [setupOpen, setSetupOpen] = React.useState(false);
     const [now, setNow] = React.useState(Date.now);
+    const menuTrigger = React.useRef<View>(null);
+    const [menuAnchor, setMenuAnchor] = React.useState<HerdAnchorRect | null>(null);
     React.useEffect(() => {
         if (!focus) return;
         setNow(Date.now());
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
     }, [focus]);
+    React.useEffect(() => {
+        if (!focus) setMenuAnchor(null);
+    }, [focus]);
     const remaining = getFocusRemainingSeconds(focus, now);
     const time = formatFocusRemaining(remaining);
     const progress = focus ? focusModeProgress(focus, remaining) : 0;
     const projectName = focus ? projectsById[focus.projectId]?.name : undefined;
+    const remainingLabel = t('focusMode.remaining', { time });
+    const openMenu = React.useCallback(async () => {
+        if (menuAnchor) {
+            setMenuAnchor(null);
+            return;
+        }
+        setMenuAnchor(await measureHerdAnchor(menuTrigger.current));
+    }, [menuAnchor]);
+    const exit = React.useCallback(() => {
+        setMenuAnchor(null);
+        setFocusMode(null);
+    }, [setFocusMode]);
 
-    return <>
-        {focus ? <View testID="focus-mode-pill" style={styles.pill}>
+    let control: React.ReactNode;
+    if (focus && phone) {
+        control = <>
+            <View ref={menuTrigger} collapsable={false}>
+                <Pressable testID="focus-mode-pill" accessibilityRole="button"
+                    accessibilityLabel={projectName ? `${remainingLabel} · ${projectName}` : remainingLabel}
+                    aria-haspopup="menu" aria-expanded={!!menuAnchor} onPress={openMenu}
+                    style={({ pressed }) => [styles.phoneTarget, pressed && styles.pressed]}>
+                    <View style={[styles.pill, styles.pillPhone]}>
+                        <FocusRing progress={progress} />
+                        <Text testID="focus-mode-timer" style={styles.pillTime}>{time}</Text>
+                    </View>
+                </Pressable>
+            </View>
+            <HerdPopover visible={!!menuAnchor} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} width={290}
+                accessibilityLabel={t('focusMode.enter')} testID="focus-mode-menu">
+                <HerdMenuTitle>{t('focusMode.enter')}</HerdMenuTitle>
+                <View testID="focus-mode-menu-info" accessibilityLabel={remainingLabel} style={styles.menuInfo}>
+                    <HerdShellIcon name="folders" size={17} color={theme.colors.textSecondary} />
+                    <Text numberOfLines={1} style={styles.menuProject}>{projectName ?? ''}</Text>
+                    <Text style={styles.menuTime}>{time}</Text>
+                </View>
+                <HerdMenuSeparator />
+                <HerdMenuItem testID="focus-mode-exit" icon="close" label={t('focusMode.exit')} onPress={exit} />
+            </HerdPopover>
+        </>;
+    } else if (focus) {
+        control = <View testID="focus-mode-pill" style={styles.pill}>
             <FocusRing progress={progress} />
-            <Text testID="focus-mode-timer" accessibilityLabel={t('focusMode.remaining', { time })} style={styles.pillTime}>{time}</Text>
+            <Text testID="focus-mode-timer" accessibilityLabel={remainingLabel} style={styles.pillTime}>{time}</Text>
             {projectName && dimensions.width >= 600 ? <Text numberOfLines={1} style={styles.pillProject}>{projectName}</Text> : null}
             <Pressable testID="focus-mode-exit" accessibilityRole="button" accessibilityLabel={t('focusMode.exit')}
-                onPress={() => setFocusMode(null)} hitSlop={8} style={({ pressed }) => [styles.pillExit, pressed && styles.pressed]}>
-                <Ionicons name="close" size={15} color={theme.colors.textLink} />
+                onPress={exit} hitSlop={8} style={({ pressed }) => [styles.pillExit, pressed && styles.pressed]}>
+                <HerdShellIcon name="x" size={13} color={theme.colors.textLink} />
             </Pressable>
-        </View> : <Pressable testID="focus-mode-enter" accessibilityRole="button" accessibilityLabel={t('focusMode.enter')}
-            onPress={() => setSetupOpen(true)} style={({ pressed }) => [styles.enter, pressed && styles.pressed]}>
-            <TomatoIcon />
-        </Pressable>}
+        </View>;
+    } else if (phone) {
+        control = <HerdTopBarIconButton testID="focus-mode-enter" label={t('focusMode.enter')} onPress={() => setSetupOpen(true)}>
+            <HerdShellIcon name="focus" size={19} color={theme.colors.header.tint} />
+        </HerdTopBarIconButton>;
+    } else {
+        control = <Pressable testID="focus-mode-enter" accessibilityRole="button" accessibilityLabel={t('focusMode.enter')}
+            onPress={() => setSetupOpen(true)}
+            style={({ pressed, hovered }: any) => [styles.enter, (hovered || pressed) && styles.enterHovered]}>
+            {({ pressed, hovered }: any) => <>
+                <HerdShellIcon name="focus" size={14} color={hovered || pressed ? theme.colors.text : theme.colors.textSecondary} />
+                <Text style={[styles.enterLabel, (hovered || pressed) && styles.enterLabelHovered]}>{t('focusMode.enter')}</Text>
+            </>}
+        </Pressable>;
+    }
+
+    return <>
+        {control}
         {setupOpen && <FocusModeSetup onClose={() => setSetupOpen(false)} />}
     </>;
 }
@@ -212,7 +268,7 @@ const styles = StyleSheet.create((theme) => ({
         borderColor: theme.colors.kilv.rimLine,
         _web: { _classNames: herdWebClasses('herd-sheet'), boxShadow: theme.kilv.shadow },
     },
-    tomato: {
+    focusMark: {
         alignSelf: 'center',
         width: 64,
         height: 64,
@@ -242,13 +298,55 @@ const styles = StyleSheet.create((theme) => ({
         flexWrap: 'wrap',
         gap: 8,
     },
+    // The mock's `.top-pill`: a hairline mono pill with the focus icon.
     enter: {
-        minWidth: 44,
-        minHeight: 44,
+        height: 32,
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: 7,
+        paddingHorizontal: 10,
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: { cursor: 'pointer', _classNames: ['herd-transition', 'herd-press'] },
+    },
+    enterHovered: {
+        borderColor: theme.colors.kilv.rimLine,
+    },
+    enterLabel: {
+        ...Typography.mono(),
+        fontSize: 12.5,
+        color: theme.colors.textSecondary,
+    },
+    enterLabelHovered: {
+        color: theme.colors.text,
+    },
+    phoneTarget: {
+        height: 44,
         justifyContent: 'center',
-        borderRadius: theme.kilv.radius,
-        _web: { cursor: 'pointer', _hover: { backgroundColor: theme.colors.surfacePressedOverlay } },
+        paddingHorizontal: 2,
+    },
+    pillPhone: {
+        paddingRight: 10,
+    },
+    menuInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        minHeight: 48,
+        paddingHorizontal: 8,
+    },
+    menuProject: {
+        ...Typography.default(),
+        flex: 1,
+        fontSize: 15,
+        color: theme.colors.text,
+    },
+    menuTime: {
+        ...Typography.mono(),
+        fontSize: 13,
+        color: theme.colors.textLink,
+        fontVariant: ['tabular-nums'],
     },
     pill: {
         height: 32,

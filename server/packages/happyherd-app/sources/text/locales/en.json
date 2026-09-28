@@ -2030,5 +2030,10 @@
     "cancel": "Cancel",
     "noProjects": "Create a project to start focusing.",
     "remaining": "{time} remaining"
+  },
+  "topBar": {
+    "noMachine": "No machine",
+    "addMachine": "Add a machine",
+    "noMachinesYet": "No machines on this account yet"
   }
 }

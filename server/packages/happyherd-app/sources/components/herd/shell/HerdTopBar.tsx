@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -16,6 +15,7 @@ import { useHeaderHeight } from '@/utils/responsive';
 import { useHerdCommandPalette } from './commandPaletteBridge';
 import { herdBrandMarkFill } from './brandMark';
 import { HerdMaskImage } from './HerdMaskImage';
+import { HerdShellIcon } from './HerdShellIcon';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { HerdInboxBell } from './HerdInboxBell';
 import { HerdMachineMenu } from './HerdMachineMenu';
@@ -33,9 +33,10 @@ export const HERD_TOP_BAR_COMPACT_WIDTH = 1100;
 
 /**
  * The desktop top bar (HappyHerd-owned; replaces the inherited persistent
- * header overlay). Left to right: panel toggle, Zen, brand, command search,
- * then Focus mode, the Inbox bell and the machine menu. There are no Back or
- * Forward buttons; Escape, mouse side buttons and the browser keep history.
+ * header overlay), drawn as the approved mock: panel toggle, Zen, brand,
+ * command search, then the Focus mode button, the Inbox bell and the machine
+ * pill. There are no Back or Forward buttons; Escape, mouse side buttons and
+ * the browser keep history.
  */
 export const HerdTopBar = React.memo(function HerdTopBar() {
     const { theme } = useUnistyles();
@@ -64,7 +65,7 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
             style={[styles.bar, {
                 height: safeArea.top + headerHeight,
                 paddingTop: safeArea.top,
-                paddingLeft: isMacTauri ? TAURI_TRAFFIC_LIGHT_CLEARANCE : 12,
+                paddingLeft: isMacTauri ? TAURI_TRAFFIC_LIGHT_CLEARANCE : 14,
             }]}
             {...dragRegion}
         >
@@ -73,13 +74,15 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                     label={collapseLabel}
                     hint={formatSidebarToggleShortcut(modifier)}
                     expanded={!navigationSidebarCollapsed}
+                    active={navigationSidebarCollapsed}
                     onPress={toggleNavigationSidebarCollapsed}
                     testID="navigation-sidebar-toggle"
+                    tooltipAlign="start"
                 >
-                    <Octicons
-                        name={navigationSidebarCollapsed ? 'sidebar-expand' : 'sidebar-collapse'}
-                        size={18}
-                        color={theme.colors.header.tint}
+                    <HerdShellIcon
+                        name="panelLeft"
+                        size={19}
+                        color={navigationSidebarCollapsed ? theme.colors.textLink : theme.colors.header.tint}
                     />
                 </HerdTopBarIconButton>
                 <HerdTopBarIconButton
@@ -87,6 +90,7 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                     active={zenMode}
                     onPress={() => setZenMode(!zenMode)}
                     testID="herd-zen-toggle"
+                    tooltipAlign="start"
                 >
                     <HerdMaskImage
                         source={require('@/assets/images/zen-icon.png')}
@@ -104,12 +108,13 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                 >
                     <HerdMaskImage
                         source={require('@/assets/images/logo-black.png')}
-                        size={22}
+                        size={24}
                         tint={theme.colors.textLink}
                         fill={herdBrandMarkFill(theme)}
                         testID="herd-brand-mark"
                     />
-                    {!compact && <Text numberOfLines={1} style={styles.brandText}>{t('sidebar.sessionsTitle')}</Text>}
+                    {/* The mock keeps the name below 1100 px; only the search collapses. */}
+                    <Text numberOfLines={1} style={styles.brandText}>{t('sidebar.sessionsTitle')}</Text>
                 </Pressable>
             </View>
 
@@ -127,7 +132,7 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                         ]}
                         {...noDragRegion}
                     >
-                        <Ionicons name="search" size={15} color={theme.colors.kilv.inkFaint} />
+                        <HerdShellIcon name="search" size={15} color={theme.colors.kilv.inkFaint} />
                         {!compact && (
                             <>
                                 <Text numberOfLines={1} style={styles.searchText}>{t('commandPalette.placeholder')}</Text>
@@ -140,10 +145,10 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                 )}
             </View>
 
-            <View style={styles.cluster} {...noDragRegion}>
+            <View style={[styles.cluster, styles.trailing]} {...noDragRegion}>
                 <FocusModeControl />
                 <HerdInboxBell />
-                <HerdMachineMenu compact={compact} />
+                <HerdMachineMenu />
             </View>
         </View>
     );
@@ -166,6 +171,10 @@ const styles = StyleSheet.create((theme) => ({
         gap: 4,
         flexShrink: 0,
     },
+    // The mock's `.top-right`: Focus mode, the bell and the machine pill, 8 px apart.
+    trailing: {
+        gap: 8,
+    },
     center: {
         flex: 1,
         minWidth: 0,
@@ -174,10 +183,10 @@ const styles = StyleSheet.create((theme) => ({
     brand: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 9,
-        height: 34,
-        paddingLeft: 6,
-        paddingRight: 10,
+        gap: 10,
+        height: 32,
+        paddingLeft: 4,
+        paddingRight: 8,
         marginLeft: 2,
         borderRadius: theme.kilv.radius,
         _web: { _classNames: ['herd-transition'] },
@@ -186,10 +195,10 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfacePressedOverlay,
     },
     brandText: {
-        fontSize: 16,
-        letterSpacing: -0.1,
+        fontSize: 16.5,
+        letterSpacing: -0.16,
         color: theme.colors.text,
-        ...Typography.default('semiBold'),
+        ...Typography.logo(),
     },
     search: {
         width: '100%',
@@ -224,18 +233,22 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.kilv.inkFaint,
         ...Typography.default(),
     },
+    // The mock's `kbd`: sunken, hairline border with a 2 px bottom edge.
     kbd: {
-        paddingHorizontal: 6,
+        minWidth: 20,
+        paddingHorizontal: 5,
         height: 20,
+        alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 5,
         borderWidth: 1,
+        borderBottomWidth: 2,
         borderColor: theme.colors.divider,
-        backgroundColor: theme.colors.surface,
+        backgroundColor: theme.colors.input.background,
     },
     kbdText: {
         fontSize: 11,
-        color: theme.colors.textSecondary,
+        color: theme.colors.kilv.inkFaint,
         ...Typography.mono(),
     },
 }));

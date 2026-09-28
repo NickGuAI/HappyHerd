@@ -12,6 +12,7 @@ import { useFeedItems, useFriendRequests } from '@/sync/storage';
 import { t } from '@/text';
 import { HerdPopover, measureHerdAnchor, type HerdAnchorRect } from '../HerdPopover';
 import { herdStaggerClass, herdWebClasses } from '../motion';
+import { HerdShellIcon } from './HerdShellIcon';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 
 const INBOX_PREVIEW_LIMIT = 6;
@@ -60,7 +61,7 @@ export function HerdInboxBell() {
                     onPress={open}
                     testID="herd-inbox-bell"
                 >
-                    <Ionicons name="notifications-outline" size={18} color={theme.colors.header.tint} />
+                    <HerdShellIcon name="bell" size={18} color={anchor ? theme.colors.textLink : theme.colors.header.tint} />
                     {count > 0 ? (
                         <View style={styles.badge} testID="herd-inbox-count">
                             <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
@@ -118,10 +119,11 @@ export function HerdInboxBell() {
 }
 
 const styles = StyleSheet.create((theme) => ({
+    // The mock's `.badge`: molten, 3 px inside the bell's corner.
     badge: {
         position: 'absolute',
-        top: 2,
-        right: 1,
+        top: 3,
+        right: 3,
         minWidth: 16,
         height: 16,
         paddingHorizontal: 4,

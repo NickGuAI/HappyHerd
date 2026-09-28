@@ -201,7 +201,8 @@ const virtualModules: Record<string, string> = {
             { id: 'build-box', active: true, createdAt: 1, metadata: { host: 'build-box', platform: 'linux' } },
             { id: 'gpu-lab', active: false, createdAt: 2, metadata: { host: 'gpu-lab', platform: 'linux' } },
         ];
-        export const useAllMachines = () => machines;
+        export const useAllMachines = () => (params.get('machines') === 'none' ? [] : machines);
+        export const useSessionListViewData = () => [];
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
         export const useProjects = () => ({ 'web-app': { id: 'web-app', name: 'Web App Suite' } });
         export const useFeedItems = () => [
@@ -539,7 +540,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             // Settings sits in the bottom row, its icon on the gutter, clear of the home indicator.
             const settings = (await docked.getByRole('button', { name: /Settings/ }).boundingBox())!;
             expect(PHONE.height - (settings.y + settings.height)).toBeGreaterThanOrEqual(PHONE_INSETS.bottom);
-            expect((await docked.locator('[data-icon="settings-outline"]').boundingBox())!.x).toBe(16);
+            expect((await docked.locator('[data-herd-icon="gear"]').boundingBox())!.x).toBe(16);
             // Nothing of the earlier phone shell remains.
             await expect(page.getByRole('tablist').count()).resolves.toBe(0);
             await expect(page.getByTestId('mobile-new-session-fab').count()).resolves.toBe(0);
@@ -955,9 +956,9 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         expect(await classList(page, 'herd-machine-popover')).toContain('herd-pop');
         await expect(page.getByTestId('herd-machine-popover-handle').count()).resolves.toBe(0);
         await settled(page);
-        // Below the pill, its end edge 8 px from the phone's.
+        // Below the pill, its end edge 8 px from the phone's, at the mock's 280 px.
         const frame = await card(page, 'herd-machine-popover');
-        expect(frame.width).toBe(300);
+        expect(frame.width).toBe(280);
         expect(Math.round(frame.x + frame.width)).toBe(PHONE.width - 8);
         expect(frame.y).toBeGreaterThan(pill.y + pill.height);
         const options = await menu.locator('[data-testid^="herd-machine-option-"]').evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')));

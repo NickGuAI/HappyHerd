@@ -18,6 +18,7 @@ vi.mock('react-native-reanimated', () => ({ useReducedMotion: () => false }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
 vi.mock('react-native-keyboard-controller', () => ({ KeyboardAvoidingView: 'KeyboardAvoidingView' }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', Octicons: 'Octicons' }));
+vi.mock('react-native-svg', () => ({ default: 'Svg', Circle: 'Circle', Path: 'Path', Rect: 'Rect' }));
 vi.mock('react-native-safe-area-context', async () => {
     const ReactModule = await import('react');
     const SafeAreaInsetsContext = ReactModule.createContext({ top: 0, right: 0, bottom: 0, left: 0 });
@@ -37,6 +38,7 @@ vi.mock('@/sync/storage', () => ({
     storage: { getState: () => ({ localSettings, applyLocalSettings }) },
     useAllMachines: () => [],
     useLocalSetting: () => false,
+    useSessionListViewData: () => null,
 }));
 vi.mock('@/text', () => ({
     t: (key: string) => ({

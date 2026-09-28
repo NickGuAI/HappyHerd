@@ -2030,5 +2030,10 @@
     "cancel": "Abbrechen",
     "noProjects": "Erstelle ein Projekt, um den Fokusmodus zu starten.",
     "remaining": "{time} verbleibend"
+  },
+  "topBar": {
+    "noMachine": "Keine Maschine",
+    "addMachine": "Maschine hinzufügen",
+    "noMachinesYet": "Noch keine Maschinen in diesem Konto"
   }
 }

@@ -2030,5 +2030,10 @@
     "cancel": "取消",
     "noProjects": "创建一个项目以开始专注。",
     "remaining": "剩余 {time}"
+  },
+  "topBar": {
+    "noMachine": "没有机器",
+    "addMachine": "添加机器",
+    "noMachinesYet": "此账户还没有机器"
   }
 }

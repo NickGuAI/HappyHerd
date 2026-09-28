@@ -1,19 +1,15 @@
 import * as React from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
+import { HerdTooltip, type HerdTooltipAlign } from './HerdTooltip';
 import { useHerdTopBarLayout } from './topBarLayout';
 
-function useWebTitle(label: string) {
-    return React.useCallback((node: View | null) => {
-        if (node && Platform.OS === 'web') {
-            // React Native Web drops `title` from forwarded View props.
-            (node as unknown as HTMLElement).setAttribute('title', label);
-        }
-    }, [label]);
-}
-
-/** Square icon control used across the top bar: 34 px on desktop, a 44 px touch target on phones. */
+/**
+ * Square icon control used across the top bar: 34 px on desktop, a 44 px
+ * touch target on phones. On the web a hover shows the mock's tooltip under
+ * the control (label and shortcut) instead of the browser's `title` tooltip.
+ */
 export function HerdTopBarIconButton(props: {
     label: string;
     onPress: () => void;
@@ -23,12 +19,11 @@ export function HerdTopBarIconButton(props: {
     hint?: string;
     expanded?: boolean;
     testID?: string;
+    tooltipAlign?: HerdTooltipAlign;
 }) {
-    const titleRef = useWebTitle(props.hint ? `${props.label}  ${props.hint}` : props.label);
     const phone = useHerdTopBarLayout() === 'phone';
     return (
         <Pressable
-            ref={titleRef}
             onPress={props.onPress}
             disabled={props.disabled}
             hitSlop={4}
@@ -45,7 +40,12 @@ export function HerdTopBarIconButton(props: {
                 props.disabled && styles.iconButtonDisabled,
             ]}
         >
-            {props.children}
+            {({ hovered }: any) => (
+                <>
+                    {props.children}
+                    {hovered && !phone && <HerdTooltip label={props.label} hint={props.hint} align={props.tooltipAlign} />}
+                </>
+            )}
         </Pressable>
     );
 }
