@@ -782,6 +782,34 @@ describe('Session screen overhaul (Web)', () => {
         }
     }, 40_000);
 
+    it('widens the phone Side chats button just enough to hold its count', async () => {
+        const { page, errors } = await openScene({ scene: 'permission', viewport: MOBILE });
+        const geometry = await page.getByTestId('session-header-side-chats').evaluate((target) => {
+            // On phones the 44 px target wraps the drawn button, the one with the hairline border.
+            const drawn = [target, ...target.querySelectorAll('*')].find((node) => (
+                getComputedStyle(node).borderTopWidth === '1px'
+            )) as HTMLElement;
+            const count = [...drawn.querySelectorAll('*')].find((node) => node.children.length === 0 && node.textContent === '2')!;
+            const badge = count.parentElement!;
+            const icon = drawn.firstElementChild!;
+            const box = (node: Element) => {
+                const rect = node.getBoundingClientRect();
+                return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+            };
+            return { drawn: box(drawn), badge: box(badge), icon: box(icon) };
+        });
+        // The badge sits inside the border with room to spare, after the icon.
+        expect(geometry.badge.right).toBeLessThanOrEqual(geometry.drawn.right - 4);
+        expect(geometry.icon.right).toBeLessThanOrEqual(geometry.badge.left);
+        expect(geometry.icon.left).toBeGreaterThanOrEqual(geometry.drawn.left + 4);
+        // Slightly wider than the 36 px icon buttons, and just as tall.
+        expect(geometry.drawn.width).toBeGreaterThan(36);
+        expect(geometry.drawn.width).toBeLessThanOrEqual(60);
+        expect(geometry.drawn.height).toBe(36);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
     it('reopens a finished turn from its "Worked …" row', async () => {
         const { page, errors } = await openScene({ scene: 'permission', viewport: DESKTOP });
         const foreground = page.getByTestId('foreground-session');

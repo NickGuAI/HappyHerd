@@ -642,3 +642,4 @@ UI_OVERHAUL_FOCUS_CAPTURE_SCENE	accepted	test(app): follow the Focus pixel swap 
 UI_OVERHAUL_ROUND3_DOCS	accepted	docs(app): record one-panel Settings, the Focus swap and memory editing for upstream merges	docs/upstream-ui-parity.md
 UI_OVERHAUL_TRACK_FIXTURE_STUBS	accepted	test(app): stub @/track in the fixtures that bundle Settings	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 UI_OVERHAUL_GOLDENS_SETTINGS_ONE_PANEL	accepted	test(app): regenerate the Appearance baselines for one-panel Settings	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
+UI_OVERHAUL_HEADER_COUNT_BUTTON	accepted	fix(app): widen an icon-only header button to hold its count	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts

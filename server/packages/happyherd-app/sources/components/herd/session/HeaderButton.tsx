@@ -25,12 +25,14 @@ export const HerdHeaderButton = React.forwardRef<View, {
     const phone = useHerdPhoneLayout();
     const [hovered, setHovered] = React.useState(false);
     const iconOnly = !props.label;
+    // An icon-only button with a count grows just enough to hold its badge.
+    const iconWithCount = iconOnly && Boolean(props.count);
     const color = props.active
         ? theme.colors.textLink
         : hovered ? theme.colors.text : theme.colors.textSecondary;
     const visual = (pressed: boolean) => [
         styles.button,
-        iconOnly && styles.iconOnly,
+        iconOnly && (iconWithCount ? styles.iconWithCount : styles.iconOnly),
         (hovered || pressed) && !props.active && styles.hovered,
         props.active && styles.active,
     ];
@@ -92,6 +94,11 @@ const styles = StyleSheet.create((theme) => ({
     iconOnly: {
         width: 36,
         paddingHorizontal: 0,
+    },
+    iconWithCount: {
+        minWidth: 36,
+        paddingHorizontal: 8,
+        gap: 5,
     },
     hovered: {
         borderColor: theme.colors.kilv.rimLine,
