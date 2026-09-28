@@ -1075,7 +1075,10 @@ export const SessionView = React.memo((props: {
             />
         )
         : null;
-    const showLandscapeSideChatAccess = shouldShowLandscapeSideChatAccess({
+    // Native phones in landscape trade the session header for upstream's floating
+    // Side chats and Back. The iOS app on a Mac keeps its header in any window,
+    // even one the device rule calls a phone (owner decision, 2026-09-27).
+    const showLandscapeSideChatAccess = !isRunningOnMac() && shouldShowLandscapeSideChatAccess({
         platform: Platform.OS,
         deviceType,
         isLandscape,
@@ -1165,7 +1168,7 @@ export const SessionView = React.memo((props: {
             <View
                 style={{
                     flex: 1,
-                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web')
+                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac())
                         ? contentRunsUnderHeader
                             ? 0
                             : safeArea.top
@@ -1198,8 +1201,9 @@ export const SessionView = React.memo((props: {
                 )}
             </View>
 
-            {/* Render the overlay header after the dynamic list so native blur samples its content. */}
-            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web') && (
+            {/* Render the overlay header after the dynamic list so native blur samples its content.
+                Native phones hide it in landscape; the iOS app on a Mac keeps it in any window. */}
+            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac()) && (
                 <View style={{
                     position: 'absolute',
                     top: 0,
@@ -2444,9 +2448,9 @@ export function SessionViewLoaded({
                 </View >
             </MobileTypographyFloor>
 
-            {/* Back button for landscape phone mode when header is hidden */}
+            {/* Back button for landscape phone mode when header is hidden; the iOS app on a Mac keeps its header */}
             {
-                isLandscape && phoneLayout && (
+                isLandscape && phoneLayout && !isRunningOnMac() && (
                     <Pressable
                         onPress={() => isWebMobileSessionViewport
                             ? router.dismissTo('/')

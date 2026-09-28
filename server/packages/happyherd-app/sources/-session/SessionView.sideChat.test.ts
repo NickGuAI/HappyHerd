@@ -894,6 +894,21 @@ function landscapeBackButton(renderer: ReactTestRenderer) {
     ));
 }
 
+// The Side chats controls' test IDs: the header's own, or none for the one
+// native landscape floats in the header's place.
+function sideChatControls(renderer: ReactTestRenderer): Array<string | undefined> {
+    return pressables(renderer)
+        .filter((node: any) => node.props.accessibilityLabel === 'Open side chats (3)')
+        .map((node: any) => node.props.testID);
+}
+
+// The chat's top padding, which clears the session header while it shows.
+function chatTopPadding(renderer: ReactTestRenderer): unknown {
+    let node = composerForSession(renderer, 'parent').parent;
+    while (node && node.props.style?.paddingTop === undefined) node = node.parent;
+    return node?.props.style.paddingTop;
+}
+
 function textValues(renderer: ReactTestRenderer): unknown[] {
     return renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
 }
@@ -1032,6 +1047,32 @@ describe('SessionView mobile back navigation', () => {
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
     });
 
+    it('keeps the whole session header, with its own Back, for the iOS app on a Mac in a 1200 × 800 landscape window, which the device rule calls a phone', () => {
+        // Owner decision, 2026-09-27: the iOS app on a Mac keeps its screen headers' own Back at
+        // any window size, so it never trades the header for upstream's floating landscape controls.
+        mocks.width = 1200;
+        mocks.height = 800;
+        mocks.platform = 'ios';
+        mocks.mac = true;
+        mocks.landscape = true;
+        const renderer = renderParent();
+
+        const header = chatHeader(renderer);
+        expect(header.props.title).toBe('parent');
+        expect(header.findAllByType('Pressable' as any).map((node: any) => node.props.testID))
+            .toEqual(['session-header-workspace', 'session-header-side-chats', 'session-header-menu']);
+        // The chat starts below the header, and nothing floats over it.
+        expect(chatTopPadding(renderer)).toBe(48);
+        expect(landscapeBackButton(renderer)).toBeUndefined();
+        expect(sideChatControls(renderer)).toEqual(['session-header-side-chats']);
+
+        const onBackPress = header.props.onBackPress;
+        expect(onBackPress).toEqual(expect.any(Function));
+        act(() => onBackPress());
+        expect(mocks.routerBack).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+
     it('dismisses the landscape narrow-Web session directly to the session list', () => {
         mocks.width = 667;
         mocks.height = 375;
@@ -1072,6 +1113,19 @@ describe('SessionView mobile back navigation', () => {
 
         expect(mocks.routerBack).toHaveBeenCalledOnce();
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+
+    it('still trades a native iPhone\'s session header in landscape for upstream\'s floating Back and Side chats', () => {
+        mocks.width = 844;
+        mocks.height = 390;
+        mocks.platform = 'ios';
+        mocks.landscape = true;
+        const renderer = renderParent();
+
+        expect(renderer.root.findAllByType('ChatHeaderView' as any)).toHaveLength(0);
+        expect(chatTopPadding(renderer)).toBe(0);
+        expect(landscapeBackButton(renderer)).toBeDefined();
+        expect(sideChatControls(renderer)).toEqual([undefined]);
     });
 });
 
