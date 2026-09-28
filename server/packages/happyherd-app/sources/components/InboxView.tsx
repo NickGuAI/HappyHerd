@@ -25,7 +25,10 @@ import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { FeedItemCard } from './FeedItemCard';
+import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
+
+const INBOX_WIDE_MAX_WIDTH = 820;
 
 const styles = StyleSheet.create((theme) => ({
     container: {
@@ -54,6 +57,23 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
+    },
+    // The mock's page column (820 px) and its large title over the cards.
+    pageHead: {
+        alignItems: 'center',
+        backgroundColor: theme.colors.groupped.background,
+    },
+    pageHeadInner: {
+        width: '100%',
+        maxWidth: INBOX_WIDE_MAX_WIDTH,
+        paddingTop: 28,
+        paddingHorizontal: 16,
+    },
+    feedCards: {
+        gap: 8,
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+        overflow: 'visible',
     },
     sectionHeader: {
         fontSize: 14,
@@ -109,6 +129,54 @@ function HeaderRightTablet() {
     );
 }
 
+/**
+ * The Inbox's top (UI overhaul): on wide web the mock's large page title with
+ * Find Friends on its row; on tablets and signed-in phones the header row.
+ */
+function InboxTop({ showHeader }: { showHeader: boolean }) {
+    const { theme } = useUnistyles();
+    const router = useRouter();
+    const wide = useHerdWideLayout();
+    const realtimeStatus = useRealtimeStatus();
+    const voice = realtimeStatus !== 'disconnected' ? <VoiceAssistantStatusBar variant="full" /> : null;
+    if (wide) {
+        return (
+            <View style={styles.pageHead}>
+                <View style={styles.pageHeadInner}>
+                    <HerdPageHeader
+                        testID="inbox-page-header"
+                        title={t('tabs.inbox')}
+                        actions={(
+                            <HerdButton
+                                icon="person-add-outline"
+                                label={t('friends.findFriends')}
+                                onPress={() => {
+                                    trackFriendsSearch();
+                                    router.push('/friends/search');
+                                }}
+                            />
+                        )}
+                    />
+                </View>
+                {voice}
+            </View>
+        );
+    }
+    if (!showHeader) return null;
+    return (
+        <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
+            <Header
+                title={<HeaderTitleTablet />}
+                headerRight={() => <HeaderRightTablet />}
+                headerLeft={() => null}
+                headerShadowVisible={false}
+                headerTransparent={true}
+            />
+            {voice}
+        </View>
+    );
+}
+
 export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset = 0, onScroll }: InboxViewProps) => {
     const router = useRouter();
     const friends = useAcceptedFriends();
@@ -122,7 +190,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     const isTablet = useIsTablet();
     const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
     const showHeader = isTablet || underTopBar;
-    const realtimeStatus = useRealtimeStatus();
+    const wide = useHerdWideLayout();
 
     const isLoading = !feedLoaded || !friendsLoaded;
     const isEmpty = !isLoading && friendRequests.length === 0 && requestedFriends.length === 0 && friends.length === 0 && feedItems.length === 0;
@@ -130,20 +198,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isLoading) {
         return (
             <View style={styles.container}>
-                {showHeader && (
-                    <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
-                        <Header
-                            title={<HeaderTitleTablet />}
-                            headerRight={() => <HeaderRightTablet />}
-                            headerLeft={() => null}
-                            headerShadowVisible={false}
-                            headerTransparent={true}
-                        />
-                        {realtimeStatus !== 'disconnected' && (
-                            <VoiceAssistantStatusBar variant="full" />
-                        )}
-                    </View>
-                )}
+                <InboxTop showHeader={showHeader} />
                 {topContentInset > 0 && <View style={{ height: topContentInset }} />}
                 <UpdateBanner />
                 <View style={styles.emptyContainer}>
@@ -156,20 +211,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isEmpty) {
         return (
             <View style={styles.container}>
-                {showHeader && (
-                    <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
-                        <Header
-                            title={<HeaderTitleTablet />}
-                            headerRight={() => <HeaderRightTablet />}
-                            headerLeft={() => null}
-                            headerShadowVisible={false}
-                            headerTransparent={true}
-                        />
-                        {realtimeStatus !== 'disconnected' && (
-                            <VoiceAssistantStatusBar variant="full" />
-                        )}
-                    </View>
-                )}
+                <InboxTop showHeader={showHeader} />
                 {topContentInset > 0 && <View style={{ height: topContentInset }} />}
                 <UpdateBanner />
                 <View style={styles.emptyContainer}>
@@ -188,23 +230,10 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
 
     return (
         <View style={styles.container}>
-            {showHeader && (
-                <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
-                    <Header
-                        title={<HeaderTitleTablet />}
-                        headerRight={() => <HeaderRightTablet />}
-                        headerLeft={() => null}
-                        headerShadowVisible={false}
-                        headerTransparent={true}
-                    />
-                    {realtimeStatus !== 'disconnected' && (
-                        <VoiceAssistantStatusBar variant="full" />
-                    )}
-                </View>
-            )}
+            <InboxTop showHeader={showHeader} />
             <ScrollView
                 contentContainerStyle={{
-                    maxWidth: layout.maxWidth,
+                    maxWidth: wide ? INBOX_WIDE_MAX_WIDTH : layout.maxWidth,
                     alignSelf: 'center',
                     width: '100%',
                     paddingTop: topContentInset,
@@ -217,11 +246,13 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
                 
                 {feedItems.length > 0 && (
                     <>
-                        <ItemGroup title={t('inbox.updates')}>
+                        {/* Each update is its own card, as in the mock. */}
+                        <ItemGroup title={t('inbox.updates')} containerStyle={styles.feedCards}>
                             {feedItems.map((item) => (
                                 <FeedItemCard
                                     key={item.id}
                                     item={item}
+                                    variant="card"
                                 />
                             ))}
                         </ItemGroup>
