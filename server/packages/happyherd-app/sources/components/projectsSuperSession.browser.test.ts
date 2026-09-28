@@ -706,6 +706,8 @@ describe('Projects and Super Session production UI gestures', () => {
     }
 
     async function startFocus(page: Page, minutes: number, german = false, projectId = 'project-alpha') {
+        // A previous Start's pixel swap clears first; opening the setup never starts one.
+        await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').waitFor({ state: 'detached' });
         await page.getByTestId('focus-mode-enter').click();
         await page.clock.runFor(500);
         const headline = german ? 'Fokus zurückgewinnen' : 'Reclaim Your Focus';
@@ -729,6 +731,8 @@ describe('Projects and Super Session production UI gestures', () => {
         await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
         await page.getByTestId('focus-mode-timer').waitFor();
+        // Start plays the amber pixel swap over the page as the setup closes.
+        await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'attached' });
     }
 
     for (const surface of surfaces) {

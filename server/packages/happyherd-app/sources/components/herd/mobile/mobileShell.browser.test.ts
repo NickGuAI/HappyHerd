@@ -621,6 +621,73 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         }
     }, 40_000);
 
+    it('plays the pixel swap over the phone top bar when Focus starts from its icon, then shows the countdown', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await open({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.waitFor();
+            await setup.getByText('Web App Suite', { exact: true }).click();
+            // Waits for the swap's layer and samples it at the moment every tile is amber.
+            const sampling = page.evaluate(() => new Promise<any>((done) => {
+                const began = performance.now();
+                let seen: any = null;
+                const frame = () => {
+                    const layer = document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]') as HTMLElement | null;
+                    if (!layer) {
+                        if (seen) return done(seen);
+                        if (performance.now() - began > 4000) return done(null);
+                        return requestAnimationFrame(frame);
+                    }
+                    const tiles = [...layer.querySelectorAll('[data-testid="focus-mode-pixel-swap-tile"]')] as HTMLElement[];
+                    if (!seen) {
+                        const style = getComputedStyle(layer);
+                        seen = {
+                            zIndex: style.zIndex, pointerEvents: style.pointerEvents, inert: layer.hasAttribute('inert'),
+                            layer: layer.getBoundingClientRect().toJSON(), tiles: tiles.length, covered: false,
+                            // Last in the body: it paints over the page, the top bar and every sheet.
+                            last: document.body.lastElementChild === layer,
+                        };
+                    }
+                    if (tiles.length > 0 && tiles.every((tile) => Number(getComputedStyle(tile).opacity) > 0.999)) seen.covered = true;
+                    requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+            }));
+            await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+            const result = await sampling;
+            expect(result).not.toBeNull();
+            expect(result).toMatchObject({ zIndex: '10000', pointerEvents: 'none', inert: true, last: true, covered: true });
+            // 64 px tiles on a 390 × 844 phone: 7 × 14.
+            expect(result.tiles).toBe(7 * 14);
+            expect(result.layer).toMatchObject({ x: 0, y: 0, width: PHONE.width, height: PHONE.height });
+            await page.getByTestId('focus-mode-pill').waitFor();
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('captures the phone pixel swap frames for review', async () => {
+        const directory = process.env.HERD_MOBILE_EVIDENCE_DIR?.trim();
+        if (!directory) return;
+        mkdirSync(directory, { recursive: true });
+        for (const theme of ['light', 'dark'] as const) {
+            const { page } = await open({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.getByText('Web App Suite', { exact: true }).click();
+            await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+            const started = Date.now();
+            for (const at of [500, 1400, 2200]) {
+                await page.waitForTimeout(Math.max(0, at - (Date.now() - started)));
+                await page.screenshot({ path: resolve(directory, `phone-focus-pixel-swap-${theme}-390-${at}ms.png`) });
+            }
+            await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').waitFor({ state: 'detached' });
+            await evidence(page, `phone-focus-pixel-swap-${theme}-390-settled`);
+            await page.close();
+        }
+    }, 40_000);
+
     it('keeps the search square out of the phone top bar when the palette setting is off', async () => {
         const { page, errors } = await open({ query: { palette: 'off' } });
         await page.getByTestId('herd-sidebar-docked').waitFor();

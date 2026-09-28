@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformSync } from '@babel/core';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { focusPixelSwapTiles } from '@/components/focusPixelSwapTiming';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../../../..');
@@ -526,6 +527,121 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
             await page.close();
         }
     }, 30_000);
+
+    it('sweeps the amber pixel swap on the diagonal when Focus starts, then clears onto the countdown', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await openShell({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.waitFor();
+            expect(await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').count()).toBe(0);
+            await setup.getByText('Web App Suite', { exact: true }).click();
+            // Samples every tile each frame from the moment the layer appears until it is gone.
+            const sampling = page.evaluate(() => new Promise<any>((done) => {
+                const began = performance.now();
+                let start: number | null = null;
+                let layerStyle: Record<string, string | boolean> | null = null;
+                let passesPointer: boolean | null = null;
+                let covered = false;
+                const tiles = new Map<Element, { left: number; top: number; onset?: number; full?: number; clear?: number }>();
+                const frame = () => {
+                    const now = performance.now();
+                    const layer = document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]') as HTMLElement | null;
+                    if (!layer) {
+                        if (start !== null) return done({ lifetime: now - start, layerStyle, passesPointer, covered, tiles: [...tiles.values()].map((tile) => ({ ...tile })) });
+                        if (now - began > 4000) return done(null);
+                        return requestAnimationFrame(frame);
+                    }
+                    if (start === null) {
+                        start = now;
+                        const style = getComputedStyle(layer);
+                        layerStyle = { zIndex: style.zIndex, pointerEvents: style.pointerEvents, position: style.position, inert: layer.hasAttribute('inert'), ariaHidden: layer.getAttribute('aria-hidden') === 'true' };
+                        const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+                        passesPointer = !!hit && !layer.contains(hit);
+                    }
+                    let all = true;
+                    for (const element of layer.querySelectorAll('[data-testid="focus-mode-pixel-swap-tile"]')) {
+                        const html = element as HTMLElement;
+                        let tile = tiles.get(element);
+                        if (!tile) tiles.set(element, tile = { left: html.offsetLeft, top: html.offsetTop });
+                        const opacity = Number(getComputedStyle(html).opacity);
+                        if (tile.onset === undefined && opacity > 0.02) tile.onset = now - start;
+                        if (tile.full === undefined && opacity > 0.999) tile.full = now - start;
+                        if (tile.full !== undefined && tile.clear === undefined && opacity < 0.98) tile.clear = now - start;
+                        if (opacity < 0.999) all = false;
+                    }
+                    if (all && tiles.size > 0) covered = true;
+                    requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+            }));
+            await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+            const result = await sampling;
+            expect(result).not.toBeNull();
+            expect(result.layerStyle).toEqual({ zIndex: '10000', pointerEvents: 'none', position: 'fixed', inert: true, ariaHidden: true });
+            expect(result.passesPointer).toBe(true);
+            // Every tile was amber at once, midway: the window fully covered.
+            expect(result.covered).toBe(true);
+            const expected = focusPixelSwapTiles(1440, 900);
+            expect(result.tiles).toHaveLength(expected.length);
+            const byPosition = new Map(expected.map((tile) => [`${tile.left},${tile.top}`, tile.delay]));
+            // Timed from the top-left tile's first frame: the layer mounts a moment before its tiles start.
+            const first = result.tiles.find((tile: any) => tile.left === 0 && tile.top === 0);
+            expect(Math.min(...result.tiles.map((tile: any) => tile.onset))).toBeGreaterThanOrEqual(first.onset - 20);
+            for (const tile of result.tiles) {
+                const delay = byPosition.get(`${tile.left},${tile.top}`);
+                expect(delay, `${tile.left},${tile.top}`).toBeDefined();
+                // Each tile grows in on its diagonal delay and starts clearing one 1.4 s swap later.
+                expect(Math.abs(tile.onset - first.onset - delay!), `onset ${tile.left},${tile.top}`).toBeLessThan(150);
+                expect(Math.abs(tile.clear - tile.onset - 1400), `clear ${tile.left},${tile.top}`).toBeLessThan(150);
+            }
+            expect(Math.abs(result.lifetime - first.onset - 2800)).toBeLessThan(400);
+            // The countdown is already running underneath when the tiles clear.
+            await expect(page.getByTestId('focus-mode-pill').isVisible()).resolves.toBe(true);
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 40_000);
+
+    it('never plays the pixel swap with reduced motion', async () => {
+        const { page, errors } = await openShell({ reducedMotion: true });
+        await page.getByTestId('focus-mode-enter').click();
+        const setup = page.getByTestId('focus-mode-setup');
+        await setup.getByText('Web App Suite', { exact: true }).click();
+        const appeared = page.evaluate(() => new Promise<boolean>((done) => {
+            const began = performance.now();
+            const frame = () => {
+                if (document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]')) return done(true);
+                if (performance.now() - began > 1500) return done(false);
+                requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
+        }));
+        await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+        await expect(appeared).resolves.toBe(false);
+        await page.getByTestId('focus-mode-pill').waitFor();
+        expect(errors).toEqual([]);
+        await page.close();
+    });
+
+    it('captures the pixel swap frames for review', async () => {
+        if (!process.env.HERD_SHELL_EVIDENCE_DIR?.trim()) return;
+        for (const theme of ['light', 'dark'] as const) {
+            const { page } = await openShell({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.getByText('Web App Suite', { exact: true }).click();
+            await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+            const started = Date.now();
+            for (const at of [500, 1400, 2200]) {
+                await page.waitForTimeout(Math.max(0, at - (Date.now() - started)));
+                await evidence(page, `focus-pixel-swap-${theme}-1440-${at}ms`);
+            }
+            await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').waitFor({ state: 'detached' });
+            await evidence(page, `focus-pixel-swap-${theme}-1440-settled`);
+            await page.close();
+        }
+    }, 40_000);
 
     it('keeps the machine pill in the top bar while machines load and when the account has none', async () => {
         const loading = await openShell({ machines: 'loading' });

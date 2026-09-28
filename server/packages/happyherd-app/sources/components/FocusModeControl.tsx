@@ -22,6 +22,8 @@ import { HerdTopBarIconButton } from '@/components/herd/shell/HerdTopBarIconButt
 import { HERD_PHONE_TOP_BAR_HEIGHT, useHerdTopBarLayout } from '@/components/herd/shell/topBarLayout';
 import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { closeFocusSetup, openFocusSetup, useFocusSetupRequest, type FocusSetupRequest } from './focusSetup';
+import { playFocusPixelSwap } from './focusPixelSwapTiming';
+import { FocusPixelSwapHost } from './FocusPixelSwap';
 
 export { openFocusSetup } from './focusSetup';
 
@@ -30,7 +32,8 @@ export { openFocusSetup } from './focusSetup';
  * with the focus glyph in a ring, the title inside the card and centered
  * section labels. Phones rest the same card on the bottom edge, as HerdSheet
  * does. The web scales it in and out through the sheet classes, which reduced
- * motion turns off; native fades unless motion is reduced.
+ * motion turns off; native fades unless motion is reduced. Start plays the
+ * amber pixel swap as the card closes, unless motion is reduced.
  */
 function FocusModeSetup({ request, exiting, onClose }: {
     request: FocusSetupRequest;
@@ -124,6 +127,7 @@ function FocusModeSetup({ request, exiting, onClose }: {
                             if (!canStart) return;
                             const startedAt = Date.now();
                             setFocusMode({ projectId, endsAt: startedAt + minutes * 60_000, startedAt });
+                            if (!reducedMotion) playFocusPixelSwap();
                             onClose();
                         }} />
                     </View>
@@ -277,6 +281,7 @@ export function FocusModeControl() {
     return <>
         {control}
         <FocusModeSetupHost />
+        <FocusPixelSwapHost />
     </>;
 }
 

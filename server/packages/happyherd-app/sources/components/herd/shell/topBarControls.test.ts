@@ -10,6 +10,9 @@ const state = vi.hoisted(() => ({
     push: vi.fn(),
     setFocusMode: vi.fn(),
     hovered: false,
+    reducedMotion: true,
+    // The pixel swap's per-tile sequences, completed by hand.
+    sequences: [] as Array<{ steps: Array<{ toValue: number; duration: number; delay: number }>; done?: (result: { finished: boolean }) => void; stopped?: boolean }>,
 }));
 
 vi.mock('react-native', async () => {
@@ -24,7 +27,18 @@ vi.mock('react-native', async () => {
         // Renders function children the way React Native's Pressable does.
         Pressable: (props: any) => ReactModule.createElement('Pressable', props,
             typeof props.children === 'function' ? props.children({ pressed: false, hovered: state.hovered }) : props.children),
-        Animated: { Value: class { interpolate() { return this; } }, View: host('AnimatedView'), timing: () => ({ start() {}, stop() {} }) },
+        Animated: {
+            Value: class { interpolate(config: unknown) { return { interpolation: config }; } },
+            View: host('AnimatedView'),
+            timing: (_value: unknown, config: any) => ({ ...config, start() {}, stop() {} }),
+            sequence: (steps: any[]) => {
+                const entry: any = { steps };
+                return {
+                    start(done: (result: { finished: boolean }) => void) { entry.done = done; state.sequences.push(entry); },
+                    stop() { entry.stopped = true; },
+                };
+            },
+        },
         Easing: { bezier: () => () => 0 },
         useWindowDimensions: () => ({ width: 1440, height: 900 }),
     };
@@ -34,7 +48,7 @@ vi.mock('react-native-svg', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return { default: host('Svg'), Circle: host('Circle') };
 });
-vi.mock('react-native-reanimated', () => ({ useReducedMotion: () => true }));
+vi.mock('react-native-reanimated', () => ({ useReducedMotion: () => state.reducedMotion }));
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
 vi.mock('react-native-unistyles', () => {
     const theme = new Proxy({}, { get: (_target, key) => (key === 'dark' ? true : typeof key === 'string' ? theme : undefined) });
@@ -82,6 +96,7 @@ vi.mock('@/components/herd/pages/HerdPage', () => ({ HerdButton: 'HerdButton', H
 
 import { FocusModeControl, openFocusSetup } from '@/components/FocusModeControl';
 import { closeFocusSetup } from '@/components/focusSetup';
+import { useFocusPixelSwap } from '@/components/focusPixelSwapTiming';
 import { HerdMachineMenu, resolveMachinePillState } from './HerdMachineMenu';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { HerdTopBarLayoutContext } from './topBarLayout';
@@ -94,10 +109,11 @@ beforeAll(() => {
 
 afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
-    Object.assign(state, { machines: [], ready: true, focus: null, hovered: false });
+    Object.assign(state, { machines: [], ready: true, focus: null, hovered: false, reducedMotion: true, sequences: [] });
     state.push.mockClear();
     state.setFocusMode.mockClear();
     act(() => closeFocusSetup());
+    act(() => useFocusPixelSwap.setState({ run: null }));
 });
 
 function render(element: React.ReactElement, layout: 'desktop' | 'phone' = 'desktop') {
@@ -246,6 +262,78 @@ describe('Focus setup dialog', () => {
         act(() => renderer.root.findAllByProps({ testID: 'focus-mode-scrim' })[0].props.onPress());
         expect(renderer.root.findAllByProps({ testID: 'focus-mode-setup' })).toHaveLength(0);
         expect(state.setFocusMode).not.toHaveBeenCalled();
+    });
+});
+
+describe('Focus pixel swap on Start', () => {
+    const startButton = (renderer: ReactTestRenderer) => renderer.root.findAllByType('HerdButton' as any)
+        .find((node: any) => node.props.label === 'focusMode.start');
+    const swap = (renderer: ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'focus-mode-pixel-swap' })
+        .filter((node: any) => typeof node.type === 'string');
+    const tiles = (renderer: ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'focus-mode-pixel-swap-tile' })
+        .filter((node: any) => typeof node.type === 'string');
+    const start = (renderer: ReactTestRenderer) => {
+        act(() => openFocusSetup({ projectId: 'alpha' }));
+        act(() => startButton(renderer).props.onPress());
+    };
+
+    it('writes focus at once, closes the setup and sweeps amber tiles on the diagonal', () => {
+        state.reducedMotion = false;
+        const renderer = render(React.createElement(FocusModeControl));
+        expect(swap(renderer)).toHaveLength(0);
+        start(renderer);
+        expect(state.setFocusMode).toHaveBeenCalledTimes(1);
+        expect(state.setFocusMode.mock.calls[0][0].projectId).toBe('alpha');
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-setup' })).toHaveLength(0);
+        const [overlay] = swap(renderer);
+        expect(overlay.props['aria-hidden']).toBe(true);
+        expect(overlay.props.pointerEvents).toBe('none');
+        expect(overlay.props.importantForAccessibility).toBe('no-hide-descendants');
+        // The window is 1440 × 900: 81 px tiles, 18 × 12 of them.
+        expect(tiles(renderer)).toHaveLength(18 * 12);
+        expect(state.sequences).toHaveLength(18 * 12);
+        const [first] = state.sequences;
+        const last = state.sequences[state.sequences.length - 1];
+        // Grow in on the diagonal delay, then clear one 1.4 s swap later.
+        expect(first.steps.map(({ toValue, duration, delay }) => ({ toValue, duration, delay }))).toEqual([
+            { toValue: 1, duration: 450, delay: 0 },
+            { toValue: 0, duration: 450, delay: 950 },
+        ]);
+        expect(last.steps[0].delay).toBe(950);
+        expect(state.sequences[1].steps[0].delay).toBeCloseTo(950 / 34, 9);
+    });
+
+    it('unmounts once the last tile has cleared, not before', () => {
+        state.reducedMotion = false;
+        const renderer = render(React.createElement(FocusModeControl));
+        start(renderer);
+        act(() => state.sequences[0].done?.({ finished: true }));
+        expect(swap(renderer)).toHaveLength(1);
+        act(() => state.sequences[state.sequences.length - 1].done?.({ finished: true }));
+        expect(swap(renderer)).toHaveLength(0);
+        expect(state.sequences.every((sequence) => sequence.stopped)).toBe(true);
+    });
+
+    it('never plays with reduced motion', () => {
+        state.reducedMotion = true;
+        const renderer = render(React.createElement(FocusModeControl));
+        start(renderer);
+        expect(state.setFocusMode).toHaveBeenCalledTimes(1);
+        expect(swap(renderer)).toHaveLength(0);
+        expect(state.sequences).toHaveLength(0);
+    });
+
+    it('plays from the phone top bar\'s Focus icon too, and not on Cancel', () => {
+        state.reducedMotion = false;
+        const renderer = render(React.createElement(FocusModeControl), 'phone');
+        act(() => renderer.root.findAllByProps({ testID: 'focus-mode-enter' })[0].props.onPress());
+        const cancel = renderer.root.findAllByType('HerdButton' as any).find((node: any) => node.props.label === 'focusMode.cancel');
+        act(() => cancel.props.onPress());
+        expect(swap(renderer)).toHaveLength(0);
+        act(() => renderer.root.findAllByProps({ testID: 'focus-mode-enter' })[0].props.onPress());
+        act(() => renderer.root.findAllByType('HerdChip' as any)[0].props.onPress());
+        act(() => startButton(renderer).props.onPress());
+        expect(swap(renderer)).toHaveLength(1);
     });
 });
 
