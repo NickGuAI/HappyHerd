@@ -20,7 +20,7 @@ const REAL_ICON_FONTS = !!process.env.HERD_SHELL_EVIDENCE_DIR?.trim();
  * layer and hover reveals are exercised for real. Only data, navigation and
  * unrelated product surfaces are stubbed.
  */
-const PRODUCTION_STYLE_FILES = /components\/(SidebarNavigator|SidebarView|SidebarNavigationButton|FlatSessionRow|ActiveSessionsGroupCompact|StyledText|herd\/[A-Za-z/]+)\.tsx$/;
+const PRODUCTION_STYLE_FILES = /components\/(FocusModeControl|SidebarNavigator|SidebarView|SidebarNavigationButton|FlatSessionRow|ActiveSessionsGroupCompact|StyledText|herd\/[A-Za-z/]+)\.tsx$/;
 
 const virtualModules: Record<string, string> = {
     'react-native': `
@@ -132,7 +132,11 @@ const virtualModules: Record<string, string> = {
         export const useSetting = read;
         export const useSettingMutable = (key) => [read(key), write(key)];
         export const useAllMachines = () => machines;
-        export const useProjects = () => ({ 'web-app': { id: 'web-app', name: 'Web App Suite', kind: 'personal' } });
+        export const useProjects = () => ({
+            'web-app': { id: 'web-app', name: 'Web App Suite', kind: 'personal' },
+            'backend-api': { id: 'backend-api', name: 'Backend API', kind: 'personal' },
+            'client-shop': { id: 'client-shop', name: 'Client Shop', kind: 'personal' },
+        });
         export const useFeedItems = () => feed;
         export const useFriendRequests = () => requests;
         export const useRealtimeStatus = () => 'disconnected';
@@ -198,6 +202,7 @@ const virtualModules: Record<string, string> = {
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ success: false });`,
     '@/utils/sessionListTimestamp': `export const formatSessionListTimestamp = () => '2m';`,
     '@/text': `
+        import en from '${resolve(sourcesRoot, 'text/locales/en.json')}';
         const labels = {
             'navigation.collapseSidebar': 'Collapse navigation sidebar', 'navigation.expandSidebar': 'Expand navigation sidebar',
             'zen.toggle': 'Zen mode', 'sidebar.sessionsTitle': 'HappyHerd', 'common.back': 'Back',
@@ -214,7 +219,13 @@ const virtualModules: Record<string, string> = {
             'focusMode.enter': 'Focus mode', 'common.loading': 'Loading...', 'devicePairing.title': 'Connections',
             'topBar.noMachine': 'No machine', 'topBar.addMachine': 'Add a machine', 'topBar.noMachinesYet': 'No machines on this account yet',
         };
-        export const t = (key) => labels[key] ?? key;
+        // Keys outside the map read the real English catalog.
+        export const t = (key, params) => {
+            const value = labels[key] ?? key.split('.').reduce((node, part) => node?.[part], en);
+            let text = typeof value === 'string' ? value : key;
+            for (const [name, replacement] of Object.entries(params ?? {})) text = text.split('{' + name + '}').join(String(replacement));
+            return text;
+        };
     `,
 };
 
@@ -479,6 +490,42 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
             await page.close();
         }
     }, 60_000);
+
+    it('opens the Focus setup as the mock dialog: a centered card over the dimmed app, title and labels inside', async () => {
+        for (const theme of ['light', 'dark'] as const) {
+            const { page, errors } = await openShell({ theme });
+            await page.getByTestId('focus-mode-enter').click();
+            const setup = page.getByTestId('focus-mode-setup');
+            await setup.waitFor();
+            // Let the sheet's scale-in finish (the rows' attention pulse never ends, so only finite animations).
+            await page.evaluate(() => Promise.all(document.getAnimations()
+                .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))
+                .map((animation) => animation.finished.catch(() => undefined))));
+            const card = (await setup.boundingBox())!;
+            expect(card.width).toBe(520);
+            expect(Math.abs(card.x + card.width / 2 - 720)).toBeLessThanOrEqual(1);
+            expect(Math.abs(card.y + card.height / 2 - 450)).toBeLessThanOrEqual(1);
+            const scrim = page.getByTestId('focus-mode-scrim');
+            await expect(scrim.evaluate((element) => getComputedStyle(element).backdropFilter)).resolves.toBe('blur(2px)');
+            await expect(scrim.getAttribute('aria-hidden')).resolves.toBe('true');
+            const centerOf = async (locator: ReturnType<Page['getByText']>) => {
+                const box = (await locator.boundingBox())!;
+                return box.x + box.width / 2;
+            };
+            const middle = card.x + card.width / 2;
+            await expect(setup.getByTestId('focus-mode-mark').locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+            for (const text of ['Reclaim Your Focus', 'Duration', 'Project', 'Select a project']) {
+                // The section labels carry 2 px letter spacing after the last letter too.
+                expect(Math.abs(await centerOf(setup.getByText(text, { exact: true })) - middle)).toBeLessThanOrEqual(2);
+            }
+            await expect(setup.getByText('Reclaim Your Focus', { exact: true }).evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('22px');
+            await evidence(page, `focus-setup-${theme}-1440`);
+            await page.keyboard.press('Escape');
+            await setup.waitFor({ state: 'detached' });
+            expect(errors).toEqual([]);
+            await page.close();
+        }
+    }, 30_000);
 
     it('keeps the machine pill in the top bar while machines load and when the account has none', async () => {
         const loading = await openShell({ machines: 'loading' });

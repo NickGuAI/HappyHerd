@@ -76,9 +76,12 @@ vi.mock('@/components/herd/shell/HerdTooltip', async () => {
     return { HerdTooltip: (props: any) => ReactModule.createElement('HerdTooltip', props) };
 });
 vi.mock('@/components/herd/SegmentedControl', () => ({ HerdSegmentedControl: 'HerdSegmentedControl' }));
+vi.mock('@/components/herd/pages/HerdSheet', () => ({ useSheetEscapeKeydown: () => {} }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => false }));
 vi.mock('@/components/herd/pages/HerdPage', () => ({ HerdButton: 'HerdButton', HerdChip: 'HerdChip', HerdSectionLabel: 'HerdSectionLabel' }));
 
-import { FocusModeControl } from '@/components/FocusModeControl';
+import { FocusModeControl, openFocusSetup } from '@/components/FocusModeControl';
+import { closeFocusSetup } from '@/components/focusSetup';
 import { HerdMachineMenu, resolveMachinePillState } from './HerdMachineMenu';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { HerdTopBarLayoutContext } from './topBarLayout';
@@ -94,6 +97,7 @@ afterEach(() => {
     Object.assign(state, { machines: [], ready: true, focus: null, hovered: false });
     state.push.mockClear();
     state.setFocusMode.mockClear();
+    act(() => closeFocusSetup());
 });
 
 function render(element: React.ReactElement, layout: 'desktop' | 'phone' = 'desktop') {
@@ -199,6 +203,49 @@ describe('top bar Focus mode control', () => {
         const exit = renderer.root.findByProps({ testID: 'focus-mode-exit' });
         act(() => exit.props.onPress());
         expect(state.setFocusMode).toHaveBeenCalledWith(null);
+    });
+});
+
+describe('Focus setup dialog', () => {
+    const startButton = (renderer: ReactTestRenderer) => renderer.root.findAllByType('HerdButton' as any)
+        .find((node: any) => node.props.label === 'focusMode.start');
+
+    it('opens from the top bar as the mock dialog: the glyph in a ring, then the title inside the card', () => {
+        const renderer = render(React.createElement(FocusModeControl));
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-setup' })).toHaveLength(0);
+        act(() => renderer.root.findByProps({ testID: 'focus-mode-enter' }).props.onPress());
+        const card = renderer.root.findByProps({ testID: 'focus-mode-setup' });
+        expect(card.props.role).toBe('dialog');
+        expect(card.findByProps({ testID: 'focus-mode-mark' }).findByType('HerdShellIcon' as any).props.name).toBe('focus');
+        const title = card.findAll((node: any) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+        expect(title.map((node: any) => node.props.children)).toEqual(['focusMode.title']);
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-pixel-swap' })).toHaveLength(0);
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-scrim' }).length).toBeGreaterThan(0);
+    });
+
+    it('opens preset to a project through openFocusSetup and starts focus on it', () => {
+        const renderer = render(React.createElement(FocusModeControl));
+        act(() => openFocusSetup({ projectId: 'alpha' }));
+        const alpha = renderer.root.findAllByType('HerdChip' as any).find((node: any) => node.props.label === 'Alpha');
+        expect(alpha.props.selected).toBe(true);
+        expect(startButton(renderer).props.disabled).toBe(false);
+        const before = Date.now();
+        act(() => startButton(renderer).props.onPress());
+        const written = state.setFocusMode.mock.calls[0][0];
+        expect(written.projectId).toBe('alpha');
+        expect(written.endsAt - written.startedAt).toBe(30 * 60_000);
+        expect(written.startedAt).toBeGreaterThanOrEqual(before);
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-setup' })).toHaveLength(0);
+    });
+
+    it('waits for a project when opened without one, and dismisses from the scrim', () => {
+        const renderer = render(React.createElement(FocusModeControl));
+        act(() => openFocusSetup());
+        expect(startButton(renderer).props.disabled).toBe(true);
+        expect(texts(renderer)).toContain('focusMode.selectProject');
+        act(() => renderer.root.findAllByProps({ testID: 'focus-mode-scrim' })[0].props.onPress());
+        expect(renderer.root.findAllByProps({ testID: 'focus-mode-setup' })).toHaveLength(0);
+        expect(state.setFocusMode).not.toHaveBeenCalled();
     });
 });
 
