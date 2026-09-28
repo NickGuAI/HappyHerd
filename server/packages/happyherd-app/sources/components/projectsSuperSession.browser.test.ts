@@ -89,7 +89,8 @@ const virtualModules: Record<string, string> = {
             () => pathname,
         );
         export const useLocalSearchParams = () => ({ id: pathname.split('/')[2] ?? '' });
-        export const Stack = { Screen: () => null };
+        // Records the latest Stack.Screen options, so tests can see whether a page hides the header bar.
+        export const Stack = { Screen: ({ options }) => { window.__STACK_SCREEN_OPTIONS__ = { ...(window.__STACK_SCREEN_OPTIONS__ ?? {}), ...options }; return null; } };
         export const routerFixture = router;
     `,
     '@/sync/storage': `
@@ -544,7 +545,7 @@ describe('Projects and Super Session production UI gestures', () => {
                         // This replaces Expo's stack host only. All project/list
                         // actions under test originate in production components.
                         return React.createElement('div', { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
-                            pathname !== '/' && React.createElement('button', { onClick: routerFixture.back, style: { minHeight: 40, flexShrink: 0 } }, 'Back'),
+                            pathname !== '/' && React.createElement('button', { 'data-testid': 'fixture-history-back', onClick: routerFixture.back, style: { minHeight: 40, flexShrink: 0 } }, 'Back'),
                             content);
                     }
                     createRoot(document.getElementById('root')).render(React.createElement(Fixture));
@@ -648,7 +649,7 @@ describe('Projects and Super Session production UI gestures', () => {
 
     async function openProjects(page: Page) {
         await page.getByLabel('Projects', { exact: true }).click();
-        await page.getByText('Create Project', { exact: true }).waitFor();
+        await page.getByTestId('projects-page-header').getByText('Create Project', { exact: true }).waitFor();
     }
 
     async function openFocusPage(surface: typeof surfaces[number], query = '', account?: string) {
@@ -879,7 +880,7 @@ describe('Projects and Super Session production UI gestures', () => {
             for (let index = 0; index < 2; index += 1) {
                 await pinned.click();
                 await page.getByTestId('opened-session').getByText('Persistent assistant source title').waitFor();
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
             }
             expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
                 '/session/super-session', '/session/super-session',
@@ -905,7 +906,7 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(before[0]).toBe('project-session-row-super-session');
             await page.getByText('Remote project session', { exact: true }).click();
             await page.getByTestId('opened-session').getByText('Remote project session').waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             page.once('dialog', (dialog) => dialog.accept('Renamed Alpha'));
             await page.getByText('Rename project', { exact: true }).click();
             expect(await page.evaluate(() => (window as any).__PROJECT_RENAME_CALLS__)).toEqual([
@@ -913,7 +914,7 @@ describe('Projects and Super Session production UI gestures', () => {
             ]);
             expect(await page.locator('[data-testid^="project-session-row-"]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')))).toEqual(before);
             await screenshot(page, `project-detail-${surface.name}`);
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             await page.getByText('Renamed Alpha', { exact: true }).waitFor();
             await page.getByText('Project Alpha', { exact: true }).click();
             await page.getByText('Same workspace different project', { exact: true }).waitFor();
@@ -928,14 +929,14 @@ describe('Projects and Super Session production UI gestures', () => {
             await openProjects(page);
             await page.getByText('Roadmap', { exact: true }).click();
             await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             await page.getByText('Historical project', { exact: true }).click();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
             await page.getByTestId('project-archive-toggle').click();
             await page.getByText('Retired assistant', { exact: true }).waitFor();
             await page.getByTestId('project-session-row-bot-archived').waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
+            await page.getByTestId('fixture-history-back').click();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
             expect(errors).toEqual([]);
             await page.close();
@@ -950,7 +951,7 @@ describe('Projects and Super Session production UI gestures', () => {
                 await grouping.selectOption(value);
                 await page.reload();
                 expect(await grouping.inputValue()).toBe(value);
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
                 const pinned = page.getByText('Super Session (Pinned)', { exact: true });
                 await pinned.waitFor();
                 expect(await pinned.count()).toBe(1);
@@ -1035,7 +1036,7 @@ describe('Projects and Super Session production UI gestures', () => {
             for (let index = 0; index < 2; index += 1) {
                 await bots.first().click();
                 await page.getByTestId('opened-session').getByText('Build assistant', { exact: true }).waitFor();
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
             }
             expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
                 '/session/bot-alpha', '/session/bot-alpha',
@@ -1076,7 +1077,7 @@ describe('Projects and Super Session production UI gestures', () => {
         for (const [name, destination] of [['Workspace', '/workspace'], ['Projects', '/projects'], ['Automations', '/automations'], ['New Session', '/new']]) {
             await page.getByRole('button', { name, exact: true }).click();
             expect((await page.evaluate(() => (window as any).__ROUTER_CALLS__)).at(-1)).toBe(destination);
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
         }
         expect(errors).toEqual([]);
         await page.close();
@@ -1126,10 +1127,89 @@ describe('Projects and Super Session production UI gestures', () => {
         const { page, errors } = await openPage(surfaces[0]);
         await openProjects(page);
         page.once('dialog', (dialog) => dialog.accept('Client launch'));
-        await page.getByText('Create Project', { exact: true }).click();
+        await page.getByTestId('projects-page-header').getByText('Create Project', { exact: true }).click();
         await page.getByText('Client launch', { exact: true }).click();
         await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
         expect(await page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).toEqual(['Client launch']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+    it('draws the Projects title in the page on a wide layout and ends the grid with a Create Project tile', async () => {
+        const { page, errors } = await openPage(surfaces[0], 'scenario=projects&');
+        await openProjects(page);
+        const header = page.getByTestId('projects-page-header');
+        await expect(header.getByRole('heading', { name: 'Projects', exact: true }).count()).resolves.toBe(1);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(false);
+        // The tile is the grid's last card and creates a project exactly as the header button does.
+        expect(await page.evaluate(() => (document.querySelector('[data-testid="projects-grid"]')?.lastElementChild as HTMLElement | null)?.dataset.testid)).toBe('projects-create-tile');
+        const tile = page.getByTestId('projects-create-tile');
+        const [tileBox, cardBox] = await Promise.all([tile.boundingBox(), page.getByTestId('project-card-project-alpha').boundingBox()]);
+        expect(Math.round(tileBox!.width)).toBe(Math.round(cardBox!.width));
+        expect(await tile.evaluate((element) => getComputedStyle(element).borderStyle)).toBe('dashed');
+        page.once('dialog', (dialog) => dialog.accept('Tile launch'));
+        await tile.click();
+        await page.getByText('Tile launch', { exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).toEqual(['Tile launch']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('keeps the Projects header row on a phone, with no second title in the page', async () => {
+        const { page, errors } = await openPage(surfaces[1], 'scenario=projects&');
+        await openProjects(page);
+        await expect(page.getByTestId('projects-page-header').getByRole('heading').count()).resolves.toBe(0);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(true);
+        await page.getByTestId('projects-create-tile').waitFor();
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('gives a project page the title, Back, session count and Focus mode of the mock on a wide layout', async () => {
+        const { page, errors } = await openPage(surfaces[0], 'scenario=projects&screen=detail&project=project-alpha&');
+        const header = page.getByTestId('project-page-header');
+        await header.getByRole('heading', { name: 'Project Alpha', exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(false);
+        await expect(header.getByText(/^\d+ sessions?$/).count()).resolves.toBe(1);
+        // Rows carry the same time the main list shows.
+        const rowText = await page.getByTestId('project-session-row-ordinary-session').innerText();
+        expect(rowText).toMatch(/\d{1,2}:\d{2}|\d{2}\/\d{2}\/\d{2}|Yesterday/);
+        // Rename and Focus mode share the title row, Focus last as the primary action.
+        const [rename, focusButton] = await Promise.all([
+            header.getByRole('button', { name: 'Rename project', exact: true }).boundingBox(),
+            page.getByTestId('project-focus').boundingBox(),
+        ]);
+        expect(Math.abs(rename!.y - focusButton!.y)).toBeLessThanOrEqual(2);
+        expect(focusButton!.x).toBeGreaterThan(rename!.x);
+        await page.getByTestId('project-focus').click();
+        const value = await page.evaluate(() => (window as any).__FOCUS_VALUE__());
+        expect(value.projectId).toBe('project-alpha');
+        expect(value.endsAt - value.startedAt).toBe(30 * 60_000);
+        // Focus is already on this project, so the button can't restart its timer.
+        await expect(page.getByTestId('project-focus').getAttribute('aria-disabled')).resolves.toBe('true');
+        await page.getByTestId('project-focus').click({ force: true });
+        expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);
+        await page.getByTestId('project-back').click();
+        expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual(['/projects']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('keeps a project page header row on a phone, with Focus mode but no in-page Back or title', async () => {
+        const { page, errors } = await openPage(surfaces[1], 'scenario=projects&screen=detail&project=project-alpha&');
+        const header = page.getByTestId('project-page-header');
+        await header.waitFor();
+        await expect(header.getByRole('heading').count()).resolves.toBe(0);
+        await expect(page.getByTestId('project-back').count()).resolves.toBe(0);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__)).toMatchObject({ headerTitle: 'Project Alpha', headerShown: true });
+        // The count keeps one line; Rename and Focus mode take their own row under it, as in the phone mock.
+        const [count, focusBox] = await Promise.all([
+            header.getByText(/^\d+ sessions?$/).boundingBox(),
+            page.getByTestId('project-focus').boundingBox(),
+        ]);
+        expect(count!.height).toBeLessThanOrEqual(24);
+        expect(focusBox!.y).toBeGreaterThanOrEqual(count!.y + count!.height);
+        await page.getByTestId('project-focus').click();
+        expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__().projectId)).toBe('project-alpha');
         expect(errors).toEqual([]);
         await page.close();
     }, 15_000);

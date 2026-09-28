@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -10,19 +10,26 @@ import { Text } from '@/components/StyledText';
 import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
 import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { Modal } from '@/modal';
-import { useProjects, useProjectsLoaded, useSessionListViewData } from '@/sync/storage';
+import { useProjects, useProjectsLoaded, useSessionListViewData, useSettingMutable } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { buildProjectSessionList } from '@/utils/projectSessionList';
 
 const projectText = t as (key: string, params?: Record<string, string | number>) => string;
 
+/** The Focus setup's default duration; the project page starts Focus preset to its project. */
+const PROJECT_FOCUS_MINUTES = 30;
+
 export default React.memo(function ProjectSessionsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
+    const router = useRouter();
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const wide = useHerdWideLayout();
+    const focus = useFocusMode();
+    const [, setFocusMode] = useSettingMutable('focusMode');
     const projects = useProjects();
     const projectsLoaded = useProjectsLoaded();
     const sourceData = useSessionListViewData();
@@ -51,11 +58,42 @@ export default React.memo(function ProjectSessionsScreen() {
         }
     }, [project, renaming]);
 
+    // Starts Focus on this project through the synced `focusMode` setting, the same value
+    // FocusModeControl's setup writes; the top bar then shows the countdown and its exit.
+    const focusOnProject = focus?.projectId === project?.id;
+    const startFocus = React.useCallback(() => {
+        if (!project) return;
+        const startedAt = Date.now();
+        setFocusMode({ projectId: project.id, endsAt: startedAt + PROJECT_FOCUS_MINUTES * 60_000, startedAt });
+    }, [project, setFocusMode]);
+
+    const projectActions = (
+        <>
+            <HerdButton
+                icon="pencil-outline"
+                label={projectText('projects.rename')}
+                loading={renaming}
+                disabled={renaming}
+                onPress={renameProject}
+            />
+            <HerdButton
+                testID="project-focus"
+                variant="primary"
+                icon="pie-chart-outline"
+                label={t('focusMode.enter')}
+                selected={focusOnProject}
+                disabled={focusOnProject}
+                onPress={startFocus}
+            />
+        </>
+    );
+
     const title = project?.kind === 'personal' ? project.name : t('sidebar.projects');
     const sessionCount = list.sessions.length + list.archivedSessions.length;
     return (
         <View style={styles.container} testID="project-detail-screen">
-            <Stack.Screen options={{ headerTitle: title }} />
+            {/* Wide layouts draw the title, Back and count in the page, as the mock does. */}
+            <Stack.Screen options={{ headerTitle: title, headerShown: !wide }} />
             <View style={styles.content}>
                 {sourceData === null || (!project && !projectsLoaded) ? (
                     <View style={styles.state} testID="project-detail-loading">
@@ -79,20 +117,26 @@ export default React.memo(function ProjectSessionsScreen() {
                         ]}
                         contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
                         ListHeaderComponent={(
-                            <HerdPageHeader
-                                compact={!wide}
-                                subtitle={projectText('projects.sessionCount', { count: sessionCount })}
-                                subtitleMono
-                                actions={(
-                                    <HerdButton
-                                        icon="pencil-outline"
-                                        label={projectText('projects.rename')}
-                                        loading={renaming}
-                                        disabled={renaming}
-                                        onPress={renameProject}
-                                    />
-                                )}
-                            />
+                            <View testID="project-page-header">
+                                <HerdPageHeader
+                                    compact={!wide}
+                                    title={wide ? project.name : undefined}
+                                    leading={wide ? (
+                                        <HerdButton
+                                            testID="project-back"
+                                            variant="ghost"
+                                            icon="arrow-back"
+                                            accessibilityLabel={t('common.back')}
+                                            onPress={() => router.navigate('/projects' as any)}
+                                        />
+                                    ) : undefined}
+                                    subtitle={projectText('projects.sessionCount', { count: sessionCount })}
+                                    subtitleMono={!wide}
+                                    actions={wide ? projectActions : undefined}
+                                />
+                                {/* Phones put the actions on their own row under the count, as the phone mock does. */}
+                                {!wide ? <View style={styles.actionsCompact}>{projectActions}</View> : null}
+                            </View>
                         )}
                         renderItem={({ item, index }) => (
                             <View
@@ -170,6 +214,12 @@ const styles = StyleSheet.create((theme) => ({
     listContent: {
         paddingHorizontal: 34,
         paddingTop: 28,
+    },
+    actionsCompact: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 14,
     },
     listContentCompact: {
         paddingHorizontal: 14,

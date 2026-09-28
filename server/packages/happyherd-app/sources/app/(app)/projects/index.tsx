@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { SessionStatusAvatar } from '@/components/SessionStatusAvatar';
@@ -117,8 +117,12 @@ export default function ProjectsScreen() {
             style={styles.scroll}
             contentContainerStyle={[styles.content, !wide && styles.contentCompact]}
         >
+            {/* Wide layouts draw the mock's large title in the page, so the header bar steps aside. */}
+            <Stack.Screen options={{ headerShown: !wide }} />
             <HerdPageHeader
+                testID="projects-page-header"
                 compact={!wide}
+                title={wide ? t('sidebar.projects') : undefined}
                 subtitle={projectText('projects.emptyDescription')}
                 actions={(
                     <HerdButton
@@ -167,6 +171,22 @@ export default function ProjectsScreen() {
                             </Pressable>
                         );
                     })}
+                    {/* The mock ends the grid with a dashed tile that creates a project, like the header button. */}
+                    <Pressable
+                        testID="projects-create-tile"
+                        accessibilityRole="button"
+                        accessibilityLabel={projectText('projects.create')}
+                        disabled={busyProjectId !== null}
+                        onPress={createProject}
+                        style={({ pressed }) => [
+                            styles.createTile(projects.length),
+                            cardWidth ? { width: cardWidth } : styles.cardFull,
+                            pressed && styles.pressed,
+                        ]}
+                    >
+                        <Ionicons name="add" size={18} color={theme.colors.textLink} />
+                        <Text style={styles.createTileText}>{projectText('projects.create')}</Text>
+                    </Pressable>
                 </View>
             )}
         </ScrollView>
@@ -196,6 +216,25 @@ const styles = StyleSheet.create((theme) => ({
         },
     }),
     cardFull: { width: '100%' },
+    // The only style in the tile's list that sets web classes, as for the cards.
+    createTile: (index: number) => ({
+        minHeight: 132,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: theme.colors.divider,
+        borderRadius: theme.kilv.radiusCard,
+        backgroundColor: 'transparent',
+        _web: {
+            _classNames: herdWebClasses('herd-transition', 'herd-rise-sm', herdStaggerClass(index)),
+            cursor: 'pointer',
+            _hover: { borderColor: theme.colors.kilv.rimLine },
+        },
+    }),
+    createTileText: { ...Typography.default('semiBold'), fontSize: 15, color: theme.colors.textLink },
     cardFocused: {
         borderColor: theme.colors.selection.border,
         backgroundColor: theme.colors.selection.background,
