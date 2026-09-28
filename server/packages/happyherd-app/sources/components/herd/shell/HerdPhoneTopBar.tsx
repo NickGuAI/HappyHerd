@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +11,8 @@ import { t } from '@/text';
 import { useHerdCommandPalette } from './commandPaletteBridge';
 import { HerdInboxBell } from './HerdInboxBell';
 import { HerdMachineMenu } from './HerdMachineMenu';
+import { HerdMaskImage } from './HerdMaskImage';
+import { herdBrandMarkFill } from './brandMark';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { useHerdPhoneShell } from './phoneShell';
 import { HERD_PHONE_TOP_BAR_HEIGHT, HerdTopBarLayoutContext } from './topBarLayout';
@@ -76,11 +77,12 @@ export const HerdPhoneTopBar = React.memo(function HerdPhoneTopBar({ home }: { h
                     style={({ pressed }) => [styles.square, pressed && styles.pressed]}
                     testID="herd-top-bar-brand"
                 >
-                    <Image
+                    <HerdMaskImage
                         source={require('@/assets/images/logo-black.png')}
-                        contentFit="contain"
-                        style={styles.brandMark}
-                        tintColor={theme.colors.textLink}
+                        size={22}
+                        tint={theme.colors.textLink}
+                        fill={herdBrandMarkFill(theme)}
+                        testID="herd-brand-mark"
                     />
                 </Pressable>
                 {(nativeSearch || openCommandPalette) && (
@@ -132,10 +134,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     pressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
-    },
-    brandMark: {
-        width: 22,
-        height: 22,
     },
     search: {
         width: 36,

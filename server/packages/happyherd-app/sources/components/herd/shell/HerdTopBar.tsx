@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +14,8 @@ import { t } from '@/text';
 import { isTauri } from '@/utils/isTauri';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useHerdCommandPalette } from './commandPaletteBridge';
+import { herdBrandMarkFill } from './brandMark';
+import { HerdMaskImage } from './HerdMaskImage';
 import { HerdTopBarIconButton } from './HerdTopBarIconButton';
 import { HerdInboxBell } from './HerdInboxBell';
 import { HerdMachineMenu } from './HerdMachineMenu';
@@ -87,11 +88,11 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                     onPress={() => setZenMode(!zenMode)}
                     testID="herd-zen-toggle"
                 >
-                    <Image
+                    <HerdMaskImage
                         source={require('@/assets/images/zen-icon.png')}
-                        contentFit="contain"
-                        style={styles.zenIcon}
-                        tintColor={zenMode ? theme.colors.textLink : theme.colors.header.tint}
+                        size={18}
+                        tint={zenMode ? theme.colors.textLink : theme.colors.header.tint}
+                        testID="herd-zen-icon"
                     />
                 </HerdTopBarIconButton>
                 <Pressable
@@ -101,11 +102,12 @@ export const HerdTopBar = React.memo(function HerdTopBar() {
                     style={({ hovered, pressed }: any) => [styles.brand, (hovered || pressed) && styles.brandHovered]}
                     testID="herd-top-bar-brand"
                 >
-                    <Image
+                    <HerdMaskImage
                         source={require('@/assets/images/logo-black.png')}
-                        contentFit="contain"
-                        style={styles.brandMark}
-                        tintColor={theme.colors.textLink}
+                        size={22}
+                        tint={theme.colors.textLink}
+                        fill={herdBrandMarkFill(theme)}
+                        testID="herd-brand-mark"
                     />
                     {!compact && <Text numberOfLines={1} style={styles.brandText}>{t('sidebar.sessionsTitle')}</Text>}
                 </Pressable>
@@ -169,10 +171,6 @@ const styles = StyleSheet.create((theme) => ({
         minWidth: 0,
         alignItems: 'center',
     },
-    zenIcon: {
-        width: 18,
-        height: 18,
-    },
     brand: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -186,10 +184,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     brandHovered: {
         backgroundColor: theme.colors.surfacePressedOverlay,
-    },
-    brandMark: {
-        width: 22,
-        height: 22,
     },
     brandText: {
         fontSize: 16,
