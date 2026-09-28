@@ -7,11 +7,12 @@ export type HerdSegmentOption<T extends string | number> = { value: T; label: st
 
 /**
  * Equal-width segmented control whose selection slides between options
- * (KILV overhaul). The thumb animates `left` on web; native snaps.
+ * (KILV overhaul). The thumb animates `left` on web; native snaps. A value
+ * that matches no option selects nothing.
  */
 export function HerdSegmentedControl<T extends string | number>(props: {
     options: ReadonlyArray<HerdSegmentOption<T>>;
-    value: T;
+    value: T | null;
     onChange: (value: T) => void;
     /** `touch`: 44 px segments for phones (UI overhaul). */
     size?: 'md' | 'sm' | 'touch';
@@ -20,11 +21,13 @@ export function HerdSegmentedControl<T extends string | number>(props: {
 }) {
     const { options, value, onChange, size = 'md' } = props;
     const count = Math.max(options.length, 1);
-    const index = Math.max(0, options.findIndex((option) => option.value === value));
+    const index = options.findIndex((option) => option.value === value);
     const width = `${100 / count}%` as const;
     return (
         <View style={styles.track} accessibilityRole="radiogroup" accessibilityLabel={props.accessibilityLabel} testID={props.testID}>
-            <View pointerEvents="none" style={[styles.thumb, { width, left: `${(100 / count) * index}%` }]} />
+            {index >= 0 ? (
+                <View pointerEvents="none" style={[styles.thumb, { width, left: `${(100 / count) * index}%` }]} />
+            ) : null}
             {options.map((option, optionIndex) => {
                 const selected = optionIndex === index;
                 return (

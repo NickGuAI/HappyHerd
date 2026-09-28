@@ -986,6 +986,24 @@ describe('Advanced New Session as the mock lays it out (UI overhaul)', () => {
         act(() => renderer.unmount());
     });
 
+    it('checks an existing worktree without also checking no worktree', async () => {
+        mocks.listWorktrees.mockResolvedValue([{ path: '/Users/dev/repo-feature', branch: 'feature' }]);
+        const renderer = await renderScreen();
+        await settle(renderer);
+        const worktreeRadios = () => byTestId(renderer, 'advanced-worktree')[0].findAllByType('Pressable' as any)
+            .map((node: any) => [node.props.accessibilityLabel, node.props['aria-checked']]);
+        expect(worktreeRadios()).toEqual([['uiCopy.noWorktree', true], ['uiCopy.newWorktree', false]]);
+        const existing = () => byTestId(renderer, 'advanced-worktree-/Users/dev/repo-feature')
+            .find((node: any) => node.props['aria-checked'] !== undefined)!;
+        await act(async () => existing().props.onPress());
+        await settle(renderer);
+        expect(mocks.draft.worktreeKey).toBe('/Users/dev/repo-feature');
+        expect(existing().props['aria-checked']).toBe(true);
+        // Neither fixed choice is checked, and the segment draws no selection.
+        expect(worktreeRadios()).toEqual([['uiCopy.noWorktree', false], ['uiCopy.newWorktree', false]]);
+        act(() => renderer.unmount());
+    });
+
     it('launches with every choice made in the form', async () => {
         const renderer = await renderScreen();
         await settle(renderer);

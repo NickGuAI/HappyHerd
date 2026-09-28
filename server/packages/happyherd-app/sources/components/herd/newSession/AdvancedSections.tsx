@@ -249,7 +249,7 @@ export function AdvancedSections(props: {
                             <StreamlineLabel>{props.worktree.title}</StreamlineLabel>
                             <HerdSegmentedControl
                                 options={worktreeSegments}
-                                value={worktreeOnFixed ? worktreeValue : '\u0000'}
+                                value={worktreeOnFixed ? worktreeValue : null}
                                 onChange={props.worktree.onSelect}
                                 size={props.compact ? 'touch' : 'md'}
                                 accessibilityLabel={props.worktree.title}
