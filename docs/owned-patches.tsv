@@ -623,3 +623,4 @@ UI_OVERHAUL_FOCUS_DIALOG	accepted	feat(app): open the Focus setup as the mock's 
 UI_OVERHAUL_FOCUS_OPENER	accepted	feat(app): open Focus from the palette and project pages through one opener	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
 UI_OVERHAUL_PHONE_LIST_TOGGLE	accepted	feat(app): give the phone session list the mock's panel toggle and search	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UI_OVERHAUL_FOCUS_DOCS	accepted	docs(app): record the Focus dialog, its opener and the phone list toggle for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_FIDELITY_WHITESPACE	accepted	chore(app): strip trailing whitespace from the fidelity pass	server/packages/happyherd-app/sources/components/InboxView.test.ts

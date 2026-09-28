@@ -54,32 +54,32 @@ function FeedCard({ title, time, tile, onPress, testID }: {
 export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardProps) => {
     const { theme } = useUnistyles();
     const router = useRouter();
-    
+
     // Get user profile from global users cache for friend-related items
     // User MUST exist for friend-related items or they would have been filtered out
     const user = useUser(
         (item.body.kind === 'friend_request' || item.body.kind === 'friend_accepted')
-            ? item.body.uid 
+            ? item.body.uid
             : undefined
     );
-    
+
     const getTimeAgo = (timestamp: number) => {
         const now = Date.now();
         const diff = now - timestamp;
         const minutes = Math.floor(diff / 60000);
         const hours = Math.floor(diff / 3600000);
         const days = Math.floor(diff / 86400000);
-        
+
         if (minutes < 1) return t('time.justNow');
         if (minutes < 60) return t('time.minutesAgo', { count: minutes });
         if (hours < 24) return t('time.hoursAgo', { count: hours });
         return t('sessionHistory.daysAgo', { count: days });
     };
-    
+
     switch (item.body.kind) {
         case 'friend_request': {
             const avatarElement = user!.avatar ? (
-                <Avatar 
+                <Avatar
                     id={user!.id}
                     imageUrl={user!.avatar.url}
                     size={variant === 'card' ? 36 : 40}
@@ -87,7 +87,7 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
             ) : (
                 <Ionicons name="person" size={20} color={theme.colors.textSecondary} />
             );
-            
+
             const title = t('feed.friendRequestFrom', { name: user!.firstName || user!.username });
             if (variant === 'card') {
                 return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} onPress={() => router.push(`/user/${user!.id}`)} />;
@@ -102,10 +102,10 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
                 />
             );
         }
-            
+
         case 'friend_accepted': {
             const avatarElement = user!.avatar ? (
-                <Avatar 
+                <Avatar
                     id={user!.id}
                     imageUrl={user!.avatar.url}
                     size={variant === 'card' ? 36 : 40}
@@ -113,7 +113,7 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
             ) : (
                 <Ionicons name="checkmark-circle" size={20} color={theme.colors.status.connected} />
             );
-            
+
             const title = t('feed.friendAccepted', { name: user!.firstName || user!.username });
             if (variant === 'card') {
                 return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} onPress={() => router.push(`/user/${user!.id}`)} />;
@@ -128,7 +128,7 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
                 />
             );
         }
-            
+
         case 'text':
             if (variant === 'card') {
                 return (
@@ -148,7 +148,7 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
                     showChevron={false}
                 />
             );
-            
+
         default:
             return null;
     }

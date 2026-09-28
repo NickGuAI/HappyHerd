@@ -215,13 +215,13 @@ export default function MachineDetailScreen() {
                     ...machine.metadata!,
                     displayName: newDisplayName.trim() || undefined
                 };
-                
+
                 await machineUpdateMetadata(
                     machineId,
                     updatedMetadata,
                     machine.metadataVersion
                 );
-                
+
                 Modal.alert(t('common.success'), t("uiCopy.machineRenamedSuccessfully"));
             } catch (error) {
                 Modal.alert(

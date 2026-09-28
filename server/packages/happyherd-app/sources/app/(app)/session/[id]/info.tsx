@@ -741,7 +741,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify(session.agentState, null, 2)}
                                         language="json"
                                     />
@@ -756,7 +756,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify(session.metadata, null, 2)}
                                         language="json"
                                     />
@@ -771,7 +771,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify({
                                             isConnected: sessionStatus.isConnected,
                                             statusText: sessionStatus.statusText,
@@ -791,7 +791,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             showChevron={false}
                         />
                         <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                            <CodeView 
+                            <CodeView
                                 code={JSON.stringify(session, null, 2)}
                                 language="json"
                             />
