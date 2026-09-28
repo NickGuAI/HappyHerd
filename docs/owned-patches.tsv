@@ -582,3 +582,4 @@ UI_OVERHAUL_MAC_NATIVE_DECISIONS	accepted	fix(app): keep the Mac app's Back and 
 UI_OVERHAUL_PHONE_SHEET_KEYBOARD	accepted	fix(app): keep a searched phone sheet above the keyboard	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
 UI_OVERHAUL_SERVER_CONFIG_ALL_LAYOUTS	accepted	fix(app): keep server configuration on the Settings title row at every width	server/packages/happyherd-app/sources/app/(app)/settings/index.test.ts
 UI_OVERHAUL_DESKTOP_CONNECTION_LINE	accepted	fix(app): show the unhealthy-connection line in the desktop panel	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_PREVIEW_MODAL_WIDTH	accepted	fix(app): fit image previews inside the modal's width, clear of a landscape notch	server/packages/happyherd-app/sources/components/herd/modalArea.test.ts

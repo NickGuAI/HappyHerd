@@ -599,7 +599,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-root img { display: block; max-width: min(100%, 720px); height: auto; border-radius: 6px; }
 .hh-markdown-image-button { border: 0; padding: 0; background: transparent; cursor: pointer; }
 .hh-markdown-image-failure { display: flex; min-height: 120px; max-width: 520px; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--hh-markdown-divider); border-radius: 6px; }
-.hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 32px)); height: min(900px, calc(100vh - 80px)); padding: 16px; }
+.hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); height: min(900px, calc(100vh - 80px)); padding: 16px; box-sizing: border-box; }
 .hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; font-size: 16px; }
 .hh-markdown-image-modal > img { width: 100%; height: 100%; object-fit: contain; }
 .hh-markdown-options { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 8px 0; }

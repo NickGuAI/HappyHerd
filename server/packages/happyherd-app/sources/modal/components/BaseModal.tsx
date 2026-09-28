@@ -6,12 +6,14 @@ import {
     Animated,
     StyleSheet,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    useWindowDimensions
 } from 'react-native';
 import { AnimatedBlurBackdrop } from '@/components/AnimatedOverlay';
 import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { HerdPhoneDialogContext } from '@/components/herd/mobile/phoneDialog';
 import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
+import { HerdModalContentWidthContext, resolveModalContentWidth } from '@/components/herd/modalArea';
 
 // On web, stop events from propagating to expo-router's modal overlay
 // which intercepts clicks when it applies pointer-events: none to body
@@ -55,6 +57,14 @@ export function BaseModal({
     // Both placements also clear the window's side insets, such as a
     // landscape phone's notch. Desktops and tablets have none.
     const sidePadding = phoneDialog ? HERD_PHONE_FLOAT_MARGIN : CENTERED_PADDING;
+    const { width: windowWidth } = useWindowDimensions();
+    // Previews and other sized content fit this, so a notch never pushes them off-screen.
+    const contentWidth = resolveModalContentWidth({
+        windowWidth,
+        sidePadding,
+        insetLeft: windowInsets.left,
+        insetRight: windowInsets.right,
+    });
 
     useEffect(() => {
         if (visible) {
@@ -144,7 +154,9 @@ export function BaseModal({
                     ]}
                 >
                     <HerdPhoneDialogContext.Provider value={phoneDialog}>
-                        {children}
+                        <HerdModalContentWidthContext.Provider value={contentWidth}>
+                            {children}
+                        </HerdModalContentWidthContext.Provider>
                     </HerdPhoneDialogContext.Provider>
                 </Animated.View>
             </KeyboardAvoidingView>

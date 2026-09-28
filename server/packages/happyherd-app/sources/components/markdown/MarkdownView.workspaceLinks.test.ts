@@ -132,6 +132,7 @@ import { MarkdownView } from './MarkdownView';
 import { parseSafeguardReminder } from '../safeguardReminder';
 import { lightTheme, darkTheme } from '@/theme';
 import { FontFamilies } from '@/constants/Typography';
+import { HerdModalContentWidthContext } from '@/components/herd/modalArea';
 
 function findText(text: string) {
     return mocks.renderedText.find((props) => props.children === text);
@@ -618,6 +619,34 @@ describe('MarkdownView workspace-link opt-in', () => {
             },
         }));
         act(() => renderer.unmount());
+    });
+
+    it('sizes the native image preview to the modal\'s content width, not the window\'s', () => {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '![remote chart](https://example.com/chart.png)',
+            }));
+        });
+        const openButton = renderer.root.find((node: any) => (
+            node.props.accessibilityLabel === 'markdown.openImageFullSize: remote chart'
+        ));
+        act(() => openButton.props.onPress());
+        const { component, props } = mocks.modalShow.mock.calls[0][0];
+        let preview!: ReactTestRenderer;
+        // BaseModal's content width for a centered modal on an 844 x 390 iPhone with 47 px side insets.
+        act(() => {
+            preview = create(React.createElement(HerdModalContentWidthContext.Provider, { value: 710 },
+                React.createElement(component, { ...props, onClose: vi.fn() })));
+        });
+        const card = preview.root.findByProps({ accessibilityLabel: 'markdown.closeImagePreview' }).parent;
+        expect(flattenNativeStyle(card.props.style).width).toBe(710);
+        // The card less its 16 px padding on each side.
+        expect(preview.root.findByType('Image' as any).props.style.width).toBe(678);
+        act(() => {
+            preview.unmount();
+            renderer.unmount();
+        });
     });
 });
 

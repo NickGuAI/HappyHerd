@@ -52,6 +52,7 @@ vi.mock('@/utils/responsive', () => ({ useIsTablet: () => mocks.tablet }));
 import { BaseModal } from './BaseModal';
 import { WebAlertModal } from './WebAlertModal';
 import { useHerdPhoneDialog } from '@/components/herd/mobile/phoneDialog';
+import { HerdModalContentWidthContext } from '@/components/herd/modalArea';
 
 const renderers: ReactTestRenderer[] = [];
 beforeAll(() => {
@@ -67,7 +68,10 @@ const flat = (style: any): Record<string, unknown> => Array.isArray(style)
     : (style ?? {});
 
 function DialogProbe() {
-    return React.createElement('Probe', { phoneDialog: useHerdPhoneDialog() });
+    return React.createElement('Probe', {
+        phoneDialog: useHerdPhoneDialog(),
+        contentWidth: React.useContext(HerdModalContentWidthContext),
+    });
 }
 
 function renderDialog(placement: 'center' | 'dialog' = 'dialog') {
@@ -78,11 +82,14 @@ function renderDialog(placement: 'center' | 'dialog' = 'dialog') {
     renderers.push(renderer);
     const container = flat(renderer.root.findByType('KeyboardAvoidingView' as any).props.style);
     const content = flat(renderer.root.findAllByType('AnimatedView' as any).at(-1)!.props.style);
+    const probe = renderer.root.findByType('Probe' as any).props;
     return {
         container,
         // The space between the dialog and the window's bottom edge.
         bottomGap: Number(container.paddingBottom ?? 0) + Number(content.marginBottom ?? 0),
-        phoneDialog: renderer.root.findByType('Probe' as any).props.phoneDialog as boolean,
+        phoneDialog: probe.phoneDialog as boolean,
+        // The width the modal tells its content it has, which previews size to.
+        contentWidth: probe.contentWidth as number | null,
     };
 }
 
@@ -128,10 +135,12 @@ describe('dialog placement', () => {
             tablet: false,
             insets: { top: 0, left: 47, right: 47, bottom: 21 },
         });
-        const { container, bottomGap } = renderDialog();
+        const { container, bottomGap, contentWidth } = renderDialog();
         expect(container).toMatchObject({ justifyContent: 'flex-end', paddingLeft: 8 + 47, paddingRight: 8 + 47 });
         // iOS keyboard avoidance replaces the container's bottom padding, so the gap survives it.
         expect(bottomGap).toBe(8 + 21);
+        // 844 less 8 + 47 on each side.
+        expect(contentWidth).toBe(734);
     });
 
     it('keeps a centered modal 20 px inside a landscape phone\'s side insets', () => {
@@ -141,10 +150,19 @@ describe('dialog placement', () => {
             tablet: false,
             insets: { top: 0, left: 47, right: 47, bottom: 21 },
         });
-        const { container, bottomGap, phoneDialog } = renderDialog('center');
+        const { container, bottomGap, phoneDialog, contentWidth } = renderDialog('center');
         expect(container).toMatchObject({ justifyContent: 'center', paddingLeft: 20 + 47, paddingRight: 20 + 47 });
         expect(bottomGap).toBe(0);
         expect(phoneDialog).toBe(false);
+        // 844 less 20 + 47 on each side, so an image preview sized to it keeps its Close button on screen.
+        expect(contentWidth).toBe(710);
+    });
+
+    it('gives a centered modal\'s content the window less 20 px a side in a phone-width browser window', () => {
+        const { container, contentWidth } = renderDialog('center');
+        expect(container).toMatchObject({ justifyContent: 'center', paddingLeft: 20, paddingRight: 20 });
+        // 390 less 20 on each side; the browser reports no side insets.
+        expect(contentWidth).toBe(350);
     });
 
     it('spans a phone-width browser window with the alert, and keeps its own width in a 1024 × 768 one', () => {
