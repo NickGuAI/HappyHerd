@@ -8,6 +8,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { FlatSessionRow, flatListBackgroundColor } from '@/components/FlatSessionRow';
 import { Text } from '@/components/StyledText';
 import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
+import { HerdShellIcon } from '@/components/herd/shell/HerdShellIcon';
 import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
 import { openFocusSetup } from '@/components/focusSetup';
@@ -75,7 +76,7 @@ export default React.memo(function ProjectSessionsScreen() {
             <HerdButton
                 testID="project-focus"
                 variant="primary"
-                glyph="focus"
+                renderIcon={({ size, color }) => <HerdShellIcon name="focus" size={size} color={color} />}
                 label={t('focusMode.enter')}
                 selected={focusOnProject}
                 disabled={focusOnProject}
