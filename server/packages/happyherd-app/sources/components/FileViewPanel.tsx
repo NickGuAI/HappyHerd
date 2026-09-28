@@ -102,6 +102,10 @@ export interface FileContentPanelProps {
     /** Optional deep-link position from a tool/session file link. */
     requestedLine?: number | null;
     requestedColumn?: number | null;
+    /** The mode a newly opened file starts in; Workspace hosts keep Preview. */
+    initialDisplayMode?: FileDisplayMode;
+    /** Tells the host which mode the Human is in (for hosts that own their own Preview). */
+    onDisplayModeChange?: (mode: FileDisplayMode) => void;
 }
 
 export function fileNameForPath(filePath: string, platform?: string): string {
@@ -122,7 +126,7 @@ type EditableFileSnapshot = {
     hasUtf8Bom: boolean;
 };
 
-type FileDisplayMode = 'preview' | 'edit';
+export type FileDisplayMode = 'preview' | 'edit';
 type FileSaveStatus = 'idle' | 'saved';
 
 function containingDirectory(filePath: string): string {
@@ -236,6 +240,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     onDirtyChange,
     onDeleted,
     requestedLine = null,
+    initialDisplayMode = 'preview',
+    onDisplayModeChange,
 }: FileContentPanelProps) {
     const { theme } = useUnistyles();
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
@@ -244,7 +250,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isDownloading, setIsDownloading] = React.useState(false);
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
-    const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('preview');
+    const initialDisplayModeRef = React.useRef(initialDisplayMode);
+    const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>(initialDisplayModeRef.current);
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
     const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('preview');
@@ -304,6 +311,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         onDirtyChange?.(hasChanges);
         return () => onDirtyChange?.(false);
     }, [hasChanges, onDirtyChange]);
+
+    // Declared after the dirty report so a host reading both sees them in order.
+    React.useEffect(() => {
+        onDisplayModeChange?.(displayMode);
+    }, [displayMode, onDisplayModeChange]);
 
     // Load file content
     React.useEffect(() => {
@@ -377,7 +389,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     // its Preview implementation and reveals the requested row after rendering.
     React.useEffect(() => {
         previousViewModeRef.current = 'preview';
-        setDisplayMode('preview');
+        setDisplayMode(initialDisplayModeRef.current);
     }, [filePath]);
 
     const handleDisplayModeChange = React.useCallback((mode: FileDisplayMode) => {
