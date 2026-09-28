@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "0fbb599e459305416fea094c3c1a939bedba908fbb94c38ee171f1b0e6bb7061",
-  "routeCount": 43,
-  "surfaceCount": 330,
+  "sourceFingerprint": "89ea7bedfb11996232c2ea95df66dade3e2f529d913fb9481a82902040a0a3ef",
+  "routeCount": 44,
+  "surfaceCount": 336,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -148,6 +148,7 @@
       "translationKeys": [
         "common.cancel",
         "common.retry",
+        "files.editFile",
         "happyHerd.commander.category",
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
@@ -624,6 +625,12 @@
       ]
     },
     {
+      "path": "/settings/about",
+      "owner": "sources/app/(app)/settings/about.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
       "path": "/settings/account",
       "owner": "sources/app/(app)/settings/account.tsx",
       "translationKeys": [
@@ -638,7 +645,10 @@
         "modals.disconnectGithubConfirm",
         "modals.disconnectService",
         "modals.disconnectServiceConfirm",
+        "settings.connectAccount",
+        "settings.connectGithubAccount",
         "settings.connectedAccounts",
+        "settings.github",
         "settingsAccount.accountInformation",
         "settingsAccount.analytics",
         "settingsAccount.analyticsDisabled",
@@ -1233,6 +1243,7 @@
         "newSession.streamline.modeStreamline",
         "newSession.title",
         "sessionHistory.title",
+        "settings.about",
         "settings.account",
         "settings.appearance",
         "settings.title",
@@ -1421,6 +1432,7 @@
       "translationKeys": [
         "common.cancel",
         "common.retry",
+        "files.editFile",
         "happyHerd.commander.category",
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
@@ -1976,6 +1988,15 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/settings/about.tsx",
+      "kind": "route",
+      "route": "/settings/about",
+      "exports": [],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/settings/account.tsx",
       "kind": "route",
       "route": "/settings/account",
@@ -1992,7 +2013,10 @@
         "modals.disconnectGithubConfirm",
         "modals.disconnectService",
         "modals.disconnectServiceConfirm",
+        "settings.connectAccount",
+        "settings.connectGithubAccount",
         "settings.connectedAccounts",
+        "settings.github",
         "settingsAccount.accountInformation",
         "settingsAccount.analytics",
         "settingsAccount.analyticsDisabled",
@@ -2220,7 +2244,9 @@
       "owner": "sources/app/(app)/settings/index.tsx",
       "kind": "route",
       "route": "/settings",
-      "exports": [],
+      "exports": [
+        "SettingsScreen"
+      ],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -3250,7 +3276,9 @@
         "ConnectionsSettingsView"
       ],
       "translationKeys": [
+        "common.authenticate",
         "common.cancel",
+        "connect.enterUrlManually",
         "devicePairing.account",
         "devicePairing.activeServer",
         "devicePairing.addDevice",
@@ -3289,9 +3317,15 @@
         "devicePairing.serverChanged",
         "devicePairing.unavailable",
         "devicePairing.used",
+        "modals.authenticateTerminal",
+        "modals.pasteUrlFromTerminal",
+        "settings.hideOfflineMachines",
+        "settings.scanQrCodeToAuthenticate",
+        "settings.showOfflineMachines",
         "status.lastSeen",
         "status.offline",
         "status.online",
+        "uiCopy.happyherdTerminal",
         "workspace.title"
       ],
       "states": [
@@ -3859,6 +3893,51 @@
         "focusMode.start",
         "focusMode.title"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwap.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FocusPixelSwap",
+        "FocusPixelSwapHost"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapLayer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FocusPixelSwapLayer"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapTile.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PixelSwapTile"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapTile.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PixelSwapTile"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5835,86 +5914,49 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SettingsAboutView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsAboutView"
+      ],
+      "translationKeys": [
+        "common.runtime",
+        "common.version",
+        "modals.developerMode",
+        "modals.developerModeDisabled",
+        "modals.developerModeEnabled",
+        "settings.developer",
+        "settings.developerTools",
+        "settings.eula",
+        "settings.github",
+        "settings.privacyPolicy",
+        "settings.reportIssue",
+        "settings.supportUs",
+        "settings.supportUsSubtitle",
+        "settings.supportUsSubtitlePro",
+        "settings.termsOfService"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SettingsProfileCard.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsProfileCard"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SettingsView.tsx",
       "kind": "component",
       "route": null,
       "exports": [
         "SettingsView"
-      ],
-      "translationKeys": [
-        "common.authenticate",
-        "common.runtime",
-        "common.version",
-        "connect.enterUrlManually",
-        "devicePairing.settingsSubtitle",
-        "devicePairing.title",
-        "happyHerd.commander.browseSubtitle",
-        "happyHerd.commander.category",
-        "modals.authenticateTerminal",
-        "modals.developerMode",
-        "modals.developerModeDisabled",
-        "modals.developerModeEnabled",
-        "modals.disconnect",
-        "modals.disconnectGithub",
-        "modals.disconnectGithubConfirm",
-        "modals.disconnectService",
-        "modals.disconnectServiceConfirm",
-        "modals.pasteUrlFromTerminal",
-        "newSession.streamline.intro",
-        "newSession.streamline.modeStreamline",
-        "settings.about",
-        "settings.account",
-        "settings.accountSubtitle",
-        "settings.appearance",
-        "settings.appearanceSubtitle",
-        "settings.connectAccount",
-        "settings.connectGithubAccount",
-        "settings.connectedAccounts",
-        "settings.developer",
-        "settings.developerTools",
-        "settings.eula",
-        "settings.features",
-        "settings.featuresSubtitle",
-        "settings.featuresTitle",
-        "settings.github",
-        "settings.githubConnected",
-        "settings.hideOfflineMachines",
-        "settings.machines",
-        "settings.privacyPolicy",
-        "settings.reportIssue",
-        "settings.scanQrCodeToAuthenticate",
-        "settings.showOfflineMachines",
-        "settings.supportUs",
-        "settings.supportUsSubtitle",
-        "settings.supportUsSubtitlePro",
-        "settings.termsOfService",
-        "settings.usage",
-        "settings.usageSubtitle",
-        "settings.voiceAssistant",
-        "settings.voiceAssistantSubtitle",
-        "settings.whatsNew",
-        "settings.whatsNewSubtitle",
-        "settingsAccount.statusActive",
-        "settingsCredentials.settingsRow",
-        "settingsCredentials.settingsRowSubtitle",
-        "status.offline",
-        "status.online",
-        "uiCopy.agentDefaults",
-        "uiCopy.claudeCode_rfuptw",
-        "uiCopy.defaultModelEffortAndPermissions",
-        "uiCopy.happyherdTerminal"
-      ],
-      "states": [
-        "offline"
-      ],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/SettingsViewWrapper.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "SettingsViewWrapper"
       ],
       "translationKeys": [],
       "states": [],

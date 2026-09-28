@@ -630,3 +630,13 @@ UI_OVERHAUL_FOCUS_GLYPH_DOCS	accepted	docs(app): record HerdButton's render prop
 UI_OVERHAUL_LANDING_RISE_SETTLE	accepted	test(app): measure the landing once its entrance rise settles	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
 UI_OVERHAUL_ROUTES_CAPTURE_REDUCED_MOTION	accepted	fix(ci): give the routes capture the reduced-motion hook Session Info now reads	scripts/kilv-capture/routes.mjs
 UI_OVERHAUL_GOLDENS_FIDELITY	accepted	test(app): regenerate the KILV baselines the mock fidelity pass changed	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
+UI_OVERHAUL_REPLY_OPTION_CHIPS	accepted	fix(app): show reply options as the original full-width chips	server/packages/happyherd-app/sources/components/markdown/MarkdownView.browser.test.ts
+UI_OVERHAUL_AUTOMATION_ACTION_GAP	accepted	fix(app): leave a gap between an automation's instructions and its actions	server/packages/happyherd-app/sources/components/HappyHerdAutomationDetail.test.ts
+UI_OVERHAUL_FOCUS_PIXEL_SWAP	accepted	feat(app): play the diagonal pixel swap when Focus mode starts	server/packages/happyherd-app/sources/components/focusPixelSwapTiming.test.ts
+UI_OVERHAUL_SETTINGS_ONE_PANEL	accepted	feat(app): make Settings one panel and give the old home's options their sections	server/packages/happyherd-app/sources/components/settingsOnePanel.browser.test.ts
+UI_OVERHAUL_SETTINGS_CAPTURES	accepted	test(app): capture About and Connections, and follow Settings' redirect in the review captures	scripts/kilv-capture/routes.fixture.tsx
+UI_OVERHAUL_FILE_PANEL_HOST_MODE	accepted	feat(app): let a file-content host open in Edit and follow its mode	server/packages/happyherd-app/sources/components/FileViewPanel.native.test.ts
+UI_OVERHAUL_COMMANDER_MEMORY_EDIT	accepted	feat(app): edit Commander memory in its sheet with the Workspace file editor	server/packages/happyherd-app/sources/components/herd/pages/commanderMemoryEdit.browser.test.ts
+UI_OVERHAUL_SETTINGS_WHATS_NEW_TRACKING	accepted	fix(app): report What's New opened from Settings, as the old home did	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_FOCUS_CAPTURE_SCENE	accepted	test(app): follow the Focus pixel swap to Start in the pages capture	scripts/kilv-capture/pages.capture.mjs
+UI_OVERHAUL_ROUND3_DOCS	accepted	docs(app): record one-panel Settings, the Focus swap and memory editing for upstream merges	docs/upstream-ui-parity.md
