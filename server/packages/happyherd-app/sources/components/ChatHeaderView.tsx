@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/constants/Typography';
 import { isRunningOnMac } from '@/utils/platform';
-import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
+import { useHeaderHeight } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { layout } from '@/components/layout';
+import { t } from '@/text';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from './MobileGlass';
 import { BubblePressable } from './BubblePressable';
@@ -20,8 +22,6 @@ import {
     MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY,
     MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY,
 } from './navigation/MobileHeaderScrim';
-import { useLocalSetting } from '@/sync/storage';
-import { resolveDesktopNavigationHeaderLeftPadding } from './sidebarNavigationLayout';
 
 interface ChatHeaderViewProps {
     title: string;
@@ -55,12 +55,18 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const { theme } = useUnistyles();
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
-    const isTablet = useIsTablet();
-    const zenMode = useLocalSetting('zenMode');
-    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
-    const showBackButton = !isTablet && !!onBackPress;
+    // Phones (UI overhaul) use the full-width bar under the HappyHerd top bar
+    // on Web and native alike; the native branch below now serves tablets.
+    const phone = useHerdPhoneLayout();
+    const barLayout = Platform.OS === 'web' || phone;
+    // Phones show Back while there is somewhere to step back to; native tablets,
+    // the iOS app on a Mac included, keep their own Back (owner decision,
+    // 2026-09-27). Web tablets and desktop leave history to the browser.
+    const showBackButton = !!onBackPress && (phone || Platform.OS !== 'web');
     const hasExtra = !!extraPathSegment;
-    const glassEnabled = !isTablet && Platform.OS === 'ios' && !isRunningOnMac();
+    // Upstream's glass header was the native phone header. Phones now take the
+    // bar and tablets never used glass, so it stays off; kept for upstream merges.
+    const glassEnabled = false;
     const contentHeight = glassEnabled ? Math.max(headerHeight, MOBILE_GLASS_HEADER_HEIGHT) : headerHeight;
     const showFolderSubtitle = !!folderName && folderName !== title;
     const folderNameColor = glassEnabled
@@ -94,16 +100,24 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
         }).start();
     }, [backdropStrength, backdropVisible, glassEnabled]);
 
-    if (Platform.OS === 'web') {
-        const headerLeftPadding = isTablet
-            ? resolveDesktopNavigationHeaderLeftPadding(zenMode || navigationSidebarCollapsed, 16)
-            : 16;
+    if (barLayout) {
+        // The shell's controls live in the top bar, so the header needs no left clearance.
+        const headerLeftPadding = 16;
+        // UI overhaul: one full-width bar with a hairline, the folder / title
+        // crumb on the left (hover shows it opens the details) and the session
+        // controls on the right.
         return (
             <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.header.background }]}>
                 <View style={styles.contentWrapper}>
-                    <View style={[styles.webContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
+                    <View style={[styles.webContent, phone && styles.phoneContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
                         {showBackButton && (
-                            <Pressable onPress={onBackPress} hitSlop={15} style={styles.webBackButton}>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.back')}
+                                onPress={onBackPress}
+                                hitSlop={15}
+                                style={phone ? styles.phoneBackButton : styles.webBackButton}
+                            >
                                 <Ionicons
                                     name="arrow-back"
                                     size={24}
@@ -111,58 +125,86 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                                 />
                             </Pressable>
                         )}
-                        <Pressable
-                            style={styles.titleContainer}
-                            onPress={onTitlePress}
-                            disabled={!onTitlePress}
-                        >
-                            {folderName ? (
-                                <View style={styles.webTitleRow}>
+                        <View style={styles.titleContainer}>
+                            <Pressable
+                                style={({ hovered, pressed }: any) => [
+                                    styles.webCrumb,
+                                    onTitlePress && (hovered || pressed) && styles.webCrumbHovered,
+                                ]}
+                                onPress={onTitlePress}
+                                disabled={!onTitlePress}
+                            >
+                                {phone ? (
+                                    // Phones stack the folder (and, over a file, the title) above the
+                                    // line that matters, so neither is cut to a few letters.
+                                    <View style={styles.phoneCrumb}>
+                                        {(hasExtra || showFolderSubtitle) ? (
+                                            <Text
+                                                numberOfLines={1}
+                                                style={[styles.phoneCrumbFolder, { color: theme.colors.kilv.inkFaint, ...Typography.mono() }]}
+                                            >
+                                                {hasExtra ? [folderName, title].filter(Boolean).join(' / ') : folderName}
+                                            </Text>
+                                        ) : null}
+                                        <Text
+                                            numberOfLines={1}
+                                            ellipsizeMode={hasExtra ? 'middle' : 'tail'}
+                                            style={[
+                                                styles.phoneCrumbTitle,
+                                                { color: theme.colors.header.tint, ...(hasExtra ? Typography.mono() : Typography.default('semiBold')) },
+                                            ]}
+                                        >
+                                            {hasExtra ? extraPathSegment : title}
+                                        </Text>
+                                    </View>
+                                ) : folderName ? (
+                                    <View style={styles.webTitleRow}>
+                                        <Text
+                                            numberOfLines={1}
+                                            style={[styles.webFolderName, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}
+                                        >
+                                            {folderName}
+                                        </Text>
+                                        {title && title !== folderName && (
+                                            <>
+                                                <Text style={[styles.webSeparator, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}>/</Text>
+                                                <Text
+                                                    numberOfLines={1}
+                                                    ellipsizeMode="tail"
+                                                    style={[
+                                                        styles.webTitle,
+                                                        hasExtra && styles.webTitleWithExtra,
+                                                        { color: theme.colors.header.tint, ...Typography.default('semiBold') },
+                                                    ]}
+                                                >
+                                                    {title}
+                                                </Text>
+                                            </>
+                                        )}
+                                        {hasExtra && (
+                                            <>
+                                                <Text style={[styles.webSeparator, { color: theme.colors.kilv.inkFaint, ...Typography.default() }]}>/</Text>
+                                                <Text
+                                                    numberOfLines={1}
+                                                    ellipsizeMode="middle"
+                                                    style={[styles.webExtraPath, { color: theme.colors.header.tint, ...Typography.mono() }]}
+                                                >
+                                                    {extraPathSegment}
+                                                </Text>
+                                            </>
+                                        )}
+                                    </View>
+                                ) : (
                                     <Text
                                         numberOfLines={1}
-                                        style={[styles.webFolderName, { color: theme.colors.textSecondary, ...Typography.default() }]}
+                                        ellipsizeMode="tail"
+                                        style={[styles.webTitle, { color: theme.colors.header.tint, ...Typography.default('semiBold') }]}
                                     >
-                                        {folderName}
+                                        {title}
                                     </Text>
-                                    {title && title !== folderName && (
-                                        <>
-                                            <Text style={[styles.webSeparator, { color: theme.colors.textSecondary, ...Typography.default() }]}>/</Text>
-                                            <Text
-                                                numberOfLines={1}
-                                                ellipsizeMode="tail"
-                                                style={[
-                                                    styles.webTitle,
-                                                    hasExtra && styles.webTitleWithExtra,
-                                                    { color: theme.colors.header.tint, ...Typography.default() },
-                                                ]}
-                                            >
-                                                {title}
-                                            </Text>
-                                        </>
-                                    )}
-                                    {hasExtra && (
-                                        <>
-                                            <Text style={[styles.webSeparator, { color: theme.colors.textSecondary, ...Typography.default() }]}>/</Text>
-                                            <Text
-                                                numberOfLines={1}
-                                                ellipsizeMode="middle"
-                                                style={[styles.webExtraPath, { color: theme.colors.header.tint, ...Typography.mono() }]}
-                                            >
-                                                {extraPathSegment}
-                                            </Text>
-                                        </>
-                                    )}
-                                </View>
-                            ) : (
-                                <Text
-                                    numberOfLines={1}
-                                    ellipsizeMode="tail"
-                                    style={[styles.webTitle, { color: theme.colors.header.tint, ...Typography.default() }]}
-                                >
-                                    {title}
-                                </Text>
-                            )}
-                        </Pressable>
+                                )}
+                            </Pressable>
+                        </View>
                         {rightSlot ? <View style={styles.webRightSlot}>{rightSlot}</View> : null}
                     </View>
                 </View>
@@ -272,6 +314,8 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
                 <View style={[styles.content, { height: contentHeight }]}>
                     {showBackButton && (
                         <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.back')}
                             onPress={onBackPress}
                             hitSlop={10}
                             style={({ pressed }) => [styles.backButton, pressed && styles.controlPressed]}
@@ -356,9 +400,27 @@ const styles = StyleSheet.create((theme) => ({
     webContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingLeft: 16,
+        paddingRight: 18,
         width: '100%',
-        maxWidth: layout.headerMaxWidth,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+    },
+    webCrumb: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: '100%',
+        minWidth: 0,
+        marginLeft: -6,
+        paddingHorizontal: 6,
+        paddingVertical: 4,
+        borderRadius: theme.borderRadius.sm,
+        _web: {
+            transition: `background-color ${theme.kilv.motionFast}ms ${theme.kilv.easeOut}`,
+        },
+    },
+    webCrumbHovered: {
+        backgroundColor: theme.colors.glass.backgroundSubtle,
     },
     titleContainer: {
         flex: 1,
@@ -440,30 +502,30 @@ const styles = StyleSheet.create((theme) => ({
     webTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        width: '100%',
+        gap: 8,
+        minWidth: 0,
+        maxWidth: '100%',
     },
     webFolderName: {
-        fontSize: 14,
+        fontSize: 16,
         flexShrink: 0,
     },
     webSeparator: {
-        fontSize: 14,
+        fontSize: 16,
         flexShrink: 0,
     },
     webTitle: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 16,
         flexShrink: 1,
+        minWidth: 0,
     },
     webTitleWithExtra: {
         flexShrink: 0.5,
     },
     webExtraPath: {
-        flex: 1,
-        minWidth: 0,
-        fontSize: 13,
         flexShrink: 1,
+        minWidth: 0,
+        fontSize: 14,
     },
     webRightSlot: {
         flexDirection: 'row',
@@ -475,6 +537,30 @@ const styles = StyleSheet.create((theme) => ({
     webBackButton: {
         paddingHorizontal: 8,
         paddingVertical: 4,
+    },
+    // Phones: the controls end on the 16 px gutter.
+    phoneContent: {
+        paddingRight: 16,
+    },
+    // A 44 px square whose arrow lands on the gutter.
+    phoneBackButton: {
+        width: 44,
+        height: 44,
+        marginLeft: -10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    phoneCrumb: {
+        minWidth: 0,
+        maxWidth: '100%',
+    },
+    phoneCrumbFolder: {
+        fontSize: 11.5,
+        lineHeight: 14,
+    },
+    phoneCrumbTitle: {
+        fontSize: 15.5,
+        lineHeight: 20,
     },
     subtitleRow: {
         flexDirection: 'row',

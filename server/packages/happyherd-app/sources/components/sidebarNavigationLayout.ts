@@ -1,39 +1,21 @@
-export const DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH = 28;
-export const DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP = 8;
+/**
+ * Desktop navigation layout. The panel toggle lives in the HappyHerd top bar
+ * (components/herd/shell/HerdTopBar.tsx) with a secondary handle on the panel
+ * edge (HerdSidebarEdgeToggle), so nothing sits in a screen header's corner.
+ */
+
+/** Zen and the collapse setting stay independent inputs; either hides the panel. */
+export function resolveDesktopNavigationHidden(input: {
+    zenMode: boolean;
+    navigationSidebarCollapsed: boolean;
+}): boolean {
+    return input.zenMode || input.navigationSidebarCollapsed;
+}
 
 export function resolveDesktopNavigationDrawerWidth(input: {
     isDesktopLayout: boolean;
-    zenMode: boolean;
-    navigationSidebarCollapsed: boolean;
+    hidden: boolean;
     fullDrawerWidth: number;
 }): number {
-    return input.isDesktopLayout
-        && !input.zenMode
-        && !input.navigationSidebarCollapsed
-        ? input.fullDrawerWidth
-        : 0;
-}
-
-export function resolveDesktopNavigationBoundaryToggleLeft(drawerWidth: number): number {
-    return Math.max(8, drawerWidth - 14);
-}
-
-export function resolveDesktopNavigationHeaderLeftPadding(
-    navigationDrawerHidden: boolean,
-    defaultPadding: number,
-): number {
-    if (!navigationDrawerHidden) return defaultPadding;
-    return Math.max(
-        defaultPadding,
-        resolveDesktopNavigationBoundaryToggleLeft(0)
-            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH
-            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
-    );
-}
-
-export function resolveDesktopPersistentHeaderControlsLeft(
-    drawerWidth: number,
-    preferredLeft: number,
-): number {
-    return drawerWidth === 0 ? Math.max(56, preferredLeft) : preferredLeft;
+    return input.isDesktopLayout && !input.hidden ? input.fullDrawerWidth : 0;
 }

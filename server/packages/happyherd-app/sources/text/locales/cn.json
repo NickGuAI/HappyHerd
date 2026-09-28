@@ -8,6 +8,7 @@
   "tabs": {
     "inbox": "收件箱",
     "sessions": "终端",
+    "sessionsTab": "会话",
     "settings": "设置"
   },
   "inbox": {
@@ -147,6 +148,7 @@
     "githubConnected": "已连接为 @{login}",
     "connectGithubAccount": "连接您的 GitHub 账户",
     "claudeAuthSuccess": "成功连接到 Claude",
+    "connectClaudeTitle": "连接 Claude",
     "exchangingTokens": "正在交换令牌...",
     "usage": "使用情况",
     "usageSubtitle": "查看 API 使用情况和费用",
@@ -160,7 +162,8 @@
           "false": "{feature} 已禁用"
         }
       }
-    }
+    },
+    "sectionsLabel": "设置分组"
   },
   "settingsAppearance": {
     "theme": "主题",
@@ -334,7 +337,30 @@
     "newWorkspace": "新建工作区",
     "happyherdAgentUnsupported": "此机器无法启动 HappyHerd Agent 会话",
     "workspaceNoLongerAvailable": "所选的 HappyHerd Agent 工作区已不可用。",
-    "interruptPressStop": "如需中断，请按“停止”"
+    "interruptPressStop": "如需中断，请按“停止”",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "高级",
+      "intro": "使用预配置的智能体默认设置快速启动会话。",
+      "whereLabel": "工作文件夹",
+      "browseFolder": "选择文件夹",
+      "githubBadge": "GitHub",
+      "notGithub": "非 git 仓库",
+      "defaultsSummary": "使用 {model}，工作量 {effort}，{permission}。",
+      "worktreeOn": "创建新的 git 工作树",
+      "worktreeOff": "直接在选定的文件夹中运行",
+      "settingsLink": "Streamline 设置",
+      "settingsSubtitle": "配置启动 Streamline 会话时每个智能体的默认模型、工作量和权限模式。",
+      "defaultModeTitle": "默认会话模式",
+      "defaultAgentTitle": "默认智能体",
+      "defaultAgentDescription": "选择在 Streamline 模式下自动启动的智能体。",
+      "agentDefaultsTitle": "智能体默认选项",
+      "agentDefaultsDescription": "为每个智能体设置默认选项，仍可在输入框的选项中修改。",
+      "latestModel": "最新",
+      "latestModelDescription": "最新模型将在会话启动时解析。",
+      "worktreeRuleTitle": "始终使用 git 工作树",
+      "worktreeRuleDescription": "使用 GitHub 仓库时，始终在新的 git 工作树中启动会话。"
+    }
   },
   "agentDefaults": {
     "capabilitySource": "功能来源设备",
@@ -403,7 +429,11 @@
     "forkClaudeOnly": "目前仅支持 Claude 会话的分叉。"
   },
   "commandPalette": {
-    "placeholder": "输入命令或搜索..."
+    "placeholder": "输入命令或搜索...",
+    "hintNavigate": "导航",
+    "hintOpen": "打开",
+    "hintClose": "关闭",
+    "keyEscape": "Esc"
   },
   "server": {
     "serverConfiguration": "服务器配置",
@@ -793,6 +823,7 @@
   },
   "files": {
     "changes": "更改",
+    "changesPanelDescription": "此会话更改的文件",
     "searchPlaceholder": "搜索文件...",
     "detachedHead": "游离 HEAD",
     "summary": "{staged} 已暂存 • {unstaged} 未暂存",
@@ -827,6 +858,7 @@
     },
     "addPanel": "添加面板",
     "closePanel": "关闭面板",
+    "hidePanel": "隐藏面板",
     "openFileTab": "打开文件标签页 {name}",
     "closeFileTab": "关闭文件标签页 {name}",
     "openExistingFile": "打开现有文件",
@@ -872,6 +904,7 @@
     "panelTitle": "侧聊",
     "resizePanel": "拖动以调整侧边栏大小",
     "newChat": "新建侧聊",
+    "newChatDescription": "打开从此会话分叉的并行聊天",
     "emptyTitle": "暂无侧聊",
     "emptyDescription": "点击“新建侧聊”打开空白侧聊，然后像往常一样在输入框中输入消息。",
     "creating": "正在创建…",
@@ -1335,7 +1368,15 @@
       "category": "Commander",
       "createTitle": "创建 Commander",
       "createSubtitle": "启动引导式入职会话",
-      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及 rules/learnings/ 下确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happyherd commander create --manifest <file>`，再用 `happyherd commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。"
+      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及 rules/learnings/ 下确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happyherd commander create --manifest <file>`，再用 `happyherd commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。",
+      "pageSubtitle": "每个 Commander 在其机器上保存记忆和工作区。您可以阅读其记忆或与其开始会话。",
+      "emptyTitle": "未找到 Commander",
+      "noOnlineMachine": "Commander 从已连接的机器加载。请在机器上启动 HappyHerd 守护进程以查看其 Commander。",
+      "machineLoadFailed": "无法从 {name} 加载 Commander：{message}",
+      "memoryReadFailed": "无法读取记忆文件。",
+      "memoryEmpty": "记忆文件为空。",
+      "newSessionWith": "与 {name} 新建会话",
+      "browseSubtitle": "阅读 Commander 记忆并开始会话"
     },
     "composer": {
       "queueMessage": "排队消息",
@@ -1493,6 +1534,7 @@
       "editAction": "编辑",
       "noRuns": "尚无运行记录。",
       "openSession": "打开会话 {id}",
+      "openSessionLink": "打开会话",
       "commanderValue": "指挥官 {id}",
       "attempt": "第 {count} 次尝试"
     },
@@ -1988,5 +2030,10 @@
     "cancel": "取消",
     "noProjects": "创建一个项目以开始专注。",
     "remaining": "剩余 {time}"
+  },
+  "topBar": {
+    "noMachine": "没有机器",
+    "addMachine": "添加机器",
+    "noMachinesYet": "此账户还没有机器"
   }
 }

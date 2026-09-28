@@ -9,15 +9,26 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { MobileGlassBackdrop } from '@/components/MobileGlass';
+import { isHerdPhoneTopLevelRoute } from '@/components/herd/shell/phoneRoutes';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HerdWindowInsetsContext } from '@/components/herd/shell/windowInsets';
 
 export const unstable_settings = {
     initialRouteName: 'index',
 };
 
 export default function RootLayout() {
-    // Keep UIKit in charge of most iPhone/iPad headers. Screens that belong to
-    // the floating-glass family opt into createHeader below.
-    const shouldUseCustomHeader = Platform.OS === 'android' || isRunningOnMac() || Platform.OS === 'web';
+    // Phones (UI overhaul): the drawer and top bar lead away from their own
+    // destinations, so those keep no Back. The iOS app on a Mac keeps it in any
+    // window, even one the device rule calls a phone (owner decision, 2026-09-27).
+    const phone = useHerdPhoneLayout();
+    // Signed in, the HappyHerd top bar sits above these screens.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    // Keep UIKit in charge of most iPad headers and of the iPhone's signed-out
+    // pages. Phones under the top bar, the iPhone included, take createHeader,
+    // the page's title row and Back. Screens that belong to the floating-glass
+    // family opt into createHeader below.
+    const shouldUseCustomHeader = Platform.OS === 'android' || isRunningOnMac() || Platform.OS === 'web' || (phone && underTopBar);
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const { theme } = useUnistyles();
 
@@ -25,23 +36,21 @@ export default function RootLayout() {
         <View
             style={{
                 flex: 1,
-                backgroundColor: isDesktop
-                    ? theme.colors.surface
-                    : theme.colors.groupped.background,
+                // The mock's near-black page (light: warm paper) on every platform; cards stay on surface.
+                backgroundColor: theme.colors.groupped.background,
             }}
         >
             <MobileGlassBackdrop enabled={!isDesktop} />
         <Stack
             initialRouteName='index'
-            screenOptions={{
+            screenOptions={({ route }) => ({
+                ...(phone && !isRunningOnMac() && isHerdPhoneTopLevelRoute(route.name) ? { headerBackVisible: false } : {}),
                 header: shouldUseCustomHeader ? createHeader : undefined,
                 headerBackTitle: t('common.back'),
                 headerBackButtonDisplayMode: Platform.OS === 'ios' ? 'minimal' : undefined,
                 headerShadowVisible: false,
                 contentStyle: {
-                    backgroundColor: isDesktop
-                        ? theme.colors.surface
-                        : theme.colors.groupped.background,
+                    backgroundColor: theme.colors.groupped.background,
                 },
                 headerStyle: {
                     backgroundColor: isDesktop ? theme.colors.header.background : 'transparent',
@@ -52,7 +61,7 @@ export default function RootLayout() {
                     ...Typography.default('semiBold'),
                 },
 
-            }}
+            })}
         >
             <Stack.Screen
                 name="index"
@@ -176,7 +185,7 @@ export default function RootLayout() {
                 name="automations/index"
                 options={{
                     headerShown: true,
-                    headerTitle: 'Automations',
+                    headerTitle: t('happyHerd.automations.title'),
                     headerBackTitle: t('common.back'),
                 }}
             />
@@ -208,6 +217,18 @@ export default function RootLayout() {
                 name="settings/agents"
                 options={{
                     headerTitle: 'Agents',
+                }}
+            />
+            <Stack.Screen
+                name="settings/streamline"
+                options={{
+                    headerTitle: t('newSession.streamline.modeStreamline'),
+                }}
+            />
+            <Stack.Screen
+                name="settings/about"
+                options={{
+                    headerTitle: t('settings.about'),
                 }}
             />
             <Stack.Screen

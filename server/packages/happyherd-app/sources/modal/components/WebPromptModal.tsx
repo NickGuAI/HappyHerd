@@ -7,6 +7,7 @@ import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { t } from '@/text';
 import { resolvePhoneSafeTextEntryFontSize } from '@/utils/mobileTypographyFloor';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 interface WebPromptModalProps {
     config: PromptModalConfig;
@@ -16,6 +17,8 @@ interface WebPromptModalProps {
 
 export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalProps) {
     const { theme } = useUnistyles();
+    // Phones (UI overhaul): the dialog rests on the bottom edge at the window's width less 8 px a side.
+    const phoneDialog = useHerdPhoneLayout();
     const [inputValue, setInputValue] = useState(config.defaultValue || '');
     const [focused, setFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
@@ -66,6 +69,9 @@ export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalPro
             shadowOpacity: 0.25,
             shadowRadius: 4,
             elevation: 5
+        },
+        containerPhone: {
+            width: '100%',
         },
         content: {
             paddingHorizontal: 24,
@@ -128,14 +134,14 @@ export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalPro
     });
 
     return (
-        <BaseModal visible={true} onClose={handleCancel} closeOnBackdrop={false}>
+        <BaseModal visible={true} onClose={handleCancel} closeOnBackdrop={false} placement="dialog">
             <MobileGlassSurface
                 enabled={false}
                 nativeEffect
                 glassEffectStyle="regular"
                 intensity={88}
                 tintColor={theme.colors.glass.overlayTint}
-                style={styles.container}
+                style={[styles.container, phoneDialog && styles.containerPhone]}
             >
                 <View style={styles.content}>
                     <Text style={[styles.title, Typography.default('semiBold')]}>

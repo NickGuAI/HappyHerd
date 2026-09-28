@@ -18,14 +18,21 @@ import type { Theme } from '@/theme';
 import { t } from '@/text';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import { SessionStatusAvatar } from './SessionStatusAvatar';
+import { herdStaggerClass, herdWebClasses } from './herd/motion';
+import { HerdRowMoreButton, HerdRowSelection, herdRowDataSet, useHerdRowLongPress } from './herd/shell/HerdSessionRowParts';
+import { resolveHerdRowAgentLabel, resolveHerdRowAttention } from './herd/shell/sessionRowPresentation';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 // Roughly three quarters of the row, the proportion a chat list uses: the row
 // is 10 + 61 + 10, so 60 leaves an even 10 either side of the avatar.
 const AVATAR_SIZE = 60;
-const ROW_PADDING_LEFT = 16;
+const ROW_INSET = 8;
+const ROW_PADDING_LEFT = 10;
 const AVATAR_GAP = 12;
 const TOP_RIGHT_SLOT_WIDTH = 56;
 const UNREAD_RING_CLEAR_GRACE_MS = 350;
+/** Rows past this index skip the entrance stagger so long lists stay responsive. */
+const ENTRANCE_ROWS = 12;
 const sessionListText = t as (key: string) => string;
 
 /**
@@ -40,21 +47,24 @@ export function flatListBackgroundColor(theme: Theme): string {
 
 /**
  * One session in the flat home list: avatar, title, the project and worktree it
- * runs in, and its status. The row spans the full width on the page background
- * with a hairline under it, so the list reads as one continuous column rather
- * than a stack of project cards.
+ * runs in, and its status. Rows sit inset on the list background with rounded
+ * corners (HappyHerd fluid shell): hovering tints a row, the selected row
+ * carries the shared selection ring, which glides from the previous
+ * selection, and a session that needs the user adds a status line.
  */
-export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }: {
+export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex }: {
     row: FlatSessionRowData;
     selected?: boolean;
-    showBorder?: boolean;
     pinned?: boolean;
     /** Archive uses the same deterministic row presentation as Home. */
     archived?: boolean;
+    /** Position in the first screen of the list, for the entrance stagger. */
+    entranceIndex?: number;
 }) => {
     const { session, projectName, workspaceName } = row;
     const styles = stylesheet;
     const { theme } = useUnistyles();
+    const phone = useHerdPhoneLayout();
     const sessionPressHandlers = useSessionPressHandlers(session.id);
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';
@@ -65,6 +75,11 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
     // can pick back up, and drawing it as dead makes a healthy list look like a
     // graveyard. Only a disconnected session or dead owning daemon fades.
     const faded = session.machineOffline || session.state === 'disconnected';
+    const attention = resolveHerdRowAttention(session.state);
+    const agentLabel = resolveHerdRowAgentLabel(session);
+    // A session waiting on the user takes the worktree line when that line has
+    // nothing to say, so the row keeps its three-line rhythm.
+    const hasWorkspaceLine = !!workspaceName || session.gitChangedFiles !== null;
 
     // SessionView clears the real unread state as soon as the destination
     // mounts. Keep only the row's unread ring around long enough for the
@@ -111,18 +126,26 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
     }, []);
 
     const showActionAlert = useSessionActionAlert(session.id);
+    const longPressProps = useHerdRowLongPress(handleContextMenu);
     const menuProps = Platform.OS === 'web' ? {
         onContextMenu: handleContextMenu,
+        ...longPressProps,
     } as any : {
         onLongPress: showActionAlert,
     };
 
     const content = (
         <Pressable
-            style={[styles.row, selected && styles.rowSelected]}
+            style={({ hovered, pressed }: any) => [
+                styles.row(entranceIndex),
+                phone && styles.rowPhone,
+                (hovered || pressed) && !selected && styles.rowHovered,
+            ]}
+            {...herdRowDataSet(session.id)}
             {...sessionPressHandlers}
             {...menuProps}
         >
+            <HerdRowSelection sessionId={session.id} selected={!!selected} />
             <View style={styles.avatar}>
                 <SessionStatusAvatar
                     imageUrl={session.sessionAvatarUri}
@@ -170,6 +193,13 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
                     <Text style={styles.project} numberOfLines={1}>
                         {projectName}
                     </Text>
+                    {agentLabel && (
+                        <View style={[styles.agentChip, agentLabel.featured && styles.agentChipFeatured]}>
+                            <Text style={[styles.agentChipText, agentLabel.featured && styles.agentChipTextFeatured]} numberOfLines={1}>
+                                {agentLabel.label}
+                            </Text>
+                        </View>
+                    )}
                     {!session.botId && (session.daemonLabel || session.daemonShortId) && (
                         <View style={styles.daemonIdentity}>
                             <Ionicons
@@ -191,7 +221,7 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
                     )}
                 </View>
 
-                <View style={styles.workspaceRow}>
+                {(hasWorkspaceLine || !attention) && <View style={styles.workspaceRow}>
                     <View style={styles.workspaceLocation}>
                         {workspaceName && (
                             <>
@@ -216,10 +246,19 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
                             />
                         )}
                     </View>
-                </View>
+                </View>}
+
+                {attention && (
+                    <View style={styles.statusRow} testID="session-row-status">
+                        <View style={styles.statusDot} />
+                        <Text style={styles.statusText} numberOfLines={1}>
+                            {t(attention)}
+                        </Text>
+                    </View>
+                )}
             </View>
 
-            {showBorder && <View style={styles.divider} />}
+            <HerdRowMoreButton open={!!actionsAnchor} onOpen={setActionsAnchor} onNativePress={showActionAlert} />
         </Pressable>
     );
 
@@ -259,19 +298,37 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, pinned }:
 });
 
 const stylesheet = StyleSheet.create((theme) => ({
-    row: {
+    row: (entranceIndex?: number) => ({
         flexDirection: 'row',
         // Centred, not top-aligned: the avatar sits in the middle of the three
         // text lines the way a chat list draws it, rather than hanging off the
         // title.
         alignItems: 'center',
+        marginHorizontal: ROW_INSET,
+        marginBottom: 2,
         paddingLeft: ROW_PADDING_LEFT,
-        paddingRight: 16,
+        paddingRight: 12,
         paddingVertical: 10,
-        backgroundColor: flatListBackgroundColor(theme),
+        borderRadius: theme.kilv.radius,
+        // Web rows stay transparent so the selection highlight can travel
+        // behind neighbouring rows; native keeps the paint the swipe reveals.
+        backgroundColor: Platform.OS === 'web' ? 'transparent' : flatListBackgroundColor(theme),
+        _web: {
+            _classNames: herdWebClasses(
+                'herd-row',
+                'herd-transition',
+                entranceIndex !== undefined && entranceIndex < ENTRANCE_ROWS && 'herd-slide-left',
+                entranceIndex !== undefined && entranceIndex < ENTRANCE_ROWS && herdStaggerClass(entranceIndex),
+            ),
+        },
+    }),
+    // Phones: the row's highlight reaches 8 px past its content, which sits on the 16 px gutter.
+    rowPhone: {
+        paddingLeft: ROW_INSET,
+        paddingRight: ROW_INSET,
     },
-    rowSelected: {
-        backgroundColor: theme.colors.surfaceSelected,
+    rowHovered: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
     },
     avatar: {
         width: AVATAR_SIZE,
@@ -294,7 +351,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         minWidth: 0,
     },
     title: {
-        fontSize: 17,
+        fontSize: 16,
         lineHeight: 22,
         ...Typography.default('semiBold'),
     },
@@ -321,17 +378,18 @@ const stylesheet = StyleSheet.create((theme) => ({
         justifyContent: 'center',
     },
     timestamp: {
-        fontSize: 13,
+        fontSize: 12,
         lineHeight: 22,
-        color: theme.colors.textSecondary,
+        color: theme.colors.kilv.inkFaint,
         fontVariant: ['tabular-nums'],
         textAlign: 'right',
-        ...Typography.default('regular'),
+        ...Typography.mono(),
     },
+    // Folder, agent and machine read left to right and share any shrinking.
     project: {
-        flex: 1,
-        minWidth: 0,
-        fontSize: 15,
+        flexShrink: 1,
+        minWidth: 32,
+        fontSize: 14,
         lineHeight: 20,
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
@@ -341,13 +399,34 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         gap: 8,
         minWidth: 0,
+        marginTop: 2,
+    },
+    agentChip: {
+        flexShrink: 0,
+        maxWidth: 96,
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+    },
+    agentChipFeatured: {
+        borderColor: theme.colors.selection.border,
+    },
+    agentChipText: {
+        fontSize: 11,
+        lineHeight: 15,
+        color: theme.colors.textSecondary,
+        ...Typography.mono(),
+    },
+    agentChipTextFeatured: {
+        color: theme.colors.textLink,
     },
     daemonIdentity: {
         alignItems: 'center',
         flexDirection: 'row',
         flexShrink: 1,
         gap: 3,
-        maxWidth: '58%',
         minWidth: 0,
     },
     daemonLabel: {
@@ -356,14 +435,14 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontSize: 12,
         lineHeight: 20,
         minWidth: 0,
-        ...Typography.default('regular'),
+        ...Typography.mono(),
     },
     daemonShortId: {
         color: theme.colors.textSecondary,
         flexShrink: 0,
         fontSize: 12,
         lineHeight: 20,
-        ...Typography.default('semiBold'),
+        ...Typography.mono('semiBold'),
     },
     workspaceRow: {
         flexDirection: 'row',
@@ -391,17 +470,25 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexShrink: 0,
         marginLeft: 'auto',
     },
-    // Sits on the row itself rather than the text column, so centring the
-    // avatar cannot drag it up off the row's bottom edge. Starts where the text
-    // does and runs to the screen edge, the way a chat list separates rows
-    // without cutting under the avatar.
-    divider: {
-        position: 'absolute',
-        left: ROW_PADDING_LEFT + AVATAR_SIZE + AVATAR_GAP,
-        right: 0,
-        bottom: 0,
-        height: StyleSheet.hairlineWidth,
-        backgroundColor: theme.colors.divider,
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 3,
+    },
+    statusDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: theme.colors.permission.bypass,
+        _web: { _classNames: herdWebClasses('herd-attention') },
+    },
+    statusText: {
+        flexShrink: 1,
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.permission.bypass,
+        ...Typography.default('semiBold'),
     },
     swipeAction: {
         width: 112,

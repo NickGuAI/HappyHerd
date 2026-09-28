@@ -66,8 +66,11 @@ vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    // Real tokens for the overhaul styles, with the fixed colors this test grew up with.
+    const { lightTheme } = await import('@/theme');
     const colors = {
+        ...lightTheme.colors,
         button: { primary: { background: '#000', tint: '#fff' } },
         divider: '#ddd',
         groupped: { background: '#fafafa' },
@@ -80,7 +83,7 @@ vi.mock('react-native-unistyles', () => {
         textSecondary: '#666',
         warning: '#b70',
     };
-    const theme = { colors };
+    const theme = { ...lightTheme, colors };
     return {
         StyleSheet: {
             create: (factory: any) => typeof factory === 'function' ? factory(theme) : factory,

@@ -16,8 +16,11 @@ import {
 import { sessionAllow, sessionDeny, sessionSetAgentModes } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { ProviderIcon } from '@/components/ProviderIcon';
+import { Octicons } from '@expo/vector-icons';
+import { usePermissionShortcuts } from '@/components/herd/session/permissionShortcuts';
+import { Typography } from '@/constants/Typography';
 
 interface PermissionActionButtonProps {
     label: string;
@@ -31,6 +34,8 @@ interface PermissionActionButtonProps {
     ringStyle: StyleProp<ViewStyle>;
     ringColor: string;
     numberOfLines?: number;
+    leading?: React.ReactNode;
+    trailing?: React.ReactNode;
 }
 
 const PermissionActionButton = React.memo(function PermissionActionButton({
@@ -45,6 +50,8 @@ const PermissionActionButton = React.memo(function PermissionActionButton({
     ringStyle,
     ringColor,
     numberOfLines = 1,
+    leading,
+    trailing,
 }: PermissionActionButtonProps) {
     const pulse = useRef(new Animated.Value(0)).current;
 
@@ -92,9 +99,11 @@ const PermissionActionButton = React.memo(function PermissionActionButton({
             activeOpacity={activeOpacity}
         >
             <View style={contentStyle}>
+                {leading}
                 <Text style={textStyle} numberOfLines={numberOfLines} ellipsizeMode="tail">
                     {label}
                 </Text>
+                {trailing}
             </View>
             {loading ? (
                 <Animated.View
@@ -129,7 +138,8 @@ interface PermissionFooterProps {
 
 export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, sessionId, toolName, toolInput, metadata }) => {
     const { theme } = useUnistyles();
-    const isTablet = useIsTablet();
+    // The phone layout (UI overhaul) stretches the choices; wider layouts right-align them.
+    const phoneLayout = useHerdPhoneLayout();
     const { height: windowHeight } = useWindowDimensions();
     const [loadingButton, setLoadingButton] = useState<'allow' | 'deny' | 'abort' | null>(null);
     const [loadingAllEdits, setLoadingAllEdits] = useState(false);
@@ -312,12 +322,12 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         buttonContainer: {
             flexDirection: 'column',
             gap: 7,
-            alignItems: isTablet ? 'flex-end' : 'stretch',
+            alignItems: phoneLayout ? 'stretch' : 'flex-end',
         },
         providerHeader: {
             flexDirection: 'row',
             alignItems: 'center',
-            alignSelf: isTablet ? 'flex-end' : 'flex-start',
+            alignSelf: phoneLayout ? 'flex-start' : 'flex-end',
             gap: 6,
             paddingHorizontal: 4,
             paddingBottom: 7,
@@ -329,7 +339,7 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         button: {
             paddingHorizontal: 10,
             paddingVertical: 7,
-            borderRadius: 4,
+            borderRadius: theme.borderRadius.sm,
             backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surface }),
             alignItems: 'center',
             justifyContent: 'center',
@@ -372,7 +382,7 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             right: -1,
             bottom: -1,
             left: -1,
-            borderRadius: 8,
+            borderRadius: theme.borderRadius.md,
             borderWidth: 2,
         },
         buttonLoading: {
@@ -409,275 +419,316 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         },
     });
 
-    const renderPermissionButton = ({
-        label,
-        loading,
-        onPress,
-        disabled,
-        buttonStyle,
-        textStyle,
-        numberOfLines = 1,
-    }: {
+    const isWeb = Platform.OS === 'web';
+    const webStyles = StyleSheet.create({
+        stack: {
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: 7,
+        },
+        button: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            minHeight: 40,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: theme.borderRadius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.kilv.rimLine,
+            backgroundColor: 'transparent',
+            position: 'relative',
+            overflow: 'visible',
+        },
+        buttonPrimary: {
+            backgroundColor: theme.colors.button.primary.background,
+            borderColor: theme.colors.button.primary.background,
+        },
+        buttonChosen: {
+            backgroundColor: theme.colors.input.background,
+            borderColor: theme.colors.textLink,
+        },
+        buttonDecided: {
+            opacity: 0.35,
+        },
+        content: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            minWidth: 0,
+        },
+        text: {
+            flex: 1,
+            fontSize: 14,
+            lineHeight: 19,
+            color: theme.colors.textSecondary,
+        },
+        textPrimary: {
+            color: theme.colors.button.primary.tint,
+            fontWeight: '600',
+        },
+        textChosen: {
+            color: theme.colors.text,
+            fontWeight: '500',
+        },
+        kbd: {
+            minWidth: 20,
+            height: 20,
+            paddingHorizontal: 5,
+            borderRadius: theme.borderRadius.sm,
+            borderWidth: 1,
+            borderColor: theme.colors.divider,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        kbdPrimary: {
+            borderColor: theme.colors.button.primary.tint,
+            opacity: 0.6,
+        },
+        kbdText: {
+            fontSize: 11,
+            lineHeight: 14,
+            color: theme.colors.kilv.inkFaint,
+            ...Typography.mono(),
+        },
+        kbdTextPrimary: {
+            color: theme.colors.button.primary.tint,
+        },
+        ring: {
+            ...StyleSheet.absoluteFillObject,
+            top: -3,
+            right: -3,
+            bottom: -3,
+            left: -3,
+            borderRadius: theme.borderRadius.md + 3,
+            borderWidth: 3,
+        },
+    });
+
+    type PermissionChoice = {
+        key: string;
         label: string;
         loading: boolean;
         onPress: () => void;
         disabled: boolean;
-        buttonStyle: StyleProp<ViewStyle>;
-        textStyle: StyleProp<TextStyle>;
+        selected: boolean;
+        inactive: boolean;
+        primary?: boolean;
         numberOfLines?: number;
-    }) => (
-        <PermissionActionButton
-            label={label}
-            loading={loading && isPending}
-            onPress={onPress}
-            disabled={disabled}
-            activeOpacity={isPending ? 0.7 : 1}
-            buttonStyle={[
-                buttonStyle,
-                loading && isPending ? styles.buttonLoading : null,
-            ]}
-            contentStyle={styles.buttonContent}
-            textStyle={textStyle}
-            ringStyle={styles.buttonRing}
-            ringColor={theme.colors.text}
-            numberOfLines={numberOfLines}
-        />
-    );
+    };
 
-    if (isGrok) {
+    const renderChoice = (choice: PermissionChoice, index: number) => {
+        if (!isWeb) {
+            return (
+                <PermissionActionButton
+                    key={choice.key}
+                    label={choice.label}
+                    loading={choice.loading && isPending}
+                    onPress={choice.onPress}
+                    disabled={choice.disabled}
+                    activeOpacity={isPending ? 0.7 : 1}
+                    buttonStyle={[
+                        styles.button,
+                        isPending && styles.buttonAllow,
+                        choice.selected && styles.buttonSelected,
+                        choice.inactive && styles.buttonInactive,
+                        choice.loading && isPending ? styles.buttonLoading : null,
+                    ]}
+                    contentStyle={styles.buttonContent}
+                    textStyle={[
+                        styles.buttonText,
+                        isPending && styles.buttonTextAllow,
+                        choice.selected && styles.buttonTextSelected,
+                    ]}
+                    ringStyle={styles.buttonRing}
+                    ringColor={theme.colors.text}
+                    numberOfLines={choice.numberOfLines}
+                />
+            );
+        }
+        // Web (UI overhaul): the first choice is the molten primary, every
+        // pending choice shows its number key, and a decided card keeps the
+        // chosen answer lit with a check while the rest recede.
+        const primary = isPending && choice.primary === true;
+        const chosen = !isPending && choice.selected;
         return (
-            <View style={styles.container}>
+            <PermissionActionButton
+                key={choice.key}
+                label={choice.label}
+                loading={choice.loading && isPending}
+                onPress={choice.onPress}
+                disabled={choice.disabled}
+                activeOpacity={isPending ? 0.8 : 1}
+                buttonStyle={[
+                    webStyles.button,
+                    primary && webStyles.buttonPrimary,
+                    chosen && webStyles.buttonChosen,
+                    !isPending && !chosen && webStyles.buttonDecided,
+                ]}
+                contentStyle={webStyles.content}
+                textStyle={[
+                    webStyles.text,
+                    primary && webStyles.textPrimary,
+                    chosen && webStyles.textChosen,
+                ]}
+                ringStyle={webStyles.ring}
+                ringColor={theme.colors.textLink}
+                numberOfLines={choice.numberOfLines}
+                leading={chosen ? <Octicons name="check" size={14} color={theme.colors.textLink} /> : null}
+                trailing={isPending ? (
+                    <View style={[webStyles.kbd, primary && webStyles.kbdPrimary]}>
+                        <Text style={[webStyles.kbdText, primary && webStyles.kbdTextPrimary]}>{index + 1}</Text>
+                    </View>
+                ) : null}
+            />
+        );
+    };
+
+    const anyLoading = loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession;
+    let choices: PermissionChoice[];
+    if (isGrok) {
+        choices = [
+            {
+                key: 'allow',
+                label: t('common.yes'),
+                loading: loadingButton === 'allow',
+                onPress: handleApprove,
+                disabled: !isPending || loadingButton !== null,
+                selected: isApproved,
+                inactive: isDenied,
+                primary: true,
+            },
+            {
+                key: 'deny',
+                label: t('grok.permissions.noProvideFeedback'),
+                loading: loadingButton === 'deny',
+                onPress: handleDeny,
+                disabled: !isPending || loadingButton !== null,
+                selected: isDenied,
+                inactive: isApproved,
+                numberOfLines: 2,
+            },
+        ];
+    } else if (isCodex) {
+        const codexDisabled = !isPending || loadingButton !== null || loadingForSession;
+        choices = [
+            {
+                key: 'allow',
+                label: t('common.yes'),
+                loading: loadingButton === 'allow',
+                onPress: handleCodexApprove,
+                disabled: codexDisabled,
+                selected: isCodexApproved,
+                inactive: isCodexAborted || isCodexApprovedForSession,
+                primary: true,
+            },
+            {
+                key: 'session',
+                label: t('codex.permissions.yesForSession'),
+                loading: loadingForSession,
+                onPress: handleCodexApproveForSession,
+                disabled: codexDisabled,
+                selected: isCodexApprovedForSession,
+                inactive: isCodexAborted || isCodexApproved,
+                numberOfLines: 2,
+            },
+            {
+                key: 'abort',
+                label: t('codex.permissions.stopAndExplain'),
+                loading: loadingButton === 'abort',
+                onPress: handleCodexAbort,
+                disabled: codexDisabled,
+                selected: isCodexAborted,
+                inactive: isCodexApproved || isCodexApprovedForSession,
+                numberOfLines: 2,
+            },
+        ];
+    } else {
+        const claudeDisabled = !isPending || anyLoading;
+        const isEditTool = toolName === 'Edit' || toolName === 'MultiEdit' || toolName === 'Write' || toolName === 'NotebookEdit';
+        const isPlanTool = toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode';
+        choices = [
+            {
+                key: 'allow',
+                label: t('common.yes'),
+                loading: loadingButton === 'allow',
+                onPress: handleApprove,
+                disabled: claudeDisabled,
+                selected: isApprovedViaAllow,
+                inactive: isDenied || isApprovedViaAllEdits || isApprovedViaBypass || isApprovedForSession,
+                primary: true,
+            },
+            // Allow All Edits - only for edit tools and plan approval.
+            ...((isEditTool || isPlanTool) ? [{
+                key: 'all-edits',
+                label: t('claude.permissions.yesAllowAllEdits'),
+                loading: loadingAllEdits,
+                onPress: handleApproveAllEdits,
+                disabled: claudeDisabled,
+                selected: isApprovedViaAllEdits,
+                inactive: isDenied || isApprovedViaAllow || isApprovedViaBypass || isApprovedForSession,
+                numberOfLines: 2,
+            }] : []),
+            // Bypass all permissions (yolo mode) - only for plan approval.
+            ...(isPlanTool ? [{
+                key: 'bypass',
+                label: t('claude.permissions.yesAllowEverything'),
+                loading: loadingBypass,
+                onPress: handleBypassPermissions,
+                disabled: claudeDisabled,
+                selected: isApprovedViaBypass,
+                inactive: isDenied || isApprovedViaAllow || isApprovedViaAllEdits || isApprovedForSession,
+                numberOfLines: 2,
+            }] : []),
+            // Allow for session - only for non-edit, non-plan tools.
+            ...(toolName && !isEditTool && !isPlanTool ? [{
+                key: 'session',
+                label: t('claude.permissions.yesForTool'),
+                loading: loadingForSession,
+                onPress: handleApproveForSession,
+                disabled: claudeDisabled,
+                selected: isApprovedForSession,
+                inactive: isDenied || isApprovedViaAllow || isApprovedViaAllEdits || isApprovedViaBypass,
+                numberOfLines: 2,
+            }] : []),
+            {
+                key: 'deny',
+                label: t('claude.permissions.noTellClaude'),
+                loading: loadingButton === 'deny',
+                onPress: handleDeny,
+                disabled: claudeDisabled,
+                selected: isDenied,
+                inactive: isApproved,
+                numberOfLines: 2,
+            },
+        ];
+    }
+
+    // Web: number keys 1..n answer the oldest visible pending card.
+    const containerRef = useRef<View>(null);
+    usePermissionShortcuts({
+        id: permission.id,
+        enabled: isPending,
+        choices: choices.map((choice) => choice.onPress),
+        nodeRef: containerRef,
+    });
+
+    return (
+        <View ref={containerRef} style={[styles.container, isWeb && { paddingHorizontal: 10, paddingTop: 6, paddingBottom: 12 }]}>
+            {isGrok && (
                 <View style={styles.providerHeader}>
                     <ProviderIcon kind="grok" size={15} />
                     <Text style={styles.providerHeaderText}>{t('agentInput.agent.grok')}</Text>
                 </View>
-                <ScrollView
-                    style={styles.optionsScroll}
-                    contentContainerStyle={styles.buttonContainer}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                >
-                    {renderPermissionButton({
-                        label: t('common.yes'),
-                        loading: loadingButton === 'allow',
-                        onPress: handleApprove,
-                        disabled: !isPending || loadingButton !== null,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonAllow,
-                            isApproved && styles.buttonSelected,
-                            isDenied && styles.buttonInactive,
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextAllow,
-                            isApproved && styles.buttonTextSelected,
-                        ],
-                    })}
-                    {renderPermissionButton({
-                        label: t('grok.permissions.noProvideFeedback'),
-                        loading: loadingButton === 'deny',
-                        onPress: handleDeny,
-                        disabled: !isPending || loadingButton !== null,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonDeny,
-                            isDenied && styles.buttonSelected,
-                            isApproved && styles.buttonInactive,
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextDeny,
-                            isDenied && styles.buttonTextSelected,
-                        ],
-                        numberOfLines: 2,
-                    })}
-                </ScrollView>
-            </View>
-        );
-    }
-
-    // Render Codex buttons if this is a Codex session
-    if (isCodex) {
-        return (
-            <View style={styles.container}>
-                <ScrollView
-                    style={styles.optionsScroll}
-                    contentContainerStyle={styles.buttonContainer}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                >
-                    {renderPermissionButton({
-                        label: t('common.yes'),
-                        loading: loadingButton === 'allow',
-                        onPress: handleCodexApprove,
-                        disabled: !isPending || loadingButton !== null || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonAllow,
-                            isCodexApproved && styles.buttonSelected,
-                            (isCodexAborted || isCodexApprovedForSession) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextAllow,
-                            isCodexApproved && styles.buttonTextSelected
-                        ],
-                    })}
-
-                    {renderPermissionButton({
-                        label: t('codex.permissions.yesForSession'),
-                        loading: loadingForSession,
-                        onPress: handleCodexApproveForSession,
-                        disabled: !isPending || loadingButton !== null || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonForSession,
-                            isCodexApprovedForSession && styles.buttonSelected,
-                            (isCodexAborted || isCodexApproved) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextForSession,
-                            isCodexApprovedForSession && styles.buttonTextSelected
-                        ],
-                        numberOfLines: 2,
-                    })}
-
-                    {renderPermissionButton({
-                        label: t('codex.permissions.stopAndExplain'),
-                        loading: loadingButton === 'abort',
-                        onPress: handleCodexAbort,
-                        disabled: !isPending || loadingButton !== null || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonDeny,
-                            isCodexAborted && styles.buttonSelected,
-                            (isCodexApproved || isCodexApprovedForSession) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextDeny,
-                            isCodexAborted && styles.buttonTextSelected
-                        ],
-                        numberOfLines: 2,
-                    })}
-                </ScrollView>
-            </View>
-        );
-    }
-
-    // Render Claude buttons (existing behavior)
-    return (
-        <View style={styles.container}>
+            )}
             <ScrollView
                 style={styles.optionsScroll}
-                contentContainerStyle={styles.buttonContainer}
+                contentContainerStyle={isWeb ? webStyles.stack : styles.buttonContainer}
                 nestedScrollEnabled
                 showsVerticalScrollIndicator={false}
             >
-                {renderPermissionButton({
-                    label: t('common.yes'),
-                    loading: loadingButton === 'allow',
-                    onPress: handleApprove,
-                    disabled: !isPending || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession,
-                    buttonStyle: [
-                        styles.button,
-                        isPending && styles.buttonAllow,
-                        isApprovedViaAllow && styles.buttonSelected,
-                        (isDenied || isApprovedViaAllEdits || isApprovedViaBypass || isApprovedForSession) && styles.buttonInactive
-                    ],
-                    textStyle: [
-                        styles.buttonText,
-                        isPending && styles.buttonTextAllow,
-                        isApprovedViaAllow && styles.buttonTextSelected
-                    ],
-                })}
-
-                {/* Allow All Edits button - only show for Edit and MultiEdit tools */}
-                {(toolName === 'Edit' || toolName === 'MultiEdit' || toolName === 'Write' || toolName === 'NotebookEdit' || toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode') && (
-                    renderPermissionButton({
-                        label: t('claude.permissions.yesAllowAllEdits'),
-                        loading: loadingAllEdits,
-                        onPress: handleApproveAllEdits,
-                        disabled: !isPending || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonAllowAll,
-                            isApprovedViaAllEdits && styles.buttonSelected,
-                            (isDenied || isApprovedViaAllow || isApprovedViaBypass || isApprovedForSession) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextAllowAll,
-                            isApprovedViaAllEdits && styles.buttonTextSelected
-                        ],
-                        numberOfLines: 2,
-                    })
-                )}
-
-                {/* Bypass all permissions (yolo mode) - only show for ExitPlanMode */}
-                {(toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode') && (
-                    renderPermissionButton({
-                        label: t('claude.permissions.yesAllowEverything'),
-                        loading: loadingBypass,
-                        onPress: handleBypassPermissions,
-                        disabled: !isPending || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonForSession,
-                            isApprovedViaBypass && styles.buttonSelected,
-                            (isDenied || isApprovedViaAllow || isApprovedViaAllEdits || isApprovedForSession) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextForSession,
-                            isApprovedViaBypass && styles.buttonTextSelected
-                        ],
-                        numberOfLines: 2,
-                    })
-                )}
-
-                {/* Allow for session button - only show for non-edit, non-exit-plan tools */}
-                {toolName && toolName !== 'Edit' && toolName !== 'MultiEdit' && toolName !== 'Write' && toolName !== 'NotebookEdit' && toolName !== 'exit_plan_mode' && toolName !== 'ExitPlanMode' && (
-                    renderPermissionButton({
-                        label: t('claude.permissions.yesForTool'),
-                        loading: loadingForSession,
-                        onPress: handleApproveForSession,
-                        disabled: !isPending || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession,
-                        buttonStyle: [
-                            styles.button,
-                            isPending && styles.buttonForSession,
-                            isApprovedForSession && styles.buttonSelected,
-                            (isDenied || isApprovedViaAllow || isApprovedViaAllEdits || isApprovedViaBypass) && styles.buttonInactive
-                        ],
-                        textStyle: [
-                            styles.buttonText,
-                            isPending && styles.buttonTextForSession,
-                            isApprovedForSession && styles.buttonTextSelected
-                        ],
-                        numberOfLines: 2,
-                    })
-                )}
-
-                {renderPermissionButton({
-                    label: t('claude.permissions.noTellClaude'),
-                    loading: loadingButton === 'deny',
-                    onPress: handleDeny,
-                    disabled: !isPending || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession,
-                    buttonStyle: [
-                        styles.button,
-                        isPending && styles.buttonDeny,
-                        isDenied && styles.buttonSelected,
-                        (isApproved) && styles.buttonInactive
-                    ],
-                    textStyle: [
-                        styles.buttonText,
-                        isPending && styles.buttonTextDeny,
-                        isDenied && styles.buttonTextSelected
-                    ],
-                    numberOfLines: 2,
-                })}
+                {choices.map(renderChoice)}
             </ScrollView>
         </View>
     );

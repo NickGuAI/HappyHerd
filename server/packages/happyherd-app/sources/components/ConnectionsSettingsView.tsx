@@ -1,13 +1,20 @@
 import * as React from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
-import { useUnistyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Text } from '@/components/StyledText';
+import { layout } from '@/components/layout';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { herdWebClasses } from '@/components/herd/motion';
+import { Typography } from '@/constants/Typography';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useConnectTerminal } from '@/hooks/useConnectTerminal';
+import { Modal } from '@/modal';
 import { useAllMachines, useProfile, useSocketStatus } from '@/sync/storage';
 import { apiSocket } from '@/sync/apiSocket';
 import { getServerUrl } from '@/sync/serverConfig';
@@ -16,19 +23,47 @@ import {
     checkDevicePairing, confirmDevicePairing, normalizeDevicePairingCode, verifyDeviceIdentity,
     type PairingFailure, type PairingTarget,
 } from '@/sync/devicePairing';
+import { formatLastSeen } from '@/utils/sessionUtils';
+import { isMachineOnline } from '@/utils/machineUtils';
 import { t } from '@/text';
 
 // CLI syntax is executable data and must remain identical in every locale.
 const pairingCommand = 'happyherd machine pair';
 
-function Action({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
-    const { theme } = useUnistyles();
-    return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-        style={({ pressed }) => ({ minHeight: 44, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.divider,
-            backgroundColor: pressed ? theme.colors.surfacePressedOverlay : theme.colors.surface, opacity: disabled ? 0.5 : 1,
-            justifyContent: 'center', alignItems: 'center' })}>
-        <Text style={{ fontSize: 16, color: theme.colors.textLink }}>{label}</Text>
+/** The mock's buttons (UI overhaul): `primary` is the molten action, the default a quiet one. */
+function Action({ label, onPress, disabled = false, primary = false }: { label: string; onPress: () => void; disabled?: boolean; primary?: boolean }) {
+    const touch = useHerdPhoneLayout();
+    return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} aria-disabled={disabled} disabled={disabled} onPress={onPress}
+        style={({ pressed, hovered }: any) => [styles.button, touch && styles.buttonTouch, primary && styles.buttonPrimary,
+            (pressed || hovered) && (primary ? styles.buttonPrimaryHover : styles.buttonHover), disabled && styles.buttonDisabled]}>
+        <Text numberOfLines={1} style={[styles.buttonText, primary && styles.buttonTextPrimary]}>{label}</Text>
     </Pressable>;
+}
+
+/** A group's title with the mock's description line under it. */
+function GroupHeader({ title, description }: { title: string; description?: string }) {
+    return <View>
+        <Text style={styles.groupTitle}>{title}</Text>
+        {description ? <Text style={styles.groupDescription}>{description}</Text> : null}
+    </View>;
+}
+
+/** The mock's selection tag, then the chevron the row would show without it. */
+function SelectedTag() {
+    const { theme } = useUnistyles();
+    return <View style={styles.selectedAccessory}>
+        <View style={styles.tag}><Text numberOfLines={1} style={styles.tagText}>{t('devicePairing.selected')}</Text></View>
+        <Ionicons name="chevron-forward" size={Platform.OS === 'ios' ? 17 : 24} color={theme.colors.groupped.chevron} style={{ marginLeft: 4 }} />
+    </View>;
+}
+
+function DeviceIcon({ platform }: { platform?: string }) {
+    const { theme } = useUnistyles();
+    return <View style={styles.deviceIcon}>
+        {platform === 'darwin'
+            ? <Ionicons name="laptop-outline" size={16} color={theme.colors.textLink} />
+            : <Octicons name="server" size={15} color={theme.colors.textLink} />}
+    </View>;
 }
 
 function pairingError(failure: PairingFailure): string {
@@ -47,6 +82,7 @@ function pairingError(failure: PairingFailure): string {
 
 export function ConnectionsSettingsView() {
     const { theme } = useUnistyles();
+    const touch = useHerdPhoneLayout();
     const router = useRouter();
     const machines = useAllMachines({ includeOffline: true });
     const profile = useProfile();
@@ -56,7 +92,6 @@ export function ConnectionsSettingsView() {
     const serverChanged = activeServerUrl !== null && serverUrl.replace(/\/$/, '') !== activeServerUrl.replace(/\/$/, '');
     const scope = `${serverUrl}\n${activeServerUrl}\n${profile.id}`;
     const selectedMachineId = useNewSessionDraft((state) => state.selectedMachineId);
-    const [adding, setAdding] = React.useState(false);
     const [code, setCode] = React.useState('');
     const [target, setTarget] = React.useState<PairingTarget | null>(null);
     const [requestId, setRequestId] = React.useState<string | null>(null);
@@ -65,6 +100,10 @@ export function ConnectionsSettingsView() {
     const [busy, setBusy] = React.useState(false);
     const [checks, setChecks] = React.useState<Record<string, boolean>>({});
     const [refresh, setRefresh] = React.useState(0);
+    const [showOfflineMachines, setShowOfflineMachines] = React.useState(false);
+    const offlineMachineCount = machines.filter((machine) => !isMachineOnline(machine)).length;
+    const listedMachines = showOfflineMachines ? machines : machines.filter(isMachineOnline);
+    const { connectTerminal, connectWithUrl, isLoading: connectingTerminal } = useConnectTerminal();
     const generation = React.useRef(0);
     // Only identity and capability affect this request; heartbeat updates must not restart it.
     const supportedIds = machines.filter((machine) => machine.metadata?.devicePairingProtocolVersion === 1 && machine.active).map((machine) => machine.id).sort().join('\n');
@@ -80,7 +119,7 @@ export function ConnectionsSettingsView() {
     }, [supportedIds, refresh, scope, socketStatus, serverChanged]);
     React.useEffect(() => {
         generation.current += 1;
-        setCode(''); setTarget(null); setRequestId(null); setError(null); setBusy(false); setAdding(false); setConnected(null);
+        setCode(''); setTarget(null); setRequestId(null); setError(null); setBusy(false); setConnected(null);
     }, [scope]);
     React.useEffect(() => {
         if (socketStatus !== 'connected') {
@@ -93,7 +132,7 @@ export function ConnectionsSettingsView() {
 
     const clearForm = () => {
         generation.current += 1;
-        setCode(''); setTarget(null); setRequestId(null); setError(null); setBusy(false); setAdding(false);
+        setCode(''); setTarget(null); setRequestId(null); setError(null); setBusy(false);
     };
     const check = async () => {
         const current = ++generation.current;
@@ -126,68 +165,339 @@ export function ConnectionsSettingsView() {
             clearForm();
         } else setError(result.status);
     };
-    const copyStyle = { color: theme.colors.text, fontSize: 16, lineHeight: 24 };
+    const canCancel = code !== '' || target !== null || error !== null || busy;
     return <ItemList>
-        <ItemGroup title={t('devicePairing.title')} footer={t('devicePairing.scope')}>
-            <View style={{ padding: 16, gap: 12 }}>
-                <Text style={copyStyle}>{t('devicePairing.description')}</Text>
-                <Text selectable style={copyStyle}>{t('devicePairing.server', { server: serverUrl })}</Text>
-                {serverChanged && <Text accessibilityRole="alert" style={{ ...copyStyle, color: theme.colors.textDestructive }}>{t('devicePairing.serverChanged')}</Text>}
-                {serverChanged && activeServerUrl && <Text selectable style={copyStyle}>{t('devicePairing.activeServer', { server: activeServerUrl })}</Text>}
-                <Text selectable style={copyStyle}>{t('devicePairing.account', { account: profile.id })}</Text>
-                {!adding && <Action label={t('devicePairing.addDevice')} disabled={serverChanged} onPress={() => { setConnected(null); setAdding(true); }} />}
+        <View style={styles.introWrap}>
+            <View style={styles.intro}>
+                <Text style={styles.description}>{t('devicePairing.description')}</Text>
+                <View style={styles.details}>
+                    <Text selectable style={styles.detail}>{t('devicePairing.server', { server: serverUrl })}</Text>
+                    {serverChanged && <Text accessibilityRole="alert" style={styles.alert}>{t('devicePairing.serverChanged')}</Text>}
+                    {serverChanged && activeServerUrl && <Text selectable style={styles.detail}>{t('devicePairing.activeServer', { server: activeServerUrl })}</Text>}
+                    <Text selectable style={styles.detail}>{t('devicePairing.account', { account: profile.id })}</Text>
+                </View>
+                <Text style={styles.scope}>{t('devicePairing.scope')}</Text>
             </View>
-        </ItemGroup>
-        {adding && <ItemGroup title={t('devicePairing.addDevice')}>
-            <View style={{ padding: 16, gap: 12 }}>
-                <Text style={copyStyle}>{t('devicePairing.instructions')}</Text>
-                <Text selectable style={{ ...copyStyle, fontFamily: 'monospace' }}>{pairingCommand}</Text>
-                {!target ? <>
-                    <Text nativeID="device-pairing-code-label" style={copyStyle}>{t('devicePairing.codeLabel')}</Text>
-                    <TextInput accessibilityLabel={t('devicePairing.codeLabel')} aria-labelledby="device-pairing-code-label"
+        </View>
+        <ItemGroup title={<GroupHeader title={t('devicePairing.addDevice')} description={t('devicePairing.instructions')} />}>
+            <View style={styles.addBody} testID="device-pairing-add">
+                <View style={styles.command}>
+                    <Text style={styles.commandPrompt}>$</Text>
+                    <Text selectable style={styles.commandText}>{pairingCommand}</Text>
+                </View>
+                {!target ? <View style={styles.codeRow}>
+                    <TextInput accessibilityLabel={t('devicePairing.codeLabel')} aria-label={t('devicePairing.codeLabel')}
                         value={code} onChangeText={(value) => {
                             generation.current += 1;
                             const digits = /^\d{4}[- ]\d{0,4}$/.test(value) ? value.replace(/[- ]/, '') : value;
                             setCode(/^\d{5,8}$/.test(digits) ? `${digits.slice(0, 4)}-${digits.slice(4)}` : digits);
                             setError(null);
-                        }} editable={!busy}
+                        }} editable={!busy && !serverChanged}
                         autoCapitalize="none" autoCorrect={false} keyboardType="number-pad" autoComplete="one-time-code"
-                        placeholder={t('devicePairing.codePlaceholder')} onSubmitEditing={() => { if (!busy) void check(); }}
-                        style={{ fontSize: 18, minHeight: 48, color: theme.colors.text, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 10, padding: 12 }} />
-                    <Action label={busy ? t('devicePairing.checking') : t('devicePairing.checkCode')} disabled={busy || serverChanged} onPress={() => void check()} />
-                </> : <>
-                    <Text style={copyStyle}>{t('devicePairing.confirmIdentity')}</Text>
-                    <Text selectable style={copyStyle}>{t('devicePairing.host', { host: target.host })}</Text>
-                    <Text selectable style={copyStyle}>{t('devicePairing.machineId', { machineId: target.machineId })}</Text>
-                    <Action label={busy ? t('devicePairing.connecting') : error === 'network' ? t('devicePairing.retryConnect') : t('devicePairing.connect')}
-                        disabled={busy || serverChanged} onPress={() => void connect()} />
-                    <Action label={t('devicePairing.enterAnotherCode')} disabled={busy} onPress={() => { setTarget(null); setRequestId(null); setCode(''); setError(null); }} />
-                </>}
-                {error && <Text accessibilityRole="alert" style={{ ...copyStyle, color: theme.colors.textDestructive }}>{pairingError(error)}</Text>}
-                <Action label={t('common.cancel')} onPress={clearForm} />
+                        placeholder={t('devicePairing.codePlaceholder')} placeholderTextColor={theme.colors.kilv.inkFaint}
+                        onSubmitEditing={() => { if (!busy && !serverChanged) void check(); }}
+                        style={[styles.codeInput, touch && styles.codeInputTouch]} />
+                    <Action primary label={busy ? t('devicePairing.checking') : t('devicePairing.checkCode')} disabled={busy || serverChanged} onPress={() => void check()} />
+                </View> : <View style={styles.confirm}>
+                    <Text style={styles.confirmText}>{t('devicePairing.confirmIdentity')}</Text>
+                    <View style={styles.identity}>
+                        <Text selectable style={styles.identityText}>{t('devicePairing.host', { host: target.host })}</Text>
+                        <Text style={styles.identityText}> · </Text>
+                        <Text selectable style={styles.identityText}>{t('devicePairing.machineId', { machineId: target.machineId })}</Text>
+                    </View>
+                    <View style={styles.actions}>
+                        <Action primary label={busy ? t('devicePairing.connecting') : error === 'network' ? t('devicePairing.retryConnect') : t('devicePairing.connect')}
+                            disabled={busy || serverChanged} onPress={() => void connect()} />
+                        <Action label={t('devicePairing.enterAnotherCode')} disabled={busy} onPress={() => { setTarget(null); setRequestId(null); setCode(''); setError(null); }} />
+                    </View>
+                </View>}
+                {error && <Text accessibilityRole="alert" style={styles.alert}>{pairingError(error)}</Text>}
+                {canCancel && <View style={styles.actions}><Action label={t('common.cancel')} onPress={clearForm} /></View>}
+            </View>
+        </ItemGroup>
+        {/* The apps sign a terminal in from its QR code or its pasted URL. */}
+        {Platform.OS !== 'web' && <ItemGroup>
+            <Item
+                title={t('settings.scanQrCodeToAuthenticate')}
+                icon={<Ionicons name="qr-code-outline" size={29} color={theme.colors.textLink} />}
+                onPress={connectTerminal}
+                loading={connectingTerminal}
+                showChevron={false}
+            />
+            <Item
+                title={t('connect.enterUrlManually')}
+                icon={<Ionicons name="link-outline" size={29} color={theme.colors.textLink} />}
+                onPress={async () => {
+                    const url = await Modal.prompt(
+                        t('modals.authenticateTerminal'),
+                        t('modals.pasteUrlFromTerminal'),
+                        {
+                            placeholder: t('uiCopy.happyherdTerminal'),
+                            confirmText: t('common.authenticate'),
+                        }
+                    );
+                    if (url?.trim()) {
+                        connectWithUrl(url.trim());
+                    }
+                }}
+                showChevron={false}
+            />
+        </ItemGroup>}
+        {connected && socketStatus === 'connected' && checks[connected.machineId] === true && machines.some((machine) => machine.id === connected.machineId && machine.active) && <ItemGroup title={<GroupHeader title={t('devicePairing.connected')} />}>
+            <View style={styles.addBody}>
+                <Text style={styles.connectedText}>{t('devicePairing.connectedDetail', { host: connected.host })}</Text>
+                <View style={styles.actions}>
+                    <Action primary label={t('devicePairing.newSession')} onPress={() => {
+                        if (useNewSessionDraft.getState().selectedMachineId !== connected.machineId) useNewSessionDraft.getState().setMachineId(connected.machineId);
+                        router.push('/new');
+                    }} />
+                    <Action label={t('devicePairing.openDevice')} onPress={() => router.push(`/machine/${connected.machineId}`)} />
+                    <Action label={t('workspace.title')} onPress={() => router.push({ pathname: '/workspace', params: { machineId: connected.machineId, path: machines.find((machine) => machine.id === connected.machineId)?.metadata?.homeDir || '~' } })} />
+                </View>
             </View>
         </ItemGroup>}
-        {connected && socketStatus === 'connected' && checks[connected.machineId] === true && machines.some((machine) => machine.id === connected.machineId && machine.active) && <ItemGroup title={t('devicePairing.connected')}>
-            <View style={{ padding: 16, gap: 12 }}>
-                <Text style={copyStyle}>{t('devicePairing.connectedDetail', { host: connected.host })}</Text>
-                <Action label={t('devicePairing.openDevice')} onPress={() => router.push(`/machine/${connected.machineId}`)} />
-                <Action label={t('devicePairing.newSession')} onPress={() => {
-                    if (useNewSessionDraft.getState().selectedMachineId !== connected.machineId) useNewSessionDraft.getState().setMachineId(connected.machineId);
-                    router.push('/new');
-                }} />
-                <Action label={t('workspace.title')} onPress={() => router.push({ pathname: '/workspace', params: { machineId: connected.machineId, path: machines.find((machine) => machine.id === connected.machineId)?.metadata?.homeDir || '~' } })} />
-            </View>
-        </ItemGroup>}
-        <ItemGroup title={t('devicePairing.devices')} footer={t('devicePairing.devicesFooter')}>
+        <ItemGroup title={<GroupHeader title={t('devicePairing.devices')} description={t('devicePairing.devicesFooter')} />}>
             {machines.length === 0 && <Item title={t('devicePairing.noDevices')} showChevron={false} />}
-            {machines.map((machine) => {
+            {listedMachines.map((machine) => {
                 const supported = machine.metadata?.devicePairingProtocolVersion === 1;
-                const status = !supported ? t('devicePairing.needsUpdate') : socketStatus !== 'connected' || serverChanged || !machine.active || checks[machine.id] === false ? t('status.offline') : checks[machine.id] === true ? t('status.online') : t('devicePairing.checking');
-                return <Item key={machine.id} title={getMachineName(machine)}
-                    subtitle={`${status}${selectedMachineId === machine.id ? ` · ${t('devicePairing.selected')}` : ''}`}
+                const status = !supported ? t('devicePairing.needsUpdate')
+                    : !machine.active ? (machine.activeAt ? t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }) : t('status.offline'))
+                        : socketStatus !== 'connected' || serverChanged || checks[machine.id] === false ? t('status.offline')
+                            : checks[machine.id] === true ? t('status.online') : t('devicePairing.checking');
+                const selected = selectedMachineId === machine.id;
+                return <Item key={machine.id} title={getMachineName(machine)} titleStyle={styles.deviceName}
+                    subtitle={status} icon={<DeviceIcon platform={machine.metadata?.platform} />}
+                    rightElement={selected ? <SelectedTag /> : undefined}
                     onPress={() => router.push(`/machine/${machine.id}`)} />;
             })}
+            {offlineMachineCount > 0 && <Item
+                title={showOfflineMachines
+                    ? t('settings.hideOfflineMachines')
+                    : t('settings.showOfflineMachines', { count: offlineMachineCount })}
+                onPress={() => setShowOfflineMachines((value) => !value)}
+                showChevron={false}
+                titleStyle={styles.offlineToggle}
+            />}
             <Item title={t('devicePairing.refresh')} onPress={() => setRefresh((value) => value + 1)} showChevron={false} />
         </ItemGroup>
     </ItemList>;
 }
+
+const styles = StyleSheet.create((theme) => ({
+    // The intro sits on the cards' left edge, under the page title.
+    introWrap: {
+        alignItems: 'center',
+    },
+    intro: {
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        gap: 10,
+    },
+    description: {
+        ...Typography.default(),
+        maxWidth: 720,
+        fontSize: 14.5,
+        lineHeight: 22,
+        color: theme.colors.kilv.inkDim,
+    },
+    details: {
+        gap: 2,
+    },
+    detail: {
+        ...Typography.mono(),
+        fontSize: 12.5,
+        lineHeight: 18,
+        color: theme.colors.kilv.inkFaint,
+    },
+    scope: {
+        ...Typography.default(),
+        fontSize: 13,
+        lineHeight: 19,
+        color: theme.colors.kilv.inkFaint,
+    },
+    alert: {
+        ...Typography.default(),
+        fontSize: 13,
+        lineHeight: 19,
+        color: theme.colors.textDestructive,
+    },
+    groupTitle: {
+        ...Typography.mono('semiBold'),
+        fontSize: 14,
+        lineHeight: 20,
+        letterSpacing: 0.1,
+        textTransform: 'uppercase',
+        color: theme.colors.groupped.sectionTitle,
+        ...Platform.select({ web: { fontWeight: '500' as const }, default: {} }),
+    },
+    groupDescription: {
+        ...Typography.default(),
+        marginTop: 4,
+        fontSize: 13,
+        lineHeight: 19,
+        color: theme.colors.kilv.inkFaint,
+        textTransform: 'none',
+    },
+    addBody: {
+        padding: 14,
+        gap: 12,
+    },
+    // The mock's `tool-cmd`: the command in a sunken mono block with a molten prompt.
+    command: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.kilv.bgSunken,
+    },
+    commandPrompt: {
+        ...Typography.mono(),
+        marginRight: 8,
+        fontSize: 13.5,
+        color: theme.colors.kilv.accent,
+    },
+    commandText: {
+        ...Typography.mono(),
+        flexShrink: 1,
+        fontSize: 13.5,
+        color: theme.colors.text,
+    },
+    codeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    codeInput: {
+        ...Typography.mono(),
+        flex: 1,
+        minWidth: 0,
+        height: 40,
+        paddingHorizontal: 13,
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.kilv.bgSunken,
+        color: theme.colors.text,
+        fontSize: 14,
+    },
+    // Phones: a 44 px target and 16 px text, which iOS Safari will not zoom.
+    codeInputTouch: {
+        height: 44,
+        fontSize: 16,
+    },
+    confirm: {
+        gap: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: theme.kilv.radiusCard,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        _web: { _classNames: herdWebClasses('herd-rise') },
+    },
+    confirmText: {
+        ...Typography.default(),
+        fontSize: 15,
+        lineHeight: 22,
+        color: theme.colors.text,
+    },
+    identity: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+    },
+    identityText: {
+        ...Typography.mono(),
+        fontSize: 12.5,
+        lineHeight: 18,
+        color: theme.colors.kilv.inkFaint,
+    },
+    actions: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    button: {
+        height: 40,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        _web: { _classNames: herdWebClasses('herd-transition', 'herd-press'), cursor: 'pointer' },
+    },
+    buttonTouch: {
+        height: 44,
+    },
+    buttonHover: {
+        borderColor: theme.colors.kilv.rimLine,
+    },
+    buttonPrimary: {
+        borderColor: theme.colors.kilv.accent,
+        backgroundColor: theme.colors.kilv.accent,
+    },
+    buttonPrimaryHover: {
+        borderColor: theme.colors.kilv.accentHot,
+        backgroundColor: theme.colors.kilv.accentHot,
+    },
+    buttonDisabled: {
+        opacity: 0.45,
+    },
+    buttonText: {
+        ...Typography.default('semiBold'),
+        fontSize: 14,
+        color: theme.colors.kilv.inkDim,
+    },
+    buttonTextPrimary: {
+        color: theme.colors.kilv.accentInk,
+    },
+    connectedText: {
+        ...Typography.default(),
+        fontSize: 15,
+        lineHeight: 22,
+        color: theme.colors.text,
+    },
+    // The mock's device icon: a stone tile with a molten glyph.
+    deviceIcon: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surfaceHighest,
+    },
+    deviceName: {
+        ...Typography.mono(),
+    },
+    offlineToggle: {
+        textAlign: 'center',
+        color: theme.colors.textLink,
+    },
+    selectedAccessory: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    tag: {
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.accent,
+        maxWidth: 220,
+    },
+    tagText: {
+        ...Typography.mono(),
+        fontSize: 11,
+        lineHeight: 16,
+        color: theme.colors.kilv.accent,
+    },
+}));

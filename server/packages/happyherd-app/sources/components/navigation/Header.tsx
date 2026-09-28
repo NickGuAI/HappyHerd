@@ -7,7 +7,8 @@ import { layout } from '../layout';
 import { isRunningOnMac } from '@/utils/platform';
 import { useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { Typography } from '@/constants/Typography';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { t } from '@/text';
 import { MobileGlassSurface } from '../MobileGlass';
 import {
     MobileHeaderScrim,
@@ -20,6 +21,8 @@ import {
     MOBILE_GLASS_CONTROL_SIZE,
     MOBILE_GLASS_HEADER_HEIGHT,
 } from './headerMetrics';
+import { HerdWindowInsetsContext } from '../herd/shell/windowInsets';
+import { useHerdPhoneLayout } from '../herd/mobile/useHerdPhone';
 
 interface HeaderProps {
     title?: React.ReactNode;
@@ -75,9 +78,16 @@ export const Header = React.memo((props: HeaderProps) => {
     const paddingTop = safeAreaEnabled ? insets.top : 0;
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
     const isNativePhone = !isDesktop && !isTablet;
-    const glassControlsEnabled = isNativePhone && Platform.OS === 'ios';
+    // UI overhaul: Web at phone size gets the full-width back bar (56 px, hairline).
+    const isWebPhone = Platform.OS === 'web' && phoneLayout;
+    // Signed in, a phone header sits under the HappyHerd top bar: it reads as the
+    // page's title row, with Back on the 16 px gutter and no glass or hairline.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    const phoneShellHeader = phoneLayout && underTopBar;
+    const glassControlsEnabled = isNativePhone && Platform.OS === 'ios' && !phoneShellHeader;
     const isAndroidHeader = isNativePhone && Platform.OS === 'android';
     const headerLeftUsesGlass = headerLeftGlass && glassControlsEnabled;
     const headerRightUsesGlass = headerRightGlass && glassControlsEnabled;
@@ -136,15 +146,18 @@ export const Header = React.memo((props: HeaderProps) => {
         {
             paddingTop,
         },
-        headerShadowVisible && styles.shadow,
+        headerShadowVisible && !isWebPhone && styles.shadow,
         headerStyle,
         isAndroidHeader && (headerBackdropVisible ? styles.containerAndroidScrolled : styles.containerNormal),
         glassControlsEnabled && styles.containerTransparent,
+        isWebPhone && styles.webPhoneContainer,
+        phoneShellHeader && styles.phoneShellContainer,
     ];
 
     const subtitleStyle = [
         styles.subtitle,
         isDesktop && styles.desktopSubtitle,
+        isWebPhone && styles.webPhoneSubtitle,
         headerSubtitleStyle,
     ];
     const titleContent = (
@@ -177,8 +190,10 @@ export const Header = React.memo((props: HeaderProps) => {
                 <View style={[
                     styles.content,
                     isDesktop && styles.desktopContent,
+                    isWebPhone && styles.webPhoneContent,
+                    phoneShellHeader && styles.phoneShellContent,
                     centerTitle && styles.centeredContent,
-                    { height: contentHeight },
+                    { height: isWebPhone ? WEB_PHONE_HEADER_HEIGHT : contentHeight },
                 ]}>
                     <View style={styles.leftContainer}>
                         {headerLeft && headerLeftUsesGlass && (
@@ -204,6 +219,8 @@ export const Header = React.memo((props: HeaderProps) => {
                     <View style={[
                         styles.centerContainer,
                         isDesktop && styles.desktopCenterContainer,
+                        isWebPhone && styles.webPhoneCenterContainer,
+                        phoneShellHeader && styles.phoneShellCenterContainer,
                         centerTitle && styles.centeredTitleContainer,
                     ]}>
                         {glassControlsEnabled && mobileTitleSurface === 'glass' ? (
@@ -257,6 +274,46 @@ interface ExtendedNavigationOptions extends Partial<NativeStackHeaderProps['opti
 // Default back button component
 const DefaultBackButton: React.FC<{ tintColor?: string; onPress: () => void }> = ({ tintColor = '#000', onPress }) => {
     const styles = stylesheet;
+    const { theme } = useUnistyles();
+    const phoneLayout = useHerdPhoneLayout();
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    if (phoneLayout && underTopBar) {
+        // Phones under the top bar (UI overhaul), web and native: the mock's
+        // arrow in a 44 px square, its icon on the 16 px gutter.
+        return (
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+                onPress={onPress}
+                hitSlop={4}
+                testID="header-back"
+                style={({ pressed, hovered }: any) => [
+                    styles.webPhoneBackButton,
+                    styles.phoneShellBackButton,
+                    (pressed || hovered) && styles.webPhoneBackButtonActive,
+                ]}
+            >
+                <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+            </Pressable>
+        );
+    }
+    if (Platform.OS === 'web' && phoneLayout) {
+        return (
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+                onPress={onPress}
+                hitSlop={4}
+                testID="header-back"
+                style={({ pressed, hovered }: any) => [
+                    styles.webPhoneBackButton,
+                    (pressed || hovered) && styles.webPhoneBackButtonActive,
+                ]}
+            >
+                <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            </Pressable>
+        );
+    }
     if (Platform.OS === 'web' || isRunningOnMac()) {
         return (
             <Pressable onPress={onPress} hitSlop={15}>
@@ -307,12 +364,21 @@ type NavigationHeaderComponentProps = NativeStackHeaderProps & {
 const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = React.memo((props) => {
     const { options, route, back, navigation } = props;
     const extendedOptions = options as ExtendedNavigationOptions;
-    const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
+    const isWebPhone = Platform.OS === 'web' && phoneLayout;
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
+    // Phones under the top bar (UI overhaul): the title row carries the page's
+    // title, left-aligned at 24 px, or 22 px beside Back.
+    const phoneShell = phoneLayout && underTopBar;
 
-    // Hide back button on tablet — navigation is handled via sidebar and persistent header
-    const shouldHideBackButton = isTablet;
-    const titleAlign = options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');
+    // The web hides Back from 700 px wide: the browser keeps history. Native tablets,
+    // the iOS app on a Mac included, show it (owner decision, 2026-09-27). Phones
+    // hide it on the drawer's own destinations through `headerBackVisible` ((app)/_layout).
+    const shouldHideBackButton = Platform.OS === 'web' && !phoneLayout;
+    const showsBack = !!options.headerLeft || (!!back && options.headerBackVisible !== false && !shouldHideBackButton);
+    const titleFontSize = phoneShell ? (showsBack ? 22 : 24) : isDesktop && !isWebPhone ? 17 : 16;
+    const titleAlign = phoneShell ? 'left' : options.headerTitleAlign ?? (Platform.OS === 'ios' ? 'center' : 'left');
 
     // Extract title - handle both string and function types
     let title: React.ReactNode | null = null;
@@ -324,7 +390,7 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
                     ellipsizeMode="tail"
                     style={[
                         {
-                            fontSize: isDesktop ? 17 : 16,
+                            fontSize: titleFontSize,
                             fontWeight: '600',
                             textAlign: titleAlign,
                             color: options.headerTintColor || '#000',
@@ -348,7 +414,7 @@ const NavigationHeaderComponent: React.FC<NavigationHeaderComponentProps> = Reac
                 numberOfLines={1}
                 ellipsizeMode="tail"
                 style={[
-                    { fontSize: 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
+                    { fontSize: phoneShell ? titleFontSize : isWebPhone ? 16 : 17, fontWeight: '600', textAlign: titleAlign, color: options.headerTintColor || '#000', maxWidth: '100%', flexShrink: 1 },
                     Typography.default('semiBold'),
                     options.headerTitleStyle
                 ]}
@@ -414,10 +480,66 @@ export const createPlainHeader = (props: NativeStackHeaderProps) => {
     return <NavigationHeaderComponent {...props} mobileTitleSurfaceOverride="plain" />;
 };
 
+/** Web at phone size: the mock's back bar height. */
+const WEB_PHONE_HEADER_HEIGHT = 56;
+
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
         position: 'relative',
         zIndex: 100,
+    },
+    // UI overhaul, Web at phone size: an opaque raised bar with a hairline, no shadow.
+    webPhoneContainer: {
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.divider,
+    },
+    webPhoneContent: {
+        gap: 6,
+        paddingLeft: 10,
+        paddingRight: 8,
+    },
+    webPhoneCenterContainer: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
+    webPhoneSubtitle: {
+        marginTop: 1,
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.colors.kilv.inkFaint,
+    },
+    webPhoneBackButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: theme.kilv.radius,
+        _web: { cursor: 'pointer' },
+    },
+    webPhoneBackButtonActive: {
+        backgroundColor: theme.colors.surfacePressedOverlay,
+    },
+    // Signed-in phones: the title row under the top bar. Back is a 44 px square
+    // whose chevron lands on the 16 px gutter; a title without Back starts there too.
+    // Opaque, in the page's own colour: without glass, content must not show through when it scrolls under.
+    phoneShellContainer: {
+        borderBottomWidth: 0,
+        backgroundColor: Platform.OS === 'web' ? theme.colors.surface : theme.colors.groupped.background,
+    },
+    phoneShellBackButton: {
+        width: 44,
+        height: 44,
+    },
+    // The row ends 4 px from the edge, so a 44 px control's icon lands on the gutter.
+    phoneShellContent: {
+        paddingLeft: 5,
+        paddingRight: 4,
+    },
+    phoneShellCenterContainer: {
+        paddingHorizontal: 5,
     },
     containerTransparent: {
         backgroundColor: 'transparent',

@@ -22,6 +22,7 @@ vi.mock('react-native', async () => {
             select: (values: Record<string, unknown>) => values.web ?? values.default,
         },
         Pressable: host('Pressable'),
+        ScrollView: host('ScrollView'),
         Text: host('Text'),
         TouchableWithoutFeedback: host('TouchableWithoutFeedback'),
         View: host('View'),
@@ -355,6 +356,111 @@ describe.each([
         expect(controls.onSend).toHaveBeenCalledOnce();
         expect(controls.onMicPress).not.toHaveBeenCalled();
         act(() => controls.renderer.unmount());
+    });
+});
+
+describe('AgentInput Web composer chips', () => {
+    function chip(renderer: ReactTestRenderer, testID: string) {
+        return renderer.root.findAll((node: any) => node.props.testID === testID && typeof node.type !== 'string')[0];
+    }
+    function layoutComposer(renderer: ReactTestRenderer, width: number) {
+        const composer = renderer.root.findByProps({ testID: 'agent-input-composer' });
+        act(() => composer.props.onLayout({ nativeEvent: { layout: { width, height: 120, x: 0, y: 0 } } }));
+    }
+
+    it('labels the model and permission chips with display names, not the daemon values', () => {
+        const { renderer } = renderMobileActionInput({
+            modelMode: { key: 'claude-opus-5-5', name: 'claude-opus-5-5' },
+            permissionMode: { key: 'acceptEdits', name: 'acceptEdits' },
+        }, 1200);
+        const label = (testID: string) => chip(renderer, testID).findAllByType('Text' as any)
+            .map((node: any) => node.props.children).join('');
+        expect(label('composer-chip-model')).toBe('Opus 5.5');
+        expect(label('composer-chip-permission')).toBe('agentInput.permissionMode.acceptEdits');
+        act(() => renderer.unmount());
+    });
+
+    it('shows agent, model, effort and permission chips on Web Desktop and opens each picker', () => {
+        const onContinue = vi.fn();
+        const { callbacks, renderer } = renderMobileActionInput({
+            agentChip: { label: 'Claude Code', providerKind: 'claude', onPress: onContinue },
+        }, 1200);
+        for (const testID of ['composer-chip-agent', 'composer-chip-model', 'composer-chip-effort', 'composer-chip-permission']) {
+            expect(chip(renderer, testID), testID).toBeDefined();
+        }
+        expect(chip(renderer, 'composer-chip-agent').props.accessibilityLabel).toBe('Claude Code, session.providerContinuationAction');
+        act(() => chip(renderer, 'composer-chip-agent').props.onPress());
+        expect(onContinue).toHaveBeenCalledOnce();
+
+        act(() => chip(renderer, 'composer-chip-model').props.onPress());
+        expect(renderer.root.findAllByProps({ testID: 'composer-chip-popover-model' }).length).toBeGreaterThan(0);
+        const modelOption = pressable(renderer, 'Model One');
+        expect(modelOption?.props.accessibilityState).toEqual({ disabled: false, selected: true });
+        act(() => modelOption?.props.onPress());
+        expect(callbacks.onModelModeChange).toHaveBeenCalledWith(expect.objectContaining({ key: 'model-1' }));
+        expect(renderer.root.findAllByProps({ testID: 'composer-chip-popover-model' })).toHaveLength(0);
+
+        act(() => chip(renderer, 'composer-chip-effort').props.onPress());
+        act(() => pressable(renderer, 'High effort')?.props.onPress());
+        expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith(expect.objectContaining({ key: 'high' }));
+
+        // The permission picker offers exactly the settings popover's modes.
+        act(() => chip(renderer, 'composer-chip-permission').props.onPress());
+        expect(renderer.root.findAllByProps({ testID: 'composer-chip-popover-permission-chip' }).length).toBeGreaterThan(0);
+        expect(pressable(renderer, 'Default permission')).toBeDefined();
+        act(() => pressable(renderer, 'Read only')?.props.onPress());
+        expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith(expect.objectContaining({ key: 'read-only' }));
+        act(() => renderer.unmount());
+    });
+
+    it('steps model and effort aside below 640px and the permission chip below 520px', () => {
+        const { renderer } = renderMobileActionInput({ agentChip: { label: 'Codex', providerKind: 'codex' } }, 1200);
+        layoutComposer(renderer, 600);
+        expect(chip(renderer, 'composer-chip-model')).toBeUndefined();
+        expect(chip(renderer, 'composer-chip-effort')).toBeUndefined();
+        expect(chip(renderer, 'composer-chip-permission')).toBeDefined();
+        layoutComposer(renderer, 500);
+        expect(chip(renderer, 'composer-chip-permission')).toBeUndefined();
+        // Without a continuation the agent chip is a label, not a button.
+        expect(chip(renderer, 'composer-chip-agent').props.onPress).toBeUndefined();
+        act(() => renderer.unmount());
+    });
+
+    it('keeps every chip on Web Mobile, in one sideways-scrolling row above the actions', () => {
+        const { renderer } = renderMobileActionInput({ agentChip: { label: 'Codex', providerKind: 'codex' } }, 390);
+        layoutComposer(renderer, 358);
+        const row = renderer.root.findAll((node: any) => node.props.testID === 'composer-phone-chips')[0];
+        expect(row).toBeDefined();
+        for (const id of ['composer-chip-agent', 'composer-chip-model', 'composer-chip-effort', 'composer-chip-permission']) {
+            expect(row.findAll((node: any) => node.props.testID === id && typeof node.type !== 'string').length).toBeGreaterThan(0);
+        }
+        act(() => renderer.unmount());
+    });
+
+    it('shows the context meter as remaining context in the action row', () => {
+        const { renderer } = renderMobileActionInput({
+            alwaysShowContextSize: true,
+            usageData: { inputTokens: 1, outputTokens: 1, cacheCreation: 0, cacheRead: 0, contextSize: 36000, contextWindow: 200000 },
+        }, 1200);
+        const meter = renderer.root.findAll((node: any) => node.props.testID === 'composer-context-meter')[0];
+        expect(meter).toBeDefined();
+        const [meterElement] = renderer.root.findAll((node: any) => typeof node.props.remainingPercent === 'number');
+        expect(meterElement.props).toMatchObject({ remainingPercent: 82, label: 'agentInput.context.remaining', tone: 'normal' });
+        act(() => renderer.unmount());
+    });
+
+    it('follows the Always show context size setting until 10% or less is left', () => {
+        const usage = (contextSize: number) => ({ inputTokens: 1, outputTokens: 1, cacheCreation: 0, cacheRead: 0, contextSize, contextWindow: 200000 });
+        for (const [alwaysShowContextSize, contextSize, shown] of [
+            [false, 36000, false],
+            [true, 36000, true],
+            [false, 185000, true],
+        ] as const) {
+            const { renderer } = renderMobileActionInput({ alwaysShowContextSize, usageData: usage(contextSize) }, 1200);
+            const meters = renderer.root.findAll((node: any) => node.props.testID === 'composer-context-meter');
+            expect(meters.length > 0).toBe(shown);
+            act(() => renderer.unmount());
+        }
     });
 });
 

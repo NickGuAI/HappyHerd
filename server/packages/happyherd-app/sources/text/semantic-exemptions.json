@@ -45,6 +45,8 @@
     { "key": "uiCopy.happyherd", "locales": ["cn", "de"], "reason": "Literal shell command; commands must remain byte-faithful." },
     { "key": "uiCopy.agent_1wzwjl", "locales": ["de"], "reason": "Uppercase AGENT is a compact technical badge and valid in German." },
     { "key": "uiCopy.pathToProject", "locales": ["cn", "de"], "reason": "Literal filesystem path example; paths must remain byte-faithful." },
-    { "key": "uiCopy.claudeCode_rfuptw", "locales": ["cn", "de"], "reason": "Claude Code is a proper provider name and must remain byte-faithful." }
+    { "key": "uiCopy.claudeCode_rfuptw", "locales": ["cn", "de"], "reason": "Claude Code is a proper provider name and must remain byte-faithful." },
+    { "key": "newSession.streamline.modeStreamline", "locales": ["cn", "de"], "reason": "Streamline is the name of this New Session mode and stays untranslated, like the other HappyHerd feature names." },
+    { "key": "newSession.streamline.githubBadge", "locales": ["cn", "de"], "reason": "GitHub is the hosting service's product name; the badge names it unchanged in every language." }
   ]
 }

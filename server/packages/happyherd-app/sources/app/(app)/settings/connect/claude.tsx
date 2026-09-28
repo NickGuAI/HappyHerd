@@ -14,8 +14,9 @@ import { Text } from '@/components/StyledText';
 import { StyleSheet } from 'react-native-unistyles';
 import { Platform } from 'react-native';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
 
-export default function ClaudeOAuth() {
+function ClaudeOAuth() {
     // const router = useRouter();
     // const auth = useAuth();
 
@@ -183,3 +184,5 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.text,
     },
 }));
+
+export default withSettingsFrame('account', ClaudeOAuth, { title: () => t('settings.connectClaudeTitle') });

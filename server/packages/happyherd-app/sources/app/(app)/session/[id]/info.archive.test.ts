@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
         cleanup: vi.fn(async () => {}),
         controlHeartbeat: vi.fn(),
         modalAlert: vi.fn(),
+        wide: false,
         canBrowseFiles: true,
         canUseShell: true,
         latestSession: null as any,
@@ -72,7 +73,7 @@ vi.mock('expo-router', async () => {
     return {
         Stack: { Screen: (props: any) => ReactModule.createElement('StackScreen', props) },
         useLocalSearchParams: () => ({ id: 'session-1' }),
-        useRouter: () => ({ back: mocks.back, replace: mocks.replace, push: vi.fn() }),
+        useRouter: () => ({ back: mocks.back, replace: mocks.replace, push: vi.fn(), canGoBack: () => true }),
     };
 });
 vi.mock('expo-crypto', () => ({ randomUUID: () => 'changes-request-1' }));
@@ -126,6 +127,31 @@ vi.mock('@/components/ItemGroup', async () => {
     const ReactModule = await import('react');
     return { ItemGroup: (props: any) => ReactModule.createElement('ItemGroup', props, props.children) };
 });
+// The page imports the overhaul's drop-in list wrappers; route them to the mocks above.
+vi.mock('@/components/herd/pages/HerdList', async () => {
+    const { Item } = await import('@/components/Item');
+    const { ItemGroup } = await import('@/components/ItemGroup');
+    const ReactModule = await import('react');
+    return {
+        HerdItem: Item,
+        HerdItemGroup: ItemGroup,
+        HerdListHeader: (props: any) => ReactModule.createElement('HerdListHeader', props, props.children),
+        HerdValueItem: (props: any) => ReactModule.createElement('HerdValueItem', props),
+    };
+});
+vi.mock('@/components/herd/pages/HerdPage', async () => {
+    const ReactModule = await import('react');
+    return {
+        HerdButton: (props: any) => ReactModule.createElement('HerdButton', props),
+        HerdDot: (props: any) => ReactModule.createElement('HerdDot', props),
+        HerdPageHeader: (props: any) => ReactModule.createElement('HerdPageHeader', props, props.leading, props.actions),
+        useHerdWideLayout: () => mocks.wide,
+    };
+});
+vi.mock('@/components/SessionStatusAvatar', async () => {
+    const ReactModule = await import('react');
+    return { SessionStatusAvatar: (props: any) => ReactModule.createElement('SessionStatusAvatar', props) };
+});
 vi.mock('@/components/ItemList', async () => {
     const ReactModule = await import('react');
     return { ItemList: (props: any) => ReactModule.createElement('ItemList', props, props.children) };
@@ -148,6 +174,7 @@ vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }
 vi.mock('@/sync/storage', () => ({
     storage: { getState: () => ({ sessions: { [mocks.session.id]: mocks.latestSession } }) },
     useIsDataReady: () => true,
+    useMachine: () => null,
     useProjects: () => ({}),
     useSession: () => mocks.session,
     useSessionProjectAvatar: () => null,
@@ -205,6 +232,7 @@ vi.mock('@/text', () => ({
     ),
 }));
 
+import * as Clipboard from 'expo-clipboard';
 import SessionInfoScreen from './info';
 
 const originalConsoleError = console.error;
@@ -225,6 +253,7 @@ beforeEach(() => {
     mocks.latestSession = mocks.session;
     mocks.canBrowseFiles = true;
     mocks.canUseShell = true;
+    mocks.wide = false;
     mocks.navigationState = {
         index: 1,
         routes: [
@@ -532,6 +561,77 @@ describe('Session info heartbeat status', () => {
         expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.instructionStatus');
         expect(mocks.controlHeartbeat).toHaveBeenCalledTimes(1);
 
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Session details page head and value rows (UI overhaul)', () => {
+    async function renderPage() {
+        let renderer!: ReturnType<typeof create>;
+        await act(async () => {
+            renderer = create(React.createElement(SessionInfoScreen));
+        });
+        return renderer;
+    }
+    const valueRow = (renderer: ReturnType<typeof create>, title: string) => renderer.root.findAllByType('HerdValueItem' as any)
+        .find((row: any) => row.props.title === title);
+
+    it('draws the title row in the page on wide layouts, with Back, the status avatar and "path · provider · machine"', async () => {
+        mocks.wide = true;
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app', host: 'studio.local', flavor: 'codex' };
+        const renderer = await renderPage();
+        expect(renderer.root.findByType('StackScreen' as any).props.options.headerShown).toBe(false);
+        const head = renderer.root.findByType('HerdPageHeader' as any);
+        expect(head.props).toMatchObject({ title: 'Session', subtitle: '/srv/app · Codex · studio.local', subtitleMono: true, compact: false });
+        const avatar = renderer.root.findByType('SessionStatusAvatar' as any);
+        expect(avatar.props).toMatchObject({ size: 52, active: true, machineId: 'machine-one', flavor: 'codex' });
+        const back = renderer.root.findAllByType('HerdButton' as any).find((button: any) => button.props.testID === 'session-info-back')!;
+        expect(back.props.accessibilityLabel).toBe('common.back');
+        act(() => back.props.onPress());
+        expect(mocks.back).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the stack header and Back on narrow layouts, with the avatar and path line but no second title', async () => {
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app', host: 'studio.local', flavor: 'claude' };
+        const renderer = await renderPage();
+        expect(renderer.root.findByType('StackScreen' as any).props.options.headerShown).toBe(true);
+        const head = renderer.root.findByType('HerdPageHeader' as any);
+        expect(head.props.title).toBeUndefined();
+        expect(head.props.subtitle).toBe('/srv/app · Claude · studio.local');
+        expect(renderer.root.findAllByType('HerdButton' as any).some((button: any) => button.props.testID === 'session-info-back')).toBe(false);
+        act(() => renderer.unmount());
+    });
+
+    it('draws Archive and Delete in the destructive tone', async () => {
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app' };
+        const renderer = await renderPage();
+        const items = renderer.root.findAllByType('Item' as any);
+        for (const title of ['sessionInfo.archiveSession', 'sessionInfo.deleteSession']) {
+            expect(items.find((item: any) => item.props.title === title)!.props.destructive).toBe(true);
+        }
+        expect(items.find((item: any) => item.props.title === 'files.changes')!.props.destructive).toBeUndefined();
+        act(() => renderer.unmount());
+    });
+
+    it('shows the session ids as copyable values on the row and copies the full id', async () => {
+        mocks.session.id = 'session-0123456789abcdef';
+        mocks.session.metadata = { machineId: 'machine-one', path: '/srv/app', claudeSessionId: 'claude-0123456789abcdef' };
+        const renderer = await renderPage();
+        const sessionRow = valueRow(renderer, 'sessionInfo.happySessionId')!;
+        expect(sessionRow.props).toMatchObject({ value: 'session-...89abcdef', mono: true });
+        await act(async () => {
+            await expect(sessionRow.props.onCopy()).resolves.toBe(true);
+        });
+        expect(Clipboard.setStringAsync).toHaveBeenLastCalledWith('session-0123456789abcdef');
+        const claude = valueRow(renderer, 'sessionInfo.claudeCodeSessionId')!;
+        expect(claude.props.value).toBe('claude-0...89abcdef');
+        vi.mocked(Clipboard.setStringAsync).mockRejectedValueOnce(new Error('denied'));
+        await act(async () => {
+            await expect(claude.props.onCopy()).resolves.toBe(false);
+        });
+        expect(mocks.modalAlert).toHaveBeenCalledWith('common.error', 'sessionInfo.failedToCopyClaudeCodeSessionId');
+        expect(valueRow(renderer, 'sessionInfo.connectionStatus')!.props.value).toBe('status.online');
         act(() => renderer.unmount());
     });
 });

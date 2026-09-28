@@ -48,17 +48,21 @@ const virtualModules: Record<string, string> = {
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
     '@/utils/isTauri': `export const isTauri = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
-    '@/-session/sessionOverlayNav': `
-        const state = { canBack: false, back: () => false };
-        export const useOverlayNav = (selector) => selector(state);
-        useOverlayNav.getState = () => state;
+    'react-native-safe-area-context': `
+        import React from 'react';
+        export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });
+        export const SafeAreaInsetsContext = React.createContext(null);
     `,
-    'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
+    // Covered by the herd shell browser test; here they only hold their slots.
+    '@/components/herd/shell/HerdInboxBell': `export const HerdInboxBell = () => null;`,
+    '@/components/herd/shell/HerdMachineMenu': `export const HerdMachineMenu = () => null;`,
     'react-native-gesture-handler': `
         import React from 'react';
         export const Swipeable = React.forwardRef(({ children }, _ref) => children);
     `,
     'react-native-reanimated': `export const useReducedMotion = () => false;`,
+    // The Focus control's phone menu is a HerdPopover, whose phone sheet imports the keyboard controller.
+    'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
     'focus-mode-icons': `export { default as Ionicons } from '@expo/vector-icons/build/Ionicons';`,
     'expo-font': `export const isLoaded = () => true; export const loadAsync = async () => {};`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
@@ -87,7 +91,8 @@ const virtualModules: Record<string, string> = {
             () => pathname,
         );
         export const useLocalSearchParams = () => ({ id: pathname.split('/')[2] ?? '' });
-        export const Stack = { Screen: () => null };
+        // Records the latest Stack.Screen options, so tests can see whether a page hides the header bar.
+        export const Stack = { Screen: ({ options }) => { window.__STACK_SCREEN_OPTIONS__ = { ...(window.__STACK_SCREEN_OPTIONS__ ?? {}), ...options }; return null; } };
         export const routerFixture = router;
     `,
     '@/sync/storage': `
@@ -374,7 +379,7 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = (action) => [false, action];`,
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ exitCode: 0 });`,
     '@/utils/errors': `export class HappyHerdError extends Error {}`,
-    '@/track': `export const trackSessionSwitched = () => {}; export const trackFriendsSearch = () => {};`,
+    '@/track': `export const trackSessionSwitched = () => {}; export const trackFriendsSearch = () => {}; export const trackWhatsNewClicked = () => {};`,
     '@/utils/requestReview': `export const requestReview = () => {};`,
     '@/components/UpdateBanner': `export const UpdateBanner = () => null;`,
     '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null;`,
@@ -382,8 +387,6 @@ const virtualModules: Record<string, string> = {
     '@/components/EmptyMainScreen': `export const EmptyMainScreen = () => null;`,
     '@/components/InboxView': `export const InboxView = () => null;`,
     '@/components/HomeDock': `export const HomeDock = () => null; export const MOBILE_HOME_DOCK_CONTENT_INSET = 128;`,
-    '@/components/SettingsViewWrapper': `export const SettingsViewWrapper = () => null;`,
-    '@/components/TabBar': `export const TabBar = () => null;`,
     '@/components/HeaderLogo': `export const HeaderLogo = () => null;`,
     '@/components/navigation/Header': `
         import React from 'react';
@@ -429,8 +432,6 @@ const fixturePlugin: Plugin = {
                 './EmptyMainScreen': '@/components/EmptyMainScreen',
                 './InboxView': '@/components/InboxView',
                 './HomeDock': '@/components/HomeDock',
-                './SettingsViewWrapper': '@/components/SettingsViewWrapper',
-                './TabBar': '@/components/TabBar',
                 './HeaderLogo': '@/components/HeaderLogo',
                 './navigation/Header': '@/components/navigation/Header',
                 './NativeSettingsMenu': '@/components/NativeSettingsMenu',
@@ -445,6 +446,8 @@ const fixturePlugin: Plugin = {
                 './StatusDot': '@/components/StatusDot',
                 './VoiceAssistantStatusBar': '@/components/VoiceAssistantStatusBar',
                 './BubblePressable': '@/components/BubblePressable',
+                './HerdInboxBell': '@/components/herd/shell/HerdInboxBell',
+                './HerdMachineMenu': '@/components/herd/shell/HerdMachineMenu',
             };
             if (args.path in relativeStubs) {
                 const replacement = relativeStubs[args.path];
@@ -511,9 +514,11 @@ describe('Projects and Super Session production UI gestures', () => {
                     import { SidebarView } from '@/components/SidebarView';
                     import { SidebarNavigator } from '@/components/SidebarNavigator';
                     import { SessionsList } from '@/components/SessionsList';
-                    import { MainView } from '@/components/MainView';
+                    import { HerdPhoneTopBar } from '@/components/herd/shell/HerdPhoneTopBar';
+                    import { PhoneHome } from '@/components/herd/mobile/PhoneHome';
                     import AppearanceScreen from '@/app/(app)/settings/appearance';
                     import ProjectDetailScreen from '@/app/(app)/projects/[id]';
+                    import { FocusModeControl } from '@/components/FocusModeControl';
                     import ProjectsScreen from '@/app/(app)/projects/index';
                     import SessionProjectScreen from '@/app/(app)/session/[id]/project';
 
@@ -527,20 +532,24 @@ describe('Projects and Super Session production UI gestures', () => {
                         const query = new URLSearchParams(window.location.search);
                         let content;
                         if (pathname === '/projects') content = React.createElement(ProjectsScreen);
-                        else if (pathname.startsWith('/projects/')) content = React.createElement(ProjectDetailScreen);
+                        // The app's top bar hosts the Focus setup on every route; here its real control stands in.
+                        else if (pathname.startsWith('/projects/')) content = React.createElement(React.Fragment, null,
+                            React.createElement('div', { 'data-testid': 'fixture-top-bar-focus', style: { display: 'flex', justifyContent: 'flex-end', padding: 8 } }, React.createElement(FocusModeControl)),
+                            React.createElement(ProjectDetailScreen));
                         else if (pathname.endsWith('/project')) content = React.createElement(SessionProjectScreen);
                         else if (pathname === '/settings/appearance') content = React.createElement(AppearanceScreen);
                         else if (pathname.startsWith('/session/')) content = React.createElement(SessionDestination, { id: pathname.split('/')[2] });
                         else if (pathname !== '/') content = React.createElement('h1', null, pathname);
                         else if (query.has('search')) content = React.createElement(SessionsList, { searchQuery: query.get('search'), bottomContentInset: 12 });
+                        // A signed-in phone at '/': the phone top bar over the docked panel.
                         else content = query.get('mobile') === '1'
-                            ? React.createElement(MainView, { variant: 'phone' })
+                            ? React.createElement(React.Fragment, null, React.createElement(HerdPhoneTopBar, { home: true }), React.createElement(PhoneHome))
                             : query.has('focus') ? React.createElement(SidebarNavigator)
                             : React.createElement('aside', { 'data-testid': 'desktop-sidebar', style: { width: 'min(390px, 100vw)', height: '100%', display: 'flex' } }, React.createElement(SidebarView));
                         // This replaces Expo's stack host only. All project/list
                         // actions under test originate in production components.
                         return React.createElement('div', { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
-                            pathname !== '/' && React.createElement('button', { onClick: routerFixture.back, style: { minHeight: 40, flexShrink: 0 } }, 'Back'),
+                            pathname !== '/' && React.createElement('button', { 'data-testid': 'fixture-history-back', onClick: routerFixture.back, style: { minHeight: 40, flexShrink: 0 } }, 'Back'),
                             content);
                     }
                     createRoot(document.getElementById('root')).render(React.createElement(Fixture));
@@ -644,7 +653,7 @@ describe('Projects and Super Session production UI gestures', () => {
 
     async function openProjects(page: Page) {
         await page.getByLabel('Projects', { exact: true }).click();
-        await page.getByText('Create Project', { exact: true }).waitFor();
+        await page.getByTestId('projects-page-header').getByText('Create Project', { exact: true }).waitFor();
     }
 
     async function openFocusPage(surface: typeof surfaces[number], query = '', account?: string) {
@@ -660,70 +669,97 @@ describe('Projects and Super Session production UI gestures', () => {
         return { page, errors };
     }
 
-    async function startFocus(page: Page, minutes: number, german = false, projectId = 'project-alpha') {
-        await page.getByTestId('focus-mode-enter').click();
-        await page.getByTestId('focus-mode-pixel-swap').waitFor();
-        await page.clock.runFor(1500);
-        const headline = german ? 'Fokus zurückgewinnen' : 'Reclaim Your Focus';
-        await page.getByRole('heading', { name: headline, exact: true }).waitFor();
+    /** The mock's Focus sheet: a centered card over the dimmed app, its title and labels inside and centered. */
+    async function expectFocusDialog(page: Page, headline: string) {
+        const setup = page.getByTestId('focus-mode-setup');
+        const heading = setup.getByRole('heading', { name: headline, exact: true });
+        await heading.waitFor();
         expect(await page.getByTestId('focus-mode-pixel-swap').count()).toBe(0);
-        expect(await page.getByTestId('focus-mode-setup').evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(240, 220, 176)');
+        await expect(page.getByTestId('focus-mode-scrim').count()).resolves.toBe(1);
+        const viewport = page.viewportSize()!;
+        const card = (await setup.boundingBox())!;
+        expect(card.width).toBeLessThanOrEqual(520);
+        const mark = (await setup.getByTestId('focus-mode-mark').boundingBox())!;
+        const title = (await heading.boundingBox())!;
+        // The glyph's ring, then the title, both centered in the card.
+        expect(mark.width).toBe(64);
+        expect(title.y).toBeGreaterThan(mark.y + mark.height);
+        expect(Math.abs(mark.x + mark.width / 2 - (card.x + card.width / 2))).toBeLessThanOrEqual(1);
+        expect(Math.abs(title.x + title.width / 2 - (card.x + card.width / 2))).toBeLessThanOrEqual(2);
+        await expect(setup.locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+        if (viewport.width >= 700) {
+            // Centered on wide windows; phones rest the card on the bottom edge.
+            expect(Math.abs(card.x + card.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+            expect(Math.abs(card.y + card.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1);
+        } else {
+            expect(Math.round(viewport.height - (card.y + card.height))).toBeGreaterThanOrEqual(8);
+        }
+    }
+
+    /** The setup opened preset to one project: exactly that chip is checked. */
+    async function expectPresetProject(page: Page, name: string) {
+        const checked = page.getByTestId('focus-mode-setup').getByRole('radiogroup', { name: 'Project', exact: true }).locator('[role="radio"][aria-checked="true"]');
+        await expect(checked.count()).resolves.toBe(1);
+        await expect(checked.innerText()).resolves.toBe(name);
+    }
+
+    async function startFocus(page: Page, minutes: number, german = false, projectId = 'project-alpha') {
+        // A previous Start's pixel swap clears first; opening the setup never starts one.
+        await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').waitFor({ state: 'detached' });
+        await page.getByTestId('focus-mode-enter').click();
+        await page.clock.runFor(500);
+        const headline = german ? 'Fokus zurückgewinnen' : 'Reclaim Your Focus';
+        await expectFocusDialog(page, headline);
         const start = page.getByRole('button', { name: german ? 'Fokus starten' : 'Start focus', exact: true });
         expect(await start.isDisabled()).toBe(true);
         expect(await page.getByTestId('focus-mode-setup').locator('select').count()).toBe(0);
-        expect(await start.evaluate(element => getComputedStyle(element).borderRadius)).toBe('4px');
+        expect(await start.evaluate(element => getComputedStyle(element).borderRadius)).toBe('8px');
         expect(await page.getByRole('heading', { name: headline, exact: true }).evaluate(element => getComputedStyle(element).fontFamily)).toContain('SpaceGrotesk');
-        await page.getByRole('button', { name: german ? 'Dauer' : 'Duration', exact: true }).click();
-        await page.clock.runFor(50);
+        await page.getByRole('radiogroup', { name: german ? 'Dauer' : 'Duration', exact: true }).waitFor();
+        // The segmented control's selection is proven by the started timer's duration.
+        await page.getByRole('radio', { name: `${minutes} ${german ? 'Min' : 'min'}`, exact: true }).click();
         await screenshot(page, `focus-duration-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
-        await page.getByRole('button', { name: `${minutes} ${german ? 'Min' : 'min'}`, exact: true }).click();
-        await page.getByRole('button', { name: german ? 'Projekt' : 'Project', exact: true }).click();
-        await page.clock.runFor(50);
-        const menuBox = await page.getByTestId('focus-mode-choices').boundingBox();
-        expect(menuBox!.x).toBeGreaterThanOrEqual(0);
-        expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-        expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
-        await screenshot(page, `focus-project-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
-        await page.getByRole('button', { name: projectId === 'empty-project' ? 'Roadmap' : 'Project Alpha', exact: true }).first().click();
+        const project = page.getByRole('radio', { name: projectId === 'empty-project' ? 'Roadmap' : 'Project Alpha', exact: true }).first();
+        const projectBox = await project.boundingBox();
+        expect(projectBox!.x).toBeGreaterThanOrEqual(0);
+        expect(projectBox!.x + projectBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+        await project.click();
+        expect(await project.getAttribute('aria-checked')).toBe('true');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
         await page.getByTestId('focus-mode-timer').waitFor();
+        // Start plays the amber pixel swap over the page as the setup closes.
+        await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'attached' });
     }
 
     for (const surface of surfaces) {
         for (const theme of ['light', 'dark']) {
-            it(`dismisses focus choices without starting a timer on ${surface.name} ${theme}`, async () => {
+            it(`changes focus choices and dismisses setup without starting a timer on ${surface.name} ${theme}`, async () => {
                 const { page, errors } = await openFocusPage(surface, `theme=${theme}`);
                 await page.getByTestId('focus-mode-enter').click();
                 await page.clock.runFor(1500);
-                const duration = page.getByRole('button', { name: 'Duration', exact: true });
-                await duration.click();
-                await page.clock.runFor(50);
-                await page.getByRole('dialog').filter({ has: page.getByTestId('focus-mode-choices') }).waitFor();
-                await page.getByRole('button', { name: '30 min', exact: true }).waitFor();
-                await page.keyboard.press('Escape');
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                expect(await duration.getAttribute('aria-expanded')).toBe('false');
-                await duration.click();
-                await page.clock.runFor(50);
-                const choice = page.getByRole('button', { name: '45 min', exact: true });
-                await choice.focus();
-                await page.keyboard.press('Space');
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                expect(await duration.innerText()).toContain('45 min');
-                await page.getByRole('button', { name: 'Project', exact: true }).click();
-                await page.clock.runFor(50);
+                await page.getByRole('radiogroup', { name: 'Duration', exact: true }).waitFor();
+                await page.getByRole('radio', { name: '45 min', exact: true }).click();
+                const start = page.getByRole('button', { name: 'Start focus', exact: true });
+                expect(await start.isDisabled()).toBe(true);
+                const alpha = page.getByRole('radio', { name: 'Project Alpha', exact: true }).first();
+                await alpha.click();
+                expect(await alpha.getAttribute('aria-checked')).toBe('true');
+                expect(await start.isDisabled()).toBe(false);
                 await screenshot(page, `focus-menu-${surface.name}-${theme}`);
                 await page.setViewportSize({ width: surface.viewport.width - 30, height: surface.viewport.height });
                 await page.clock.runFor(50);
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
-                await page.getByRole('button', { name: 'Project', exact: true }).click();
-                await page.clock.runFor(50);
-                await page.getByLabel('Cancel', { exact: true }).click({ position: { x: 8, y: 8 } });
-                await page.getByTestId('focus-mode-choices').waitFor({ state: 'detached' });
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+                await page.keyboard.press('Escape');
+                await page.clock.runFor(300);
+                await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
+                expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
+                await page.getByTestId('focus-mode-enter').click();
+                await page.clock.runFor(1500);
                 await screenshot(page, `focus-cancel-${surface.name}-${theme}`);
                 await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+                await page.clock.runFor(300);
                 await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
                 expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toBe(null);
                 expect(errors).toEqual([]);
@@ -734,13 +770,16 @@ describe('Projects and Super Session production UI gestures', () => {
 
     it('starts all four focus durations through the real desktop header and restores the list on exit', async () => {
         const { page, errors } = await openFocusPage(surfaces[0]);
-        const [back, tomato, collapse] = await Promise.all([
-            page.getByRole('button', { name: 'Back', exact: true }).boundingBox(),
-            page.getByTestId('focus-mode-enter').boundingBox(),
-            page.getByTestId('navigation-sidebar-toggle').boundingBox(),
+        // Top bar order: panel toggle on the left, Focus mode on the right, and no Back or Forward.
+        const topBar = page.getByTestId('herd-top-bar');
+        const [tomato, collapse] = await Promise.all([
+            topBar.getByTestId('focus-mode-enter').boundingBox(),
+            topBar.getByTestId('navigation-sidebar-toggle').boundingBox(),
         ]);
-        expect(tomato!.x).toBeGreaterThan(back!.x + back!.width);
-        expect(tomato!.x + tomato!.width).toBeLessThan(collapse!.x);
+        expect(tomato!.x).toBeGreaterThan(collapse!.x + collapse!.width);
+        for (const name of ['Back', 'Forward']) {
+            expect(await topBar.getByRole('button', { name, exact: true }).count()).toBe(0);
+        }
         for (const minutes of [15, 30, 45, 60]) {
             await startFocus(page, minutes);
             expect(await page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);
@@ -802,10 +841,11 @@ describe('Projects and Super Session production UI gestures', () => {
         await startFocus(page, 15);
         expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
         for (let attempt = 0; attempt < 2; attempt += 1) {
-            await page.getByRole('button', { name: 'Show Archived', exact: true }).click();
+            // The phone list is the desktop panel: its archive toggle comes before the list's own row.
+            await page.getByRole('button', { name: 'Show Archived', exact: true }).first().click();
             await page.getByText('Archived Alpha work', { exact: true }).waitFor();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
-            await page.getByRole('button', { name: 'Hide Archived', exact: true }).click();
+            await page.getByRole('button', { name: 'Hide Archived', exact: true }).first().click();
             expect(await page.getByText('Archived Alpha work', { exact: true }).count()).toBe(0);
         }
         expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);
@@ -839,6 +879,9 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__())).toEqual(original);
         }
         expect(focusAccounts.get(account)?.writes).toBe(1);
+        // On the phone the countdown opens a menu with Exit, as the phone mock draws it.
+        await phone.page.getByTestId('focus-mode-pill').click();
+        await phone.page.clock.runFor(100);
         await phone.page.getByTestId('focus-mode-exit').click();
         await desktop.page.getByTestId('focus-mode-enter').waitFor();
         await desktop.page.getByText('Unassigned work', { exact: true }).waitFor();
@@ -855,13 +898,18 @@ describe('Projects and Super Session production UI gestures', () => {
         await startFocus(page, 60, true);
         expect(await page.getByTestId('focus-mode-timer').innerText()).toBe('60:00');
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
-        const timer = await page.getByTestId('focus-mode-timer').boundingBox();
-        const exit = await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).boundingBox();
-        expect(timer!.x).toBeGreaterThanOrEqual(0);
+        const pill = await page.getByTestId('focus-mode-pill').boundingBox();
+        expect(pill!.x).toBeGreaterThanOrEqual(0);
+        expect(pill!.x + pill!.width).toBeLessThanOrEqual(360);
+        // The phone countdown's menu holds the project, the time left and Exit.
+        await page.getByTestId('focus-mode-pill').click();
+        await page.clock.runFor(100);
+        const exit = await page.getByRole('menuitem', { name: 'Fokusmodus beenden', exact: true }).boundingBox();
+        expect(exit!.x).toBeGreaterThanOrEqual(0);
         expect(exit!.x + exit!.width).toBeLessThanOrEqual(360);
-        expect(exit!.x).toBeGreaterThanOrEqual(timer!.x + timer!.width);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
         await screenshot(page, 'focus-active-mobile-german-dark');
-        await page.getByRole('button', { name: 'Fokusmodus beenden', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Fokusmodus beenden', exact: true }).click();
         await page.getByTestId('focus-mode-enter').waitFor();
         expect(errors).toEqual([]);
         await page.close();
@@ -881,7 +929,7 @@ describe('Projects and Super Session production UI gestures', () => {
             for (let index = 0; index < 2; index += 1) {
                 await pinned.click();
                 await page.getByTestId('opened-session').getByText('Persistent assistant source title').waitFor();
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
             }
             expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
                 '/session/super-session', '/session/super-session',
@@ -907,7 +955,7 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(before[0]).toBe('project-session-row-super-session');
             await page.getByText('Remote project session', { exact: true }).click();
             await page.getByTestId('opened-session').getByText('Remote project session').waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             page.once('dialog', (dialog) => dialog.accept('Renamed Alpha'));
             await page.getByText('Rename project', { exact: true }).click();
             expect(await page.evaluate(() => (window as any).__PROJECT_RENAME_CALLS__)).toEqual([
@@ -915,7 +963,7 @@ describe('Projects and Super Session production UI gestures', () => {
             ]);
             expect(await page.locator('[data-testid^="project-session-row-"]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')))).toEqual(before);
             await screenshot(page, `project-detail-${surface.name}`);
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             await page.getByText('Renamed Alpha', { exact: true }).waitFor();
             await page.getByText('Project Alpha', { exact: true }).click();
             await page.getByText('Same workspace different project', { exact: true }).waitFor();
@@ -930,14 +978,14 @@ describe('Projects and Super Session production UI gestures', () => {
             await openProjects(page);
             await page.getByText('Roadmap', { exact: true }).click();
             await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
             await page.getByText('Historical project', { exact: true }).click();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
             await page.getByTestId('project-archive-toggle').click();
             await page.getByText('Retired assistant', { exact: true }).waitFor();
             await page.getByTestId('project-session-row-bot-archived').waitFor();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
+            await page.getByTestId('fixture-history-back').click();
             expect(await page.getByText('Retired assistant', { exact: true }).count()).toBe(0);
             expect(errors).toEqual([]);
             await page.close();
@@ -952,7 +1000,7 @@ describe('Projects and Super Session production UI gestures', () => {
                 await grouping.selectOption(value);
                 await page.reload();
                 expect(await grouping.inputValue()).toBe(value);
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
                 const pinned = page.getByText('Super Session (Pinned)', { exact: true });
                 await pinned.waitFor();
                 expect(await pinned.count()).toBe(1);
@@ -1037,7 +1085,7 @@ describe('Projects and Super Session production UI gestures', () => {
             for (let index = 0; index < 2; index += 1) {
                 await bots.first().click();
                 await page.getByTestId('opened-session').getByText('Build assistant', { exact: true }).waitFor();
-                await page.getByRole('button', { name: 'Back', exact: true }).click();
+                await page.getByTestId('fixture-history-back').click();
             }
             expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual([
                 '/session/bot-alpha', '/session/bot-alpha',
@@ -1060,8 +1108,12 @@ describe('Projects and Super Session production UI gestures', () => {
             expect(boxes[index]!.height).toBeGreaterThanOrEqual(20);
             expect(boxes[index]!.y).toBe(boxes[0]!.y);
             expect(Math.abs(boxes[index]!.width - boxes[0]!.width)).toBeLessThan(1);
-            expect((await icons[index].innerText()).trim()).toBe('•');
-            expect(await icons[index].getAttribute('title')).toBe(labels[index]);
+            // The mock's SVG icon, and its anchored tooltip on hover instead of a browser title.
+            await expect(icons[index].locator('[data-herd-icon]').count()).resolves.toBe(1);
+            expect(await icons[index].getAttribute('title')).toBeNull();
+            await icons[index].hover();
+            expect(await page.getByRole('tooltip').innerText()).toBe(labels[index]);
+            await page.mouse.move(900, 700);
             if (index) expect(boxes[index]!.x).toBeGreaterThan(boxes[index - 1]!.x);
         }
         const newButton = page.getByRole('button', { name: 'New Session', exact: true });
@@ -1078,7 +1130,7 @@ describe('Projects and Super Session production UI gestures', () => {
         for (const [name, destination] of [['Workspace', '/workspace'], ['Projects', '/projects'], ['Automations', '/automations'], ['New Session', '/new']]) {
             await page.getByRole('button', { name, exact: true }).click();
             expect((await page.evaluate(() => (window as any).__ROUTER_CALLS__)).at(-1)).toBe(destination);
-            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await page.getByTestId('fixture-history-back').click();
         }
         expect(errors).toEqual([]);
         await page.close();
@@ -1128,10 +1180,101 @@ describe('Projects and Super Session production UI gestures', () => {
         const { page, errors } = await openPage(surfaces[0]);
         await openProjects(page);
         page.once('dialog', (dialog) => dialog.accept('Client launch'));
-        await page.getByText('Create Project', { exact: true }).click();
+        await page.getByTestId('projects-page-header').getByText('Create Project', { exact: true }).click();
         await page.getByText('Client launch', { exact: true }).click();
         await page.getByText('No sessions in this project yet', { exact: true }).waitFor();
         expect(await page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).toEqual(['Client launch']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+    it('draws the Projects title in the page on a wide layout and ends the grid with a Create Project tile', async () => {
+        const { page, errors } = await openPage(surfaces[0], 'scenario=projects&');
+        await openProjects(page);
+        const header = page.getByTestId('projects-page-header');
+        await expect(header.getByRole('heading', { name: 'Projects', exact: true }).count()).resolves.toBe(1);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(false);
+        // The tile is the grid's last card and creates a project exactly as the header button does.
+        expect(await page.evaluate(() => (document.querySelector('[data-testid="projects-grid"]')?.lastElementChild as HTMLElement | null)?.dataset.testid)).toBe('projects-create-tile');
+        const tile = page.getByTestId('projects-create-tile');
+        const [tileBox, cardBox] = await Promise.all([tile.boundingBox(), page.getByTestId('project-card-project-alpha').boundingBox()]);
+        expect(Math.round(tileBox!.width)).toBe(Math.round(cardBox!.width));
+        expect(await tile.evaluate((element) => getComputedStyle(element).borderStyle)).toBe('dashed');
+        page.once('dialog', (dialog) => dialog.accept('Tile launch'));
+        await tile.click();
+        await page.getByText('Tile launch', { exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__PROJECT_CREATE_CALLS__)).toEqual(['Tile launch']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('keeps the Projects header row on a phone, with no second title in the page', async () => {
+        const { page, errors } = await openPage(surfaces[1], 'scenario=projects&');
+        await openProjects(page);
+        await expect(page.getByTestId('projects-page-header').getByRole('heading').count()).resolves.toBe(0);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(true);
+        await page.getByTestId('projects-create-tile').waitFor();
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('gives a project page the title, Back, session count and Focus mode of the mock on a wide layout', async () => {
+        const { page, errors } = await openPage(surfaces[0], 'scenario=projects&screen=detail&project=project-alpha&');
+        const header = page.getByTestId('project-page-header');
+        await header.getByRole('heading', { name: 'Project Alpha', exact: true }).waitFor();
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__?.headerShown)).toBe(false);
+        await expect(header.getByText(/^\d+ sessions?$/).count()).resolves.toBe(1);
+        // Rows carry the same time the main list shows.
+        const rowText = await page.getByTestId('project-session-row-ordinary-session').innerText();
+        expect(rowText).toMatch(/\d{1,2}:\d{2}|\d{2}\/\d{2}\/\d{2}|Yesterday/);
+        // Rename and Focus mode share the title row, Focus last as the primary action.
+        const [rename, focusButton] = await Promise.all([
+            header.getByRole('button', { name: 'Rename project', exact: true }).boundingBox(),
+            page.getByTestId('project-focus').boundingBox(),
+        ]);
+        expect(Math.abs(rename!.y - focusButton!.y)).toBeLessThanOrEqual(2);
+        expect(focusButton!.x).toBeGreaterThan(rename!.x);
+        // Focus mode opens the setup preset to this project, as the mock does, and starts on it.
+        await expect(page.getByTestId('project-focus').locator('[data-herd-icon="focus"]').count()).resolves.toBe(1);
+        await page.getByTestId('project-focus').click();
+        await expectFocusDialog(page, 'Reclaim Your Focus');
+        expect(await page.evaluate(() => ((window as any).__FOCUS_WRITES__ ?? []).length)).toBe(0);
+        await expectPresetProject(page, 'Project Alpha');
+        await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+        await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
+        const value = await page.evaluate(() => (window as any).__FOCUS_VALUE__());
+        expect(value.projectId).toBe('project-alpha');
+        expect(value.endsAt - value.startedAt).toBe(30 * 60_000);
+        // Focus is already on this project, so the button can't restart its timer.
+        await expect(page.getByTestId('project-focus').getAttribute('aria-disabled')).resolves.toBe('true');
+        await page.getByTestId('project-focus').click({ force: true });
+        expect(await page.evaluate(() => (window as any).__FOCUS_WRITES__.length)).toBe(1);
+        await page.getByTestId('project-back').click();
+        expect(await page.evaluate(() => (window as any).__ROUTER_CALLS__)).toEqual(['/projects']);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('keeps a project page header row on a phone, with Focus mode but no in-page Back or title', async () => {
+        const { page, errors } = await openPage(surfaces[1], 'scenario=projects&screen=detail&project=project-alpha&');
+        const header = page.getByTestId('project-page-header');
+        await header.waitFor();
+        await expect(header.getByRole('heading').count()).resolves.toBe(0);
+        await expect(page.getByTestId('project-back').count()).resolves.toBe(0);
+        expect(await page.evaluate(() => (window as any).__STACK_SCREEN_OPTIONS__)).toMatchObject({ headerTitle: 'Project Alpha', headerShown: true });
+        // The count keeps one line; Rename and Focus mode take their own row under it, as in the phone mock.
+        const [count, focusBox] = await Promise.all([
+            header.getByText(/^\d+ sessions?$/).boundingBox(),
+            page.getByTestId('project-focus').boundingBox(),
+        ]);
+        expect(count!.height).toBeLessThanOrEqual(24);
+        expect(focusBox!.y).toBeGreaterThanOrEqual(count!.y + count!.height);
+        await page.getByTestId('project-focus').click();
+        await expectFocusDialog(page, 'Reclaim Your Focus');
+        await expectPresetProject(page, 'Project Alpha');
+        await screenshot(page, 'project-focus-setup-mobile');
+        await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+        await page.getByTestId('focus-mode-setup').waitFor({ state: 'detached' });
+        expect(await page.evaluate(() => (window as any).__FOCUS_VALUE__().projectId)).toBe('project-alpha');
         expect(errors).toEqual([]);
         await page.close();
     }, 15_000);

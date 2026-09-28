@@ -506,6 +506,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         '--hh-markdown-surface': palette.surface,
         '--hh-markdown-surface-high': palette.surfaceHigh,
         '--hh-markdown-surface-highest': palette.surfaceHighest,
+        '--hh-markdown-surface-sunken': palette.input.background,
         '--hh-markdown-syntax-keyword': palette.syntaxKeyword,
         '--hh-markdown-syntax-string': palette.syntaxString,
         '--hh-markdown-syntax-comment': palette.syntaxComment,
@@ -562,7 +563,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     return (
         <div
             ref={rootRef}
-            className={`hh-markdown-root${theme.dark || props.tone === 'island' ? ' hh-markdown-dark' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
+            className={`hh-markdown-root${theme.dark || props.tone === 'island' ? ' hh-markdown-dark' : ''}${props.tone === 'reply' ? ' hh-markdown-reply' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
@@ -598,7 +599,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-root img { display: block; max-width: min(100%, 720px); height: auto; border-radius: 6px; }
 .hh-markdown-image-button { border: 0; padding: 0; background: transparent; cursor: pointer; }
 .hh-markdown-image-failure { display: flex; min-height: 120px; max-width: 520px; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--hh-markdown-divider); border-radius: 6px; }
-.hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 32px)); height: min(900px, calc(100vh - 80px)); padding: 16px; }
+.hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); height: min(900px, calc(100vh - 80px)); padding: 16px; box-sizing: border-box; }
 .hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; font-size: 16px; }
 .hh-markdown-image-modal > img { width: 100%; height: 100%; object-fit: contain; }
 .hh-markdown-options { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 8px 0; }
@@ -624,6 +625,13 @@ const MARKDOWN_CSS = `
 .hh-markdown-root.hh-markdown-dark .hljs-number { color: var(--hh-markdown-syntax-number); }
 .hh-markdown-root.hh-markdown-dark .hljs-title,.hh-markdown-root.hh-markdown-dark .hljs-section,.hh-markdown-root.hh-markdown-dark .hljs-function { color: var(--hh-markdown-syntax-function); }
 .hh-markdown-root.hh-markdown-dark .hljs-variable,.hh-markdown-root.hh-markdown-dark .hljs-attr,.hh-markdown-root.hh-markdown-dark .hljs-params,.hh-markdown-root.hh-markdown-dark .hljs-punctuation { color: var(--hh-markdown-syntax-default); }
+.hh-markdown-root.hh-markdown-reply { line-height: 1.65; }
+.hh-markdown-root.hh-markdown-reply ul,.hh-markdown-root.hh-markdown-reply ol { padding-inline-start: 22px; }
+.hh-markdown-root.hh-markdown-reply li { margin: 4px 0; }
+.hh-markdown-root.hh-markdown-reply li::marker { color: var(--hh-markdown-accent); }
+.hh-markdown-root.hh-markdown-reply a { color: var(--hh-markdown-accent); text-underline-offset: 3px; }
+.hh-markdown-root.hh-markdown-reply :not(pre) > code { font-size: .86em; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--hh-markdown-divider); background: var(--hh-markdown-surface-high); color: var(--hh-markdown-accent); }
+.hh-markdown-root.hh-markdown-reply pre { background: var(--hh-markdown-surface-sunken); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { background: var(--hh-markdown-surface); color: var(--hh-markdown-text); border: 1px solid var(--hh-markdown-divider); border-radius: 4px; padding: 4px 8px; position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }

@@ -259,6 +259,40 @@ describe('FileContentPanel native editing', () => {
         act(() => panel.renderer.unmount());
     });
 
+    it('opens straight into Edit when its host asks, and reports each mode change', async () => {
+        const original = Buffer.from('# Memory\n');
+        const onDisplayModeChange = vi.fn();
+        const panel = await renderPanel({
+            filePath: '/workspace/memory.md',
+            readFile: vi.fn(async () => ({ success: true, content: original.toString('base64') })),
+            initialDisplayMode: 'edit',
+            onDisplayModeChange,
+        });
+
+        const input = panel.renderer.root.findByType('TextInput' as any);
+        expect(input.props).toMatchObject({ editable: true, value: '# Memory\n' });
+        expect(renderedText(panel.renderer)).toContain('files.saveFile');
+        expect(onDisplayModeChange).toHaveBeenLastCalledWith('edit');
+
+        // Cancel returns to Preview, and the host hears it.
+        act(() => findPressableByText(panel.renderer, 'common.cancel')!.props.onPress());
+        expect(onDisplayModeChange).toHaveBeenLastCalledWith('preview');
+        expect(panel.renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        act(() => panel.renderer.unmount());
+    });
+
+    it('keeps opening in Preview when no initial mode is given', async () => {
+        const onDisplayModeChange = vi.fn();
+        const panel = await renderPanel({
+            filePath: '/workspace/notes.txt',
+            readFile: vi.fn(async () => ({ success: true, content: Buffer.from('x\n').toString('base64') })),
+            onDisplayModeChange,
+        });
+        expect(panel.renderer.root.findByType('TextInput' as any).props.editable).toBe(false);
+        expect(onDisplayModeChange.mock.calls.map(([mode]) => mode)).toEqual(['preview']);
+        act(() => panel.renderer.unmount());
+    });
+
     it('uses only Preview and Edit modes in the standard narrow and mobile header', async () => {
         const original = Buffer.from('# Before\n');
         const updated = Buffer.from('# After\n');

@@ -46,6 +46,17 @@ const virtualModules: Record<string, string> = {
     `,
     '@/utils/openExternalUrl': `export const openExternalUrl = async () => {};`,
     '@/text': `export const t = (key) => key;`,
+    // Comment cards and their actions carry Octicons (UI overhaul).
+    '@expo/vector-icons': `
+        import React from 'react';
+        const Icon = ({ name, size, color }) => React.createElement('span', {
+            'data-icon': name, 'aria-hidden': true,
+            style: { color, fontSize: size, width: size, height: size, display: 'inline-block' },
+        });
+        Icon.glyphMap = {};
+        export const Octicons = Icon;
+        export const Ionicons = Icon;
+    `,
     '@/modal': `export const Modal = { alert() {}, show() {} };`,
     './MermaidRenderer': `
         import React from 'react';
@@ -424,6 +435,51 @@ describe('MarkdownView browser theme and option parity', () => {
         expect(pageErrors).toEqual([]);
         await context.close();
     }, 15_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['390x844 Web Mobile', { width: 390, height: 844 }],
+    ])('keeps agent reply options as the original full-width rectangles on %s', async (_surface, viewport) => {
+        const chipStyle = async (query: string) => {
+            const page = await browser.newPage({ viewport });
+            const pageErrors = recordPageErrors(page);
+            await page.goto(`${origin}/?theme=dark${query}`);
+            const options = page.locator('.hh-markdown-root .hh-markdown-options').first();
+            await options.locator('.hh-markdown-option').first().waitFor();
+            const result = await options.evaluate((element) => {
+                const container = element.getBoundingClientRect();
+                const chips = Array.from(element.querySelectorAll<HTMLElement>('.hh-markdown-option'));
+                const boxes = chips.map((chip) => chip.getBoundingClientRect());
+                const style = getComputedStyle(chips[0]);
+                return {
+                    style: {
+                        display: style.display,
+                        borderRadius: style.borderRadius,
+                        fontSize: style.fontSize,
+                        lineHeight: style.lineHeight,
+                        padding: style.padding,
+                        border: `${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`,
+                        backgroundImage: style.backgroundImage,
+                        color: style.color,
+                        marker: getComputedStyle(chips[0], '::before').content,
+                    },
+                    fullWidth: boxes.every((box) => Math.abs(box.width - container.width) <= 1),
+                    stacked: boxes.every((box, index) => index === 0 || box.top >= boxes[index - 1].bottom - 0.5),
+                };
+            });
+            expect(pageErrors).toEqual([]);
+            await page.close();
+            return result;
+        };
+        const original = await chipStyle('');
+        const reply = await chipStyle('&tone=reply');
+        // The chat's own reply tone keeps the original chip: full width, stacked,
+        // 16 px island text in a 6 px rectangle, with no pill or diamond marker.
+        expect(reply.style).toEqual(original.style);
+        expect(reply.style).toMatchObject({ display: 'block', borderRadius: '6px', fontSize: '16px', padding: '12px 16px', marker: 'none' });
+        expect(reply.fullWidth).toBe(true);
+        expect(reply.stacked).toBe(true);
+    }, 20_000);
 
     it('renders warm paper Markdown and warm island options', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

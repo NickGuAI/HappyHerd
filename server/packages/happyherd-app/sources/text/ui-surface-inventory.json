@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "0b54ad22d645e43aea20a94019d5c38688f8621c30f6e6d3b94140f4527627f5",
-  "routeCount": 41,
-  "surfaceCount": 282,
+  "sourceFingerprint": "80c779042392046f59985c3e311177994a692e358ffcb649dbf97ac1c99be89a",
+  "routeCount": 44,
+  "surfaceCount": 336,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -81,10 +81,12 @@
       "owner": "sources/app/(app)/automations/index.tsx",
       "translationKeys": [
         "active",
+        "common.cancel",
         "happyHerd.automations.allTags",
         "happyHerd.automations.arguments",
         "happyHerd.automations.argumentsHint",
         "happyHerd.automations.automationCount",
+        "happyHerd.automations.collapseDetails",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -95,6 +97,7 @@
         "happyHerd.automations.emptySubtitle",
         "happyHerd.automations.emptyTitle",
         "happyHerd.automations.executable",
+        "happyHerd.automations.expandDetails",
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
@@ -106,7 +109,6 @@
         "happyHerd.automations.new",
         "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
-        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.railExec",
         "happyHerd.automations.save",
@@ -139,6 +141,32 @@
         "changelog.noEntriesAvailable"
       ],
       "states": []
+    },
+    {
+      "path": "/commanders",
+      "owner": "sources/app/(app)/commanders/index.tsx",
+      "translationKeys": [
+        "common.cancel",
+        "common.retry",
+        "files.editFile",
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "happyHerd.commander.emptyTitle",
+        "happyHerd.commander.machineLoadFailed",
+        "happyHerd.commander.memoryEmpty",
+        "happyHerd.commander.memoryReadFailed",
+        "happyHerd.commander.newSessionWith",
+        "happyHerd.commander.noOnlineMachine",
+        "happyHerd.commander.pageSubtitle",
+        "happyHerd.commanderAvatars.loading",
+        "happyHerd.commanderAvatars.machineOffline",
+        "happyHerd.commanderAvatars.noMachines",
+        "sidebar.newSession"
+      ],
+      "states": [
+        "loading"
+      ]
     },
     {
       "path": "/friends",
@@ -174,9 +202,7 @@
     {
       "path": "/inbox",
       "owner": "sources/app/(app)/inbox/index.tsx",
-      "translationKeys": [
-        "tabs.inbox"
-      ],
+      "translationKeys": [],
       "states": []
     },
     {
@@ -197,7 +223,9 @@
       "translationKeys": [
         "agentInput.agent.claude",
         "agentInput.agent.codex",
+        "agentInput.agent.dsh",
         "agentInput.agent.gemini",
+        "agentInput.agent.grok",
         "common.cancel",
         "common.create",
         "common.delete",
@@ -210,6 +238,7 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
+        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -221,7 +250,6 @@
         "machine.host",
         "machine.lastDetected",
         "machine.lastKnownHttpPort",
-        "machine.lastKnownPid",
         "machine.lastSeen",
         "machine.launchNewSessionInDirectory",
         "machine.machineGroup",
@@ -238,6 +266,7 @@
         "machineLauncher.enterCustomPath",
         "machineLauncher.showAll",
         "machineLauncher.showLess",
+        "sessionInfo.processId",
         "status.offline",
         "status.online",
         "uiCopy.createDirectory",
@@ -287,8 +316,13 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyherdAgentUnsupported",
+        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
+        "newSession.streamline.defaultsSummary",
+        "newSession.streamline.intro",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
         "newSession.title",
         "newSession.workspace",
@@ -298,6 +332,7 @@
         "projects.project",
         "sessionInfo.path",
         "settings.title",
+        "sidebar.newSession",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
@@ -328,6 +363,7 @@
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
@@ -348,8 +384,10 @@
       "path": "/projects/[id]",
       "owner": "sources/app/(app)/projects/[id].tsx",
       "translationKeys": [
+        "common.back",
         "common.error",
         "common.rename",
+        "focusMode.enter",
         "happyHerd.automations.unknownError",
         "sidebar.hideArchived",
         "sidebar.projects",
@@ -364,7 +402,9 @@
       "owner": "sources/app/(app)/projects/index.tsx",
       "translationKeys": [
         "common.error",
-        "happyHerd.automations.unknownError"
+        "focusMode.enter",
+        "happyHerd.automations.unknownError",
+        "sidebar.projects"
       ],
       "states": [
         "error"
@@ -459,6 +499,7 @@
       "translationKeys": [
         "agentInput.agent.dsh",
         "agentInput.agent.grok",
+        "common.back",
         "common.cancel",
         "common.error",
         "common.loading",
@@ -496,11 +537,9 @@
         "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
-        "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.codexThreadId",
-        "sessionInfo.codexThreadIdCopied",
         "sessionInfo.connectionStatus",
         "sessionInfo.controlledByUser",
         "sessionInfo.copyMetadata",
@@ -513,7 +552,6 @@
         "sessionInfo.failedToCopySessionId",
         "sessionInfo.failedToDeleteSession",
         "sessionInfo.happySessionId",
-        "sessionInfo.happySessionIdCopied",
         "sessionInfo.happyherdHome",
         "sessionInfo.host",
         "sessionInfo.lastUpdated",
@@ -587,6 +625,12 @@
       ]
     },
     {
+      "path": "/settings/about",
+      "owner": "sources/app/(app)/settings/about.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
       "path": "/settings/account",
       "owner": "sources/app/(app)/settings/account.tsx",
       "translationKeys": [
@@ -601,7 +645,10 @@
         "modals.disconnectGithubConfirm",
         "modals.disconnectService",
         "modals.disconnectServiceConfirm",
+        "settings.connectAccount",
+        "settings.connectGithubAccount",
         "settings.connectedAccounts",
+        "settings.github",
         "settingsAccount.accountInformation",
         "settingsAccount.analytics",
         "settingsAccount.analyticsDisabled",
@@ -762,6 +809,7 @@
       "path": "/settings/connect/claude",
       "owner": "sources/app/(app)/settings/connect/claude.tsx",
       "translationKeys": [
+        "settings.connectClaudeTitle",
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
@@ -821,6 +869,46 @@
         "settingsLanguage.description"
       ],
       "states": []
+    },
+    {
+      "path": "/settings/streamline",
+      "owner": "sources/app/(app)/settings/streamline.tsx",
+      "translationKeys": [
+        "agentDefaults.capabilitiesFromMachine",
+        "agentDefaults.capabilitySource",
+        "agentDefaults.capabilitySourceDescription",
+        "agentDefaults.providerUnavailable",
+        "agentDefaults.providerUnavailableOnMachine",
+        "agentDefaults.selectMachineForProvider",
+        "common.reset",
+        "machine.machineGroup",
+        "newSession.streamline.agentDefaultsDescription",
+        "newSession.streamline.agentDefaultsTitle",
+        "newSession.streamline.defaultAgentDescription",
+        "newSession.streamline.defaultAgentTitle",
+        "newSession.streamline.defaultModeTitle",
+        "newSession.streamline.intro",
+        "newSession.streamline.latestModel",
+        "newSession.streamline.latestModelDescription",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
+        "newSession.streamline.settingsSubtitle",
+        "newSession.streamline.worktreeRuleDescription",
+        "newSession.streamline.worktreeRuleTitle",
+        "status.lastSeen",
+        "status.offline",
+        "status.online",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "workspace.noMachines",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "offline"
+      ]
     },
     {
       "path": "/settings/usage",
@@ -892,7 +980,8 @@
         "settingsVoice.language.autoDetect",
         "settingsVoice.language.footer",
         "settingsVoice.language.searchPlaceholder",
-        "settingsVoice.language.title"
+        "settingsVoice.language.title",
+        "settingsVoice.preferredLanguage"
       ],
       "states": []
     },
@@ -1144,14 +1233,17 @@
         "common.message",
         "devicePairing.title",
         "friends.addFriend",
+        "happyHerd.automations.title",
         "machine.back",
         "navigation.connectTerminal",
         "navigation.friends",
         "navigation.linkNewDevice",
         "navigation.restoreWithSecretKey",
         "navigation.whatsNew",
+        "newSession.streamline.modeStreamline",
         "newSession.title",
         "sessionHistory.title",
+        "settings.about",
         "settings.account",
         "settings.appearance",
         "settings.title",
@@ -1263,10 +1355,12 @@
       ],
       "translationKeys": [
         "active",
+        "common.cancel",
         "happyHerd.automations.allTags",
         "happyHerd.automations.arguments",
         "happyHerd.automations.argumentsHint",
         "happyHerd.automations.automationCount",
+        "happyHerd.automations.collapseDetails",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -1277,6 +1371,7 @@
         "happyHerd.automations.emptySubtitle",
         "happyHerd.automations.emptyTitle",
         "happyHerd.automations.executable",
+        "happyHerd.automations.expandDetails",
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
@@ -1288,7 +1383,6 @@
         "happyHerd.automations.new",
         "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
-        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.railExec",
         "happyHerd.automations.save",
@@ -1326,6 +1420,37 @@
         "changelog.noEntriesAvailable"
       ],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/commanders/index.tsx",
+      "kind": "route",
+      "route": "/commanders",
+      "exports": [
+        "CommandersScreen"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.retry",
+        "files.editFile",
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "happyHerd.commander.emptyTitle",
+        "happyHerd.commander.machineLoadFailed",
+        "happyHerd.commander.memoryEmpty",
+        "happyHerd.commander.memoryReadFailed",
+        "happyHerd.commander.newSessionWith",
+        "happyHerd.commander.noOnlineMachine",
+        "happyHerd.commander.pageSubtitle",
+        "happyHerd.commanderAvatars.loading",
+        "happyHerd.commanderAvatars.machineOffline",
+        "happyHerd.commanderAvatars.noMachines",
+        "sidebar.newSession"
+      ],
+      "states": [
+        "loading"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -1376,9 +1501,7 @@
       "exports": [
         "InboxPage"
       ],
-      "translationKeys": [
-        "tabs.inbox"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -1409,7 +1532,9 @@
       "translationKeys": [
         "agentInput.agent.claude",
         "agentInput.agent.codex",
+        "agentInput.agent.dsh",
         "agentInput.agent.gemini",
+        "agentInput.agent.grok",
         "common.cancel",
         "common.create",
         "common.delete",
@@ -1422,6 +1547,7 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
+        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -1433,7 +1559,6 @@
         "machine.host",
         "machine.lastDetected",
         "machine.lastKnownHttpPort",
-        "machine.lastKnownPid",
         "machine.lastSeen",
         "machine.launchNewSessionInDirectory",
         "machine.machineGroup",
@@ -1450,6 +1575,7 @@
         "machineLauncher.enterCustomPath",
         "machineLauncher.showAll",
         "machineLauncher.showLess",
+        "sessionInfo.processId",
         "status.offline",
         "status.online",
         "uiCopy.createDirectory",
@@ -1502,8 +1628,13 @@
         "machine.machineGroup",
         "machine.offlineHelp",
         "newSession.happyherdAgentUnsupported",
+        "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
+        "newSession.streamline.defaultsSummary",
+        "newSession.streamline.intro",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
         "newSession.title",
         "newSession.workspace",
@@ -1513,6 +1644,7 @@
         "projects.project",
         "sessionInfo.path",
         "settings.title",
+        "sidebar.newSession",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
@@ -1543,6 +1675,7 @@
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
@@ -1566,8 +1699,10 @@
       "route": "/projects/[id]",
       "exports": [],
       "translationKeys": [
+        "common.back",
         "common.error",
         "common.rename",
+        "focusMode.enter",
         "happyHerd.automations.unknownError",
         "sidebar.hideArchived",
         "sidebar.projects",
@@ -1587,7 +1722,9 @@
       ],
       "translationKeys": [
         "common.error",
-        "happyHerd.automations.unknownError"
+        "focusMode.enter",
+        "happyHerd.automations.unknownError",
+        "sidebar.projects"
       ],
       "states": [
         "error"
@@ -1711,6 +1848,7 @@
       "translationKeys": [
         "agentInput.agent.dsh",
         "agentInput.agent.grok",
+        "common.back",
         "common.cancel",
         "common.error",
         "common.loading",
@@ -1748,11 +1886,9 @@
         "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
-        "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.codexThreadId",
-        "sessionInfo.codexThreadIdCopied",
         "sessionInfo.connectionStatus",
         "sessionInfo.controlledByUser",
         "sessionInfo.copyMetadata",
@@ -1765,7 +1901,6 @@
         "sessionInfo.failedToCopySessionId",
         "sessionInfo.failedToDeleteSession",
         "sessionInfo.happySessionId",
-        "sessionInfo.happySessionIdCopied",
         "sessionInfo.happyherdHome",
         "sessionInfo.host",
         "sessionInfo.lastUpdated",
@@ -1853,6 +1988,15 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/settings/about.tsx",
+      "kind": "route",
+      "route": "/settings/about",
+      "exports": [],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/settings/account.tsx",
       "kind": "route",
       "route": "/settings/account",
@@ -1869,7 +2013,10 @@
         "modals.disconnectGithubConfirm",
         "modals.disconnectService",
         "modals.disconnectServiceConfirm",
+        "settings.connectAccount",
+        "settings.connectGithubAccount",
         "settings.connectedAccounts",
+        "settings.github",
         "settingsAccount.accountInformation",
         "settingsAccount.analytics",
         "settingsAccount.analyticsDisabled",
@@ -1932,9 +2079,7 @@
       "owner": "sources/app/(app)/settings/agents.tsx",
       "kind": "route",
       "route": "/settings/agents",
-      "exports": [
-        "AgentDefaultsSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "agentDefaults.capabilitiesFromMachine",
         "agentDefaults.capabilitySource",
@@ -1964,9 +2109,7 @@
       "owner": "sources/app/(app)/settings/appearance.tsx",
       "kind": "route",
       "route": "/settings/appearance",
-      "exports": [
-        "AppearanceSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
@@ -2041,10 +2184,9 @@
       "owner": "sources/app/(app)/settings/connect/claude.tsx",
       "kind": "route",
       "route": "/settings/connect/claude",
-      "exports": [
-        "ClaudeOAuth"
-      ],
+      "exports": [],
       "translationKeys": [
+        "settings.connectClaudeTitle",
         "uiCopy.connect",
         "uiCopy.runTheFollowingCommandInYourTerminal"
       ],
@@ -2055,9 +2197,7 @@
       "owner": "sources/app/(app)/settings/connections.tsx",
       "kind": "route",
       "route": "/settings/connections",
-      "exports": [
-        "ConnectionsSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2075,9 +2215,7 @@
       "owner": "sources/app/(app)/settings/features.tsx",
       "kind": "route",
       "route": "/settings/features",
-      "exports": [
-        "FeaturesSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
@@ -2117,9 +2255,7 @@
       "owner": "sources/app/(app)/settings/language.tsx",
       "kind": "route",
       "route": "/settings/language",
-      "exports": [
-        "LanguageSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "settingsLanguage.automatic",
         "settingsLanguage.automaticSubtitle",
@@ -2130,12 +2266,53 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/settings/streamline.tsx",
+      "kind": "route",
+      "route": "/settings/streamline",
+      "exports": [],
+      "translationKeys": [
+        "agentDefaults.capabilitiesFromMachine",
+        "agentDefaults.capabilitySource",
+        "agentDefaults.capabilitySourceDescription",
+        "agentDefaults.providerUnavailable",
+        "agentDefaults.providerUnavailableOnMachine",
+        "agentDefaults.selectMachineForProvider",
+        "common.reset",
+        "machine.machineGroup",
+        "newSession.streamline.agentDefaultsDescription",
+        "newSession.streamline.agentDefaultsTitle",
+        "newSession.streamline.defaultAgentDescription",
+        "newSession.streamline.defaultAgentTitle",
+        "newSession.streamline.defaultModeTitle",
+        "newSession.streamline.intro",
+        "newSession.streamline.latestModel",
+        "newSession.streamline.latestModelDescription",
+        "newSession.streamline.modeAdvanced",
+        "newSession.streamline.modeStreamline",
+        "newSession.streamline.settingsSubtitle",
+        "newSession.streamline.worktreeRuleDescription",
+        "newSession.streamline.worktreeRuleTitle",
+        "status.lastSeen",
+        "status.offline",
+        "status.online",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "workspace.noMachines",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/settings/usage.tsx",
       "kind": "route",
       "route": "/settings/usage",
-      "exports": [
-        "UsageSettingsScreen"
-      ],
+      "exports": [],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2204,14 +2381,13 @@
       "owner": "sources/app/(app)/settings/voice/language.tsx",
       "kind": "route",
       "route": "/settings/voice/language",
-      "exports": [
-        "LanguageSelectionScreen"
-      ],
+      "exports": [],
       "translationKeys": [
         "settingsVoice.language.autoDetect",
         "settingsVoice.language.footer",
         "settingsVoice.language.searchPlaceholder",
-        "settingsVoice.language.title"
+        "settingsVoice.language.title",
+        "settingsVoice.preferredLanguage"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -2526,6 +2702,7 @@
         "agentInput.context.detailContext",
         "agentInput.context.percentContext",
         "agentInput.context.percentWeek",
+        "agentInput.context.remaining",
         "agentInput.effort.title",
         "agentInput.geminiPermissionMode.title",
         "agentInput.model.configureInCli",
@@ -2548,6 +2725,7 @@
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
         "happyHerd.composer.transcribingVoice",
+        "session.providerContinuationAction",
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
@@ -2805,7 +2983,9 @@
       "exports": [
         "ChatHeaderView"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.back"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -2923,7 +3103,12 @@
       "exports": [
         "CommandPalette"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "commandPalette.hintClose",
+        "commandPalette.hintNavigate",
+        "commandPalette.hintOpen",
+        "commandPalette.keyEscape"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -2935,7 +3120,9 @@
         "CommandPaletteInput"
       ],
       "translationKeys": [
-        "commandPalette.placeholder"
+        "commandPalette.keyEscape",
+        "commandPalette.placeholder",
+        "common.cancel"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -2970,6 +3157,7 @@
         "CommandPaletteProvider"
       ],
       "translationKeys": [
+        "happyHerd.commander.browseSubtitle",
         "happyHerd.commander.category",
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
@@ -3004,6 +3192,25 @@
       ],
       "translationKeys": [
         "uiCopy.noCommandsFound"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/navigationCommands.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "buildNavigationCommands"
+      ],
+      "translationKeys": [
+        "focusMode.enter",
+        "focusMode.title",
+        "happyHerd.automations.subtitle",
+        "happyHerd.automations.title",
+        "sidebar.projects",
+        "workspace.featureSubtitle",
+        "workspace.title"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3069,7 +3276,9 @@
         "ConnectionsSettingsView"
       ],
       "translationKeys": [
+        "common.authenticate",
         "common.cancel",
+        "connect.enterUrlManually",
         "devicePairing.account",
         "devicePairing.activeServer",
         "devicePairing.addDevice",
@@ -3106,11 +3315,17 @@
         "devicePairing.selected",
         "devicePairing.server",
         "devicePairing.serverChanged",
-        "devicePairing.title",
         "devicePairing.unavailable",
         "devicePairing.used",
+        "modals.authenticateTerminal",
+        "modals.pasteUrlFromTerminal",
+        "settings.hideOfflineMachines",
+        "settings.scanQrCodeToAuthenticate",
+        "settings.showOfflineMachines",
+        "status.lastSeen",
         "status.offline",
         "status.online",
+        "uiCopy.happyherdTerminal",
         "workspace.title"
       ],
       "states": [
@@ -3232,6 +3447,7 @@
       "translationKeys": [
         "common.back",
         "files.closeFileTab",
+        "files.hidePanel",
         "files.openFileTab",
         "files.resizeWorkspace",
         "workspace.title"
@@ -3575,11 +3791,16 @@
       "translationKeys": [
         "files.addPanel",
         "files.changes",
+        "files.changesPanelDescription",
         "files.closePanel",
+        "files.hidePanel",
         "files.noChangesSubtitle",
         "files.noChangesTitle",
+        "files.summary",
         "sideChat.newChat",
+        "sideChat.newChatDescription",
         "sideChat.panelTitle",
+        "workspace.browseMachine",
         "workspace.title"
       ],
       "states": [],
@@ -3676,6 +3897,51 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/FocusPixelSwap.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FocusPixelSwap",
+        "FocusPixelSwapHost"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapLayer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FocusPixelSwapLayer"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapTile.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PixelSwapTile"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FocusPixelSwapTile.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PixelSwapTile"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/GitLineChanges.tsx",
       "kind": "component",
       "route": null,
@@ -3751,14 +4017,12 @@
       "kind": "component",
       "route": null,
       "exports": [
+        "HAPPYHERD_AUTOMATION_RECENT_RUNS",
         "HappyHerdAutomationDetail"
       ],
       "translationKeys": [
-        "common.back",
         "common.retry",
         "happyHerd.automations.arguments",
-        "happyHerd.automations.backToAutomations",
-        "happyHerd.automations.closeDetails",
         "happyHerd.automations.command",
         "happyHerd.automations.commander",
         "happyHerd.automations.cron",
@@ -3766,6 +4030,7 @@
         "happyHerd.automations.details",
         "happyHerd.automations.editAction",
         "happyHerd.automations.executable",
+        "happyHerd.automations.history",
         "happyHerd.automations.instructions",
         "happyHerd.automations.kind",
         "happyHerd.automations.lastRun",
@@ -3776,6 +4041,7 @@
         "happyHerd.automations.noRuns",
         "happyHerd.automations.none",
         "happyHerd.automations.openSession",
+        "happyHerd.automations.openSessionLink",
         "happyHerd.automations.pause",
         "happyHerd.automations.previousRuns",
         "happyHerd.automations.project",
@@ -3785,7 +4051,6 @@
         "happyHerd.automations.scheduleSection",
         "happyHerd.automations.showFullInstruction",
         "happyHerd.automations.showLessInstruction",
-        "happyHerd.automations.statusActive",
         "happyHerd.automations.statusPaused",
         "happyHerd.automations.timezone",
         "happyHerd.automations.unableHistory",
@@ -3804,6 +4069,7 @@
       "route": null,
       "exports": [
         "happyHerdAutomationKindLabel",
+        "happyHerdAutomationNextRun",
         "happyHerdAutomationRowMeta",
         "happyHerdAutomationRunStatusLabel"
       ],
@@ -3846,6 +4112,716 @@
       "route": null,
       "exports": [
         "HeaderLogo"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/HerdPopover.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMenuItem",
+        "HerdMenuSeparator",
+        "HerdMenuTitle",
+        "HerdPopover",
+        "measureHerdAnchor",
+        "resolveHerdPopoverPosition"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/mobile/HerdBottomSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "HERD_SHEET_DISMISS_DISTANCE",
+        "HERD_SHEET_DISMISS_VELOCITY",
+        "HerdBottomSheet",
+        "HerdTouchMenuContext",
+        "shouldDismissHerdSheet",
+        "useHerdTouchMenu"
+      ],
+      "translationKeys": [
+        "common.cancel"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/mobile/PhoneHome.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PhoneHome"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "tools.names.search"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/mobile/PhoneHomeRoute.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PhoneHomeRoute"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/AdvancedSections.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AdvancedSections",
+        "resolveMachineCardWidth"
+      ],
+      "translationKeys": [
+        "agentInput.effort.title",
+        "agentInput.model.title",
+        "happyHerd.automations.machine",
+        "happyHerd.commander.category",
+        "newSession.workspace",
+        "projects.project",
+        "sessionInfo.aiProvider",
+        "sessionInfo.path",
+        "status.offline",
+        "status.online"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/PathDropdown.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PathDropdown"
+      ],
+      "translationKeys": [
+        "newSession.showHidden",
+        "uiCopy.addWorkspaceFavorite",
+        "uiCopy.browseFilesystemRoot",
+        "uiCopy.browseParentFolder",
+        "uiCopy.enterProjectPath",
+        "uiCopy.folderIsEmpty",
+        "uiCopy.hostFolders",
+        "uiCopy.noRecentProjectsYet",
+        "uiCopy.openFolderValue",
+        "uiCopy.refreshFolder",
+        "uiCopy.removeWorkspaceFavorite",
+        "uiCopy.useFavoriteValue",
+        "uiCopy.useThisFolder",
+        "uiCopy.useValueAsWorkspace",
+        "workspace.browseMachine",
+        "workspace.favorites",
+        "workspace.recent"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/StreamlineComposer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StreamlineComposerChips",
+        "StreamlineComposerLabels",
+        "StreamlineSummary"
+      ],
+      "translationKeys": [
+        "newSession.streamline.settingsLink",
+        "newSession.streamline.worktreeOff",
+        "newSession.streamline.worktreeOn"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/newSession/StreamlineSections.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StreamlineCommanderChoices",
+        "StreamlineLabel",
+        "StreamlineLabelLink",
+        "StreamlineProjectChoices",
+        "StreamlineSections"
+      ],
+      "translationKeys": [
+        "common.create",
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
+        "newSession.streamline.browseFolder",
+        "newSession.streamline.githubBadge",
+        "newSession.streamline.notGithub",
+        "newSession.streamline.whereLabel",
+        "projects.noProject",
+        "projects.project",
+        "status.offline",
+        "uiCopy.noCommander",
+        "uiCopy.useGlobalAgentsMdOnly",
+        "workspace.browseMachine"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/ChangelogPageFrame.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ChangelogPageFrame"
+      ],
+      "translationKeys": [
+        "navigation.whatsNew",
+        "updateBanner.seeLatest"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdCollapse.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdCollapse"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLanding.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdLanding"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.title",
+        "newSession.title",
+        "sidebar.sessionsTitle",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines",
+        "updateBanner.whatsNew",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLandingArt.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdBrandMark",
+        "HerdHorizon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdLandingArt.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdBrandMark",
+        "HerdHorizon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdItem",
+        "HerdItemGroup",
+        "HerdListHeader",
+        "HerdValueItem"
+      ],
+      "translationKeys": [
+        "common.copy"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdPage.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdButton",
+        "HerdChip",
+        "HerdDot",
+        "HerdEmptyState",
+        "HerdKey",
+        "HerdNotice",
+        "HerdPageHeader",
+        "HerdSectionLabel",
+        "herdEnterStyles",
+        "useHerdWideLayout"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "HerdSheet",
+        "useSheetEscapeKeydown"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/HerdTimeline.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdTimelineGroup"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/SettingsFrame.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SETTINGS_ABOUT_LINKS",
+        "SETTINGS_FRAME_MIN_WIDTH",
+        "SETTINGS_SECTIONS",
+        "SettingsFrame",
+        "SettingsNav",
+        "SettingsSectionList",
+        "useSettingsFrameAction",
+        "useSettingsFrameVisible",
+        "withSettingsFrame"
+      ],
+      "translationKeys": [
+        "devicePairing.title",
+        "happyHerd.commander.category",
+        "newSession.streamline.modeStreamline",
+        "settings.about",
+        "settings.account",
+        "settings.appearance",
+        "settings.featuresTitle",
+        "settings.sectionsLabel",
+        "settings.title",
+        "settings.usage",
+        "settings.voiceAssistant",
+        "settings.whatsNew",
+        "settingsCredentials.title",
+        "settingsLanguage.title",
+        "uiCopy.agentDefaults"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/pages/SettingsServerButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsServerButton"
+      ],
+      "translationKeys": [
+        "server.serverConfiguration"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelGrip.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelGrip"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelIconButton.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelIconButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelOverlay.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HERD_PHONE_SHEET_LEFTOVER",
+        "HerdPanelScrim",
+        "resolveHerdSheetWidth",
+        "useHerdOverlayEscape"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelScreenHeader.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdPanelScreenHeader"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/panels/PanelTab.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "HerdCountBadge",
+        "HerdLineCounts",
+        "HerdPanelTab"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/SegmentedControl.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdSegmentedControl"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/Collapse.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdCollapse"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/ComposerChips.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ComposerChip",
+        "ComposerChipPopover",
+        "ContextMeter"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/HeaderButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdHeaderButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/SessionHeaderActions.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionHeaderActions"
+      ],
+      "translationKeys": [
+        "sideChat.collapse",
+        "sideChat.newChat",
+        "sideChat.openCount",
+        "sideChat.panelTitle",
+        "uiCopy.session",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/ToolLine.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolLine",
+        "ToolLineStateIcon",
+        "ToolLineStatsText"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/session/toolLineModel.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "formatToolSeconds",
+        "resolveToolLineStats",
+        "resolveToolLineText"
+      ],
+      "translationKeys": [
+        "toolGroup.ran"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdConnectionStatus.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdConnectionStatus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdHeaderIconButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdHeaderIconButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdInboxBell.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdInboxBell"
+      ],
+      "translationKeys": [
+        "friends.pendingRequests",
+        "inbox.emptyTitle",
+        "inbox.updates",
+        "tabs.inbox"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMachineMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMachineMenu",
+        "machineLabel",
+        "orderMachinesForMenu",
+        "resolveMachinePillState"
+      ],
+      "translationKeys": [
+        "common.loading",
+        "devicePairing.title",
+        "sessionInfo.viewMachine",
+        "settings.machines",
+        "status.offline",
+        "status.online",
+        "topBar.addMachine",
+        "topBar.noMachine",
+        "topBar.noMachinesYet"
+      ],
+      "states": [
+        "loading",
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMaskImage.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMaskImage"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMaskImage.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdMaskImage",
+        "herdMaskImageUri"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdPhoneDrawer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HERD_PHONE_DRAWER_EDGE",
+        "HERD_PHONE_DRAWER_SWIPE_DISTANCE",
+        "HERD_PHONE_DRAWER_SWIPE_VELOCITY",
+        "HerdPhoneDrawer",
+        "herdPhoneDrawerWidth"
+      ],
+      "translationKeys": [
+        "navigation.collapseSidebar"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdPhoneTopBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdPhoneTopBar"
+      ],
+      "translationKeys": [
+        "commandPalette.placeholder",
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
+        "sidebar.sessionsTitle",
+        "tools.names.search"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdSessionRowParts.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdRowMoreButton",
+        "HerdRowSelection",
+        "herdRowDataSet",
+        "isTouchOnlyWeb",
+        "useHerdRowLongPress"
+      ],
+      "translationKeys": [
+        "sessionInfo.quickActions"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdShellIcon.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdShellIcon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdSidebarEdgeToggle.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "HERD_SIDEBAR_EDGE_TOGGLE_COLLAPSED_LEFT",
+        "HERD_SIDEBAR_EDGE_TOGGLE_HEIGHT",
+        "HERD_SIDEBAR_EDGE_TOGGLE_WIDTH",
+        "HerdSidebarEdgeToggle",
+        "resolveHerdSidebarEdgeToggleLeft"
+      ],
+      "translationKeys": [
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTooltip.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdTooltip"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTopBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HERD_TOP_BAR_COMPACT_WIDTH",
+        "HerdTopBar"
+      ],
+      "translationKeys": [
+        "commandPalette.placeholder",
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
+        "sidebar.sessionsTitle",
+        "zen.toggle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTopBarIconButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdTopBarIconButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/sidebarTransition.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "HERD_SIDEBAR_EXIT_MS",
+        "HerdSidebarFrame",
+        "HerdSidebarPhaseContext",
+        "useHerdSidebarTransition"
       ],
       "translationKeys": [],
       "states": [],
@@ -3939,6 +4915,7 @@
         "InboxView"
       ],
       "translationKeys": [
+        "friends.findFriends",
         "friends.myFriends",
         "friends.pendingRequests",
         "friends.requestPending",
@@ -3969,6 +4946,7 @@
         "files.editFile",
         "files.inlineComments",
         "files.pinComment",
+        "files.pinnedComment",
         "files.removeComment",
         "files.sendComments",
         "happyHerd.composer.sendFailedBody",
@@ -4040,7 +5018,9 @@
         "LocalhostLiveView",
         "workspaceLivePickFromMessage"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "workspace.liveLoading"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4096,7 +5076,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "MachinePathBrowser"
+        "MachinePathBrowser",
+        "useMachinePathTree"
       ],
       "translationKeys": [
         "newSession.showHidden",
@@ -4156,20 +5137,7 @@
       "exports": [
         "MainView"
       ],
-      "translationKeys": [
-        "focusMode.enter",
-        "happyHerd.automations.title",
-        "sessionsFilter.appearanceSettings",
-        "sessionsFilter.flatList",
-        "sessionsFilter.groupByProject",
-        "sessionsFilter.groupByWorkspace",
-        "sessionsFilter.groupingTitle",
-        "sessionsFilter.title",
-        "settings.title",
-        "sidebar.projects",
-        "tools.names.search",
-        "workspace.title"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4521,7 +5489,9 @@
         "createHeader",
         "createPlainHeader"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.back"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4723,6 +5693,7 @@
       ],
       "translationKeys": [
         "happyHerd.composer.queueMessage",
+        "message.sendsAfterThisTurn",
         "uiCopy.valueQueued"
       ],
       "states": [],
@@ -4943,82 +5914,49 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SettingsAboutView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsAboutView"
+      ],
+      "translationKeys": [
+        "common.runtime",
+        "common.version",
+        "modals.developerMode",
+        "modals.developerModeDisabled",
+        "modals.developerModeEnabled",
+        "settings.developer",
+        "settings.developerTools",
+        "settings.eula",
+        "settings.github",
+        "settings.privacyPolicy",
+        "settings.reportIssue",
+        "settings.supportUs",
+        "settings.supportUsSubtitle",
+        "settings.supportUsSubtitlePro",
+        "settings.termsOfService"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SettingsProfileCard.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsProfileCard"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SettingsView.tsx",
       "kind": "component",
       "route": null,
       "exports": [
         "SettingsView"
-      ],
-      "translationKeys": [
-        "common.authenticate",
-        "common.runtime",
-        "common.version",
-        "connect.enterUrlManually",
-        "devicePairing.settingsSubtitle",
-        "devicePairing.title",
-        "modals.authenticateTerminal",
-        "modals.developerMode",
-        "modals.developerModeDisabled",
-        "modals.developerModeEnabled",
-        "modals.disconnect",
-        "modals.disconnectGithub",
-        "modals.disconnectGithubConfirm",
-        "modals.disconnectService",
-        "modals.disconnectServiceConfirm",
-        "modals.pasteUrlFromTerminal",
-        "settings.about",
-        "settings.account",
-        "settings.accountSubtitle",
-        "settings.appearance",
-        "settings.appearanceSubtitle",
-        "settings.connectAccount",
-        "settings.connectGithubAccount",
-        "settings.connectedAccounts",
-        "settings.developer",
-        "settings.developerTools",
-        "settings.eula",
-        "settings.features",
-        "settings.featuresSubtitle",
-        "settings.featuresTitle",
-        "settings.github",
-        "settings.githubConnected",
-        "settings.hideOfflineMachines",
-        "settings.machines",
-        "settings.privacyPolicy",
-        "settings.reportIssue",
-        "settings.scanQrCodeToAuthenticate",
-        "settings.showOfflineMachines",
-        "settings.supportUs",
-        "settings.supportUsSubtitle",
-        "settings.supportUsSubtitlePro",
-        "settings.termsOfService",
-        "settings.usage",
-        "settings.usageSubtitle",
-        "settings.voiceAssistant",
-        "settings.voiceAssistantSubtitle",
-        "settings.whatsNew",
-        "settings.whatsNewSubtitle",
-        "settingsAccount.statusActive",
-        "settingsCredentials.settingsRow",
-        "settingsCredentials.settingsRowSubtitle",
-        "status.offline",
-        "status.online",
-        "uiCopy.agentDefaults",
-        "uiCopy.claudeCode_rfuptw",
-        "uiCopy.defaultModelEffortAndPermissions",
-        "uiCopy.happyherdTerminal"
-      ],
-      "states": [
-        "offline"
-      ],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/SettingsViewWrapper.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "SettingsViewWrapper"
       ],
       "translationKeys": [],
       "states": [],
@@ -5115,12 +6053,7 @@
       "exports": [
         "SidebarNavigator"
       ],
-      "translationKeys": [
-        "common.back",
-        "navigation.collapseSidebar",
-        "navigation.expandSidebar",
-        "zen.toggle"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5223,22 +6156,6 @@
         "SyntaxText"
       ],
       "translationKeys": [],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/TabBar.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "MOBILE_TAB_BAR_CONTENT_INSET",
-        "TabBar"
-      ],
-      "translationKeys": [
-        "tabs.inbox",
-        "tabs.sessions",
-        "tabs.settings"
-      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5398,6 +6315,7 @@
         "ToolView"
       ],
       "translationKeys": [
+        "profile.details",
         "toolView.input",
         "toolView.output"
       ],
@@ -5645,9 +6563,12 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "TodoView"
+        "TodoView",
+        "readTodos"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "tools.names.todoList"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

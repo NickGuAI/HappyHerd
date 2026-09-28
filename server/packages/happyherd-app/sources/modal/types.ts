@@ -44,6 +44,8 @@ export interface CustomModalConfig extends BaseModalConfig {
     type: 'custom';
     component: ComponentType<any>;
     props?: any;
+    /** `dialog` rests on the bottom edge on phones (UI overhaul); see `BaseModal`. */
+    presentation?: 'center' | 'dialog';
 }
 
 export type ModalConfig = AlertModalConfig | ConfirmModalConfig | PromptModalConfig | CustomModalConfig;

@@ -32,17 +32,40 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Constants from 'expo-constants';
-import { useDeviceType, useHeaderHeight } from '@/utils/responsive';
+import { useDeviceType, useHeaderHeight, useIsTablet } from '@/utils/responsive';
 import { t } from '@/text';
 import { useAllMachines, useLocalSetting, useProjects, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
+import { resolveNewSessionMachine } from '@/utils/newSessionMachine';
+import { HerdSegmentedControl } from '@/components/herd/SegmentedControl';
+import { HerdPopover, type HerdAnchorRect } from '@/components/herd/HerdPopover';
+import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
+import { herdWebClasses } from '@/components/herd/motion';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
+import { HerdWindowInsetsContext, useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
+import { StreamlineSections, type StreamlineFolderOption } from '@/components/herd/newSession/StreamlineSections';
+import { PathDropdown } from '@/components/herd/newSession/PathDropdown';
+import { AdvancedSections, type AdvancedMachineOption } from '@/components/herd/newSession/AdvancedSections';
+import {
+    StreamlineComposerChips,
+    StreamlineComposerLabels,
+    StreamlineSummary,
+    type StreamlineChip,
+    type StreamlineChipKey,
+} from '@/components/herd/newSession/StreamlineComposer';
+import { normalizeStreamlineAgent, resolveStreamlineSelection } from '@/sync/streamlineDefaults';
+import { useGithubRepository } from '@/sync/githubRepository';
+import { useStreamlineLocations } from '@/hooks/useStreamlineLocations';
+import { normalizeMachinePath } from '@/utils/normalizeMachinePath';
 import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { createWorktree } from '@/utils/worktree';
 import { useWorktrees } from '@/hooks/useWorktrees';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
-import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome, formatLastSeen, formatOSPlatform } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useFocusMode } from '@/hooks/useFocusMode';
@@ -88,6 +111,7 @@ import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloo
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
 import {
     getCommanderPickerFixedItems,
+    NO_COMMANDER_PICKER_KEY,
     resolveCommanderPickerSelection,
 } from '@/utils/newSessionCommanderCreation';
 import {
@@ -128,6 +152,9 @@ import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/Machi
 import { NewSessionPathScrollView } from '@/components/NewSessionPathScrollView';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { ProviderIcon } from '@/components/ProviderIcon';
+import { useShortcutHints } from '@/components/ShortcutHints';
+import { formatShortcut } from '@/keyboard/shortcuts';
+import { getHarnessChipName, getModelDisplayName, getPermissionModeDisplayName } from '@/utils/launchChoiceLabels';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -158,14 +185,15 @@ const agentIcons = {
 
 type AgentKey = NewSessionAgentType;
 
-function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor: string }) {
+function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor?: string }) {
     if (agent === 'grok' || agent === 'dsh') {
         return <ProviderIcon kind={agent} size={size} />;
     }
     return (
         <RNImage
             source={agentIcons[agent as keyof typeof agentIcons]}
-            style={{ width: size, height: size, tintColor }}
+            style={{ width: size, height: size }}
+            tintColor={tintColor}
             resizeMode="contain"
         />
     );
@@ -182,6 +210,10 @@ const ALL_AGENTS: { key: AgentKey; label: string }[] = [
 ];
 
 type PickerItem = NewSessionPickerItem & { dimmed?: boolean };
+
+/** Streamline switches to swipe rows and a pinned composer below this width. */
+const STREAMLINE_PHONE_MAX_WIDTH = 700;
+const EMPTY_COMMANDERS: HappyHerdCommanderSummary[] = [];
 
 type PickerType = 'machine' | 'path' | 'accountProject' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
@@ -582,6 +614,9 @@ function ComposerSettingsPickerContent({
     );
 }
 
+/** Streamline's Choose folder card is narrower than the dropdown's bar. */
+const STREAMLINE_PATH_DROPDOWN_MIN_WIDTH = 360;
+
 function PathPickerContent({
     title,
     items,
@@ -963,13 +998,34 @@ function NewSessionScreen() {
     const accountProjects = useProjects();
     const focusMode = useFocusMode();
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
+    const shortcutHints = useShortcutHints();
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
+    const newSessionMode = useSetting('newSessionMode');
+    const streamlineAgentSetting = useSetting('streamlineAgent');
+    const streamlineAgentDefaults = useSetting('streamlineAgentDefaults');
+    const streamlineGithubWorktree = useSetting('streamlineGithubWorktree');
+    const isTablet = useIsTablet();
+    // Streamline follows the synced mode on the web and on native phones (owner
+    // decision, 2026-09-27). Native tablets keep the full form, as does the iOS app
+    // on a Mac in any window, even one the device rule calls a phone.
+    const streamlineAvailable = Platform.OS === 'web' || (!isTablet && !isRunningOnMac());
+    const [sessionMode, setSessionMode] = React.useState<'streamline' | 'advanced'>(
+        () => (streamlineAvailable ? newSessionMode : 'advanced'),
+    );
+    const streamline = sessionMode === 'streamline';
+    const [streamlineAnchor, setStreamlineAnchor] = React.useState<HerdAnchorRect | null>(null);
+    // Phones anchor a Streamline chip's picker to the composer (UI overhaul).
+    const streamlineComposerRef = React.useRef<View>(null);
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
     const deviceType = useDeviceType();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const windowInsets = useWindowSafeAreaInsets();
+    const phoneLayout = useHerdPhoneLayout();
+    // Signed in, the HappyHerd top bar sits above this screen.
+    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
 
     // Persisted draft state (survives navigation).
     //
@@ -1083,8 +1139,9 @@ function NewSessionScreen() {
     // Pick a default only for a fresh draft. A stale explicit daemon id fails in
     // place rather than silently routing to another machine.
     React.useEffect(() => {
-        if (!selectedMachineId && allMachines.length > 0) {
-            setSelectedMachineId(allMachines[0].id);
+        const fresh = selectedMachineId ? null : resolveNewSessionMachine(allMachines, null);
+        if (fresh) {
+            setSelectedMachineId(fresh.id);
         }
     }, [allMachines, selectedMachineId, setSelectedMachineId]);
 
@@ -1213,6 +1270,22 @@ function NewSessionScreen() {
             dimmed: !isMachineOnline(machine),
         }));
     }, [allMachines]);
+
+    // Advanced (UI overhaul): the same machines, online first, as the mock's machine cards.
+    const advancedMachineOptions = React.useMemo<AdvancedMachineOption[]>(() => [...allMachines]
+        .sort((a, b) => (isMachineOnline(a) ? 0 : 1) - (isMachineOnline(b) ? 0 : 1))
+        .map((machine) => {
+            const online = isMachineOnline(machine);
+            return {
+                id: machine.id,
+                name: getMachineName(machine),
+                os: formatOSPlatform(machine.metadata?.platform),
+                online,
+                accessibilityDetail: online
+                    ? t('status.online')
+                    : t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }),
+            };
+        }), [allMachines]);
 
     // Both daemons on the computer contribute places, so choosing HappyHerd Agent does not hide the
     // projects that HappyHerd CLI sessions already established (or vice versa).
@@ -1520,6 +1593,132 @@ function NewSessionScreen() {
         }
     }, [draft.effortLevel, draft.setEffortLevel, effectiveEffortDefault, currentModelKey, effortLevels, rigCreation, selectedAgent]);
 
+    // Streamline starts on its default agent each time the form opens in (or
+    // switches to) Streamline, when that agent can launch on this machine.
+    const streamlineAgentAppliedRef = React.useRef(false);
+    React.useEffect(() => {
+        if (!streamline) {
+            streamlineAgentAppliedRef.current = false;
+            return;
+        }
+        if (streamlineAgentAppliedRef.current || !selectedMachine) return;
+        streamlineAgentAppliedRef.current = true;
+        const preferred = normalizeStreamlineAgent(streamlineAgentSetting);
+        if (preferred !== selectedAgent && availableAgents.some((candidate) => candidate.key === preferred && !candidate.disabled)) {
+            setSelectedAgent(preferred as NewSessionAgentType);
+        }
+    }, [availableAgents, selectedAgent, selectedMachine, setSelectedAgent, streamline, streamlineAgentSetting]);
+
+    // Apply the agent's Streamline defaults once per agent, machine and catalog;
+    // chip edits after that stay until one of those changes.
+    const streamlineCatalogReady = selectedAgent === 'rig'
+        ? selectedRigCreation !== null
+        : Boolean(selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]);
+    const streamlineDefaultsKey = streamline && selectedMachine
+        ? JSON.stringify([selectedAgent, selectedMachine.id, streamlineCatalogReady, streamlineAgentDefaults?.[selectedAgent] ?? null])
+        : null;
+    const streamlineDefaultsAppliedRef = React.useRef<string | null>(null);
+    // Effort belongs to a model: it waits until the model index follows the new
+    // model, or the existing effort clamp would judge it against the old one.
+    const streamlinePendingEffortRef = React.useRef<{ model: string | null; effort: string } | null>(null);
+    React.useEffect(() => {
+        if (!streamlineDefaultsKey) {
+            // Leaving Streamline: re-entry resolves its defaults again.
+            streamlineDefaultsAppliedRef.current = null;
+            streamlinePendingEffortRef.current = null;
+            return;
+        }
+        if (streamlineDefaultsAppliedRef.current === streamlineDefaultsKey) return;
+        streamlineDefaultsAppliedRef.current = streamlineDefaultsKey;
+        const selection = resolveStreamlineSelection({
+            agent: selectedAgent,
+            machineMetadata: selectedMachine?.metadata,
+            streamlineAgentDefaults,
+            agentDefaultOverrides,
+        });
+        if (selection.permissionMode) draft.setPermissionMode(selection.permissionMode);
+        if (selection.modelMode) draft.setModelMode(selection.modelMode);
+        streamlinePendingEffortRef.current = selection.effortLevel
+            ? { model: selection.modelMode, effort: selection.effortLevel }
+            : null;
+    }, [
+        agentDefaultOverrides,
+        draft.setEffortLevel,
+        draft.setModelMode,
+        draft.setPermissionMode,
+        selectedAgent,
+        selectedMachine?.metadata,
+        streamlineAgentDefaults,
+        streamlineDefaultsKey,
+    ]);
+    React.useEffect(() => {
+        const pending = streamlinePendingEffortRef.current;
+        if (!pending || (pending.model !== null && currentModelKey !== pending.model)) return;
+        streamlinePendingEffortRef.current = null;
+        draft.setEffortLevel(pending.effort);
+    }, [currentModelKey, draft.setEffortLevel, streamlineDefaultsKey]);
+
+    // GitHub repositories start in a new worktree (Streamline settings). A
+    // Commander runs in its own workspace, and a worktree chip edit holds
+    // until the folder changes.
+    const streamlineRepository = useGithubRepository(
+        streamline ? selectedMachineId : null,
+        streamline ? resolvedSelectedPath : null,
+    );
+    const streamlineLocationKey = JSON.stringify([selectedMachineId, resolvedSelectedPath, selectedCommanderId]);
+    const streamlineWorktreeEditedRef = React.useRef<string | null>(null);
+    const streamlineAutoWorktree = streamline
+        && streamlineGithubWorktree
+        && !selectedCommanderId
+        && !picksWorkspaces
+        && canCreateWorktree;
+    // Sending waits for the folder check when it decides the worktree.
+    const streamlineDetectionPending = streamlineAutoWorktree && streamlineRepository.loading;
+    React.useEffect(() => {
+        if (!streamline) return;
+        // A chip edit holds for its folder only.
+        if (streamlineWorktreeEditedRef.current !== null && streamlineWorktreeEditedRef.current !== streamlineLocationKey) {
+            streamlineWorktreeEditedRef.current = null;
+        }
+        if (streamlineWorktreeEditedRef.current === streamlineLocationKey || streamlineDetectionPending) return;
+        setWorktreeKey(streamlineAutoWorktree && streamlineRepository.status === 'github' ? '__new__' : '__none__');
+    }, [
+        streamline,
+        streamlineAutoWorktree,
+        streamlineDetectionPending,
+        streamlineLocationKey,
+        streamlineRepository.status,
+    ]);
+    // The Commander list belongs to the machine that returned it; while another
+    // machine's list loads, the previous one must not be attributed to it.
+    const streamlineCommanders = selectedMachineId && commanderLoadedMachineId === selectedMachineId ? commanders : EMPTY_COMMANDERS;
+    const streamlineCommanderWorkspaces = React.useMemo(
+        () => (selectedMachineId ? streamlineCommanders.map((commander) => ({ machineId: selectedMachineId, path: commander.workspace })) : []),
+        [selectedMachineId, streamlineCommanders],
+    );
+    const streamlineFolders = useStreamlineLocations(streamlineCommanderWorkspaces);
+    // Folder cards show home-relative paths, as the mock does.
+    const streamlineFolderOptions = React.useMemo<StreamlineFolderOption[]>(() => streamlineFolders.map((folder) => ({
+        ...folder,
+        homeDir: allMachines.find((machine) => machine.id === folder.machineId)?.metadata?.homeDir ?? null,
+    })), [allMachines, streamlineFolders]);
+    const selectStreamlineCommander = React.useCallback((commanderId: string | null) => {
+        setSelectedCommanderId(commanderId);
+        const commander = commanderId ? streamlineCommanders.find((candidate) => candidate.id === commanderId) : null;
+        if (commander) setSelectedPath(commander.workspace);
+    }, [setSelectedCommanderId, setSelectedPath, streamlineCommanders]);
+    // Folders match by machine and canonical path, so `~/repo/` and `/Users/me/repo` are one choice.
+    const isStreamlineFolderSelected = React.useCallback((folder: { machineId: string; path: string }) => {
+        if (folder.machineId !== selectedMachineId || !selectedPath) return false;
+        const homeDir = allMachines.find((machine) => machine.id === folder.machineId)?.metadata?.homeDir;
+        return normalizeMachinePath(folder.path, homeDir) === normalizeMachinePath(selectedPath, selectedHomeDir);
+    }, [allMachines, selectedHomeDir, selectedMachineId, selectedPath]);
+    const selectStreamlineFolder = React.useCallback((folder: StreamlineFolderOption) => {
+        // Switching machines clears the machine-bound draft fields first.
+        if (folder.machineId !== selectedMachineId) setSelectedMachineId(folder.machineId);
+        setSelectedPath(folder.path);
+    }, [selectedMachineId, setSelectedMachineId, setSelectedPath]);
+
     // The reference keeps the context controls visible while the keyboard is
     // open. Preserve that on mobile and let users collapse them explicitly.
     const isDesktop = Platform.OS === 'web' || isRunningOnMac();
@@ -1615,7 +1814,7 @@ function NewSessionScreen() {
         const effortKey = nextEffort.key;
         setEffortIndex(next);
         draft.setEffortLevel(effortKey);
-        if (selectedAgent === 'codex' || selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
+        if (!streamline && (selectedAgent === 'codex' || selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig')) {
             setAgentDefaultOverrides(setAgentDefaultOverride(
                 agentDefaultOverrides,
                 selectedAgent,
@@ -1629,6 +1828,7 @@ function NewSessionScreen() {
         selectedAgent,
         agentDefaultOverrides,
         setAgentDefaultOverrides,
+        streamline,
     ]);
     const permissionStyle = resolvePermissionStyle(currentPermission);
     const composerSettingsItems = React.useMemo(() => {
@@ -1769,8 +1969,9 @@ function NewSessionScreen() {
         }
     }, [composerSettingsPage, currentEffort?.key, currentModelKey, currentPermission?.key, effortLevels, modelModes, permissionModes, selectedAgent]);
 
-    const handlePickerSelect = React.useCallback((key: string) => {
-        switch (activePicker) {
+    // One selection rule for every picker, and for Advanced's always-visible choices (UI overhaul).
+    const applyPickerSelection = React.useCallback((type: PickerType | null, key: string) => {
+        switch (type) {
             case 'accountProject':
                 draft.setAccountProjectId(key === '__none__' ? null : key);
                 break;
@@ -1779,6 +1980,7 @@ function NewSessionScreen() {
                 break;
             case 'worktree':
                 setWorktreeKey(key);
+                if (streamline) streamlineWorktreeEditedRef.current = streamlineLocationKey;
                 break;
             case 'commander': {
                 const selection = resolveCommanderPickerSelection(key);
@@ -1807,7 +2009,8 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
+                    // Streamline chips change this launch only, never the saved Agent Defaults.
+                    if (!streamline && (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig')) {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1828,7 +2031,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
+                    if (!streamline && (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig')) {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1840,14 +2043,11 @@ function NewSessionScreen() {
                 break;
             }
         }
-        closePicker();
     }, [
-        activePicker,
         agentDefaultOverrides,
         applyCommanderOnboardingIntent,
         availableAgents,
         commanders,
-        closePicker,
         draft.setAccountProjectId,
         draft.setEffortLevel,
         draft.setModelMode,
@@ -1862,7 +2062,14 @@ function NewSessionScreen() {
         setSelectedMachineId,
         setSelectedPath,
         setWorktreeKey,
+        streamline,
+        streamlineLocationKey,
     ]);
+
+    const handlePickerSelect = React.useCallback((key: string) => {
+        applyPickerSelection(activePicker, key);
+        closePicker();
+    }, [activePicker, applyPickerSelection, closePicker]);
 
     const handleComposerSettingsPickerSelect = React.useCallback((key: string) => {
         switch (composerSettingsPage) {
@@ -1872,7 +2079,8 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
+                    // Streamline chips change this launch only, never the saved Agent Defaults.
+                    if (!streamline && (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig')) {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1893,7 +2101,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
+                    if (!streamline && (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig')) {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1907,7 +2115,7 @@ function NewSessionScreen() {
         }
         setNativePickerMeasuredHeight(null);
         setComposerSettingsPage(null);
-    }, [agentDefaultOverrides, composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey, selectedAgent, setAgentDefaultOverrides]);
+    }, [agentDefaultOverrides, composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey, selectedAgent, setAgentDefaultOverrides, streamline]);
 
     // Spawn session handler
     const handleSend = React.useCallback(async (
@@ -2320,7 +2528,8 @@ function NewSessionScreen() {
         && currentLaunchSelectionError === null
         && !currentRigSelectionIncomplete
         && !isSpawning
-        && !dshUploadBusy;
+        && !dshUploadBusy
+        && !streamlineDetectionPending;
     React.useEffect(() => {
         if (
             autoSubmit !== '1'
@@ -2349,6 +2558,15 @@ function NewSessionScreen() {
         zenMode,
         windowWidth,
     });
+    // Streamline lays out by width alone: phones get swipe rows and a pinned
+    // composer; anything wider gets the centered column.
+    // Native phones take the phone layout at every width, landscape included.
+    const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH || !isDesktop;
+    // Advanced on the web (UI overhaul) is the mock's full form, laid out on the
+    // same page as Streamline: a card on wide windows, the stacked page on phones.
+    const advancedPage = !streamline && Platform.OS === 'web';
+    const formPage = streamline || advancedPage;
+    const pageColumn = formPage && !streamlinePhone;
     const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
         platform: Platform.OS,
         deviceType,
@@ -2356,10 +2574,18 @@ function NewSessionScreen() {
         desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
     });
     const isNativeMobile = !isDesktop;
+    // Native phones: the phone top bar takes the window's top inset, so this
+    // screen starts this far below the window's top. Its pickers and the
+    // keyboard's overlap are measured from there.
+    const nativeScreenTop = isNativeMobile && phoneLayout && underTopBar
+        ? windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT
+        : 0;
+    // On phones the Streamline page carries its own title, so the header row would repeat it.
+    const streamlineCarriesTitle = (streamline && streamlinePhone) || advancedPage || pageColumn;
     React.useLayoutEffect(() => {
-        navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile });
+        navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile && !streamlineCarriesTitle });
         return () => navigation.setOptions({ headerShown: true });
-    }, [isNativeMobile, navigation, sidebarLayout.showSidebar]);
+    }, [isNativeMobile, navigation, sidebarLayout.showSidebar, streamlineCarriesTitle]);
 
     // Handle Enter/Cmd+Enter to send on web
     const handleKeyPress = React.useCallback((event: KeyPressEvent): boolean => {
@@ -2372,16 +2598,19 @@ function NewSessionScreen() {
         return false;
     }, [agentInputEnterToSend, canSend, handleSend]);
 
-    // Auto-focus the text input when the composer mounts
+    // Auto-focus the text input when the composer mounts. Web phones (UI overhaul)
+    // scroll New Session as one page, so focusing the composer at its end would
+    // open the page scrolled past the title and every choice.
+    const focusComposerOnMount = !isNativeMobile && !(formPage && streamlinePhone);
     React.useEffect(() => {
-        if (isNativeMobile) {
+        if (!focusComposerOnMount) {
             return;
         }
         const timeout = setTimeout(() => {
             composerInputRef.current?.focus();
         }, 100);
         return () => clearTimeout(timeout);
-    }, [isNativeMobile]);
+    }, [focusComposerOnMount]);
 
     const renderActivePickerPopover = React.useCallback((type: PickerType) => {
         if (Platform.OS !== 'web' || activePicker !== type) {
@@ -2525,9 +2754,12 @@ function NewSessionScreen() {
             return 0;
         }
         const headerBottom = safeArea.top + MOBILE_GLASS_HEADER_HEIGHT;
-        const composerTop = windowHeight - safeArea.bottom - mobileComposerHeight;
+        // The popover's top is measured from the screen's top. The pinned
+        // composer sits on its bottom spacer, at least 12 px tall.
+        const composerTop = windowHeight - nativeScreenTop - Math.max(12, safeArea.bottom) - mobileComposerHeight;
         if (
-            activePicker === 'settings'
+            streamline
+            || activePicker === 'settings'
             || activePicker === 'agent'
             || activePicker === 'model'
             || activePicker === 'effort'
@@ -2551,7 +2783,7 @@ function NewSessionScreen() {
             headerBottom + 12,
             anchorY - NATIVE_PICKER_ESTIMATED_HEIGHT - 8,
         );
-    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, safeArea.bottom, safeArea.top, windowHeight]);
+    }, [activePicker, mobileComposerHeight, mobileConfigHeight, nativeComposerPickerEstimatedHeight, nativePickerMeasuredHeight, nativeScreenTop, safeArea.bottom, safeArea.top, streamline, windowHeight]);
 
     const accountProjectPicker = (
         <>
@@ -2866,6 +3098,74 @@ function NewSessionScreen() {
         </>
     );
 
+    const streamlineChips = React.useMemo<StreamlineChip[]>(() => [
+        {
+            key: 'agent',
+            label: getHarnessChipName(agent.key),
+            accent: true,
+            icon: <AgentProviderIcon agent={agent.key} size={13} tintColor={theme.colors.textLink} />,
+        },
+        ...(showModel && currentModel ? [{ key: 'model' as const, label: getModelDisplayName(currentModel) }] : []),
+        ...(showEffort && currentEffort ? [{ key: 'effort' as const, label: currentEffort.name }] : []),
+        ...(showPermission && currentPermission ? [{ key: 'permission' as const, label: getPermissionModeDisplayName(currentPermission) }] : []),
+        ...(canPickWorktree ? [{
+            key: 'worktree' as const,
+            label: worktreeLabel,
+            icon: <MaterialCommunityIcons name="source-branch" size={13} color={theme.colors.textSecondary} />,
+        }] : []),
+    ], [agent.key, canPickWorktree, currentEffort, currentModel, currentPermission, showEffort, showModel, showPermission, theme.colors.textLink, theme.colors.textSecondary, worktreeLabel]);
+
+    const openStreamlineChip = React.useCallback((key: StreamlineChipKey, anchor: HerdAnchorRect | null) => {
+        // Phones (UI overhaul): a chip's picker spans the composer it opens from.
+        const composer = streamlinePhone ? streamlineComposerRef.current : null;
+        if (composer) {
+            composer.measureInWindow((x, y, width, height) => {
+                setStreamlineAnchor({ x, y, width, height });
+                togglePicker(key);
+            });
+            return;
+        }
+        setStreamlineAnchor(anchor);
+        togglePicker(key);
+    }, [streamlinePhone, togglePicker]);
+
+    const streamlineChipsNode = streamline ? (
+        <StreamlineComposerChips
+            chips={streamlineChips}
+            activeKey={activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree' ? activePicker : null}
+            onPress={openStreamlineChip}
+        />
+    ) : null;
+    // Advanced (UI overhaul): the composer echoes the launch choices, as in the mock;
+    // phones keep the agent and the permission mode.
+    const advancedChipsNode = advancedPage ? (
+        <StreamlineComposerLabels
+            chips={streamlineChips.filter((chip) => chip.key === 'agent' || chip.key === 'permission'
+                || (!streamlinePhone && (chip.key === 'model' || chip.key === 'effort')))}
+        />
+    ) : null;
+    // Advanced on wide windows (UI overhaul): the mock's keyboard hints under the composer.
+    const advancedKeyHints = advancedPage && !streamlinePhone && shortcutHints.modifier ? (
+        <View style={styles.keyHints} testID="advanced-key-hints">
+            {agentInputEnterToSend ? (
+                <>
+                    <View style={styles.keyHint}>
+                        <Text style={styles.keyCap}>↵</Text>
+                        <Text style={styles.keyHintText}>{t('happyHerd.composer.send')}</Text>
+                    </View>
+                    <View style={styles.keyHint}>
+                        <Text style={styles.keyCap}>⇧</Text>
+                        <Text style={styles.keyCap}>↵</Text>
+                        <Text style={styles.keyHintText}>⏎</Text>
+                    </View>
+                </>
+            ) : null}
+            <View style={styles.keyHint}>
+                <Text style={styles.keyCap}>{formatShortcut(shortcutHints.modifier, 'N', shortcutHints.browserSafeShortcuts)}</Text>
+                <Text style={styles.keyHintText}>{t('sidebar.newSession')}</Text>
+            </View>
+        </View>
+    ) : null;
     const composerPlaceholder = t('uiCopy.askValue', { value1: agent.label });
     const sendButtonNode = (
         <NewSessionPrimaryButton
@@ -2885,9 +3185,6 @@ function NewSessionScreen() {
             enabled={isNativeMobile}
             nativeEffect={isNativeMobile}
             intensity={88}
-            onLayout={isNativeMobile
-                ? (event) => setMobileComposerHeight(event.nativeEvent.layout.height)
-                : undefined}
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
             <WorkspaceContextStrip
@@ -2926,12 +3223,23 @@ function NewSessionScreen() {
                     onKeyPress={handleKeyPress}
                 />
             </View>
+            {/* Phones give the Streamline chips their own row above the buttons. */}
+            {streamline && streamlinePhone && (
+                <View style={styles.streamlineChipsRow}>{streamlineChipsNode}</View>
+            )}
             <View style={[
                 styles.actionButtonsContainer,
                 isNativeMobile && styles.mobileActionButtonsContainer,
             ]}>
-                {!isNativeMobile && <View style={styles.actionButtonsLeft} />}
-                {isNativeMobile && (
+                {!isNativeMobile && (
+                    <View style={styles.actionButtonsLeft}>
+                        {streamline && !streamlinePhone && streamlineChipsNode}
+                        {advancedChipsNode}
+                    </View>
+                )}
+                {/* In Streamline the chips replace the agent and settings buttons; the rest keep the right side. */}
+                {isNativeMobile && streamline && <View style={styles.mobileComposerLeftControls} />}
+                {isNativeMobile && !streamline && (
                     <View style={styles.mobileComposerLeftControls}>
                         <BubblePressable
                             scaleFeedback={false}
@@ -3045,20 +3353,238 @@ function NewSessionScreen() {
         </MobileGlassSurface>
     );
 
+    // ---- Streamline (web) ----
+    const modeSwitchControl = streamlineAvailable ? (
+        <HerdSegmentedControl
+            options={[
+                { value: 'streamline', label: t('newSession.streamline.modeStreamline') },
+                { value: 'advanced', label: t('newSession.streamline.modeAdvanced') },
+            ]}
+            value={sessionMode}
+            onChange={(next) => {
+                closePicker();
+                setSessionMode(next);
+            }}
+            size={streamlinePhone ? 'touch' : 'sm'}
+            accessibilityLabel={t('newSession.title')}
+            testID="new-session-mode"
+        />
+    ) : null;
+    // Phones stack the title, the intro and a full-width mode switch.
+    const modeHeader = streamlineAvailable ? (
+        <View style={[styles.modeHeader, streamlinePhone && styles.modeHeaderPhone]}>
+            <View style={[styles.modeHeaderText, streamlinePhone && styles.modeHeaderTextPhone]}>
+                <Text style={[styles.modeTitle, streamlinePhone && styles.modeTitlePhone]}>{t('newSession.title')}</Text>
+                <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>
+                    {streamline ? t('newSession.streamline.intro') : t('uiCopy.startANewSessionOnAnyOfYourConnectedMachines')}
+                </Text>
+            </View>
+            <View style={[styles.modeSwitch, streamlinePhone && styles.modeSwitchPhone]}>{modeSwitchControl}</View>
+        </View>
+    ) : null;
+
+    // The mock's working-folder dropdown (UI overhaul), below the Advanced path
+    // field or Streamline's Choose folder card, over the form; on phones too for Advanced.
+    const pathDropdownProps = {
+        machineId: selectedMachineId,
+        machineName: selectedMachine ? getMachineName(selectedMachine) : null,
+        homeDir: selectedHomeDir,
+        platform: selectedMachine?.metadata?.platform,
+        online: !!selectedMachine && isMachineOnline(selectedMachine),
+        value: selectedPath,
+        recent: pathItems,
+        favorites: selectedMachineFavorites,
+        onToggleFavorite: toggleFavoritePath,
+        onChangeValue: setSelectedPath,
+        onDone: closePicker,
+        onClose: closePicker,
+    };
+    const streamlinePathPicker = formPage && activePicker === 'path' && (!streamlinePhone || advancedPage) ? (
+        <PathDropdown variant="anchored" touch={streamlinePhone} minWidth={streamline ? STREAMLINE_PATH_DROPDOWN_MIN_WIDTH : undefined} {...pathDropdownProps} />
+    ) : null;
+
+    // Phones (UI overhaul): the folder browser floats above the page, 8 px from
+    // the window's sides and bottom, and leaves with motion.
+    const phoneFolderBrowser = useHerdExit(streamline && streamlinePhone && !isNativeMobile && activePicker === 'path' ? true : null, HERD_EXIT.pop);
+    const phoneFolderBrowserCard = phoneFolderBrowser.value ? (
+        <View
+            pointerEvents="box-none"
+            style={[
+                styles.streamlineFloatingLayer,
+                {
+                    paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
+                    paddingBottom: HERD_PHONE_FLOAT_MARGIN + safeArea.bottom,
+                },
+            ]}
+        >
+            {!phoneFolderBrowser.exiting && (
+                <Pressable
+                    accessible={false}
+                    onPress={closePicker}
+                    style={styles.streamlineFloatingBackdrop}
+                    testID="streamline-folder-browser-backdrop"
+                />
+            )}
+            <View
+                testID="streamline-folder-browser"
+                style={[
+                    styles.streamlinePathPicker,
+                    styles.streamlinePathPickerPhone(phoneFolderBrowser.exiting),
+                    { maxHeight: Math.round(windowHeight * 0.56) },
+                ]}
+            >
+                {/* The card keeps its cap; the whole picker scrolls inside it. */}
+                <ScrollView style={styles.streamlinePathPickerPhoneBody} keyboardShouldPersistTaps="handled">
+                    <PathDropdown variant="sheet" touch {...pathDropdownProps} />
+                </ScrollView>
+            </View>
+        </View>
+    ) : null;
+    const streamlinePhoneFolderBrowser = phoneFolderBrowserCard
+        ? phoneFolderBrowser.exiting
+            ? <HerdExitLayer>{phoneFolderBrowserCard}</HerdExitLayer>
+            : <RNModal transparent animationType="none" visible onRequestClose={closePicker}>{phoneFolderBrowserCard}</RNModal>
+        : null;
+
+    const streamlineSections = streamline ? (
+        <StreamlineSections
+            compact={streamlinePhone}
+            commanders={streamlineCommanders.map((commander) => ({ id: commander.id, name: commander.name, role: commander.role }))}
+            commanderMachineId={selectedMachineId}
+            commanderId={selectedCommanderId}
+            commanderNote={commanderLoadError}
+            onSelectCommander={selectStreamlineCommander}
+            onCreateCommander={applyCommanderOnboardingIntent}
+            onOpenCommanders={() => router.push('/commanders' as any)}
+            folders={streamlineFolderOptions}
+            selectedFolder={selectedMachineId && selectedPath ? {
+                machineId: selectedMachineId,
+                path: selectedPath,
+                name: trimTrailingPathSeparator(trimPathInput(selectedPath)).split(/[\\/]/).pop() || selectedPath,
+                machineName: selectedMachine ? getMachineName(selectedMachine) : null,
+                homeDir: selectedHomeDir,
+            } : null}
+            isFolderSelected={isStreamlineFolderSelected}
+            onSelectFolder={selectStreamlineFolder}
+            onChooseFolder={() => togglePicker('path')}
+            chooseFolderOpen={activePicker === 'path'}
+            chooseFolderPopover={streamlinePathPicker}
+            projects={accountProjectItems.map((item) => ({ id: item.key, name: item.label }))}
+            projectId={accountProjectId}
+            focusProjectId={focusMode?.projectId ?? null}
+            onSelectProject={(projectId) => draft.setAccountProjectId(projectId)}
+        />
+    ) : null;
+
+    const advancedSections = advancedPage ? (
+        <AdvancedSections
+            compact={streamlinePhone}
+            machines={advancedMachineOptions}
+            machineId={selectedMachineId}
+            onSelectMachine={(id) => applyPickerSelection('machine', id)}
+            offlineNotice={isOffline ? {
+                title: t('newSession.machineOffline'),
+                body: [
+                    selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'),
+                    t('machine.offlineHelp'),
+                    t('newSession.switchMachinesHint'),
+                ].join('\n'),
+            } : null}
+            pathLabel={pathName}
+            pathOpen={activePicker === 'path'}
+            onTogglePath={() => togglePicker('path')}
+            pathPopover={streamlinePathPicker}
+            providers={availableAgents.map((candidate) => ({ key: candidate.key, label: getHarnessChipName(candidate.key), disabled: candidate.disabled }))}
+            providerKey={selectedAgent}
+            // The mock shows Claude's mark in its own color.
+            renderProviderIcon={(key, color) => (
+                <AgentProviderIcon agent={key as AgentKey} size={17} tintColor={key === 'claude' ? undefined : color} />
+            )}
+            onSelectProvider={(key) => applyPickerSelection('agent', key)}
+            // The model picker's order and provider groups; unavailable models last, disabled.
+            models={modelModes.length > 0
+                ? getModePickerItems(modelModes).map((item) => ({ key: item.key, label: getModelDisplayName({ key: item.key, name: item.label }), disabled: !!item.disabled, section: item.section }))
+                : null}
+            modelKey={currentModelKey}
+            onSelectModel={(key) => applyPickerSelection('model', key)}
+            efforts={showEffort
+                ? effortLevels.map((level) => ({ key: level.key, label: level.name, disabled: !!(level.disabled || level.unavailable) }))
+                : null}
+            effortKey={currentEffort?.key ?? null}
+            onSelectEffort={(key) => applyPickerSelection('effort', key)}
+            permissionTitle={selectedAgent === 'codex' ? t('agentInput.codexPermissionMode.title') : t('agentInput.permissionMode.title')}
+            permissions={showPermission
+                ? permissionModes.map((mode) => ({ key: mode.key, label: getPermissionModeDisplayName(mode), disabled: !!(mode.disabled || mode.unavailable) }))
+                : null}
+            permissionKey={currentPermission?.key ?? null}
+            onSelectPermission={(key) => applyPickerSelection('permission', key)}
+            projects={accountProjectItems.map((item) => ({ id: item.key, name: item.label }))}
+            projectId={accountProjectId}
+            focusProjectId={focusMode?.projectId ?? null}
+            onSelectProject={(projectId) => applyPickerSelection('accountProject', projectId ?? '__none__')}
+            worktree={canPickWorktree ? {
+                title: picksWorkspaces ? t('newSession.workspace') : t('uiCopy.worktree'),
+                fixed: worktreeFixedItems.map((item) => ({ key: item.key, label: item.label })),
+                existing: worktreeItems.map((item) => ({ key: item.key, label: item.label })),
+                value: worktreeKey,
+                onSelect: (key) => applyPickerSelection('worktree', key),
+            } : null}
+            commanders={commanders.map((commander) => ({ id: commander.id, name: commander.name, role: commander.role }))}
+            commanderMachineId={selectedMachineId}
+            commanderId={selectedCommanderId}
+            commanderNote={commanderLoadError}
+            onSelectCommander={(commanderId) => applyPickerSelection('commander', commanderId ?? NO_COMMANDER_PICKER_KEY)}
+            onCreateCommander={applyCommanderOnboardingIntent}
+            onOpenCommanders={() => router.push('/commanders' as any)}
+        />
+    ) : null;
+
+    const streamlineChipPicker = streamline
+        && streamlineAnchor
+        && (activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree')
+        && pickerData ? (
+        <HerdPopover
+            visible
+            anchor={streamlineAnchor}
+            onClose={closePicker}
+            width={streamlinePhone ? streamlineAnchor.width : 300}
+            align="start"
+            placement="auto"
+            accessibilityLabel={pickerData.title}
+            testID="streamline-chip-picker"
+        >
+            <PickerContent {...pickerData} onSelect={handlePickerSelect} embedded />
+        </HerdPopover>
+    ) : null;
+
+    const streamlineSummary = streamline && currentModel && currentEffort && currentPermission ? (
+        <StreamlineSummary
+            summary={t('newSession.streamline.defaultsSummary', {
+                model: getModelDisplayName(currentModel),
+                effort: currentEffort.name,
+                permission: getPermissionModeDisplayName(currentPermission),
+            })}
+            worktree={worktreeKey === '__new__'}
+            onOpenSettings={() => router.push('/settings/streamline' as any)}
+        />
+    ) : null;
+
     return (
         <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
+            {/* The keyboard's overlap counts from the window's top; this view knows only its place in its parent. */}
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : nativeScreenTop}
                 style={[
                     styles.container,
                     isNativeMobile && { backgroundColor: 'transparent' },
                 ]}
             >
-            {isNativeMobile && (
+            {isNativeMobile && !streamline && (
                 <Header
                     title={<Text style={styles.mobileHeaderTitle}>{t('newSession.title')}</Text>}
-                    headerLeft={() => (
+                    // Phones (UI overhaul) reach New Session from the drawer, which leads away again, so it has no Back.
+                    headerLeft={!isTablet ? undefined : () => (
                         <Pressable
                             onPress={() => router.back()}
                             style={styles.mobileHeaderBackButton}
@@ -3075,7 +3601,25 @@ function NewSessionScreen() {
                 />
             )}
 
-            {sidebarLayout.showSidebar ? (
+            {pageColumn ? (
+                <View style={styles.desktopShell} testID={streamline ? 'new-session-streamline' : 'new-session-advanced'}>
+                    <ScrollView
+                        style={styles.streamlineScroll}
+                        contentContainerStyle={styles.streamlineScrollContent}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {/* The mock's New Session card holds both modes and the composer. */}
+                        <View style={[styles.streamlineColumn, styles.formCard]} testID="new-session-card">
+                            {modeHeader}
+                            {streamline ? streamlineSections : advancedSections}
+                            <View style={styles.streamlineComposer}>{composerNode}</View>
+                            {streamlineSummary}
+                            {advancedKeyHints}
+                        </View>
+                    </ScrollView>
+                    {streamlineChipPicker}
+                </View>
+            ) : sidebarLayout.showSidebar ? (
                 <View style={styles.desktopShell}>
                     {Platform.OS === 'web' && activePicker && (
                         <Pressable
@@ -3089,6 +3633,7 @@ function NewSessionScreen() {
                                 <Text style={styles.desktopPromptTitle}>
                                     {t('newSession.title')}
                                 </Text>
+                                {modeSwitchControl && <View style={styles.advancedModeSwitch}>{modeSwitchControl}</View>}
                                 <View style={styles.composerWidthWrap}>
                                     {composerNode}
                                 </View>
@@ -3118,7 +3663,7 @@ function NewSessionScreen() {
                         <>
                             <ScrollView
                                 style={styles.mobileConfigScroll}
-                                contentContainerStyle={styles.mobileConfigScrollContent}
+                                contentContainerStyle={streamline ? styles.streamlineNativeConfig : styles.mobileConfigScrollContent}
                                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                                 keyboardShouldPersistTaps="handled"
                                 onScrollBeginDrag={() => {
@@ -3126,34 +3671,74 @@ function NewSessionScreen() {
                                     closePicker();
                                 }}
                                 showsVerticalScrollIndicator={false}
+                                testID={streamline ? 'new-session-streamline' : undefined}
                             >
-                                <Pressable
-                                    onPress={() => {
-                                        Keyboard.dismiss();
-                                        closePicker();
-                                    }}
-                                    style={styles.mobileKeyboardDismissArea}
-                                >
-                                    <View
-                                        onLayout={(event) => {
-                                            const nextHeight = Math.round(event.nativeEvent.layout.height);
-                                            setMobileConfigHeight((currentHeight) => (
-                                                currentHeight === nextHeight ? currentHeight : nextHeight
-                                            ));
+                                {streamline ? (
+                                    // Native phones (owner decision, 2026-09-27): the Web Mobile page above
+                                    // the composer, which stays pinned as in the full form, so the
+                                    // keyboard handling is the full form's.
+                                    <>
+                                        {modeHeader}
+                                        {streamlineSections}
+                                    </>
+                                ) : (
+                                    <Pressable
+                                        onPress={() => {
+                                            Keyboard.dismiss();
+                                            closePicker();
                                         }}
-                                        style={[styles.inlineConfigWrap, styles.mobileInlineConfigWrap]}
+                                        style={styles.mobileKeyboardDismissArea}
                                     >
-                                        {configContent}
-                                    </View>
-                                </Pressable>
+                                        <View
+                                            onLayout={(event) => {
+                                                const nextHeight = Math.round(event.nativeEvent.layout.height);
+                                                setMobileConfigHeight((currentHeight) => (
+                                                    currentHeight === nextHeight ? currentHeight : nextHeight
+                                                ));
+                                            }}
+                                            style={[styles.inlineConfigWrap, styles.mobileInlineConfigWrap]}
+                                        >
+                                            {modeSwitchControl && <View style={styles.nativeModeSwitch}>{modeSwitchControl}</View>}
+                                            {configContent}
+                                        </View>
+                                    </Pressable>
+                                )}
                             </ScrollView>
-                            <View style={[styles.inlineComposerWrap, styles.mobileComposerShadow]}>
+                            <View
+                                ref={streamline ? streamlineComposerRef : undefined}
+                                // Native pickers anchor to the whole pinned composer, Streamline's summary included.
+                                onLayout={(event) => setMobileComposerHeight(event.nativeEvent.layout.height)}
+                                style={[styles.inlineComposerWrap, styles.mobileComposerShadow]}
+                                testID={streamline ? 'streamline-composer' : undefined}
+                            >
                                 {composerNode}
+                                {streamline && streamlineSummary}
                             </View>
+                            {streamline && streamlineChipPicker}
+                        </>
+                    ) : formPage ? (
+                        <>
+                            {/* Phones (UI overhaul): the whole page scrolls, the composer after the choices. */}
+                            <ScrollView
+                                style={styles.streamlineScroll}
+                                contentContainerStyle={[styles.streamlinePhoneConfig, { paddingBottom: 28 + safeArea.bottom }]}
+                                keyboardShouldPersistTaps="handled"
+                                testID={streamline ? 'new-session-streamline' : 'new-session-advanced'}
+                            >
+                                {modeHeader}
+                                {streamline ? streamlineSections : advancedSections}
+                                <View ref={streamlineComposerRef} style={styles.streamlinePhoneComposer} testID="streamline-composer">
+                                    {composerNode}
+                                </View>
+                                {streamlineSummary}
+                            </ScrollView>
+                            {streamlineChipPicker}
+                            {streamlinePhoneFolderBrowser}
                         </>
                     ) : (
                         <>
                             <View style={styles.inlineConfigWrap}>
+                                {modeSwitchControl && <View style={styles.advancedModeSwitch}>{modeSwitchControl}</View>}
                                 {configContent}
                             </View>
                             {Platform.OS === 'web' && activePicker && (
@@ -3169,11 +3754,13 @@ function NewSessionScreen() {
                         </>
                     )}
 
-                    <View style={{ height: Math.max(12, safeArea.bottom) }} />
+                    {/* The phone Streamline page pads its own scroll for the home indicator. */}
+                    {!(formPage && !isNativeMobile) && <View style={{ height: Math.max(12, safeArea.bottom) }} />}
                 </View>
             )}
 
-            {isNativeMobile && activePicker && nativePickerContent && (
+            {/* Streamline's chips open their own sheet; its folder browser reuses this popover. */}
+            {isNativeMobile && activePicker && nativePickerContent && (!streamline || activePicker === 'path') && (
                 <KeyboardStickyView
                     enabled={activePicker === 'path'}
                     style={[
@@ -3394,6 +3981,177 @@ const styles = StyleSheet.create((theme) => ({
         right: 0,
         bottom: 0,
         zIndex: -1,
+    },
+    // Streamline (web): a centered column with the mode switch, the three
+    // choices, the composer and its summary.
+    modeHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        flexWrap: 'wrap',
+        gap: 16,
+    },
+    modeHeaderText: {
+        flex: 1,
+        minWidth: 220,
+    },
+    modeTitle: {
+        fontSize: 28,
+        lineHeight: 34,
+        color: theme.colors.text,
+        ...Typography.default('semiBold'),
+    },
+    modeSubtitle: {
+        marginTop: 6,
+        fontSize: 15,
+        lineHeight: 21,
+        color: theme.colors.textSecondary,
+        ...Typography.default(),
+    },
+    modeSwitch: {
+        width: 250,
+        marginTop: 4,
+    },
+    // Phones: the title, the intro and a full-width switch, stacked.
+    modeHeaderPhone: {
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        flexWrap: 'nowrap',
+        gap: 12,
+    },
+    // `flex: 1` from the row layout would give the column a zero basis and collapse it.
+    modeHeaderTextPhone: {
+        flexGrow: 0,
+        flexShrink: 0,
+        flexBasis: 'auto',
+        minWidth: 0,
+    },
+    modeTitlePhone: {
+        fontSize: 24,
+        lineHeight: 30,
+    },
+    modeSubtitlePhone: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    modeSwitchPhone: {
+        width: '100%',
+        marginTop: 0,
+    },
+    advancedModeSwitch: {
+        width: 250,
+        alignSelf: 'center',
+    },
+    streamlineScroll: {
+        flex: 1,
+    },
+    streamlineScrollContent: {
+        paddingHorizontal: 32,
+        paddingTop: 30,
+        paddingBottom: 40,
+    },
+    streamlineColumn: {
+        width: '100%',
+        maxWidth: 1040,
+        alignSelf: 'center',
+    },
+    streamlineComposer: {
+        marginTop: 28,
+    },
+    keyHints: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 14,
+        marginTop: 10,
+    },
+    keyHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    keyCap: {
+        minWidth: 18,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        textAlign: 'center',
+        fontSize: 11,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
+    keyHintText: {
+        fontSize: 12,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.default(),
+    },
+    // The mock's New Session card (UI overhaul): its panel gradient, rim and shadow.
+    formCard: {
+        maxWidth: 976,
+        paddingTop: 30,
+        paddingHorizontal: 34,
+        paddingBottom: 26,
+        borderRadius: theme.kilv.radiusPanel,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.kilv.panelBase,
+        _web: { backgroundImage: theme.kilv.panelGradient, boxShadow: theme.kilv.shadowPanel },
+    },
+    streamlinePathPicker: {
+        marginTop: 10,
+        maxWidth: 560,
+        borderRadius: theme.kilv.radiusCard,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.colors.surface,
+        overflow: 'hidden',
+        _web: { boxShadow: theme.kilv.shadow },
+    },
+    streamlineChipsRow: {
+        paddingHorizontal: 4,
+        paddingBottom: 6,
+    },
+    streamlinePhoneConfig: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+    },
+    streamlinePhoneComposer: {
+        marginTop: 22,
+        marginBottom: 10,
+    },
+    // Native phones: the Streamline page scrolls above the pinned composer.
+    streamlineNativeConfig: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 16,
+    },
+    nativeModeSwitch: {
+        marginBottom: 10,
+    },
+    streamlineFloatingLayer: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    streamlineFloatingBackdrop: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+    },
+    streamlinePathPickerPhone: (exiting: boolean) => ({
+        marginTop: 0,
+        maxWidth: '100%',
+        width: '100%',
+        _web: {
+            boxShadow: theme.kilv.shadow,
+            transformOrigin: 'bottom center',
+            _classNames: herdWebClasses(exiting ? 'herd-pop-out' : 'herd-pop'),
+        },
+    }),
+    streamlinePathPickerPhoneBody: {
+        flexGrow: 0,
+        flexShrink: 1,
     },
     configBox: {
         backgroundColor: theme.colors.input.background,

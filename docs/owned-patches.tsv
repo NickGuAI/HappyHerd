@@ -500,3 +500,146 @@ GIT_STATUS_FILE_CHANGE_REFRESH	accepted	perf(app): refresh git status on file ch
 SOCKET_MESSAGES_WITHOUT_REFETCH	accepted	perf(app): apply socket messages without refetching them	server/packages/happyherd-app/sources/sync/sync.socketMessages.test.ts
 SESSION_LIST_DELTA_REFRESH	accepted	perf(app): refresh the session list with changed sessions only	server/packages/happyherd-app/sources/sync/sync.sessionListDelta.test.ts
 CLI_CURSORRULES_LINK	accepted	chore(cli): move the leftover cursorrules link into the renamed CLI package	server/packages/happyherd-cli/.cursorrules
+UI_OVERHAUL_FOUNDATION	accepted	feat(app): add the fluid interface foundation	server/packages/happyherd-app/sources/components/herd/motion.test.ts
+UI_OVERHAUL_DESKTOP_SHELL	accepted	feat(app): add the fluid desktop shell	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_STREAMLINE_DEFAULTS	accepted	feat(app): add synced Streamline defaults and capability resolution	server/packages/happyherd-app/sources/sync/streamlineDefaults.test.ts
+UI_OVERHAUL_STREAMLINE_FOLDERS	accepted	feat(app): discover Streamline GitHub repositories and working folders	server/packages/happyherd-app/sources/sync/githubRepository.test.ts
+UI_OVERHAUL_STREAMLINE_START	accepted	feat(app): start sessions from Streamline	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_SESSION_STREAM	accepted	feat(app): restyle the session stream with tool rows and permission cards	server/packages/happyherd-app/sources/components/herd/session/permissionShortcuts.test.ts
+UI_OVERHAUL_SESSION_COMPOSER	accepted	feat(app): add composer chips, a context meter and a single-line dock	server/packages/happyherd-app/sources/components/herd/session/composerChipModel.test.ts
+UI_OVERHAUL_SESSION_HEADER	accepted	feat(app): add Workspace, Side chats and session actions to the chat header	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_SESSION_BROWSER	accepted	test(app): cover the session screen overhaul on Web Desktop and Web Mobile	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_AUTOMATIONS_ROWS	accepted	feat(app): turn Automations into expandable rows	server/packages/happyherd-app/sources/components/AutomationsScreen.test.ts
+UI_OVERHAUL_COMMANDERS_PAGE	accepted	feat(app): add the Commanders page	server/packages/happyherd-app/sources/app/(app)/commanders/index.test.ts
+UI_OVERHAUL_SETTINGS_SECTIONS	accepted	feat(app): add a desktop section list to Settings	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_SECONDARY_PAGES	accepted	feat(app): restyle Projects, Inbox, Session details, Machine and What's New	server/packages/happyherd-app/sources/app/(app)/session/[id]/info.archive.test.ts
+UI_OVERHAUL_FOCUS_MODE	accepted	feat(app): restyle Focus mode setup and countdown	server/packages/happyherd-app/sources/components/herd/pages/focusProgress.test.ts
+UI_OVERHAUL_COMMAND_PALETTE	accepted	feat(app): restyle the command palette	scripts/kilv-capture/pages.capture.mjs
+UI_OVERHAUL_PAGES_CAPTURE	accepted	test(app): capture the overhauled secondary pages	scripts/kilv-capture/pages.capture.mjs
+UI_OVERHAUL_STREAMLINE_SETTINGS_NAV	accepted	feat(app): list Streamline with the other settings	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_PARITY_SESSION_PAGES	accepted	docs(app): record the session and page overhaul for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_STREAMLINE_HARDENING	accepted	fix(app): settle Streamline choices before launch	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_STREAMLINE_SETTINGS_APPLY	accepted	test(app): prove saved Streamline settings reach the launch	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_PERMISSION_KEYS_ON_SCREEN	accepted	fix(app): answer only permission cards that are really on screen	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_TOOL_DETAILS_LINK	accepted	fix(app): keep tool detail navigation on web cards	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
+UI_OVERHAUL_CHIP_PICKER_ESCAPE	accepted	fix(app): close composer chip pickers on Escape without going Back	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_SETTINGS_FRAME_STABLE	accepted	fix(app): keep Settings pages mounted across the frame width	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_SHEET_ESCAPE	accepted	fix(app): close page sheets on Escape without leaving the page	server/packages/happyherd-app/sources/components/herd/pages/HerdSheet.test.ts
+UI_OVERHAUL_PENDING_DETAILS_FOOTER	accepted	fix(app): put a pending card's Details link after its choices	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_PARITY_SETTINGS_GAPS	accepted	docs(app): record the Streamline settings fields for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_MOBILE_SHEETS	accepted	feat(app): open Web phone menus as bottom sheets	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
+UI_OVERHAUL_MOBILE_TAB_BAR	accepted	feat(app): restyle the Web Mobile tab bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_MOBILE_HOME	accepted	feat(app): rebuild the Web Mobile home header and New session button	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_MOBILE_PAGE_HEADER	accepted	feat(app): give Web phone pages a back bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_MOBILE_BROWSER	accepted	test(app): cover the Web Mobile shell in the production style runtime	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_ESCAPE_MODULE	accepted	fix(app): import the Escape hook without the popover UI	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
+UI_OVERHAUL_ROW_LONG_PRESS	accepted	feat(app): open session row actions with a long press on touch screens	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_SESSION_BACK_LABEL	accepted	fix(app): label the session header's Back button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_PHONE_RADII	accepted	feat(app): round phone sheets and the New session button like the mock	server/packages/happyherd-app/sources/components/herd/motion.test.ts
+UI_OVERHAUL_OVERLAY_EXIT	accepted	feat(app): let menus and sheets leave with motion	server/packages/happyherd-app/sources/components/herd/presence.test.ts
+UI_OVERHAUL_PARITY_MOBILE	accepted	docs(app): record the Web Mobile shell and overlay exits for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PANELS_PARTS	accepted	feat(app): add the side panel building blocks	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANELS_RIGHT	accepted	feat(app): restyle the right panel with pill tabs and the Changes list	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANELS_WORKSPACE	accepted	feat(app): restyle the Workspace tabs, file bar, comments and live view	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANELS_OVERLAY	accepted	feat(app): slide the right panel and Workspace over the chat below 1100px	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANELS_BROWSER	accepted	test(app): cover the side panels and Workspace in the production style runtime	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_ALPHA_CSS_VARS	accepted	fix(app): keep token washes translucent in the web style runtime	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PARITY_PANELS	accepted	docs(app): record the side panels and Workspace for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_CHANGELOG	accepted	docs(app): add the redesigned interface and Streamline to the changelog	server/packages/happyherd-app/CHANGELOG.md
+UI_OVERHAUL_PANEL_SHEET_KEYS	accepted	fix(app): keep panel sheet keys on the sheet and off a hidden panel	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PANEL_FOCUS	accepted	fix(app): keep keyboard focus on visible panel controls	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_IME_ESCAPE	accepted	fix(app): never navigate Back on an Escape that cancels IME input	server/packages/happyherd-app/sources/navigation/browserNavigation.test.ts
+UI_OVERHAUL_PARITY_RENAME_PRESERVE	accepted	docs(app): keep the parity record's upstream names out of the product rename	docs/upstream-ui-parity.md
+UI_OVERHAUL_TOOLVIEW_WHITESPACE	accepted	chore(app): strip whitespace-only lines in ToolView	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
+UI_OVERHAUL_GOLDENS	accepted	test(app): regenerate the KILV golden baselines for the redesigned interface	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UI_OVERHAUL_TOPBAR_NO_HISTORY	accepted	feat(app): remove Back and Forward from the top bar	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_STREAMLINE_NO_GEMINI	accepted	refactor(app): remove the retired Gemini Streamline defaults	server/packages/happyherd-app/sources/sync/streamlineDefaults.test.ts
+UI_OVERHAUL_HISTORY_GEMINI_DOCS	accepted	docs(app): record the top bar without Back or Forward and Streamline without Gemini	docs/upstream-ui-parity.md
+UI_OVERHAUL_CONTEXT_METER_SETTING	accepted	test(app): prove the context meter follows the Always show context size setting	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
+UI_OVERHAUL_TABLET_BACK_DOCS	accepted	docs(app): say which native tablet screens keep an on-screen Back	docs/upstream-ui-parity.md
+UI_OVERHAUL_GOLDENS_CHANGELOG	accepted	test(app): regenerate the KILV changelog baselines after the top bar entry changed	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UI_OVERHAUL_PHONE_SHELL	accepted	feat(app): give phones the top bar and the left panel as a drawer	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_PHONE_SESSION	accepted	feat(app): give the phone session the desktop header, gutter and right sheet	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_OVERHAUL_PHONE_MENUS	accepted	feat(app): keep phone menus anchored and rest dialogs on the bottom edge	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_PHONE_CAPABILITIES	accepted	fix(app): restore server configuration and the connection line on phones	server/packages/happyherd-app/sources/app/(app)/settings/index.test.ts
+UI_OVERHAUL_PHONE_STREAMLINE	accepted	feat(app): lay Streamline out for phones as the approved design	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PHONE_REACH	accepted	fix(app): keep the phone sheet header, top bar and drawer within reach	server/packages/happyherd-app/sources/components/herd/panels/panels.browser.test.ts
+UI_OVERHAUL_PHONE_PAGES	accepted	feat(app): give phone Settings its section list and phone pages large titles	server/packages/happyherd-app/sources/components/SettingsView.browser.test.ts
+UI_OVERHAUL_PHONE_CHANGELOG	accepted	docs(app): describe the phone layout in the changelog	server/packages/happyherd-app/CHANGELOG.md
+UI_OVERHAUL_PHONE_TEST_FOCUS	accepted	test(app): give the New Session test's mocked nodes focus and blur	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_NATIVE_TABLET_BACK	accepted	feat(app): show the session and page Back on native tablets	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
+UI_OVERHAUL_NATIVE_STREAMLINE	accepted	feat(app): open native phones in Streamline, as the web does	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_PHONE_WIDTH_RULE	accepted	fix(app): give every web window 700 px and wider the desktop layout	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_PHONE_CHANGELOG_PARITY	accepted	docs(app): qualify the phone changelog to what each platform ships	server/packages/happyherd-app/CHANGELOG.md
+UI_OVERHAUL_PHONE_WORKSPACE_ADD	accepted	fix(app): close the phone drawer from a workspace group's new session button	server/packages/happyherd-app/sources/components/ProjectGroup.test.ts
+UI_OVERHAUL_PHONE_FOLDER_SCROLL	accepted	fix(app): let the phone folder browser scroll its whole content	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PHONE_MENU_HEIGHT	accepted	fix(app): keep the phone session actions card inside short windows	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_PHONE_IOS_HEADER	accepted	fix(app): give iPhone pages the phone title row and Back	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
+UI_OVERHAUL_PHONE_DIALOG_INSETS	accepted	fix(app): keep phone dialogs clear of the landscape notch	server/packages/happyherd-app/sources/utils/duplicateSheetLayout.test.ts
+UI_OVERHAUL_PHONE_DIALOG_BOTTOM	accepted	fix(app): keep iPhone dialogs above the home indicator	server/packages/happyherd-app/sources/modal/components/BaseModal.test.ts
+UI_OVERHAUL_PHONE_PICKER_ANCHOR	accepted	fix(app): open native Streamline pickers above the whole pinned composer	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_MAC_NATIVE_DECISIONS	accepted	fix(app): keep the Mac app's Back and Advanced form in small windows	server/packages/happyherd-app/sources/-session/SessionView.sideChat.test.ts
+UI_OVERHAUL_PHONE_SHEET_KEYBOARD	accepted	fix(app): keep a searched phone sheet above the keyboard	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
+UI_OVERHAUL_SERVER_CONFIG_ALL_LAYOUTS	accepted	fix(app): keep server configuration on the Settings title row at every width	server/packages/happyherd-app/sources/app/(app)/settings/index.test.ts
+UI_OVERHAUL_DESKTOP_CONNECTION_LINE	accepted	fix(app): show the unhealthy-connection line in the desktop panel	server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+UI_OVERHAUL_PREVIEW_MODAL_WIDTH	accepted	fix(app): fit image previews inside the modal's width, clear of a landscape notch	server/packages/happyherd-app/sources/components/herd/modalArea.test.ts
+UI_OVERHAUL_NEW_SESSION_UNDER_TOP_BAR	accepted	fix(app): measure native New Session from the screen under the phone top bar	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_MAC_LANDSCAPE_HEADER	accepted	fix(app): keep the Mac app's session header in landscape windows	server/packages/happyherd-app/sources/-session/SessionView.sideChat.test.ts
+UI_OVERHAUL_SHEET_WINDOW_INSETS	accepted	fix(app): keep native sheets below the status bar under the phone top bar	server/packages/happyherd-app/sources/components/herd/mobile/mobileSheets.test.ts
+UI_OVERHAUL_LANDING_PAGE	accepted	feat(app): give the signed-in landing the mock's page and horizon	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
+UI_OVERHAUL_SETTINGS_PAGE_TITLE	accepted	feat(app): give desktop Settings pages the mock's large page title	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_CONNECTIONS_LAYOUT	accepted	feat(app): lay Settings → Connections out as the mock draws it	server/packages/happyherd-app/sources/components/ConnectionsSettingsView.browser.test.ts
+UI_OVERHAUL_STREAMLINE_SHARED_CHOICES	accepted	refactor(app): share Streamline's Commander and project choices	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_ADVANCED_MOCK_LAYOUT	accepted	feat(app): lay Advanced New Session out as the approved mock	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_ADVANCED_MOCK_TESTS	accepted	test(app): cover the mock's Advanced New Session layout	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_ADVANCED_DOCS	accepted	docs(app): record the Advanced mock layout for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PAGE_BACKGROUND	accepted	fix(app): paint desktop pages on the mock's page background	server/packages/happyherd-app/sources/components/sessionPresentation.test.ts
+UI_OVERHAUL_AUTOMATIONS_MOCK	accepted	feat(app): lay Automations out as the mock draws it	server/packages/happyherd-app/sources/components/HappyHerdAutomationDetail.test.ts
+UI_OVERHAUL_COMMANDERS_TITLE	accepted	feat(app): give Commanders the mock's page title and session counts	server/packages/happyherd-app/sources/app/(app)/commanders/index.test.ts
+UI_OVERHAUL_WHATS_NEW_TITLE	accepted	feat(app): give What's New the mock's page title and timeline rings	server/packages/happyherd-app/sources/components/herd/pages/ChangelogPageFrame.test.ts
+UI_OVERHAUL_INBOX_CARDS	accepted	feat(app): show Inbox updates as the mock's cards under a page title	server/packages/happyherd-app/sources/components/InboxView.test.ts
+UI_OVERHAUL_PAGES_DOCS	accepted	docs(app): record the mock's secondary pages for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PROJECTS_MOCK	accepted	feat(app): give Projects and a project's page the mock's title rows, tile and Focus button	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+UI_OVERHAUL_VALUE_ROWS	accepted	feat(herd): add one-line value rows and a list-aligned page header	server/packages/happyherd-app/sources/components/herd/pages/herdValueRows.browser.test.ts
+UI_OVERHAUL_MACHINE_PAGE_MOCK	accepted	feat(machine): give the machine page the mock's header, path chips and daemon rows	server/packages/happyherd-app/sources/app/(app)/machine/machinePage.test.ts
+UI_OVERHAUL_SESSION_INFO_MOCK	accepted	feat(session-info): add the session details header and one-line value rows	server/packages/happyherd-app/sources/app/(app)/session/[id]/info.archive.test.ts
+UI_OVERHAUL_PROJECTS_MACHINE_DOCS	accepted	docs(app): record the Projects, machine and session details pages for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PROFILE_CARD	accepted	feat(app): lay the Settings profile out as the mock's one-row card	server/packages/happyherd-app/sources/components/SettingsView.browser.test.ts
+UI_OVERHAUL_PALETTE_NAVIGATION	accepted	feat(app): list the panel's destinations and Focus mode in the command palette	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
+UI_OVERHAUL_TOUCH_ROW_MORE	accepted	fix(app): keep the session row ⋯ visible on touch screens	server/packages/happyherd-app/sources/components/herd/shell/HerdRowMoreButton.test.ts
+UI_OVERHAUL_PROFILE_PALETTE_DOCS	accepted	docs(app): record the profile card, palette navigation and touch ⋯ for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_BRAND_MASKS	accepted	fix(app): draw the brand mark and Zen icon as CSS masks on web	server/packages/happyherd-app/sources/components/herd/shell/HerdMaskImage.test.ts
+UI_OVERHAUL_PALETTE_DEFAULT_ON	accepted	fix(app): turn the command palette and top bar search on by default	server/packages/happyherd-app/sources/sync/localSettings.test.ts
+UI_OVERHAUL_TOPBAR_MOCK	accepted	feat(app): give the top bar the mock's Focus mode, machine pill and icons	server/packages/happyherd-app/sources/components/herd/shell/topBarControls.test.ts
+UI_OVERHAUL_PANEL_MOCK	accepted	feat(app): give the left panel the mock's icons, shortcuts and archive toggle	server/packages/happyherd-app/sources/components/SidebarNavigationButton.test.ts
+UI_OVERHAUL_TOPBAR_PANEL_DOCS	accepted	docs(app): record the top bar and left panel fidelity work for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_STREAMLINE_STACK_STUB	accepted	test(app): stub the Stack screen in the Streamline browser fixture	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_SEGMENT_NO_MATCH	accepted	fix(app): leave a segmented control unselected when no option matches	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_LAUNCH_LABELS	accepted	feat(app): show launch choices by their display names	server/packages/happyherd-app/sources/utils/launchChoiceLabels.test.ts
+UI_OVERHAUL_STREAMLINE_LINK_PATHS	accepted	feat(app): link Commanders from Streamline and show its folders home-relative	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_OVERHAUL_PATH_DROPDOWN	accepted	feat(app): open the mock's folder dropdown from the working-folder field	server/packages/happyherd-app/sources/app/(app)/new/index.launch.test.ts
+UI_OVERHAUL_NEW_SESSION_FOLLOWUP_DOCS	accepted	docs(app): record the path dropdown and launch labels for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_FOCUS_DIALOG	accepted	feat(app): open the Focus setup as the mock's dialog	server/packages/happyherd-app/sources/components/herd/shell/topBarControls.test.ts
+UI_OVERHAUL_FOCUS_OPENER	accepted	feat(app): open Focus from the palette and project pages through one opener	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
+UI_OVERHAUL_PHONE_LIST_TOGGLE	accepted	feat(app): give the phone session list the mock's panel toggle and search	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UI_OVERHAUL_FOCUS_DOCS	accepted	docs(app): record the Focus dialog, its opener and the phone list toggle for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_FIDELITY_WHITESPACE	accepted	chore(app): strip trailing whitespace from the fidelity pass	server/packages/happyherd-app/sources/components/InboxView.test.ts
+UI_OVERHAUL_FOCUS_GLYPH_RENDER_PROP	accepted	fix(app): draw the project Focus glyph through a HerdButton render prop	server/packages/happyherd-app/sources/components/InboxView.test.ts
+UI_OVERHAUL_SESSION_INFO_TITLE_TEST	accepted	test(app): expect the session details title row on wide Session Info	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+UI_OVERHAUL_FOCUS_GLYPH_DOCS	accepted	docs(app): record HerdButton's render prop for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_LANDING_RISE_SETTLE	accepted	test(app): measure the landing once its entrance rise settles	server/packages/happyherd-app/sources/components/herd/pages/herdLanding.browser.test.ts
+UI_OVERHAUL_ROUTES_CAPTURE_REDUCED_MOTION	accepted	fix(ci): give the routes capture the reduced-motion hook Session Info now reads	scripts/kilv-capture/routes.mjs
+UI_OVERHAUL_GOLDENS_FIDELITY	accepted	test(app): regenerate the KILV baselines the mock fidelity pass changed	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
+UI_OVERHAUL_REPLY_OPTION_CHIPS	accepted	fix(app): show reply options as the original full-width chips	server/packages/happyherd-app/sources/components/markdown/MarkdownView.browser.test.ts
+UI_OVERHAUL_AUTOMATION_ACTION_GAP	accepted	fix(app): leave a gap between an automation's instructions and its actions	server/packages/happyherd-app/sources/components/HappyHerdAutomationDetail.test.ts
+UI_OVERHAUL_FOCUS_PIXEL_SWAP	accepted	feat(app): play the diagonal pixel swap when Focus mode starts	server/packages/happyherd-app/sources/components/focusPixelSwapTiming.test.ts
+UI_OVERHAUL_SETTINGS_ONE_PANEL	accepted	feat(app): make Settings one panel and give the old home's options their sections	server/packages/happyherd-app/sources/components/settingsOnePanel.browser.test.ts
+UI_OVERHAUL_SETTINGS_CAPTURES	accepted	test(app): capture About and Connections, and follow Settings' redirect in the review captures	scripts/kilv-capture/routes.fixture.tsx
+UI_OVERHAUL_FILE_PANEL_HOST_MODE	accepted	feat(app): let a file-content host open in Edit and follow its mode	server/packages/happyherd-app/sources/components/FileViewPanel.native.test.ts
+UI_OVERHAUL_COMMANDER_MEMORY_EDIT	accepted	feat(app): edit Commander memory in its sheet with the Workspace file editor	server/packages/happyherd-app/sources/components/herd/pages/commanderMemoryEdit.browser.test.ts
+UI_OVERHAUL_SETTINGS_WHATS_NEW_TRACKING	accepted	fix(app): report What's New opened from Settings, as the old home did	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
+UI_OVERHAUL_FOCUS_CAPTURE_SCENE	accepted	test(app): follow the Focus pixel swap to Start in the pages capture	scripts/kilv-capture/pages.capture.mjs
+UI_OVERHAUL_ROUND3_DOCS	accepted	docs(app): record one-panel Settings, the Focus swap and memory editing for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_TRACK_FIXTURE_STUBS	accepted	test(app): stub @/track in the fixtures that bundle Settings	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+UI_OVERHAUL_GOLDENS_SETTINGS_ONE_PANEL	accepted	test(app): regenerate the Appearance baselines for one-panel Settings	docs/acceptance/issue-287/golden/routes-appearance-populated-light-1440.png
+UI_OVERHAUL_HEADER_COUNT_BUTTON	accepted	fix(app): widen an icon-only header button to hold its count	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts

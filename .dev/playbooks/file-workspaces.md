@@ -60,8 +60,9 @@ navigation is a mandatory shipped behavior that reveals the matching rendered
 review unit (including the matching table row for a line inside a table), not a
 mere scroll-or-highlight hint. Unsaved edits survive ordinary tab and layout
 transitions. Wide Web Desktop retains one mounted chat and Workspace with a
-draggable split up to 75% Workspace / 25% chat. Compact Web uses the
-full-screen Workspace without desktop tabs or a divider.
+draggable split up to 75% Workspace / 25% chat. Below 1,100 px, Web
+(phones included) opens the Workspace, with its tabs, in a sheet over the
+chat, without a divider; native phones open it full screen.
 
 The embedded Workspace also accepts an HTTP/HTTPS loopback URL spelled with
 `localhost`, `127.0.0.1`, or `[::1]`. The tab identity is the selected machine
@@ -110,6 +111,18 @@ Workspace has no second header `+` for reopening an obsolete picker. A hidden
 route, mounted component, source string, or reply link is not a substitute for
 a visible, clickable Human entry.
 
+The Commanders page's memory sheet is the one other host of this file-content
+surface. A memory file opens rendered; the sheet header's **Edit** swaps in
+`FileContentPanel` in Edit for that file, with its own Preview/Edit, Save and
+Download (on phones, on a row under the sheet title). Reads stay inside the
+Commander's AgentContext through `machineReadFileWithinRoot`; saves use the
+existing hash-guarded `machineWriteFile`, so a file changed elsewhere opens the
+panel's conflict view and keeps the draft. The sheet has no Delete and no
+comments or feedback, because there is no owning chat. Leaving Edit with
+nothing unsaved returns to the rendered memory read again, saving the working
+memory refreshes the card's memory line, and closing over unsaved edits asks
+through the Workspace's dismiss guard.
+
 ## Owners and reuse rules
 
 The chat file-surface instructions are part of this contract. Keep the live
@@ -129,6 +142,7 @@ same delivery.
 | Feedback | `components/FileViewPanel.tsx`, `components/InlineCommentReview.web.tsx`, `components/diff/PierreDiffView.tsx`, `components/markdown/MarkdownView.web.tsx`, `components/lineReviewStyles.ts`, `sync/workspaceFeedback.ts` | `FileViewPanel` manages shared state and placement, while `PierreDiffView` and `MarkdownView.web` handle line anchoring for code and Markdown threads; `InlineCommentReview.web` renders these threads alongside docked Canvas-node/localhost live-element comments and a single batch review bar, with `workspaceFeedback` preserving unchanged structured delivery to the Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
+| Commander memory sheet | `sources/app/(app)/commanders/index.tsx`, `components/herd/pages/HerdSheet.tsx` | Host `FileContentPanel` for one memory file with root-bound reads, hash-guarded writes, no `deleteFile` and no review context; never add a separate memory editor. |
 
 For Web Desktop and Web Mobile commentable Markdown and source previews,
 `lineReviewStyles.ts` owns source-number and comment-button geometry, content
@@ -193,8 +207,9 @@ Main Agent and an active Side chat:
    to the exact Main Agent or Side chat. Repeat with the same URL on another
    machine to prove machine-qualified identity; reject a non-loopback URL.
 6. On Web Desktop, drag to the 75% Workspace / 25% chat boundary while keeping
-   the chat mounted. On compact Web, prove the full-screen open/back flow and
-   the absence of desktop tabs and divider. Require one viewer/composer and
+   the chat mounted. On compact Web, prove the sheet opens over the chat and
+   closes from the chat strip and Escape, with no divider; on a native phone,
+   prove the full-screen open/back flow. Require one viewer/composer and
    zero page or console errors for ordinary flows. Treat the default HTML
    Preview sandbox-block message as expected enforcement.
 

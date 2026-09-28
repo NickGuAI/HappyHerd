@@ -8,6 +8,7 @@
   "tabs": {
     "inbox": "Inbox",
     "sessions": "Terminals",
+    "sessionsTab": "Sessions",
     "settings": "Settings"
   },
   "inbox": {
@@ -147,6 +148,7 @@
     "githubConnected": "Connected as @{login}",
     "connectGithubAccount": "Connect your GitHub account",
     "claudeAuthSuccess": "Successfully connected to Claude",
+    "connectClaudeTitle": "Connect to Claude",
     "exchangingTokens": "Exchanging tokens...",
     "usage": "Usage",
     "usageSubtitle": "View your API usage and costs",
@@ -160,7 +162,8 @@
           "false": "{feature} disabled"
         }
       }
-    }
+    },
+    "sectionsLabel": "Settings sections"
   },
   "settingsAppearance": {
     "theme": "Theme",
@@ -420,7 +423,30 @@
     "newWorkspace": "new workspace",
     "happyherdAgentUnsupported": "This machine cannot start HappyHerd agent sessions",
     "workspaceNoLongerAvailable": "The selected HappyHerd Agent workspace is no longer available.",
-    "interruptPressStop": "To interrupt press stop"
+    "interruptPressStop": "To interrupt press stop",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "Advanced",
+      "intro": "Start a session quickly using your preconfigured agent defaults.",
+      "whereLabel": "Working folder",
+      "browseFolder": "Choose folder",
+      "githubBadge": "GitHub",
+      "notGithub": "Not a git repository",
+      "defaultsSummary": "Uses {model} with {effort} effort and {permission}.",
+      "worktreeOn": "Creates a new git worktree",
+      "worktreeOff": "Runs directly in the selected folder",
+      "settingsLink": "Streamline settings",
+      "settingsSubtitle": "Configure default models, effort levels, and permission modes for each agent when starting a Streamline session.",
+      "defaultModeTitle": "Default session mode",
+      "defaultAgentTitle": "Default agent",
+      "defaultAgentDescription": "Choose which agent starts automatically in Streamline mode.",
+      "agentDefaultsTitle": "Agent option defaults",
+      "agentDefaultsDescription": "Set default options for each agent, which can still be changed on the composer chips.",
+      "latestModel": "Latest",
+      "latestModelDescription": "The latest model is resolved when the session starts.",
+      "worktreeRuleTitle": "Always use git worktrees",
+      "worktreeRuleDescription": "Always start sessions in a new git worktree when using GitHub repositories."
+    }
   },
   "agentDefaults": {
     "capabilitySource": "Capability Source Machine",
@@ -489,7 +515,11 @@
     "forkClaudeOnly": "Fork is currently only supported for Claude sessions."
   },
   "commandPalette": {
-    "placeholder": "Type a command or search..."
+    "placeholder": "Type a command or search...",
+    "hintNavigate": "Navigate",
+    "hintOpen": "Open",
+    "hintClose": "Close",
+    "keyEscape": "esc"
   },
   "server": {
     "serverConfiguration": "Server Configuration",
@@ -879,6 +909,7 @@
   },
   "files": {
     "changes": "Changes",
+    "changesPanelDescription": "Files this session changed",
     "searchPlaceholder": "Search files...",
     "detachedHead": "detached HEAD",
     "summary": "{staged} staged • {unstaged} unstaged",
@@ -913,6 +944,7 @@
     },
     "addPanel": "Add panel",
     "closePanel": "Close panel",
+    "hidePanel": "Hide panel",
     "openFileTab": "Open file tab {name}",
     "closeFileTab": "Close file tab {name}",
     "openExistingFile": "Open existing file",
@@ -958,6 +990,7 @@
     "panelTitle": "Side chats",
     "resizePanel": "Drag to resize the side panel",
     "newChat": "New side chat",
+    "newChatDescription": "Open a parallel chat forked from this session",
     "emptyTitle": "No side chats yet",
     "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",
     "creating": "Creating…",
@@ -1335,7 +1368,15 @@
       "category": "Commanders",
       "createTitle": "Create Commander",
       "createSubtitle": "Start a guided onboarding session",
-      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happyherd commander create --manifest <file>`, verify with `happyherd commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content."
+      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happyherd commander create --manifest <file>`, verify with `happyherd commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content.",
+      "pageSubtitle": "Each Commander keeps its memory and workspace on its machine. Read what it remembers or start a session with it.",
+      "emptyTitle": "No Commanders found",
+      "noOnlineMachine": "Commanders load from a connected machine. Start the HappyHerd daemon on a machine to see its Commanders.",
+      "machineLoadFailed": "Could not load Commanders from {name}: {message}",
+      "memoryReadFailed": "Could not read the memory file.",
+      "memoryEmpty": "The memory file is empty.",
+      "newSessionWith": "New session with {name}",
+      "browseSubtitle": "Read Commander memory and start sessions"
     },
     "composer": {
       "queueMessage": "Queue Msg",
@@ -1493,6 +1534,7 @@
       "editAction": "Edit",
       "noRuns": "No runs yet.",
       "openSession": "Open session {id}",
+      "openSessionLink": "Open session",
       "commanderValue": "Commander {id}",
       "attempt": "attempt {count}"
     },
@@ -1988,5 +2030,10 @@
     "cancel": "Cancel",
     "noProjects": "Create a project to start focusing.",
     "remaining": "{time} remaining"
+  },
+  "topBar": {
+    "noMachine": "No machine",
+    "addMachine": "Add a machine",
+    "noMachinesYet": "No machines on this account yet"
   }
 }

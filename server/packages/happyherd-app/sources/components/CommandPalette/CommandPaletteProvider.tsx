@@ -6,7 +6,8 @@ import { CommandPalette } from './CommandPalette';
 import { Command } from './types';
 import { useGlobalKeyboard } from '@/hooks/useGlobalKeyboard';
 import { useAuth } from '@/auth/AuthContext';
-import { storage, useAllMachines } from '@/sync/storage';
+import { storage, useAllMachines, useSetting } from '@/sync/storage';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { useShallow } from 'zustand/react/shallow';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { ShortcutHintsProvider } from '@/components/ShortcutHints';
@@ -19,6 +20,8 @@ import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListView
 import { getSessionShortcutIdsInDisplayOrder } from '@/utils/sessionDisplayOrder';
 import { t } from '@/text';
 import { getRecentTopLevelSessions } from '@/sync/sessionListVisibility';
+import { HerdCommandPaletteContext } from '@/components/herd/shell/commandPaletteBridge';
+import { buildNavigationCommands } from './navigationCommands';
 
 const EMPTY_SESSION_IDS: readonly string[] = [];
 
@@ -30,6 +33,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     const sessionListViewData = useVisibleSessionListViewData();
     const machines = useAllMachines();
     const navigateToSession = useNavigateToSession();
+    const machineWorkspace = useSetting('machineWorkspace');
+    const focusActive = useFocusMode() !== null;
     const preferredModifier = useMemo(() => getPreferredShortcutModifier(
         typeof navigator === 'undefined' ? undefined : navigator
     ), []);
@@ -66,6 +71,16 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
                 }
             },
             {
+                id: 'commanders',
+                title: t('happyHerd.commander.category'),
+                subtitle: t('happyHerd.commander.browseSubtitle'),
+                icon: 'people-outline',
+                category: t('happyHerd.commander.category'),
+                action: () => {
+                    router.push('/commanders');
+                }
+            },
+            {
                 id: 'sessions',
                 title: t("uiCopy.viewAllSessions"),
                 subtitle: t("uiCopy.browseYourChatHistory"),
@@ -75,6 +90,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
                     router.push('/');
                 }
             },
+            ...buildNavigationCommands({ machineWorkspace: !!machineWorkspace, focusActive, push: (route) => router.push(route as never) }),
             {
                 id: 'settings',
                 title: t("tabs.settings"),
@@ -152,7 +168,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         }
 
         return cmds;
-    }, [browserSafeShortcuts, router, logout, sessions, navigateToSession, preferredModifier]);
+    }, [browserSafeShortcuts, router, logout, sessions, navigateToSession, preferredModifier, machineWorkspace, focusActive]);
 
     const showCommandPalette = useCallback(() => {
         if (Platform.OS !== 'web' || !isAuthenticated || !commandPaletteEnabled) return;
@@ -164,6 +180,11 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             }
         } as any);
     }, [commands, commandPaletteEnabled, isAuthenticated]);
+
+    // The top bar's search control opens the same palette as ⌘K.
+    const paletteOpener = Platform.OS === 'web' && isAuthenticated && commandPaletteEnabled
+        ? showCommandPalette
+        : null;
 
     const openNewSession = useCallback(() => {
         router.navigate('/new');
@@ -199,7 +220,9 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             recentSessionIds={isAuthenticated ? visibleSessionShortcutIds : EMPTY_SESSION_IDS}
             browserSafeShortcuts={browserSafeShortcuts}
         >
-            {children}
+            <HerdCommandPaletteContext.Provider value={paletteOpener}>
+                {children}
+            </HerdCommandPaletteContext.Provider>
         </ShortcutHintsProvider>
     );
 }

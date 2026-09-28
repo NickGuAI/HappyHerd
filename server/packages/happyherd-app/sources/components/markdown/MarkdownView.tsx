@@ -38,6 +38,7 @@ import {
     type MarkdownViewProps,
     type Option,
 } from './MarkdownView.types';
+import { useHerdModalPreviewWidth } from '@/components/herd/modalArea';
 
 export type { MarkdownViewProps, Option } from './MarkdownView.types';
 
@@ -480,7 +481,8 @@ function LoadedNativeImage(props: {
 
 function MarkdownImagePreviewModal(props: { url: string; alt: string; onClose: () => void }) {
     const viewport = useWindowDimensions();
-    const width = Math.min(Math.max(viewport.width - 32, 280), 1120);
+    // Within the modal's content width, clear of a landscape notch (UI overhaul).
+    const width = useHerdModalPreviewWidth(viewport.width, 1120);
     const height = Math.min(Math.max(viewport.height - 80, 320), 900);
     return (
         <View style={[styles.modal, { width, height }]}>

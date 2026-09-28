@@ -12,7 +12,9 @@ import { getRandomBytesAsync } from "expo-crypto";
 import { Typography } from "@/constants/Typography";
 import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
-import { MainView } from "@/components/MainView";
+import { HerdLanding } from "@/components/herd/pages/HerdLanding";
+import { PhoneHomeRoute } from "@/components/herd/mobile/PhoneHomeRoute";
+import { useHerdPhoneLayout } from "@/components/herd/mobile/useHerdPhone";
 import { t } from '@/text';
 import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
 
@@ -30,7 +32,10 @@ export default function Home() {
 }
 
 function Authenticated() {
-    return <MainView variant="phone" />;
+    // Phones show the left panel as the page, or the landing once it is folded
+    // away. Wider layouts list sessions in the panel and show the landing beside
+    // it (UI overhaul).
+    return useHerdPhoneLayout() ? <PhoneHomeRoute /> : <HerdLanding />;
 }
 
 function NotAuthenticated() {

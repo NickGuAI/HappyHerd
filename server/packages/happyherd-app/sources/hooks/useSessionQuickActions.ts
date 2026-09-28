@@ -277,6 +277,7 @@ export function useSessionQuickActions(
         Modal.show({
             component: DuplicateSheet,
             props: { sessionId: session.id },
+            presentation: 'dialog',
         } as any);
     }, [canFork, session.id]);
 
@@ -285,6 +286,7 @@ export function useSessionQuickActions(
         Modal.show({
             component: ProviderContinuationSheet,
             props: { sessionId: session.id },
+            presentation: 'dialog',
         } as any);
     }, [canContinueWithProvider, session.id]);
 

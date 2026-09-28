@@ -1,52 +1,73 @@
 import { useAuth } from '@/auth/AuthContext';
 import * as React from 'react';
 import { Drawer } from 'expo-router/drawer';
-import { useIsTablet, useHeaderHeight } from '@/utils/responsive';
+import { usePathname } from 'expo-router';
 import { SidebarView } from './SidebarView';
-import { useWindowDimensions, View, Pressable, Platform } from 'react-native';
-import { useLocalSetting, useLocalSettingMutable } from '@/sync/storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
-import { Ionicons, Octicons } from '@expo/vector-icons';
-import { useUnistyles } from 'react-native-unistyles';
-import { t } from '@/text';
-import { isTauri } from '@/utils/isTauri';
-import { useOverlayNav } from '@/-session/sessionOverlayNav';
-import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
-import { canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
-import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
-import { Text } from './StyledText';
-import { FocusModeControl } from './FocusModeControl';
+import { useWindowDimensions, View } from 'react-native';
+import { useLocalSetting } from '@/sync/storage';
+import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native-unistyles';
+import { HerdTopBar } from './herd/shell/HerdTopBar';
+import { HerdPhoneTopBar } from './herd/shell/HerdPhoneTopBar';
+import { HerdPhoneDrawer } from './herd/shell/HerdPhoneDrawer';
+import { useHerdPhoneShell } from './herd/shell/phoneShell';
+import { useHerdPhoneLayout } from './herd/mobile/useHerdPhone';
+import { HerdSidebarEdgeToggle } from './herd/shell/HerdSidebarEdgeToggle';
+import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import {
-    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
-    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
-    resolveDesktopNavigationBoundaryToggleLeft,
+    HerdSidebarFrame,
+    HerdSidebarPhaseContext,
+    useHerdSidebarTransition,
+} from './herd/shell/sidebarTransition';
+import {
     resolveDesktopNavigationDrawerWidth,
-    resolveDesktopPersistentHeaderControlsLeft,
+    resolveDesktopNavigationHidden,
 } from './sidebarNavigationLayout';
-
-const TAURI_HEADER_CONTROL_LEFT = Math.ceil(92 / DEFAULT_APP_ZOOM);
 
 export const SidebarNavigator = React.memo(() => {
     const auth = useAuth();
-    const isTablet = useIsTablet();
+    // Phones (UI overhaul) get the same top bar, with the panel as a drawer
+    // over the screen instead of the permanent drawer beside it. On the web a
+    // window 700 px or wider keeps the desktop shell.
+    const phoneLayout = useHerdPhoneLayout();
     const zenMode = useLocalSetting('zenMode');
     const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
-    const isDesktopLayout = auth.isAuthenticated && isTablet;
+    const isDesktopLayout = auth.isAuthenticated && !phoneLayout;
+    const isPhoneLayout = auth.isAuthenticated && phoneLayout;
+    const showTopBar = isDesktopLayout || isPhoneLayout;
     const { width: windowWidth } = useWindowDimensions();
+    const safeArea = useSafeAreaInsets();
+    const pathname = usePathname();
+    const phoneHome = pathname === '/';
+    const closePhoneDrawer = useHerdPhoneShell((state) => state.closeDrawer);
+
+    // Any navigation (a row, a page, the brand) and leaving the phone layout close the phone drawer.
+    React.useEffect(() => {
+        closePhoneDrawer();
+    }, [closePhoneDrawer, isPhoneLayout, pathname]);
 
     // Calculate target drawer width
     const fullDrawerWidth = React.useMemo(() => {
         if (!isDesktopLayout) return 280;
         return Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
     }, [windowWidth, isDesktopLayout]);
-    const drawerWidth = resolveDesktopNavigationDrawerWidth({
-        isDesktopLayout,
+    const transition = useHerdSidebarTransition(resolveDesktopNavigationHidden({
         zenMode,
         navigationSidebarCollapsed,
+    }));
+    const drawerWidth = resolveDesktopNavigationDrawerWidth({
+        isDesktopLayout,
+        hidden: transition.widthHidden,
         fullDrawerWidth,
     });
+
+    // The top bar consumes the top inset, so screens below it start flush.
+    // Fullscreen modals read the window's real insets instead
+    // (useWindowSafeAreaInsets), because they cover the top bar.
+    const bodyInsets = React.useMemo(
+        () => (showTopBar ? { ...safeArea, top: 0 } : safeArea),
+        [showTopBar, safeArea],
+    );
 
     const drawerNavigationOptions = React.useMemo(() => {
         if (!isDesktopLayout) {
@@ -68,8 +89,9 @@ export const SidebarNavigator = React.memo(() => {
         // We deliberately do NOT animate `width` on web. A CSS transition on
         // the drawer width re-flowed the chat flex-1 sibling on every frame,
         // re-measuring the entire FlatList tree at ~15fps. Snapping the
-        // width change makes the chat reflow exactly once. Native already
-        // snaps because RN doesn't honor CSS transition properties.
+        // width change makes the chat reflow exactly once; the panel's
+        // content slides out before the snap (useHerdSidebarTransition).
+        // Native already snaps because RN doesn't honor CSS transitions.
         return {
             lazy: false,
             headerShown: false,
@@ -89,169 +111,42 @@ export const SidebarNavigator = React.memo(() => {
     }, [isDesktopLayout, drawerWidth]);
 
     const drawerContent = React.useCallback(
-        () => <SidebarView />,
+        () => (
+            <HerdSidebarFrame>
+                <SidebarView />
+            </HerdSidebarFrame>
+        ),
         []
     );
 
     return (
         <View style={{ flex: 1 }}>
-            <Drawer
-                screenOptions={drawerNavigationOptions}
-                drawerContent={isDesktopLayout ? drawerContent : undefined}
-            />
-            {/* Persistent header overlay — always visible on desktop, same position regardless of zen mode */}
-            {isDesktopLayout && (
-                <PersistentHeader drawerWidth={drawerWidth} />
-            )}
-            {isDesktopLayout && (
-                <DesktopNavigationBoundaryToggle drawerWidth={drawerWidth} />
-            )}
-        </View>
-    );
-});
-
-const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBoundaryToggle({
-    drawerWidth,
-}: {
-    drawerWidth: number;
-}) {
-    const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
-    const headerHeight = useHeaderHeight();
-    const [navigationSidebarCollapsed, setNavigationSidebarCollapsed] = useLocalSettingMutable('navigationSidebarCollapsed');
-    const handlePress = React.useCallback(() => {
-        setNavigationSidebarCollapsed(!navigationSidebarCollapsed);
-    }, [navigationSidebarCollapsed, setNavigationSidebarCollapsed]);
-
-    return (
-        <Pressable
-            onPress={handlePress}
-            hitSlop={DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP}
-            accessibilityRole="button"
-            accessibilityLabel={navigationSidebarCollapsed
-                ? t('navigation.expandSidebar')
-                : t('navigation.collapseSidebar')}
-            accessibilityState={{ expanded: !navigationSidebarCollapsed }}
-            testID="navigation-sidebar-toggle"
-            style={({ pressed, hovered }: any) => ({
-                position: 'absolute',
-                top: safeArea.top + (headerHeight - 34) / 2,
-                left: resolveDesktopNavigationBoundaryToggleLeft(drawerWidth),
-                width: DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
-                height: 34,
-                zIndex: 1200,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 9,
-                borderWidth: 1,
-                borderColor: theme.colors.divider,
-                backgroundColor: pressed || hovered
-                    ? theme.colors.surfaceHigh
-                    : 'transparent',
-            })}
-        >
-            <Octicons
-                name={navigationSidebarCollapsed ? 'sidebar-expand' : 'sidebar-collapse'}
-                size={18}
-                color={theme.colors.header.tint}
-            />
-        </Pressable>
-    );
-});
-
-// Header block that stays in the same position whether zen mode is on or off
-const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: { drawerWidth: number }) {
-    const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
-    const headerHeight = useHeaderHeight();
-    const router = useRouter();
-    const [zenMode, setZenMode] = useLocalSettingMutable('zenMode');
-    const inTauri = isTauri();
-    const isMacTauri = inTauri && typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
-
-    const routeHistory = useBrowserNavigationStore((s) => s.routeHistory);
-    const overlayCanBack = useOverlayNav((s) => s.canBack);
-    const canGoBack = routeHistory
-        ? canUseRouteBack(routeHistory, getNavigatorCanGoBack(router))
-        : false;
-
-    const handleZenToggle = React.useCallback(() => {
-        setZenMode(!zenMode);
-    }, [zenMode, setZenMode]);
-
-    const handleBack = React.useCallback(() => {
-        // Intra-session overlay (file diff / file view) consumes back first,
-        // so the chat → diff → file flow can be unwound without a close X.
-        if (useOverlayNav.getState().back()) return;
-        const nav = useBrowserNavigationStore.getState();
-        if (!nav.routeHistory || !canUseRouteBack(nav.routeHistory, getNavigatorCanGoBack(router))) return;
-        nav.markRouteBack();
-        router.back();
-    }, [router]);
-
-    const canGoBackEffective = canGoBack || overlayCanBack;
-
-    return (
-        <View
-            style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                paddingTop: safeArea.top,
-                paddingLeft: resolveDesktopPersistentHeaderControlsLeft(
-                    drawerWidth,
-                    isMacTauri ? TAURI_HEADER_CONTROL_LEFT : 16,
-                ),
-                paddingRight: 16,
-                height: safeArea.top + headerHeight,
-                flexDirection: 'row',
-                alignItems: 'center',
-                zIndex: 1100,
-            }}
-            pointerEvents="box-none"
-            {...(inTauri ? { dataSet: { tauriDragRegion: 'true' } } : {})}
-        >
-            {/* Zen / Back buttons */}
-            <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                pointerEvents="auto"
-                {...(inTauri ? { dataSet: { tauriDragRegion: 'false' } } : {})}
-            >
-                <Pressable
-                    onPress={handleZenToggle}
-                    hitSlop={10}
-                    style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityLabel={t('zen.toggle')}
-                >
-                    <Image
-                        source={require('@/assets/images/zen-icon.png')}
-                        contentFit="contain"
-                        style={{ width: 18, height: 18 }}
-                        tintColor={zenMode ? theme.colors.textLink : theme.colors.header.tint}
-                    />
-                </Pressable>
-                <Pressable
-                    onPress={handleBack}
-                    disabled={!canGoBackEffective}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.back')}
-                    style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', opacity: canGoBackEffective ? 1 : 0.3 }}
-                >
-                    {Platform.OS === 'web' ? (
-                        <Text style={{ color: theme.colors.header.tint, fontSize: 13 }}>
-                            {t('common.back')}
-                        </Text>
-                    ) : (
-                        <Ionicons name="chevron-back" size={20} color={theme.colors.header.tint} />
-                    )}
-                </Pressable>
-            </View>
-            <View style={{ marginLeft: 24 }} pointerEvents="auto"
-                {...(inTauri ? { dataSet: { tauriDragRegion: 'false' } } : {})}>
-                <FocusModeControl />
+            {/* HappyHerd top bar: always visible once signed in, including Zen mode */}
+            {showTopBar && (isDesktopLayout ? <HerdTopBar /> : <HerdPhoneTopBar home={phoneHome} />)}
+            <View style={styles.body}>
+                <HerdWindowInsetsContext.Provider value={showTopBar ? safeArea : null}>
+                    <SafeAreaInsetsContext.Provider value={bodyInsets}>
+                        <HerdSidebarPhaseContext.Provider value={transition.phase}>
+                            <Drawer
+                                screenOptions={drawerNavigationOptions}
+                                drawerContent={isDesktopLayout ? drawerContent : undefined}
+                            />
+                        </HerdSidebarPhaseContext.Provider>
+                    </SafeAreaInsetsContext.Provider>
+                </HerdWindowInsetsContext.Provider>
+                {isDesktopLayout && !zenMode && (
+                    <HerdSidebarEdgeToggle drawerWidth={drawerWidth} />
+                )}
+                {isPhoneLayout && <HerdPhoneDrawer edgeSwipe={!phoneHome} />}
             </View>
         </View>
     );
 });
+
+const styles = StyleSheet.create(() => ({
+    body: {
+        flex: 1,
+        // Hovering anywhere in the shell reveals the panel's edge handle.
+        _web: { _classNames: ['herd-shell'] },
+    },
+}));

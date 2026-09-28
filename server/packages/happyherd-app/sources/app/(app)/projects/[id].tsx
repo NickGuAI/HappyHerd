@@ -1,16 +1,18 @@
 import React from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { FlatSessionRow, flatListBackgroundColor } from '@/components/FlatSessionRow';
-import { Item } from '@/components/Item';
-import { ItemGroup } from '@/components/ItemGroup';
 import { Text } from '@/components/StyledText';
-import { layout } from '@/components/layout';
+import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
+import { HerdShellIcon } from '@/components/herd/shell/HerdShellIcon';
+import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Typography } from '@/constants/Typography';
+import { openFocusSetup } from '@/components/focusSetup';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { Modal } from '@/modal';
 import { useProjects, useProjectsLoaded, useSessionListViewData } from '@/sync/storage';
 import { sync } from '@/sync/sync';
@@ -21,8 +23,11 @@ const projectText = t as (key: string, params?: Record<string, string | number>)
 
 export default React.memo(function ProjectSessionsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
+    const router = useRouter();
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
+    const wide = useHerdWideLayout();
+    const focus = useFocusMode();
     const projects = useProjects();
     const projectsLoaded = useProjectsLoaded();
     const sourceData = useSessionListViewData();
@@ -51,11 +56,41 @@ export default React.memo(function ProjectSessionsScreen() {
         }
     }, [project, renaming]);
 
+    // Opens the Focus setup preset to this project, as the mock does; the top bar
+    // then shows the countdown and its exit.
+    const focusOnProject = focus?.projectId === project?.id;
+    const startFocus = React.useCallback(() => {
+        if (!project) return;
+        openFocusSetup({ projectId: project.id });
+    }, [project]);
+
+    const projectActions = (
+        <>
+            <HerdButton
+                icon="pencil-outline"
+                label={projectText('projects.rename')}
+                loading={renaming}
+                disabled={renaming}
+                onPress={renameProject}
+            />
+            <HerdButton
+                testID="project-focus"
+                variant="primary"
+                renderIcon={({ size, color }) => <HerdShellIcon name="focus" size={size} color={color} />}
+                label={t('focusMode.enter')}
+                selected={focusOnProject}
+                disabled={focusOnProject}
+                onPress={startFocus}
+            />
+        </>
+    );
+
     const title = project?.kind === 'personal' ? project.name : t('sidebar.projects');
     const sessionCount = list.sessions.length + list.archivedSessions.length;
     return (
         <View style={styles.container} testID="project-detail-screen">
-            <Stack.Screen options={{ headerTitle: title }} />
+            {/* Wide layouts draw the title, Back and count in the page, as the mock does. */}
+            <Stack.Screen options={{ headerTitle: title, headerShown: !wide }} />
             <View style={styles.content}>
                 {sourceData === null || (!project && !projectsLoaded) ? (
                     <View style={styles.state} testID="project-detail-loading">
@@ -72,26 +107,47 @@ export default React.memo(function ProjectSessionsScreen() {
                         testID="project-session-list"
                         data={list.sessions}
                         keyExtractor={(row) => row.session.id}
-                        contentContainerStyle={{ paddingBottom: safeArea.bottom + 16 }}
+                        contentContainerStyle={[
+                            styles.listContent,
+                            !wide && styles.listContentCompact,
+                            { paddingBottom: safeArea.bottom + 32 },
+                        ]}
                         contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
                         ListHeaderComponent={(
-                            <ItemGroup title={projectText('projects.sessionCount', { count: sessionCount })}>
-                                <Item
-                                    title={projectText('projects.rename')}
-                                    icon={<Ionicons name="pencil-outline" size={24} color={theme.colors.textLink} />}
-                                    loading={renaming}
-                                    disabled={renaming}
-                                    showChevron={false}
-                                    onPress={renameProject}
+                            <View testID="project-page-header">
+                                <HerdPageHeader
+                                    compact={!wide}
+                                    title={wide ? project.name : undefined}
+                                    leading={wide ? (
+                                        <HerdButton
+                                            testID="project-back"
+                                            variant="ghost"
+                                            icon="arrow-back"
+                                            accessibilityLabel={t('common.back')}
+                                            onPress={() => router.navigate('/projects' as any)}
+                                        />
+                                    ) : undefined}
+                                    subtitle={projectText('projects.sessionCount', { count: sessionCount })}
+                                    subtitleMono={!wide}
+                                    actions={wide ? projectActions : undefined}
                                 />
-                            </ItemGroup>
+                                {/* Phones put the actions on their own row under the count, as the phone mock does. */}
+                                {!wide ? <View style={styles.actionsCompact}>{projectActions}</View> : null}
+                            </View>
                         )}
                         renderItem={({ item, index }) => (
-                            <View testID={`project-session-row-${item.session.id}`}>
+                            <View
+                                testID={`project-session-row-${item.session.id}`}
+                                style={[
+                                    styles.rowShell(index),
+                                    index === 0 && styles.rowShellFirst,
+                                    index === list.sessions.length - 1 && styles.rowShellLast,
+                                ]}
+                            >
                                 <FlatSessionRow
                                     row={item}
                                     pinned={item.session.id === list.superSessionId}
-                                    showBorder={index < list.sessions.length - 1}
+                                    entranceIndex={index}
                                 />
                             </View>
                         )}
@@ -103,7 +159,7 @@ export default React.memo(function ProjectSessionsScreen() {
                             </View>
                         ) : null}
                         ListFooterComponent={list.archivedSessions.length > 0 ? (
-                            <View>
+                            <View style={styles.archive}>
                                 <Pressable
                                     testID="project-archive-toggle"
                                     accessibilityRole="button"
@@ -117,11 +173,18 @@ export default React.memo(function ProjectSessionsScreen() {
                                     </Text>
                                 </Pressable>
                                 {showArchived && list.archivedSessions.map((row, index) => (
-                                    <View key={row.session.id} testID={`project-session-row-${row.session.id}`}>
+                                    <View
+                                        key={row.session.id}
+                                        testID={`project-session-row-${row.session.id}`}
+                                        style={[
+                                            styles.rowShell(index),
+                                            index === 0 && styles.rowShellFirst,
+                                            index === list.archivedSessions.length - 1 && styles.rowShellLast,
+                                        ]}
+                                    >
                                         <FlatSessionRow
                                             row={row}
                                             archived
-                                            showBorder={index < list.archivedSessions.length - 1}
                                         />
                                     </View>
                                 ))}
@@ -143,7 +206,43 @@ const styles = StyleSheet.create((theme) => ({
     content: {
         flex: 1,
         width: '100%',
-        maxWidth: layout.maxWidth,
+        maxWidth: 820,
+    },
+    listContent: {
+        paddingHorizontal: 34,
+        paddingTop: 28,
+    },
+    actionsCompact: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 14,
+    },
+    listContentCompact: {
+        paddingHorizontal: 14,
+        paddingTop: 18,
+    },
+    // Rows sit in one card; the only style in a row's list that sets web classes.
+    rowShell: (index: number) => ({
+        overflow: 'hidden',
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        borderColor: theme.colors.divider,
+        backgroundColor: theme.colors.surface,
+        _web: { _classNames: herdWebClasses('herd-rise-sm', herdStaggerClass(index)) },
+    }),
+    rowShellFirst: {
+        borderTopWidth: 1,
+        borderTopLeftRadius: theme.kilv.radiusCard,
+        borderTopRightRadius: theme.kilv.radiusCard,
+    },
+    rowShellLast: {
+        borderBottomWidth: 1,
+        borderBottomLeftRadius: theme.kilv.radiusCard,
+        borderBottomRightRadius: theme.kilv.radiusCard,
+    },
+    archive: {
+        marginTop: 8,
     },
     state: {
         flex: 1,
@@ -160,8 +259,8 @@ const styles = StyleSheet.create((theme) => ({
     archiveToggle: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingHorizontal: 8,
+        paddingVertical: 16,
         gap: 12,
     },
     archiveText: {

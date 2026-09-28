@@ -8,6 +8,7 @@
   "tabs": {
     "inbox": "Posteingang",
     "sessions": "Terminalsitzungen",
+    "sessionsTab": "Sitzungen",
     "settings": "Einstellungen"
   },
   "inbox": {
@@ -147,6 +148,7 @@
     "githubConnected": "Verbunden als @{login}",
     "connectGithubAccount": "Verbinden Sie Ihr GitHub-Konto",
     "claudeAuthSuccess": "Erfolgreich mit Claude verbunden",
+    "connectClaudeTitle": "Mit Claude verbinden",
     "exchangingTokens": "Token austauschen...",
     "usage": "Verwendung",
     "usageSubtitle": "Sehen Sie sich Ihre API-Nutzung und Kosten an",
@@ -160,7 +162,8 @@
           "false": "{feature} deaktiviert"
         }
       }
-    }
+    },
+    "sectionsLabel": "Einstellungsbereiche"
   },
   "settingsAppearance": {
     "theme": "Thema",
@@ -420,7 +423,30 @@
     "newWorkspace": "neuer Arbeitsbereich",
     "happyherdAgentUnsupported": "Dieser Rechner kann keine HappyHerd-Agent-Sitzungen starten",
     "workspaceNoLongerAvailable": "Der ausgewählte HappyHerd-Agent-Arbeitsbereich ist nicht mehr verfügbar.",
-    "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
+    "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken",
+    "streamline": {
+      "modeStreamline": "Streamline",
+      "modeAdvanced": "Erweitert",
+      "intro": "Schnell eine Sitzung mit den vorkonfigurierten Agenten-Standardeinstellungen starten.",
+      "whereLabel": "Arbeitsordner",
+      "browseFolder": "Ordner auswählen",
+      "githubBadge": "GitHub",
+      "notGithub": "Kein git-Repository",
+      "defaultsSummary": "Verwendet {model} mit {effort} Aufwand und {permission}.",
+      "worktreeOn": "Erstellt einen neuen git-Worktree",
+      "worktreeOff": "Wird direkt im ausgewählten Ordner ausgeführt",
+      "settingsLink": "Streamline-Einstellungen",
+      "settingsSubtitle": "Standardmodelle, Aufwandstufen und Berechtigungsmodi für jeden Agenten beim Starten einer Streamline-Sitzung konfigurieren.",
+      "defaultModeTitle": "Standard-Sitzungsmodus",
+      "defaultAgentTitle": "Standard-Agent",
+      "defaultAgentDescription": "Auswählen, welcher Agent im Streamline-Modus automatisch startet.",
+      "agentDefaultsTitle": "Standardoptionen für Agenten",
+      "agentDefaultsDescription": "Standardoptionen für jeden Agenten festlegen, die auf den Composer-Chips weiterhin geändert werden können.",
+      "latestModel": "Neueste",
+      "latestModelDescription": "Das neueste Modell wird beim Start der Sitzung ermittelt.",
+      "worktreeRuleTitle": "Immer git-Worktrees verwenden",
+      "worktreeRuleDescription": "Sitzungen bei Verwendung von GitHub-Repositories immer in einem neuen git-Worktree starten."
+    }
   },
   "agentDefaults": {
     "capabilitySource": "Quellrechner für Funktionen",
@@ -489,7 +515,11 @@
     "forkClaudeOnly": "Fork wird derzeit nur für Claude-Sitzungen unterstützt."
   },
   "commandPalette": {
-    "placeholder": "Geben Sie einen Befehl ein oder suchen Sie..."
+    "placeholder": "Geben Sie einen Befehl ein oder suchen Sie...",
+    "hintNavigate": "Navigieren",
+    "hintOpen": "Öffnen",
+    "hintClose": "Schließen",
+    "keyEscape": "Esc"
   },
   "server": {
     "serverConfiguration": "Serverkonfiguration",
@@ -879,6 +909,7 @@
   },
   "files": {
     "changes": "Änderungen",
+    "changesPanelDescription": "In dieser Sitzung geänderte Dateien",
     "searchPlaceholder": "Dateien durchsuchen...",
     "detachedHead": "abgetrennter KOPF",
     "summary": "{staged} bereitgestellt • {unstaged} nicht bereitgestellt",
@@ -913,6 +944,7 @@
     },
     "addPanel": "Panel hinzufügen",
     "closePanel": "Panel schließen",
+    "hidePanel": "Panel ausblenden",
     "openFileTab": "Datei-Tab {name} öffnen",
     "closeFileTab": "Datei-Tab {name} schließen",
     "openExistingFile": "Vorhandene Datei öffnen",
@@ -958,6 +990,7 @@
     "panelTitle": "Side-Chats",
     "resizePanel": "Ziehen, um die Größe des Seitenpanels zu ändern",
     "newChat": "Neuer Side-Chat",
+    "newChatDescription": "Einen von dieser Sitzung abgezweigten parallelen Chat öffnen",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",
     "creating": "Wird erstellt…",
@@ -1335,7 +1368,15 @@
       "category": "Commander",
       "createTitle": "Commander erstellen",
       "createSubtitle": "Eine geführte Onboarding-Sitzung starten",
-      "onboardingPrompt": "Hilf mir, einen neuen HappyHerd Commander zu erstellen. Befrage mich jeweils mit einer Frage zu Name, Rolle und Mission, absolutem Maschinen-Arbeitsbereich, Arbeitsgrenzen und wichtigem Startkontext. Zeige mir eine knappe abschließende Zusammenfassung und warte auf meine ausdrückliche Bestätigung, bevor du etwas schreibst. Verfasse danach die semantischen Inhalte selbst: eine vollständige COMMANDER.md mit identity_and_scope-Frontmatter, nützliche erste Beobachtungen als JSONL, Arbeitsgedächtnis, Langzeitgedächtnis und nur wirklich nützliche Lerndateien unter rules/learnings/. Speichere die exakten Inhalte in einem temporären JSON-Manifest mit den Feldern id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown und learnings[{path,content}]. Führe `happyherd commander create --manifest <file>` aus, prüfe mit `happyherd commander list` und lösche dann das temporäre Manifest. Erstelle keine zweite Registry und verwende keine Platzhalterinhalte."
+      "onboardingPrompt": "Hilf mir, einen neuen HappyHerd Commander zu erstellen. Befrage mich jeweils mit einer Frage zu Name, Rolle und Mission, absolutem Maschinen-Arbeitsbereich, Arbeitsgrenzen und wichtigem Startkontext. Zeige mir eine knappe abschließende Zusammenfassung und warte auf meine ausdrückliche Bestätigung, bevor du etwas schreibst. Verfasse danach die semantischen Inhalte selbst: eine vollständige COMMANDER.md mit identity_and_scope-Frontmatter, nützliche erste Beobachtungen als JSONL, Arbeitsgedächtnis, Langzeitgedächtnis und nur wirklich nützliche Lerndateien unter rules/learnings/. Speichere die exakten Inhalte in einem temporären JSON-Manifest mit den Feldern id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown und learnings[{path,content}]. Führe `happyherd commander create --manifest <file>` aus, prüfe mit `happyherd commander list` und lösche dann das temporäre Manifest. Erstelle keine zweite Registry und verwende keine Platzhalterinhalte.",
+      "pageSubtitle": "Jeder Commander bewahrt sein Gedächtnis und seinen Arbeitsbereich auf seinem Rechner auf. Lesen Sie, woran er sich erinnert, oder starten Sie eine Sitzung mit ihm.",
+      "emptyTitle": "Keine Commander gefunden",
+      "noOnlineMachine": "Commander werden von einem verbundenen Rechner geladen. Starten Sie den HappyHerd-Daemon auf einem Rechner, um seine Commander zu sehen.",
+      "machineLoadFailed": "Commander von {name} konnten nicht geladen werden: {message}",
+      "memoryReadFailed": "Die Gedächtnisdatei konnte nicht gelesen werden.",
+      "memoryEmpty": "Die Gedächtnisdatei ist leer.",
+      "newSessionWith": "Neue Sitzung mit {name}",
+      "browseSubtitle": "Commander-Gedächtnis lesen und Sitzungen starten"
     },
     "composer": {
       "queueMessage": "Nachricht einreihen",
@@ -1493,6 +1534,7 @@
       "editAction": "Bearbeiten",
       "noRuns": "Noch keine Ausführungen.",
       "openSession": "Sitzung {id} öffnen",
+      "openSessionLink": "Sitzung öffnen",
       "commanderValue": "Kommandant {id}",
       "attempt": "Versuch {count}"
     },
@@ -1988,5 +2030,10 @@
     "cancel": "Abbrechen",
     "noProjects": "Erstelle ein Projekt, um den Fokusmodus zu starten.",
     "remaining": "{time} verbleibend"
+  },
+  "topBar": {
+    "noMachine": "Keine Maschine",
+    "addMachine": "Maschine hinzufügen",
+    "noMachinesYet": "Noch keine Maschinen in diesem Konto"
   }
 }

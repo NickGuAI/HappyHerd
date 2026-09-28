@@ -8,6 +8,9 @@ import type { Message, ToolCall } from '@/sync/typesMessage';
 const state = vi.hoisted(() => ({
     platform: 'ios',
     tablet: false,
+    mac: false,
+    // 0 takes a phone's or a desktop window's size from `tablet`.
+    width: 0,
     session: null as Session | null,
     message: null as Message | null,
     messagesLoaded: false,
@@ -27,6 +30,7 @@ vi.mock('react-native', async () => {
             select: (values: any) => values[state.platform] ?? values.default,
         },
         StyleSheet: { create: (styles: any) => styles, hairlineWidth: 1 },
+        useWindowDimensions: () => ({ width: state.width || (state.tablet ? 1440 : 390), height: state.tablet ? 900 : 844 }),
         View: host('View'), Text: host('Text'), TextInput: host('TextInput'), Pressable: host('Pressable'),
         ActivityIndicator: host('ActivityIndicator'), TouchableOpacity: host('TouchableOpacity'), Image: host('Image'),
         Animated: {
@@ -38,7 +42,7 @@ vi.mock('react-native', async () => {
 });
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 vi.mock('react-native-reanimated', () => ({}));
-vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => state.mac }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 52, useIsTablet: () => state.tablet }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 800, headerMaxWidth: 800 } }));
 vi.mock('react-native-unistyles', async () => {
@@ -100,6 +104,7 @@ vi.mock('@/sync/storage', () => ({
     useMessage: () => state.message,
     useSessionMessages: () => ({ isLoaded: state.messagesLoaded }),
     useIsDataReady: () => true,
+    useMachine: () => null,
     useLocalSetting: () => false,
     useSessionGitStatus: () => null,
     useSessionGitStatusFiles: () => null,
@@ -133,6 +138,7 @@ vi.mock('@/components/ItemList', async () => {
     return { ItemList: (props: any) => ReactModule.createElement('ItemList', props, props.children) };
 });
 vi.mock('@/components/CodeView', () => ({ CodeView: () => null }));
+vi.mock('@/components/SessionStatusAvatar', () => ({ SessionStatusAvatar: () => null }));
 vi.mock('@react-navigation/native', () => ({
     useNavigation: () => ({ getState: () => ({ routes: [] }), dispatch: vi.fn() }),
     CommonActions: { navigate: vi.fn() }, StackActions: { pop: vi.fn() },
@@ -151,7 +157,8 @@ vi.mock('@/utils/copySessionMetadataToClipboard', () => ({
 vi.mock('@/utils/versionUtils', () => ({ isVersionSupported: () => true, MINIMUM_CLI_VERSION: '1' }));
 
 import { ChatHeaderView } from './ChatHeaderView';
-import { Header, createPlainHeader } from './navigation/Header';
+import { Header, createHeader, createPlainHeader } from './navigation/Header';
+import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import { GitLineChanges } from './GitLineChanges';
 import { RigGitLineChanges } from './RigGitLineChanges';
 import SessionInfo from '@/app/(app)/session/[id]/info';
@@ -172,6 +179,8 @@ afterEach(() => {
     act(() => renderers.splice(0).forEach((renderer) => renderer.unmount()));
     state.platform = 'ios';
     state.tablet = false;
+    state.mac = false;
+    state.width = 0;
     state.message = null;
     state.messagesLoaded = false;
     state.params = { id: 'session-id' };
@@ -195,13 +204,49 @@ function texts(renderer: ReturnType<typeof create>): string[] {
 describe('chat header', () => {
     // HappyHerd keeps the folder/title/path header; the approved integration
     // does not relocate composer branch/count controls into this surface.
-    it.each(['ios', 'android', 'web'])('retains the folder and title hierarchy on %s', (platform) => {
-        state.platform = platform;
+    // Phones (UI overhaul) stack the folder above the title on every platform.
+    it.each([
+        ['an iPhone', 'ios', false, ['nice', 'Session title']],
+        ['an Android phone', 'android', false, ['nice', 'Session title']],
+        ['Web Mobile', 'web', false, ['nice', 'Session title']],
+        ['an iPad', 'ios', true, ['Session title', 'nice']],
+        ['desktop Web', 'web', true, ['nice', '/', 'Session title']],
+    ])('retains the folder and title hierarchy on %s', (_name, platform, tablet, expected) => {
+        state.platform = platform as string;
+        state.tablet = tablet as boolean;
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session title', folderName: 'nice',
         }));
-        expect(texts(renderer)).toEqual(platform === 'web'
-            ? ['nice', '/', 'Session title'] : ['Session title', 'nice']);
+        expect(texts(renderer)).toEqual(expected);
+    });
+
+    // Owner decision, 2026-09-27: native tablets, the iOS app on a Mac included, keep the
+    // session header's own Back; web tablets and desktop leave history to the browser.
+    it.each([
+        ['an iPad', 'ios', true],
+        ['an Android tablet', 'android', true],
+        ['a web tablet or desktop', 'web', false],
+    ])('shows the session header\'s own Back on %s: %s', (_name, platform, shown) => {
+        state.platform = platform as string;
+        state.tablet = true;
+        const onBackPress = vi.fn();
+        const renderer = render(React.createElement(ChatHeaderView, { title: 'Session title', folderName: 'nice', onBackPress }));
+        const back = renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back');
+        expect(back).toHaveLength(shown ? 1 : 0);
+        if (shown) {
+            act(() => back[0].props.onPress());
+            expect(onBackPress).toHaveBeenCalledOnce();
+        }
+    });
+
+    it('keeps the desktop header, with no Back, in a 1024 × 768 browser window the device rule calls a phone', () => {
+        // An 8-inch diagonal: useIsTablet() is false, but the web lays out by width.
+        state.platform = 'web';
+        state.tablet = false;
+        state.width = 1024;
+        const renderer = render(React.createElement(ChatHeaderView, { title: 'Session title', folderName: 'nice', onBackPress: vi.fn() }));
+        expect(texts(renderer)).toEqual(['nice', '/', 'Session title']);
+        expect(renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')).toHaveLength(0);
     });
 
     it('does not duplicate the folder when it equals the title', () => {
@@ -210,6 +255,11 @@ describe('chat header', () => {
 
     it('keeps file-overlay paths visible without inventing git information', () => {
         expect(texts(render(React.createElement(ChatHeaderView, { title: 'Session' })))).toEqual(['Session']);
+        // A phone puts the folder and title above the file's path.
+        expect(texts(render(React.createElement(ChatHeaderView, {
+            title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
+        })))).toEqual(['nice / Session', 'src/app.ts']);
+        state.tablet = true;
         expect(texts(render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         })))).toEqual(['Session', 'nice', '•', 'src/app.ts']);
@@ -219,7 +269,7 @@ describe('chat header', () => {
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'nice', extraPathSegment: 'src/app.ts',
         }));
-        expect(texts(renderer)).toEqual(['Session', 'nice', '•', 'src/app.ts']);
+        expect(texts(renderer)).toEqual(['nice / Session', 'src/app.ts']);
         act(() => renderer.update(React.createElement(ChatHeaderView, { title: 'Session' })));
         expect(texts(renderer)).toEqual(['Session']);
     });
@@ -243,13 +293,35 @@ describe('session details', () => {
         expect(items[0].props.title).toBe('files.changes');
         expect(items[0].props.subtitle).toBeUndefined();
         expect(items[0].props.rightElement).toBeUndefined();
-        expect(texts(renderer)).toEqual([]);
-        expect(items.some((item: any) => item.props.title === 'sessionInfo.connectionStatus')).toBe(true);
+        // The cached git counts (5 files, +120 −34) appear nowhere on the page.
+        expect(texts(renderer).filter((text) => /changed files|120|34/.test(text))).toEqual([]);
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'session-info-connection').length).toBeGreaterThan(0);
         expect(renderer.root.findAllByType('Glass')).toHaveLength(0);
         expect(renderer.root.findByType('StackScreen').props.options.headerTitle).toBe('A long session title that needs the available header width');
         act(() => items[0].props.onPress());
         expect(state.replace).toHaveBeenCalledWith({ pathname: '/session/[id]', params: { id: 'session-id', openChangesRequestId: 'fixture-uuid' } });
         expect(state.push).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['an iPad', 'ios', 1],
+        ['an Android tablet', 'android', 1],
+        ['a web tablet or desktop', 'web', 0],
+    ])('gives a page header its own Back on %s', (_name, platform, backs) => {
+        state.platform = platform as string;
+        state.tablet = true;
+        const goBack = vi.fn();
+        const renderer = render(createPlainHeader({
+            options: { headerTitle: 'Appearance' },
+            route: { name: 'settings/appearance' }, back: { title: 'Settings' },
+            navigation: { goBack },
+        } as any)!);
+        const presses = renderer.root.findAllByType('Pressable');
+        expect(presses).toHaveLength(backs);
+        if (backs) {
+            act(() => presses[0].props.onPress());
+            expect(goBack).toHaveBeenCalledOnce();
+        }
     });
 
     it('honors left alignment so the title uses space after the back button', () => {
@@ -328,7 +400,7 @@ describe('shared git-count typography', () => {
         const renderer = render(React.createElement(ChatHeaderView, {
             title: 'Session', folderName: 'main',
         }));
-        expect(texts(renderer)).toEqual(['Session', 'main']);
+        expect(texts(renderer)).toEqual(['main', 'Session']);
         expect(renderer.root.findAllByType(GitLineChanges)).toHaveLength(0);
         expectCountTypography(render(React.createElement(GitLineChanges, { changes })));
     });
@@ -416,5 +488,83 @@ describe('tool-detail navigation', () => {
         expect(screen.root.findAllByType('StackScreen')).toHaveLength(1);
         expect(screen.root.findAllByType('ActivityIndicator')).toHaveLength(1);
         expect(state.back).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('page headers', () => {
+    // Phones (UI overhaul), the iPhone included, draw every page's header with
+    // navigation/Header, the title row under the top bar. The iPad keeps UIKit's.
+    // Signed in, the layout renders under the top bar, which provides the window insets.
+    function screenOptions(routeName: string, underTopBar = true) {
+        const layout = render(underTopBar
+            ? React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, React.createElement(RootLayout))
+            : React.createElement(RootLayout));
+        return layout.root.findByType('Stack').props.screenOptions({ route: { name: routeName } });
+    }
+
+    it.each([
+        ['an iPhone', 'ios', false, createHeader],
+        ['an Android phone', 'android', false, createHeader],
+        ['Web Mobile', 'web', false, createHeader],
+        ['an iPad', 'ios', true, undefined],
+        ['an Android tablet', 'android', true, createHeader],
+        ['desktop Web', 'web', true, createHeader],
+    ])('chooses a page\'s header on %s', (_name, platform, tablet, header) => {
+        state.platform = platform as string;
+        state.tablet = tablet as boolean;
+        expect(screenOptions('settings/appearance').header).toBe(header);
+    });
+
+    it('paints desktop Web pages on the mock\'s page background and takes the Automations title from the catalog', async () => {
+        const { useUnistyles } = await import('react-native-unistyles');
+        const page = (useUnistyles as any)().theme.colors.groupped.background;
+        state.platform = 'web';
+        state.tablet = true;
+        const options = screenOptions('index');
+        expect(options.contentStyle.backgroundColor).toBe(page);
+        expect(options.contentStyle.backgroundColor).not.toBe('surface');
+        const layout = render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 0, bottom: 0, left: 0, right: 0 } }, React.createElement(RootLayout)));
+        const automations = layout.root.findAll((node: any) => node.type === 'StackScreen' && node.props.name === 'automations/index');
+        expect(automations[0].props.options.headerTitle).toBe('happyHerd.automations.title');
+    });
+
+    it('keeps UIKit\'s header on a signed-out iPhone page, with no top bar above it', () => {
+        state.platform = 'ios';
+        state.tablet = false;
+        expect(screenOptions('restore/index', false).header).toBeUndefined();
+    });
+
+    it('gives an iPhone page the phone title row and Back, and the drawer\'s destinations no Back', () => {
+        const titleRow = (routeName: string, headerTitle: string) => {
+            const options = { ...screenOptions(routeName), headerTitle };
+            return render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, options.header({
+                options, route: { name: routeName }, back: { title: 'Home' }, navigation: { goBack: vi.fn() },
+            })));
+        };
+        expect(screenOptions('automations/index')).toMatchObject({ header: createHeader, headerBackVisible: false });
+
+        const page = titleRow('settings/appearance', 'Appearance');
+        expect(page.root.findAllByType('Pressable').map((node: any) => node.props.testID)).toEqual(['header-back']);
+        expect(page.root.findByType('Icon').props.name).toBe('arrow-back');
+        expect(flattenStyle(page.root.findByType('Text').props.style)).toMatchObject({ fontSize: 22, textAlign: 'left' });
+
+        const destination = titleRow('automations/index', 'Automations');
+        expect(destination.root.findAllByType('Pressable')).toHaveLength(0);
+        expect(flattenStyle(destination.root.findByType('Text').props.style)).toMatchObject({ fontSize: 24, textAlign: 'left' });
+    });
+
+    it('keeps Back on the drawer\'s destinations in the iOS app on a Mac, in a window the device rule calls a phone', () => {
+        // Owner decision, 2026-09-27: the iOS app on a Mac keeps the tablet Back at any window size.
+        state.platform = 'ios';
+        state.tablet = false;
+        state.mac = true;
+        const options = { ...screenOptions('automations/index'), headerTitle: 'Automations' };
+        expect(options.header).toBe(createHeader);
+        expect(options).not.toHaveProperty('headerBackVisible');
+
+        const destination = render(React.createElement(HerdWindowInsetsContext.Provider, { value: { top: 47, bottom: 34, left: 0, right: 0 } }, options.header({
+            options, route: { name: 'automations/index' }, back: { title: 'Home' }, navigation: { goBack: vi.fn() },
+        })));
+        expect(destination.root.findAllByType('Pressable').map((node: any) => node.props.testID)).toEqual(['header-back']);
     });
 });

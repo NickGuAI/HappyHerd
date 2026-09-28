@@ -27,7 +27,6 @@ import { ProviderContinuationLinks } from '@/components/ProviderContinuationLink
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
-import { Avatar } from '@/components/Avatar';
 import { VoiceAssistantStatusBar, VOICE_PILL_TOTAL_HEIGHT } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -51,6 +50,8 @@ import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloo
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import { SessionSidebarDivider } from '@/components/SessionSidebarDivider';
+import { HERD_PHONE_SHEET_LEFTOVER, resolveHerdSheetWidth } from '@/components/herd/panels/PanelOverlay';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import {
     closeDesktopFile,
     deletedDesktopFilePaths,
@@ -67,6 +68,7 @@ import {
     type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
+import { SessionHeaderActions } from '@/components/herd/session/SessionHeaderActions';
 import {
     resolveActiveSideChatId,
     resolveSideChatSelectionAfterClose,
@@ -80,8 +82,9 @@ import { MachineWorkspaceBrowser } from '@/app/(app)/workspace/index';
 import { prefetchPierreDiff } from '@/components/diff/PierreDiffView';
 import { GitFileStatus } from '@/sync/gitStatusFiles';
 import { useOverlayNav } from '@/-session/sessionOverlayNav';
-import { formatPathRelativeToHome, getResumeCommandBlock, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome, getResumeCommandBlock, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
+import { getHarnessChipName } from '@/utils/launchChoiceLabels';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons, Octicons } from '@expo/vector-icons';
@@ -137,6 +140,9 @@ import { deliverSessionTurn } from '@/utils/sessionContinuation';
 import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 
 const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
+// Preferred overlay sheet widths below 1,100 px (each leaves a strip of scrim).
+const OVERLAY_PANEL_SHEET_WIDTH = 440;
+const OVERLAY_WORKSPACE_SHEET_WIDTH = 760;
 
 type ChatFileWorkspace = {
     files: DesktopFileWorkspaceState;
@@ -177,14 +183,15 @@ export const SessionView = React.memo((props: {
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const headerHeight = useHeaderHeight();
-    const mobileHeaderHeight = deviceType === 'phone' && Platform.OS !== 'web'
-        ? Math.max(headerHeight, MOBILE_GLASS_HEADER_HEIGHT)
-        : headerHeight;
-    const contentRunsUnderHeader = deviceType === 'phone'
-        && Platform.OS !== 'web'
-        && !isLandscape;
+    // Phones (UI overhaul): the session header is an opaque row under the
+    // HappyHerd top bar on Web and native alike, so the chat starts below it
+    // instead of running under a glass header.
+    const mobileHeaderHeight = headerHeight;
+    const contentRunsUnderHeader = false;
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
+    // The phone layout (UI overhaul): by width on the web, by device in the apps.
+    const phoneLayout = useHerdPhoneLayout();
     const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
@@ -224,6 +231,11 @@ export const SessionView = React.memo((props: {
     const canShowSessionFileWorkspaceSplit = canUseSessionFileWorkspace
         && windowWidth >= SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH;
     const canShowFileSidebar = sidebarPresentation.fileSidebarAvailable && isDataReady && !!session;
+    // Below 1,100 px on desktop Web the right panel and the Workspace slide in
+    // over the chat instead of docking beside it (UI overhaul).
+    const rightPanelOverlay = sidebarPresentation.rightPanelPresentation === 'overlay';
+    // A phone's sheet leaves a narrow strip of the chat, the mock's 16 px.
+    const sheetLeftover = phoneLayout ? HERD_PHONE_SHEET_LEFTOVER : undefined;
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
     const fixedSidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
@@ -267,6 +279,13 @@ export const SessionView = React.memo((props: {
         && rigCanUseShell(desktopFileWorkspaceSession.metadata);
     const workspaceLinkRequestGeneration = React.useRef(0);
     const pendingWorkspaceLink = React.useRef<{ generation: number; machineId: string; path: string } | null>(null);
+    // The header's Workspace toggle hides the open Workspace without closing its
+    // tabs or dirty editors. Every path that reveals the Workspace collapses the
+    // sidebar panels first, and that collapse clears this flag again.
+    const [desktopWorkspaceHidden, setDesktopWorkspaceHidden] = React.useState(false);
+    // Closing the overlay sheet only hides it: its panels, editors and drafts
+    // stay open and mounted. Opening a panel or revealing the Workspace clears it.
+    const [rightOverlayDismissed, setRightOverlayDismissed] = React.useState(false);
 
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
@@ -274,6 +293,8 @@ export const SessionView = React.memo((props: {
         desktopWorkspacesRef.current = {};
         setDesktopWorkspaces({});
         setDesktopFileWorkspaceSessionId(sessionId);
+        setDesktopWorkspaceHidden(false);
+        setRightOverlayDismissed(false);
         return () => {
             workspaceLinkRequestGeneration.current += 1;
         };
@@ -308,6 +329,7 @@ export const SessionView = React.memo((props: {
     }, [sidebarPanelActiveRaw, sidebarPanelsOpen]);
 
     const openSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        setRightOverlayDismissed(false);
         const cur = storage.getState().localSettings.sidebarPanelsOpen as SidebarMode[];
         const open = cur.includes(panel) ? cur : [...cur, panel];
         storage.getState().applyLocalSettings({
@@ -323,6 +345,7 @@ export const SessionView = React.memo((props: {
             return;
         }
         if (cur.includes(panel)) {
+            setRightOverlayDismissed(false);
             storage.getState().applyLocalSettings({ sidebarPanelActive: panel });
         }
     }, [sessionId]);
@@ -358,6 +381,8 @@ export const SessionView = React.memo((props: {
         });
     }, [sessionId]);
     const collapseSidebarPanels = React.useCallback(() => {
+        setDesktopWorkspaceHidden(false);
+        setRightOverlayDismissed(false);
         const state = storage.getState().localSettings;
         const ownsSideChat = state.sidebarSideChatSessionId === sessionId;
         const open: SidebarMode[] = ownsSideChat
@@ -446,6 +471,10 @@ export const SessionView = React.memo((props: {
     const sideChatSidebarExpanded = sidebarPresentation.sideChatSurface === 'sidebar'
         && sidebarPanelActive === 'sideChat'
         && sideChats.length > 0;
+    // What the header reports and toggles: a dismissed overlay sheet keeps its
+    // Side chat panel open but out of sight.
+    const sideChatSidebarShown = sideChatSidebarExpanded
+        && !(rightPanelOverlay && rightOverlayDismissed);
     const sideChatFullscreenTransitionPending = sidebarPresentation.sideChatSurface === 'fullscreen'
         && sidebarPanelActive === 'sideChat'
         && sidebarPanelsOpen.includes('sideChat')
@@ -460,6 +489,7 @@ export const SessionView = React.memo((props: {
         && desktopFileWorkspaceSessionId !== sessionId;
     const desktopFileWorkspaceVisible = canShowSessionFileWorkspaceSplit
         && desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
         && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
         && !sideChatFullscreenOpen;
@@ -549,7 +579,7 @@ export const SessionView = React.memo((props: {
 
         if (sidebarPresentation.sideChatSurface === 'sidebar') {
             setSideChatFullscreenOpen(false);
-            if (sideChatSidebarExpanded) {
+            if (sideChatSidebarShown) {
                 removeSidebarPanel('sideChat');
             } else {
                 openSidebarPanel('sideChat');
@@ -559,7 +589,7 @@ export const SessionView = React.memo((props: {
 
         removeSidebarPanel('sideChat');
         setSideChatFullscreenOpen((open) => !open);
-    }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarExpanded, sidebarPresentation.sideChatSurface]);
+    }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarShown, sidebarPresentation.sideChatSurface]);
 
     React.useEffect(() => {
         if (sideChatFullscreenTransitionPending) {
@@ -654,13 +684,36 @@ export const SessionView = React.memo((props: {
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file ?? null : null;
     const desktopFileWorkspaceFullscreen = desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
         && canUseDesktopFileWorkspaceSession
         && !canShowSessionFileWorkspaceSplit
         && !diffViewOpen
         && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
         && !sideChatFullscreenTransitionPending;
-    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
-    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
+    // The overlay sheet replaces both the docked split and the narrow
+    // full-screen Workspace on desktop Web below 1,100 px.
+    const desktopFileWorkspaceOverlayOpen = rightPanelOverlay
+        && desktopFileWorkspaceActive
+        && !desktopWorkspaceHidden
+        && !rightOverlayDismissed
+        && canUseDesktopFileWorkspaceSession
+        && !diffViewOpen
+        && !fileSidebarPanelExpanded
+        && !sideChatSidebarExpanded
+        && (!sideChatFullscreenOpen || sideChatOwnsFileWorkspace)
+        && !sideChatFullscreenTransitionPending;
+    const rightPanelOverlayOpen = rightPanelOverlay
+        && !zenMode
+        && !rightOverlayDismissed
+        && !desktopFileWorkspaceOverlayOpen
+        && canRenderSidebar
+        && visibleSidebarPanelActive !== null;
+    const rightWorkspaceVisible = !rightPanelOverlay && desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = !rightPanelOverlay && desktopFileWorkspaceFullscreen;
+    const dismissRightOverlay = React.useCallback(() => {
+        workspaceLinkRequestGeneration.current += 1;
+        setRightOverlayDismissed(true);
+    }, []);
     const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
     const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
@@ -1010,53 +1063,63 @@ export const SessionView = React.memo((props: {
             isConnected,
         };
     }, [session, isDataReady]);
-    const sessionInfoButton = session && deviceType === 'phone' && Platform.OS !== 'web'
-        ? (
-            <Pressable
-                onPress={() => router.push(`/session/${sessionId}/info`)}
-                hitSlop={10}
-            >
-                <Avatar
-                    id={getSessionAvatarId(session)}
-                    size={28}
-                    monochrome={!headerProps.isConnected}
-                    flavor={session.metadata?.flavor}
-                    clientId={session.metadata?.client?.id}
-                    badgeLocation="sessionHeader"
-                />
-            </Pressable>
-        )
-        : null;
     const sideChatAccessButton = session
         ? (
             <SideChatAccessButton
                 count={sideChats.length}
                 expanded={sidebarPresentation.sideChatSurface === 'sidebar'
-                    ? sideChatSidebarExpanded
+                    ? sideChatSidebarShown
                     : sideChatFullscreenOpen}
-                compact={deviceType === 'phone' || windowWidth < 720}
+                compact={phoneLayout || windowWidth < 720}
                 onPress={toggleSideChats}
             />
         )
         : null;
-    const showLandscapeSideChatAccess = shouldShowLandscapeSideChatAccess({
+    // Native phones in landscape trade the session header for upstream's floating
+    // Side chats and Back. The iOS app on a Mac keeps its header in any window,
+    // even one the device rule calls a phone (owner decision, 2026-09-27).
+    const showLandscapeSideChatAccess = !isRunningOnMac() && shouldShowLandscapeSideChatAccess({
         platform: Platform.OS,
         deviceType,
         isLandscape,
         sideChatCount: sideChats.length,
         canCreateSideChat: Boolean(session),
     });
-    const headerRight = sideChatAccessButton || sessionInfoButton
+    // Header controls (UI overhaul), on Web and on native phones: the Workspace
+    // toggle (Web and Mac) hides or reveals the same Workspace the composer +
+    // menu opens without closing its tabs, then Side chats and the ⋯ menu.
+    const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen || desktopFileWorkspaceOverlayOpen;
+    const toggleWorkspaceFromHeader = React.useCallback(() => {
+        if (!session) return;
+        workspaceLinkRequestGeneration.current += 1;
+        if (headerWorkspaceShown) {
+            setDesktopWorkspaceHidden(true);
+            return;
+        }
+        openWorkspaceForSession(session);
+    }, [headerWorkspaceShown, openWorkspaceForSession, session]);
+    const webHeaderActions = session && (Platform.OS === 'web' || phoneLayout)
         ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {sideChatAccessButton}
-                {sessionInfoButton}
-            </View>
+            <SessionHeaderActions
+                sessionId={sessionId}
+                workspace={canUseSessionFileWorkspace
+                    ? { visible: headerWorkspaceShown, onToggle: toggleWorkspaceFromHeader }
+                    : null}
+                sideChats={{
+                    count: sideChats.length,
+                    expanded: sidebarPresentation.sideChatSurface === 'sidebar'
+                        ? sideChatSidebarShown
+                        : sideChatFullscreenOpen,
+                    compact: phoneLayout || windowWidth < 720,
+                    onToggle: toggleSideChats,
+                }}
+            />
         )
         : null;
+    const headerRight = webHeaderActions ?? sideChatAccessButton;
     const mobileSideChatWorkspaceOpen = sideChatOwnsFileWorkspace
         && (desktopFileWorkspaceActive || diffViewOpen || !!fileViewPath);
-    const voiceStatusBarHeight = !isTablet && realtimeStatus !== 'disconnected'
+    const voiceStatusBarHeight = phoneLayout && realtimeStatus !== 'disconnected'
         ? VOICE_PILL_TOTAL_HEIGHT
         : 0;
 
@@ -1064,7 +1127,7 @@ export const SessionView = React.memo((props: {
         <>
             <MobileGlassBackdrop enabled={deviceType === 'phone' && Platform.OS !== 'web'} />
             {/* Status bar shadow for landscape mode */}
-            {isLandscape && deviceType === 'phone' && (
+            {isLandscape && phoneLayout && (
                 <View style={{
                     position: 'absolute',
                     top: 0,
@@ -1105,7 +1168,7 @@ export const SessionView = React.memo((props: {
             <View
                 style={{
                     flex: 1,
-                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web')
+                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac())
                         ? contentRunsUnderHeader
                             ? 0
                             : safeArea.top
@@ -1138,8 +1201,9 @@ export const SessionView = React.memo((props: {
                 )}
             </View>
 
-            {/* Render the overlay header after the dynamic list so native blur samples its content. */}
-            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web') && (
+            {/* Render the overlay header after the dynamic list so native blur samples its content.
+                Native phones hide it in landscape; the iOS app on a Mac keeps it in any window. */}
+            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac()) && (
                 <View style={{
                     position: 'absolute',
                     top: 0,
@@ -1155,24 +1219,20 @@ export const SessionView = React.memo((props: {
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        onBackPress={() => {
-                            if (isWebMobileSessionViewport && overlayCurrent.kind !== 'none') {
-                                withFileDiscardConfirmation(() => setOverlayHistory((current) => (
-                                    current.cursor <= 0
-                                        ? current
-                                        : { ...current, cursor: current.cursor - 1 }
-                                )));
-                                return;
-                            }
-                            if (isWebMobileSessionViewport) {
-                                router.dismissTo('/');
-                                return;
-                            }
-                            router.back();
-                        }}
+                        // Back steps out of a diff or file opened over the chat. Phones leave
+                        // the session through the top bar; native tablets, and the iOS app on a
+                        // Mac in any window, even one the device rule calls a phone, leave it
+                        // with their own Back (owner decision, 2026-09-27).
+                        onBackPress={overlayCurrent.kind !== 'none' ? () => {
+                            withFileDiscardConfirmation(() => setOverlayHistory((current) => (
+                                current.cursor <= 0
+                                    ? current
+                                    : { ...current, cursor: current.cursor - 1 }
+                            )));
+                        } : Platform.OS !== 'web' && (isTablet || isRunningOnMac()) ? () => router.back() : undefined}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
-                    {!isTablet && realtimeStatus !== 'disconnected' && (
+                    {phoneLayout && realtimeStatus !== 'disconnected' && (
                         <VoiceAssistantStatusBar variant="full" />
                     )}
                 </View>
@@ -1308,14 +1368,18 @@ export const SessionView = React.memo((props: {
 
     const fallbackRightSurface = (
         <>
-            {Platform.OS === 'web' && showSidebar ? (
+            {Platform.OS === 'web' && showSidebar && !rightPanelOverlay ? (
                 <SessionSidebarDivider
                     width={sidebarWidth}
                     onWidthChange={handleSidebarWidthChange}
                 />
             ) : null}
-            <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-                <View style={{ width: sidebarWidth, flex: 1 }}>
+            <Animated.View
+                style={rightPanelOverlay
+                    ? { flex: 1, minWidth: 0, alignSelf: 'stretch' }
+                    : [{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}
+            >
+                <View style={rightPanelOverlay ? { flex: 1 } : { width: sidebarWidth, flex: 1 }}>
                     <FilesSidebar
                         sessionId={sessionId}
                         selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : null}
@@ -1334,6 +1398,8 @@ export const SessionView = React.memo((props: {
                         creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
                         canCreateSideChat={canCreateSideChat}
                         onCreateSideChat={createSideChat}
+                        onHidePanel={rightPanelOverlay ? dismissRightOverlay : undefined}
+                        presented={!rightPanelOverlay || rightPanelOverlayOpen}
                     />
                 </View>
             </Animated.View>
@@ -1351,7 +1417,8 @@ export const SessionView = React.memo((props: {
                         references={desktopFileWorkspace.references}
                         dirtyPaths={desktopDirtyPaths}
                         machinePickerOpen={desktopMachinePickerOpen}
-                        compact={desktopFileWorkspaceFullscreen}
+                        compact={rightWorkspaceFullscreen}
+                        onHide={rightPanelOverlay ? dismissRightOverlay : undefined}
                         machinePicker={machineWorkspacePicker(desktopFileWorkspaceSessionId, currentDesktopWorkspace)}
                         retainedWorkspaces={Object.entries(desktopWorkspaces)
                             .filter(([owner]) => owner !== desktopFileWorkspaceSessionId)
@@ -1398,6 +1465,13 @@ export const SessionView = React.memo((props: {
                             workspaceFullscreen={rightWorkspaceFullscreen}
                             workspace={workspaceSurface}
                             fallback={canRenderSidebar ? fallbackRightSurface : null}
+                            overlay={rightPanelOverlay ? {
+                                workspaceOpen: desktopFileWorkspaceOverlayOpen,
+                                panelOpen: rightPanelOverlayOpen,
+                                workspaceWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_WORKSPACE_SHEET_WIDTH, sheetLeftover),
+                                panelWidth: resolveHerdSheetWidth(sessionLayoutWidth, OVERLAY_PANEL_SHEET_WIDTH, sheetLeftover),
+                                onDismiss: dismissRightOverlay,
+                            } : null}
                         >
                             {chatSurface}
                         </DesktopFileWorkspaceSplit>
@@ -1528,6 +1602,7 @@ export function SessionViewLoaded({
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
+    const phoneLayout = useHerdPhoneLayout();
     const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
@@ -1609,15 +1684,13 @@ export function SessionViewLoaded({
     const pendingCommunications = useSessionPendingCommunications(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const zenMode = useLocalSetting('zenMode');
-    const sessionInputHorizontalPadding = Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
-    const chatListTopContentInset = embedded || (isLandscape && deviceType === 'phone')
+    // Phones (UI overhaul) put the dock and composer on the 16 px page gutter.
+    const sessionInputHorizontalPadding = phoneLayout
+        ? 16
+        : Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
+    const chatListTopContentInset = embedded || (isLandscape && phoneLayout)
         ? 12
-        : deviceType === 'phone' && Platform.OS !== 'web'
-            ? safeArea.top
-                + MOBILE_GLASS_HEADER_HEIGHT
-                + (realtimeStatus !== 'disconnected' ? VOICE_PILL_TOTAL_HEIGHT : 0)
-                + 12
-            : undefined;
+        : undefined;
 
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;
@@ -1761,7 +1834,21 @@ export function SessionViewLoaded({
         resumeSession,
         resumeSessionWithQueuedTurn,
         resumingSession,
+        canContinueWithProvider,
+        openProviderContinuationSheet,
     } = useSessionQuickActions(session);
+    // Web agent chip (UI overhaul): the session's harness; it opens the same
+    // "Continue with…" sheet as the session actions menu when that is offered.
+    const agentChipFlavor = flavor ?? (session.metadata?.claudeSessionId ? 'claude' : null);
+    const composerAgentChip = React.useMemo(() => (
+        Platform.OS === 'web' && !embedded && agentChipFlavor
+            ? {
+                label: getHarnessChipName(agentChipFlavor),
+                providerKind: agentChipFlavor,
+                onPress: canContinueWithProvider ? openProviderContinuationSheet : undefined,
+            }
+            : null
+    ), [agentChipFlavor, canContinueWithProvider, embedded, openProviderContinuationSheet]);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
 
@@ -2034,7 +2121,8 @@ export function SessionViewLoaded({
         color: sessionStatus.statusColor,
         dotColor: sessionStatus.statusDotColor,
         isPulsing: sessionStatus.isPulsing,
-    }), [sessionStatus.statusText, sessionStatus.statusColor, sessionStatus.statusDotColor, sessionStatus.isPulsing]);
+        state: sessionStatus.state,
+    }), [sessionStatus.statusText, sessionStatus.statusColor, sessionStatus.statusDotColor, sessionStatus.isPulsing, sessionStatus.state]);
 
     const usageData = React.useMemo(() => {
         const source = sessionUsage ?? session.latestUsage;
@@ -2167,6 +2255,7 @@ export function SessionViewLoaded({
                 onEffortLevelChange={isRigReasoningSelectionEnabled(session.metadata) ? updateEffortLevel : undefined}
                 metadata={session.metadata}
                 connectionStatus={connectionStatus}
+                agentChip={composerAgentChip}
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 isSendDisabled={dshUploadBusy}
                 onSend={handleSend}
@@ -2304,7 +2393,7 @@ export function SessionViewLoaded({
     return (
         <>
             {/* CLI Version Warning Overlay - Subtle centered pill */}
-            {shouldShowCliWarning && !(isLandscape && deviceType === 'phone') && (
+            {shouldShowCliWarning && !(isLandscape && phoneLayout) && (
                 <Pressable
                     onPress={handleDismissCliWarning}
                     style={{
@@ -2359,9 +2448,9 @@ export function SessionViewLoaded({
                 </View >
             </MobileTypographyFloor>
 
-            {/* Back button for landscape phone mode when header is hidden */}
+            {/* Back button for landscape phone mode when header is hidden; the iOS app on a Mac keeps its header */}
             {
-                isLandscape && deviceType === 'phone' && (
+                isLandscape && phoneLayout && !isRunningOnMac() && (
                     <Pressable
                         onPress={() => isWebMobileSessionViewport
                             ? router.dismissTo('/')

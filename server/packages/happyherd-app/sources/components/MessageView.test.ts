@@ -59,6 +59,7 @@ vi.mock('./tools/ToolView', async () => {
 vi.mock('@/sync/sync', () => ({ sync: { sendMessage: vi.fn() } }));
 vi.mock('@/sync/storage', () => ({ useSetting: () => 'default' }));
 vi.mock('./layout', () => ({ layout: { maxWidth: 800 } }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
 vi.mock('./parseLocalCommandMessage', () => ({
     parseVisibleUserMessage: (message: { text: string }) => ({ kind: 'text', text: message.text }),
 }));

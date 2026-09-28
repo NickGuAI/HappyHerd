@@ -1,190 +1,476 @@
 import * as React from 'react';
-import { Animated, Easing, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
-import { useUnistyles } from 'react-native-unistyles';
+import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useReducedMotion } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProjects, useSettingMutable } from '@/sync/storage';
 import { FOCUS_DURATIONS, formatFocusRemaining, getFocusRemainingSeconds } from '@/sync/focusMode';
 import { useFocusMode } from '@/hooks/useFocusMode';
 import { t } from '@/text';
 import { Typography } from '@/constants/Typography';
-import { Item } from './Item';
-import { RoundButton } from './RoundButton';
+import { HerdSegmentedControl } from '@/components/herd/SegmentedControl';
+import { HerdButton, HerdChip, HerdSectionLabel } from '@/components/herd/pages/HerdPage';
+import { useSheetEscapeKeydown } from '@/components/herd/pages/HerdSheet';
+import { HerdExitLayer } from '@/components/herd/HerdExitLayer';
+import { HERD_EXIT, useHerdExit } from '@/components/herd/presence';
+import { herdWebClasses } from '@/components/herd/motion';
+import { focusModeProgress } from '@/components/herd/pages/focusProgress';
+import { HerdMenuSeparator, HerdMenuItem, HerdMenuTitle, HerdPopover, measureHerdAnchor, type HerdAnchorRect } from '@/components/herd/HerdPopover';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
+import { HerdShellIcon } from '@/components/herd/shell/HerdShellIcon';
+import { HerdTopBarIconButton } from '@/components/herd/shell/HerdTopBarIconButton';
+import { HERD_PHONE_TOP_BAR_HEIGHT, useHerdTopBarLayout } from '@/components/herd/shell/topBarLayout';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
+import { closeFocusSetup, openFocusSetup, useFocusSetupRequest, type FocusSetupRequest } from './focusSetup';
+import { playFocusPixelSwap } from './focusPixelSwapTiming';
+import { FocusPixelSwapHost } from './FocusPixelSwap';
 
-function TomatoIcon() {
-    const { theme } = useUnistyles();
-    return (
-        <Svg width={24} height={24} viewBox="0 0 24 24"
-            {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
-            <Path d="M12 7C5 3 1 9 3 16c2 7 16 7 18 0 2-7-2-13-9-9Z" fill={theme.colors.textDestructive} />
-            <Path d="m12 9-6-3 5 1-1-4 3 3 4-2-2 4 4 2-6-1-2 3Z" fill={theme.colors.kilv.olive} />
-        </Svg>
-    );
-}
+export { openFocusSetup } from './focusSetup';
 
-// App-only adaptation of React Bits Pixel Swap's staggered, growing windows.
-// The incoming content is solid amber, so tiles need no cloned DOM or native snapshots.
-// Copyright (c) 2026 David Haz. MIT + Commons Clause; see docs/licenses/react-bits-pixel-swap.txt.
-// https://github.com/DavidHDev/react-bits/blob/c5df8610c0b47d7cd805cda480baba402f7267c1/src/ts-default/Animations/PixelSwap/PixelSwap.tsx
-function PixelTile({ index, size, columns, color }: {
-    index: number; size: number; columns: number; color: string;
-}) {
-    const progress = React.useRef(new Animated.Value(0)).current;
-    const delay = React.useRef(Math.random() * 950).current;
-    React.useEffect(() => {
-        const animation = Animated.timing(progress, {
-            toValue: 1, duration: 450, delay,
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
-            useNativeDriver: Platform.OS !== 'web',
-        });
-        animation.start();
-        return () => animation.stop();
-    }, [delay, progress]);
-    return <Animated.View style={{
-        position: 'absolute', left: (index % columns) * size, top: Math.floor(index / columns) * size,
-        width: size + 1, height: size + 1, backgroundColor: color, opacity: progress,
-        transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) }],
-    }} />;
-}
-
-function FocusChoice({ label, value, options, onSelect }: {
-    label: string;
-    value: string;
-    options: { value: string; label: string }[];
-    onSelect: (value: string) => void;
+/**
+ * The mock's Focus sheet (UI overhaul): a centered dialog over the dimmed app
+ * with the focus glyph in a ring, the title inside the card and centered
+ * section labels. Phones rest the same card on the bottom edge, as HerdSheet
+ * does. The web scales it in and out through the sheet classes, which reduced
+ * motion turns off; native fades unless motion is reduced. Start plays the
+ * amber pixel swap as the card closes, unless motion is reduced.
+ */
+function FocusModeSetup({ request, exiting, onClose }: {
+    request: FocusSetupRequest;
+    exiting: boolean;
+    onClose: () => void;
 }) {
     const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
-    const dimensions = useWindowDimensions();
-    const trigger = React.useRef<View>(null);
-    const [anchor, setAnchor] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
-    React.useEffect(() => setAnchor(null), [dimensions.width, dimensions.height]);
-    const menuHeight = Math.min(options.length * 56 + 2, dimensions.height * 0.45);
-    const surface = { backgroundColor: theme.colors.surface, borderColor: theme.colors.kilv.rimLine, borderWidth: 1, borderRadius: 6, overflow: 'hidden' as const };
-    const close = () => setAnchor(null);
-
-    return <View style={{ gap: 8 }}>
-        <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{label}</Text>
-        <View ref={trigger} collapsable={false} style={surface}>
-            <Item title={options.find(option => option.value === value)?.label ?? t('focusMode.selectProject')}
-                accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ expanded: anchor !== null, disabled: options.length === 0 }}
-                disabled={options.length === 0} showDivider={false}
-                rightElement={<Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />}
-                onPress={() => trigger.current?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }))} />
-        </View>
-        {anchor && <Modal transparent animationType="none" onRequestClose={close}>
-            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('focusMode.cancel')} onPress={close}
-                    style={{ position: 'absolute', inset: 0, backgroundColor: Platform.OS === 'web' ? 'transparent' : theme.colors.kilv.scrim }} />
-                <View testID="focus-mode-choices" style={[surface, Platform.OS === 'web' ? {
-                    position: 'absolute', width: anchor.width, left: anchor.x,
-                    top: anchor.y + anchor.height + menuHeight + 4 <= dimensions.height - 12
-                        ? anchor.y + anchor.height + 4 : Math.max(12, anchor.y - menuHeight - 4),
-                    shadowColor: theme.colors.shadow.color, shadowOpacity: theme.colors.shadow.opacity,
-                    shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-                } : { marginHorizontal: 16, marginBottom: Math.max(safeArea.bottom, 16) }]}>
-                    <ScrollView style={{ maxHeight: menuHeight }} keyboardShouldPersistTaps="handled">
-                        {options.map((option, index) => <Item key={option.value} title={option.label}
-                            accessibilityLabel={option.label} accessibilityRole="button" accessibilityState={{ selected: value === option.value }}
-                            selected={value === option.value} showChevron={false} showDivider={index < options.length - 1}
-                            rightElement={value === option.value ? <Ionicons name="checkmark" size={18} color={theme.colors.text} /> : undefined}
-                            onPress={() => { onSelect(option.value); close(); }} />)}
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>}
-    </View>;
-}
-
-function FocusModeSetup({ onClose }: { onClose: () => void }) {
-    const { theme } = useUnistyles();
-    const safeArea = useSafeAreaInsets();
-    const dimensions = useWindowDimensions();
+    const phone = useHerdPhoneLayout();
+    const windowInsets = useWindowSafeAreaInsets();
     const reducedMotion = useReducedMotion();
-    const [revealed, setRevealed] = React.useState(reducedMotion);
     const [minutes, setMinutes] = React.useState<number>(30);
-    const [projectId, setProjectId] = React.useState('');
+    const [projectId, setProjectId] = React.useState(request.projectId ?? '');
     const projectsById = useProjects();
     const [, setFocusMode] = useSettingMutable('focusMode');
     const projects = React.useMemo(() => Object.values(projectsById)
         .filter(project => project.kind === 'personal')
         .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)), [projectsById]);
     const canStart = projects.some(project => project.id === projectId);
-    const amber = theme.colors.kilv.molten;
-    const ink = theme.colors.kilv.steel;
-    const size = Math.max(64, Math.ceil(Math.sqrt(dimensions.width * dimensions.height / 200)));
-    const columns = Math.ceil(dimensions.width / size);
-    const tileCount = columns * Math.ceil(dimensions.height / size);
+    useSheetEscapeKeydown(!exiting);
 
-    React.useEffect(() => {
-        if (reducedMotion) { setRevealed(true); return; }
-        const timeout = setTimeout(() => setRevealed(true), 1400);
-        return () => clearTimeout(timeout);
-    }, [reducedMotion]);
-
-    return (
-        <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-            <View testID="focus-mode-setup" style={{ flex: 1, backgroundColor: revealed ? amber : 'transparent' }}>
-                {!revealed && <View testID="focus-mode-pixel-swap" pointerEvents="none" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                    {Array.from({ length: tileCount }, (_, index) => <PixelTile key={index} index={index} size={size} columns={columns} color={amber} />)}
-                </View>}
-                {revealed && <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: safeArea.top + 40, paddingBottom: safeArea.bottom + 40 }}>
-                    <View style={{ width: '100%', maxWidth: 540, alignSelf: 'center', gap: 24 }}>
-                        <Text accessibilityRole="header" style={{ fontSize: dimensions.width < 600 ? 36 : 56, lineHeight: dimensions.width < 600 ? 44 : 64, ...Typography.header(), color: ink }}>
-                            {t('focusMode.title')}
-                        </Text>
-                        <View style={{ gap: 20, padding: 20, backgroundColor: theme.colors.surface, borderRadius: 6, borderWidth: 1, borderColor: theme.colors.kilv.rimLine }}>
-                            <FocusChoice label={t('focusMode.duration')} value={String(minutes)}
-                                options={FOCUS_DURATIONS.map(value => ({ value: String(value), label: t('focusMode.durationOption', { minutes: String(value) }) }))}
-                                onSelect={value => setMinutes(Number(value))} />
-                            <FocusChoice label={t('focusMode.project')} value={projectId}
-                                options={projects.map(project => ({ value: project.id, label: project.name }))}
-                                onSelect={setProjectId} />
-                            {projects.length === 0 && <Text style={{ ...Typography.default(), fontSize: 16, color: theme.colors.textSecondary }}>{t('focusMode.noProjects')}</Text>}
-                            <View style={{ gap: 12 }}>
-                                <RoundButton title={t('focusMode.start')} disabled={!canStart} onPress={() => {
-                                    if (!canStart) return;
-                                    setFocusMode({ projectId, endsAt: Date.now() + minutes * 60_000 });
-                                    onClose();
-                                }} />
-                                <RoundButton title={t('focusMode.cancel')} display="inverted" onPress={onClose} />
-                            </View>
+    const layer = (
+        <View style={[
+            styles.setupRoot,
+            // Phones keep the top bar in view, as the mock's 20 px of it does.
+            phone && [styles.setupRootPhone, {
+                paddingTop: windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT + 20,
+                paddingBottom: HERD_PHONE_FLOAT_MARGIN + windowInsets.bottom,
+            }],
+        ]}>
+            {/* Like the mock's scrim, a pointer target only; Escape and Cancel dismiss for everyone. */}
+            <Pressable
+                testID="focus-mode-scrim"
+                aria-hidden
+                accessible={false}
+                importantForAccessibility="no"
+                onPress={onClose}
+                style={styles.setupScrim(exiting)}
+            />
+            <View
+                testID="focus-mode-setup"
+                role="dialog"
+                aria-modal
+                accessibilityLabel={t('focusMode.title')}
+                style={styles.setupCard(exiting)}
+            >
+                <ScrollView
+                    contentContainerStyle={[styles.setupContent, phone && styles.setupContentPhone]}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.setupHead}>
+                        <View testID="focus-mode-mark" style={styles.focusMark}>
+                            <HerdShellIcon name="focus" size={28} color={theme.colors.textLink} />
                         </View>
+                        <Text accessibilityRole="header" style={styles.setupTitle}>{t('focusMode.title')}</Text>
                     </View>
-                </ScrollView>}
+                    <View style={styles.centered}>
+                        <HerdSectionLabel>{t('focusMode.duration')}</HerdSectionLabel>
+                    </View>
+                    <HerdSegmentedControl
+                        accessibilityLabel={t('focusMode.duration')}
+                        options={FOCUS_DURATIONS.map((value) => ({
+                            value,
+                            label: t('focusMode.durationOption', { minutes: String(value) }),
+                        }))}
+                        value={minutes}
+                        onChange={setMinutes}
+                    />
+                    <View style={styles.centered}>
+                        <HerdSectionLabel>{t('focusMode.project')}</HerdSectionLabel>
+                    </View>
+                    {projects.length === 0 ? (
+                        <Text style={styles.hint}>{t('focusMode.noProjects')}</Text>
+                    ) : (
+                        <View accessibilityRole="radiogroup" accessibilityLabel={t('focusMode.project')} style={styles.chips}>
+                            {projects.map((project) => (
+                                <HerdChip
+                                    key={project.id}
+                                    label={project.name}
+                                    selected={project.id === projectId}
+                                    onPress={() => setProjectId(project.id)}
+                                />
+                            ))}
+                        </View>
+                    )}
+                    {projects.length > 0 && !canStart && (
+                        <Text style={styles.hint}>{t('focusMode.selectProject')}</Text>
+                    )}
+                    <View style={[styles.actions, phone && styles.actionsPhone]}>
+                        <HerdButton label={t('focusMode.cancel')} onPress={onClose} style={phone ? styles.actionPhone : undefined} />
+                        <HerdButton variant="primary" icon="play" label={t('focusMode.start')} disabled={!canStart} style={phone ? styles.actionPhone : undefined} onPress={() => {
+                            if (!canStart) return;
+                            const startedAt = Date.now();
+                            setFocusMode({ projectId, endsAt: startedAt + minutes * 60_000, startedAt });
+                            if (!reducedMotion) playFocusPixelSwap();
+                            onClose();
+                        }} />
+                    </View>
+                </ScrollView>
             </View>
+        </View>
+    );
+    // Closing ends the Modal at once; on the web the card leaves on an inert layer.
+    if (exiting) return <HerdExitLayer>{layer}</HerdExitLayer>;
+    return (
+        <Modal
+            visible
+            transparent
+            animationType={Platform.OS === 'web' || reducedMotion ? 'none' : 'fade'}
+            onRequestClose={onClose}
+            statusBarTranslucent
+        >
+            {layer}
         </Modal>
     );
 }
 
+/** Hosts the one Focus setup that openFocusSetup() opens. */
+function FocusModeSetupHost() {
+    const request = useFocusSetupRequest((state) => state.request);
+    const presence = useHerdExit(request, HERD_EXIT.sheet);
+    if (!presence.value) return null;
+    return <FocusModeSetup key={presence.value.id} request={presence.value} exiting={presence.exiting} onClose={closeFocusSetup} />;
+}
+
+function FocusRing({ progress }: { progress: number }) {
+    const { theme } = useUnistyles();
+    const size = 16;
+    const stroke = 2.5;
+    const radius = (size - stroke) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.min(1, Math.max(0, progress));
+    return (
+        <Svg testID="focus-mode-ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+            {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}>
+            <Circle cx={size / 2} cy={size / 2} r={radius} stroke={theme.colors.selection.background} strokeWidth={stroke} fill="none" />
+            <Circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={theme.colors.textLink}
+                strokeWidth={stroke}
+                strokeLinecap="round"
+                fill="none"
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={circumference * (1 - clamped)}
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+        </Svg>
+    );
+}
+
+/**
+ * The top bar's Focus mode control (UI overhaul, as the approved mock draws
+ * it). Desktop: a "Focus mode" pill, then the live countdown pill with its
+ * ring, time, project and exit. Phones: an icon button, then a compact
+ * ring-and-time pill whose menu shows the project, the time left and Exit.
+ */
 export function FocusModeControl() {
     const { theme } = useUnistyles();
+    const dimensions = useWindowDimensions();
+    const phone = useHerdTopBarLayout() === 'phone';
     const focus = useFocusMode();
+    const projectsById = useProjects();
     const [, setFocusMode] = useSettingMutable('focusMode');
-    const [setupOpen, setSetupOpen] = React.useState(false);
     const [now, setNow] = React.useState(Date.now);
+    const menuTrigger = React.useRef<View>(null);
+    const [menuAnchor, setMenuAnchor] = React.useState<HerdAnchorRect | null>(null);
     React.useEffect(() => {
         if (!focus) return;
         setNow(Date.now());
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
     }, [focus]);
-    const time = formatFocusRemaining(getFocusRemainingSeconds(focus, now));
+    React.useEffect(() => {
+        if (!focus) setMenuAnchor(null);
+    }, [focus]);
+    const remaining = getFocusRemainingSeconds(focus, now);
+    const time = formatFocusRemaining(remaining);
+    const progress = focus ? focusModeProgress(focus, remaining) : 0;
+    const projectName = focus ? projectsById[focus.projectId]?.name : undefined;
+    const remainingLabel = t('focusMode.remaining', { time });
+    const openMenu = React.useCallback(async () => {
+        if (menuAnchor) {
+            setMenuAnchor(null);
+            return;
+        }
+        setMenuAnchor(await measureHerdAnchor(menuTrigger.current));
+    }, [menuAnchor]);
+    const exit = React.useCallback(() => {
+        setMenuAnchor(null);
+        setFocusMode(null);
+    }, [setFocusMode]);
+
+    let control: React.ReactNode;
+    if (focus && phone) {
+        control = <>
+            <View ref={menuTrigger} collapsable={false}>
+                <Pressable testID="focus-mode-pill" accessibilityRole="button"
+                    accessibilityLabel={projectName ? `${remainingLabel} · ${projectName}` : remainingLabel}
+                    aria-haspopup="menu" aria-expanded={!!menuAnchor} onPress={openMenu}
+                    style={({ pressed }) => [styles.phoneTarget, pressed && styles.pressed]}>
+                    <View style={[styles.pill, styles.pillPhone]}>
+                        <FocusRing progress={progress} />
+                        <Text testID="focus-mode-timer" style={styles.pillTime}>{time}</Text>
+                    </View>
+                </Pressable>
+            </View>
+            <HerdPopover visible={!!menuAnchor} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} width={290}
+                accessibilityLabel={t('focusMode.enter')} testID="focus-mode-menu">
+                <HerdMenuTitle>{t('focusMode.enter')}</HerdMenuTitle>
+                <View testID="focus-mode-menu-info" accessibilityLabel={remainingLabel} style={styles.menuInfo}>
+                    <HerdShellIcon name="folders" size={17} color={theme.colors.textSecondary} />
+                    <Text numberOfLines={1} style={styles.menuProject}>{projectName ?? ''}</Text>
+                    <Text style={styles.menuTime}>{time}</Text>
+                </View>
+                <HerdMenuSeparator />
+                <HerdMenuItem testID="focus-mode-exit" icon="close" label={t('focusMode.exit')} onPress={exit} />
+            </HerdPopover>
+        </>;
+    } else if (focus) {
+        control = <View testID="focus-mode-pill" style={styles.pill}>
+            <FocusRing progress={progress} />
+            <Text testID="focus-mode-timer" accessibilityLabel={remainingLabel} style={styles.pillTime}>{time}</Text>
+            {projectName && dimensions.width >= 600 ? <Text numberOfLines={1} style={styles.pillProject}>{projectName}</Text> : null}
+            <Pressable testID="focus-mode-exit" accessibilityRole="button" accessibilityLabel={t('focusMode.exit')}
+                onPress={exit} hitSlop={8} style={({ pressed }) => [styles.pillExit, pressed && styles.pressed]}>
+                <HerdShellIcon name="x" size={13} color={theme.colors.textLink} />
+            </Pressable>
+        </View>;
+    } else if (phone) {
+        control = <HerdTopBarIconButton testID="focus-mode-enter" label={t('focusMode.enter')} onPress={() => openFocusSetup()}>
+            <HerdShellIcon name="focus" size={19} color={theme.colors.header.tint} />
+        </HerdTopBarIconButton>;
+    } else {
+        control = <Pressable testID="focus-mode-enter" accessibilityRole="button" accessibilityLabel={t('focusMode.enter')}
+            onPress={() => openFocusSetup()}
+            style={({ pressed, hovered }: any) => [styles.enter, (hovered || pressed) && styles.enterHovered]}>
+            {({ pressed, hovered }: any) => <>
+                <HerdShellIcon name="focus" size={14} color={hovered || pressed ? theme.colors.text : theme.colors.textSecondary} />
+                <Text style={[styles.enterLabel, (hovered || pressed) && styles.enterLabelHovered]}>{t('focusMode.enter')}</Text>
+            </>}
+        </Pressable>;
+    }
 
     return <>
-        {focus ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text testID="focus-mode-timer" accessibilityLabel={t('focusMode.remaining', { time })}
-                style={{ ...Typography.mono(), color: theme.colors.header.tint, fontSize: 16, fontVariant: ['tabular-nums'] }}>{time}</Text>
-            <Pressable testID="focus-mode-exit" accessibilityRole="button" accessibilityLabel={t('focusMode.exit')}
-                onPress={() => setFocusMode(null)} style={{ minWidth: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="close" size={22} color={theme.colors.header.tint} />
-            </Pressable>
-        </View> : <Pressable testID="focus-mode-enter" accessibilityRole="button" accessibilityLabel={t('focusMode.enter')}
-            onPress={() => setSetupOpen(true)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-            <TomatoIcon />
-        </Pressable>}
-        {setupOpen && <FocusModeSetup onClose={() => setSetupOpen(false)} />}
+        {control}
+        <FocusModeSetupHost />
+        <FocusPixelSwapHost />
     </>;
 }
+
+const styles = StyleSheet.create((theme) => ({
+    // The mock's `.sheet-wrap`, `.scrim` and `.sheet.focus-card`.
+    setupRoot: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    setupRootPhone: {
+        justifyContent: 'flex-end',
+        paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
+    },
+    setupScrim: (exiting: boolean) => ({
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        backgroundColor: theme.colors.kilv.scrim,
+        _web: { backdropFilter: 'blur(2px)', _classNames: herdWebClasses(exiting ? 'herd-fade-out' : 'herd-fade') },
+    }),
+    setupCard: (exiting: boolean) => ({
+        width: '100%',
+        maxWidth: 520,
+        maxHeight: '100%',
+        overflow: 'hidden',
+        borderRadius: theme.kilv.radiusSheet,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.colors.surface,
+        shadowColor: theme.colors.shadow.color,
+        shadowOpacity: theme.colors.shadow.opacity,
+        shadowRadius: 40,
+        shadowOffset: { width: 0, height: 24 },
+        elevation: 16,
+        _web: { _classNames: herdWebClasses(exiting ? 'herd-sheet-out' : 'herd-sheet'), boxShadow: theme.kilv.shadow },
+    }),
+    setupContent: {
+        paddingTop: 24,
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+    },
+    setupContentPhone: {
+        paddingTop: 20,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+    },
+    setupHead: {
+        alignItems: 'center',
+    },
+    // The mock's `.focus-card .tomato`: the glyph in a molten ring.
+    focusMark: {
+        width: 64,
+        height: 64,
+        marginTop: 6,
+        marginBottom: 14,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.selection.background,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
+    },
+    setupTitle: {
+        ...Typography.default('semiBold'),
+        fontSize: 22,
+        lineHeight: 28,
+        letterSpacing: -0.22,
+        textAlign: 'center',
+        color: theme.colors.text,
+    },
+    centered: {
+        alignItems: 'center',
+    },
+    chips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    // The mock's `.field-hint` and `.faint`, centered with the card.
+    hint: {
+        ...Typography.default(),
+        marginTop: 6,
+        fontSize: 12.5,
+        lineHeight: 17,
+        textAlign: 'center',
+        color: theme.colors.kilv.inkFaint,
+    },
+    actions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginTop: 20,
+    },
+    // The phone mock's `.sheet-actions`: two equal, taller buttons.
+    actionsPhone: {
+        gap: 8,
+    },
+    actionPhone: {
+        flex: 1,
+        height: 46,
+    },
+    // The mock's `.top-pill`: a hairline mono pill with the focus icon.
+    enter: {
+        height: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        paddingHorizontal: 10,
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: { cursor: 'pointer', _classNames: ['herd-transition', 'herd-press'] },
+    },
+    enterHovered: {
+        borderColor: theme.colors.kilv.rimLine,
+    },
+    enterLabel: {
+        ...Typography.mono(),
+        fontSize: 12.5,
+        color: theme.colors.textSecondary,
+    },
+    enterLabelHovered: {
+        color: theme.colors.text,
+    },
+    phoneTarget: {
+        height: 44,
+        justifyContent: 'center',
+        paddingHorizontal: 2,
+    },
+    pillPhone: {
+        paddingRight: 10,
+    },
+    menuInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        minHeight: 48,
+        paddingHorizontal: 8,
+    },
+    menuProject: {
+        ...Typography.default(),
+        flex: 1,
+        fontSize: 15,
+        color: theme.colors.text,
+    },
+    menuTime: {
+        ...Typography.mono(),
+        fontSize: 13,
+        color: theme.colors.textLink,
+        fontVariant: ['tabular-nums'],
+    },
+    pill: {
+        height: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingLeft: 10,
+        paddingRight: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.selection.border,
+        borderRadius: theme.kilv.radiusPill,
+        backgroundColor: theme.colors.selection.background,
+        _web: { _classNames: herdWebClasses('herd-pop') },
+    },
+    pillTime: {
+        ...Typography.mono(),
+        fontSize: 13,
+        color: theme.colors.textLink,
+        fontVariant: ['tabular-nums'],
+    },
+    pillProject: {
+        ...Typography.default(),
+        maxWidth: 120,
+        fontSize: 12.5,
+        color: theme.colors.textSecondary,
+    },
+    pillExit: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        _web: { cursor: 'pointer', _hover: { backgroundColor: theme.colors.surfacePressedOverlay } },
+    },
+    pressed: {
+        opacity: 0.7,
+    },
+}));

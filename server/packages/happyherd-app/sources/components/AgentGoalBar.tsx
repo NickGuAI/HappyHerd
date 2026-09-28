@@ -1,9 +1,11 @@
 import { Text } from '@/components/StyledText';
 import { Ionicons } from '@expo/vector-icons';
+import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import type { VisibleAgentGoalStatus } from './agentGoalStatus';
+import { herdWebClasses } from './herd/motion';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 
 export type AgentGoalAction = 'clear' | 'stop' | 'edit';
@@ -27,6 +29,9 @@ const ACTION_CONFIG: Array<{
 
 export function AgentGoalBar(props: AgentGoalBarProps) {
     const { theme } = useUnistyles();
+    // UI overhaul: Web shows the goal on one line — a small molten caption,
+    // the goal text and its actions.
+    const web = Platform.OS === 'web';
     const actions = props.onAction
         ? ACTION_CONFIG.filter((item) => props.goal.capabilities?.[item.capability])
         : [];
@@ -44,25 +49,46 @@ export function AgentGoalBar(props: AgentGoalBarProps) {
                 backgroundColor: theme.colors.surfaceHigh,
                 borderColor: theme.colors.divider,
                 borderWidth: 1,
-                borderRadius: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                marginBottom: 8,
+                borderRadius: theme.borderRadius.md,
+                paddingLeft: 12,
+                paddingRight: web ? 6 : 12,
+                paddingVertical: web ? 3 : 10,
+                minHeight: web ? 40 : undefined,
+                marginBottom: web ? 6 : 8,
                 opacity: pressed && props.onPressDetails ? 0.8 : 1,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 10,
+                // Unistyles web reads `_web._classNames` from inline styles too.
+                ...(web ? { _web: { _classNames: herdWebClasses('herd-rise-sm') } } as object : {}),
             })}
         >
-            <Ionicons name="locate-outline" size={18} color={theme.colors.textSecondary} />
-            <View style={{ flex: 1, minWidth: 0 }}>
+            <Ionicons
+                name="locate-outline"
+                size={web ? 17 : 18}
+                color={web ? theme.colors.textLink : theme.colors.textSecondary}
+            />
+            <View style={web
+                ? { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }
+                : { flex: 1, minWidth: 0 }}
+            >
                 <Text
-                    style={{
-                        color: theme.colors.textSecondary,
-                        fontSize: 12,
-                        lineHeight: 16,
-                        fontWeight: '600',
-                    }}
+                    style={web
+                        ? {
+                            color: theme.colors.textLink,
+                            fontSize: 10.5,
+                            lineHeight: 16,
+                            letterSpacing: 1.26,
+                            textTransform: 'uppercase',
+                            flexShrink: 0,
+                            ...Typography.mono(),
+                        }
+                        : {
+                            color: theme.colors.textSecondary,
+                            fontSize: 12,
+                            lineHeight: 16,
+                            fontWeight: '600',
+                        }}
                     numberOfLines={1}
                 >
                     {t('components.agentGoalBar.currentGoal')}
@@ -72,6 +98,7 @@ export function AgentGoalBar(props: AgentGoalBarProps) {
                         color: theme.colors.text,
                         fontSize: 14,
                         lineHeight: 19,
+                        ...(web ? { flex: 1, minWidth: 0 } : {}),
                     }}
                     numberOfLines={1}
                     ellipsizeMode="tail"
@@ -80,7 +107,7 @@ export function AgentGoalBar(props: AgentGoalBarProps) {
                 </Text>
             </View>
             {actions.length > 0 && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: web ? 2 : 4 }}>
                     {actions.map((item) => {
                         const disabled = props.inFlightAction === item.action;
                         return (
@@ -95,7 +122,7 @@ export function AgentGoalBar(props: AgentGoalBarProps) {
                                 style={({ pressed }) => ({
                                     width: 30,
                                     height: 30,
-                                    borderRadius: 15,
+                                    borderRadius: web ? theme.borderRadius.sm : 15,
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent',
@@ -105,7 +132,7 @@ export function AgentGoalBar(props: AgentGoalBarProps) {
                                 {disabled ? (
                                     <ActivityIndicator size="small" color={theme.colors.textSecondary} />
                                 ) : (
-                                    <Ionicons name={item.icon} size={16} color={theme.colors.button.secondary.tint} />
+                                    <Ionicons name={item.icon} size={web ? 14 : 16} color={theme.colors.button.secondary.tint} />
                                 )}
                             </Pressable>
                         );

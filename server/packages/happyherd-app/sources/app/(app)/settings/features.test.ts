@@ -54,6 +54,10 @@ vi.mock('@/sync/storage', () => ({
     },
     useLocalSettingMutable: () => [false, vi.fn()],
 }));
+// The desktop section list is covered by SettingsFrame.test.ts; the page renders alone here.
+vi.mock('@/components/herd/pages/SettingsFrame', () => ({
+    withSettingsFrame: (_section: string, Screen: unknown) => Screen,
+}));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
 import FeaturesSettingsScreen from './features';

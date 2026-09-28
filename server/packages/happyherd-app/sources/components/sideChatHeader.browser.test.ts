@@ -14,6 +14,8 @@ const newSessionProjectPath = '/work/project/extensions/browser-tools';
 const newSessionRecentPath = (index: number) => `/workspace/products/example-project-${String(index).padStart(2, '0')}`;
 
 const virtualModules: Record<string, string> = {
+    // Settings' What's New entries report through @/track (SettingsFrame).
+    '@/track': `export const trackWhatsNewClicked = () => {};`,
     'react-native': `
         import React from 'react';
         import { Animated } from 'react-native-web';
@@ -81,6 +83,7 @@ const virtualModules: Record<string, string> = {
         });
         export const useNavigation = () => ({ setOptions() {} });
         export const useLocalSearchParams = () => globalThis.__HAPPYHERD_ROUTE_PARAMS__ ?? {};
+        export const usePathname = () => globalThis.__HAPPYHERD_ROUTE_PATHNAME__ ?? '/';
         export const Stack = { Screen: () => null };
     `,
     'react-native-reanimated': `
@@ -476,6 +479,9 @@ const virtualModules: Record<string, string> = {
             'uiCopy.enterProjectPath': 'Enter project path',
             'workspace.recent': 'Recent',
             'sideChat.panelTitle': 'Side chats',
+            'sideChat.newChatDescription': 'Open a parallel chat forked from this session',
+            'files.changesPanelDescription': 'Files this session changed',
+            'files.hidePanel': 'Hide panel',
             'sideChat.resizePanel': 'Resize side panel',
             'sideChat.openCount': 'Open side chats (' + (params?.count ?? '') + ')',
             'sideChat.collapse': 'Collapse side chats',
@@ -571,6 +577,7 @@ const virtualModules: Record<string, string> = {
         export const formatShortcutChord = () => '';
         export const getPreferredShortcutModifier = () => 'meta';
         export const matchesShortcutChord = () => false;
+        export const formatShortcut = () => '';
     `,
     '@/components/AnimatedOverlay': `
         import { View } from 'react-native';
@@ -889,7 +896,7 @@ const virtualModules: Record<string, string> = {
         export const resolvePath = (path, metadata) => metadata?.path && path.startsWith(metadata.path + '/') ? path.slice(metadata.path.length + 1) : path;
     `,
     '@/components/DuplicateSheet': `export const DuplicateSheet = () => null;`,
-    '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null;`,
+    '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null; export const useShortcutHints = () => ({ visible: false, modifier: null, browserSafeShortcuts: true });`,
     '@/components/RigGitLineChanges': `export const RigGitLineChanges = () => null;`,
     '@/components/SessionStatusAvatar': `export const SessionStatusAvatar = () => null;`,
     '@/sync/messageMeta': `
@@ -1073,6 +1080,15 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
     '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = (flavor) => flavor !== 'dsh' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
+    // New Session's Streamline mode is covered by herd/newSession/streamline.browser.test.ts;
+    // these flows exercise the Advanced form.
+    '@/sync/streamlineDefaults': `
+        export const STREAMLINE_CODE_DEFAULTS = {};
+        export const normalizeStreamlineAgent = (agent) => agent ?? 'claude';
+        export const resolveStreamlineSelection = () => ({ permissionMode: null, modelMode: null, effortLevel: null });
+    `,
+    '@/sync/githubRepository': `export const useGithubRepository = () => ({ status: 'unknown', loading: false }); export const detectGithubRepository = async () => 'unknown';`,
+    '@/hooks/useStreamlineLocations': `export const useStreamlineLocations = () => [];`,
     '@/sync/agentDefaults': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentDefaults.ts')}';
         const realDefaults = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.agentSettings === true;
@@ -1286,7 +1302,7 @@ async function swipeUp(page: Page, x: number, startY: number, endY: number) {
     await session.detach();
 }
 
-async function expectUntruncatedText(locator: Locator) {
+async function expectUntruncatedText(locator: Locator, fontSize: string | null = '16px') {
     const dimensions = await locator.evaluate((element) => ({
         width: element.clientWidth,
         scrollWidth: element.scrollWidth,
@@ -1294,7 +1310,7 @@ async function expectUntruncatedText(locator: Locator) {
     }));
     expect(dimensions.width).toBeGreaterThan(0);
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
-    expect(dimensions.fontSize).toBe('16px');
+    if (fontSize) expect(dimensions.fontSize).toBe(fontSize);
 }
 
 async function touchToEnd(page: Page, scrollRegion: Locator, finalRow: Locator) {
@@ -1572,12 +1588,13 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin + '?theme=' + theme);
             const route = page.getByTestId('full-new-session');
-            const trigger = route.getByTestId('new-session-account-project');
-            await trigger.waitFor();
-            expect(await trigger.innerText()).toContain(activeFocus ? 'Focused work' : 'No Project');
+            // Advanced on the web (UI overhaul) is the mock's form: the project chips.
+            const projectChip = (label: string) => route.getByRole('radio', { name: label, exact: true });
+            const initial = projectChip(activeFocus ? 'Focused work' : 'No Project');
+            await initial.waitFor();
+            expect(await initial.getAttribute('aria-checked')).toBe('true');
             if (choice) {
-                await trigger.click();
-                const option = page.getByText(choice, { exact: true }).filter({ visible: true }).last();
+                const option = projectChip(choice);
                 await option.waitFor();
                 expect(await page.getByText('Agent workspace', { exact: true }).count()).toBe(0);
                 const bounds = await option.boundingBox();
@@ -1587,7 +1604,7 @@ describe('Side chats browser interaction', () => {
                 await page.evaluate(() => document.fonts.ready);
                 await page.screenshot({ path: '/tmp/happyherd-new-session-project-menu-' + width + '-' + theme + '.png', fullPage: true });
                 await option.click();
-                expect(await trigger.innerText()).toContain(choice);
+                await expect.poll(() => option.getAttribute('aria-checked')).toBe('true');
             }
             await page.evaluate(() => document.fonts.ready);
             await page.screenshot({ path: '/tmp/happyherd-new-session-project-' + width + '-' + theme + '-' + (expected ?? 'none') + '.png', fullPage: true });
@@ -1634,7 +1651,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 20_000);
 
-    it.each([1440, 1920])('renders the production New Session route with a readable 720px panel at %ipx', async (width) => {
+    it.each([1440, 1920])('renders the production New Session route as the mock\'s card at %ipx', async (width) => {
         const page = await browser.newPage({ viewport: { width, height: 900 } });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
@@ -1647,16 +1664,20 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            const sidebar = route.getByTestId('new-session-right-sidebar');
+            // Advanced (UI overhaul): the mock's New Session card, no side panel.
+            const sidebar = route.getByTestId('new-session-card');
             await sidebar.waitFor();
-            expect((await sidebar.boundingBox())?.width).toBeCloseTo(720, 0);
-            await expectUntruncatedText(sidebar.getByText('claude-sonnet-4-5', { exact: true }));
+            expect((await sidebar.boundingBox())?.width).toBeLessThanOrEqual(977);
+            await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
+            // The mock's chips and path button use its own sizes; the path browser rows stay at 16 px.
+            await expectUntruncatedText(sidebar.getByTestId('advanced-sections').getByText('Sonnet 4.5', { exact: true }), null);
             const pathTrigger = sidebar.getByText(newSessionProjectPath, { exact: true });
-            await expectUntruncatedText(pathTrigger);
+            await expectUntruncatedText(pathTrigger, null);
             await pathTrigger.click();
             const recent = sidebar.getByTestId('new-session-recent-path-list');
             await recent.waitFor();
-            await expectUntruncatedText(recent.getByText(newSessionRecentPath(0), { exact: true }));
+            // The mock's dropdown rows are 13 px mono.
+            await expectUntruncatedText(recent.getByText(newSessionRecentPath(0), { exact: true }), '13px');
             const hidden = sidebar.getByTestId('machine-path-show-hidden').getByRole('switch');
             await expect(hidden.isChecked()).resolves.toBe(true);
             await sidebar.getByRole('button', { name: 'Open folder .hidden', exact: true }).waitFor();
@@ -1668,7 +1689,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 20_000);
 
-    it('keeps the production New Session route single-pane below 1100px', async () => {
+    it('keeps the production New Session route in the mock\'s card below 1100px', async () => {
         const page = await browser.newPage({ viewport: { width: 1099, height: 900 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
@@ -1678,7 +1699,7 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            await route.getByTestId('new-session-single-pane').waitFor();
+            await route.getByTestId('new-session-card').waitFor();
             await expect(route.getByTestId('new-session-right-sidebar').count()).resolves.toBe(0);
             await route.getByText(newSessionProjectPath, { exact: true }).click();
             await route.getByTestId('machine-path-browser-tree').waitFor();
@@ -1687,7 +1708,7 @@ describe('Side chats browser interaction', () => {
         }
     }, 15_000);
 
-    it('touch-scrolls the production New Session route folder list, recent list, and outer page on mobile', async () => {
+    it('touch-scrolls the production New Session route folder dropdown and outer page on mobile', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
@@ -1700,38 +1721,46 @@ describe('Side chats browser interaction', () => {
         try {
             await page.goto(origin);
             const route = page.getByTestId('full-new-session');
-            await route.getByTestId('new-session-single-pane').waitFor();
+            await route.getByTestId('new-session-advanced').waitFor();
             await expect(page.evaluate(() => window.innerWidth)).resolves.toBe(390);
             await route.getByText(newSessionProjectPath, { exact: true }).tap();
-            const tree = route.getByTestId('machine-path-browser-tree');
-            const recent = route.getByTestId('new-session-recent-path-list');
-            await tree.waitFor();
-            const lastFolder = tree.getByRole('button', { name: 'Open folder folder-23', exact: true });
-            await touchToEnd(page, tree, lastFolder);
+            // The mock's dropdown (UI overhaul): recent paths, then host folders, in one body.
+            const body = route.getByTestId('new-session-path-dropdown-body');
+            const dropdown = route.getByTestId('new-session-path-dropdown');
+            await route.getByTestId('machine-path-browser-tree').waitFor();
+            const lastFolder = body.getByRole('button', { name: 'Open folder folder-23', exact: true });
+            // Advanced scrolls in its own page. Gestures wait for it to come to rest.
+            const outerPage = route.getByTestId('new-session-advanced');
+            const outerTop = () => outerPage.evaluate((element) => element.scrollTop);
+            const settled = () => expect.poll(async () => {
+                const first = await outerTop();
+                await page.waitForTimeout(150);
+                return first === await outerTop();
+            }).toBe(true);
+            await dropdown.scrollIntoViewIfNeeded();
+            await settled();
+            // The body scrolls to its last folder; the page under it stays put.
+            const pageBefore = await outerTop();
+            await touchToEnd(page, body, lastFolder);
+            await expect(outerTop()).resolves.toBe(pageBefore);
             await tapVisibleRow(page, lastFolder);
-            await route.getByText('/work/project/folder-23', { exact: true }).waitFor();
-            await expect(tree.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
-            const lastRecent = recent.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
-            await touchToEnd(page, recent, lastRecent);
-            const recentBox = await recent.boundingBox();
-            const lastRecentBox = await lastRecent.boundingBox();
-            if (!recentBox || !lastRecentBox) throw new Error('Recent path geometry is unavailable');
-            expect(lastRecentBox.y).toBeGreaterThanOrEqual(recentBox.y - 1);
-            expect(lastRecentBox.y + lastRecentBox.height).toBeLessThanOrEqual(recentBox.y + recentBox.height + 1);
-            // The inner-list gestures are already proved above. Establish a
-            // non-terminal starting position for the independent outer-page
-            // gesture; browser momentum may have reached the outer bottom.
-            await page.evaluate(() => window.scrollTo(0, 0));
-            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
-            await expect(page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) > innerHeight)).resolves.toBe(true);
-            const scrollBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
-            await swipeUp(page, 385, 780, 240);
-            await expect.poll(() => page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBeGreaterThan(scrollBefore);
+            await expect.poll(() => dropdown.innerText()).toContain('/work/project/folder-23');
+            await expect(body.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            // The last recent path, brought on screen inside the body, is chosen by a tap.
+            const lastRecent = body.getByTestId(`new-session-recent-path-${encodeURIComponent(newSessionRecentPath(23))}`);
+            await lastRecent.scrollIntoViewIfNeeded();
+            await settled();
             await tapVisibleRow(page, lastRecent);
             await expect.poll(() => page.evaluate(() => (window as any).__MODEL_PICKER_DRAFT__?.selectedPath))
                 .toBe(newSessionRecentPath(23));
-            await expect(route.getByTestId('new-session-recent-path-list').count()).resolves.toBe(0);
+            await expect(route.getByTestId('new-session-path-dropdown').count()).resolves.toBe(0);
             await route.getByText(newSessionRecentPath(23), { exact: true }).waitFor({ state: 'visible' });
+            // The outer page still takes its own gesture.
+            await outerPage.evaluate((element) => element.scrollTo(0, 0));
+            await expect.poll(outerTop).toBe(0);
+            await expect(outerPage.evaluate((element) => element.scrollHeight > element.clientHeight)).resolves.toBe(true);
+            await swipeUp(page, 385, 780, 240);
+            await expect.poll(outerTop).toBeGreaterThan(0);
             expect(errors).toEqual([]);
         } finally {
             await page.close();
@@ -1786,7 +1815,8 @@ describe('Side chats browser interaction', () => {
             if (surface === 'Agent Settings') {
                 await page.getByText('uiCopy.model', { exact: true }).click();
             } else if (surface === 'Full New Session') {
-                await page.getByText('Gemini 3.6 Flash (High)', { exact: true }).filter({ visible: true }).click();
+                // Advanced (UI overhaul): the model choices are always visible in the form.
+                await page.getByTestId('advanced-sections').waitFor();
             } else if (surface === 'active session') {
                 await page.getByTestId('foreground-session').getByTestId('mobile-composer-actions-trigger').click();
                 await page.getByTestId('foreground-session').getByTestId('mobile-composer-action-settings').click();
@@ -1876,7 +1906,8 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
-        await page.getByRole('button', { name: 'Continue with…' }).click();
+        // The composer's agent chip also offers Continue with…; use the menu row.
+        await page.getByRole('button', { name: 'Continue with…', exact: true }).click();
         await page.getByText('Continue session', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByTestId('provider-continuation-claude').click();
         await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
@@ -1941,7 +1972,8 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
-        await page.getByRole('button', { name: 'Continue with…' }).click();
+        // The composer's agent chip also offers Continue with…; use the menu row.
+        await page.getByRole('button', { name: 'Continue with…', exact: true }).click();
         await page.getByTestId('provider-continuation-codex').click();
         await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
 
@@ -2000,7 +2032,9 @@ describe('Side chats browser interaction', () => {
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).waitFor({ timeout: 2_000 });
-        await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(false);
+        // The picker gives way to the panel; Changes stays reachable as an unselected tab (UI overhaul).
+        await expect(foreground.getByText('Files this session changed').count()).resolves.toBe(0);
+        await expect(foreground.getByRole('tab', { name: /Changes/ }).getAttribute('aria-selected')).resolves.toBe('false');
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
         const newestDraft = foreground.locator('textarea').last();
         await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
@@ -2709,13 +2743,8 @@ describe('Side chats browser interaction', () => {
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await expect.poll(() => workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).toBe('/work/reports');
         await workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).click();
-        if (viewport.width < 900) {
-            await workspace.getByTestId('desktop-file-workspace-picker-close').click();
-            await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
-            await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
-        } else {
-            await workspace.getByLabel('Workspace', { exact: true }).click();
-        }
+        // Phones carry the full Workspace in their right sheet, so the same control returns to the folder.
+        await workspace.getByLabel('Workspace', { exact: true }).filter({ visible: true }).click();
         await expect(workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).resolves.toBe('/work/reports');
         await expect(workspace.getByRole('button', { name: 'report.md', exact: true }).filter({ visible: true }).isVisible()).resolves.toBe(true);
         await page.close();
@@ -2784,7 +2813,8 @@ describe('Side chats browser interaction', () => {
     }, 15_000);
 
     it('expands the real session workspace to 75 percent without losing mounted chat or file state', async () => {
-        const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+        // The docked split starts at 1,100 px; below it the Workspace is an overlay sheet (UI overhaul).
+        const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
         await page.addInitScript(() => {
             (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { zenMode: true };
         });
@@ -2817,7 +2847,9 @@ describe('Side chats browser interaction', () => {
         });
         const chatScroll = foreground.locator('[data-retention-chat-scroll="mounted"]');
         await chatScroll.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(foreground.getByText('Changes').count()).resolves.toBe(0);
+        // Zen mode keeps the right panel mounted but gives it no width.
+        await expect(foreground.getByTestId('desktop-right-panel-host')
+            .evaluate((element) => element.getBoundingClientRect().width)).resolves.toBe(0);
         await composerDraft.fill('main draft survives first open');
         await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'main'; });
 
@@ -2895,14 +2927,17 @@ describe('Side chats browser interaction', () => {
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editorScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
+        // On a phone the same Workspace becomes the right sheet, leaving a 16 px strip of the chat.
         await page.setViewportSize({ width: 390, height: 844 });
         await foreground.getByTestId('desktop-file-workspace-divider').waitFor({ state: 'detached', timeout: 3_000 });
+        await host.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
         const narrowHostBox = await host.boundingBox();
         const narrowForegroundBox = await foreground.boundingBox();
-        if (!narrowHostBox || !narrowForegroundBox) throw new Error('fullscreen workspace link has no layout');
-        expect(Math.abs(narrowHostBox.width - narrowForegroundBox.width)).toBeLessThan(2);
+        if (!narrowHostBox || !narrowForegroundBox) throw new Error('phone Workspace sheet has no layout');
+        expect(Math.abs(narrowHostBox.x - (narrowForegroundBox.x + 16))).toBeLessThan(2);
+        expect(Math.abs(narrowHostBox.width - (narrowForegroundBox.width - 16))).toBeLessThan(2);
         expect(Math.abs(narrowHostBox.height - narrowForegroundBox.height)).toBeLessThan(2);
-        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(0);
+        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(1);
         await expect(workspace.isVisible()).resolves.toBe(true);
         await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
@@ -2910,7 +2945,102 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('opens a same-session link directly in the compact mobile workspace', async () => {
+    it('slides the Workspace and the right panel over the chat below 1100px and keeps every draft mounted', async () => {
+        const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const composerDraft = foreground.locator('textarea').first();
+        await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
+        await composerDraft.fill('main draft survives the overlay');
+        await composerDraft.evaluate((element) => { element.dataset.overlayComposer = 'main'; });
+        await foreground.evaluate((root) => {
+            const scroll = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => (
+                getComputedStyle(element).overflowY === 'auto'
+                && element.scrollHeight > element.clientHeight
+                && element.textContent?.includes('Fixture chat line')
+            ));
+            if (!scroll) throw new Error('real ChatList scroll container was not rendered');
+            scroll.dataset.overlayChatScroll = 'mounted';
+            scroll.scrollTop = 120;
+        });
+        const chatScroll = foreground.locator('[data-overlay-chat-scroll="mounted"]');
+        const chatScrollTop = await chatScroll.evaluate((element) => element.scrollTop);
+        expect(chatScrollTop).toBeGreaterThan(0);
+
+        // The Workspace opens as a sheet over the chat: no divider, a scrim beside it.
+        await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
+        const [hostBox, foregroundBox] = await Promise.all([host.boundingBox(), foreground.boundingBox()]);
+        if (!hostBox || !foregroundBox) throw new Error('overlay sheet has no layout');
+        expect(Math.abs(hostBox.x + hostBox.width - (foregroundBox.x + foregroundBox.width))).toBeLessThan(2);
+        expect(hostBox.width).toBeLessThan(foregroundBox.width - 40);
+
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = workspace.locator('textarea.code-editor-textarea');
+        await editor.waitFor({ state: 'visible', timeout: 3_000 });
+        const unsavedValue = Array.from({ length: 60 }, (_, index) => `overlay draft line ${index}`).join('\n');
+        await editor.fill(unsavedValue);
+        await editor.evaluate((element) => { element.dataset.overlayEditor = 'mounted'; });
+
+        // The scrim closes the sheet; nothing unmounts.
+        const scrimBox = await scrim.boundingBox();
+        if (!scrimBox) throw new Error('overlay scrim has no layout');
+        await page.mouse.click(scrimBox.x + 24, scrimBox.y + scrimBox.height / 2);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await expect(host.isVisible()).resolves.toBe(false);
+        await expect(foreground.locator('textarea[data-overlay-editor="mounted"]').count()).resolves.toBe(1);
+        await expect(foreground.locator('textarea[data-overlay-composer="main"]').inputValue())
+            .resolves.toBe('main draft survives the overlay');
+        await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(chatScrollTop);
+
+        // Reopening shows the same editor with its unsaved text.
+        await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(editor.getAttribute('data-overlay-editor')).resolves.toBe('mounted');
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+
+        // Escape closes it too once focus leaves the editor.
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+        await page.keyboard.press('Escape');
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+
+        // Side chats use the same sheet; Hide panel keeps the child composer mounted.
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const childDraft = foreground.locator('textarea').filter({ visible: true }).last();
+        await childDraft.fill('side chat draft survives');
+        await childDraft.evaluate((element) => { element.dataset.overlayComposer = 'child'; });
+        await foreground.getByTestId('files-sidebar-hide').click();
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.locator('textarea[data-overlay-composer="child"]').inputValue())
+            .resolves.toBe('side chat draft survives');
+        await expect(foreground.locator('textarea[data-overlay-composer="main"]').inputValue())
+            .resolves.toBe('main draft survives the overlay');
+        await expect(foreground.locator('textarea[data-overlay-editor="mounted"]').inputValue()).resolves.toBe(unsavedValue);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
+    it('opens a same-session link directly in the phone Workspace sheet', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -2932,8 +3062,12 @@ describe('Side chats browser interaction', () => {
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await foreground.getByTestId('desktop-file-workspace-fullscreen-header').waitFor({ state: 'visible' });
-        await expect(foreground.getByText('main-notes.md').isVisible()).resolves.toBe(true);
+        // The right sheet over a 16 px strip of the chat, not a full-screen view.
+        await foreground.getByTestId('desktop-panel-overlay-scrim').waitFor({ state: 'visible', timeout: 3_000 });
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        await host.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        await expect(host.boundingBox().then((box) => Math.round(box!.x))).resolves.toBe(16);
+        await expect(foreground.getByText('main-notes.md').filter({ visible: true }).first().isVisible()).resolves.toBe(true);
         await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
@@ -3107,18 +3241,20 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertMainComposerRetained();
 
+        // The Workspace opens in the phone's right sheet, over a 16 px strip of the chat.
         await openMainAction('workspace');
-        const compactWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
-        await compactWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Workspace').isVisible())
-            .resolves.toBe(true);
-        await expect(compactWorkspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
+        const sheetWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
+        await sheetWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(sheetWorkspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
         await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByText('Upload', { exact: true }).filter({ visible: true }).isVisible())
             .resolves.toBe(true);
         const machineFile = page.getByText('machine-file.md').filter({ visible: true });
         await machineFile.waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await page.mouse.click(8, 420);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
         await assertMainComposerRetained();
         await expect(page.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
 
@@ -3183,14 +3319,16 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
+        // The child's Workspace opens in the phone's right sheet; the strip beside it closes it.
         await openNewestAction('workspace');
-        await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
-            .getByText('Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByTestId('desktop-file-workspace').filter({ visible: true })
             .getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
         await page.getByText('child-newest-machine-file.md', { exact: true }).filter({ visible: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await page.mouse.click(8, 420);
+        await scrim.waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
         await foreground.getByText('Oldest child', { exact: true }).click();
@@ -3213,7 +3351,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 30_000);
 
-    it('opens the same newest child in the narrow full-screen host and collapses it', async () => {
+    it('opens the same children in the phone sheet, switches between them, and closes it', async () => {
         const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -3227,22 +3365,22 @@ describe('Side chats browser interaction', () => {
 
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        const scrim = foreground.getByTestId('desktop-panel-overlay-scrim');
+        await scrim.waitFor({ state: 'visible', timeout: 2_000 });
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
+        // A sheet, not a docked panel: nothing to resize.
         await expect(foreground.getByRole('slider', { name: 'Resize side panel' }).count()).resolves.toBe(0);
-        const newestDraft = foreground.locator('textarea').last();
+        const newestDraft = foreground.locator('textarea').filter({ visible: true }).last();
         await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
-        await newestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'newest'; });
+        await newestDraft.fill('newest child draft');
         await foreground.getByText('Oldest child').click();
-        await foreground.locator('textarea[data-fullscreen-side-chat-composer="newest"]')
-            .waitFor({ state: 'detached', timeout: 2_000 });
-        const oldestDraft = foreground.locator('textarea').last();
+        const oldestDraft = foreground.locator('textarea').filter({ visible: true }).last();
         await oldestDraft.waitFor({ state: 'visible', timeout: 2_000 });
-        await oldestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'oldest'; });
+        await expect(oldestDraft.inputValue()).resolves.toBe('');
         await expect(page.evaluate(() => (window as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).resolves.toBe(0);
 
-        await foreground.getByRole('button', { name: 'Collapse side chats' }).last().click();
-        await foreground.locator('textarea[data-fullscreen-side-chat-composer="oldest"]')
-            .waitFor({ state: 'detached', timeout: 2_000 });
+        await foreground.getByTestId('files-sidebar-hide').click();
+        await scrim.waitFor({ state: 'detached', timeout: 2_000 });
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
@@ -3301,9 +3439,14 @@ describe('Side chats browser interaction', () => {
             expect(await page.evaluate(() => (window as any).__EXTERNAL_LINKS__)).toEqual(['https://example.com/docs']);
             expect(await foreground.locator('iframe').count()).toBe(1);
             expect(await foreground.getByTestId('desktop-file-workspace-divider').count()).toBe(width >= 900 ? 1 : 0);
-            if (owner !== 'parent' && width >= 900) {
-                // Desktop Workspace replaces the Side chat sidebar. Reopening
-                // the child must hydrate its draft through the real useDraft.
+            if (owner !== 'parent') {
+                // The Workspace replaces the Side chat panel, docked or in the phone's
+                // sheet. Reopening the child must hydrate its draft through the real useDraft.
+                if (width < 1100) {
+                    // Phones: the strip beside the Workspace sheet leads back to the chat first.
+                    await page.mouse.click(8, height / 2);
+                    await foreground.getByTestId('desktop-panel-overlay-scrim').waitFor({ state: 'detached' });
+                }
                 await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
                 await foreground.getByRole('link', { name: `Hosted page ${owner}`, exact: true }).waitFor();
                 expect(await foreground.locator('textarea').filter({ visible: true }).last().inputValue())
@@ -3349,7 +3492,16 @@ describe('Side chats browser interaction', () => {
             const changesBox = await changes.boundingBox();
             if (!quickActionsBox || !changesBox) throw new Error('Session Info actions have no visible geometry');
             expect(changesBox.y).toBeGreaterThan(quickActionsBox.y);
-            await expect(info.getByText('parent', { exact: true }).count()).resolves.toBe(0);
+            // The mock's title row names the session once from 900 px up, above Quick Actions;
+            // narrower layouts leave the name to the Stack header.
+            const wide = width >= 900;
+            await expect(info.getByText('parent', { exact: true }).count()).resolves.toBe(wide ? 1 : 0);
+            if (wide) {
+                const titleBox = await info.getByTestId('session-info-header')
+                    .getByText('parent', { exact: true }).boundingBox();
+                if (!titleBox) throw new Error('Session Info title row has no visible geometry');
+                expect(quickActionsBox.y).toBeGreaterThan(titleBox.y);
+            }
 
             await changes.click();
             await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'visible' });

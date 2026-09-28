@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet } from 'react-native-unistyles';
 
 import { DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH } from './desktopFileWorkspaceModel';
+import { HerdPanelGrip } from './herd/panels/PanelGrip';
 import { t } from '@/text';
 
 export const SessionSidebarDivider = React.memo(function SessionSidebarDivider({
@@ -12,12 +13,12 @@ export const SessionSidebarDivider = React.memo(function SessionSidebarDivider({
     width: number;
     onWidthChange: (width: number) => void;
 }) {
-    const { theme } = useUnistyles();
     const widthRef = React.useRef(width);
     const dragStartWidthRef = React.useRef(width);
     const dragStartClientXRef = React.useRef(0);
     const activePointerIdRef = React.useRef<number | null>(null);
     const [dragging, setDragging] = React.useState(false);
+    const [hovered, setHovered] = React.useState(false);
     widthRef.current = width;
 
     const webPointerHandlers = React.useMemo(() => ({
@@ -61,43 +62,32 @@ export const SessionSidebarDivider = React.memo(function SessionSidebarDivider({
     return (
         <View
             {...webPointerHandlers}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
             accessibilityRole="adjustable"
             accessibilityLabel={t('sideChat.resizePanel')}
             accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
             onAccessibilityAction={(event) => {
                 onWidthChange(width + (event.nativeEvent.actionName === 'increment' ? 40 : -40));
             }}
-            style={[
-                styles.divider,
-                { backgroundColor: theme.colors.divider },
-                dragging && { backgroundColor: theme.colors.textLink },
-            ]}
+            style={styles.divider}
             testID="session-sidebar-divider"
         >
-            <View
-                style={[
-                    styles.dividerGrip,
-                    { backgroundColor: dragging ? theme.colors.textLink : theme.colors.textSecondary },
-                ]}
-            />
+            <HerdPanelGrip active={hovered || dragging} />
         </View>
     );
 });
 
+// The strip keeps its hit area; the grip straddles the panel's border
+// (mock `.rpanel-grip`).
 const styles = StyleSheet.create({
     divider: {
         width: DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
         alignSelf: 'stretch',
-        alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        zIndex: 5,
         cursor: 'col-resize',
         userSelect: 'none',
         touchAction: 'none',
     } as any,
-    dividerGrip: {
-        width: 2,
-        height: 48,
-        borderRadius: 1,
-        opacity: 0.7,
-    },
 });

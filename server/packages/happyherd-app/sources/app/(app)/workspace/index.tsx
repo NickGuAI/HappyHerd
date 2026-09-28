@@ -59,6 +59,14 @@ import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
 import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
 import { isWorkspacePathDeleted, normalizeWorkspaceLocalhostUrl } from '@/components/desktopFileWorkspaceModel';
+import { herdWebClasses } from '@/components/herd/motion';
+import {
+    panelGroundImage,
+    panelHairline,
+    panelHoverWash,
+    panelMolten,
+    workspaceGround,
+} from '@/components/herd/panels/panelColors';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 import {
     dismissWorkspaceLinkToOrigin,
@@ -628,7 +636,7 @@ export function MachineWorkspaceBrowser({
                 contentContainerStyle={styles.browserContent}
                 keyboardShouldPersistTaps="handled"
             >
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.sectionLabel}>
                     {t('settings.machines')}
                 </Text>
                 {machines.length === 0 ? (
@@ -643,18 +651,19 @@ export function MachineWorkspaceBrowser({
                                     key={machine.id}
                                     disabled={attachmentMode}
                                     onPress={() => switchMachine(machine)}
-                                    style={({ pressed }) => [
+                                    style={({ pressed, hovered }: any) => [
                                         styles.machineChip,
-                                        { borderColor: selected ? theme.colors.textLink : theme.colors.divider },
-                                        selected && { backgroundColor: theme.colors.surfaceSelected },
-                                        pressed && { opacity: 0.75 },
+                                        (hovered || pressed) && !selected && styles.machineChipHovered,
+                                        selected && styles.machineChipSelected,
+                                        !online && !selected && styles.machineChipOffline,
                                         attachmentMode && !selected && { display: 'none' },
                                     ]}
                                     accessibilityRole="button"
                                     accessibilityState={{ selected, disabled: attachmentMode }}
+                                    aria-pressed={selected}
                                 >
-                                    <View style={[styles.statusDot, { backgroundColor: online ? theme.colors.success : theme.colors.textSecondary }]} />
-                                    <Text style={{ color: theme.colors.text, ...Typography.default('semiBold') }} numberOfLines={1}>
+                                    <View style={[styles.statusDot, { backgroundColor: online ? theme.colors.gitAddedText : theme.colors.kilv.inkFaint }]} />
+                                    <Text style={[styles.machineChipText, selected && styles.machineChipTextSelected]} numberOfLines={1}>
                                         {machineName(machine)}
                                     </Text>
                                 </Pressable>
@@ -667,7 +676,7 @@ export function MachineWorkspaceBrowser({
                     <>
                         {onLocalhostUrlPress ? (
                             <View style={styles.localhostUrlSection}>
-                                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                                <Text style={styles.sectionLabel}>
                                     {t('workspace.openLocalhost')}
                                 </Text>
                                 <View style={styles.pathRow}>
@@ -679,7 +688,7 @@ export function MachineWorkspaceBrowser({
                                         }}
                                         onSubmitEditing={openLocalhostUrl}
                                         placeholder={t('workspace.localhostUrlPlaceholder')}
-                                        placeholderTextColor={theme.colors.textSecondary}
+                                        placeholderTextColor={theme.colors.kilv.inkFaint}
                                         autoCapitalize="none"
                                         autoCorrect={false}
                                         keyboardType="url"
@@ -687,22 +696,17 @@ export function MachineWorkspaceBrowser({
                                         accessibilityLabel={t('workspace.openLocalhost')}
                                         style={[
                                             styles.pathInput,
-                                            {
-                                                color: theme.colors.text,
-                                                backgroundColor: theme.colors.input.background,
-                                                borderColor: localhostUrlError
-                                                    ? theme.colors.textDestructive
-                                                    : theme.colors.divider,
-                                            },
+                                            localhostUrlError && { borderColor: theme.colors.textDestructive },
                                         ]}
                                     />
                                     <Pressable
                                         onPress={openLocalhostUrl}
                                         accessibilityRole="button"
                                         accessibilityLabel={t('workspace.openLocalhost')}
-                                        style={({ pressed }) => [styles.goButton, { backgroundColor: theme.colors.button.primary.background, opacity: pressed ? 0.8 : 1 }]}
+                                        style={({ pressed, hovered }: any) => [styles.goButton, (hovered || pressed) && styles.goButtonHovered]}
                                     >
-                                        <Text style={{ color: theme.colors.button.primary.tint, ...Typography.default('semiBold') }}>{t('workspace.go')}</Text>
+                                        <Ionicons name="globe-outline" size={14} color={theme.colors.textSecondary} />
+                                        <Text style={styles.goButtonText}>{t('workspace.go')}</Text>
                                     </Pressable>
                                 </View>
                                 {localhostUrlError ? (
@@ -719,23 +723,16 @@ export function MachineWorkspaceBrowser({
                                 onChangeText={setPathDraft}
                                 onSubmitEditing={() => pathDraft.trim() && openDirectory(pathDraft.trim())}
                                 placeholder={t('workspace.pathPlaceholder')}
-                                placeholderTextColor={theme.colors.textSecondary}
+                                placeholderTextColor={theme.colors.kilv.inkFaint}
                                 autoCapitalize="none"
                                 autoCorrect={false}
-                                style={[
-                                    styles.pathInput,
-                                    {
-                                        color: theme.colors.text,
-                                        backgroundColor: theme.colors.input.background,
-                                        borderColor: theme.colors.divider,
-                                    },
-                                ]}
+                                style={styles.pathInput}
                             />
                             <Pressable
                                 onPress={() => pathDraft.trim() && openDirectory(pathDraft.trim())}
-                                style={({ pressed }) => [styles.goButton, { backgroundColor: theme.colors.button.primary.background, opacity: pressed ? 0.8 : 1 }]}
+                                style={({ pressed, hovered }: any) => [styles.goButton, (hovered || pressed) && styles.goButtonHovered]}
                             >
-                                <Text style={{ color: theme.colors.button.primary.tint, ...Typography.default('semiBold') }}>{t('workspace.go')}</Text>
+                                <Text style={styles.goButtonText}>{t('workspace.go')}</Text>
                             </Pressable>
                         </View>
 
@@ -785,14 +782,14 @@ export function MachineWorkspaceBrowser({
                             />
                         )}
 
-                        <View style={[styles.searchRow, { backgroundColor: theme.colors.input.background }]}>
-                            <Ionicons name="search" size={17} color={theme.colors.textSecondary} />
+                        <View style={styles.searchRow}>
+                            <Ionicons name="search" size={15} color={theme.colors.kilv.inkFaint} />
                             <TextInput
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 placeholder={t('workspace.searchPlaceholder')}
-                                placeholderTextColor={theme.colors.textSecondary}
-                                style={[styles.searchInput, { color: theme.colors.text }]}
+                                placeholderTextColor={theme.colors.kilv.inkFaint}
+                                style={styles.searchInput}
                             />
                         </View>
 
@@ -830,7 +827,7 @@ export function MachineWorkspaceBrowser({
 
     const viewer = selectedMachine && selectedFile ? (
         <View style={styles.viewerPane}>
-            <View style={[styles.viewerHeader, { borderBottomColor: theme.colors.divider }]}>
+            <View style={styles.viewerHeader}>
                 {!desktopSplit && (
                     <Pressable
                         onPress={() => {
@@ -845,17 +842,17 @@ export function MachineWorkspaceBrowser({
                     </Pressable>
                 )}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.viewerTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                    <Text style={styles.viewerTitle} numberOfLines={1}>
                         {selectedFile.split(/[\\/]/).pop() || selectedFile}
                     </Text>
-                    <Text style={[styles.viewerPath, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                    <Text style={styles.viewerPath} numberOfLines={1}>
                         {selectedFile}
                     </Text>
                 </View>
                 {contextSelectionMode && (
                     <Pressable
                         onPress={() => toggleStagedEntry(selectedFile, 'file')}
-                        style={({ pressed }) => [styles.attachButton, { borderColor: theme.colors.divider, opacity: pressed ? 0.75 : 1 }]}
+                        style={({ pressed }) => [styles.attachButton, { opacity: pressed ? 0.75 : 1 }]}
                     >
                         <Ionicons
                             name={visibleContextEntries.has(workspaceContextEntryKey({
@@ -927,7 +924,7 @@ export function MachineWorkspaceBrowser({
                         </View>
                     ) : selectedFile ? viewer : browser}
                     {attachmentMode && (
-                        <View style={[styles.attachmentFooter, { borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface }]}>
+                        <View style={styles.attachmentFooter}>
                             <Pressable onPress={() => router.back()} style={styles.footerButton}>
                                 <Text style={{ color: theme.colors.textSecondary, ...Typography.default('semiBold') }}>{t('common.cancel')}</Text>
                             </Pressable>
@@ -1004,12 +1001,16 @@ function PathAction({
         <Pressable
             disabled={disabled}
             onPress={onPress}
-            style={({ pressed }) => [styles.pathAction, { opacity: disabled ? 0.4 : pressed ? 0.65 : 1 }]}
+            style={({ pressed, hovered }: any) => [
+                styles.pathAction,
+                (hovered || pressed) && !disabled && styles.pathActionHovered,
+                disabled && styles.pathActionDisabled,
+            ]}
             accessibilityLabel={label}
             accessibilityState={{ disabled }}
         >
-            <Ionicons name={icon} size={17} color={theme.colors.textSecondary} />
-            <Text style={[styles.pathActionLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+            <Ionicons name={icon} size={14} color={theme.colors.textSecondary} />
+            <Text style={styles.pathActionLabel}>{label}</Text>
         </Pressable>
     );
 }
@@ -1028,15 +1029,15 @@ function PathChipSection({
     const { theme } = useUnistyles();
     return (
         <View style={{ gap: 5 }}>
-            <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{title}</Text>
+            <Text style={styles.sectionLabel}>{title}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
                 {paths.map((path) => (
                     <Pressable
                         key={path}
                         onPress={() => onPress(path)}
-                        style={({ pressed }) => [styles.pathChip, { borderColor: theme.colors.divider, opacity: pressed ? 0.7 : 1 }]}
+                        style={({ pressed, hovered }: any) => [styles.pathChip, (hovered || pressed) && styles.pathChipHovered]}
                     >
-                        <Text style={{ color: theme.colors.text, ...Typography.mono() }} numberOfLines={1}>
+                        <Text style={styles.pathChipText} numberOfLines={1}>
                             {formatPathRelativeToHome(path, homeDir)}
                         </Text>
                     </Pressable>
@@ -1069,12 +1070,12 @@ function FileRow({
     const fileLabel = (
         <>
             {entry.type === 'directory'
-                ? <Ionicons name="folder-outline" size={20} color={theme.colors.textSecondary} />
-                : <FileIcon fileName={entry.name} size={20} />}
-            <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: theme.colors.text, ...Typography.default() }} numberOfLines={1}>{entry.name}</Text>
+                ? <Ionicons name="folder-outline" size={17} color={theme.colors.kilv.moltenDeep} />
+                : <FileIcon fileName={entry.name} size={17} />}
+            <View style={styles.fileText}>
+                <Text style={styles.fileName} numberOfLines={1}>{entry.name}</Text>
                 {entry.type === 'file' && (
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 11, ...Typography.default() }}>{formatBytes(entry.size)}</Text>
+                    <Text style={styles.fileSize}>{formatBytes(entry.size)}</Text>
                 )}
             </View>
         </>
@@ -1094,28 +1095,30 @@ function FileRow({
         >
             <Ionicons
                 name={attached ? 'checkmark-circle' : 'ellipse-outline'}
-                size={20}
-                color={attached ? theme.colors.success : theme.colors.textSecondary}
+                size={19}
+                color={attached ? theme.colors.textLink : theme.colors.kilv.inkFaint}
             />
         </Pressable>
     );
     const chevron = entry.type === 'directory'
-        ? <Ionicons name="chevron-forward" size={17} color={theme.colors.textSecondary} />
+        ? <Ionicons name="chevron-forward" size={15} color={theme.colors.kilv.inkFaint} />
         : null;
+    // Tree rows (mock `.tree-row`): rounded, a hover wash, the stone fill and
+    // a molten edge for the open file.
     const rowStyle = [
         styles.fileRow,
-        { borderBottomColor: theme.colors.divider },
-        selected && { backgroundColor: theme.colors.surfaceSelected },
+        selected && styles.fileRowSelected,
     ];
 
     if (Platform.OS === 'web') {
         return (
             <View style={rowStyle}>
+                {selected ? <View style={styles.fileRowSelectedBar} /> : null}
                 <Pressable
                     onPress={onOpen}
                     accessibilityRole="button"
                     accessibilityLabel={entry.name}
-                    style={({ pressed }) => [styles.fileOpenButton, pressed && { opacity: 0.75 }]}
+                    style={({ pressed, hovered }: any) => [styles.fileOpenButton, (hovered || pressed) && styles.fileOpenButtonHovered]}
                 >
                     {fileLabel}
                     {chevron}
@@ -1128,9 +1131,13 @@ function FileRow({
                         accessibilityRole="button"
                         accessibilityLabel={t('workspace.deleteItemAction', { name: entry.name })}
                         accessibilityState={{ disabled: deleteDisabled }}
-                        style={({ pressed }) => [styles.deleteButton, { opacity: deleteDisabled ? 0.4 : pressed ? 0.65 : 1 }]}
+                        style={({ pressed, hovered }: any) => [
+                            styles.deleteButton,
+                            (hovered || pressed) && !deleteDisabled && styles.deleteButtonHovered,
+                            deleteDisabled && styles.pathActionDisabled,
+                        ]}
                     >
-                        <Ionicons name="trash-outline" size={20} color={theme.colors.textDestructive} />
+                        <Ionicons name="trash-outline" size={17} color={theme.colors.textDestructive} />
                     </Pressable>
                 )}
             </View>
@@ -1162,9 +1169,11 @@ function EmptyState({
     const { theme } = useUnistyles();
     return (
         <View style={styles.emptyState}>
-            <Ionicons name={icon} size={34} color={theme.colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>{title}</Text>
-            {description && <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>{description}</Text>}
+            <View style={styles.emptyHero}>
+                <Ionicons name={icon} size={22} color={theme.colors.kilv.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>{title}</Text>
+            {description && <Text style={styles.emptyDescription}>{description}</Text>}
         </View>
     );
 }
@@ -1180,11 +1189,13 @@ function DirectoryErrorState({
     const copy = errorCopy(error.kind);
     return (
         <View style={styles.emptyState}>
-            <Ionicons name="warning-outline" size={34} color={theme.colors.warning} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>{copy.title}</Text>
-            <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>{copy.description}</Text>
-            {!!error.detail && <Text style={[styles.errorDetail, { color: theme.colors.textSecondary }]}>{error.detail}</Text>}
-            <Pressable onPress={onRetry} style={({ pressed }) => [styles.retryButton, { borderColor: theme.colors.divider, opacity: pressed ? 0.7 : 1 }]}>
+            <View style={styles.emptyHero}>
+                <Ionicons name="warning-outline" size={22} color={theme.colors.warning} />
+            </View>
+            <Text style={styles.emptyTitle}>{copy.title}</Text>
+            <Text style={styles.emptyDescription}>{copy.description}</Text>
+            {!!error.detail && <Text style={styles.errorDetail}>{error.detail}</Text>}
+            <Pressable onPress={onRetry} style={({ pressed, hovered }: any) => [styles.retryButton, (hovered || pressed) && styles.pathActionHovered]}>
                 <Ionicons name="refresh" size={16} color={theme.colors.textLink} />
                 <Text style={{ color: theme.colors.textLink, ...Typography.default('semiBold') }}>{t('common.retry')}</Text>
             </Pressable>
@@ -1196,49 +1207,246 @@ const styles = StyleSheet.create((theme) => ({
     screen: { flex: 1 },
     workspace: { flex: 1, width: '100%', alignSelf: 'center', backgroundColor: theme.colors.surface },
     split: { flex: 1, flexDirection: 'row' },
-    browserPane: { flex: 1, minWidth: 0 },
+    // File browser (mock `.ws-files`): the panel ground beside the viewer.
+    browserPane: {
+        flex: 1,
+        minWidth: 0,
+        backgroundColor: theme.colors.groupped.background,
+        _web: { backgroundImage: panelGroundImage(theme) },
+    },
     browserPaneDesktop: {
         ...desktopWorkspaceBrowserLayout,
-        borderRightWidth: StyleSheet.hairlineWidth,
-        borderRightColor: theme.colors.divider,
+        borderRightWidth: 1,
+        borderRightColor: panelHairline(theme),
     },
-    browserContent: { padding: 16, gap: 14, paddingBottom: 32 },
-    viewerPane: { flex: 1, minWidth: 0, backgroundColor: theme.colors.surface },
-    sectionLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.7, ...Typography.default('semiBold') },
+    browserContent: { paddingHorizontal: 12, paddingTop: 14, gap: 10, paddingBottom: 24 },
+    viewerPane: { flex: 1, minWidth: 0, backgroundColor: workspaceGround(theme) },
+    sectionLabel: {
+        fontSize: 10.5,
+        letterSpacing: 1.6,
+        textTransform: 'uppercase',
+        color: theme.colors.kilv.inkFaint,
+        marginTop: 2,
+        ...Typography.mono(),
+    },
     chipScroll: Platform.OS === 'web' ? { flexGrow: 0, flexShrink: 0 } : {},
-    chipRow: { gap: 8, paddingRight: 8 },
-    machineChip: { maxWidth: 240, minHeight: 38, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10 },
+    chipRow: { gap: 6, paddingRight: 8 },
+    // Machine choices (mock `.chip`, the selected one `.chip-agent`).
+    machineChip: {
+        maxWidth: 240,
+        minHeight: 38,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        borderRadius: theme.kilv.radius,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        paddingHorizontal: 11,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition') },
+    },
+    machineChipHovered: { borderColor: theme.colors.kilv.rimLine },
+    machineChipSelected: {
+        borderColor: panelMolten(theme, theme.dark ? 0.55 : 0.5),
+        backgroundColor: theme.colors.selection.background,
+    },
+    machineChipOffline: { opacity: 0.55 },
+    machineChipText: { fontSize: 12.5, color: theme.colors.textSecondary, ...Typography.mono() },
+    machineChipTextSelected: { color: theme.colors.textLink, ...Typography.mono('semiBold') },
     statusDot: { width: 7, height: 7, borderRadius: 4 },
     localhostUrlSection: { gap: 6 },
-    pathRow: { flexDirection: 'row', gap: 8 },
-    pathInput: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 9, paddingHorizontal: 11, paddingVertical: Platform.OS === 'web' ? 9 : 8, ...Typography.mono() },
-    goButton: { minWidth: 50, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-    fieldError: { ...Typography.default(), fontSize: 12 },
+    pathRow: { flexDirection: 'row', gap: 6 },
+    // Inputs (mock `.input.input-mono`): sunken, hairline, molten focus.
+    pathInput: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 36,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        borderRadius: theme.borderRadius.sm,
+        backgroundColor: theme.colors.input.background,
+        color: theme.colors.text,
+        paddingHorizontal: 11,
+        paddingVertical: Platform.OS === 'web' ? 8 : 7,
+        fontSize: 12.5,
+        ...Typography.mono(),
+        _web: {
+            outlineStyle: 'none',
+            _focus: { borderColor: panelMolten(theme, theme.dark ? 0.55 : 0.5) },
+        },
+    },
+    goButton: {
+        minWidth: 50,
+        minHeight: 36,
+        flexDirection: 'row',
+        gap: 6,
+        borderRadius: theme.borderRadius.sm,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        backgroundColor: theme.colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition', 'herd-press') },
+    },
+    goButtonHovered: { borderColor: theme.colors.kilv.rimLine },
+    goButtonText: { fontSize: 13, color: theme.colors.text, ...Typography.default('semiBold') },
+    fieldError: { ...Typography.default(), fontSize: 12, color: theme.colors.textDestructive },
+    // Path actions (mock `.ws-actions .btn`), labelled so every action names itself.
     pathActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     uploadStatusRow: { paddingHorizontal: 2 },
-    pathAction: { minWidth: 54, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 8 },
-    pathActionLabel: { fontSize: 10, ...Typography.default() },
-    pathChip: { maxWidth: 220, borderWidth: 1, borderRadius: 8, minHeight: 32, justifyContent: 'center', paddingHorizontal: 9 },
-    searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 9, paddingHorizontal: 10 },
-    searchInput: { flex: 1, paddingVertical: Platform.OS === 'web' ? 9 : 8, ...Typography.default() },
+    pathAction: {
+        minHeight: 30,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 5,
+        paddingHorizontal: 9,
+        borderRadius: theme.borderRadius.sm,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        backgroundColor: theme.colors.surface,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition', 'herd-press') },
+    },
+    pathActionHovered: { borderColor: theme.colors.kilv.rimLine, backgroundColor: panelHoverWash(theme) },
+    pathActionDisabled: { opacity: theme.kilv.disabledOpacity },
+    pathActionLabel: { fontSize: 12, color: theme.colors.textSecondary, ...Typography.default() },
+    pathChip: {
+        maxWidth: 220,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        borderRadius: theme.borderRadius.sm,
+        minHeight: 32,
+        justifyContent: 'center',
+        paddingHorizontal: 9,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition') },
+    },
+    pathChipHovered: { borderColor: theme.colors.kilv.rimLine },
+    pathChipText: { fontSize: 12.5, color: theme.colors.text, ...Typography.mono() },
+    searchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        borderRadius: theme.borderRadius.sm,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        backgroundColor: theme.colors.input.background,
+        paddingHorizontal: 11,
+    },
+    searchInput: {
+        flex: 1,
+        minHeight: 34,
+        paddingVertical: Platform.OS === 'web' ? 7 : 8,
+        fontSize: 13.5,
+        color: theme.colors.text,
+        ...Typography.default(),
+        _web: { outlineStyle: 'none' },
+    },
     loadingState: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
-    fileList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
-    fileRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-    fileOpenButton: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },
-    deleteButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-    attachButton: { minWidth: 38, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-    viewerHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+    fileList: { gap: 1, paddingTop: 2 },
+    fileRow: {
+        position: 'relative',
+        minHeight: Platform.OS === 'web' ? 38 : 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: Platform.OS === 'web' ? 2 : 8,
+        borderRadius: 6,
+    },
+    fileRowSelected: { backgroundColor: theme.colors.surfaceHighest },
+    fileRowSelectedBar: {
+        position: 'absolute',
+        left: 0,
+        top: 8,
+        bottom: 8,
+        width: 2,
+        borderRadius: 2,
+        backgroundColor: theme.colors.kilv.accent,
+    },
+    fileOpenButton: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 38,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 9,
+        paddingHorizontal: 8,
+        borderRadius: 6,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition') },
+    },
+    fileOpenButtonHovered: { backgroundColor: panelHoverWash(theme) },
+    fileText: { flex: 1, minWidth: 0 },
+    fileName: { fontSize: 13.5, color: theme.colors.text, ...Typography.default() },
+    fileSize: { fontSize: 11, color: theme.colors.kilv.inkFaint, ...Typography.mono() },
+    // 44 px touch target; the icon stays small.
+    deleteButton: {
+        minWidth: 44,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 6,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition') },
+    },
+    deleteButtonHovered: { backgroundColor: theme.colors.box.error.background },
+    attachButton: { minWidth: 38, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+    viewerHeader: {
+        minHeight: 52,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: panelHairline(theme),
+    },
     viewerBackButton: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, marginRight: 4 },
-    viewerTitle: { fontSize: 14, ...Typography.default('semiBold') },
-    viewerPath: { fontSize: 11, ...Typography.mono() },
-    emptyState: { minHeight: 190, flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-    emptyTitle: { textAlign: 'center', fontSize: 16, ...Typography.default('semiBold') },
-    emptyDescription: { maxWidth: 460, textAlign: 'center', fontSize: 13, lineHeight: 19, ...Typography.default() },
-    errorDetail: { maxWidth: 520, textAlign: 'center', fontSize: 11, ...Typography.mono() },
-    retryButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, marginTop: 4 },
-    attachmentFooter: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderTopWidth: StyleSheet.hairlineWidth },
+    viewerTitle: { fontSize: 14, color: theme.colors.text, ...Typography.default('semiBold') },
+    viewerPath: { fontSize: 11.5, color: theme.colors.kilv.inkFaint, ...Typography.mono() },
+    emptyState: { minHeight: 190, flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
+    // Empty and error hero (mock `.sc-empty .ic-hero`).
+    emptyHero: {
+        width: 54,
+        height: 54,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        _web: { boxShadow: theme.kilv.glowMoltenSoft },
+    },
+    emptyTitle: { textAlign: 'center', fontSize: 16, color: theme.colors.text, ...Typography.default('semiBold') },
+    emptyDescription: {
+        maxWidth: 460,
+        textAlign: 'center',
+        fontSize: 13.5,
+        lineHeight: 19,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.default(),
+    },
+    errorDetail: { maxWidth: 520, textAlign: 'center', fontSize: 11, color: theme.colors.kilv.inkFaint, ...Typography.mono() },
+    retryButton: {
+        minHeight: 36,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: panelHairline(theme),
+        borderRadius: theme.kilv.radius,
+        paddingHorizontal: 12,
+        marginTop: 4,
+        _web: { cursor: 'pointer', _classNames: herdWebClasses('herd-transition', 'herd-press') },
+    },
+    attachmentFooter: {
+        minHeight: 64,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: panelHairline(theme),
+        backgroundColor: theme.colors.surface,
+    },
     footerButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12 },
     selectionCount: { flex: 1, textAlign: 'center', fontSize: 12, ...Typography.default() },
-    primaryButton: { minHeight: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+    primaryButton: { minHeight: 40, borderRadius: theme.kilv.radius, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
     gate: { flex: 1, width: '100%', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', padding: 20 },
 }));

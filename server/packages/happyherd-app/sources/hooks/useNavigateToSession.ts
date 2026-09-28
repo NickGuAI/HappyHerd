@@ -7,6 +7,7 @@ import { sync } from '@/sync/sync';
 import { trackSessionSwitched } from '@/track';
 import { perfMark } from '@/utils/perfLog';
 import { isRunningOnMac } from '@/utils/platform';
+import { useHerdPhoneShell } from '@/components/herd/shell/phoneShell';
 
 function sessionHref(sessionId: string): `/session/${string}` {
     return `/session/${encodeURIComponent(sessionId)}`;
@@ -46,10 +47,17 @@ export function useNavigateToSession() {
     }, [router]);
 }
 
-/** Pressable owns tap cancellation, scrolling and long-press recognition. */
+/**
+ * Pressable owns tap cancellation, scrolling and long-press recognition. A
+ * row press also closes the phone drawer (UI overhaul), even when the row is
+ * the session already open underneath.
+ */
 export function useSessionPressHandlers(sessionId: string) {
     const router = useRouter();
     const onPressIn = useCallback(() => prefetchSession(router, sessionId), [router, sessionId]);
-    const onPress = useCallback(() => navigateToSession(router, sessionId), [router, sessionId]);
+    const onPress = useCallback(() => {
+        useHerdPhoneShell.getState().closeDrawer();
+        navigateToSession(router, sessionId);
+    }, [router, sessionId]);
     return { onPressIn, onPress };
 }

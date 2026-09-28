@@ -10,6 +10,7 @@ import { ProjectGroupData, ProjectWorkspaceGroup, useSessionGitStatus } from '@/
 import { CompactSessionRow } from './ActiveSessionsGroupCompact';
 import { Avatar } from './Avatar';
 import { requestHomeDockFocus } from './homeDockFocus';
+import { useHerdPhoneShell } from './herd/shell/phoneShell';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
@@ -99,6 +100,10 @@ const WorkspaceSection = React.memo(({ project, workspace, selectedSessionId }: 
         }
         draft.setSessionType(worktree ? 'worktree' : 'simple');
         draft.setWorktreeKey(worktree ? sessionPath : null);
+
+        // Phones (UI overhaul): the "+" closes the drawer like every other
+        // destination in it. Elsewhere the drawer is closed and this is a no-op.
+        useHerdPhoneShell.getState().closeDrawer();
 
         // Nothing is listening in the sidebar layout or on web, where the dock
         // is never mounted; those fall back to the standalone screen.

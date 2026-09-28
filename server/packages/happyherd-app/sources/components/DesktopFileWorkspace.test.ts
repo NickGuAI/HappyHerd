@@ -25,9 +25,13 @@ vi.mock('react-native', async () => {
     };
 });
 
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    // Real tokens for the overhaul styles, with the fixed colors this test grew up with.
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             divider: '#ddd',
             groupped: { background: '#fafafa' },
             surface: '#fff',
@@ -87,7 +91,7 @@ vi.mock('@/components/StyledText', async () => {
 });
 
 vi.mock('@/constants/Typography', () => ({
-    Typography: { default: () => ({}) },
+    Typography: { default: () => ({}), mono: () => ({}) },
 }));
 
 vi.mock('@/text', () => ({
@@ -397,6 +401,76 @@ describe('DesktopFileWorkspaceSplit', () => {
         expect(renderer.root.findByProps({ testID: 'desktop-file-workspace-host' }).props.style.width)
             .toBe(initialWidth + 100);
         expect(renderer.root.findByType('WorkspaceProbe' as any).props.mountId).toBe(initialMountId);
+    });
+});
+
+function flatStyle(style: unknown): Record<string, unknown> {
+    const entries = Array.isArray(style) ? style.flat(Infinity) : [style];
+    return Object.assign({}, ...entries.filter(Boolean));
+}
+
+describe('DesktopFileWorkspaceSplit overlay below 1,100 px', () => {
+    it('slides the Workspace or the right panel in over the chat and keeps every slot mounted', () => {
+        const mounts: Record<string, number> = { chat: 0, workspace: 0, panel: 0 };
+        const probe = (name: string) => function Probe() {
+            const mountId = React.useRef(++mounts[name]).current;
+            return React.createElement(`${name}-probe`, { mountId });
+        };
+        const Chat = probe('chat');
+        const Workspace = probe('workspace');
+        const Panel = probe('panel');
+        const onDismiss = vi.fn();
+        const split = (overlay: Record<string, unknown> | null, workspaceVisible = false) => React.createElement(
+            DesktopFileWorkspaceSplit,
+            {
+                workspaceVisible,
+                workspaceFullscreen: false,
+                workspace: React.createElement(Workspace),
+                fallback: React.createElement(Panel),
+                overlay: overlay as any,
+                children: React.createElement(Chat),
+            },
+        );
+        const sheet = (width: number) => ({ workspaceWidth: 700, panelWidth: 440, onDismiss, width });
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(split({ ...sheet(0), workspaceOpen: true, panelOpen: false }));
+        });
+        const host = () => flatStyle(renderer.root.findByProps({ testID: 'desktop-file-workspace-host' }).props.style);
+        const panelHost = () => flatStyle(renderer.root.findByProps({ testID: 'desktop-right-panel-host' }).props.style);
+        const scrims = () => renderer.root.findAllByProps({ testID: 'desktop-panel-overlay-scrim' }, { deep: false });
+        const mountIds = () => ['chat', 'workspace', 'panel'].map((name) => (
+            renderer.root.findAllByType(`${name}-probe` as any)[0]?.props.mountId ?? null
+        ));
+
+        // The Workspace sheet: absolute on the right, no divider, a scrim that dismisses.
+        expect(host()).toMatchObject({ position: 'absolute', right: 0, width: 700 });
+        expect(panelHost()).toMatchObject({ display: 'none' });
+        expect(renderer.root.findAllByProps({ testID: 'desktop-file-workspace-divider' }, { deep: false })).toHaveLength(0);
+        expect(scrims()).toHaveLength(1);
+        act(() => scrims()[0].props.onPress());
+        expect(onDismiss).toHaveBeenCalledOnce();
+        expect(mountIds()).toEqual([1, 1, 1]);
+
+        // The right panel uses the same sheet while the Workspace stays mounted.
+        act(() => renderer.update(split({ ...sheet(0), workspaceOpen: false, panelOpen: true })));
+        expect(host()).toMatchObject({ display: 'none' });
+        expect(panelHost()).toMatchObject({ position: 'absolute', right: 0, width: 440 });
+        expect(scrims()).toHaveLength(1);
+
+        // Closed: both hidden, nothing remounted.
+        act(() => renderer.update(split({ ...sheet(0), workspaceOpen: false, panelOpen: false })));
+        expect(host()).toMatchObject({ display: 'none' });
+        expect(panelHost()).toMatchObject({ display: 'none' });
+        expect(scrims()).toHaveLength(0);
+        expect(mountIds()).toEqual([1, 1, 1]);
+
+        // Widening to the docked split reuses the same chat and Workspace.
+        act(() => renderer.update(split(null, true)));
+        expect(renderer.root.findAllByProps({ testID: 'desktop-file-workspace-divider' }, { deep: false })).toHaveLength(1);
+        expect(host()).toMatchObject({ alignSelf: 'stretch' });
+        expect(mountIds().slice(0, 2)).toEqual([1, 1]);
+        act(() => renderer.unmount());
     });
 });
 

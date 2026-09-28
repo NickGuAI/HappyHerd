@@ -13,6 +13,8 @@ interface KeyboardNavigationEvent {
     ctrlKey: boolean;
     metaKey: boolean;
     shiftKey: boolean;
+    /** An IME composition is active; Escape then cancels it. */
+    isComposing?: boolean;
 }
 
 interface MouseNavigationEvent {
@@ -87,6 +89,8 @@ export function applyRouteHistoryPathname(
 export function getKeyboardNavigationDirection(event: KeyboardNavigationEvent): BrowserNavigationDirection | null {
     if (event.defaultPrevented) return null;
     if (event.key !== 'Escape') return null;
+    // Escape that cancels an IME composition is text input, not navigation.
+    if (event.isComposing) return null;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
     return 'back';
 }

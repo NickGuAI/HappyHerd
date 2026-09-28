@@ -1,7 +1,7 @@
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import * as React from 'react';
-import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent } from 'react-native';
+import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent, ScrollView } from 'react-native';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
@@ -27,6 +27,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSetting } from '@/sync/storage';
 import { hackMode, hackModes } from '@/sync/modeHacks';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
+import { getModelDisplayName, getPermissionModeDisplayName } from '@/utils/launchChoiceLabels';
 import { getUsageLimitDisplayPercentage, getUsageLimitRows, formatUsageLimitResetTime, type UsageLimitsLike } from '@/utils/sessionStatusBar';
 import { compactCount } from '@/utils/rigGitLineChanges';
 import { Theme } from '@/theme';
@@ -50,6 +51,13 @@ import {
     resolveMobileComposerMenuGeometry,
 } from './agentInputLayout';
 import { shouldUseExpoNativeSettingsMenu } from './glassInteractionPolicy';
+import { useHerdEscapeToClose } from './herd/escape';
+import { HERD_EXIT, useHerdExit } from './herd/presence';
+import { herdWebClasses } from './herd/motion';
+import { herdAlpha } from './herd/session/color';
+import { ComposerChip, ComposerChipPopover, ContextMeter } from './herd/session/ComposerChips';
+import { contextRemainingPercent, resolveComposerChipVisibility, resolvePermissionChipTone } from './herd/session/composerChipModel';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 interface AgentInputProps {
     // `initialValue` seeds the uncontrolled textarea once; keystrokes never
@@ -91,6 +99,8 @@ interface AgentInputProps {
         color: string;
         dotColor: string;
         isPulsing?: boolean;
+        /** Session state; Web colors the status row from the theme when present. */
+        state?: string;
         cliStatus?: {
             claude: boolean | null;
             codex: boolean | null;
@@ -123,6 +133,11 @@ interface AgentInputProps {
     sessionStatusUsageLimits?: UsageLimitsLike | null;
     agentType?: 'claude' | 'codex' | 'grok' | 'dsh' | 'gemini' | 'agy';
     onAgentClick?: () => void;
+    /**
+     * Web agent chip (UI overhaul): the session's harness. Pressing it opens
+     * "Continue with…" when a continuation is offered.
+     */
+    agentChip?: { label: string; providerKind?: string | null; onPress?: () => void } | null;
     machineName?: string | null;
     onMachineClick?: () => void;
     currentPath?: string | null;
@@ -182,14 +197,14 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         backgroundColor: theme.colors.input.background,
         borderWidth: 1,
         borderColor: theme.colors.divider,
-        borderRadius: 6,
+        borderRadius: theme.borderRadius.sm,
         overflow: 'hidden',
         paddingVertical: 2,
         paddingBottom: 8,
         paddingHorizontal: 8,
     },
     unifiedPanelShadow: {
-        borderRadius: 6,
+        borderRadius: theme.borderRadius.sm,
         shadowColor: theme.colors.shadow.color,
         shadowOffset: { width: 0, height: theme.dark ? 6 : 2 },
         shadowOpacity: theme.dark ? 0.22 : 0.08,
@@ -291,9 +306,88 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     mobileActionsTrigger: {
         width: 32,
         height: 32,
-        borderRadius: 6,
+        borderRadius: theme.borderRadius.md,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    // Web composer (UI overhaul)
+    webPlusTrigger: {
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        _web: {
+            _classNames: herdWebClasses('herd-transition'),
+        },
+    },
+    webPlusTriggerOpen: {
+        borderColor: herdAlpha(theme.colors.textLink, 0.55),
+        backgroundColor: theme.colors.selection.background,
+    },
+    webPlusIcon: {
+        _web: {
+            transition: `transform ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}`,
+        },
+    },
+    webPlusIconOpen: {
+        transform: [{ rotate: '45deg' }],
+    },
+    webChips: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexShrink: 1,
+        minWidth: 0,
+        overflow: 'hidden',
+    },
+    // Phones: the card's content sits 16 px inside its edge, as on every phone card.
+    webUnifiedPanelPhone: {
+        paddingHorizontal: 16,
+    },
+    // Phones: the chips scroll edge to edge across the composer card, over its 16 px padding.
+    phoneChipsScroll: {
+        flexGrow: 0,
+        marginHorizontal: -16,
+        marginBottom: 6,
+    },
+    phoneChips: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
+    },
+    chipPopoverSection: {
+        paddingVertical: 2,
+    },
+    webUnifiedPanel: {
+        borderRadius: theme.kilv.radiusCard,
+        borderColor: theme.colors.kilv.rimLine,
+        paddingHorizontal: 10,
+        paddingTop: 4,
+        paddingBottom: 10,
+        _web: {
+            transition: `border-color ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}, box-shadow ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}`,
+            '_focus-within': {
+                borderColor: herdAlpha(theme.colors.textLink, 0.55),
+                boxShadow: `0 0 0 3px ${herdAlpha(theme.colors.textLink, 0.08)}, ${theme.kilv.glowMoltenSoft}`,
+            },
+        },
+    },
+    webSendButton: {
+        width: 38,
+        height: 38,
+        borderRadius: theme.kilv.radiusPill,
+        marginLeft: 4,
+        _web: {
+            transition: `transform ${theme.kilv.motionFast}ms ${theme.kilv.easeOut}, box-shadow ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}, opacity ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}`,
+        },
+    },
+    webSendButtonActive: {
+        _web: {
+            boxShadow: `0 0 18px ${herdAlpha(theme.colors.textLink, 0.35)}`,
+        },
+    },
+    webSendButtonIdle: {
+        backgroundColor: theme.colors.button.primary.background,
+        opacity: 0.45,
     },
     overlayBackdrop: {
         position: 'absolute',
@@ -312,12 +406,14 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         paddingHorizontal: 8,
     },
     overlaySectionTitle: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
+        fontSize: Platform.select({ web: 11, default: 12 }),
+        fontWeight: Platform.select({ web: '400', default: '600' }),
+        color: Platform.select({ web: theme.colors.textLink, default: theme.colors.textSecondary }),
+        letterSpacing: Platform.select({ web: 1.98, default: 0 }),
         paddingHorizontal: 16,
+        paddingTop: Platform.select({ web: 6, default: 0 }),
         paddingBottom: 4,
-        ...Typography.default('semiBold'),
+        ...Platform.select({ web: Typography.mono(), default: Typography.default('semiBold') }),
     },
     overlayDivider: {
         height: 1,
@@ -339,7 +435,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     radioButton: {
         width: 16,
         height: 16,
-        borderRadius: 8,
+        borderRadius: theme.kilv.radiusPill,
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
@@ -354,7 +450,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     radioButtonDot: {
         width: 6,
         height: 6,
-        borderRadius: 3,
+        borderRadius: theme.kilv.radiusPill,
         backgroundColor: theme.colors.radio.dot,
     },
     selectionLabel: {
@@ -470,6 +566,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     },
     actionButtonsLeft: {
         flexDirection: 'row',
+        alignItems: 'center',
         gap: 8,
         flex: 1,
         overflow: 'hidden',
@@ -477,7 +574,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 6,
+        borderRadius: theme.borderRadius.sm,
         paddingHorizontal: 8,
         paddingVertical: 6,
         justifyContent: 'center',
@@ -492,7 +589,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     sendButton: {
         width: 32,
         height: 32,
-        borderRadius: 6,
+        borderRadius: theme.borderRadius.sm,
         justifyContent: 'center',
         alignItems: 'center',
         flexShrink: 0,
@@ -590,6 +687,9 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
     const { theme } = useUnistyles();
     if (!p.connectionStatus && !p.gitBranch) {
         return null;
+    }
+    if (Platform.OS === 'web') {
+        return <WebStatusRow {...p} />;
     }
     return (
         <View style={{
@@ -701,6 +801,137 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
     );
 });
 
+/**
+ * Web status row (UI overhaul): a state dot and text in the theme's status
+ * colors (the thinking word shimmers), then the branch and its line changes.
+ */
+function WebStatusRow(p: StatusRowProps) {
+    const { theme } = useUnistyles();
+    // Phones: the dot and the branch sit on the 16 px gutter, level with the composer card.
+    const phone = useHerdPhoneLayout();
+    const status = p.connectionStatus;
+    const state = status?.state;
+    const tone = state === 'thinking'
+        ? theme.colors.status.connecting
+        : state === 'permission_required' || state === 'input_required'
+            ? theme.colors.warning
+            : state === 'disconnected'
+                ? theme.colors.textSecondary
+                : state ? theme.colors.gitAddedText : null;
+    const textColor = tone ?? status?.color ?? theme.colors.textSecondary;
+    const dotColor = tone ?? status?.dotColor ?? theme.colors.textSecondary;
+    return (
+        <View style={[webStatusStyles.row, phone && webStatusStyles.rowPhone]}>
+            {status ? (
+                <View style={webStatusStyles.state}>
+                    <StatusDot color={dotColor} isPulsing={status.isPulsing} size={7} />
+                    {state === 'thinking' ? (
+                        <WebThinkingText text={status.text} baseColor={textColor} highlightColor={theme.colors.text} />
+                    ) : (
+                        <Text style={[webStatusStyles.text, { color: textColor }]} numberOfLines={1}>
+                            {status.text}
+                        </Text>
+                    )}
+                </View>
+            ) : <View style={{ flex: 1 }} />}
+            {p.gitBranch ? (
+                <View style={webStatusStyles.git}>
+                    <Octicons name="git-branch" size={13} color={theme.colors.textSecondary} />
+                    <Text style={webStatusStyles.branch} numberOfLines={1}>{p.gitBranch}</Text>
+                    {p.gitChanges?.approximate ? (
+                        <Text style={[webStatusStyles.mono, { color: theme.colors.kilv.inkFaint }]}>≈</Text>
+                    ) : null}
+                    {p.gitChanges && p.gitChanges.insertions > 0 ? (
+                        <Text style={[webStatusStyles.mono, { color: theme.colors.gitAddedText }]}>
+                            +{compactCount(p.gitChanges.insertions)}
+                        </Text>
+                    ) : null}
+                    {p.gitChanges && p.gitChanges.deletions > 0 ? (
+                        <Text style={[webStatusStyles.mono, { color: theme.colors.gitRemovedText }]}>
+                            −{compactCount(p.gitChanges.deletions)}
+                        </Text>
+                    ) : null}
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
+/**
+ * The thinking word shimmers like the working session title: CSS gradient text
+ * driven by theme.css, which also stops it for reduced motion.
+ */
+function WebThinkingText(props: { text: string; baseColor: string; highlightColor: string }) {
+    return (
+        <View style={webStatusStyles.thinking} {...({ dataSet: { happyherdSessionTitleShimmer: true } } as object)}>
+            <Text
+                numberOfLines={1}
+                style={[webStatusStyles.text, {
+                    color: 'transparent',
+                    backgroundImage: `linear-gradient(110deg, ${props.baseColor} 35%, ${props.highlightColor} 50%, ${props.baseColor} 65%)`,
+                    backgroundSize: '300% 100%',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                } as object]}
+            >
+                {props.text}
+            </Text>
+        </View>
+    );
+}
+
+const webStatusStyles = StyleSheet.create((theme) => ({
+    thinking: {
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 30,
+        paddingHorizontal: 6,
+    },
+    rowPhone: {
+        paddingHorizontal: 0,
+    },
+    state: {
+        flex: 1,
+        minWidth: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    text: {
+        flexShrink: 1,
+        fontSize: 13,
+        lineHeight: 18,
+        ...Typography.default(),
+    },
+    git: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexShrink: 1,
+        minWidth: 0,
+        maxWidth: '60%',
+    },
+    branch: {
+        flexShrink: 1,
+        minWidth: 0,
+        fontSize: 12.5,
+        color: theme.colors.textSecondary,
+        ...Typography.mono(),
+    },
+    mono: {
+        fontSize: 12.5,
+        flexShrink: 0,
+        ...Typography.mono(),
+    },
+}));
+
 // Grayscale ring that fills and darkens with context usage — reads at a
 // glance without color, sized to sit beside the 11pt status text.
 function ContextGaugeIcon(props: { percent: number }) {
@@ -711,9 +942,7 @@ function ContextGaugeIcon(props: { percent: number }) {
     const circumference = 2 * Math.PI * radius;
     const progress = Math.min(100, Math.max(0, props.percent));
     const intensity = 0.35 + 0.65 * (progress / 100);
-    const color = theme.dark
-        ? `rgba(255, 255, 255, ${intensity})`
-        : `rgba(0, 0, 0, ${intensity})`;
+    const color = herdAlpha(theme.colors.text, intensity);
     return (
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             <Circle
@@ -829,7 +1058,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
     return (
         <View style={{
             backgroundColor: theme.colors.surfacePressed,
-            borderRadius: 6,
+            borderRadius: theme.borderRadius.sm,
             padding: 8,
             marginBottom: 8,
             gap: 4,
@@ -844,7 +1073,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
                     style={(s) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius.sm,
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         height: 32,
@@ -873,7 +1102,7 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
                     style={(s) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius.sm,
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         height: 32,
@@ -1203,8 +1432,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // The compact composer has separate controls for permission, model, and
     // effort. Keep a single popup state so only one selection surface is ever
     // visible, including while we dismiss the keyboard on mobile.
-    type ComposerPicker = 'permission' | 'model' | 'effort';
+    // Web chips (UI overhaul) open 'model' / 'effort' / 'permission-chip' as
+    // anchored popovers; 'permission' remains the combined settings popover.
+    type ComposerPicker = 'permission' | 'model' | 'effort' | 'permission-chip';
     const [openPicker, setOpenPicker] = React.useState<ComposerPicker | null>(null);
+    const innerContainerRef = React.useRef<View>(null);
+    const modelChipRef = React.useRef<View>(null);
+    const effortChipRef = React.useRef<View>(null);
+    const permissionChipRef = React.useRef<View>(null);
+    const [chipAnchorLeft, setChipAnchorLeft] = React.useState(0);
+    const [innerContainerWidth, setInnerContainerWidth] = React.useState(0);
+    const [composerWidth, setComposerWidth] = React.useState(0);
     const [webActionMenuOpen, setWebActionMenuOpen] = React.useState(false);
     const [webAttachmentMenuOpen, setWebAttachmentMenuOpen] = React.useState(false);
     const [webAttachmentMenuAnchor, setWebAttachmentMenuAnchor] = React.useState<AttachmentInputMenuAnchor>({
@@ -1312,6 +1550,35 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         if (!canOpenEffortPicker) return;
         handlePickerPress('effort');
     }, [canOpenEffortPicker, handlePickerPress]);
+
+    // Web chip popovers anchor above the chip that opened them.
+    const openChipPicker = React.useCallback((picker: 'model' | 'effort' | 'permission-chip', anchor: React.RefObject<View | null>) => {
+        hapticsLight();
+        if (openPicker === picker) {
+            closePicker();
+            return;
+        }
+        closeWebActionMenu();
+        closeWebAttachmentMenu();
+        const chip = anchor.current;
+        const container = innerContainerRef.current;
+        if (!chip || !container) {
+            setOpenPicker(picker);
+            return;
+        }
+        container.measureInWindow((containerX) => {
+            chip.measureInWindow((chipX) => {
+                setChipAnchorLeft(Math.max(0, chipX - containerX));
+                setOpenPicker(picker);
+            });
+        });
+    }, [closePicker, closeWebActionMenu, closeWebAttachmentMenu, openPicker]);
+
+    const chipPickerOpen = openPicker === 'model' || openPicker === 'effort' || openPicker === 'permission-chip';
+    // Escape closes the chip picker and stops there, so it never also navigates Back.
+    useHerdEscapeToClose(chipPickerOpen, closePicker);
+    // The last chip picker stays for its exit motion after it closes.
+    const chipPicker = useHerdExit(chipPickerOpen ? openPicker : null, HERD_EXIT.pop);
 
     // Handle settings selection
     const handleSettingsSelect = React.useCallback((mode: PermissionMode) => {
@@ -1639,9 +1906,101 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         return false; // Key was not handled
     }, [suggestions, moveUp, moveDown, selected, handleSuggestionSelect, props.showAbortButton, props.onAbort, isAborting, handleAbortPress, agentInputEnterToSend, props.onSend, props.onPermissionModeChange, availableModes, permissionModeKey, isSendBlocked, handleBlockedSendAttempt, props.isSendDisabled]);
 
+    // Web composer chips (UI overhaul): agent, model, effort and permission,
+    // each opening its picker in place. Model and effort step aside when the
+    // composer narrows; phones keep all four on a sideways-scrolling row of
+    // their own, above the buttons.
+    const phoneChipRow = screenWidth <= 700;
+    const chipVisibility = resolveComposerChipVisibility({ width: composerWidth, phone: phoneChipRow });
+    const permissionSectionTitleForChip = isCodex
+        ? t('agentInput.codexPermissionMode.title')
+        : isGemini
+            ? t('agentInput.geminiPermissionMode.title')
+            : t('agentInput.permissionMode.title');
+    const canOpenPermissionChip = !!props.onPermissionModeChange && availableModes.length > 0;
+    const permissionChipTone = resolvePermissionChipTone(permissionModeKey);
+    // Chips show display labels ("Opus 5.5", "accept edits"), not the daemon's values.
+    const modelChipLabel = props.modelMode ? getModelDisplayName(props.modelMode) : modelLabel;
+    const permissionChipLabel = displayPermissionMode ? getPermissionModeDisplayName(displayPermissionMode) : null;
+    const agentChip = props.agentChip;
+    const chipElements = webActionMenu && !props.zenMode ? (
+        <>
+            {chipVisibility.agent && agentChip ? (
+                <ComposerChip
+                    tone="agent"
+                    icon={<ProviderIcon kind={agentChip.providerKind} size={14} />}
+                    label={agentChip.label}
+                    accessibilityLabel={agentChip.onPress
+                        ? `${agentChip.label}, ${t('session.providerContinuationAction')}`
+                        : agentChip.label}
+                    onPress={agentChip.onPress ? () => {
+                        hapticsLight();
+                        closePicker();
+                        agentChip.onPress?.();
+                    } : undefined}
+                    testID="composer-chip-agent"
+                />
+            ) : null}
+            {chipVisibility.model && props.modelMode ? (
+                <ComposerChip
+                    ref={modelChipRef}
+                    label={modelChipLabel}
+                    accessibilityLabel={t('agentInput.model.title')}
+                    active={openPicker === 'model'}
+                    onPress={canOpenModelPicker ? () => openChipPicker('model', modelChipRef) : undefined}
+                    testID="composer-chip-model"
+                />
+            ) : null}
+            {chipVisibility.effort && effortLabel ? (
+                <ComposerChip
+                    ref={effortChipRef}
+                    label={effortLabel}
+                    accessibilityLabel={t('agentInput.effort.title')}
+                    active={openPicker === 'effort'}
+                    onPress={canOpenEffortPicker ? () => openChipPicker('effort', effortChipRef) : undefined}
+                    testID="composer-chip-effort"
+                />
+            ) : null}
+            {chipVisibility.permission && showReadOnlyPermissionMode ? (
+                <ComposerChip
+                    label={permissionChipLabel ?? ''}
+                    accessibilityLabel={`${t('agentInput.permissionMode.title')}: ${permissionChipLabel}`}
+                    accessibilityRole="text"
+                    tone={permissionChipTone}
+                    testID="composer-permission-mode-readonly"
+                />
+            ) : chipVisibility.permission && canOpenPermissionChip ? (
+                <ComposerChip
+                    ref={permissionChipRef}
+                    label={permissionChipLabel ?? ''}
+                    icon={permissionChipLabel ? undefined : <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />}
+                    accessibilityLabel={permissionSectionTitleForChip}
+                    tone={permissionChipTone}
+                    active={openPicker === 'permission-chip'}
+                    onPress={() => openChipPicker('permission-chip', permissionChipRef)}
+                    testID="composer-chip-permission"
+                />
+            ) : null}
+        </>
+    ) : null;
+    const webChips = chipElements && !phoneChipRow ? <View style={styles.webChips}>{chipElements}</View> : null;
+    const phoneChips = chipElements && phoneChipRow ? (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+            style={styles.phoneChipsScroll}
+            contentContainerStyle={styles.phoneChips}
+            testID="composer-phone-chips"
+        >
+            {chipElements}
+        </ScrollView>
+    ) : null;
+
     const desktopActionControls = (
         <View style={styles.actionButtonsContainer}>
             <View style={{ flexDirection: 'column', flex: 1, gap: 2 }}>
+                {phoneChips}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     {props.zenMode && !webActionMenu && <View style={{ flex: 1 }} />}
                     {(!props.zenMode || webActionMenu) && <View style={styles.actionButtonsLeft}>
@@ -1655,19 +2014,25 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     onPress={handleWebActionMenuPress}
                                     style={(pressedState) => [
                                         styles.mobileActionsTrigger,
+                                        styles.webPlusTrigger,
+                                        webActionMenuOpen && styles.webPlusTriggerOpen,
                                         pressedState.pressed && { opacity: 0.7 },
                                     ]}
                                     testID="mobile-composer-actions-trigger"
                                 >
-                                    <Octicons
-                                        name="plus"
-                                        size={20}
-                                        color={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries
-                                            ? theme.colors.radio.active
-                                            : theme.colors.button.secondary.tint}
-                                    />
+                                    <View style={[styles.webPlusIcon, webActionMenuOpen && styles.webPlusIconOpen]}>
+                                        <Octicons
+                                            name="plus"
+                                            size={18}
+                                            color={webActionMenuOpen
+                                                ? theme.colors.textLink
+                                                : (props.selectedImages?.length ?? 0) > 0 || hasContextEntries
+                                                    ? theme.colors.radio.active
+                                                    : theme.colors.button.secondary.tint}
+                                        />
+                                    </View>
                                 </BubblePressable>
-                                {showReadOnlyPermissionMode && renderReadOnlyPermissionMode()}
+                                {webChips ?? (phoneChips || !showReadOnlyPermissionMode ? null : renderReadOnlyPermissionMode())}
                             </>
                         ) : (
                             <>
@@ -1689,7 +2054,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={(p) => ({
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        borderRadius: 6,
+                                        borderRadius: theme.borderRadius.sm,
                                         paddingHorizontal: 8,
                                         paddingVertical: 6,
                                         justifyContent: 'center',
@@ -1714,7 +2079,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 style={(p) => ({
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    borderRadius: 6,
+                                    borderRadius: theme.borderRadius.sm,
                                     paddingHorizontal: 10,
                                     paddingVertical: 6,
                                     justifyContent: 'center',
@@ -1749,7 +2114,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={(p) => ({
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        borderRadius: 6,
+                                        borderRadius: theme.borderRadius.sm,
                                         paddingHorizontal: 8,
                                         paddingVertical: 6,
                                         justifyContent: 'center',
@@ -1807,7 +2172,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 style={(p) => ({
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    borderRadius: 6,
+                                    borderRadius: theme.borderRadius.sm,
                                     paddingHorizontal: 8,
                                     paddingVertical: 6,
                                     justifyContent: 'center',
@@ -1820,22 +2185,36 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         )}
                     </View>}
 
+                    {webActionMenu && contextStatus ? (
+                        <ContextMeter
+                            remainingPercent={contextRemainingPercent(contextStatus.percent)}
+                            label={t('agentInput.context.remaining', { percent: contextRemainingPercent(contextStatus.percent) })}
+                            detail={contextStatus.detailText}
+                            tone={contextRemainingPercent(contextStatus.percent) <= 5
+                                ? 'critical'
+                                : contextRemainingPercent(contextStatus.percent) <= 10 ? 'warning' : 'normal'}
+                            showText={chipVisibility.contextText}
+                        />
+                    ) : null}
+
                     <VoiceDictationControls
                         phase={props.dictationPhase ?? 'idle'}
                         onPress={props.onMicPress ? handleMicrophonePress : undefined}
                         onCancel={props.onDictationCancel}
                         onRetry={props.onDictationRetry}
                         disabled={!!props.isSendDisabled || !!props.isSending}
+                        bordered={webActionMenu}
                     />
 
                     <View
                         style={[
                             styles.sendButton,
+                            webActionMenu && styles.webSendButton,
                             primaryAction === 'blocked'
                                 ? styles.sendButtonLocked
                                 : (hasComposerContent || props.isSending)
-                                    ? styles.sendButtonActive
-                                    : styles.sendButtonInactive,
+                                    ? [styles.sendButtonActive, webActionMenu && styles.webSendButtonActive]
+                                    : webActionMenu ? styles.webSendButtonIdle : styles.sendButtonInactive,
                         ]}
                     >
                         <Pressable
@@ -1886,19 +2265,22 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             accessibilityState={{ disabled, selected }}
             disabled={disabled}
             onPress={disabled ? undefined : onPress}
-            style={({ pressed }) => ({
+            style={({ pressed, hovered }: any) => ({
                 flexDirection: 'row',
                 alignItems: 'flex-start',
-                paddingHorizontal: 16,
+                paddingHorizontal: Platform.OS === 'web' ? 11 : 16,
                 paddingVertical: 8,
-                backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent',
+                ...(Platform.OS === 'web' ? { marginHorizontal: 6, borderRadius: theme.borderRadius.md } : {}),
+                backgroundColor: pressed
+                    ? theme.colors.surfacePressed
+                    : hovered && Platform.OS === 'web' ? theme.colors.glass.backgroundSubtle : 'transparent',
                 opacity: disabled ? 0.5 : 1,
             })}
         >
             <View style={{
                 width: 16,
                 height: 16,
-                borderRadius: 8,
+                borderRadius: theme.kilv.radiusPill,
                 borderWidth: 2,
                 borderColor: selected ? theme.colors.radio.active : theme.colors.radio.inactive,
                 alignItems: 'center',
@@ -1909,7 +2291,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 {selected && <View style={{
                     width: 6,
                     height: 6,
-                    borderRadius: 3,
+                    borderRadius: theme.kilv.radiusPill,
                     backgroundColor: theme.colors.radio.dot,
                 }} />}
             </View>
@@ -1934,6 +2316,60 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         </Pressable>
     );
 
+    // The option lists of the settings popover. The combined popover and the
+    // Web chip popovers render exactly these, so a chip never offers a choice
+    // the settings menu does not.
+    const permissionSectionTitle = isCodex
+        ? t('agentInput.codexPermissionMode.title')
+        : isGemini
+            ? t('agentInput.geminiPermissionMode.title')
+            : t('agentInput.permissionMode.title');
+    const renderPermissionOptions = () => availableModes.map((mode) => renderDesktopPickerOption(
+        mode.key,
+        permissionModeKey === mode.key,
+        withSandboxSuffix(mode.name, mode.key),
+        mode.description,
+        () => handleSettingsSelect(mode),
+    ));
+    const renderModelOptions = () => (availableModels.length > 0 ? availableModelProviderGroups.map((group) => (
+        <View key={group.key}>
+            {group.title && <Text style={styles.overlaySectionTitle}>{group.title}</Text>}
+            {group.models.map((model) => renderDesktopPickerOption(
+                model.key,
+                props.modelMode?.key === model.key,
+                model.name,
+                model.description,
+                () => {
+                    hapticsLight();
+                    props.onModelModeChange?.(model);
+                    closePicker();
+                },
+                model.disabled || model.unavailable,
+            ))}
+        </View>
+    )) : (
+        <Text style={{
+            fontSize: 13,
+            color: theme.colors.textSecondary,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            ...Typography.default(),
+        }}>
+            {t('agentInput.model.configureInCli')}
+        </Text>
+    ));
+    const renderEffortOptions = () => availableEffortLevels.map((level) => renderDesktopPickerOption(
+        level.key,
+        props.effortLevel?.key === level.key,
+        level.name,
+        level.description,
+        () => {
+            hapticsLight();
+            props.onEffortLevelChange?.(level);
+            closePicker();
+        },
+    ));
+
     const desktopSettingsOverlay = !useNativeSettingsMenus && !compactMobileComposer && openPicker === 'permission' ? (
         <>
             <TouchableWithoutFeedback onPress={closePicker}>
@@ -1947,19 +2383,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     {showPermissionSettingsSection && (
                         <View style={styles.overlaySection}>
                             <Text style={styles.overlaySectionTitle}>
-                                {isCodex
-                                    ? t('agentInput.codexPermissionMode.title')
-                                    : isGemini
-                                        ? t('agentInput.geminiPermissionMode.title')
-                                        : t('agentInput.permissionMode.title')}
+                                {permissionSectionTitle}
                             </Text>
-                            {availableModes.map((mode) => renderDesktopPickerOption(
-                                mode.key,
-                                permissionModeKey === mode.key,
-                                withSandboxSuffix(mode.name, mode.key),
-                                mode.description,
-                                () => handleSettingsSelect(mode),
-                            ))}
+                            {renderPermissionOptions()}
                         </View>
                     )}
 
@@ -1981,33 +2407,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     }}>
                                         {t('agentInput.model.title')}
                                     </Text>
-                                    {availableModels.length > 0 ? availableModelProviderGroups.map((group) => (
-                                        <View key={group.key}>
-                                            {group.title && <Text style={styles.overlaySectionTitle}>{group.title}</Text>}
-                                            {group.models.map((model) => renderDesktopPickerOption(
-                                                model.key,
-                                                props.modelMode?.key === model.key,
-                                                model.name,
-                                                model.description,
-                                                () => {
-                                                    hapticsLight();
-                                                    props.onModelModeChange?.(model);
-                                                    closePicker();
-                                                },
-                                                model.disabled || model.unavailable,
-                                            ))}
-                                        </View>
-                                    )) : (
-                                        <Text style={{
-                                            fontSize: 13,
-                                            color: theme.colors.textSecondary,
-                                            paddingHorizontal: 16,
-                                            paddingVertical: 8,
-                                            ...Typography.default(),
-                                        }}>
-                                            {t('agentInput.model.configureInCli')}
-                                        </Text>
-                                    )}
+                                    {renderModelOptions()}
                                 </View>
                             )}
 
@@ -2027,17 +2427,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     }}>
                                         {t('agentInput.effort.title')}
                                     </Text>
-                                    {availableEffortLevels.map((level) => renderDesktopPickerOption(
-                                        level.key,
-                                        props.effortLevel?.key === level.key,
-                                        level.name,
-                                        level.description,
-                                        () => {
-                                            hapticsLight();
-                                            props.onEffortLevelChange?.(level);
-                                            closePicker();
-                                        },
-                                    ))}
+                                    {renderEffortOptions()}
                                 </View>
                             )}
                         </View>
@@ -2053,12 +2443,19 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     return (
         <View style={[
             styles.container,
-            { paddingHorizontal: screenWidth > 700 ? 12 : 8 }
+            // Phones (UI overhaul) put the composer on the 16 px page gutter.
+            { paddingHorizontal: screenWidth > 700 ? 12 : 16 }
         ]}>
-            <View style={[
-                styles.innerContainer,
-                { maxWidth: layout.maxWidth }
-            ]}>
+            <View
+                ref={innerContainerRef}
+                onLayout={Platform.OS === 'web'
+                    ? (event: LayoutChangeEvent) => setInnerContainerWidth(event.nativeEvent.layout.width)
+                    : undefined}
+                style={[
+                    styles.innerContainer,
+                    { maxWidth: layout.maxWidth }
+                ]}
+            >
                 {/* Autocomplete suggestions overlay */}
                 {suggestions.length > 0 && (
                     <View style={[
@@ -2157,6 +2554,43 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 {desktopSettingsOverlay}
 
+                {/* Web chip popovers (UI overhaul): each chip opens exactly its
+                    section of the settings popover, anchored above the chip. */}
+                {webActionMenu && chipPicker.value && (
+                    <>
+                        {chipPicker.exiting ? null : (
+                            <TouchableWithoutFeedback onPress={closePicker}>
+                                <View style={styles.overlayBackdrop} />
+                            </TouchableWithoutFeedback>
+                        )}
+                        {/* Phones: the picker spans the composer, above its chip row. */}
+                        <ComposerChipPopover
+                            left={phoneChipRow ? 0 : chipAnchorLeft}
+                            width={phoneChipRow
+                                ? innerContainerWidth
+                                : chipPicker.value === 'permission-chip' ? 300 : chipPicker.value === 'model' ? 280 : 220}
+                            containerWidth={innerContainerWidth}
+                            exiting={chipPicker.exiting}
+                            testID={`composer-chip-popover-${chipPicker.value}`}
+                        >
+                            <View style={styles.chipPopoverSection}>
+                                <Text style={styles.overlaySectionTitle}>
+                                    {chipPicker.value === 'permission-chip'
+                                        ? permissionSectionTitle
+                                        : chipPicker.value === 'model'
+                                            ? t('agentInput.model.title')
+                                            : t('agentInput.effort.title')}
+                                </Text>
+                                {chipPicker.value === 'permission-chip'
+                                    ? renderPermissionOptions()
+                                    : chipPicker.value === 'model'
+                                        ? renderModelOptions()
+                                        : renderEffortOptions()}
+                            </View>
+                        </ComposerChipPopover>
+                    </>
+                )}
+
                 {/* Permission, model, and effort pickers open independently
                     from their matching controls in the compact composer action row. */}
                 {compactMobileComposer && !useNativeSettingsMenus && openPicker && (
@@ -2188,7 +2622,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                         paddingHorizontal: 16,
                                                         paddingVertical: 8,
                                                         marginHorizontal: 8,
-                                                        borderRadius: 6,
+                                                        borderRadius: theme.borderRadius.sm,
                                                         backgroundColor: pressed
                                                             ? theme.colors.surfacePressedOverlay
                                                             : isSelected
@@ -2200,7 +2634,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                     <View style={{
                                                         width: 16,
                                                         height: 16,
-                                                        borderRadius: 8,
+                                                        borderRadius: theme.kilv.radiusPill,
                                                         borderWidth: 2,
                                                         borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
                                                         alignItems: 'center',
@@ -2211,7 +2645,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                         {isSelected && <View style={{
                                                             width: 6,
                                                             height: 6,
-                                                            borderRadius: 3,
+                                                            borderRadius: theme.kilv.radiusPill,
                                                             backgroundColor: theme.colors.radio.dot,
                                                         }} />}
                                                     </View>
@@ -2273,7 +2707,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                             paddingHorizontal: 16,
                                                             paddingVertical: 8,
                                                             marginHorizontal: 8,
-                                                            borderRadius: 6,
+                                                            borderRadius: theme.borderRadius.sm,
                                                             backgroundColor: pressed
                                                                 ? theme.colors.surfacePressedOverlay
                                                                 : isSelected
@@ -2285,7 +2719,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                         <View style={{
                                                             width: 16,
                                                             height: 16,
-                                                            borderRadius: 8,
+                                                            borderRadius: theme.kilv.radiusPill,
                                                             borderWidth: 2,
                                                             borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
                                                             alignItems: 'center',
@@ -2296,7 +2730,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                             {isSelected && <View style={{
                                                                 width: 6,
                                                                 height: 6,
-                                                                borderRadius: 3,
+                                                                borderRadius: theme.kilv.radiusPill,
                                                                 backgroundColor: theme.colors.radio.dot,
                                                             }} />}
                                                         </View>
@@ -2369,7 +2803,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                                     paddingHorizontal: 16,
                                                                     paddingVertical: 8,
                                                                     marginHorizontal: 8,
-                                                                    borderRadius: 6,
+                                                                    borderRadius: theme.borderRadius.sm,
                                                                     backgroundColor: pressed
                                                                         ? theme.colors.surfacePressedOverlay
                                                                         : isSelected
@@ -2380,7 +2814,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                                 <View style={{
                                                                     width: 16,
                                                                     height: 16,
-                                                                    borderRadius: 8,
+                                                                    borderRadius: theme.kilv.radiusPill,
                                                                     borderWidth: 2,
                                                                     borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
                                                                     alignItems: 'center',
@@ -2391,7 +2825,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                                     {isSelected && <View style={{
                                                                         width: 6,
                                                                         height: 6,
-                                                                        borderRadius: 3,
+                                                                        borderRadius: theme.kilv.radiusPill,
                                                                         backgroundColor: theme.colors.radio.dot,
                                                                     }} />}
                                                                 </View>
@@ -2442,10 +2876,16 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 {/* Box 2: Action Area (Input + Send) */}
                 <Shaker ref={sendBlockShakerRef} onLayout={handleActionAreaLayout}>
-                    <View style={[
-                        compactMobileComposer && styles.unifiedPanelShadow,
-                        compactMobileComposer && styles.mobileUnifiedPanelShadow,
-                    ]}>
+                    <View
+                        testID="agent-input-composer"
+                        onLayout={Platform.OS === 'web'
+                            ? (event: LayoutChangeEvent) => setComposerWidth(event.nativeEvent.layout.width)
+                            : undefined}
+                        style={[
+                            compactMobileComposer && styles.unifiedPanelShadow,
+                            compactMobileComposer && styles.mobileUnifiedPanelShadow,
+                        ]}
+                    >
                         <MobileGlassSurface
                             enabled={compactMobileComposer}
                             nativeEffect
@@ -2454,6 +2894,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             style={[
                                 styles.unifiedPanel,
                                 compactMobileComposer && styles.mobileUnifiedPanel,
+                                webActionMenu && styles.webUnifiedPanel,
+                                webActionMenu && phoneChipRow && styles.webUnifiedPanelPhone,
                             ]}
                         >
                     {/* Attachment preview strip */}
@@ -2774,7 +3216,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 <AnimatedFade visible={props.showStatusDetails !== false}>
                     <AgentInputUsageRow
-                        contextStatus={contextStatus}
+                        contextStatus={webActionMenu ? null : contextStatus}
                         weekPercent={weekPercent}
                         usageMenuOptions={usageMenuOptions}
                     />
@@ -2791,6 +3233,7 @@ function VoiceDictationControls({
     onRetry,
     disabled,
     compact = false,
+    bordered = false,
 }: {
     phase: VoiceDictationPhase;
     onPress?: () => void;
@@ -2798,6 +3241,8 @@ function VoiceDictationControls({
     onRetry?: () => void;
     disabled: boolean;
     compact?: boolean;
+    /** Web composer (UI overhaul): hairline-bordered 32pt button. */
+    bordered?: boolean;
 }) {
     const { theme } = useUnistyles();
     const control = resolveVoiceDictationControl({ phase, canRetry: !!onRetry, disabled });
@@ -2816,7 +3261,11 @@ function VoiceDictationControls({
             flexShrink: 0,
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
-            borderRadius: 6,
+            borderRadius: theme.borderRadius.md,
+            ...(bordered ? {
+                borderWidth: 1,
+                borderColor: phase === 'recording' ? theme.colors.textDestructive : theme.colors.divider,
+            } : {}),
         };
     const accessibilityLabel = control.action === 'finish'
         ? t('happyHerd.composer.finishVoice')

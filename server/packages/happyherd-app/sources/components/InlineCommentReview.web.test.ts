@@ -9,7 +9,16 @@ const mocks = vi.hoisted(() => ({ sendMessage: vi.fn() }));
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
-    return { Pressable: host('Pressable'), TextInput: host('TextInput'), View: host('View') };
+    return {
+        Pressable: host('Pressable'),
+        TextInput: host('TextInput'),
+        View: host('View'),
+        useWindowDimensions: () => ({ width: 1440, height: 900 }),
+    };
+});
+vi.mock('@expo/vector-icons', async () => {
+    const ReactModule = await import('react');
+    return { Octicons: (props: any) => ReactModule.createElement('Octicons', props) };
 });
 vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');

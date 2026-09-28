@@ -25,17 +25,48 @@ describe('resolveSessionSidebarPresentation', () => {
             fileSidebarAvailable: false,
             sideChatSidebarAvailable: true,
             sideChatSurface: 'sidebar',
+            rightPanelPresentation: 'docked',
         });
     });
 
-    it('uses the full-screen path below 1100px and on native phones', () => {
-        expect(presentation({ windowWidth: 1099 }).sideChatSurface).toBe('fullscreen');
+    it('slides the panels in as the same sheet on Web phones', () => {
+        expect(presentation({ windowWidth: 390, canUseFilePanels: true })).toEqual({
+            fileSidebarAvailable: true,
+            sideChatSidebarAvailable: true,
+            sideChatSurface: 'sidebar',
+            rightPanelPresentation: 'overlay',
+        });
+        expect(presentation({ windowWidth: 320 }).sideChatSurface).toBe('sidebar');
+    });
+
+    it('keeps the full-screen path on native phones and iPad', () => {
         expect(presentation({ platform: 'ios', windowWidth: 1400 }).sideChatSurface).toBe('fullscreen');
+        expect(presentation({ platform: 'ios', windowWidth: 390 })).toMatchObject({ sideChatSurface: 'fullscreen', rightPanelPresentation: 'docked' });
+        expect(presentation({ platform: 'android', windowWidth: 412 }).sideChatSurface).toBe('fullscreen');
+    });
+
+    it('presents the same panels as an overlay sheet on desktop Web below 1100px', () => {
+        expect(presentation({ windowWidth: 1099, canUseFilePanels: true })).toEqual({
+            fileSidebarAvailable: true,
+            sideChatSidebarAvailable: true,
+            sideChatSurface: 'sidebar',
+            rightPanelPresentation: 'overlay',
+        });
+        expect(presentation({ windowWidth: 1024 }).rightPanelPresentation).toBe('overlay');
+        expect(presentation({ windowWidth: 1100 }).rightPanelPresentation).toBe('docked');
+        // Native Mac keeps its existing boundary: no overlay frame.
+        expect(presentation({
+            platform: 'ios',
+            runningOnMac: true,
+            windowWidth: 1024,
+            canUseFilePanels: true,
+        })).toMatchObject({ fileSidebarAvailable: false, sideChatSurface: 'fullscreen', rightPanelPresentation: 'docked' });
     });
 
     it('keeps workspace links and zen mode from competing with the side-chat sidebar', () => {
         expect(presentation({ workspaceLinkPanelOpen: true }).sideChatSurface).toBe('fullscreen');
         expect(presentation({ zenMode: true }).sideChatSurface).toBe('fullscreen');
+        expect(presentation({ zenMode: true, windowWidth: 1024 }).sideChatSurface).toBe('fullscreen');
     });
 
     it('keeps the eligible wide file workspace host available when file panels are supported', () => {
@@ -44,7 +75,7 @@ describe('resolveSessionSidebarPresentation', () => {
     });
 
     it('retains the width and platform boundary for the file workspace host', () => {
-        expect(presentation({ windowWidth: 1099, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
+        expect(presentation({ platform: 'android', windowWidth: 412, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
         expect(presentation({ platform: 'ios', windowWidth: 1400, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
     });
 

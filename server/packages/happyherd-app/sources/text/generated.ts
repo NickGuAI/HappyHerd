@@ -106,6 +106,10 @@ export type TranslationKey =
     | "claude.permissions.yesForTool"
     | "codex.permissions.stopAndExplain"
     | "codex.permissions.yesForSession"
+    | "commandPalette.hintClose"
+    | "commandPalette.hintNavigate"
+    | "commandPalette.hintOpen"
+    | "commandPalette.keyEscape"
     | "commandPalette.placeholder"
     | "common.authenticate"
     | "common.back"
@@ -271,6 +275,7 @@ export type TranslationKey =
     | "files.canvasNode"
     | "files.changedFiles"
     | "files.changes"
+    | "files.changesPanelDescription"
     | "files.closeFileTab"
     | "files.closePanel"
     | "files.commentOnHoveredLine"
@@ -293,6 +298,7 @@ export type TranslationKey =
     | "files.fileConflict"
     | "files.fileConflictDescription"
     | "files.fileEmpty"
+    | "files.hidePanel"
     | "files.inlineComments"
     | "files.invalidCanvas"
     | "files.lineNumber"
@@ -440,6 +446,7 @@ export type TranslationKey =
     | "happyHerd.automations.none"
     | "happyHerd.automations.openDetails"
     | "happyHerd.automations.openSession"
+    | "happyHerd.automations.openSessionLink"
     | "happyHerd.automations.pause"
     | "happyHerd.automations.previousRuns"
     | "happyHerd.automations.project"
@@ -477,10 +484,18 @@ export type TranslationKey =
     | "happyHerd.automations.unknownError"
     | "happyHerd.automations.untagged"
     | "happyHerd.automations.workspace"
+    | "happyHerd.commander.browseSubtitle"
     | "happyHerd.commander.category"
     | "happyHerd.commander.createSubtitle"
     | "happyHerd.commander.createTitle"
+    | "happyHerd.commander.emptyTitle"
+    | "happyHerd.commander.machineLoadFailed"
+    | "happyHerd.commander.memoryEmpty"
+    | "happyHerd.commander.memoryReadFailed"
+    | "happyHerd.commander.newSessionWith"
+    | "happyHerd.commander.noOnlineMachine"
     | "happyHerd.commander.onboardingPrompt"
+    | "happyHerd.commander.pageSubtitle"
     | "happyHerd.commanderAvatars.description"
     | "happyHerd.commanderAvatars.empty"
     | "happyHerd.commanderAvatars.invalidFormat"
@@ -682,6 +697,27 @@ export type TranslationKey =
     | "newSession.newWorkspace"
     | "newSession.noWorkspace"
     | "newSession.showHidden"
+    | "newSession.streamline.agentDefaultsDescription"
+    | "newSession.streamline.agentDefaultsTitle"
+    | "newSession.streamline.browseFolder"
+    | "newSession.streamline.defaultAgentDescription"
+    | "newSession.streamline.defaultAgentTitle"
+    | "newSession.streamline.defaultModeTitle"
+    | "newSession.streamline.defaultsSummary"
+    | "newSession.streamline.githubBadge"
+    | "newSession.streamline.intro"
+    | "newSession.streamline.latestModel"
+    | "newSession.streamline.latestModelDescription"
+    | "newSession.streamline.modeAdvanced"
+    | "newSession.streamline.modeStreamline"
+    | "newSession.streamline.notGithub"
+    | "newSession.streamline.settingsLink"
+    | "newSession.streamline.settingsSubtitle"
+    | "newSession.streamline.whereLabel"
+    | "newSession.streamline.worktreeOff"
+    | "newSession.streamline.worktreeOn"
+    | "newSession.streamline.worktreeRuleDescription"
+    | "newSession.streamline.worktreeRuleTitle"
     | "newSession.switchMachinesHint"
     | "newSession.title"
     | "newSession.workspace"
@@ -845,6 +881,7 @@ export type TranslationKey =
     | "settings.appearanceSubtitle"
     | "settings.claudeAuthSuccess"
     | "settings.connectAccount"
+    | "settings.connectClaudeTitle"
     | "settings.connectGithubAccount"
     | "settings.connectedAccounts"
     | "settings.developer"
@@ -863,6 +900,7 @@ export type TranslationKey =
     | "settings.privacyPolicy"
     | "settings.reportIssue"
     | "settings.scanQrCodeToAuthenticate"
+    | "settings.sectionsLabel"
     | "settings.showOfflineMachines"
     | "settings.social"
     | "settings.supportUs"
@@ -1116,6 +1154,7 @@ export type TranslationKey =
     | "sideChat.emptyTitle"
     | "sideChat.expand"
     | "sideChat.newChat"
+    | "sideChat.newChatDescription"
     | "sideChat.openCount"
     | "sideChat.panelTitle"
     | "sideChat.resizePanel"
@@ -1142,6 +1181,7 @@ export type TranslationKey =
     | "superSession.pinned"
     | "tabs.inbox"
     | "tabs.sessions"
+    | "tabs.sessionsTab"
     | "tabs.settings"
     | "terminal.acceptConnection"
     | "terminal.clientSideProcessing"
@@ -1243,6 +1283,9 @@ export type TranslationKey =
     | "tools.names.writeFile"
     | "tools.taskView.initializing"
     | "tools.taskView.moreTools"
+    | "topBar.addMachine"
+    | "topBar.noMachine"
+    | "topBar.noMachinesYet"
     | "uiCopy.accessDeveloperTools"
     | "uiCopy.addImage"
     | "uiCopy.addWorkspaceFavorite"
@@ -1675,6 +1718,8 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.nextRunIn": { duration: string };
     "happyHerd.automations.openDetails": { name: string };
     "happyHerd.automations.openSession": { id: string };
+    "happyHerd.commander.machineLoadFailed": { message: string; name: string };
+    "happyHerd.commander.newSessionWith": { name: string };
     "happyHerd.commanderAvatars.updated": { name: string };
     "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
     "happyHerd.heartbeat.countdownIn": { duration: string };
@@ -1697,6 +1742,7 @@ export interface TranslationParamsByKey {
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
+    "newSession.streamline.defaultsSummary": { effort: string; model: string; permission: string };
     "offlineMachines.singleUnreachable": { name: string };
     "projects.renamePrompt": { name: string };
     "projects.sessionCount": { count: number };

@@ -42,19 +42,23 @@ vi.mock('react-native', () => {
         useWindowDimensions: () => ({ height: 800, width: 1200 }),
     };
 });
-vi.mock('react-native-unistyles', () => ({
-    useUnistyles: () => ({
-        theme: {
-            colors: {
-                divider: 'divider',
-                surface: 'surface',
-                surfaceHighest: 'surface-highest',
-                text: 'text',
-                textSecondary: 'text-secondary',
-            },
+vi.mock('react-native-unistyles', async () => {
+    // The real tokens back everything the fixture does not pin explicitly.
+    const { lightTheme } = await import('@/theme');
+    const theme = {
+        ...lightTheme,
+        colors: {
+            ...lightTheme.colors,
+            divider: 'divider',
+            surface: 'surface',
+            surfaceHighest: 'surface-highest',
+            text: 'text',
+            textSecondary: 'text-secondary',
         },
-    }),
-}));
+    };
+    return { useUnistyles: () => ({ theme }) };
+});
+vi.mock('@expo/vector-icons', () => ({ Octicons: 'Octicons' }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => false }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/components/ProviderIcon', () => ({ ProviderIcon: 'ProviderIcon' }));
@@ -103,5 +107,48 @@ describe('PermissionFooter GrokBuild decisions', () => {
             undefined,
             'denied',
         );
+    });
+});
+
+describe('PermissionFooter Web choices (UI overhaul)', () => {
+    function texts(renderer: ReturnType<typeof create>): string[] {
+        return renderer.root.findAllByType('Text' as any).flatMap((node: any) => node.children.map(String));
+    }
+
+    it('numbers the provider choices while pending', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(PermissionFooter, {
+                metadata: { flavor: 'claude' },
+                permission: { id: 'permission-edit', status: 'pending' },
+                sessionId: 'session-1',
+                toolName: 'Edit',
+            }));
+        });
+        expect(texts(renderer)).toEqual([
+            'common.yes', '1',
+            'claude.permissions.yesAllowAllEdits', '2',
+            'claude.permissions.noTellClaude', '3',
+        ]);
+        expect(renderer.root.findAllByType('Octicons' as any)).toHaveLength(0);
+    });
+
+    it('marks the chosen answer once decided and drops the key hints', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(PermissionFooter, {
+                metadata: { flavor: 'codex' },
+                permission: { id: 'permission-codex', status: 'approved', decision: 'approved_for_session' },
+                sessionId: 'session-1',
+                toolName: 'CodexBash',
+            }));
+        });
+        expect(texts(renderer)).toEqual(['common.yes', 'codex.permissions.yesForSession', 'codex.permissions.stopAndExplain']);
+        const checks = renderer.root.findAllByType('Octicons' as any);
+        expect(checks).toHaveLength(1);
+        const buttons = renderer.root.findAllByType('TouchableOpacity' as any);
+        expect(buttons.every((button: any) => button.props.disabled)).toBe(true);
+        const chosen = buttons.findIndex((button: any) => button.findAllByType('Octicons' as any).length === 1);
+        expect(chosen).toBe(1);
     });
 });

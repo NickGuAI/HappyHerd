@@ -8,6 +8,8 @@ import { t } from '@/text';
 import { useSession } from '@/sync/storage';
 import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
 import { getDuplicateSheetFrame } from '@/utils/duplicateSheetLayout';
+import { useHerdPhoneDialog } from '@/components/herd/mobile/phoneDialog';
+import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import {
     forkAndSpawn,
     claudeListRewindPoints,
@@ -49,9 +51,11 @@ export const DuplicateSheet = React.memo(function DuplicateSheet(props: Duplicat
     const router = useRouter();
     const { theme } = useUnistyles();
     const windowSize = useWindowDimensions();
+    const windowInsets = useWindowSafeAreaInsets();
+    const phoneDialog = useHerdPhoneDialog();
     const sheetFrame = React.useMemo(
-        () => getDuplicateSheetFrame(windowSize),
-        [windowSize.width, windowSize.height],
+        () => getDuplicateSheetFrame(windowSize, phoneDialog, windowInsets),
+        [phoneDialog, windowSize.width, windowSize.height, windowInsets.left, windowInsets.right],
     );
 
     const source = React.useMemo(() => session ? getSessionForkSource(session) : null, [

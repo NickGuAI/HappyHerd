@@ -39,6 +39,10 @@ vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.machines,
     useSettingMutable: () => [mocks.overrides, mocks.setOverrides],
 }));
+// The desktop section list is covered by SettingsFrame.test.ts; the page renders alone here.
+vi.mock('@/components/herd/pages/SettingsFrame', () => ({
+    withSettingsFrame: (_section: string, Screen: unknown) => Screen,
+}));
 vi.mock('@/text', () => ({
     t: (key: string, values?: Record<string, unknown>) => (
         typeof values?.machine === 'string' ? `${key}:${values.machine}` : key

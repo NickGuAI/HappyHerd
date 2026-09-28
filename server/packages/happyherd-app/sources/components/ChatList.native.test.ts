@@ -56,9 +56,13 @@ vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
     return { Octicons: (props: any) => ReactModule.createElement('Octicons', props) };
 });
-vi.mock('react-native-unistyles', () => {
+vi.mock('react-native-unistyles', async () => {
+    // The real tokens back everything the fixture does not pin explicitly.
+    const { lightTheme } = await import('@/theme');
     const theme = {
+        ...lightTheme,
         colors: {
+            ...lightTheme.colors,
             divider: '#ddd',
             shadow: { color: '#000', opacity: 0.2 },
             surface: '#fff',

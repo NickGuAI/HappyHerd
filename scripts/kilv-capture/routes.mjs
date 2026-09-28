@@ -18,6 +18,7 @@ const panels=[
  ['terminal','Connect terminal','app/(app)/terminal/connect.tsx'],['text-selection','Select text','app/(app)/text-selection.tsx'],
  ['terminal-confirm','Terminal connection request','app/(app)/terminal/index.tsx'],['terminal-invalid','Invalid terminal link','app/(app)/terminal/index.tsx'],
  ['user','User profile','app/(app)/user/[id].tsx'],['settings','Settings','components/SettingsView.tsx'],
+ ['about','About','app/(app)/settings/about.tsx','components/SettingsAboutView.tsx'],['connections','Connections','app/(app)/settings/connections.tsx','components/ConnectionsSettingsView.tsx'],
  ['credentials','Saved credentials','components/CredentialsSettingsView.tsx'],['usage','Provider usage','components/usage/UsagePanel.tsx','components/usage/UsageChart.tsx','components/usage/UsageBar.tsx'],
 ];
 const opsSource=readFileSync(resolve(appRoot,'sources/sync/ops.ts'),'utf8');
@@ -37,6 +38,10 @@ virtualModules['@/sync/storage']+='export const useUser=()=>profile;export const
 virtualModules['@/realtime/RealtimeSession']='export const stopRealtimeSession=async()=>{};export const getCurrentVoiceSessionDurationSeconds=()=>undefined;';
 virtualModules['@/sync/pushRegistration']+='export const requestPushPermissionOrOpenSettings=async()=>{};export const removePushToken=async()=>{};export const syncCurrentPushToken=async()=>{};';
 virtualModules['react-native-reanimated']=virtualModules['react-native-reanimated'].replace("out:x=>x,inOut", "out:x=>x,in:x=>x,inOut").replace("export const FadeIn={duration:()=>({})};export const FadeOut=FadeIn;", "const animation={duration:()=>animation,easing:()=>animation,reduceMotion:()=>animation,withInitialValues:()=>animation};export const FadeIn=animation,FadeOut=animation,FadeInDown=animation,FadeOutUp=animation,LinearTransition=animation;export const ReduceMotion={System:'system'};export const useAnimatedRef=()=>React.useRef(null);export const measure=()=>null;");
+// Session Info's status avatar reads the reduced-motion setting, as in the page and workspace captures.
+virtualModules['react-native-reanimated']+='export const useReducedMotion=()=>false;';
+// Connections reads the endpoint the socket is actually connected to.
+virtualModules['@/sync/apiSocket']=virtualModules['@/sync/apiSocket'].replace('connected:true,','connected:true,getActiveEndpoint:()=>location.origin,');
 function onResolve(args){if(args.path.startsWith('.')&&args.importer.includes('/node_modules/')){const stem=resolve(dirname(args.importer),args.path).replace(/\.js$/,'');for(const ext of ['.web.js','.web.ts','.web.tsx'])if(existsSync(stem+ext))return {path:stem+ext};}if(args.path.startsWith('.')&&args.importer.startsWith(resolve(appRoot,'sources'))){const key='@/'+relative(resolve(appRoot,'sources'),resolve(dirname(args.importer),args.path)).replace(/\.(tsx?|jsx?)$/,'');if(virtualModules[key])return {path:key,namespace:'kilv-mock'};}return null;}
 virtualModules['@/hooks/useUpdates']=`export const useUpdates=()=>({updateAvailable:false,isChecking:false,reloadApp(){}});`;
 virtualModules['@/hooks/useNativeUpdate']=`export const useNativeUpdate=()=>null;`;

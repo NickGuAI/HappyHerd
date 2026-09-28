@@ -19,6 +19,7 @@ import { useAttachmentImage } from '@/hooks/useAttachmentImage';
 import { thumbhashToDataUri } from '@/utils/thumbhash';
 import { Modal } from '@/modal';
 import { t } from '@/text';
+import { useHerdModalPreviewWidth } from '@/components/herd/modalArea';
 
 const fileInputSchema = z.object({
     ref: z.string(),
@@ -39,7 +40,8 @@ const DEFAULT_ASPECT = 4 / 3; // when wire-format omits image{} dimensions
 
 function AttachmentImagePreviewModal(props: { uri: string; name: string; onClose: () => void }) {
     const viewport = useWindowDimensions();
-    const width = Math.min(Math.max(viewport.width - 32, 280), 1120);
+    // Within the modal's content width, clear of a landscape notch (UI overhaul).
+    const width = useHerdModalPreviewWidth(viewport.width, 1120);
     const height = Math.min(Math.max(viewport.height - 80, 320), 900);
     return (
         <View style={[styles.previewModal, { width, height }]}>

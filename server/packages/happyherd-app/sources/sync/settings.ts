@@ -84,6 +84,11 @@ export const SettingsSchema = z.object({
     lastUsedPermissionMode: z.string().nullable().describe('Last selected permission mode for new sessions'),
     lastUsedModelMode: z.string().nullable().describe('Last selected model mode for new sessions'),
     agentDefaultOverrides: AgentDefaultOverridesSchema.describe("User-selected agent defaults. Missing values use the provider's available exact-machine or code default and are not sent as agent metadata."),
+    newSessionMode: z.enum(['streamline', 'advanced']).describe('Default New Session interface'),
+    // Preserve future agent keys through sync; normalizeStreamlineAgent owns read fallback.
+    streamlineAgent: z.string().describe('Default agent for Streamline sessions'),
+    streamlineAgentDefaults: AgentDefaultOverridesSchema.describe('User overrides on top of Streamline agent defaults'),
+    streamlineGithubWorktree: z.boolean().describe('Start GitHub repositories in a new git worktree in Streamline'),
     // Dismissed CLI warning banners (supports both per-machine and global dismissal)
     dismissedCLIWarnings: z.object({
         perMachine: z.record(z.string(), z.object({
@@ -166,6 +171,10 @@ export const settingsDefaults: Settings = {
     lastUsedPermissionMode: null,
     lastUsedModelMode: null,
     agentDefaultOverrides: {},
+    newSessionMode: 'streamline',
+    streamlineAgent: 'claude',
+    streamlineAgentDefaults: {},
+    streamlineGithubWorktree: true,
     dismissedCLIWarnings: { perMachine: {}, global: {} },
 };
 Object.freeze(settingsDefaults);
@@ -229,15 +238,17 @@ export function applySettings(settings: Settings, delta: Partial<Settings>): Set
 
 export function settingsToSyncPayload(settings: Settings): Partial<Settings> {
     const result: Partial<Settings> = { ...settings };
-    const compactAgentOverrides = Object.fromEntries(
-        Object.entries(settings.agentDefaultOverrides ?? {}).filter(([, value]) => (
-            value && typeof value === 'object' && Object.keys(value).length > 0
-        )),
-    ) as Settings['agentDefaultOverrides'];
-    if (Object.keys(compactAgentOverrides).length === 0) {
-        delete result.agentDefaultOverrides;
-    } else {
-        result.agentDefaultOverrides = compactAgentOverrides;
+    for (const field of ['agentDefaultOverrides', 'streamlineAgentDefaults'] as const) {
+        const compactOverrides = Object.fromEntries(
+            Object.entries(settings[field] ?? {}).filter(([, value]) => (
+                value && typeof value === 'object' && Object.keys(value).length > 0
+            )),
+        ) as Settings[typeof field];
+        if (Object.keys(compactOverrides).length === 0) {
+            delete result[field];
+        } else {
+            result[field] = compactOverrides;
+        }
     }
     return result;
 }

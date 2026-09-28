@@ -5,7 +5,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { t } from '@/text';
+import { Typography } from '@/constants/Typography';
 import { ToolSectionView } from '../ToolSectionView';
+import { herdAlpha } from '@/components/herd/session/color';
+import { herdWebClasses, herdStaggerClass } from '@/components/herd/motion';
+
+/** Web draws the form as its own info-edged card (UI overhaul); native keeps the tool section. */
+function FormFrame(props: { children: React.ReactNode; answered?: boolean }) {
+    if (Platform.OS !== 'web') return <ToolSectionView>{props.children}</ToolSectionView>;
+    return (
+        <View
+            style={[styles.webCard, props.answered ? styles.webCardAnswered : styles.webCardEntrance]}
+            testID="question-form-card"
+        >
+            {props.children}
+        </View>
+    );
+}
 
 export interface InlineQuestionOption {
     label: string;
@@ -122,7 +138,7 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
 
     if (submittedAnswers) {
         return (
-            <ToolSectionView>
+            <FormFrame answered>
                 <View style={styles.submittedContainer}>
                     {questions.map(question => (
                         <View key={question.id} style={styles.submittedItem}>
@@ -135,18 +151,21 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                         </View>
                     ))}
                 </View>
-            </ToolSectionView>
+            </FormFrame>
         );
     }
 
     return (
-        <ToolSectionView>
+        <FormFrame>
             <View style={styles.container}>
                 {questions.map(question => {
                     const selectedOptions = selections.get(question.id) ?? new Set<number>();
                     return (
                         <View key={question.id} style={styles.questionSection}>
                             <View style={styles.headerChip}>
+                                {Platform.OS === 'web' ? (
+                                    <Ionicons name="help-circle-outline" size={13} color={theme.colors.status.connecting} />
+                                ) : null}
                                 <Text style={styles.headerText}>{question.header}</Text>
                             </View>
                             <Text style={styles.questionText}>{question.question}</Text>
@@ -158,8 +177,10 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                                             key={`${question.id}:${optionIndex}`}
                                             accessibilityRole={question.multiSelect ? 'checkbox' : 'radio'}
                                             accessibilityState={{ checked: isSelected, disabled: !canInteract || isSubmitting }}
+                                            aria-checked={isSelected}
                                             style={[
                                                 styles.optionButton,
+                                                styles.optionEntrance(optionIndex),
                                                 isSelected && styles.optionButtonSelected,
                                                 !canInteract && styles.optionButtonDisabled,
                                             ]}
@@ -194,7 +215,7 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                             </View>
                             {question.allowCustom !== false && (
                                 <View style={styles.optionsContainer}>
-                                    <Text style={styles.optionLabel}>{t('tools.askUserQuestion.other')}</Text>
+                                    <Text style={[styles.optionLabel, styles.otherLabel]}>{t('tools.askUserQuestion.other')}</Text>
                                     <TextInput
                                         accessibilityLabel={t('tools.askUserQuestion.other') + ': ' + question.header}
                                         placeholder={t('tools.askUserQuestion.otherPlaceholder')}
@@ -227,11 +248,11 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                         {onCancel && (
                             <TouchableOpacity
                                 accessibilityRole="button"
-                                style={styles.submitButton}
+                                style={[styles.submitButton, styles.cancelButton]}
                                 disabled={isSubmitting}
                                 onPress={() => { void send({}, true); }}
                             >
-                                <Text style={styles.submitButtonText}>{t('common.cancel')}</Text>
+                                <Text style={[styles.submitButtonText, styles.cancelButtonText]}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -257,82 +278,156 @@ export const InlineQuestionForm = React.memo<InlineQuestionFormProps>((props) =>
                     </View>
                 )}
             </View>
-        </ToolSectionView>
+        </FormFrame>
     );
 });
 
 const styles = StyleSheet.create((theme) => ({
+    webCard: {
+        borderWidth: 1,
+        borderColor: theme.colors.status.connecting,
+        borderRadius: theme.kilv.radiusCard,
+        backgroundColor: theme.colors.surfaceHigh,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginVertical: 2,
+        _web: {
+            boxShadow: `0 0 0 1px ${herdAlpha(theme.colors.status.connecting, 0.15)} inset, 0 0 30px ${herdAlpha(theme.colors.status.connecting, 0.07)}`,
+        },
+    },
+    webCardEntrance: {
+        _web: {
+            _classNames: herdWebClasses('herd-sheet'),
+        },
+    },
+    webCardAnswered: {
+        borderColor: theme.colors.divider,
+        paddingVertical: 12,
+        _web: {
+            boxShadow: 'none',
+        },
+    },
     customInput: {
         borderWidth: 1,
         borderColor: theme.colors.divider,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         padding: 12,
         fontSize: 16,
         color: theme.colors.text,
         minHeight: 44,
+        backgroundColor: Platform.select({ web: theme.colors.input.background, default: undefined }),
+        ...Typography.default(),
     },
     container: { gap: 16 },
     questionSection: { gap: 8 },
     headerChip: {
         alignSelf: 'flex-start',
-        backgroundColor: theme.colors.surfaceHighest,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surfaceHighest }),
+        borderWidth: Platform.select({ web: 1, default: 0 }),
+        borderColor: herdAlpha(theme.colors.status.connecting, 0.45),
         paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
+        paddingVertical: Platform.select({ web: 2, default: 4 }),
+        borderRadius: theme.borderRadius.sm,
         marginBottom: 4,
     },
     headerText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
+        fontSize: Platform.select({ web: 11.5, default: 12 }),
+        fontWeight: Platform.select({ web: '400', default: '600' }),
+        color: Platform.select({ web: theme.colors.status.connecting, default: theme.colors.textSecondary }),
+        textTransform: Platform.select({ web: 'none', default: 'uppercase' }),
+        ...(Platform.OS === 'web' ? Typography.mono() : {}),
     },
-    questionText: { fontSize: 15, fontWeight: '500', color: theme.colors.text, marginBottom: 8 },
-    optionsContainer: { gap: 4 },
+    questionText: {
+        fontSize: Platform.select({ web: 16, default: 15 }),
+        fontWeight: '500',
+        color: theme.colors.text,
+        marginBottom: 8,
+        ...(Platform.OS === 'web' ? Typography.default('semiBold') : {}),
+    },
+    optionsContainer: { gap: Platform.select({ web: 8, default: 4 }) },
+    optionEntrance: (index: number) => ({
+        _web: {
+            _classNames: herdWebClasses('herd-rise-sm', herdStaggerClass(index)),
+        },
+    }),
     optionButton: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surface }),
+        paddingVertical: Platform.select({ web: 9, default: 12 }),
+        paddingHorizontal: Platform.select({ web: 13, default: 12 }),
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: theme.colors.surface }),
         borderWidth: 1,
         borderColor: theme.colors.divider,
-        gap: 10,
+        gap: Platform.select({ web: 12, default: 10 }),
         minHeight: 44,
+        _web: {
+            transition: `border-color ${theme.kilv.motionFast}ms ${theme.kilv.easeOut}, background-color ${theme.kilv.motionFast}ms ${theme.kilv.easeOut}, box-shadow ${theme.kilv.motionBase}ms ${theme.kilv.easeOut}`,
+        },
     },
     optionButtonSelected: {
-        backgroundColor: Platform.select({ web: theme.colors.surfaceHigh, default: theme.colors.surfaceHighest }),
-        borderColor: theme.colors.radio.active,
+        backgroundColor: Platform.select({ web: theme.colors.selection.background, default: theme.colors.surfaceHighest }),
+        borderColor: Platform.select({ web: theme.colors.selection.border, default: theme.colors.radio.active }),
+        _web: {
+            boxShadow: theme.colors.selection.ring,
+        },
     },
     optionButtonDisabled: { opacity: 0.6 },
     radioOuter: {
-        width: 20, height: 20, borderRadius: 6, borderWidth: 2,
-        borderColor: theme.colors.textSecondary, alignItems: 'center', justifyContent: 'center', marginTop: 2,
+        width: Platform.select({ web: 18, default: 20 }),
+        height: Platform.select({ web: 18, default: 20 }),
+        borderRadius: Platform.select({ web: theme.kilv.radiusPill, default: theme.borderRadius.sm }),
+        borderWidth: 2,
+        borderColor: Platform.select({ web: theme.colors.kilv.rimLine, default: theme.colors.textSecondary }),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 2,
     },
     radioOuterSelected: { borderColor: theme.colors.radio.active },
-    radioInner: { width: 10, height: 10, borderRadius: 4, backgroundColor: theme.colors.radio.dot },
+    radioInner: {
+        width: Platform.select({ web: 8, default: 10 }),
+        height: Platform.select({ web: 8, default: 10 }),
+        borderRadius: Platform.select({ web: theme.kilv.radiusPill, default: theme.borderRadius.sm }),
+        backgroundColor: theme.colors.radio.dot,
+    },
     checkboxOuter: {
-        width: 20, height: 20, borderRadius: 4, borderWidth: 2,
-        borderColor: theme.colors.textSecondary, alignItems: 'center', justifyContent: 'center', marginTop: 2,
+        width: 20, height: 20, borderRadius: theme.borderRadius.sm, borderWidth: 2,
+        borderColor: Platform.select({ web: theme.colors.kilv.rimLine, default: theme.colors.textSecondary }),
+        alignItems: 'center', justifyContent: 'center', marginTop: 2,
     },
     checkboxOuterSelected: { borderColor: theme.colors.radio.active, backgroundColor: theme.colors.radio.active },
     optionContent: { flex: 1 },
-    optionLabel: { fontSize: 14, fontWeight: '500', color: theme.colors.text },
-    optionDescription: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-    actionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8, justifyContent: 'flex-end' },
+    optionLabel: { fontSize: Platform.select({ web: 14.5, default: 14 }), fontWeight: '500', color: theme.colors.text },
+    otherLabel: {
+        fontSize: Platform.select({ web: 13, default: 14 }),
+        color: Platform.select({ web: theme.colors.textSecondary, default: theme.colors.text }),
+    },
+    optionDescription: { fontSize: 13, color: Platform.select({ web: theme.colors.kilv.inkFaint, default: theme.colors.textSecondary }), marginTop: 2 },
+    actionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Platform.select({ web: 8, default: 12 }), marginTop: 8, justifyContent: 'flex-end' },
     submitButton: {
         backgroundColor: Platform.select({ web: theme.colors.button.primary.background, default: theme.colors.surfaceHighest }),
         borderWidth: Platform.select({ web: 0, default: 1 }),
         borderColor: theme.colors.divider,
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 8,
+        paddingHorizontal: Platform.select({ web: 16, default: 20 }),
+        paddingVertical: Platform.select({ web: 10, default: 12 }),
+        borderRadius: theme.borderRadius.md,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
-        minHeight: 44,
+        minHeight: Platform.select({ web: 40, default: 44 }),
+    },
+    // Web Cancel is a quiet outlined button beside the molten Submit.
+    cancelButton: {
+        backgroundColor: Platform.select({ web: 'transparent', default: theme.colors.surfaceHighest }),
+        borderWidth: 1,
+        borderColor: Platform.select({ web: theme.colors.kilv.rimLine, default: theme.colors.divider }),
+    },
+    cancelButtonText: {
+        color: Platform.select({ web: theme.colors.text, default: theme.colors.text }),
     },
     submitButtonDisabled: { opacity: 0.5 },
     submitButtonReady: { borderColor: theme.colors.radio.active },

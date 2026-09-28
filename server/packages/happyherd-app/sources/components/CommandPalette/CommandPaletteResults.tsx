@@ -4,6 +4,7 @@ import { View, ScrollView, Text, Platform } from 'react-native';
 import { Command, CommandCategory } from './types';
 import { CommandPaletteItem } from './CommandPaletteItem';
 import { Typography } from '@/constants/Typography';
+import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
 
 import { t } from '@/text';
 interface CommandPaletteResultsProps {
@@ -20,6 +21,7 @@ export function CommandPaletteResults({
     onSelectionChange
 }: CommandPaletteResultsProps) {
     const scrollViewRef = useRef<ScrollView>(null);
+    const phone = useHerdPhoneWeb();
     const itemRefs = useRef<{ [key: number]: View | null }>({});
 
     // Flatten commands for index tracking
@@ -56,7 +58,7 @@ export function CommandPaletteResults({
     return (
         <ScrollView
             ref={scrollViewRef}
-            style={styles.container}
+            style={[styles.container, phone && styles.containerPhone]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         >
@@ -88,7 +90,7 @@ export function CommandPaletteResults({
 
                 return (
                     <View key={category.id}>
-                        <Text style={[styles.categoryTitle, Typography.default('semiBold')]}>
+                        <Text style={[styles.categoryTitle, phone && styles.categoryTitlePhone, Typography.mono('semiBold')]}>
                             {category.title}
                         </Text>
                         {categoryCommands}
@@ -103,11 +105,16 @@ const styles = StyleSheet.create((theme) => ({
     container: {
         // Use viewport-based height for better proportions
         ...(Platform.OS === 'web' ? {
-            maxHeight: '40vh', // 40% of viewport height for results
+            maxHeight: '52vh',
         } as any : {
             maxHeight: 420, // Fallback for native
         }),
-        paddingVertical: 8,
+        padding: 8,
+    },
+    // Phones: the list takes the palette's height; the palette caps it.
+    containerPhone: {
+        maxHeight: 'none' as any,
+        flexShrink: 1,
     },
     emptyContainer: {
         padding: 48,
@@ -119,13 +126,15 @@ const styles = StyleSheet.create((theme) => ({
         letterSpacing: -0.2,
     },
     categoryTitle: {
-        paddingHorizontal: 32,
-        paddingTop: 16,
-        paddingBottom: 8,
-        fontSize: 12,
-        color: theme.colors.textSecondary,
+        paddingHorizontal: 10,
+        paddingTop: 10,
+        paddingBottom: 6,
+        fontSize: 10.5,
+        color: theme.colors.textLink,
         textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        fontWeight: '600',
+        letterSpacing: 2,
+    },
+    categoryTitlePhone: {
+        paddingHorizontal: 8,
     },
 }));

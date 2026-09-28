@@ -1,7 +1,7 @@
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import * as React from 'react';
-import { View, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { getToolViewComponent } from './views/_all';
@@ -31,6 +31,12 @@ import {
 import { useSession, useSetting, useSessionAgentFormCommunication } from '@/sync/storage';
 import { canRenderAgentFormInline } from '@/sync/agentCommunications';
 import { hasPlanBody, readClaudeQuestions } from './views/questionPresentation';
+import { readTodos } from './views/TodoView';
+import { ToolLine, type ToolLineState } from '@/components/herd/session/ToolLine';
+import { HerdCollapse } from '@/components/herd/session/Collapse';
+import { resolveToolLineStats, resolveToolLineText } from '@/components/herd/session/toolLineModel';
+import { herdAlpha } from '@/components/herd/session/color';
+import { herdWebClasses } from '@/components/herd/motion';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -49,6 +55,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const session = useSession(sessionId ?? '');
     const displayState = resolveToolDisplayRuntimeState(tool.state, session?.active);
     const communication = useSessionAgentFormCommunication(sessionId ?? '', tool.callId ?? '');
+    // Web disclosure state (UI overhaul). null follows the default for the row.
+    const [webExpanded, setWebExpanded] = React.useState<boolean | null>(null);
+    // Phones give an expanded body the full row width.
+    const narrowWeb = useWindowDimensions().width <= 700;
     const hasQuestionForm = tool.name === 'AskUserQuestion' && readClaudeQuestions(tool.input) !== null;
     const hasSpecializedContent = tool.name === 'AskUserQuestion' ? hasQuestionForm
         : tool.name === 'request_user_input' ? communication !== null && canRenderAgentFormInline(communication)
@@ -91,7 +101,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         ?? <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
     let noStatus = false;
     let hideDefaultError = false;
-    
+
     // For Gemini: unknown tools should be rendered as minimal (hidden)
     // This prevents showing raw INPUT/OUTPUT for internal Gemini tools
     // that we haven't explicitly added to knownTools
@@ -111,7 +121,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Handle optional title and function type
     const providerTitle = tool.title?.trim();
     let toolTitle = getToolDisplayTitle(tool);
-    
+
     // Special handling for MCP tools
     if (tool.name.startsWith('mcp__')) {
         if (!providerTitle) {
@@ -140,7 +150,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             minimal = knownTool.minimal;
         }
     }
-    
+
     // Special handling for CodexBash to determine icon based on parsed_cmd
     if (tool.name === 'CodexBash' && tool.input?.parsed_cmd && Array.isArray(tool.input.parsed_cmd) && tool.input.parsed_cmd.length > 0) {
         const parsedCmd = tool.input.parsed_cmd[0];
@@ -154,7 +164,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     } else if (knownTool && typeof knownTool.icon === 'function') {
         icon = knownTool.icon(18, theme.colors.text);
     }
-    
+
     if (knownTool && typeof knownTool.noStatus === 'boolean') {
         noStatus = knownTool.noStatus;
     }
@@ -263,6 +273,184 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         );
     };
 
+    if (Platform.OS === 'web') {
+        // UI overhaul (Web): compact tool rows expand in place to show their
+        // diff or output; pending permissions become a warning-edged card;
+        // questions and plans draw their own cards.
+        const deniedOrCanceled = !!tool.permission
+            && (tool.permission.status === 'denied' || tool.permission.status === 'canceled');
+        const permissionPending = tool.permission?.status === 'pending';
+        const lineState: ToolLineState = deniedOrCanceled || isToolUseError
+            ? 'denied'
+            : permissionPending ? 'pending' : displayState;
+        const lineText = resolveToolLineText(tool, props.metadata);
+        const lineStats = resolveToolLineStats(tool);
+        const startedAt = tool.startedAt ?? tool.createdAt;
+        const specificBody = SpecificToolView ? (
+            <SpecificToolView
+                tool={tool}
+                metadata={props.metadata}
+                messages={props.messages ?? []}
+                sessionId={sessionId}
+                messageId={messageId}
+                permissionFooter={isInlinePatch ? renderPermissionFooter() : undefined}
+            />
+        ) : null;
+        const specificError = SpecificToolView && tool.state === 'error' && renderedError !== undefined
+            && !deniedOrCanceled && !hideDefaultError
+            ? <ToolError message={formatToolDisplayValue(renderedError)} />
+            : null;
+        const genericError = !SpecificToolView && tool.state === 'error' && renderedError !== undefined
+            && !deniedOrCanceled && !isToolUseError ? (
+                <>
+                    <ToolError message={formatToolDisplayValue(renderedError)} />
+                    {tool.error !== undefined && tool.result !== undefined && (
+                        <ToolSectionView title={t('toolView.output')}>
+                            <CodeView code={formatToolDisplayValue(tool.result)} />
+                        </ToolSectionView>
+                    )}
+                </>
+            ) : null;
+        const defaultBody = (
+            <>
+                {tool.input && (
+                    <ToolSectionView title={t('toolView.input')}>
+                        <CodeView code={JSON.stringify(tool.input, null, 2)} />
+                    </ToolSectionView>
+                )}
+                {tool.state === 'completed' && tool.result !== undefined && (
+                    <ToolSectionView title={t('toolView.output')}>
+                        <CodeView code={formatToolDisplayValue(tool.result)} />
+                    </ToolSectionView>
+                )}
+            </>
+        );
+        const detailsLink = isPressable ? (
+            <TouchableOpacity onPress={handlePress} activeOpacity={0.7} style={styles.webDetailsLink}>
+                <Text style={styles.webDetailsText}>{t('profile.details')}</Text>
+            </TouchableOpacity>
+        ) : null;
+        // An empty todo list has no body of its own, so it keeps the card line.
+        const bareContent = SpecificToolView !== null && (
+            (tool.name === 'TodoWrite' && readTodos(tool).length > 0)
+            || (tool.name === 'AskUserQuestion' && hasQuestionForm)
+            || tool.name === 'request_user_input'
+        );
+
+        if (bareContent) {
+            return (
+                <View style={styles.webBare}>
+                    {specificBody}
+                    {specificError}
+                    {detailsLink}
+                    {renderPermissionFooter()}
+                </View>
+            );
+        }
+
+        const cardLine = (expandable: boolean, expanded: boolean) => (
+            <ToolLine
+                variant="card"
+                icon={icon}
+                verb={status ? `${toolTitle} ${status}` : toolTitle}
+                argument={description ?? lineText.argument}
+                stats={lineStats}
+                state={lineState}
+                startedAt={startedAt}
+                completedAt={tool.completedAt}
+                expandable={expandable}
+                expanded={expanded}
+                onPress={expandable ? () => setWebExpanded(!expanded) : undefined}
+                accessibilityLabel={toolTitle}
+                testID="tool-card-header"
+            />
+        );
+
+        if (permissionPending && !isInlinePatch) {
+            return (
+                <View style={[styles.webCard, styles.webCardPending]} testID="tool-permission-card">
+                    {cardLine(false, true)}
+                    <View style={styles.webCardBody}>
+                        {specificBody ?? (needsApprovalInput ? defaultBody : null)}
+                        {specificError ?? genericError}
+                    </View>
+                    {renderPermissionFooter()}
+                    {/* After the choices, so it never reads as their heading. */}
+                    {detailsLink ? <View style={styles.webCardFooter}>{detailsLink}</View> : null}
+                </View>
+            );
+        }
+
+        if (isCompactActivityTool) {
+            const body = specificBody || specificError || genericError
+                ? (
+                    <>
+                        <View style={styles.webRowBodyFrame}>
+                            <View style={styles.webRowBodyContent}>
+                                {specificBody}
+                                {specificError ?? genericError}
+                            </View>
+                        </View>
+                        {detailsLink}
+                    </>
+                )
+                : null;
+            const expanded = body !== null && (webExpanded ?? false);
+            return (
+                <View style={styles.webRow}>
+                    <ToolLine
+                        icon={icon}
+                        verb={lineText.verb}
+                        argument={lineText.argument}
+                        stats={lineStats}
+                        state={lineState}
+                        startedAt={startedAt}
+                        completedAt={tool.completedAt}
+                        expandable={body !== null}
+                        expanded={expanded}
+                        onPress={body !== null
+                            ? () => setWebExpanded(!expanded)
+                            : isPressable ? handlePress : undefined}
+                        accessibilityLabel={activityLabel}
+                        testID="tool-line"
+                    />
+                    {body !== null ? (
+                        <HerdCollapse open={expanded} testID="tool-line-body">
+                            <View style={[styles.webRowBody, narrowWeb && styles.webRowBodyNarrow]}>{body}</View>
+                        </HerdCollapse>
+                    ) : null}
+                    {renderPermissionFooter()}
+                </View>
+            );
+        }
+
+        if (isInlinePatch) {
+            return (
+                <View style={styles.webBare}>
+                    {specificBody}
+                    {specificError}
+                </View>
+            );
+        }
+
+        const cardBody = specificBody
+            ? <>{specificBody}{specificError}</>
+            : genericError ?? defaultBody;
+        const cardExpanded = webExpanded ?? true;
+        return (
+            <View style={styles.webCard}>
+                {renderCardHeader ? cardLine(true, cardExpanded) : null}
+                <HerdCollapse open={cardExpanded || !renderCardHeader}>
+                    <View style={styles.webCardBody}>
+                        {cardBody}
+                        {detailsLink}
+                    </View>
+                </HerdCollapse>
+                {renderPermissionFooter()}
+            </View>
+        );
+    }
+
     return (
         <View style={isCompactActivityTool ? styles.compactContainer : isInlinePatch ? styles.inlineContainer : styles.container}>
             {renderCardHeader ? (
@@ -359,7 +547,7 @@ function ElapsedView(props: { from: number }) {
 const styles = StyleSheet.create((theme) => ({
     container: {
         backgroundColor: theme.colors.surfaceHigh,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius.md,
         marginVertical: 8,
         overflow: 'hidden'
     },
@@ -386,7 +574,7 @@ const styles = StyleSheet.create((theme) => ({
         minHeight: 28,
         paddingHorizontal: 8,
         paddingVertical: 3,
-        borderRadius: 4,
+        borderRadius: theme.borderRadius.sm,
         backgroundColor: 'transparent',
     },
     headerLeft: {
@@ -451,5 +639,72 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingTop: 8,
         overflow: 'visible'
+    },
+    // Web (UI overhaul)
+    webRow: {
+        marginVertical: 1,
+    },
+    // Aligns the body with the row text.
+    webRowBody: {
+        marginLeft: 31,
+        paddingTop: 4,
+        paddingBottom: 6,
+    },
+    webRowBodyNarrow: {
+        marginLeft: 0,
+    },
+    webRowBodyFrame: {
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.surfaceHigh,
+        overflow: 'hidden',
+    },
+    // Full-width tool sections pull back to the frame edges.
+    webRowBodyContent: {
+        paddingHorizontal: 12,
+        paddingTop: 8,
+    },
+    webBare: {
+        marginVertical: 8,
+    },
+    webCard: {
+        marginVertical: 8,
+        paddingHorizontal: 4,
+        paddingTop: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: theme.kilv.radiusCard,
+        backgroundColor: theme.colors.surfaceHigh,
+        overflow: 'hidden',
+        _web: {
+            _classNames: herdWebClasses('herd-transition'),
+        },
+    },
+    webCardPending: {
+        borderColor: theme.colors.warning,
+        _web: {
+            boxShadow: `0 0 0 1px ${herdAlpha(theme.colors.warning, 0.25)} inset, 0 0 28px ${herdAlpha(theme.colors.warning, 0.08)}`,
+        },
+    },
+    webCardBody: {
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        overflow: 'visible',
+    },
+    webCardFooter: {
+        paddingHorizontal: 12,
+        paddingBottom: 6,
+    },
+    webDetailsLink: {
+        alignSelf: 'flex-start',
+        paddingVertical: 4,
+        marginTop: 4,
+        marginBottom: 4,
+    },
+    webDetailsText: {
+        fontSize: 13,
+        color: theme.colors.textLink,
+        ...Typography.default('semiBold'),
     },
 }));

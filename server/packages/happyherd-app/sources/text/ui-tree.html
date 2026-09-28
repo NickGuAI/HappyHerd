@@ -11,7 +11,7 @@
 <body><main>
   <p>HappyHerd · generated artifact</p>
   <h1>UI Surface Inventory</h1>
-  <p class="meta">Schema 1 · source 0b54ad22d645e43a · 41 routes · 282 UI owners · 0 hardcoded findings</p>
+  <p class="meta">Schema 1 · source 80c779042392046f · 44 routes · 336 UI owners · 0 hardcoded findings</p>
   <h2>Production routes</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Source owner</th><th>Keys</th><th>States</th></tr></thead><tbody>
     <tr>
       <td><code>/artifacts/[id]</code></td>
@@ -40,7 +40,7 @@
     <tr>
       <td><code>/automations</code></td>
       <td><code>sources/app/(app)/automations/index.tsx</code></td>
-      <td>49</td>
+      <td>51</td>
       <td>—</td>
     </tr>
     <tr>
@@ -48,6 +48,12 @@
       <td><code>sources/app/(app)/changelog.tsx</code></td>
       <td>1</td>
       <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/commanders</code></td>
+      <td><code>sources/app/(app)/commanders/index.tsx</code></td>
+      <td>17</td>
+      <td>loading</td>
     </tr>
     <tr>
       <td><code>/friends</code></td>
@@ -64,7 +70,7 @@
     <tr>
       <td><code>/inbox</code></td>
       <td><code>sources/app/(app)/inbox/index.tsx</code></td>
-      <td>1</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -76,25 +82,25 @@
     <tr>
       <td><code>/machine/[id]</code></td>
       <td><code>sources/app/(app)/machine/[id].tsx</code></td>
-      <td>62</td>
+      <td>65</td>
       <td>error, offline</td>
     </tr>
     <tr>
       <td><code>/new</code></td>
       <td><code>sources/app/(app)/new/index.tsx</code></td>
-      <td>72</td>
+      <td>79</td>
       <td>error</td>
     </tr>
     <tr>
       <td><code>/projects/[id]</code></td>
       <td><code>sources/app/(app)/projects/[id].tsx</code></td>
-      <td>6</td>
+      <td>8</td>
       <td>error</td>
     </tr>
     <tr>
       <td><code>/projects</code></td>
       <td><code>sources/app/(app)/projects/index.tsx</code></td>
-      <td>2</td>
+      <td>4</td>
       <td>error</td>
     </tr>
     <tr>
@@ -136,7 +142,7 @@
     <tr>
       <td><code>/session/[id]/info</code></td>
       <td><code>sources/app/(app)/session/[id]/info.tsx</code></td>
-      <td>91</td>
+      <td>89</td>
       <td>error, loading, offline, unavailable</td>
     </tr>
     <tr>
@@ -158,9 +164,15 @@
       <td>empty</td>
     </tr>
     <tr>
+      <td><code>/settings/about</code></td>
+      <td><code>sources/app/(app)/settings/about.tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
       <td><code>/settings/account</code></td>
       <td><code>sources/app/(app)/settings/account.tsx</code></td>
-      <td>64</td>
+      <td>67</td>
       <td>error</td>
     </tr>
     <tr>
@@ -178,7 +190,7 @@
     <tr>
       <td><code>/settings/connect/claude</code></td>
       <td><code>sources/app/(app)/settings/connect/claude.tsx</code></td>
-      <td>2</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -212,6 +224,12 @@
       <td>—</td>
     </tr>
     <tr>
+      <td><code>/settings/streamline</code></td>
+      <td><code>sources/app/(app)/settings/streamline.tsx</code></td>
+      <td>31</td>
+      <td>offline</td>
+    </tr>
+    <tr>
       <td><code>/settings/usage</code></td>
       <td><code>sources/app/(app)/settings/usage.tsx</code></td>
       <td>0</td>
@@ -226,7 +244,7 @@
     <tr>
       <td><code>/settings/voice/language</code></td>
       <td><code>sources/app/(app)/settings/voice/language.tsx</code></td>
-      <td>4</td>
+      <td>5</td>
       <td>—</td>
     </tr>
     <tr>
@@ -285,7 +303,7 @@
       <td>component</td>
       <td><code>sources/app/(app)/_layout.tsx</code></td>
       <td>RootLayout, unstable_settings</td>
-      <td>27</td>
+      <td>30</td>
       <td>—</td>
     </tr>
     <tr>
@@ -320,7 +338,7 @@
       <td>route</td>
       <td><code>sources/app/(app)/automations/index.tsx</code></td>
       <td>AutomationsScreen</td>
-      <td>49</td>
+      <td>51</td>
       <td>—</td>
     </tr>
     <tr>
@@ -329,6 +347,13 @@
       <td>ChangelogScreen</td>
       <td>1</td>
       <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/commanders/index.tsx</code></td>
+      <td>CommandersScreen</td>
+      <td>17</td>
+      <td>loading</td>
     </tr>
     <tr>
       <td>route</td>
@@ -348,7 +373,7 @@
       <td>route</td>
       <td><code>sources/app/(app)/inbox/index.tsx</code></td>
       <td>InboxPage</td>
-      <td>1</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -362,28 +387,28 @@
       <td>route</td>
       <td><code>sources/app/(app)/machine/[id].tsx</code></td>
       <td>MachineDetailScreen</td>
-      <td>62</td>
+      <td>65</td>
       <td>error, offline</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/new/index.tsx</code></td>
       <td>module</td>
-      <td>72</td>
+      <td>79</td>
       <td>error</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/projects/[id].tsx</code></td>
       <td>module</td>
-      <td>6</td>
+      <td>8</td>
       <td>error</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/projects/index.tsx</code></td>
       <td>ProjectsScreen</td>
-      <td>2</td>
+      <td>4</td>
       <td>error</td>
     </tr>
     <tr>
@@ -432,7 +457,7 @@
       <td>route</td>
       <td><code>sources/app/(app)/session/[id]/info.tsx</code></td>
       <td>module</td>
-      <td>91</td>
+      <td>89</td>
       <td>error, loading, offline, unavailable</td>
     </tr>
     <tr>
@@ -458,36 +483,43 @@
     </tr>
     <tr>
       <td>route</td>
+      <td><code>sources/app/(app)/settings/about.tsx</code></td>
+      <td>module</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
       <td><code>sources/app/(app)/settings/account.tsx</code></td>
       <td>module</td>
-      <td>64</td>
+      <td>67</td>
       <td>error</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/agents.tsx</code></td>
-      <td>AgentDefaultsSettingsScreen</td>
+      <td>module</td>
       <td>20</td>
       <td>—</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/appearance.tsx</code></td>
-      <td>AppearanceSettingsScreen</td>
+      <td>module</td>
       <td>65</td>
       <td>—</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/connect/claude.tsx</code></td>
-      <td>ClaudeOAuth</td>
-      <td>2</td>
+      <td>module</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/connections.tsx</code></td>
-      <td>ConnectionsSettingsScreen</td>
+      <td>module</td>
       <td>0</td>
       <td>—</td>
     </tr>
@@ -501,7 +533,7 @@
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/features.tsx</code></td>
-      <td>FeaturesSettingsScreen</td>
+      <td>module</td>
       <td>19</td>
       <td>—</td>
     </tr>
@@ -515,14 +547,21 @@
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/language.tsx</code></td>
-      <td>LanguageSettingsScreen</td>
+      <td>module</td>
       <td>4</td>
       <td>—</td>
     </tr>
     <tr>
       <td>route</td>
+      <td><code>sources/app/(app)/settings/streamline.tsx</code></td>
+      <td>module</td>
+      <td>31</td>
+      <td>offline</td>
+    </tr>
+    <tr>
+      <td>route</td>
       <td><code>sources/app/(app)/settings/usage.tsx</code></td>
-      <td>UsageSettingsScreen</td>
+      <td>module</td>
       <td>0</td>
       <td>—</td>
     </tr>
@@ -536,8 +575,8 @@
     <tr>
       <td>route</td>
       <td><code>sources/app/(app)/settings/voice/language.tsx</code></td>
-      <td>LanguageSelectionScreen</td>
-      <td>4</td>
+      <td>module</td>
+      <td>5</td>
       <td>—</td>
     </tr>
     <tr>
@@ -635,7 +674,7 @@
       <td>component</td>
       <td><code>sources/components/AgentInput.tsx</code></td>
       <td>AgentInput</td>
-      <td>36</td>
+      <td>38</td>
       <td>—</td>
     </tr>
     <tr>
@@ -768,7 +807,7 @@
       <td>component</td>
       <td><code>sources/components/ChatHeaderView.tsx</code></td>
       <td>ChatHeaderView</td>
-      <td>0</td>
+      <td>1</td>
       <td>—</td>
     </tr>
     <tr>
@@ -824,14 +863,14 @@
       <td>component</td>
       <td><code>sources/components/CommandPalette/CommandPalette.tsx</code></td>
       <td>CommandPalette</td>
-      <td>0</td>
+      <td>4</td>
       <td>—</td>
     </tr>
     <tr>
       <td>component</td>
       <td><code>sources/components/CommandPalette/CommandPaletteInput.tsx</code></td>
       <td>CommandPaletteInput</td>
-      <td>1</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -852,7 +891,7 @@
       <td>component</td>
       <td><code>sources/components/CommandPalette/CommandPaletteProvider.tsx</code></td>
       <td>CommandPaletteProvider</td>
-      <td>21</td>
+      <td>22</td>
       <td>—</td>
     </tr>
     <tr>
@@ -860,6 +899,13 @@
       <td><code>sources/components/CommandPalette/CommandPaletteResults.tsx</code></td>
       <td>CommandPaletteResults</td>
       <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/CommandPalette/navigationCommands.ts</code></td>
+      <td>buildNavigationCommands</td>
+      <td>7</td>
       <td>—</td>
     </tr>
     <tr>
@@ -894,7 +940,7 @@
       <td>component</td>
       <td><code>sources/components/ConnectionsSettingsView.tsx</code></td>
       <td>ConnectionsSettingsView</td>
-      <td>43</td>
+      <td>51</td>
       <td>offline, unavailable</td>
     </tr>
     <tr>
@@ -915,7 +961,7 @@
       <td>component</td>
       <td><code>sources/components/DesktopFileWorkspace.tsx</code></td>
       <td>DesktopFileWorkspace, DesktopFileWorkspaceDivider, DesktopFileWorkspaceSplit</td>
-      <td>5</td>
+      <td>6</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1069,7 +1115,7 @@
       <td>sidebar</td>
       <td><code>sources/components/FilesSidebar.tsx</code></td>
       <td>FilesSidebar</td>
-      <td>8</td>
+      <td>13</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1098,6 +1144,34 @@
       <td><code>sources/components/FocusModeControl.tsx</code></td>
       <td>FocusModeControl</td>
       <td>11</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FocusPixelSwap.tsx</code></td>
+      <td>FocusPixelSwap, FocusPixelSwapHost</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FocusPixelSwapLayer.tsx</code></td>
+      <td>FocusPixelSwapLayer</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FocusPixelSwapTile.tsx</code></td>
+      <td>PixelSwapTile</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FocusPixelSwapTile.web.tsx</code></td>
+      <td>PixelSwapTile</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1131,14 +1205,14 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/HappyHerdAutomationDetail.tsx</code></td>
-      <td>HappyHerdAutomationDetail</td>
-      <td>40</td>
+      <td>HAPPYHERD_AUTOMATION_RECENT_RUNS, HappyHerdAutomationDetail</td>
+      <td>38</td>
       <td>—</td>
     </tr>
     <tr>
       <td>ui-module</td>
       <td><code>sources/components/happyHerdAutomationPresentation.ts</code></td>
-      <td>happyHerdAutomationKindLabel, happyHerdAutomationRowMeta, happyHerdAutomationRunStatusLabel</td>
+      <td>happyHerdAutomationKindLabel, happyHerdAutomationNextRun, happyHerdAutomationRowMeta, happyHerdAutomationRunStatusLabel</td>
       <td>17</td>
       <td>—</td>
     </tr>
@@ -1153,6 +1227,328 @@
       <td>component</td>
       <td><code>sources/components/HeaderLogo.tsx</code></td>
       <td>HeaderLogo</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/HerdPopover.tsx</code></td>
+      <td>HerdMenuItem, HerdMenuSeparator, HerdMenuTitle, HerdPopover, measureHerdAnchor, resolveHerdPopoverPosition</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sheet</td>
+      <td><code>sources/components/herd/mobile/HerdBottomSheet.tsx</code></td>
+      <td>HERD_SHEET_DISMISS_DISTANCE, HERD_SHEET_DISMISS_VELOCITY, HerdBottomSheet, HerdTouchMenuContext, shouldDismissHerdSheet, useHerdTouchMenu</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/mobile/PhoneHome.tsx</code></td>
+      <td>PhoneHome</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/mobile/PhoneHomeRoute.tsx</code></td>
+      <td>PhoneHomeRoute</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/newSession/AdvancedSections.tsx</code></td>
+      <td>AdvancedSections, resolveMachineCardWidth</td>
+      <td>10</td>
+      <td>offline</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/newSession/PathDropdown.tsx</code></td>
+      <td>PathDropdown</td>
+      <td>17</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/newSession/StreamlineComposer.tsx</code></td>
+      <td>StreamlineComposerChips, StreamlineComposerLabels, StreamlineSummary</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/newSession/StreamlineSections.tsx</code></td>
+      <td>StreamlineCommanderChoices, StreamlineLabel, StreamlineLabelLink, StreamlineProjectChoices, StreamlineSections</td>
+      <td>14</td>
+      <td>offline</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/ChangelogPageFrame.tsx</code></td>
+      <td>ChangelogPageFrame</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdCollapse.tsx</code></td>
+      <td>HerdCollapse</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdLanding.tsx</code></td>
+      <td>HerdLanding</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdLandingArt.tsx</code></td>
+      <td>HerdBrandMark, HerdHorizon</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/herd/pages/HerdLandingArt.web.tsx</code></td>
+      <td>HerdBrandMark, HerdHorizon</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdList.tsx</code></td>
+      <td>HerdItem, HerdItemGroup, HerdListHeader, HerdValueItem</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdPage.tsx</code></td>
+      <td>HerdButton, HerdChip, HerdDot, HerdEmptyState, HerdKey, HerdNotice, HerdPageHeader, HerdSectionLabel, herdEnterStyles, useHerdWideLayout</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sheet</td>
+      <td><code>sources/components/herd/pages/HerdSheet.tsx</code></td>
+      <td>HerdSheet, useSheetEscapeKeydown</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/HerdTimeline.tsx</code></td>
+      <td>HerdTimelineGroup</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/SettingsFrame.tsx</code></td>
+      <td>SETTINGS_ABOUT_LINKS, SETTINGS_FRAME_MIN_WIDTH, SETTINGS_SECTIONS, SettingsFrame, SettingsNav, SettingsSectionList, useSettingsFrameAction, useSettingsFrameVisible, withSettingsFrame</td>
+      <td>15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/pages/SettingsServerButton.tsx</code></td>
+      <td>SettingsServerButton</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/herd/panels/PanelGrip.tsx</code></td>
+      <td>HerdPanelGrip</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/herd/panels/PanelIconButton.tsx</code></td>
+      <td>HerdPanelIconButton</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/herd/panels/PanelOverlay.tsx</code></td>
+      <td>HERD_PHONE_SHEET_LEFTOVER, HerdPanelScrim, resolveHerdSheetWidth, useHerdOverlayEscape</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/herd/panels/PanelScreenHeader.tsx</code></td>
+      <td>HerdPanelScreenHeader</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/herd/panels/PanelTab.tsx</code></td>
+      <td>HerdCountBadge, HerdLineCounts, HerdPanelTab</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/SegmentedControl.tsx</code></td>
+      <td>HerdSegmentedControl</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/Collapse.tsx</code></td>
+      <td>HerdCollapse</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/ComposerChips.tsx</code></td>
+      <td>ComposerChip, ComposerChipPopover, ContextMeter</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/HeaderButton.tsx</code></td>
+      <td>HerdHeaderButton</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/SessionHeaderActions.tsx</code></td>
+      <td>SessionHeaderActions</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/ToolLine.tsx</code></td>
+      <td>ToolLine, ToolLineStateIcon, ToolLineStatsText</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/session/toolLineModel.ts</code></td>
+      <td>formatToolSeconds, resolveToolLineStats, resolveToolLineText</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdConnectionStatus.tsx</code></td>
+      <td>HerdConnectionStatus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdHeaderIconButton.tsx</code></td>
+      <td>HerdHeaderIconButton</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdInboxBell.tsx</code></td>
+      <td>HerdInboxBell</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdMachineMenu.tsx</code></td>
+      <td>HerdMachineMenu, machineLabel, orderMachinesForMenu, resolveMachinePillState</td>
+      <td>9</td>
+      <td>loading, offline</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdMaskImage.tsx</code></td>
+      <td>HerdMaskImage</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/herd/shell/HerdMaskImage.web.tsx</code></td>
+      <td>HerdMaskImage, herdMaskImageUri</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdPhoneDrawer.tsx</code></td>
+      <td>HERD_PHONE_DRAWER_EDGE, HERD_PHONE_DRAWER_SWIPE_DISTANCE, HERD_PHONE_DRAWER_SWIPE_VELOCITY, HerdPhoneDrawer, herdPhoneDrawerWidth</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdPhoneTopBar.tsx</code></td>
+      <td>HerdPhoneTopBar</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdSessionRowParts.tsx</code></td>
+      <td>HerdRowMoreButton, HerdRowSelection, herdRowDataSet, isTouchOnlyWeb, useHerdRowLongPress</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdShellIcon.tsx</code></td>
+      <td>HerdShellIcon</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sidebar</td>
+      <td><code>sources/components/herd/shell/HerdSidebarEdgeToggle.tsx</code></td>
+      <td>HERD_SIDEBAR_EDGE_TOGGLE_COLLAPSED_LEFT, HERD_SIDEBAR_EDGE_TOGGLE_HEIGHT, HERD_SIDEBAR_EDGE_TOGGLE_WIDTH, HerdSidebarEdgeToggle, resolveHerdSidebarEdgeToggleLeft</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/herd/shell/HerdTooltip.web.tsx</code></td>
+      <td>HerdTooltip</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdTopBar.tsx</code></td>
+      <td>HERD_TOP_BAR_COMPACT_WIDTH, HerdTopBar</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/herd/shell/HerdTopBarIconButton.tsx</code></td>
+      <td>HerdTopBarIconButton</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sidebar</td>
+      <td><code>sources/components/herd/shell/sidebarTransition.tsx</code></td>
+      <td>HERD_SIDEBAR_EXIT_MS, HerdSidebarFrame, HerdSidebarPhaseContext, useHerdSidebarTransition</td>
       <td>0</td>
       <td>—</td>
     </tr>
@@ -1188,14 +1584,14 @@
       <td>component</td>
       <td><code>sources/components/InboxView.tsx</code></td>
       <td>InboxView</td>
-      <td>7</td>
+      <td>8</td>
       <td>—</td>
     </tr>
     <tr>
       <td>component</td>
       <td><code>sources/components/InlineCommentReview.web.tsx</code></td>
       <td>InlineCommentReview, InlineCommentThread</td>
-      <td>14</td>
+      <td>15</td>
       <td>loading</td>
     </tr>
     <tr>
@@ -1230,7 +1626,7 @@
       <td>component</td>
       <td><code>sources/components/LocalhostLiveView.web.tsx</code></td>
       <td>LocalhostLiveView, workspaceLivePickFromMessage</td>
-      <td>0</td>
+      <td>1</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1257,7 +1653,7 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/MachinePathBrowser.tsx</code></td>
-      <td>MachinePathBrowser</td>
+      <td>MachinePathBrowser, useMachinePathTree</td>
       <td>14</td>
       <td>—</td>
     </tr>
@@ -1272,7 +1668,7 @@
       <td>component</td>
       <td><code>sources/components/MainView.tsx</code></td>
       <td>MainView</td>
-      <td>12</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1412,7 +1808,7 @@
       <td>component</td>
       <td><code>sources/components/navigation/Header.tsx</code></td>
       <td>Header, createHeader, createPlainHeader</td>
-      <td>0</td>
+      <td>1</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1517,7 +1913,7 @@
       <td>panel</td>
       <td><code>sources/components/QueuedMessagesPanel.tsx</code></td>
       <td>QueuedMessagesPanel</td>
-      <td>2</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1627,15 +2023,22 @@
     </tr>
     <tr>
       <td>component</td>
-      <td><code>sources/components/SettingsView.tsx</code></td>
-      <td>SettingsView</td>
-      <td>57</td>
-      <td>offline</td>
+      <td><code>sources/components/SettingsAboutView.tsx</code></td>
+      <td>SettingsAboutView</td>
+      <td>15</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>component</td>
-      <td><code>sources/components/SettingsViewWrapper.tsx</code></td>
-      <td>SettingsViewWrapper</td>
+      <td><code>sources/components/SettingsProfileCard.tsx</code></td>
+      <td>SettingsProfileCard</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SettingsView.tsx</code></td>
+      <td>SettingsView</td>
       <td>0</td>
       <td>—</td>
     </tr>
@@ -1692,7 +2095,7 @@
       <td>sidebar</td>
       <td><code>sources/components/SidebarNavigator.tsx</code></td>
       <td>SidebarNavigator</td>
-      <td>4</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1742,13 +2145,6 @@
       <td><code>sources/components/SyntaxText.tsx</code></td>
       <td>SyntaxText</td>
       <td>0</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>component</td>
-      <td><code>sources/components/TabBar.tsx</code></td>
-      <td>MOBILE_TAB_BAR_CONTENT_INSET, TabBar</td>
-      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1811,7 +2207,7 @@
       <td>component</td>
       <td><code>sources/components/tools/ToolView.tsx</code></td>
       <td>ToolView</td>
-      <td>2</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1943,8 +2339,8 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/tools/views/TodoView.tsx</code></td>
-      <td>TodoView</td>
-      <td>0</td>
+      <td>TodoView, readTodos</td>
+      <td>1</td>
       <td>—</td>
     </tr>
     <tr>

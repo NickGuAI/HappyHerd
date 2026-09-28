@@ -16,7 +16,7 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useFocusMode } from '@/hooks/useFocusMode';
-import { useIsTablet } from '@/utils/responsive';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import {
     type SessionListViewItem,
     useAllMachines,
@@ -86,17 +86,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     archiveHeader: {
         backgroundColor: flatListBackgroundColor(theme),
-        paddingHorizontal: 16,
-        paddingTop: 20,
-        paddingBottom: 8,
+        paddingHorizontal: 18,
+        paddingTop: 16,
+        paddingBottom: 6,
     },
     botSection: {
         paddingTop: 8,
     },
     botHeader: {
-        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
-        paddingTop: 8,
-        paddingBottom: 8,
+        paddingHorizontal: Platform.select({ ios: 32, default: 18 }),
+        paddingTop: 10,
+        paddingBottom: 6,
     },
     archiveToggle: {
         flexDirection: 'row',
@@ -120,12 +120,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
     },
+    // Mono section labels, as the rest of the fluid shell uses.
     headerText: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 11,
         color: theme.colors.groupped.sectionTitle,
-        letterSpacing: 0.1,
-        ...Typography.default('semiBold'),
+        letterSpacing: 1.6,
+        textTransform: 'uppercase',
+        ...Typography.mono(),
     },
     machineHeader: {
         flexDirection: 'row',
@@ -211,11 +212,12 @@ export function SessionsList({
     const focus = useFocusMode();
     const machines = useAllMachines();
     const pathname = usePathname();
-    const isTablet = useIsTablet();
+    // The desktop panel marks the open session; the phone layout (UI overhaul) does not.
+    const phoneLayout = useHerdPhoneLayout();
     const selectedSessionId = React.useMemo<string | undefined>(() => {
-        if (!isTablet || !pathname.startsWith('/session/')) return undefined;
+        if (phoneLayout || !pathname.startsWith('/session/')) return undefined;
         return pathname.split('/')[2];
-    }, [isTablet, pathname]);
+    }, [phoneLayout, pathname]);
 
     React.useEffect(() => {
         if (sourceData && sourceData.length > 0) requestReview();
@@ -368,7 +370,7 @@ export function SessionsList({
         }
     }, []);
 
-    const renderItem = React.useCallback(({ item }: { item: SessionListDisplayItem }) => {
+    const renderItem = React.useCallback(({ item, index }: { item: SessionListDisplayItem; index: number }) => {
         switch (item.type) {
             case 'personal-project':
             case 'bots':
@@ -379,12 +381,12 @@ export function SessionsList({
                                 {item.type === 'bots' ? t('sessions.bots') : item.group.name ?? t('projects.noProject')}
                             </Text>
                         </View>
-                        {(item.type === 'bots' ? item.sessions : item.group.sessions).map((session, index, sessions) => (
+                        {(item.type === 'bots' ? item.sessions : item.group.sessions).map((session, rowIndex) => (
                             <FlatSessionRow
                                 key={session.id}
                                 row={toFlatSessionRow(session)}
                                 selected={session.id === selectedSessionId}
-                                showBorder={index < sessions.length - 1}
+                                entranceIndex={index + rowIndex}
                             />
                         ))}
                     </View>
@@ -396,9 +398,9 @@ export function SessionsList({
                     <FlatSessionRow
                         row={item.row}
                         selected={item.row.session.id === selectedSessionId}
-                        showBorder={!item.last}
                         archived={item.archived}
                         pinned={item.pinned}
+                        entranceIndex={index}
                     />
                 );
             case 'archive-toggle':

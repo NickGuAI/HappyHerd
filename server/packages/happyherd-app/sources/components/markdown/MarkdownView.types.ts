@@ -14,8 +14,12 @@ export type MarkdownLineCommentAnchor = Readonly<{
 
 export type MarkdownViewProps = {
     markdown: string;
-    /** Chat replies share the warm KILV island; file previews retain the page palette. */
-    tone?: 'default' | 'island';
+    /**
+     * Chat replies share the warm KILV island on native; Web chat replies use
+     * `reply` (theme palette on the chat background with molten accents). File
+     * previews retain the page palette.
+     */
+    tone?: 'default' | 'island' | 'reply';
     /** Optional block alignment supplied by a visual host such as a Human message bubble. */
     textAlign?: 'left' | 'center' | 'right';
     onOptionPress?: (option: Option) => void;

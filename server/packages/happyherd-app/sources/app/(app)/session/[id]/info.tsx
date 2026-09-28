@@ -6,10 +6,11 @@ import { CommonActions, StackActions, useNavigation } from '@react-navigation/na
 import { Ionicons } from '@expo/vector-icons';
 import { randomUUID } from 'expo-crypto';
 import { Typography } from '@/constants/Typography';
-import { Item } from '@/components/Item';
-import { ItemGroup } from '@/components/ItemGroup';
+import { HerdItem as Item, HerdItemGroup as ItemGroup, HerdListHeader, HerdValueItem } from '@/components/herd/pages/HerdList';
+import { HerdButton, HerdDot, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
+import { SessionStatusAvatar } from '@/components/SessionStatusAvatar';
 import { ItemList } from '@/components/ItemList';
-import { storage, useProjects, useSession, useIsDataReady } from '@/sync/storage';
+import { storage, useMachine, useProjects, useSession, useIsDataReady } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
@@ -27,7 +28,6 @@ import { HappyHerdError } from '@/utils/errors';
 import { getRigIdentity, isRigMetadata, rigCanBrowseFiles, rigCanUseShell } from '@/sync/rig';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { isRunningOnMac } from '@/utils/platform';
-import { ProviderIcon } from '@/components/ProviderIcon';
 import {
     HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
     type HappyHerdHeartbeatControlResponse,
@@ -74,6 +74,34 @@ function formatSandboxMetadata(sandbox: unknown, homeDir?: string): string {
     return parts.join(' | ');
 }
 
+/** The session's provider as the page names it (the AI Provider row and the header line). */
+function sessionProviderName(metadata: NonNullable<Session['metadata']>): string {
+    const rigIdentity = getRigIdentity(metadata);
+    if (rigIdentity) return rigIdentity.providerName;
+    const flavor = metadata.flavor || 'claude';
+    if (flavor === 'claude') return 'Claude';
+    if (flavor === 'codex' || flavor === 'gpt' || flavor === 'openai') return 'Codex';
+    if (flavor === 'gemini') return 'Gemini';
+    if (flavor === 'grok') return t('agentInput.agent.grok');
+    if (flavor === 'dsh') return t('agentInput.agent.dsh');
+    return flavor;
+}
+
+function shortId(id: string): string {
+    return `${id.substring(0, 8)}...${id.substring(id.length - 8)}`;
+}
+
+/** Copies `text`; reports a failure with `failureKey` and returns whether it copied. */
+async function copyWithFailureAlert(text: string, failureMessage: string): Promise<boolean> {
+    try {
+        await Clipboard.setStringAsync(text);
+        return true;
+    } catch {
+        Modal.alert(t('common.error'), failureMessage);
+        return false;
+    }
+}
+
 function SessionInfoContent({ session }: { session: Session }) {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -83,6 +111,14 @@ function SessionInfoContent({ session }: { session: Session }) {
     const projectName = session.projectId ? projects[session.projectId]?.name : null;
     const devModeEnabled = __DEV__;
     const sessionStatus = useSessionStatus(session);
+    const wide = useHerdWideLayout();
+    const machine = useMachine(session.metadata?.machineId ?? '');
+    const machineLabel = machine?.metadata?.displayName || machine?.metadata?.host || session.metadata?.host || null;
+    const headerLine = session.metadata ? [
+        formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir),
+        sessionProviderName(session.metadata),
+        machineLabel,
+    ].filter(Boolean).join(' · ') : null;
     const canOpenChanges = (Platform.OS === 'web' || isRunningOnMac())
         && rigCanBrowseFiles(session.metadata)
         && rigCanUseShell(session.metadata);
@@ -170,16 +206,6 @@ function SessionInfoContent({ session }: { session: Session }) {
 
     // Check if CLI version is outdated
     const isCliOutdated = session.metadata?.version && !isVersionSupported(session.metadata.version, MINIMUM_CLI_VERSION);
-
-    const handleCopySessionId = useCallback(async () => {
-        if (!session) return;
-        try {
-            await Clipboard.setStringAsync(session.id);
-            Modal.alert(t('common.success'), t('sessionInfo.happySessionIdCopied'));
-        } catch (error) {
-            Modal.alert(t('common.error'), t('sessionInfo.failedToCopySessionId'));
-        }
-    }, [session]);
 
     const handleCopyMetadata = useCallback(() => {
         void copySessionMetadataToClipboard(session);
@@ -296,6 +322,42 @@ function SessionInfoContent({ session }: { session: Session }) {
                     paddingTop: Platform.OS === 'ios' ? MOBILE_GLASS_HEADER_HEIGHT : 0,
                 }}
             >
+                {/* The session's title row: back on wide layouts, its status avatar, name and "path · provider · machine" (the mock's page head). */}
+                <HerdListHeader testID="session-info-header">
+                    <HerdPageHeader
+                        compact={!wide}
+                        title={wide ? getSessionName(session) : undefined}
+                        titleStyle={{ fontSize: 22, lineHeight: 28 }}
+                        subtitle={headerLine}
+                        subtitleMono
+                        leading={(
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                {wide ? (
+                                    <HerdButton
+                                        icon="arrow-back"
+                                        variant="ghost"
+                                        accessibilityLabel={t('common.back')}
+                                        onPress={() => (router.canGoBack() ? router.back() : router.replace(`/session/${session.id}`))}
+                                        testID="session-info-back"
+                                    />
+                                ) : null}
+                                <SessionStatusAvatar
+                                    active={session.active}
+                                    botId={session.metadata?.bot ? session.metadata.bot.id ?? null : null}
+                                    clientId={session.metadata?.client?.id ?? null}
+                                    commanderId={session.metadata?.commanderId ?? null}
+                                    commanderName={session.metadata?.commanderName ?? null}
+                                    flavor={session.metadata?.flavor ?? null}
+                                    hasDraft={false}
+                                    hasUnread={false}
+                                    machineId={session.metadata?.machineId ?? null}
+                                    size={52}
+                                    state={sessionStatus.state}
+                                />
+                            </View>
+                        )}
+                    />
+                </HerdListHeader>
                 {/* Quick Actions */}
                 <ItemGroup title={t('sessionInfo.quickActions')}>
                     <Item
@@ -357,6 +419,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                     <Item
                         title={t('sessionInfo.archiveSession')}
                         subtitle={t('sessionInfo.archiveSessionSubtitle')}
+                        destructive
                         icon={<Ionicons name="archive-outline" size={29} color={theme.colors.textDestructive} />}
                         onPress={handleArchiveSession}
                         loading={archivingSession}
@@ -365,6 +428,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         <Item
                             title={t('sessionInfo.deleteSession')}
                             subtitle={t('sessionInfo.deleteSessionSubtitle')}
+                            destructive
                             icon={<Ionicons name="trash-outline" size={29} color={theme.colors.textDestructive} />}
                             onPress={handleDeleteSession}
                         />
@@ -394,76 +458,51 @@ function SessionInfoContent({ session }: { session: Session }) {
                         icon={<Ionicons name="albums-outline" size={29} color={theme.colors.textLink} />}
                         onPress={() => router.push(`/session/${session.id}/project` as any)}
                     />
-                    <Item
+                    <HerdValueItem
                         title={t('sessionInfo.happySessionId')}
-                        subtitle={`${session.id.substring(0, 8)}...${session.id.substring(session.id.length - 8)}`}
-                        icon={<Ionicons name="finger-print-outline" size={29} color={theme.colors.textLink} />}
-                        onPress={handleCopySessionId}
+                        value={shortId(session.id)}
+                        mono
+                        onCopy={() => copyWithFailureAlert(session.id, t('sessionInfo.failedToCopySessionId'))}
+                        testID="session-info-happyherd-id"
                     />
                     {session.metadata?.claudeSessionId && (
-                        <Item
+                        <HerdValueItem
                             title={t('sessionInfo.claudeCodeSessionId')}
-                            subtitle={`${session.metadata.claudeSessionId.substring(0, 8)}...${session.metadata.claudeSessionId.substring(session.metadata.claudeSessionId.length - 8)}`}
-                            icon={<Ionicons name="code-outline" size={29} color={theme.colors.textLink} />}
-                            onPress={async () => {
-                                try {
-                                    await Clipboard.setStringAsync(session.metadata!.claudeSessionId!);
-                                    Modal.alert(t('common.success'), t('sessionInfo.claudeCodeSessionIdCopied'));
-                                } catch (error) {
-                                    Modal.alert(t('common.error'), t('sessionInfo.failedToCopyClaudeCodeSessionId'));
-                                }
-                            }}
+                            value={shortId(session.metadata.claudeSessionId)}
+                            mono
+                            onCopy={() => copyWithFailureAlert(session.metadata!.claudeSessionId!, t('sessionInfo.failedToCopyClaudeCodeSessionId'))}
+                            testID="session-info-claude-id"
                         />
                     )}
                     {session.metadata?.codexThreadId && (
-                        <Item
+                        <HerdValueItem
                             title={t('sessionInfo.codexThreadId')}
-                            subtitle={`${session.metadata.codexThreadId.substring(0, 8)}...${session.metadata.codexThreadId.substring(session.metadata.codexThreadId.length - 8)}`}
-                            icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
-                            onPress={async () => {
-                                try {
-                                    await Clipboard.setStringAsync(session.metadata!.codexThreadId!);
-                                    Modal.alert(t('common.success'), t('sessionInfo.codexThreadIdCopied'));
-                                } catch (error) {
-                                    Modal.alert(t('common.error'), t('sessionInfo.failedToCopyCodexThreadId'));
-                                }
-                            }}
+                            value={shortId(session.metadata.codexThreadId)}
+                            mono
+                            onCopy={() => copyWithFailureAlert(session.metadata!.codexThreadId!, t('sessionInfo.failedToCopyCodexThreadId'))}
+                            testID="session-info-codex-id"
                         />
                     )}
                     {/* Resume command — shown for disconnected sessions with a backend session ID */}
                     {/* TODO: migrate to `happyherd resume <happyherd-session-id>` once it works without happyherd-control-agent auth */}
                     {!sessionStatus.isConnected && getResumeCommand(session) && (
-                        <CopyableItem
+                        <HerdValueItem
                             title={t("uiCopy.resumeCommand")}
-                            subtitle={getResumeCommand(session)!}
-                            icon={<Ionicons name="play-circle-outline" size={29} color={theme.colors.success} />}
+                            value={getResumeCommand(session)!}
+                            mono
                             copyText={getResumeCommand(session)!}
+                            testID="session-info-resume-command"
                         />
                     )}
-                    <Item
+                    <HerdValueItem
                         title={t('sessionInfo.connectionStatus')}
-                        detail={sessionStatus.isConnected ? t('status.online') : t('status.offline')}
-                        icon={<Ionicons name="pulse-outline" size={29} color={sessionStatus.isConnected ? theme.colors.success : theme.colors.textSecondary} />}
-                        showChevron={false}
+                        value={sessionStatus.isConnected ? t('status.online') : t('status.offline')}
+                        prefix={<HerdDot tone={sessionStatus.isConnected ? 'ok' : 'off'} />}
+                        testID="session-info-connection"
                     />
-                    <Item
-                        title={t('sessionInfo.created')}
-                        subtitle={formatDate(session.createdAt)}
-                        icon={<Ionicons name="calendar-outline" size={29} color={theme.colors.textLink} />}
-                        showChevron={false}
-                    />
-                    <Item
-                        title={t('sessionInfo.lastUpdated')}
-                        subtitle={formatDate(session.updatedAt)}
-                        icon={<Ionicons name="time-outline" size={29} color={theme.colors.textLink} />}
-                        showChevron={false}
-                    />
-                    <Item
-                        title={t('sessionInfo.sequence')}
-                        detail={session.seq.toString()}
-                        icon={<Ionicons name="git-commit-outline" size={29} color={theme.colors.textLink} />}
-                        showChevron={false}
-                    />
+                    <HerdValueItem title={t('sessionInfo.created')} value={formatDate(session.createdAt)} />
+                    <HerdValueItem title={t('sessionInfo.lastUpdated')} value={formatDate(session.updatedAt)} />
+                    <HerdValueItem title={t('sessionInfo.sequence')} value={session.seq.toString()} mono />
                 </ItemGroup>
 
                 {heartbeatSupported && (
@@ -567,103 +606,69 @@ function SessionInfoContent({ session }: { session: Session }) {
                 {/* Metadata */}
                 {session.metadata && (
                     <ItemGroup title={t('sessionInfo.metadata')}>
-                        <Item
-                            title={t('sessionInfo.host')}
-                            subtitle={session.metadata.host}
-                            icon={<Ionicons name="desktop-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
-                        />
-                        <Item
+                        <HerdValueItem title={t('sessionInfo.host')} value={session.metadata.host} mono />
+                        <HerdValueItem
                             title={t('sessionInfo.path')}
-                            subtitle={formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
-                            icon={<Ionicons name="folder-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
+                            value={formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
+                            mono
                         />
                         {session.metadata.version && (
-                            <Item
+                            <HerdValueItem
                                 title={t('sessionInfo.cliVersion')}
-                                subtitle={session.metadata.version}
-                                detail={isCliOutdated ? '⚠️' : undefined}
-                                icon={<Ionicons name="git-branch-outline" size={29} color={isCliOutdated ? theme.colors.warning : theme.colors.textLink} />}
-                                showChevron={false}
+                                value={session.metadata.version}
+                                mono
+                                trailing={isCliOutdated ? <Ionicons name="warning-outline" size={15} color={theme.colors.warning} /> : undefined}
+                                valueStyle={isCliOutdated ? { color: theme.colors.warning } : undefined}
                             />
                         )}
                         {session.metadata.os && (
-                            <Item
-                                title={t('sessionInfo.operatingSystem')}
-                                subtitle={formatOSPlatform(session.metadata.os)}
-                                icon={<Ionicons name="hardware-chip-outline" size={29} color={theme.colors.textLink} />}
-                                showChevron={false}
-                            />
+                            <HerdValueItem title={t('sessionInfo.operatingSystem')} value={formatOSPlatform(session.metadata.os)} />
                         )}
                         {isRigMetadata(session.metadata) && (
-                            <Item
+                            <HerdValueItem
                                 title={t("uiCopy.client")}
-                                subtitle={`${session.metadata.client?.name ?? DEFAULT_RIG_NAME}${session.metadata.client?.version ? ` ${session.metadata.client.version}` : ''}`}
-                                icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
-                                showChevron={false}
+                                value={`${session.metadata.client?.name ?? DEFAULT_RIG_NAME}${session.metadata.client?.version ? ` ${session.metadata.client.version}` : ''}`}
                             />
                         )}
-                        <Item
-                            title={t('sessionInfo.aiProvider')}
-                            subtitle={(() => {
-                                const rigIdentity = getRigIdentity(session.metadata);
-                                if (rigIdentity) return rigIdentity.providerName;
-                                const flavor = session.metadata.flavor || 'claude';
-                                if (flavor === 'claude') return 'Claude';
-                                if (flavor === 'gpt' || flavor === 'openai') return 'Codex';
-                                if (flavor === 'gemini') return 'Gemini';
-                                if (flavor === 'grok') return t('agentInput.agent.grok');
-                                if (flavor === 'dsh') return t('agentInput.agent.dsh');
-                                return flavor;
-                            })()}
-                            icon={session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh'
-                                ? <ProviderIcon kind={session.metadata.flavor} size={29} />
-                                : <Ionicons name="sparkles-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
-                        />
+                        <HerdValueItem title={t('sessionInfo.aiProvider')} value={sessionProviderName(session.metadata)} />
                         {(getRigIdentity(session.metadata)?.modelName || (
                             (session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh')
                             && session.metadata.currentModelCode
                         )) && (
-                            <Item
+                            <HerdValueItem
                                 title={t("uiCopy.model")}
-                                subtitle={getRigIdentity(session.metadata)?.modelName
+                                value={getRigIdentity(session.metadata)?.modelName
                                     ?? session.metadata?.models?.find((model) => model.code === session.metadata?.currentModelCode)?.value
                                     ?? session.metadata?.currentModelCode}
-                                icon={<Ionicons name="hardware-chip-outline" size={29} color={theme.colors.textLink} />}
-                                showChevron={false}
+                                mono
                             />
                         )}
-                        {!isRigMetadata(session.metadata) && <Item
-                            title={t("uiCopy.sandbox")}
-                            subtitle={formatSandboxMetadata(session.metadata.sandbox, session.metadata.homeDir)}
-                            icon={<Ionicons name="shield-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
-                        />}
-                        {!isRigMetadata(session.metadata) && <Item
-                            title={t("uiCopy.dangerouslySkipPermissions")}
-                            subtitle={formatDangerouslySkipPermissionsMetadata(
-                                session.metadata.dangerouslySkipPermissions,
-                                session.permissionMode,
-                            )}
-                            icon={<Ionicons name="warning-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
-                        />}
-                        {session.metadata.hostPid && (
-                            <Item
-                                title={t('sessionInfo.processId')}
-                                subtitle={session.metadata.hostPid.toString()}
-                                icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />}
-                                showChevron={false}
+                        {!isRigMetadata(session.metadata) && (
+                            <HerdValueItem
+                                title={t("uiCopy.sandbox")}
+                                value={formatSandboxMetadata(session.metadata.sandbox, session.metadata.homeDir)}
+                                mono
+                                valueLines={2}
                             />
+                        )}
+                        {!isRigMetadata(session.metadata) && (
+                            <HerdValueItem
+                                title={t("uiCopy.dangerouslySkipPermissions")}
+                                value={formatDangerouslySkipPermissionsMetadata(
+                                    session.metadata.dangerouslySkipPermissions,
+                                    session.permissionMode,
+                                )}
+                                valueLines={2}
+                            />
+                        )}
+                        {session.metadata.hostPid && (
+                            <HerdValueItem title={t('sessionInfo.processId')} value={session.metadata.hostPid.toString()} mono />
                         )}
                         {session.metadata.happyHomeDir && (
-                            <Item
+                            <HerdValueItem
                                 title={t('sessionInfo.happyherdHome')}
-                                subtitle={formatPathRelativeToHome(session.metadata.happyHomeDir, session.metadata.homeDir)}
-                                icon={<Ionicons name="home-outline" size={29} color={theme.colors.textLink} />}
-                                showChevron={false}
+                                value={formatPathRelativeToHome(session.metadata.happyHomeDir, session.metadata.homeDir)}
+                                mono
                             />
                         )}
                         <Item
@@ -682,18 +687,15 @@ function SessionInfoContent({ session }: { session: Session }) {
                 {/* Agent State */}
                 {session.agentState && session.metadata?.client?.id !== 'rig' && (
                     <ItemGroup title={t('sessionInfo.agentState')}>
-                        <Item
+                        <HerdValueItem
                             title={t('sessionInfo.controlledByUser')}
-                            detail={session.agentState.controlledByUser ? t('common.yes') : t('common.no')}
-                            icon={<Ionicons name="person-outline" size={29} color={theme.colors.warning} />}
-                            showChevron={false}
+                            value={session.agentState.controlledByUser ? t('common.yes') : t('common.no')}
                         />
                         {session.agentState.requests && Object.keys(session.agentState.requests).length > 0 && (
-                            <Item
+                            <HerdValueItem
                                 title={t('sessionInfo.pendingRequests')}
-                                detail={Object.keys(session.agentState.requests).length.toString()}
-                                icon={<Ionicons name="hourglass-outline" size={29} color={theme.colors.warning} />}
-                                showChevron={false}
+                                value={Object.keys(session.agentState.requests).length.toString()}
+                                mono
                             />
                         )}
                     </ItemGroup>
@@ -701,39 +703,30 @@ function SessionInfoContent({ session }: { session: Session }) {
 
                 {/* Activity */}
                 <ItemGroup title={t('sessionInfo.activity')}>
-                    <Item
+                    <HerdValueItem
                         title={t('sessionInfo.thinking')}
-                        detail={session.thinking ? t('common.yes') : t('common.no')}
-                        icon={<Ionicons name="bulb-outline" size={29} color={session.thinking ? theme.colors.warning : theme.colors.textSecondary} />}
-                        showChevron={false}
+                        value={session.thinking ? t('common.yes') : t('common.no')}
                     />
                     {session.thinking && (
-                        <Item
-                            title={t('sessionInfo.thinkingSince')}
-                            subtitle={formatDate(session.thinkingAt)}
-                            icon={<Ionicons name="timer-outline" size={29} color={theme.colors.warning} />}
-                            showChevron={false}
-                        />
+                        <HerdValueItem title={t('sessionInfo.thinkingSince')} value={formatDate(session.thinkingAt)} />
                     )}
                     {(session.metadata?.activity?.subagents.running ?? 0) + (session.metadata?.activity?.subagents.queued ?? 0) > 0 && (
-                        <Item
+                        <HerdValueItem
                             title={t("uiCopy.subagents")}
-                            detail={t('uiCopy.runningAndQueued', {
+                            value={t('uiCopy.runningAndQueued', {
                                 value1: session.metadata!.activity!.subagents.running,
                                 value2: session.metadata!.activity!.subagents.queued,
                             })}
-                            icon={<Ionicons name="people-outline" size={29} color={theme.colors.textLink} />}
-                            showChevron={false}
                         />
                     )}
                     {(session.metadata?.activity?.workflows.running ?? 0) > 0 && (
-                        <Item title={t("uiCopy.workflows")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.workflows.running })} icon={<Ionicons name="git-network-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                        <HerdValueItem title={t("uiCopy.workflows")} value={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.workflows.running })} />
                     )}
                     {(session.metadata?.activity?.processes.running ?? 0) > 0 && (
-                        <Item title={t("uiCopy.backgroundProcesses")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.processes.running })} icon={<Ionicons name="terminal-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                        <HerdValueItem title={t("uiCopy.backgroundProcesses")} value={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.processes.running })} />
                     )}
                     {(session.metadata?.activity?.tasks.pending ?? 0) + (session.metadata?.activity?.tasks.inProgress ?? 0) > 0 && (
-                        <Item title={t("uiCopy.tasks")} detail={t('uiCopy.inProgressAndPending', { value1: session.metadata!.activity!.tasks.inProgress, value2: session.metadata!.activity!.tasks.pending })} icon={<Ionicons name="checkbox-outline" size={29} color={theme.colors.textLink} />} showChevron={false} />
+                        <HerdValueItem title={t("uiCopy.tasks")} value={t('uiCopy.inProgressAndPending', { value1: session.metadata!.activity!.tasks.inProgress, value2: session.metadata!.activity!.tasks.pending })} />
                     )}
                 </ItemGroup>
 
@@ -748,7 +741,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify(session.agentState, null, 2)}
                                         language="json"
                                     />
@@ -763,7 +756,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify(session.metadata, null, 2)}
                                         language="json"
                                     />
@@ -778,7 +771,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                                     showChevron={false}
                                 />
                                 <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                                    <CodeView 
+                                    <CodeView
                                         code={JSON.stringify({
                                             isConnected: sessionStatus.isConnected,
                                             statusText: sessionStatus.statusText,
@@ -798,7 +791,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             showChevron={false}
                         />
                         <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
-                            <CodeView 
+                            <CodeView
                                 code={JSON.stringify(session, null, 2)}
                                 language="json"
                             />
@@ -820,7 +813,9 @@ export default React.memo(() => {
         : isDataReady
             ? t('errors.sessionDeleted')
             : '';
-    const screenOptions = <Stack.Screen options={{ headerTitle: screenTitle }} />;
+    const wide = useHerdWideLayout();
+    // With a session, wide web draws the title in the page, so the stack header steps aside.
+    const screenOptions = <Stack.Screen options={{ headerTitle: screenTitle, headerShown: !(wide && session) }} />;
 
     // Handle three states: loading, deleted, and exists
     if (!isDataReady) {
@@ -857,22 +852,3 @@ export default React.memo(() => {
         </>
     );
 });
-
-function CopyableItem({ title, subtitle, icon, copyText }: { title: string; subtitle: string; icon: React.ReactNode; copyText: string }) {
-    const { theme } = useUnistyles();
-    const [copied, setCopied] = React.useState(false);
-    return (
-        <Item
-            title={title}
-            subtitle={subtitle}
-            icon={icon}
-            showChevron={false}
-            rightElement={<Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? theme.colors.success : theme.colors.textSecondary} />}
-            onPress={async () => {
-                await Clipboard.setStringAsync(copyText);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            }}
-        />
-    );
-}

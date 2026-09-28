@@ -6,6 +6,7 @@ import type { ToolCall } from '@/sync/typesMessage';
 import type { AgentFormCommunication } from '@/sync/agentCommunications';
 
 const settings = vi.hoisted(() => ({ compact: false, platform: 'ios', width: 390, communication: null as AgentFormCommunication | null }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('react-native', async () => {
     const React = await import('react');
     const host = (name: string) => (props: any) => React.createElement(name, props, props.children);
@@ -24,7 +25,7 @@ vi.mock('react-native-unistyles', async () => {
     };
 });
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null, Octicons: () => null }));
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('expo-router', () => ({ useRouter: () => router }));
 vi.mock('@/sync/storage', () => ({
     useSetting: () => settings.compact, useLocalSetting: () => false, useSession: () => null,
     useSessionAgentFormCommunication: (_sessionId: string, toolUseId: string) =>
@@ -33,6 +34,7 @@ vi.mock('@/sync/storage', () => ({
 vi.mock('@/hooks/useElapsedTime', () => ({ useElapsedTime: () => 0 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('../layout', () => ({ layout: { maxWidth: 1200 } }));
+vi.mock('@/utils/responsive', () => ({ useIsTablet: () => settings.width > 700 }));
 vi.mock('../CodeView', async () => {
     const React = await import('react');
     return { CodeView: (props: any) => React.createElement('CodeView', props) };
@@ -67,9 +69,11 @@ vi.mock('./views/_all', async () => {
     const { isTerminalToolName } = await import('@/utils/toolDisplay');
     const { BashViewFull } = await import('./views/BashViewFull');
     const { CodexPatchViewFull } = await import('./views/CodexPatchView');
+    const { TodoView } = await import('./views/TodoView');
     return {
-        getToolViewComponent: (name: string) => ['apply_patch', 'CodexPatch', 'request_user_input', 'file'].includes(name)
-            ? () => React.createElement('SpecializedView', { name }) : null,
+        getToolViewComponent: (name: string) => name === 'TodoWrite' ? TodoView
+            : ['apply_patch', 'CodexPatch', 'request_user_input', 'file'].includes(name)
+                ? () => React.createElement('SpecializedView', { name }) : null,
         getToolFullViewComponent: (name: string) => isTerminalToolName(name) ? BashViewFull
             : name === 'apply_patch' ? CodexPatchViewFull : null,
     };
@@ -86,6 +90,8 @@ import { WriteView } from './views/WriteView';
 import { MultiEditView } from './views/MultiEditView';
 import { MultiEditViewFull } from './views/MultiEditViewFull';
 import { GeminiEditView } from './views/GeminiEditView';
+import { ToolLine } from '@/components/herd/session/ToolLine';
+import { HerdCollapse } from '@/components/herd/session/Collapse';
 
 const renderers: ReturnType<typeof create>[] = [];
 function render(element: React.ReactElement) {
@@ -113,7 +119,13 @@ afterEach(() => {
     settings.platform = 'ios';
     settings.width = 390;
     settings.communication = null;
+    router.push.mockClear();
 });
+
+function detailsLinks(row: ReturnType<typeof create>) {
+    return row.root.findAll((node: any) => node.type === 'TouchableOpacity'
+        && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'profile.details').length > 0);
+}
 
 describe('tool rendering on mobile and web', () => {
     it.each([
@@ -154,7 +166,14 @@ describe('tool rendering on mobile and web', () => {
         for (const name of ['write_stdin', 'kill_session', 'BashOutput', 'BashInput', 'BashStop', 'send_command_input', 'get_command_or_subagent_output', 'kill_command_or_subagent', 'create_agent', 'read_user_input', 'cancel_ask', 'future_tool']) {
             const row = render(React.createElement(ToolView, { tool: tool(name), metadata: null, sessionId: 's1', messageId: 'm1' }));
             expect(row.root.findAllByType('CodeView')).toHaveLength(0);
-            expect(row.root.findAllByType('TouchableOpacity')).toHaveLength(1);
+            if (platform === 'web') {
+                // Web renders the compact row as one pressable tool line (UI overhaul).
+                const lines = row.root.findAllByType(ToolLine);
+                expect(lines).toHaveLength(1);
+                expect(typeof lines[0].props.onPress).toBe('function');
+            } else {
+                expect(row.root.findAllByType('TouchableOpacity')).toHaveLength(1);
+            }
         }
     });
 
@@ -307,5 +326,86 @@ describe('tool rendering on mobile and web', () => {
         }));
         expect(row.root.findByType('CodeView').props.code).toBe(patch);
         expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+    });
+});
+
+describe('web tool rows (UI overhaul)', () => {
+    it('expands a compact patch row in place with its line stats', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const patch = '*** Begin Patch\n*** Update File: a.ts\n@@\n-old\n+new\n+more\n*** End Patch';
+        const row = render(React.createElement(ToolView, {
+            tool: tool('apply_patch', { patch }), metadata: null, sessionId: 's1', messageId: 'm1',
+        }));
+        const [line] = row.root.findAllByType(ToolLine);
+        expect(line.props).toMatchObject({ expandable: true, expanded: false, stats: { additions: 2, deletions: 1 }, state: 'completed' });
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(false);
+        act(() => line.props.onPress());
+        expect(row.root.findAllByType(ToolLine)[0].props.expanded).toBe(true);
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(true);
+        expect(row.root.findAllByType('SpecializedView')).toHaveLength(1);
+        act(() => row.root.findAllByType(ToolLine)[0].props.onPress());
+        expect(row.root.findByType(HerdCollapse).props.open).toBe(false);
+    });
+
+    it('keeps rows without an inline body navigable to the detail screen', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const row = render(React.createElement(ToolView, { tool: tool('future_tool'), metadata: null, sessionId: 's1', messageId: 'm1' }));
+        const [line] = row.root.findAllByType(ToolLine);
+        expect(line.props.expandable).toBe(false);
+        expect(typeof line.props.onPress).toBe('function');
+        expect(row.root.findAllByType(HerdCollapse)).toHaveLength(0);
+    });
+
+    it('draws a pending approval as a warning card with its input and choices', () => {
+        settings.platform = 'web';
+        settings.compact = true;
+        const pending = { ...tool('unknown', { path: '/sensitive' }), state: 'running' as const, permission: { id: 'p1', status: 'pending' as const } };
+        const row = render(React.createElement(ToolView, { tool: pending, metadata: null, sessionId: 's1' }));
+        const card = row.root.findAll((node: any) => node.props.testID === 'tool-permission-card');
+        expect(card.length).toBeGreaterThan(0);
+        expect(row.root.findAllByType(ToolLine)[0].props).toMatchObject({ variant: 'card', state: 'pending' });
+        expect(row.root.findAllByType('CodeView')).toHaveLength(1);
+        expect(row.root.findAllByType('PermissionFooter')).toHaveLength(1);
+    });
+
+    it('keeps todo, question and pending approval cards navigable to the detail screen', () => {
+        settings.platform = 'web';
+        settings.communication = {
+            id: 'text-form', toolUseId: 'text-call', kind: 'form', createdAt: 1, status: 'pending',
+            questions: [{
+                id: 'text', header: 'Details', question: 'What should change?', options: [],
+                multiSelect: false, allowCustom: true,
+            }],
+        };
+        const todos = { todos: [{ content: 'Reproduce the timeout', status: 'in_progress', id: '1' }] };
+        const cards = [
+            tool('TodoWrite', todos),
+            { ...tool('request_user_input', { prompt: 'What should change?' }), callId: 'text-call' },
+            { ...tool('unknown', { path: '/sensitive' }), state: 'running' as const, permission: { id: 'p1', status: 'pending' as const } },
+        ];
+        for (const card of cards) {
+            router.push.mockClear();
+            const row = render(React.createElement(ToolView, { tool: card, metadata: null, sessionId: 's1', messageId: 'm1' }));
+            // Todo lists and question forms render bare, without a tool line.
+            if (card.name !== 'unknown') {
+                expect(row.root.findAllByType(ToolLine)).toHaveLength(0);
+                expect(JSON.stringify(row.toJSON())).toMatch(card.name === 'TodoWrite' ? /Reproduce the timeout/ : /SpecializedView/);
+            }
+            const [link] = detailsLinks(row);
+            expect(link).toBeDefined();
+            act(() => link.props.onPress());
+            expect(router.push).toHaveBeenCalledWith('/session/s1/message/m1');
+        }
+    });
+
+    it('keeps an empty todo list visible as a tool line', () => {
+        settings.platform = 'web';
+        const row = render(React.createElement(ToolView, {
+            tool: tool('TodoWrite', { todos: [] }), metadata: null, sessionId: 's1', messageId: 'm1',
+        }));
+        expect(row.root.findAllByType(ToolLine)).toHaveLength(1);
+        expect(detailsLinks(row)).toHaveLength(1);
     });
 });
