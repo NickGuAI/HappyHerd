@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View, useWindowDimensions, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -24,33 +24,45 @@ export function HerdPageHeader({
     title,
     subtitle,
     subtitleMono = false,
+    subtitlePrefix,
     leading,
     actions,
     compact = false,
+    titleStyle,
     testID,
 }: {
     title?: string;
     subtitle?: string | null;
     subtitleMono?: boolean;
+    /** Drawn before the subtitle on its line, such as a status dot. */
+    subtitlePrefix?: React.ReactNode;
     leading?: React.ReactNode;
     actions?: React.ReactNode;
     compact?: boolean;
+    /** Entity pages (a machine, a session) set a smaller or mono title. */
+    titleStyle?: StyleProp<TextStyle>;
     testID?: string;
 }) {
+    const subtitleText = subtitle ? (
+        <Text style={[styles.subtitle, subtitleMono && styles.subtitleMono, !title && styles.subtitleAlone, subtitlePrefix ? styles.subtitleInline : null]}>
+            {subtitle}
+        </Text>
+    ) : null;
     return (
         <View testID={testID} style={[styles.head, compact && styles.headCompact]}>
             {leading ? <View style={styles.headLeading}>{leading}</View> : null}
             <View style={styles.headCopy}>
                 {title ? (
-                    <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact]} numberOfLines={2}>
+                    <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact, titleStyle]} numberOfLines={2}>
                         {title}
                     </Text>
                 ) : null}
-                {subtitle ? (
-                    <Text style={[styles.subtitle, subtitleMono && styles.subtitleMono, !title && styles.subtitleAlone]}>
-                        {subtitle}
-                    </Text>
-                ) : null}
+                {subtitleText && subtitlePrefix ? (
+                    <View style={[styles.subtitleRow, !title && styles.subtitleAlone]}>
+                        {subtitlePrefix}
+                        {subtitleText}
+                    </View>
+                ) : subtitleText}
             </View>
             {actions ? <View style={[styles.headActions, compact && styles.headActionsCompact]}>{actions}</View> : null}
         </View>
@@ -289,6 +301,16 @@ const styles = StyleSheet.create((theme) => ({
     },
     subtitleAlone: {
         marginTop: 0,
+    },
+    subtitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        marginTop: 6,
+    },
+    subtitleInline: {
+        marginTop: 0,
+        flexShrink: 1,
     },
     headActions: {
         flexDirection: 'row',
