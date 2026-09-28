@@ -608,3 +608,8 @@ UI_OVERHAUL_PROFILE_CARD	accepted	feat(app): lay the Settings profile out as the
 UI_OVERHAUL_PALETTE_NAVIGATION	accepted	feat(app): list the panel's destinations and Focus mode in the command palette	server/packages/happyherd-app/sources/components/CommandPalette/navigationCommands.test.ts
 UI_OVERHAUL_TOUCH_ROW_MORE	accepted	fix(app): keep the session row ⋯ visible on touch screens	server/packages/happyherd-app/sources/components/herd/shell/HerdRowMoreButton.test.ts
 UI_OVERHAUL_PROFILE_PALETTE_DOCS	accepted	docs(app): record the profile card, palette navigation and touch ⋯ for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_BRAND_MASKS	accepted	fix(app): draw the brand mark and Zen icon as CSS masks on web	server/packages/happyherd-app/sources/components/herd/shell/HerdMaskImage.test.ts
+UI_OVERHAUL_PALETTE_DEFAULT_ON	accepted	fix(app): turn the command palette and top bar search on by default	server/packages/happyherd-app/sources/sync/localSettings.test.ts
+UI_OVERHAUL_TOPBAR_MOCK	accepted	feat(app): give the top bar the mock's Focus mode, machine pill and icons	server/packages/happyherd-app/sources/components/herd/shell/topBarControls.test.ts
+UI_OVERHAUL_PANEL_MOCK	accepted	feat(app): give the left panel the mock's icons, shortcuts and archive toggle	server/packages/happyherd-app/sources/components/SidebarNavigationButton.test.ts
+UI_OVERHAUL_TOPBAR_PANEL_DOCS	accepted	docs(app): record the top bar and left panel fidelity work for upstream merges	docs/upstream-ui-parity.md

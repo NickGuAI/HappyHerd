@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "c1c0d6148eb445486cb146357e2c3f146fb89731e797eee81686fca52f39c56b",
+  "sourceFingerprint": "6a3c8c2420e9a72b4a9a5f2c83316f821351f93df52cce6746dfe620a9bef5d5",
   "routeCount": 43,
-  "surfaceCount": 324,
+  "surfaceCount": 328,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4531,17 +4531,47 @@
       "exports": [
         "HerdMachineMenu",
         "machineLabel",
-        "orderMachinesForMenu"
+        "orderMachinesForMenu",
+        "resolveMachinePillState"
       ],
       "translationKeys": [
+        "common.loading",
+        "devicePairing.title",
         "sessionInfo.viewMachine",
         "settings.machines",
         "status.offline",
-        "status.online"
+        "status.online",
+        "topBar.addMachine",
+        "topBar.noMachine",
+        "topBar.noMachinesYet"
       ],
       "states": [
+        "loading",
         "offline"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMaskImage.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdMaskImage"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdMaskImage.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdMaskImage",
+        "herdMaskImageUri"
+      ],
+      "translationKeys": [],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -4596,6 +4626,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/shell/HerdShellIcon.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdShellIcon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/shell/HerdSidebarEdgeToggle.tsx",
       "kind": "sidebar",
       "route": null,
@@ -4610,6 +4651,17 @@
         "navigation.collapseSidebar",
         "navigation.expandSidebar"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/herd/shell/HerdTooltip.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "HerdTooltip"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
