@@ -80,6 +80,17 @@ change. When behavior changes, update both this skill and
   machine file transport (zero session-file calls) with no workspace switch.
   Only cross-session links or a context that cannot host the current session
   Workspace use the standalone `WorkspaceLinkViewer` fallback.
+- **Commander memory sheet.** The Commanders page's memory sheet is a second
+  host of the same `FileContentPanel`, not a second viewer. It opens rendered;
+  its header Edit mounts the panel in Edit (`initialDisplayMode: 'edit'`) for
+  that one memory file, with the panel's own Preview/Edit and Download in the
+  sheet header (on phones, their own row under the title). Reads stay bound to
+  the Commander's AgentContext through `machineReadFileWithinRoot`; saves use
+  the hash-guarded `machineWriteFile`, so a changed file opens the panel's
+  conflict view with the draft kept. There is no Delete and no comments or
+  feedback (no review context). Leaving Edit with nothing unsaved
+  (`onDisplayModeChange` reports Preview) returns to the rendered memory, read
+  again; closing over unsaved edits asks through `useWorkspaceLinkDismissGuard`.
 - **Layout.** Wide Web Desktop keeps one mounted chat and Workspace with a
   draggable split up to 75% Workspace / 25% chat and deduplicated tabs.
   Below 1,100 px, Web (phones included) opens the Workspace, with its tabs,
@@ -122,6 +133,9 @@ with `.dev/` or `docs/`.
   element picker, bounded context, and crop capture; native remains unchanged.
 - `sources/components/desktopFileWorkspaceModel.ts` — tab admission state.
 - `sources/components/MainView.tsx` — fallback viewer host (cross-session only).
+- `sources/app/(app)/commanders/index.tsx` — Commander memory sheet host: one
+  memory file in `FileContentPanel` through the optional `HerdSheet` header
+  actions; proof in `components/herd/pages/commanderMemoryEdit.browser.test.ts`.
 
 ### Viewer and review surface
 

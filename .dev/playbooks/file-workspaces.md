@@ -111,6 +111,18 @@ Workspace has no second header `+` for reopening an obsolete picker. A hidden
 route, mounted component, source string, or reply link is not a substitute for
 a visible, clickable Human entry.
 
+The Commanders page's memory sheet is the one other host of this file-content
+surface. A memory file opens rendered; the sheet header's **Edit** swaps in
+`FileContentPanel` in Edit for that file, with its own Preview/Edit, Save and
+Download (on phones, on a row under the sheet title). Reads stay inside the
+Commander's AgentContext through `machineReadFileWithinRoot`; saves use the
+existing hash-guarded `machineWriteFile`, so a file changed elsewhere opens the
+panel's conflict view and keeps the draft. The sheet has no Delete and no
+comments or feedback, because there is no owning chat. Leaving Edit with
+nothing unsaved returns to the rendered memory read again, saving the working
+memory refreshes the card's memory line, and closing over unsaved edits asks
+through the Workspace's dismiss guard.
+
 ## Owners and reuse rules
 
 The chat file-surface instructions are part of this contract. Keep the live
@@ -130,6 +142,7 @@ same delivery.
 | Feedback | `components/FileViewPanel.tsx`, `components/InlineCommentReview.web.tsx`, `components/diff/PierreDiffView.tsx`, `components/markdown/MarkdownView.web.tsx`, `components/lineReviewStyles.ts`, `sync/workspaceFeedback.ts` | `FileViewPanel` manages shared state and placement, while `PierreDiffView` and `MarkdownView.web` handle line anchoring for code and Markdown threads; `InlineCommentReview.web` renders these threads alongside docked Canvas-node/localhost live-element comments and a single batch review bar, with `workspaceFeedback` preserving unchanged structured delivery to the Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
+| Commander memory sheet | `sources/app/(app)/commanders/index.tsx`, `components/herd/pages/HerdSheet.tsx` | Host `FileContentPanel` for one memory file with root-bound reads, hash-guarded writes, no `deleteFile` and no review context; never add a separate memory editor. |
 
 For Web Desktop and Web Mobile commentable Markdown and source previews,
 `lineReviewStyles.ts` owns source-number and comment-button geometry, content
