@@ -14,6 +14,8 @@ import Machine from '@/app/(app)/machine/[id]';
 import SessionInfo from '@/app/(app)/session/[id]/info';
 import Recent from '@/app/(app)/session/recent';
 import Account from '@/app/(app)/settings/account';
+import About from '@/app/(app)/settings/about';
+import Connections from '@/app/(app)/settings/connections';
 import Agents from '@/app/(app)/settings/agents';
 import Appearance from '@/app/(app)/settings/appearance';
 import Features from '@/app/(app)/settings/features';
@@ -35,7 +37,7 @@ import '@/theme.css';
 const scenes = {
  artifacts: Artifacts, artifact: Artifact, 'artifact-edit':ArtifactEdit,'artifact-new':ArtifactNew,
  friends:Friends,'friend-search':FriendSearch,inbox:Inbox,machine:Machine,'session-info':SessionInfo,recent:Recent,
- account:Account,agents:Agents,appearance:Appearance,features:Features,language:Language,voice:Voice,'voice-language':VoiceLanguage,
+ account:Account,about:About,connections:Connections,agents:Agents,appearance:Appearance,features:Features,language:Language,voice:Voice,'voice-language':VoiceLanguage,
  claude:Claude,terminal:Terminal,'terminal-confirm':TerminalConfirm,'terminal-invalid':TerminalConfirm,'text-selection':TextSelection,user:User,settings:SettingsView,credentials:CredentialsSettingsView,
  usage:()=> <ItemList><UsagePanel /></ItemList>,commanders:()=> <ItemList><CommanderAvatarSettings /></ItemList>,
  'account-key':()=> <ItemList><AccountKeyPanel secret="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" /></ItemList>,

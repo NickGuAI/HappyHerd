@@ -11,6 +11,7 @@ import Projects from '@/app/(app)/projects/index';
 import Project from '@/app/(app)/projects/[id]';
 import Inbox from '@/app/(app)/inbox/index';
 import SettingsIndex from '@/app/(app)/settings/index';
+import SettingsAccount from '@/app/(app)/settings/account';
 import Appearance from '@/app/(app)/settings/appearance';
 import Language from '@/app/(app)/settings/language';
 import SessionInfo from '@/app/(app)/session/[id]/info';
@@ -77,6 +78,7 @@ const scenes: Record<string, React.ComponentType> = {
 // Routes the production pages navigate to inside this fixture.
 const routes: Record<string, React.ComponentType> = {
     '/settings': SettingsIndex,
+    '/settings/account': SettingsAccount,
     '/settings/appearance': Appearance,
     '/settings/language': Language,
     '/projects/fixture-id': Project,
@@ -87,7 +89,8 @@ function Fixture() {
     const { theme } = useUnistyles();
     const initial = new URLSearchParams(location.search).get('scene') || 'automations';
     const [route, setRoute] = React.useState<string | null>(null);
-    React.useEffect(() => {
+    // A layout effect, so a page's Redirect (a passive effect) finds it on first render.
+    React.useLayoutEffect(() => {
         (window as any).__FIXTURE_NAVIGATE__ = (next: string) => {
             (window as any).__FIXTURE_ROUTES__ = [...((window as any).__FIXTURE_ROUTES__ ?? []), next];
             if (routes[next]) setRoute(next);

@@ -27,6 +27,7 @@ modules['expo-router'] = `import React from 'react';
 const go=route=>window.__FIXTURE_NAVIGATE__?.(typeof route==='string'?route:route.pathname+(route.params?'?'+new URLSearchParams(route.params):''));
 const router={push:go,navigate:go,replace:go,back(){},setParams(){},dismissTo:go,canGoBack:()=>true};
 export const useRouter=()=>router;export {router};
+export const Redirect=({href})=>{React.useEffect(()=>go(href),[href]);return null;};
 export const useLocalSearchParams=()=>({id:'fixture-id'});export const useGlobalSearchParams=useLocalSearchParams;
 export const usePathname=()=>'/';export const useNavigation=()=>({setOptions(){},addListener:()=>()=>{},dispatch(){},getState:()=>({routes:[]})});
 export const useFocusEffect=callback=>React.useEffect(callback,[callback]);
@@ -195,10 +196,11 @@ const scenes = [
         },
     },
     {
-        id: 'settings', label: 'Settings', sources: ['app/(app)/settings/index.tsx', `${H}SettingsFrame.tsx`, 'components/SettingsView.tsx', 'app/(app)/settings/appearance.tsx'],
+        id: 'settings', label: 'Settings', sources: ['app/(app)/settings/index.tsx', `${H}SettingsFrame.tsx`, 'components/SettingsView.tsx', 'app/(app)/settings/account.tsx', 'components/SettingsProfileCard.tsx', 'app/(app)/settings/appearance.tsx'],
         async run(page, shot, wide) {
-            await page.getByText('Connected Accounts', { exact: false }).first().waitFor();
-            await shot('general');
+            // Settings has no home page: desktop opens on Account beside the list, phones on the list itself.
+            await page.getByTestId(wide ? 'settings-profile-card' : 'settings-section-list').waitFor();
+            await shot(wide ? 'account' : 'sections');
             if (wide) {
                 await page.getByTestId('settings-nav-appearance').click();
                 await page.getByTestId('settings-nav-appearance').waitFor();
