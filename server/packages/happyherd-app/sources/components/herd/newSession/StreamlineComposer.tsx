@@ -69,6 +69,23 @@ export function StreamlineComposerChips({ chips, activeKey, onPress }: {
 }
 
 /** One line under the composer: what this launch will use, and where to change the defaults. */
+/**
+ * Advanced (UI overhaul): the launch choices echoed in the composer as plain
+ * chips, as the mock shows them. The form above is where they change.
+ */
+export function StreamlineComposerLabels({ chips }: { chips: readonly StreamlineChip[] }) {
+    return (
+        <View style={styles.chips} testID="advanced-composer-chips">
+            {chips.map((chip) => (
+                <View key={chip.key} style={[styles.chip, chip.accent && styles.chipAccent]} testID={`advanced-chip-${chip.key}`}>
+                    {chip.icon}
+                    <Text numberOfLines={1} style={[styles.chipText, chip.accent && styles.chipTextAccent]}>{chip.label}</Text>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 export function StreamlineSummary({ summary, worktree, onOpenSettings }: {
     summary: string;
     worktree: boolean;

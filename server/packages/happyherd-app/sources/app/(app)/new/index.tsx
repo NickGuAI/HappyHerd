@@ -48,8 +48,10 @@ import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/m
 import { HERD_PHONE_TOP_BAR_HEIGHT } from '@/components/herd/shell/topBarLayout';
 import { HerdWindowInsetsContext, useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 import { StreamlineSections, type StreamlineFolderOption } from '@/components/herd/newSession/StreamlineSections';
+import { AdvancedSections, type AdvancedMachineOption } from '@/components/herd/newSession/AdvancedSections';
 import {
     StreamlineComposerChips,
+    StreamlineComposerLabels,
     StreamlineSummary,
     type StreamlineChip,
     type StreamlineChipKey,
@@ -62,7 +64,7 @@ import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, ty
 import { createWorktree } from '@/utils/worktree';
 import { useWorktrees } from '@/hooks/useWorktrees';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
-import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome, formatLastSeen, formatOSPlatform } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useFocusMode } from '@/hooks/useFocusMode';
@@ -108,6 +110,7 @@ import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloo
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
 import {
     getCommanderPickerFixedItems,
+    NO_COMMANDER_PICKER_KEY,
     resolveCommanderPickerSelection,
 } from '@/utils/newSessionCommanderCreation';
 import {
@@ -148,6 +151,8 @@ import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/Machi
 import { NewSessionPathScrollView } from '@/components/NewSessionPathScrollView';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { ProviderIcon } from '@/components/ProviderIcon';
+import { useShortcutHints } from '@/components/ShortcutHints';
+import { formatShortcut } from '@/keyboard/shortcuts';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -178,14 +183,15 @@ const agentIcons = {
 
 type AgentKey = NewSessionAgentType;
 
-function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor: string }) {
+function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor?: string }) {
     if (agent === 'grok' || agent === 'dsh') {
         return <ProviderIcon kind={agent} size={size} />;
     }
     return (
         <RNImage
             source={agentIcons[agent as keyof typeof agentIcons]}
-            style={{ width: size, height: size, tintColor }}
+            style={{ width: size, height: size }}
+            tintColor={tintColor}
             resizeMode="contain"
         />
     );
@@ -987,6 +993,7 @@ function NewSessionScreen() {
     const accountProjects = useProjects();
     const focusMode = useFocusMode();
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
+    const shortcutHints = useShortcutHints();
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const newSessionMode = useSetting('newSessionMode');
     const streamlineAgentSetting = useSetting('streamlineAgent');
@@ -1258,6 +1265,22 @@ function NewSessionScreen() {
             dimmed: !isMachineOnline(machine),
         }));
     }, [allMachines]);
+
+    // Advanced (UI overhaul): the same machines, online first, as the mock's machine cards.
+    const advancedMachineOptions = React.useMemo<AdvancedMachineOption[]>(() => [...allMachines]
+        .sort((a, b) => (isMachineOnline(a) ? 0 : 1) - (isMachineOnline(b) ? 0 : 1))
+        .map((machine) => {
+            const online = isMachineOnline(machine);
+            return {
+                id: machine.id,
+                name: getMachineName(machine),
+                os: formatOSPlatform(machine.metadata?.platform),
+                online,
+                accessibilityDetail: online
+                    ? t('status.online')
+                    : t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }),
+            };
+        }), [allMachines]);
 
     // Both daemons on the computer contribute places, so choosing HappyHerd Agent does not hide the
     // projects that HappyHerd CLI sessions already established (or vice versa).
@@ -1936,8 +1959,9 @@ function NewSessionScreen() {
         }
     }, [composerSettingsPage, currentEffort?.key, currentModelKey, currentPermission?.key, effortLevels, modelModes, permissionModes, selectedAgent]);
 
-    const handlePickerSelect = React.useCallback((key: string) => {
-        switch (activePicker) {
+    // One selection rule for every picker, and for Advanced's always-visible choices (UI overhaul).
+    const applyPickerSelection = React.useCallback((type: PickerType | null, key: string) => {
+        switch (type) {
             case 'accountProject':
                 draft.setAccountProjectId(key === '__none__' ? null : key);
                 break;
@@ -2009,14 +2033,11 @@ function NewSessionScreen() {
                 break;
             }
         }
-        closePicker();
     }, [
-        activePicker,
         agentDefaultOverrides,
         applyCommanderOnboardingIntent,
         availableAgents,
         commanders,
-        closePicker,
         draft.setAccountProjectId,
         draft.setEffortLevel,
         draft.setModelMode,
@@ -2034,6 +2055,11 @@ function NewSessionScreen() {
         streamline,
         streamlineLocationKey,
     ]);
+
+    const handlePickerSelect = React.useCallback((key: string) => {
+        applyPickerSelection(activePicker, key);
+        closePicker();
+    }, [activePicker, applyPickerSelection, closePicker]);
 
     const handleComposerSettingsPickerSelect = React.useCallback((key: string) => {
         switch (composerSettingsPage) {
@@ -2526,7 +2552,11 @@ function NewSessionScreen() {
     // composer; anything wider gets the centered column.
     // Native phones take the phone layout at every width, landscape included.
     const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH || !isDesktop;
-    const streamlineColumn = streamline && !streamlinePhone;
+    // Advanced on the web (UI overhaul) is the mock's full form, laid out on the
+    // same page as Streamline: a card on wide windows, the stacked page on phones.
+    const advancedPage = !streamline && Platform.OS === 'web';
+    const formPage = streamline || advancedPage;
+    const pageColumn = formPage && !streamlinePhone;
     const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
         platform: Platform.OS,
         deviceType,
@@ -2541,7 +2571,7 @@ function NewSessionScreen() {
         ? windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT
         : 0;
     // On phones the Streamline page carries its own title, so the header row would repeat it.
-    const streamlineCarriesTitle = streamline && streamlinePhone;
+    const streamlineCarriesTitle = (streamline && streamlinePhone) || advancedPage || pageColumn;
     React.useLayoutEffect(() => {
         navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile && !streamlineCarriesTitle });
         return () => navigation.setOptions({ headerShown: true });
@@ -2558,16 +2588,19 @@ function NewSessionScreen() {
         return false;
     }, [agentInputEnterToSend, canSend, handleSend]);
 
-    // Auto-focus the text input when the composer mounts
+    // Auto-focus the text input when the composer mounts. Web phones (UI overhaul)
+    // scroll New Session as one page, so focusing the composer at its end would
+    // open the page scrolled past the title and every choice.
+    const focusComposerOnMount = !isNativeMobile && !(formPage && streamlinePhone);
     React.useEffect(() => {
-        if (isNativeMobile) {
+        if (!focusComposerOnMount) {
             return;
         }
         const timeout = setTimeout(() => {
             composerInputRef.current?.focus();
         }, 100);
         return () => clearTimeout(timeout);
-    }, [isNativeMobile]);
+    }, [focusComposerOnMount]);
 
     const renderActivePickerPopover = React.useCallback((type: PickerType) => {
         if (Platform.OS !== 'web' || activePicker !== type) {
@@ -3093,6 +3126,36 @@ function NewSessionScreen() {
             onPress={openStreamlineChip}
         />
     ) : null;
+    // Advanced (UI overhaul): the composer echoes the launch choices, as in the mock;
+    // phones keep the agent and the permission mode.
+    const advancedChipsNode = advancedPage ? (
+        <StreamlineComposerLabels
+            chips={streamlineChips.filter((chip) => chip.key === 'agent' || chip.key === 'permission'
+                || (!streamlinePhone && (chip.key === 'model' || chip.key === 'effort')))}
+        />
+    ) : null;
+    // Advanced on wide windows (UI overhaul): the mock's keyboard hints under the composer.
+    const advancedKeyHints = advancedPage && !streamlinePhone && shortcutHints.modifier ? (
+        <View style={styles.keyHints} testID="advanced-key-hints">
+            {agentInputEnterToSend ? (
+                <>
+                    <View style={styles.keyHint}>
+                        <Text style={styles.keyCap}>↵</Text>
+                        <Text style={styles.keyHintText}>{t('happyHerd.composer.send')}</Text>
+                    </View>
+                    <View style={styles.keyHint}>
+                        <Text style={styles.keyCap}>⇧</Text>
+                        <Text style={styles.keyCap}>↵</Text>
+                        <Text style={styles.keyHintText}>⏎</Text>
+                    </View>
+                </>
+            ) : null}
+            <View style={styles.keyHint}>
+                <Text style={styles.keyCap}>{formatShortcut(shortcutHints.modifier, 'N', shortcutHints.browserSafeShortcuts)}</Text>
+                <Text style={styles.keyHintText}>{t('sidebar.newSession')}</Text>
+            </View>
+        </View>
+    ) : null;
     const composerPlaceholder = t('uiCopy.askValue', { value1: agent.label });
     const sendButtonNode = (
         <NewSessionPrimaryButton
@@ -3161,6 +3224,7 @@ function NewSessionScreen() {
                 {!isNativeMobile && (
                     <View style={styles.actionButtonsLeft}>
                         {streamline && !streamlinePhone && streamlineChipsNode}
+                        {advancedChipsNode}
                     </View>
                 )}
                 {/* In Streamline the chips replace the agent and settings buttons; the rest keep the right side. */}
@@ -3301,13 +3365,16 @@ function NewSessionScreen() {
         <View style={[styles.modeHeader, streamlinePhone && styles.modeHeaderPhone]}>
             <View style={[styles.modeHeaderText, streamlinePhone && styles.modeHeaderTextPhone]}>
                 <Text style={[styles.modeTitle, streamlinePhone && styles.modeTitlePhone]}>{t('newSession.title')}</Text>
-                <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>{t('newSession.streamline.intro')}</Text>
+                <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>
+                    {streamline ? t('newSession.streamline.intro') : t('uiCopy.startANewSessionOnAnyOfYourConnectedMachines')}
+                </Text>
             </View>
             <View style={[styles.modeSwitch, streamlinePhone && styles.modeSwitchPhone]}>{modeSwitchControl}</View>
         </View>
     ) : null;
 
-    const streamlinePathPicker = streamline && activePicker === 'path' && !streamlinePhone ? (
+    // Advanced keeps the mock's inline folder browser under the path, on phones too.
+    const streamlinePathPicker = formPage && activePicker === 'path' && (!streamlinePhone || advancedPage) ? (
         <View style={styles.streamlinePathPicker}>
             <PathPickerContent
                 title={t('sessionInfo.path')}
@@ -3408,6 +3475,69 @@ function NewSessionScreen() {
         />
     ) : null;
 
+    const advancedSections = advancedPage ? (
+        <AdvancedSections
+            compact={streamlinePhone}
+            machines={advancedMachineOptions}
+            machineId={selectedMachineId}
+            onSelectMachine={(id) => applyPickerSelection('machine', id)}
+            offlineNotice={isOffline ? {
+                title: t('newSession.machineOffline'),
+                body: [
+                    selectedAgent === 'rig' ? t('upstreamSync.agentOffline') : t('upstreamSync.cliOffline'),
+                    t('machine.offlineHelp'),
+                    t('newSession.switchMachinesHint'),
+                ].join('\n'),
+            } : null}
+            pathLabel={pathName}
+            pathOpen={activePicker === 'path'}
+            onTogglePath={() => togglePicker('path')}
+            pathPopover={streamlinePathPicker}
+            providers={availableAgents.map((candidate) => ({ key: candidate.key, label: candidate.label, disabled: candidate.disabled }))}
+            providerKey={selectedAgent}
+            // The mock shows Claude's mark in its own color.
+            renderProviderIcon={(key, color) => (
+                <AgentProviderIcon agent={key as AgentKey} size={17} tintColor={key === 'claude' ? undefined : color} />
+            )}
+            onSelectProvider={(key) => applyPickerSelection('agent', key)}
+            // The model picker's order and provider groups; unavailable models last, disabled.
+            models={modelModes.length > 0
+                ? getModePickerItems(modelModes).map((item) => ({ key: item.key, label: item.label, disabled: !!item.disabled, section: item.section }))
+                : null}
+            modelKey={currentModelKey}
+            onSelectModel={(key) => applyPickerSelection('model', key)}
+            efforts={showEffort
+                ? effortLevels.map((level) => ({ key: level.key, label: level.name, disabled: !!(level.disabled || level.unavailable) }))
+                : null}
+            effortKey={currentEffort?.key ?? null}
+            onSelectEffort={(key) => applyPickerSelection('effort', key)}
+            permissionTitle={selectedAgent === 'codex' ? t('agentInput.codexPermissionMode.title') : t('agentInput.permissionMode.title')}
+            permissions={showPermission
+                ? permissionModes.map((mode) => ({ key: mode.key, label: mode.name, disabled: !!(mode.disabled || mode.unavailable) }))
+                : null}
+            permissionKey={currentPermission?.key ?? null}
+            onSelectPermission={(key) => applyPickerSelection('permission', key)}
+            projects={accountProjectItems.map((item) => ({ id: item.key, name: item.label }))}
+            projectId={accountProjectId}
+            focusProjectId={focusMode?.projectId ?? null}
+            onSelectProject={(projectId) => applyPickerSelection('accountProject', projectId ?? '__none__')}
+            worktree={canPickWorktree ? {
+                title: picksWorkspaces ? t('newSession.workspace') : t('uiCopy.worktree'),
+                fixed: worktreeFixedItems.map((item) => ({ key: item.key, label: item.label })),
+                existing: worktreeItems.map((item) => ({ key: item.key, label: item.label })),
+                value: worktreeKey,
+                onSelect: (key) => applyPickerSelection('worktree', key),
+            } : null}
+            commanders={commanders.map((commander) => ({ id: commander.id, name: commander.name, role: commander.role }))}
+            commanderMachineId={selectedMachineId}
+            commanderId={selectedCommanderId}
+            commanderNote={commanderLoadError}
+            onSelectCommander={(commanderId) => applyPickerSelection('commander', commanderId ?? NO_COMMANDER_PICKER_KEY)}
+            onCreateCommander={applyCommanderOnboardingIntent}
+            onOpenCommanders={() => router.push('/commanders' as any)}
+        />
+    ) : null;
+
     const streamlineChipPicker = streamline
         && streamlineAnchor
         && (activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree')
@@ -3470,18 +3600,20 @@ function NewSessionScreen() {
                 />
             )}
 
-            {streamlineColumn ? (
-                <View style={styles.desktopShell} testID="new-session-streamline">
+            {pageColumn ? (
+                <View style={styles.desktopShell} testID={streamline ? 'new-session-streamline' : 'new-session-advanced'}>
                     <ScrollView
                         style={styles.streamlineScroll}
                         contentContainerStyle={styles.streamlineScrollContent}
                         keyboardShouldPersistTaps="handled"
                     >
-                        <View style={styles.streamlineColumn}>
+                        {/* The mock's New Session card holds both modes and the composer. */}
+                        <View style={[styles.streamlineColumn, styles.formCard]} testID="new-session-card">
                             {modeHeader}
-                            {streamlineSections}
+                            {streamline ? streamlineSections : advancedSections}
                             <View style={styles.streamlineComposer}>{composerNode}</View>
                             {streamlineSummary}
+                            {advancedKeyHints}
                         </View>
                     </ScrollView>
                     {streamlineChipPicker}
@@ -3583,17 +3715,17 @@ function NewSessionScreen() {
                             </View>
                             {streamline && streamlineChipPicker}
                         </>
-                    ) : streamline ? (
+                    ) : formPage ? (
                         <>
                             {/* Phones (UI overhaul): the whole page scrolls, the composer after the choices. */}
                             <ScrollView
                                 style={styles.streamlineScroll}
                                 contentContainerStyle={[styles.streamlinePhoneConfig, { paddingBottom: 28 + safeArea.bottom }]}
                                 keyboardShouldPersistTaps="handled"
-                                testID="new-session-streamline"
+                                testID={streamline ? 'new-session-streamline' : 'new-session-advanced'}
                             >
                                 {modeHeader}
-                                {streamlineSections}
+                                {streamline ? streamlineSections : advancedSections}
                                 <View ref={streamlineComposerRef} style={styles.streamlinePhoneComposer} testID="streamline-composer">
                                     {composerNode}
                                 </View>
@@ -3622,7 +3754,7 @@ function NewSessionScreen() {
                     )}
 
                     {/* The phone Streamline page pads its own scroll for the home indicator. */}
-                    {!(streamline && !isNativeMobile) && <View style={{ height: Math.max(12, safeArea.bottom) }} />}
+                    {!(formPage && !isNativeMobile) && <View style={{ height: Math.max(12, safeArea.bottom) }} />}
                 </View>
             )}
 
@@ -3923,6 +4055,46 @@ const styles = StyleSheet.create((theme) => ({
     },
     streamlineComposer: {
         marginTop: 28,
+    },
+    keyHints: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 14,
+        marginTop: 10,
+    },
+    keyHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    keyCap: {
+        minWidth: 18,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        textAlign: 'center',
+        fontSize: 11,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.mono(),
+    },
+    keyHintText: {
+        fontSize: 12,
+        color: theme.colors.kilv.inkFaint,
+        ...Typography.default(),
+    },
+    // The mock's New Session card (UI overhaul): its panel gradient, rim and shadow.
+    formCard: {
+        maxWidth: 976,
+        paddingTop: 30,
+        paddingHorizontal: 34,
+        paddingBottom: 26,
+        borderRadius: theme.kilv.radiusPanel,
+        borderWidth: 1,
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.kilv.panelBase,
+        _web: { backgroundImage: theme.kilv.panelGradient, boxShadow: theme.kilv.shadowPanel },
     },
     streamlinePathPicker: {
         marginTop: 10,

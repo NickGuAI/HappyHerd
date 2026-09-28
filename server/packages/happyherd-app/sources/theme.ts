@@ -274,6 +274,12 @@ function createTheme(dark: boolean, p: typeof lightPalette) {
             glowMoltenSoft: '0 0 22px rgba(240, 220, 176, 0.22)',
             glowRim: '0 0 14px rgba(143, 163, 184, 0.22)',
             shadow: dark ? '0 22px 70px rgba(0, 0, 0, 0.7)' : '0 12px 34px rgba(58, 42, 18, 0.16)',
+            // The mock's large panels (UI overhaul), such as the New Session card:
+            // a vertical gradient on web over a solid base, and a deep shadow.
+            panelGradient: dark ? 'linear-gradient(180deg, #0c111a, #05070b)' : 'linear-gradient(180deg, #FFF9EC, #F5ECD8)',
+            panelBase: dark ? '#080b12' : '#FAF2E2',
+            shadowPanel: dark ? '0 40px 120px rgba(0, 0, 0, 0.85)' : '0 30px 80px rgba(60, 44, 20, 0.18)',
+            radiusPanel: 14,
         },
         ...sharedSpacing,
     };
