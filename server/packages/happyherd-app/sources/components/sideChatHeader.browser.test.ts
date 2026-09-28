@@ -14,6 +14,8 @@ const newSessionProjectPath = '/work/project/extensions/browser-tools';
 const newSessionRecentPath = (index: number) => `/workspace/products/example-project-${String(index).padStart(2, '0')}`;
 
 const virtualModules: Record<string, string> = {
+    // Settings' What's New entries report through @/track (SettingsFrame).
+    '@/track': `export const trackWhatsNewClicked = () => {};`,
     'react-native': `
         import React from 'react';
         import { Animated } from 'react-native-web';

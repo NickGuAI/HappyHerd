@@ -640,3 +640,4 @@ UI_OVERHAUL_COMMANDER_MEMORY_EDIT	accepted	feat(app): edit Commander memory in i
 UI_OVERHAUL_SETTINGS_WHATS_NEW_TRACKING	accepted	fix(app): report What's New opened from Settings, as the old home did	server/packages/happyherd-app/sources/components/herd/pages/SettingsFrame.test.ts
 UI_OVERHAUL_FOCUS_CAPTURE_SCENE	accepted	test(app): follow the Focus pixel swap to Start in the pages capture	scripts/kilv-capture/pages.capture.mjs
 UI_OVERHAUL_ROUND3_DOCS	accepted	docs(app): record one-panel Settings, the Focus swap and memory editing for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_TRACK_FIXTURE_STUBS	accepted	test(app): stub @/track in the fixtures that bundle Settings	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts

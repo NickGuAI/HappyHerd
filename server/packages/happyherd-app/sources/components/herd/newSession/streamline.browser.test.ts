@@ -25,6 +25,8 @@ const homeEntries = [
  * Expo build. Only data, device services and unrelated surfaces are stubbed.
  */
 const virtualModules: Record<string, string> = {
+    // Settings' What's New entries report through @/track (SettingsFrame).
+    '@/track': `export const trackWhatsNewClicked = () => {};`,
     'react-native': `
         import * as ReactNativeWeb from 'react-native-web';
         export * from 'react-native-web';

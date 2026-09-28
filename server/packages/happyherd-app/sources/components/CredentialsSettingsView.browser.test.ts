@@ -20,6 +20,8 @@ const fixtureFontFaces = fixtureFontNames.map((name) => (
 )).join('');
 
 const virtualModules: Record<string, string> = {
+    // Settings' What's New entries report through @/track (SettingsFrame).
+    '@/track': `export const trackWhatsNewClicked = () => {};`,
     'react-native': `
         import * as ReactNativeWeb from 'react-native-web';
         export * from 'react-native-web';
