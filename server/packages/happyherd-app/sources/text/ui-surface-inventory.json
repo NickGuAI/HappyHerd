@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "d73cae732804c5966ef3a3a8bcc334bbfbbc460770ec2358010d7c3e6a039a95",
+  "sourceFingerprint": "e1ac62bd523bec9d8c95462dd3a172c8e7a8773502a60161c377dfd5bebaf64e",
   "routeCount": 43,
   "surfaceCount": 323,
   "hardcodedCopyCount": 0,
@@ -222,7 +222,9 @@
       "translationKeys": [
         "agentInput.agent.claude",
         "agentInput.agent.codex",
+        "agentInput.agent.dsh",
         "agentInput.agent.gemini",
+        "agentInput.agent.grok",
         "common.cancel",
         "common.create",
         "common.delete",
@@ -235,6 +237,7 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
+        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -246,7 +249,6 @@
         "machine.host",
         "machine.lastDetected",
         "machine.lastKnownHttpPort",
-        "machine.lastKnownPid",
         "machine.lastSeen",
         "machine.launchNewSessionInDirectory",
         "machine.machineGroup",
@@ -263,6 +265,7 @@
         "machineLauncher.enterCustomPath",
         "machineLauncher.showAll",
         "machineLauncher.showLess",
+        "sessionInfo.processId",
         "status.offline",
         "status.online",
         "uiCopy.createDirectory",
@@ -380,8 +383,10 @@
       "path": "/projects/[id]",
       "owner": "sources/app/(app)/projects/[id].tsx",
       "translationKeys": [
+        "common.back",
         "common.error",
         "common.rename",
+        "focusMode.enter",
         "happyHerd.automations.unknownError",
         "sidebar.hideArchived",
         "sidebar.projects",
@@ -397,7 +402,8 @@
       "translationKeys": [
         "common.error",
         "focusMode.enter",
-        "happyHerd.automations.unknownError"
+        "happyHerd.automations.unknownError",
+        "sidebar.projects"
       ],
       "states": [
         "error"
@@ -492,6 +498,7 @@
       "translationKeys": [
         "agentInput.agent.dsh",
         "agentInput.agent.grok",
+        "common.back",
         "common.cancel",
         "common.error",
         "common.loading",
@@ -529,11 +536,9 @@
         "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
-        "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.codexThreadId",
-        "sessionInfo.codexThreadIdCopied",
         "sessionInfo.connectionStatus",
         "sessionInfo.controlledByUser",
         "sessionInfo.copyMetadata",
@@ -546,7 +551,6 @@
         "sessionInfo.failedToCopySessionId",
         "sessionInfo.failedToDeleteSession",
         "sessionInfo.happySessionId",
-        "sessionInfo.happySessionIdCopied",
         "sessionInfo.happyherdHome",
         "sessionInfo.host",
         "sessionInfo.lastUpdated",
@@ -1516,7 +1520,9 @@
       "translationKeys": [
         "agentInput.agent.claude",
         "agentInput.agent.codex",
+        "agentInput.agent.dsh",
         "agentInput.agent.gemini",
+        "agentInput.agent.grok",
         "common.cancel",
         "common.create",
         "common.delete",
@@ -1529,6 +1535,7 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
+        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -1540,7 +1547,6 @@
         "machine.host",
         "machine.lastDetected",
         "machine.lastKnownHttpPort",
-        "machine.lastKnownPid",
         "machine.lastSeen",
         "machine.launchNewSessionInDirectory",
         "machine.machineGroup",
@@ -1557,6 +1563,7 @@
         "machineLauncher.enterCustomPath",
         "machineLauncher.showAll",
         "machineLauncher.showLess",
+        "sessionInfo.processId",
         "status.offline",
         "status.online",
         "uiCopy.createDirectory",
@@ -1680,8 +1687,10 @@
       "route": "/projects/[id]",
       "exports": [],
       "translationKeys": [
+        "common.back",
         "common.error",
         "common.rename",
+        "focusMode.enter",
         "happyHerd.automations.unknownError",
         "sidebar.hideArchived",
         "sidebar.projects",
@@ -1702,7 +1711,8 @@
       "translationKeys": [
         "common.error",
         "focusMode.enter",
-        "happyHerd.automations.unknownError"
+        "happyHerd.automations.unknownError",
+        "sidebar.projects"
       ],
       "states": [
         "error"
@@ -1826,6 +1836,7 @@
       "translationKeys": [
         "agentInput.agent.dsh",
         "agentInput.agent.grok",
+        "common.back",
         "common.cancel",
         "common.error",
         "common.loading",
@@ -1863,11 +1874,9 @@
         "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.botDeleteUnavailable",
         "sessionInfo.claudeCodeSessionId",
-        "sessionInfo.claudeCodeSessionIdCopied",
         "sessionInfo.cliVersion",
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.codexThreadId",
-        "sessionInfo.codexThreadIdCopied",
         "sessionInfo.connectionStatus",
         "sessionInfo.controlledByUser",
         "sessionInfo.copyMetadata",
@@ -1880,7 +1889,6 @@
         "sessionInfo.failedToCopySessionId",
         "sessionInfo.failedToDeleteSession",
         "sessionInfo.happySessionId",
-        "sessionInfo.happySessionIdCopied",
         "sessionInfo.happyherdHome",
         "sessionInfo.host",
         "sessionInfo.lastUpdated",
@@ -4205,9 +4213,13 @@
       "route": null,
       "exports": [
         "HerdItem",
-        "HerdItemGroup"
+        "HerdItemGroup",
+        "HerdListHeader",
+        "HerdValueItem"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "common.copy"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

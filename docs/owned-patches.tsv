@@ -599,3 +599,8 @@ UI_OVERHAUL_COMMANDERS_TITLE	accepted	feat(app): give Commanders the mock's page
 UI_OVERHAUL_WHATS_NEW_TITLE	accepted	feat(app): give What's New the mock's page title and timeline rings	server/packages/happyherd-app/sources/components/herd/pages/ChangelogPageFrame.test.ts
 UI_OVERHAUL_INBOX_CARDS	accepted	feat(app): show Inbox updates as the mock's cards under a page title	server/packages/happyherd-app/sources/components/InboxView.test.ts
 UI_OVERHAUL_PAGES_DOCS	accepted	docs(app): record the mock's secondary pages for upstream merges	docs/upstream-ui-parity.md
+UI_OVERHAUL_PROJECTS_MOCK	accepted	feat(app): give Projects and a project's page the mock's title rows, tile and Focus button	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+UI_OVERHAUL_VALUE_ROWS	accepted	feat(herd): add one-line value rows and a list-aligned page header	server/packages/happyherd-app/sources/components/herd/pages/herdValueRows.browser.test.ts
+UI_OVERHAUL_MACHINE_PAGE_MOCK	accepted	feat(machine): give the machine page the mock's header, path chips and daemon rows	server/packages/happyherd-app/sources/app/(app)/machine/machinePage.test.ts
+UI_OVERHAUL_SESSION_INFO_MOCK	accepted	feat(session-info): add the session details header and one-line value rows	server/packages/happyherd-app/sources/app/(app)/session/[id]/info.archive.test.ts
+UI_OVERHAUL_PROJECTS_MACHINE_DOCS	accepted	docs(app): record the Projects, machine and session details pages for upstream merges	docs/upstream-ui-parity.md
