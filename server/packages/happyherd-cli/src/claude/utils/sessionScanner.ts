@@ -312,6 +312,18 @@ async function readNewSessionEntries(projectDir: string, sessionId: string, curs
                 continue;
             }
             
+            // Interactive Claude stores child activity inside agent_progress
+            // rows in the parent transcript. Feed the native child message to
+            // the same mapper used by SDK sidechains, keeping its UUID for replay.
+            if (message.type === 'progress' && message.data?.type === 'agent_progress'
+                && typeof message.parentToolUseID === 'string'
+                && (message.data.message?.type === 'assistant' || message.data.message?.type === 'user')) {
+                message = {
+                    ...message.data.message,
+                    isSidechain: true,
+                    parent_tool_use_id: message.parentToolUseID,
+                };
+            }
             let parsed = RawJSONLinesSchema.safeParse(message);
             if (!parsed.success) {
                 // Unknown message types are silently skipped

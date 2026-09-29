@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
+import type { ToolCallMessage } from '@/sync/typesMessage';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,6 +65,23 @@ vi.mock('@/text', () => ({
 describe('SubagentView', () => {
     beforeEach(() => {
         mocks.markdownProps.length = 0;
+    });
+
+    it.each(['running', 'completed', 'failed', 'cancelled'] as const)('renders the wire lifecycle %s badge with retained activity', async (status) => {
+        const fixture = subagentLifecycleFixture();
+        const records = status === 'running' ? fixture.running : [...fixture.running, fixture.terminal(status)];
+        const card = replaySubagentRecords(records).find((message): message is ToolCallMessage => (
+            message.kind === 'tool-call' && message.tool.callId === fixture.child
+        ))!;
+        const { SubagentView } = await import('./SubagentView');
+        const html = renderToStaticMarkup(React.createElement(SubagentView, {
+            tool: card.tool, metadata: null, messages: card.children, sessionId: 'child-session',
+        }));
+
+        expect(html).toContain(`>${status.toUpperCase()}</span>`);
+        expect(html).toContain('3 events');
+        if (status !== 'completed') expect(html).not.toContain('COMPLETED');
+        if (status === 'failed' || status === 'cancelled') expect(html).toContain(`Provider child ${status}`);
     });
 
     it('keeps child output and tool activity collapsed by default', async () => {

@@ -25,6 +25,10 @@ export type ClaudeSessionProtocolState = {
     activeSubagents?: Set<string>;
     subagentTurnIds?: Map<string, string>;
     subagentStops?: Map<string, { status: SubagentStopStatus; authoritative: boolean }>;
+    taskIdToToolCall?: Map<string, string>;
+    pendingTaskMessages?: Map<string, RawJSONLines[]>;
+    backgroundSubagents?: Set<string>;
+    taskSubagents?: Set<string>;
 };
 
 type ClaudeMapperResult = {
@@ -437,8 +441,96 @@ function emitActiveSubagentStops(
 ): void {
     const active = getActiveSubagents(state);
     for (const subagent of [...active]) {
+        // A parent turn is not the lifetime of a provider-managed child.
+        if (state.backgroundSubagents?.has(subagent) || state.taskSubagents?.has(subagent)) {
+            continue;
+        }
         maybeEmitSubagentStop(state, turn, subagent, envelopes, 'unknown', undefined, false);
     }
+}
+
+function registerTask(state: ClaudeSessionProtocolState, taskId: string, call: string, envelopes: SessionEnvelope[]): void {
+    (state.taskIdToToolCall ??= new Map()).set(taskId, call);
+    const pending = state.pendingTaskMessages?.get(taskId) ?? [];
+    state.pendingTaskMessages?.delete(taskId);
+    for (const message of pending) {
+        envelopes.push(...mapClaudeLogMessageToSessionEnvelopesInternal(message, state).envelopes);
+    }
+}
+
+function transcriptTaskNotification(message: RawJSONLines): RawJSONLines | undefined {
+    if (message.type !== 'user' || message.isMeta !== true) {
+        return undefined;
+    }
+    const content = message.message.content;
+    const text = typeof content === 'string' ? content : Array.isArray(content)
+        ? content.filter(block => block?.type === 'text').map(block => block.text).join('\n') : '';
+    const origin = message.origin as { kind?: string } | undefined;
+    if (origin?.kind !== 'task-notification' && !text.startsWith('<task-notification>')) {
+        return undefined;
+    }
+    // Claude writes native task notifications into JSONL as meta user messages,
+    // while the SDK streams the equivalent typed system event.
+    const notification = /<task-notification>\s*([\s\S]*?)<\/task-notification>/.exec(text);
+    if (!notification) {
+        return undefined;
+    }
+    const field = (name: string) => new RegExp(`<${name}>([\\s\\S]*?)<\\/${name}>`).exec(notification[1])?.[1]
+        .replace(/&(amp|lt|gt|quot|apos);/g, (_, entity: string) => ({
+            amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+        })[entity]!);
+    return {
+        type: 'system', uuid: message.uuid, subtype: 'task_notification',
+        task_id: field('task-id'), tool_use_id: field('tool-use-id'),
+        status: field('status'), summary: field('summary'),
+    };
+}
+
+function mapTaskLifecycle(message: RawJSONLines, state: ClaudeSessionProtocolState, envelopes: SessionEnvelope[]): void {
+    const { subtype, task_id: taskId, tool_use_id: toolUseId } = message;
+    if (!['task_started', 'task_progress', 'task_notification', 'task_updated'].includes(String(subtype))
+        || typeof taskId !== 'string' || !taskId) {
+        return;
+    }
+    const call = typeof toolUseId === 'string' && toolUseId
+        ? toolUseId : state.taskIdToToolCall?.get(taskId);
+    if (!call) {
+        const pending = (state.pendingTaskMessages ??= new Map());
+        pending.set(taskId, [...(pending.get(taskId) ?? []), message]);
+        return;
+    }
+    const subagent = getSessionSubagentIdForProviderSubagent(state, call);
+    if (!subagent) {
+        (state.taskIdToToolCall ??= new Map()).set(taskId, call);
+        bufferSubagentMessage(state, call, message);
+        return;
+    }
+    // Bash/MCP background tasks use these same events, but are not subagents.
+    if (!getHiddenParentToolCalls(state).has(call)) {
+        registerTask(state, taskId, call, envelopes);
+        return;
+    }
+    (state.taskSubagents ??= new Set()).add(subagent);
+    const patch = message.patch as { is_backgrounded?: boolean } | undefined;
+    if (message.is_backgrounded === true || patch?.is_backgrounded === true) {
+        (state.backgroundSubagents ??= new Set()).add(subagent);
+    }
+    const turn = getSubagentTurnIds(state).get(subagent)!;
+    if (subtype === 'task_notification') {
+        const status = message.status === 'stopped' || message.status === 'killed' ? 'cancelled' : message.status;
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+            maybeEmitSubagentStop(state, turn, subagent, envelopes, status, toolResultDetail(message.summary));
+        }
+    } else if (subtype === 'task_progress') {
+        const text = toolResultDetail(message.summary) ?? toolResultDetail(message.description);
+        if (text) {
+            envelopes.push(createEnvelope('agent', { t: 'text', text }, {
+                id: `${turn}:${subagent}:progress:${pickUuid(message)}`,
+                turn, subagent, claudeUuid: pickUuid(message),
+            }));
+        }
+    }
+    registerTask(state, taskId, call, envelopes);
 }
 
 function toolResultDetail(content: unknown): string | undefined {
@@ -668,6 +760,10 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
     state: ClaudeSessionProtocolState,
 ): ClaudeMapperResult {
     const envelopes: SessionEnvelope[] = [];
+    if (message.type === 'system') {
+        mapTaskLifecycle(message, state, envelopes);
+        return { currentTurnId: state.currentTurnId, envelopes };
+    }
     const claudeUuid = pickUuid(message);
     const providerSubagent = resolveProviderSubagent(message, state);
     const subagent = providerSubagent
@@ -684,13 +780,6 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
     }
 
     if (message.type === 'summary') {
-        return {
-            currentTurnId: state.currentTurnId,
-            envelopes,
-        };
-    }
-
-    if (message.type === 'system') {
         return {
             currentTurnId: state.currentTurnId,
             envelopes,
@@ -731,6 +820,9 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                 const sessionSubagentForCall = ensureSessionSubagentIdForProviderSubagent(state, call);
                 if (isSubagentTool(name)) {
                     getSubagentTurnIds(state).set(sessionSubagentForCall, turnId);
+                    if (baseArgs.run_in_background === true) {
+                        (state.backgroundSubagents ??= new Set()).add(sessionSubagentForCall);
+                    }
                     const prompt = pickTaskPrompt(block.input);
                     if (prompt) {
                         queueTaskPromptSubagent(state, prompt, call);
@@ -777,6 +869,11 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
     }
 
     if (message.type === 'user') {
+        const notification = transcriptTaskNotification(message);
+        if (notification) {
+            mapTaskLifecycle(notification, state, envelopes);
+            return { currentTurnId: state.currentTurnId, envelopes };
+        }
         // SDK-injected synthetic user messages (e.g. the Skill tool feeds
         // the skill prompt back to Claude as a 'user' message with
         // isMeta=true so the model sees it but the human shouldn't).
@@ -850,6 +947,26 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                 if (!message.isSidechain) {
                     if (getHiddenParentToolCalls(state).has(block.tool_use_id)) {
                         if (sessionSubagentForToolResult) {
+                            // SDK and native JSONL use different names for the same
+                            // structured result. A launch receipt is not a child outcome.
+                            const result = (message.tool_use_result ?? message.toolUseResult) as {
+                                status?: string; agentId?: string; taskId?: string; isAsync?: boolean;
+                            } | undefined;
+                            const launched = result?.status === 'async_launched'
+                                || result?.status === 'remote_launched' || result?.isAsync === true;
+                            if (launched) {
+                                (state.backgroundSubagents ??= new Set()).add(sessionSubagentForToolResult);
+                            }
+                            const taskId = result?.agentId ?? result?.taskId;
+                            if (typeof taskId === 'string' && taskId) {
+                                registerTask(state, taskId, block.tool_use_id, envelopes);
+                            }
+                            if (launched || (state.backgroundSubagents?.has(sessionSubagentForToolResult)
+                                && result?.status !== 'completed' && block.is_error !== true)
+                                || (state.taskSubagents?.has(sessionSubagentForToolResult)
+                                    && getSubagentStops(state).get(sessionSubagentForToolResult)?.authoritative)) {
+                                continue;
+                            }
                             maybeEmitSubagentStop(
                                 state,
                                 turnId,
