@@ -653,3 +653,4 @@ CLAUDE_MODEL_DISPLAY_NAMES	accepted	fix(models): use daemon-advertised Claude di
 CLAUDE_MODEL_ID_FALLBACK_FIXTURES	accepted	test(app): preserve unnamed model IDs in browser fixtures	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 CLAUDE_MODEL_NAMES_NEW_CHAT_COVERAGE	accepted	test(app): adapt model name coverage to New Chat	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
 CLAUDE_MODEL_DISPLAY_NAMES_GOLDENS	accepted	test(app): refresh Claude model names changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+CLAUDE_SUBAGENT_LIFECYCLE	accepted	fix(claude): track native background subagent outcomes	server/packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.background.test.ts

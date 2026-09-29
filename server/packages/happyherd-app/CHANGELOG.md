@@ -1,3 +1,7 @@
+# September 29 — Accurate Claude subagent status
+
+- Claude subagents keep showing Running while background work continues after a launch returns or the parent finishes. Their own completion, failure, or cancellation updates the same card, with child activity retained on replay.
+
 # September 29 — Claude model display names
 
 - Claude model chips, pickers, and New Chat forms now use the names advertised by the selected machine, such as Opus 5.5 and Sonnet 5. Models without an advertised name show their exact ID.

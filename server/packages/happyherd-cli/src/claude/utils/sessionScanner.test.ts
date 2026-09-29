@@ -381,4 +381,23 @@ describe('sessionScanner', () => {
       apiErrorStatus: 429,
     })
   })
+
+  it('retains native agent progress messages and their original Task association', async () => {
+    scanner = await createSessionScanner({ sessionId: null, workingDirectory: testDir,
+      onMessage: (msg) => collectedMessages.push(msg) })
+    const sessionId = 'native-agent-progress'
+    const child = { type: 'assistant', uuid: 'child-activity', message: {
+      content: [{ type: 'text', text: 'Still inspecting the workspace' }],
+    } }
+    const progress = { type: 'progress', uuid: 'outer-progress', parentToolUseID: 'agent-call',
+      data: { type: 'agent_progress', agentId: 'child-id', message: child } }
+    await writeFile(join(projectDir, `${sessionId}.jsonl`), JSON.stringify(progress) + '\n')
+    scanner.onNewSession(sessionId)
+    await expect.poll(() => collectedMessages.length).toBe(1)
+    expect(collectedMessages[0]).toMatchObject({ ...child, isSidechain: true, parent_tool_use_id: 'agent-call' })
+    // Repeated outer progress rows for the same native message retain its UUID.
+    await appendFile(join(projectDir, `${sessionId}.jsonl`), JSON.stringify({ ...progress, uuid: 'repeat-progress' }) + '\n')
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(collectedMessages).toHaveLength(1)
+  })
 })

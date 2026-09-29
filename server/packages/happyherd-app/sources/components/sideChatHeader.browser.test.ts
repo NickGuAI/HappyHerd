@@ -7,6 +7,7 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 import { darkTheme, lightTheme } from '@/theme';
+import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -194,6 +195,9 @@ const virtualModules: Record<string, string> = {
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
+        if (fixtureOptions.subagentLifecycle) {
+            sessions['child-newest'].metadata.flavor = 'claude';
+        }
         if (modelPicker) {
             sessions.parent = {
                 ...sessions.parent,
@@ -399,6 +403,18 @@ const virtualModules: Record<string, string> = {
             ? JSON.parse(localStorage.getItem(safeguardStorageKey) ?? '[]')
             : [];
         let safeguardSnapshot = { hasMoreOlder: false, isLoaded: true, isLoadingOlder: false, messages: safeguardMessages };
+        const subagentStorageKey = 'subagent-browser-messages';
+        let subagentSnapshot = { hasMoreOlder: false, isLoaded: true, isLoadingOlder: false,
+            messages: fixtureOptions.subagentLifecycle
+                ? JSON.parse(localStorage.getItem(subagentStorageKey) ?? 'null') ?? fixtureOptions.subagentLifecycle
+                : [],
+        };
+        // Synthetic synced-message transport; the test enters through SessionView's real Side chats button.
+        globalThis.__APPLY_SUBAGENT_MESSAGES__ = (messages) => {
+            subagentSnapshot = { ...subagentSnapshot, messages };
+            localStorage.setItem(subagentStorageKey, JSON.stringify(messages));
+            emit();
+        };
         const saveSafeguardMessages = (next) => {
             safeguardMessages = next;
             safeguardSnapshot = { ...safeguardSnapshot, messages: next };
@@ -425,7 +441,9 @@ const virtualModules: Record<string, string> = {
             return messages;
         };
         export const useSessionMessages = (sessionId) => {
-            const snapshot = React.useSyncExternalStore(subscribe, () => safeguardSnapshot, () => safeguardSnapshot);
+            const getSnapshot = () => fixtureOptions.subagentLifecycle ? subagentSnapshot : safeguardSnapshot;
+            const snapshot = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+            if (fixtureOptions.subagentLifecycle && sessionId === 'child-newest') return snapshot;
             if (fixtureOptions.safeguard && sessionId === 'parent') return snapshot;
             return {
                 hasMoreOlder: false,
@@ -481,7 +499,7 @@ const virtualModules: Record<string, string> = {
             if (typeof value !== 'string') return null;
             return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
         };
-        export const t = (key, params) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject ? productText(key, params) : null) ?? ({
+        export const t = (key, params) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -1454,6 +1472,75 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
+        (['completed', 'failed', 'cancelled'] as const).map((status) => ({ width, theme, status })),
+    )))('keeps a background child Running then shows its true $status outcome through Side chats at $width px in $theme mode', async ({ width, theme, status }) => {
+        const fixture = subagentLifecycleFixture(Date.now() - 5_000);
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        const screenshotDirectory = process.env.HAPPYHERD_SUBAGENT_SCREENSHOT_DIR?.trim();
+        await page.addInitScript((messages) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { subagentLifecycle: messages };
+        }, replaySubagentRecords(fixture.running).reverse());
+        const foreground = page.getByTestId('foreground-session');
+        const header = foreground.getByTestId('tool-card-header').filter({ hasText: 'Background review' });
+        const card = header.locator('..');
+        const openSideChats = async () => {
+            await foreground.getByRole('button', { name: 'Open side chats (2)', exact: true }).click();
+            await header.waitFor({ state: 'visible' });
+        };
+        const assertOutcome = async (outcome: string) => {
+            await expect.poll(() => header.innerText()).toContain(`Background review ${outcome}`);
+            const statusText = header.getByText(`Background review ${outcome}`, { exact: true });
+            await statusText.waitFor({ state: 'visible' });
+            await expectUntruncatedText(statusText, null);
+            await card.getByText(outcome.toUpperCase(), { exact: true }).waitFor({ state: 'visible' });
+            expect(await card.getByText('3 events', { exact: true }).isVisible()).toBe(true);
+            const sibling = foreground.getByTestId('tool-card-header').filter({ hasText: 'Other child' });
+            expect(await sibling.innerText()).toContain('Other child running');
+            if (outcome !== 'completed') expect(await card.getByText('COMPLETED', { exact: true }).count()).toBe(0);
+        };
+        const assertActivity = async () => {
+            await card.getByRole('button', { name: 'Expand sub-agent activity', exact: true }).click();
+            await card.getByText('Still working after the parent turn', { exact: true }).waitFor({ state: 'visible' });
+            expect(await card.getByText('Inspect child source', { exact: true }).isVisible()).toBe(true);
+        };
+        try {
+            await page.goto(origin + '?theme=' + theme);
+            await openSideChats();
+            await assertOutcome('running');
+            await assertActivity();
+            if (screenshotDirectory && status === 'completed') {
+                mkdirSync(screenshotDirectory, { recursive: true });
+                await page.screenshot({ path: resolve(screenshotDirectory, `subagent-running-${theme}-${width}.png`) });
+            }
+            // Close/reopen via the production panel gesture, preserving the running child.
+            await (width === 390
+                ? foreground.getByTestId('files-sidebar-hide')
+                : foreground.getByRole('button', { name: 'Collapse side chats', exact: true })).click();
+            await openSideChats();
+            await assertOutcome('running');
+            const finalMessages = replaySubagentRecords([...fixture.running, fixture.terminal(status)]).reverse();
+            await page.evaluate((messages) => (globalThis as any).__APPLY_SUBAGENT_MESSAGES__(messages), finalMessages);
+            await assertOutcome(status);
+            await assertActivity();
+            if (screenshotDirectory) {
+                mkdirSync(screenshotDirectory, { recursive: true });
+                await card.screenshot({ path: resolve(screenshotDirectory, `subagent-${status}-${theme}-${width}.png`) });
+            }
+            await page.reload();
+            await openSideChats();
+            await assertOutcome(status);
+            await assertActivity();
+            expect(await page.evaluate(() => (globalThis as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).toBe(0);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 25_000);
 
     it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
         ['revise', 'ready'].map((status) => ({ width, theme, status })),

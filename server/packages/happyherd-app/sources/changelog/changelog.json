@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 29 — Accurate Claude subagent status",
+      "summary": "",
+      "markdown": "- Claude subagents keep showing Running while background work continues after a launch returns or the parent finishes. Their own completion, failure, or cancellation updates the same card, with child activity retained on replay."
+    },
+    {
       "title": "September 29 — Claude model display names",
       "summary": "",
       "markdown": "- Claude model chips, pickers, and New Chat forms now use the names advertised by the selected machine, such as Opus 5.5 and Sonnet 5. Models without an advertised name show their exact ID."
@@ -846,5 +851,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 29 — Claude model display names"
+  "latestTitle": "September 29 — Accurate Claude subagent status"
 }

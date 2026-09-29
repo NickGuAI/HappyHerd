@@ -149,6 +149,7 @@ export class SDKToLogConverter {
                     ...baseFields,
                     type: 'user',
                     message: userMsg.message as any,
+                    ...(userMsg.tool_use_result !== undefined ? { tool_use_result: userMsg.tool_use_result } : {}),
                     ...(userMsg.parent_tool_use_id ? { parent_tool_use_id: userMsg.parent_tool_use_id } : {}),
                     ...(meta ? { isMeta: true } : {}),
                 }

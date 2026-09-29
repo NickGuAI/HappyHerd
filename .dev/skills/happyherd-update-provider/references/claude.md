@@ -81,3 +81,23 @@ The shared catalog contains the optional `claude-fable-5-1` with 1M context. Opu
 ### Claude Opus 5.5 support (2026-09-24)
 
 Configured the `claude-opus-5-5` API ID with always-on adaptive thinking and support for low, medium (default), high, xhigh, and max effort options.
+
+### Native subagent lifecycle (#344)
+
+Pinned Agent SDK 0.3.260 declares `AgentOutput` as `completed`,
+`async_launched`, or `remote_launched` (`sdk-tools.d.ts`). Preserve
+`SDKUserMessage.tool_use_result`; native JSONL calls it `toolUseResult`.
+Launch acknowledgments are not terminal outcomes, including foreground tasks
+moved to the background. Correlate `task_started`, `task_progress`,
+`task_updated.patch.is_backgrounded`, and `task_notification` by `task_id` and
+its original `tool_use_id`; map native `stopped` to cancelled. The same system
+events also describe Bash/MCP tasks, so only known Task/Agent calls own a card.
+
+Interactive Claude writes terminal `<task-notification>` messages as meta user
+content (including wrapped `origin.kind: task-notification` content), with
+`task-id`, optional `tool-use-id`, `status`, and entity-escaped `summary`.
+Native `killed` is also cancelled. Parent JSONL `agent_progress` rows carry
+`data.message` plus `parentToolUseID`; retain the nested message UUID and child
+association when scanning. Parent turn closure must not stop a known background
+or provider-managed child. These contracts have source/fixture coverage; they
+do not establish authenticated live provider or native-device acceptance.
