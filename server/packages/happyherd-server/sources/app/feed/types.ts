@@ -1,10 +1,10 @@
 import * as z from "zod";
 
+// IDs only: user-authored labels must stay off the server.
 export const AutomationBlockedFeedSchema = z.object({
     kind: z.literal('automation_blocked'),
     machineId: z.string().min(1),
     automationId: z.string().min(1),
-    automationName: z.string().min(1),
     runId: z.string().min(1)
 });
 

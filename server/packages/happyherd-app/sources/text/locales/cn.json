@@ -1359,7 +1359,8 @@
     "friendRequestGeneric": "新的好友请求",
     "friendAccepted": "您现在与 {name} 成为了好友",
     "friendAcceptedGeneric": "好友请求已接受",
-    "automationBlocked": "自动化 {name} 被运行 {runId} 阻塞。打开自动化以停止或放弃该运行。"
+    "automationBlocked": "{machine} 上的一个自动化被运行 {runId} 阻塞。打开自动化以停止或放弃该运行。",
+    "automationBlockedGeneric": "一个自动化被运行 {runId} 阻塞。打开自动化以停止或放弃该运行。"
   },
   "happyHerd": {
     "commander": {

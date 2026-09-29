@@ -53,7 +53,7 @@ async function createApp() {
     return app;
 }
 
-const payload = { machineId: 'machine', automationId: 'automation', automationName: 'Nightly job', runId: 'run-1' };
+const payload = { machineId: 'machine', automationId: 'automation', runId: 'run-1' };
 
 describe('automation blocked feed notifications', () => {
     beforeEach(() => {
@@ -89,6 +89,7 @@ describe('automation blocked feed notifications', () => {
         expect(dbMock.account.update).toHaveBeenCalledTimes(1);
         expect(emitUpdate).toHaveBeenCalledTimes(1);
         expect(original.body).toEqual({ kind: 'automation_blocked', ...payload });
+        expect(original.body).not.toHaveProperty('automationName');
         const feed = await app.inject({ method: 'GET', url: '/v1/feed', headers: request.headers });
         expect(feed.statusCode).toBe(200);
         expect(feed.json().items[0].body).toEqual(original.body);
@@ -102,6 +103,20 @@ describe('automation blocked feed notifications', () => {
         }
         expect(dbMock.items).toHaveLength(2);
         expect(emitUpdate).toHaveBeenCalledTimes(2);
+        await app.close();
+    });
+
+    it('strips an automation name sent by a caller', async () => {
+        const app = await createApp();
+        const response = await app.inject({
+            method: 'POST',
+            url: '/v1/feed/automation-blocked',
+            headers: { authorization: 'owner' },
+            payload: { ...payload, automationName: 'Private label' },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(dbMock.items[0].body).toEqual({ kind: 'automation_blocked', ...payload });
+        expect(dbMock.items[0].body).not.toHaveProperty('automationName');
         await app.close();
     });
 

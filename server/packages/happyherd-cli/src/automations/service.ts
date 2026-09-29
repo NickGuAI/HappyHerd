@@ -283,7 +283,7 @@ export class HappyHerdAutomationService {
     private readonly heartbeatDependencies?: HappyHerdHeartbeatDependencies,
     private readonly runRecoveryDependencies?: HappyHerdAutomationRunRecoveryDependencies,
     private readonly execCommandRunner: HappyHerdExecCommandRunner = runHappyHerdExecCommand,
-    private readonly notifyBlocked?: (input: { machineId: string; automationId: string; automationName: string; runId: string }) => Promise<void>,
+    private readonly notifyBlocked?: (input: { machineId: string; automationId: string; runId: string }) => Promise<void>,
   ) {}
 
   async start(): Promise<void> {
@@ -892,7 +892,7 @@ export class HappyHerdAutomationService {
     for (const automation of automations.filter((entry) => entry.kind !== 'heartbeat')) {
       for (const run of await this.store.pendingBlockedNotifications(automation.id)) {
         try {
-          await this.notifyBlocked({ machineId: this.machineId, automationId: automation.id, automationName: automation.name, runId: run.id });
+          await this.notifyBlocked({ machineId: this.machineId, automationId: automation.id, runId: run.id });
           await this.store.markBlockedNotificationSent(automation.id, run.id);
         } catch (error) {
           // Retry the same episode key even if its provider has since exited.

@@ -618,7 +618,8 @@ describe('HappyHerdAutomationService', () => {
     await restarted.stop();
     expect(notify).toHaveBeenCalledTimes(2);
     expect(notify.mock.calls[0]).toEqual(notify.mock.calls[1]);
-    expect(notify).toHaveBeenLastCalledWith({ machineId: 'machine-one', automationId: automation.id, automationName: automation.name, runId: blocker.id });
+    expect(notify).toHaveBeenLastCalledWith({ machineId: 'machine-one', automationId: automation.id, runId: blocker.id });
+    expect(notify.mock.calls[0][0]).not.toHaveProperty('automationName');
     await scheduled(createService());
     expect(notify).toHaveBeenCalledTimes(2);
   });

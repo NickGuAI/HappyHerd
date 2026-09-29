@@ -9,7 +9,6 @@ export const FeedBodySchema = z.discriminatedUnion('kind', [
         kind: z.literal('automation_blocked'),
         machineId: z.string(),
         automationId: z.string(),
-        automationName: z.string(),
         runId: z.string(),
     })
 ]);

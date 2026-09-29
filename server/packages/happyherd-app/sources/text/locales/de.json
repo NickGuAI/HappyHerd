@@ -1359,7 +1359,8 @@
     "friendRequestGeneric": "Neue Freundschaftsanfrage",
     "friendAccepted": "Du bist jetzt mit {name} befreundet",
     "friendAcceptedGeneric": "Freundschaftsanfrage angenommen",
-    "automationBlocked": "Automatisierung {name} wird durch Lauf {runId} blockiert. Öffne Automatisierungen, um ihn zu stoppen oder aufzugeben."
+    "automationBlocked": "Eine Automatisierung auf {machine} wird durch Lauf {runId} blockiert. Öffnen Sie Automatisierungen, um ihn zu stoppen oder aufzugeben.",
+    "automationBlockedGeneric": "Eine Automatisierung wird durch Lauf {runId} blockiert. Öffnen Sie Automatisierungen, um ihn zu stoppen oder aufzugeben."
   },
   "happyHerd": {
     "commander": {

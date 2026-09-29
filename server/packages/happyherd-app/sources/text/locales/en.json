@@ -1359,7 +1359,8 @@
     "friendRequestGeneric": "New friend request",
     "friendAccepted": "You are now friends with {name}",
     "friendAcceptedGeneric": "Friend request accepted",
-    "automationBlocked": "Automation {name} is blocked by run {runId}. Open Automations to stop or abandon it."
+    "automationBlocked": "An automation on {machine} is blocked by run {runId}. Open Automations to stop or abandon it.",
+    "automationBlockedGeneric": "An automation is blocked by run {runId}. Open Automations to stop or abandon it."
   },
   "happyHerd": {
     "commander": {

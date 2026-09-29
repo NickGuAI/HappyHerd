@@ -266,6 +266,7 @@ export type TranslationKey =
     | "errors.voiceSessionFailed"
     | "errors.webViewLoadFailed"
     | "feed.automationBlocked"
+    | "feed.automationBlockedGeneric"
     | "feed.friendAccepted"
     | "feed.friendAcceptedGeneric"
     | "feed.friendRequestFrom"
@@ -1687,7 +1688,8 @@ export interface TranslationParamsByKey {
     "errors.unsupportedPermissionMode": { cliVersion: string; mode: string };
     "errors.validationError": { field: string; max: number; min: number };
     "errors.voiceHardLimitReached": { hours: number };
-    "feed.automationBlocked": { name: string; runId: string };
+    "feed.automationBlocked": { machine: string; runId: string };
+    "feed.automationBlockedGeneric": { runId: string };
     "feed.friendAccepted": { name: string };
     "feed.friendRequestFrom": { name: string };
     "files.canvasNode": { node: string };

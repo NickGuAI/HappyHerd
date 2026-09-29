@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "ba40b1665c42a3c2c933094b590b105346e845df3a021f8d8df265de8e5fb08a",
+  "sourceFingerprint": "c7ede563297512b9aebeed2f96a8d2e1c1f3d3a0e6c865898fd8e25cdcd9749d",
   "routeCount": 44,
   "surfaceCount": 336,
   "hardcodedCopyCount": 0,
@@ -3747,6 +3747,7 @@
       ],
       "translationKeys": [
         "feed.automationBlocked",
+        "feed.automationBlockedGeneric",
         "feed.friendAccepted",
         "feed.friendRequestFrom",
         "sessionHistory.daysAgo",
