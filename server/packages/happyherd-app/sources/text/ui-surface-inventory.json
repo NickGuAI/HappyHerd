@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4cfe7f60be6f5e1a1f65be2535e87c29eba978973e85fc46a06044a5cc62001e",
+  "sourceFingerprint": "70d4472df5640bdbb95b6f6b90b43b7a93659d38c8a929028bfae7befa1bd21f",
   "routeCount": 44,
   "surfaceCount": 336,
   "hardcodedCopyCount": 0,
@@ -4571,6 +4571,7 @@
         "sideChat.newChat",
         "sideChat.openCount",
         "sideChat.panelTitle",
+        "uiCopy.archive",
         "uiCopy.session",
         "workspace.title"
       ],

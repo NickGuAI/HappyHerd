@@ -646,3 +646,4 @@ UI_OVERHAUL_HEADER_COUNT_BUTTON	accepted	fix(app): widen an icon-only header but
 UI_HIDDEN_TOOL_PERMISSION	accepted	fix(app): show a pending permission request on a hidden tool	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
 UI_SHORT_USER_BUBBLE	accepted	fix(app): size short user bubbles to their text	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_FIX_350_351_DOCS	accepted	docs(app): record the hidden-tool permission and bubble width fixes for upstream merges	docs/upstream-ui-parity.md
+UI_HEADER_ARCHIVE_MACHINE_WORKSPACE	accepted	feat(app): archive from the session header and open the Workspace from a machine button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts

@@ -1,3 +1,7 @@
+# September 29 — A clearer session header
+
+- Updated the session header so its pause button archives the session, the same as ⋯ → Archive, and "Workspace" opens from its own button with a machine icon.
+
 # September 27 — Redesigned interface and Streamline session start
 
 - Added a top bar on web desktop with a button that collapses or expands the left panel (also ⌥⌘B on a Mac, Ctrl+Alt+B elsewhere) and a command search that opens the command palette. It also holds "Focus mode", an Inbox bell with a menu of recent updates, and the current machine with a menu to switch machines. The header's Back button is gone; go back with your browser, a mouse back button, or Escape.

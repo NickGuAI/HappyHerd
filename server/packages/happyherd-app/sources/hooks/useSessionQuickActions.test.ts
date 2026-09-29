@@ -399,6 +399,33 @@ describe('useSessionQuickActions resume permission continuity', () => {
         act(() => renderer.unmount());
     });
 
+    it.each([true, false])('shares the header archive callback with the menu (session kill succeeds: %s)', async (success) => {
+        const session = sessionFor('codex');
+        mocks.machine = machineFor('codex');
+        mocks.sessionKill.mockResolvedValue({ success });
+
+        function Harness() {
+            current = useSessionQuickActions(session, {});
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        expect(current.actionItems.find((item) => item.id === 'archive')?.onPress).toBe(current.archiveSession);
+        await performArchive();
+
+        expect(mocks.cleanup).toHaveBeenCalledExactlyOnceWith(session.id, session.metadata?.path, session.metadata?.machineId);
+        expect(mocks.sessionKill).toHaveBeenCalledExactlyOnceWith(session.id);
+        if (success) {
+            expect(mocks.sessionArchive).not.toHaveBeenCalled();
+        } else {
+            expect(mocks.sessionArchive).toHaveBeenCalledExactlyOnceWith(session.id);
+        }
+        expect(mocks.actionError).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
     it('uses the latest synced bot identity to archive only through its owning session RPC', async () => {
         const session = sessionFor('codex');
         mocks.sessions[session.id] = {

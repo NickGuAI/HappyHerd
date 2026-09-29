@@ -232,12 +232,23 @@ function sessionScreenModules(): Record<string, string> {
         `export { useSessionStatus } from '${resolve(sources, 'utils/sessionUtils.ts')}';`,
     );
 
-    // Permission answers are observable.
+    // Permission answers and archive actions are observable.
     let ops = modules['@/sync/ops'];
     ops = replaceOnce(ops, 'export const sessionAllow = async () => {};',
         `export const sessionAllow = async (...args) => { window.__PERMISSION_CALLS__ = [...(window.__PERMISSION_CALLS__ ?? []), ['allow', ...args]]; };`, 'sessionAllow');
     ops = replaceOnce(ops, 'export const sessionDeny = async () => {};',
         `export const sessionDeny = async (...args) => { window.__PERMISSION_CALLS__ = [...(window.__PERMISSION_CALLS__ ?? []), ['deny', ...args]]; };`, 'sessionDeny');
+    ops = replaceOnce(ops, `export const sessionKill = async (sessionId) => {
+            const calls = window.__SESSION_KILL_CALLS__ = [...(window.__SESSION_KILL_CALLS__ ?? []), sessionId];
+            const results = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.botArchiveResults ?? [];
+            const accepted = results[calls.length - 1] ?? true;
+            return accepted
+                ? { success: true, message: 'accepted by owning machine' }
+                : { success: false, message: '' };
+        };`, `export const sessionKill = async (sessionId) => {
+            window.__SESSION_KILL_CALLS__ = [...(window.__SESSION_KILL_CALLS__ ?? []), sessionId];
+            return { success: true, message: 'ok' };
+        };`, 'sessionKill');
     modules['@/sync/ops'] = ops;
 
     // Storage: a Claude session with a finished turn, a live turn, a goal, a
@@ -536,6 +547,24 @@ describe('Session screen overhaul (Web)', () => {
         const [buttonBox, menuBox] = await Promise.all([menuButton.boundingBox(), details.boundingBox()]);
         expect(menuBox!.y).toBeGreaterThan(buttonBox!.y + buttonBox!.height - 1);
         await page.keyboard.press('Escape');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it.each([
+        ['Web Desktop', DESKTOP],
+        ['Web Mobile', MOBILE],
+    ] as const)('archives from the header with one click on %s', async (_surface, viewport) => {
+        const { page, errors } = await openScene({ scene: 'permission', viewport });
+        const foreground = page.getByTestId('foreground-session');
+
+        await foreground.getByRole('button', { name: 'Archive', exact: true }).click();
+
+        await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__ ?? [])).toEqual(['parent']);
+        expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+        expect(await page.evaluate(() => (window as any).__HAPPYHERD_ALERTS__ ?? [])).toEqual([]);
+        await expect(page.getByRole('dialog').count()).resolves.toBe(0);
+        await expect(page.getByTestId('fixture-global-modal').count()).resolves.toBe(0);
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
