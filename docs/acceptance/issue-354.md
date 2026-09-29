@@ -23,8 +23,8 @@ new access policy, or prompt reconstruction is introduced.
 
 ## Focused evidence
 
-The reviewed reader passed 21 CLI parser/encrypted-RPC/retained-home tests,
-82 wire tests, 19 app transport/settings tests, and 16 focused rendered browser cases. All 116 tests in the shared browser
+The reviewed reader passed 29 CLI parser/encrypted-RPC/retained-home tests,
+82 wire tests, 19 app transport/settings tests, and 16 focused rendered browser cases. All 128 tests in the rebased shared browser
 suite and all 66 settings/quick-action tests also passed.
 The eight successful provider × viewport × theme journeys exercise the visible
 switch, session menu, full-content reading, reopen and Refresh. Six additional
@@ -43,11 +43,15 @@ the existing `happyherd-control-agent` build prerequisite; it passed after
 building that package, with no source workaround.
 
 Independent review reproduced and prompted fixes for abandoned Claude branches
-and persisted Codex dynamic-tool metadata. The final PR receipt records the
+and persisted Codex dynamic-tool metadata. A second review caught the fresh
+compaction transition; compact summaries and hidden mainline injections now
+remain eligible as current model input, and an incomplete boundary offers
+retry instead of the obsolete window. Retained-history tests cover the
+completed summary before another reply, including competing discarded descendants. The final PR receipt records the
 exact-head re-review. The initial CI Unit tests failure was the existing
 settings defaults assertion missing the new off-by-default key; its expected
-object now explicitly includes `expContextWindow: false`. The first local contract
-run was interrupted before package tests to avoid mixing reviewed revisions.
+object now explicitly includes `expContextWindow: false`. Two local contract attempts
+were interrupted before package tests to avoid mixing reviewed revisions.
 
 ## Verification commands
 

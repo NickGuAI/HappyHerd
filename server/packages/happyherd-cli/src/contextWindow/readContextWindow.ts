@@ -49,8 +49,10 @@ function claudeCurrentBranch(records: TraceRecord[]): TraceRecord[] {
         parents.set(item.uuid, typeof item.parentUuid === 'string' ? item.parentUuid : undefined);
     });
     const incompleteBoundaries = new Set<string>();
+    const retainedByBoundary = new Map<string, Set<string>>();
     for (const [uuid, item] of byUuid) {
         if (item.type !== 'system' || item.subtype !== 'compact_boundary') continue;
+        retainedByBoundary.set(uuid, new Set());
         const metadata = record(item.compactMetadata);
         const preservedMessages = record(metadata?.preservedMessages);
         const preservedSegment = record(metadata?.preservedSegment);
@@ -82,36 +84,76 @@ function claudeCurrentBranch(records: TraceRecord[]): TraceRecord[] {
         // Native preservedMessages supersedes preservedSegment. Reparent the
         // selected old records and then the other children of the summary.
         const ids = kept as string[];
+        retainedByBoundary.set(uuid, new Set(ids));
         ids.forEach((id, index) => parents.set(id, index === 0 ? anchor : ids[index - 1]));
         for (const [child, parent] of parents) {
             if (parent === anchor && child !== ids[0]) parents.set(child, ids[ids.length - 1]);
         }
     }
     const isConversation = (item: TraceRecord) => item.type === 'user' || item.type === 'assistant';
-    const isMainline = (item: TraceRecord) => !item.isSidechain && !item.teamName && !item.isMeta;
+    // isMeta controls chat visibility, not whether the model receives input.
+    // Both compact summaries and later hidden injections can be the current
+    // mainline leaf; filtering them would revive an abandoned ordinary branch.
+    const isMainline = (item: TraceRecord) => !item.isSidechain && !item.teamName;
     const parentIds = new Set([...parents.values()].filter((id): id is string => id !== undefined));
     const leaves = [...byUuid.keys()].filter((id) => !parentIds.has(id));
     if (byUuid.size > 0 && leaves.length === 0) throw new Error('Invalid Claude parent chain');
-    const candidates: Array<{ conversation: string; leaf: string }> = [];
+    const candidates: Array<{ conversation: string; leaf: string; position: number }> = [];
     for (const leaf of leaves) {
         let cursor: string | undefined = leaf;
+        let candidateLeaf = leaf;
+        let conversation: string | undefined;
+        let position = -1;
         const visited = new Set<string>();
         while (cursor && !visited.has(cursor)) {
             visited.add(cursor);
             const item = byUuid.get(cursor);
             if (!item) break;
             if (isConversation(item)) {
-                candidates.push({ conversation: cursor, leaf });
+                conversation ??= cursor;
+                // A retained old user can follow the freshly written summary
+                // after native compaction relinking. Rank the reconstructed
+                // window by its newest conversational ancestor, not just that
+                // retained user's original physical position.
+                position = Math.max(position, positions.get(cursor)!);
+            }
+            if (item.type === 'system' && item.subtype === 'compact_boundary') {
+                const boundaryPosition = positions.get(cursor)!;
+                const kept = retainedByBoundary.get(cursor)!;
+                // Relinking a retained parent does not keep its discarded old
+                // descendants. Only the native explicit keep set can cross
+                // the physical compaction cut from the old window.
+                const path = [...visited];
+                let discardedThrough = -1;
+                path.forEach((id, index) => {
+                    if (positions.get(id)! < boundaryPosition && !kept.has(id)) discardedThrough = index;
+                });
+                if (discardedThrough >= 0) {
+                    // Cutting a discarded child can make its kept parent the
+                    // new leaf; do not lose that valid retained endpoint.
+                    const retainedPath = path.slice(discardedThrough + 1);
+                    candidateLeaf = retainedPath[0];
+                    conversation = retainedPath.find((id) => isConversation(byUuid.get(id)!));
+                    position = retainedPath.reduce((newest, id) => isConversation(byUuid.get(id)!)
+                        ? Math.max(newest, positions.get(id)!) : newest, -1);
+                }
                 break;
             }
             cursor = parents.get(cursor);
         }
+        if (conversation) candidates.push({ conversation, leaf: candidateLeaf, position });
     }
     const mainline = candidates.filter(({ conversation }) => isMainline(byUuid.get(conversation)!));
     const selected = (mainline.length ? mainline : candidates).sort((a, b) =>
-        positions.get(a.conversation)! - positions.get(b.conversation)!
+        a.position - b.position
         || positions.get(a.leaf)! - positions.get(b.leaf)!,
     ).at(-1);
+    for (const [uuid, item] of byUuid) {
+        if (item.type === 'system' && item.subtype === 'compact_boundary' && !item.isSidechain && !item.teamName
+            && positions.get(uuid)! > (selected?.position ?? -1)) {
+            throw new Error('Claude compaction summary is not recorded');
+        }
+    }
     let cursor = selected?.leaf ?? leaves.at(-1);
     const chain: TraceRecord[] = [];
     const selectedIds = new Set<string>();

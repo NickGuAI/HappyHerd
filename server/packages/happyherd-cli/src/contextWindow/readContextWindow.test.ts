@@ -132,6 +132,60 @@ describe('Claude recorded context window', () => {
         ));
         expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['b', 'u']);
     });
+
+    it('uses a newly compacted summary before the next ordinary turn instead of the obsolete prior window', () => {
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'old-u', parentUuid: null, message: { content: 'old request' } },
+            { type: 'assistant', uuid: 'old-a', parentUuid: 'old-u', message: { content: 'old answer' } },
+            { type: 'system', subtype: 'compact_boundary', uuid: 'b', parentUuid: null, logicalParentUuid: 'old-a' },
+            { type: 'user', uuid: 'summary', parentUuid: 'b', isMeta: true, isCompactSummary: true, message: { content: 'current compact summary' } },
+            { type: 'attachment', uuid: 'current-attachment', parentUuid: 'summary', attachment: { type: 'environment', content: 'current environment' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['b', 'summary', 'current-attachment']);
+        expect(JSON.stringify(result)).not.toContain('old answer');
+    });
+
+    it('does not show the obsolete window while the new compaction summary has not finished writing', () => {
+        expect(() => parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'old-u', parentUuid: null, message: { content: 'old request' } },
+            { type: 'assistant', uuid: 'old-a', parentUuid: 'old-u', message: { content: 'old answer' } },
+            { type: 'system', subtype: 'compact_boundary', uuid: 'b', parentUuid: null, logicalParentUuid: 'old-a' },
+        ))).toThrow('compaction summary is not recorded');
+    });
+
+    it('keeps a current hidden mainline injection eligible when an abandoned ordinary branch also exists', () => {
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'u', parentUuid: null, message: { content: 'request' } },
+            { type: 'assistant', uuid: 'abandoned', parentUuid: 'u', message: { content: 'abandoned reply' } },
+            { type: 'user', uuid: 'current-u', parentUuid: 'u', message: { content: 'replacement request' } },
+            { type: 'assistant', uuid: 'current-a', parentUuid: 'current-u', message: { content: 'current reply' } },
+            { type: 'user', uuid: 'hidden', parentUuid: 'current-a', isMeta: true, origin: { kind: 'task-notification' }, message: { content: '<task-notification>Recorded background task result.</task-notification>' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['u', 'current-u', 'current-a', 'hidden']);
+        expect(JSON.stringify(result)).toContain('Recorded background task result.');
+        expect(JSON.stringify(result)).not.toContain('abandoned reply');
+    });
+
+    it.each([6, 7, 10])('reads completed retained-history compaction at fixture stage %i before another assistant reply', async (lineCount) => {
+        const lines = (await fixture('claude-compacted')).trim().split('\n');
+        const result = parseClaudeContextWindow(lines.slice(0, lineCount).join('\n'));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual([
+            'boundary', 'compact-summary', 'kept-user', 'kept-attachment',
+            ...['environment', 'session-context', 'deferred-tools', 'reminder'].slice(0, lineCount - 6),
+        ]);
+    });
+
+    it.each([false, true])('ranks the new summary above abandoned conversations recorded after the retained old user (retained attachment: %s)', (hasAttachment) => {
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'retained', parentUuid: null, message: { content: 'retained request' } },
+            ...(hasAttachment ? [{ type: 'attachment', uuid: 'retained-hidden', parentUuid: 'retained', attachment: { type: 'environment', content: 'retained environment' } }] : []),
+            { type: 'user', uuid: 'abandoned', parentUuid: 'retained', message: { content: 'later abandoned request' } },
+            { type: 'assistant', uuid: 'abandoned-answer', parentUuid: 'abandoned', message: { content: 'later abandoned answer' } },
+            { type: 'system', subtype: 'compact_boundary', uuid: 'b', parentUuid: null, compactMetadata: { preservedMessages: { anchorUuid: 'summary', uuids: ['retained', ...(hasAttachment ? ['retained-hidden'] : [])] } } },
+            { type: 'user', uuid: 'summary', parentUuid: 'b', isMeta: true, isCompactSummary: true, message: { content: 'new compact summary' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['b', 'summary', 'retained', ...(hasAttachment ? ['retained-hidden'] : [])]);
+    });
 });
 
 describe('Codex recorded context window', () => {

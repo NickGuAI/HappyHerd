@@ -13,6 +13,14 @@ recorded Claude and Codex JSONL, and the following native sources:
   excludes abandoned rewind branches, and recovers assistant chunks sharing a
   `message.id` plus their tool-result siblings. Hidden ancestors and trailing
   attachments remain recorded content; no chat visibility filter is applied.
+  A fresh `isCompactSummary` user record establishes the new window before
+  the next ordinary turn, including when native marks it `isMeta`. A boundary
+  awaiting its summary is temporarily unreadable rather than the old window.
+  Mainline `isMeta` input remains eligible: the owning Claude protocol mapper
+  documents that the model receives these records even when chat hides them.
+  After native retention relinks older UUIDs, branch selection uses its newest
+  conversational ancestor, including the fresh summary. Discarded old children
+  do not inherit retention merely because their parent was explicitly kept.
 - [Codex 0.154.0 rollout reconstruction](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session/rollout_reconstruction.rs)
   selects the current `compacted.replacement_history`, then later response
   items and inter-agent input. Native world-state/turn-context records remain
