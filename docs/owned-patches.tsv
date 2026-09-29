@@ -672,3 +672,4 @@ CONTEXT_WINDOW_AUTOMATION_MAIN_GOLDENS	accepted	test(context): refresh context c
 CONTEXT_WINDOW_NATIVE_ACCEPTANCE_RECEIPT	accepted	docs(context): record native acceptance and live prerequisites	docs/acceptance/issue-354.md
 CONTEXT_WINDOW_CODEX_CONTINUATION_SCOPE	accepted	docs(context): honor Codex-only live acceptance scope	docs/acceptance/issue-354.md
 COMMANDER_LOADED_CONTEXT_ROW	accepted	feat(session): show loaded Commander context in the stream	server/packages/happyherd-cli/src/agentContext/commanderContext.test.ts
+COMMANDER_CONTEXT_REASSIGNMENT_RETRY	accepted	fix(session): preserve Commander changes during resume receipt retries	server/packages/happyherd-cli/src/api/apiSession.test.ts

@@ -81,7 +81,7 @@ export function configureHappyHerdSessionReconnect(
   }
   session.updateMetadata((metadata) => ({
     ...metadata,
-    ...commanderContextReceiptForResume(initialization.response?.metadata ?? {}),
+    ...commanderContextReceiptForResume(initialization.response?.metadata ?? {}, metadata),
     lifecycleState: 'running',
     lifecycleStateSince: Date.now(),
     archivedBy: undefined,

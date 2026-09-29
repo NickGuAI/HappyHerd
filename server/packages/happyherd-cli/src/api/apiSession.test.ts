@@ -278,14 +278,16 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await client.close();
     });
 
-    it.each(['replace', 'clear'] as const)('persists the resumed Commander receipt through a metadata conflict: %s', async (operation) => {
+    it.each(['replace', 'clear', 'reassign', 'detach'] as const)('persists the resumed Commander receipt through a metadata conflict: %s', async (operation) => {
         const historicalFiles = [{ kind: 'commander' as const, path: '/old/COMMANDER.md' }];
-        const currentFiles = operation === 'replace'
-            ? [{ kind: 'commander' as const, path: '/current/COMMANDER.md' }]
-            : undefined;
+        const currentFiles = operation === 'clear'
+            ? undefined
+            : [{ kind: 'commander' as const, path: '/current/COMMANDER.md' }];
+        const changedBinding = operation === 'reassign' || operation === 'detach';
+        const concurrentCommanderId = operation === 'reassign' ? 'hermes' : operation === 'detach' ? undefined : 'athena';
         const response = {
             ...session,
-            metadata: { ...session.metadata, contextHash: 'current-context', commanderContextFiles: currentFiles },
+            metadata: { ...session.metadata, commanderId: 'athena', contextHash: 'current-context', commanderContextFiles: currentFiles },
         };
         let attempts = 0;
         mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
@@ -295,7 +297,8 @@ describe('ApiSessionClient v3 messages API migration', () => {
                 return {
                     result: 'version-mismatch', version: payload.expectedVersion + 1,
                     metadata: encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, {
-                        ...session.metadata, hostPid: 987, commanderContextFiles: historicalFiles,
+                        ...session.metadata, hostPid: 987, commanderId: concurrentCommanderId,
+                        commanderContextFiles: changedBinding ? undefined : historicalFiles,
                     })),
                 };
             }
@@ -308,7 +311,8 @@ describe('ApiSessionClient v3 messages API migration', () => {
             });
             await waitForCheck(() => {
                 expect(attempts).toBe(2);
-                expect(client.getMetadata()?.commanderContextFiles).toEqual(currentFiles);
+                expect(client.getMetadata()?.commanderContextFiles).toEqual(changedBinding ? undefined : currentFiles);
+                expect(client.getMetadata()?.commanderId).toBe(concurrentCommanderId);
             });
             expect(client.getMetadata()?.hostPid).toBe(987);
         } finally {

@@ -458,7 +458,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         session.skipExistingMessages(reconnectQueueMessageIds, response.seq);
         session.updateMetadata((meta) => ({
             ...meta,
-            ...commanderContextReceiptForResume(metadata),
+            ...commanderContextReceiptForResume(metadata, meta),
             lifecycleState: 'running',
             lifecycleStateSince: undefined,
             archivedBy: undefined,

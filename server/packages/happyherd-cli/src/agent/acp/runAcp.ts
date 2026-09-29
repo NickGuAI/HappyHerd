@@ -761,7 +761,7 @@ export async function runAcp(opts: {
     }
     session.updateMetadata((currentMetadata) => ({
       ...currentMetadata,
-      ...commanderContextReceiptForResume(metadata),
+      ...commanderContextReceiptForResume(metadata, currentMetadata),
       lifecycleState: 'running',
       lifecycleStateSince: Date.now(),
       archivedBy: undefined,

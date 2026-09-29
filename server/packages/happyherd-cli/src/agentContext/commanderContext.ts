@@ -597,9 +597,14 @@ export function contextMetadataFromEnvironment(): CommanderContextMetadata {
   };
 }
 
-/** Reapply the current launch's receipt when a resume metadata write retries. */
-export function commanderContextReceiptForResume(metadata: CommanderContextMetadata): Pick<CommanderContextMetadata, 'commanderContextFiles'> {
-  return metadata.contextHash ? { commanderContextFiles: metadata.commanderContextFiles } : {};
+/** Reapply a launch receipt only while its Commander binding is still current. */
+export function commanderContextReceiptForResume(
+  launchMetadata: CommanderContextMetadata,
+  currentMetadata: CommanderContextMetadata,
+): Pick<CommanderContextMetadata, 'commanderContextFiles'> {
+  return launchMetadata.contextHash && launchMetadata.commanderId === currentMetadata.commanderId
+    ? { commanderContextFiles: launchMetadata.commanderContextFiles }
+    : {};
 }
 
 export function mergeContextPrompt(base: string | undefined, override: string | null | undefined): string | undefined {
