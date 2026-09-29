@@ -190,7 +190,13 @@ another harness.
 | Claude Code | `getProjectPath(directory)/<claudeSessionId>.jsonl`, using the same project-path resolver as the rewind-point RPC. | The last `system` record with `subtype: compact_boundary`; ordinary `summary` records are not compaction boundaries. Preserve the boundary, following records, and any explicitly retained earlier messages in native order. |
 | Codex | `*-<codexThreadId>.jsonl` under the resolved Codex home's `sessions` or `archived_sessions`. | A `compacted.payload.replacement_history` checkpoint replaces the earlier response history. Keep its ordered replacement entries and subsequent recorded inputs; keep recorded base instructions separately. |
 
-For Claude, the on-disk `compactMetadata.preservedMessages` contains
+For Claude, first reconstruct the latest eligible mainline conversation from
+`parentUuid` links. A rewind/resume can leave discarded branches in the same
+file; physical append order alone does not identify current messages. Preserve
+native same-message assistant/tool-result siblings and current hidden
+attachments while excluding abandoned conversation branches.
+
+The on-disk `compactMetadata.preservedMessages` contains
 `anchorUuid` and an ordered `uuids` list. It takes precedence over the older
 `preservedSegment` form, whose `headUuid`, `tailUuid`, and parent links identify
 the kept segment. Splice kept entries after `anchorUuid`, including attachments
@@ -208,7 +214,9 @@ A retained `metadata.codexHome` takes precedence; the resolver also knows the
 configured/default home, existing legacy credential-pool homes, and retained
 token-spawn homes. Do not substitute the daemon's default `~/.codex` for the
 session's original state home. Render `session_meta.base_instructions.text`
-verbatim when recorded. Include `inter_agent_communication` records: native
+verbatim when recorded. Preserve recorded `session_meta` fields, including
+`dynamic_tools`, across compaction; a missing-content notice is not a substitute
+for recorded tool definitions. Include `inter_agent_communication` records: native
 Codex converts them to model input. Preserve `world_state` and `turn_context`
 as labeled trace metadata, without inventing rendered messages from them.
 

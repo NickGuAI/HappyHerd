@@ -8,11 +8,17 @@ recorded Claude and Codex JSONL, and the following native sources:
 - Installed `@anthropic-ai/claude-agent-sdk` 0.3.260 `sdk.d.ts`
   (`SDKCompactBoundaryMessage`) and `sdk.mjs` native transcript reconstruction:
   disk `compactMetadata.preservedMessages` takes precedence over
-  `preservedSegment`, with kept messages inserted after `anchorUuid`.
+  `preservedSegment`, with kept messages inserted after `anchorUuid`. Native
+  ancestry chooses the latest mainline conversational leaf by record position,
+  excludes abandoned rewind branches, and recovers assistant chunks sharing a
+  `message.id` plus their tool-result siblings. Hidden ancestors and trailing
+  attachments remain recorded content; no chat visibility filter is applied.
 - [Codex 0.154.0 rollout reconstruction](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session/rollout_reconstruction.rs)
   selects the current `compacted.replacement_history`, then later response
   items and inter-agent input. Native world-state/turn-context records remain
   labeled trace metadata, without fabricated model messages.
+  Session metadata, including recorded `dynamic_tools`, survives the context
+  cut; base instructions are displayed separately without duplicating them.
 - [Codex 0.154.0 rollout policy](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/rollout/src/policy.rs)
   does not persist all dynamic model-input/tool-definition records. The
   reader therefore marks trace limitations rather than claiming to recover

@@ -55,7 +55,7 @@ describe('Claude recorded context window', () => {
             old,
             { type: 'attachment', uuid: 'tail', parentUuid: 'head', attachment: { type: 'agent_listing', content: 'fixture agent' } },
             { type: 'system', subtype: 'compact_boundary', uuid: 'b', compactMetadata: { preservedSegment: { headUuid: 'head', tailUuid: 'tail', anchorUuid: 'summary' } } },
-            { type: 'user', uuid: 'summary', isCompactSummary: true, message: { content: 'summary' } },
+            { type: 'user', uuid: 'summary', parentUuid: 'b', isCompactSummary: true, message: { content: 'summary' } },
             { type: 'assistant', uuid: 'new', parentUuid: 'summary', message: { content: 'new reply' } },
         ));
         expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['b', 'summary', 'head', 'tail', 'new']);
@@ -68,6 +68,70 @@ describe('Claude recorded context window', () => {
             compactMetadata: { preservedMessages: { anchorUuid: 'b', uuids: ['missing'] } },
         }))).toThrow('not recorded');
     });
+
+    it('selects the latest mainline branch after rewind, keeping its hidden ancestors and trailing attachments', () => {
+        const records = [
+            { type: 'system', subtype: 'compact_boundary', uuid: 'boundary', parentUuid: null },
+            { type: 'user', uuid: 'summary', parentUuid: 'boundary', isMeta: true, message: { content: 'summary' } },
+            { type: 'user', uuid: 'u1', parentUuid: 'summary', message: { content: 'first request' } },
+            { type: 'attachment', uuid: 'old-injection', parentUuid: 'u1', attachment: { type: 'environment', content: 'discarded context' } },
+            { type: 'assistant', uuid: 'a1', parentUuid: 'old-injection', message: { content: 'discarded response' } },
+            { type: 'summary', leafUuid: 'a1', summary: 'discarded branch title' },
+            { type: 'user', uuid: 'u2', parentUuid: 'u1', message: { content: 'replacement after rewind' } },
+            { type: 'attachment', uuid: 'current-injection', parentUuid: 'u2', attachment: { type: 'skill_listing', content: 'current hidden context' } },
+            { type: 'assistant', uuid: 'a2', parentUuid: 'current-injection', message: { content: 'current response' } },
+            { type: 'attachment', uuid: 'trailing-injection', parentUuid: 'a2', attachment: { type: 'system_reminder', content: 'current trailing context' } },
+            { type: 'user', uuid: 'side-u', parentUuid: 'u1', isSidechain: true, message: { content: 'subagent request' } },
+            { type: 'assistant', uuid: 'side-a', parentUuid: 'side-u', isSidechain: true, message: { content: 'subagent response' } },
+            { type: 'file-history-snapshot', messageId: 'a2', snapshot: { trackedFileBackups: {} } },
+        ];
+        const result = parseClaudeContextWindow(jsonl(...records));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid ?? item.kind)).toEqual([
+            'boundary', 'summary', 'u1', 'u2', 'current-injection', 'a2', 'trailing-injection', 'file-history-snapshot',
+        ]);
+        expect(JSON.stringify(result)).not.toContain('discarded');
+        expect(JSON.stringify(result)).not.toContain('subagent');
+    });
+
+    it('recovers native assistant chunks with the same message ID and sibling tool results', () => {
+        const chunk = (uuid: string, toolId: string) => ({
+            type: 'assistant', uuid, parentUuid: 'u', timestamp: uuid,
+            message: { id: 'same-native-message', role: 'assistant', content: [{ type: 'tool_use', id: toolId, name: 'fixture_tool', input: {} }] },
+        });
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'u', parentUuid: null, message: { content: 'run tools' } },
+            chunk('a1', 'tool-1'),
+            chunk('a2', 'tool-2'),
+            { type: 'user', uuid: 'r1', parentUuid: 'a1', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-1', content: 'first result' }] } },
+            { type: 'user', uuid: 'r2', parentUuid: 'a2', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tool-2', content: 'second result' }] } },
+            { type: 'assistant', uuid: 'final', parentUuid: 'r2', message: { id: 'final-message', content: 'both tools completed' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['u', 'a2', 'a1', 'r1', 'r2', 'final']);
+        expect(JSON.parse(result.entries[2].content).parentUuid).toBe('u');
+    });
+
+    it('cuts at the compaction on the selected branch rather than a later abandoned branch boundary', () => {
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'u', parentUuid: null, message: { content: 'original' } },
+            { type: 'system', subtype: 'compact_boundary', uuid: 'abandoned-boundary', parentUuid: null },
+            { type: 'user', uuid: 'abandoned-summary', parentUuid: 'abandoned-boundary', isMeta: true, message: { content: 'abandoned summary' } },
+            { type: 'assistant', uuid: 'abandoned-reply', parentUuid: 'abandoned-summary', message: { content: 'abandoned reply' } },
+            { type: 'user', uuid: 'resumed', parentUuid: 'u', message: { content: 'resumed before compaction' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['u', 'resumed']);
+    });
+
+    it('rejects cyclic ancestry but does not require ancestry preceding the selected compact boundary', () => {
+        expect(() => parseClaudeContextWindow(jsonl(
+            { type: 'user', uuid: 'cycle-a', parentUuid: 'cycle-b' },
+            { type: 'assistant', uuid: 'cycle-b', parentUuid: 'cycle-a' },
+        ))).toThrow('Invalid Claude parent chain');
+        const result = parseClaudeContextWindow(jsonl(
+            { type: 'system', subtype: 'compact_boundary', uuid: 'b', parentUuid: 'not-recorded-before-compaction' },
+            { type: 'user', uuid: 'u', parentUuid: 'b', message: { content: 'current' } },
+        ));
+        expect(result.entries.map((item) => JSON.parse(item.content).uuid)).toEqual(['b', 'u']);
+    });
 });
 
 describe('Codex recorded context window', () => {
@@ -75,16 +139,20 @@ describe('Codex recorded context window', () => {
         const result = parseCodexContextWindow(await fixture('codex-compacted'));
         expect(ContextWindowResponseSchema.parse(result)).toEqual(result);
         expect(result.entries.map((item) => item.kind)).toEqual([
-            'base_instructions', 'compacted', 'message:developer', 'message:user', 'compaction', 'world_state',
+            'base_instructions', 'session_meta', 'compacted', 'message:developer', 'message:user', 'compaction', 'world_state',
             'turn_context', 'reasoning', 'function_call', 'function_call_output', 'inter_agent_communication', 'message:assistant',
         ]);
         expect(result.entries[0].content).toBe('You are the fixture assistant.\nPreserve full native content.');
-        expect(JSON.parse(result.entries[1].content).payload.replacement_history_metadata).toEqual([
+        expect(JSON.parse(result.entries[1].content).payload.dynamic_tools).toEqual([
+            { name: 'fixture_dynamic_tool', description: 'Recorded native tool', input_schema: { type: 'object', properties: { path: { type: 'string' } } } },
+        ]);
+        expect(JSON.parse(result.entries[1].content).payload.base_instructions).toBeUndefined();
+        expect(JSON.parse(result.entries[2].content).payload.replacement_history_metadata).toEqual([
             { fixture_source: 'developer-injection' }, { fixture_source: 'retained-user' }, null,
         ]);
-        expect(JSON.parse(result.entries[1].content).payload.replacement_history).toBeUndefined();
-        expect(JSON.parse(result.entries[9].content).payload.output).toBe('Full first line\nFull second line\nFinal line');
-        expect(JSON.parse(result.entries[9].content).metadata).toEqual({ fixture_source: 'tool-output' });
+        expect(JSON.parse(result.entries[2].content).payload.replacement_history).toBeUndefined();
+        expect(JSON.parse(result.entries[10].content).payload.output).toBe('Full first line\nFull second line\nFinal line');
+        expect(JSON.parse(result.entries[10].content).metadata).toEqual({ fixture_source: 'tool-output' });
         expect(JSON.stringify(result)).not.toContain('old_tool');
         expect(JSON.stringify(result)).not.toContain('superseded compaction snapshot');
         expect(result.limitations).toEqual(['provider_input_not_fully_recorded']);
@@ -111,9 +179,9 @@ describe('Codex recorded context window', () => {
             { type: 'compacted', payload: { message: '', replacement_history: [] } },
             { type: 'response_item', payload: { type: 'function_call_output', call_id: 'large', output: content } },
         ));
-        expect(result.entries).toHaveLength(3);
+        expect(result.entries).toHaveLength(4);
         expect(result.entries[0]).toEqual({ kind: 'base_instructions', content: '' });
-        expect(JSON.parse(result.entries[2].content).payload.output).toBe(content);
+        expect(JSON.parse(result.entries[3].content).payload.output).toBe(content);
         expect(result.limitations).not.toContain('codex_compacted_history_unrecorded');
     });
 
@@ -124,7 +192,7 @@ describe('Codex recorded context window', () => {
         expect(() => parseCodexContextWindow(jsonl(unavailable))).toThrow('not recoverable');
         expect(parseCodexContextWindow(jsonl(unavailable,
             { type: 'compacted', payload: { replacement_history: [] } },
-        )).entries.map((item) => item.kind)).toEqual(['compacted']);
+        )).entries.map((item) => item.kind)).toEqual(unavailable.type === 'session_meta' ? ['session_meta', 'compacted'] : ['compacted']);
     });
 });
 

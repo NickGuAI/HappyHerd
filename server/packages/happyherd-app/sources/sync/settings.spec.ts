@@ -305,6 +305,7 @@ describe('settings', () => {
                 fileDiffsSidebar: false,
                 groupToolCalls: false,
                 compactToolCalls: true,
+                expContextWindow: false,
                 expImageUpload: false,
                 commanderProfilePictures: false,
                 userSafeguardEnabled: false,

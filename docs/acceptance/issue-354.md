@@ -15,7 +15,7 @@ new access policy, or prompt reconstruction is introduced.
 | --- | --- |
 | Off by default; Features → Experimental switch; absent session entry while off | `sync/settings.ts`, Features route, `useSessionQuickActions.ts`; `sync/contextWindow.test.ts` covers default/migration/sync; browser journey exercises the visible switch and production session menu. |
 | Visible entry and open/read journey on Web Desktop and Web Mobile, Claude and Codex | `SessionActionsPopover` opens `/session/[id]/context`; `sideChatHeader.browser.test.ts` Context window cases render the production Features route, SessionView, menu and context route at 1440×900 and 390×844. |
-| Every ordered entry, hidden attachments, real compaction, full content and Codex base instructions | CLI `contextWindow/readContextWindow.ts`, parser/RPC fixtures and app transport tests. Claude honors native preserved-message/segment anchors; Codex uses recorded replacement history, then later input entries. |
+| Every ordered entry, hidden attachments, real compaction, full content and Codex base instructions | CLI `contextWindow/readContextWindow.ts`, parser/RPC fixtures and app transport tests. Claude honors native preserved-message/segment anchors and follows the current mainline parent chain, excluding abandoned branches; Codex retains recorded session metadata (including dynamic tools), replacement history and later input entries. |
 | Claude built-in prompt/tool definitions explicitly unrecorded; no fabricated inputs | Localized limitations in the context route; Codex base instructions are verbatim from the rollout. Native trace limits are visible; no current model defaults are substituted. |
 | Unsupported, offline and missing trace with retry | Typed machine results plus app connectivity check; production route Retry/Refresh gestures and app RPC tests. |
 | Provider recipe and four remaining-provider subissues | `.dev/playbooks/provider-onboarding.md` context-window recipe. Linked native GitHub subissues: [GrokBuild #362](https://github.com/NickGuAI/HappyHerd/issues/362), [dsh #363](https://github.com/NickGuAI/HappyHerd/issues/363), [Antigravity #364](https://github.com/NickGuAI/HappyHerd/issues/364), [HappyHerd #365](https://github.com/NickGuAI/HappyHerd/issues/365). No extra provider implementation is included. |
@@ -23,8 +23,9 @@ new access policy, or prompt reconstruction is introduced.
 
 ## Focused evidence
 
-The source delivery passed 17 CLI parser/encrypted-RPC/retained-home tests,
-82 wire tests, 19 app transport/settings tests, and 16 rendered browser cases.
+The reviewed reader passed 21 CLI parser/encrypted-RPC/retained-home tests,
+82 wire tests, 19 app transport/settings tests, and 16 focused rendered browser cases. All 116 tests in the shared browser
+suite and all 66 settings/quick-action tests also passed.
 The eight successful provider × viewport × theme journeys exercise the visible
 switch, session menu, full-content reading, reopen and Refresh. Six additional
 cases cover offline/missing/unsupported Retry at both sizes, and two prove a
@@ -40,6 +41,13 @@ icon glyphs in accessible names and the page-title heading) were corrected
 without removing the tested behavior. The first local CLI typecheck needed
 the existing `happyherd-control-agent` build prerequisite; it passed after
 building that package, with no source workaround.
+
+Independent review reproduced and prompted fixes for abandoned Claude branches
+and persisted Codex dynamic-tool metadata. The final PR receipt records the
+exact-head re-review. The initial CI Unit tests failure was the existing
+settings defaults assertion missing the new off-by-default key; its expected
+object now explicitly includes `expContextWindow: false`. The first local contract
+run was interrupted before package tests to avoid mixing reviewed revisions.
 
 ## Verification commands
 

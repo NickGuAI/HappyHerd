@@ -37,56 +37,162 @@ function entry(value: TraceRecord): ContextWindowEntry {
     };
 }
 
+/** Reconstruct native ancestry without changing the recorded payloads. */
+function claudeCurrentBranch(records: TraceRecord[]): TraceRecord[] {
+    const byUuid = new Map<string, TraceRecord>();
+    const positions = new Map<string, number>();
+    const parents = new Map<string, string | undefined>();
+    records.forEach((item, index) => {
+        if (typeof item.uuid !== 'string') return;
+        byUuid.set(item.uuid, item);
+        positions.set(item.uuid, index);
+        parents.set(item.uuid, typeof item.parentUuid === 'string' ? item.parentUuid : undefined);
+    });
+    const incompleteBoundaries = new Set<string>();
+    for (const [uuid, item] of byUuid) {
+        if (item.type !== 'system' || item.subtype !== 'compact_boundary') continue;
+        const metadata = record(item.compactMetadata);
+        const preservedMessages = record(metadata?.preservedMessages);
+        const preservedSegment = record(metadata?.preservedSegment);
+        let anchor: unknown;
+        let kept: unknown[] = [];
+        if (preservedMessages) {
+            anchor = preservedMessages.anchorUuid;
+            kept = Array.isArray(preservedMessages.uuids) ? preservedMessages.uuids : [undefined];
+        } else if (preservedSegment) {
+            anchor = preservedSegment.anchorUuid;
+            let cursor = preservedSegment.tailUuid;
+            const visited = new Set();
+            while (true) {
+                if (typeof cursor !== 'string' || !byUuid.has(cursor) || visited.has(cursor)) {
+                    kept = [undefined];
+                    break;
+                }
+                visited.add(cursor);
+                kept.unshift(cursor);
+                if (cursor === preservedSegment.headUuid) break;
+                cursor = parents.get(cursor);
+            }
+        }
+        if (kept.length === 0) continue;
+        if (typeof anchor !== 'string' || !byUuid.has(anchor) || kept.some((id) => typeof id !== 'string' || !byUuid.has(id))) {
+            incompleteBoundaries.add(uuid);
+            continue;
+        }
+        // Native preservedMessages supersedes preservedSegment. Reparent the
+        // selected old records and then the other children of the summary.
+        const ids = kept as string[];
+        ids.forEach((id, index) => parents.set(id, index === 0 ? anchor : ids[index - 1]));
+        for (const [child, parent] of parents) {
+            if (parent === anchor && child !== ids[0]) parents.set(child, ids[ids.length - 1]);
+        }
+    }
+    const isConversation = (item: TraceRecord) => item.type === 'user' || item.type === 'assistant';
+    const isMainline = (item: TraceRecord) => !item.isSidechain && !item.teamName && !item.isMeta;
+    const parentIds = new Set([...parents.values()].filter((id): id is string => id !== undefined));
+    const leaves = [...byUuid.keys()].filter((id) => !parentIds.has(id));
+    if (byUuid.size > 0 && leaves.length === 0) throw new Error('Invalid Claude parent chain');
+    const candidates: Array<{ conversation: string; leaf: string }> = [];
+    for (const leaf of leaves) {
+        let cursor: string | undefined = leaf;
+        const visited = new Set<string>();
+        while (cursor && !visited.has(cursor)) {
+            visited.add(cursor);
+            const item = byUuid.get(cursor);
+            if (!item) break;
+            if (isConversation(item)) {
+                candidates.push({ conversation: cursor, leaf });
+                break;
+            }
+            cursor = parents.get(cursor);
+        }
+    }
+    const mainline = candidates.filter(({ conversation }) => isMainline(byUuid.get(conversation)!));
+    const selected = (mainline.length ? mainline : candidates).sort((a, b) =>
+        positions.get(a.conversation)! - positions.get(b.conversation)!
+        || positions.get(a.leaf)! - positions.get(b.leaf)!,
+    ).at(-1);
+    let cursor = selected?.leaf ?? leaves.at(-1);
+    const chain: TraceRecord[] = [];
+    const selectedIds = new Set<string>();
+    while (cursor) {
+        if (selectedIds.has(cursor)) throw new Error('Invalid Claude parent chain');
+        const item = byUuid.get(cursor);
+        if (!item) throw new Error('Claude parent message is not recorded');
+        selectedIds.add(cursor);
+        chain.unshift(item);
+        if (item.type === 'system' && item.subtype === 'compact_boundary') break;
+        cursor = parents.get(cursor);
+    }
+    // Native assistant streaming can persist parallel chunks with the same
+    // message.id, and tool results can hang from those sibling UUIDs.
+    const assistantId = (item: TraceRecord) => item.type === 'assistant' ? record(item.message)?.id : undefined;
+    const groups = new Map<string, TraceRecord[]>();
+    const toolResults = new Map<unknown, TraceRecord[]>();
+    for (const item of byUuid.values()) {
+        const id = assistantId(item);
+        if (typeof id === 'string') {
+            const siblings = groups.get(id) ?? [];
+            siblings.push(item);
+            groups.set(id, siblings);
+        } else if (item.type === 'user' && Array.isArray(record(item.message)?.content)
+            && (record(item.message)!.content as unknown[]).some((part) => record(part)?.type === 'tool_result')) {
+            const results = toolResults.get(item.parentUuid) ?? [];
+            results.push(item);
+            toolResults.set(item.parentUuid, results);
+        }
+    }
+    const activeGroups = new Map<string, TraceRecord>();
+    for (const item of chain) {
+        const id = assistantId(item);
+        if (typeof id === 'string') activeGroups.set(id, item);
+    }
+    const extras = new Map<TraceRecord, TraceRecord[]>();
+    for (const [id, active] of activeGroups) {
+        const siblings = groups.get(id)!;
+        const results = siblings.flatMap((item) => toolResults.get(item.uuid) ?? []);
+        const byTime = (a: TraceRecord, b: TraceRecord) => String(a.timestamp ?? '').localeCompare(String(b.timestamp ?? ''));
+        const missing = [...siblings.filter((item) => !selectedIds.has(item.uuid as string)).sort(byTime),
+            ...results.filter((item) => !selectedIds.has(item.uuid as string)).sort(byTime)];
+        missing.forEach((item) => selectedIds.add(item.uuid as string));
+        extras.set(active, missing);
+    }
+    let current = chain.flatMap((item) => [item, ...(extras.get(item) ?? [])]);
+    let boundary = -1;
+    current.forEach((item, index) => {
+        if (item.type === 'system' && item.subtype === 'compact_boundary') boundary = index;
+    });
+    current = current.slice(Math.max(0, boundary));
+    if (current.some((item) => incompleteBoundaries.has(item.uuid as string))) {
+        throw new Error('Preserved Claude message is not recorded');
+    }
+    const currentIds = new Set(current.map((item) => item.uuid));
+    const physicalStart = boundary >= 0 ? positions.get(current[0].uuid as string)! : 0;
+    const metadataByParent = new Map<unknown, TraceRecord[]>();
+    let previousUuid: unknown;
+    let previousCurrentUuid: unknown;
+    for (const item of records.slice(physicalStart)) {
+        if (typeof item.uuid === 'string') {
+            previousUuid = item.uuid;
+            if (currentIds.has(item.uuid)) previousCurrentUuid = item.uuid;
+            continue;
+        }
+        // Bookkeeping can name its owner even when it has no chain UUID.
+        // Otherwise associate it only with the immediately preceding branch.
+        const owner = item.messageId ?? item.leafUuid ?? item.parentUuid ?? record(item.snapshot)?.messageId ?? previousUuid;
+        if (owner !== undefined && !currentIds.has(owner)) continue;
+        metadataByParent.set(previousCurrentUuid, [...(metadataByParent.get(previousCurrentUuid) ?? []), item]);
+    }
+    return [...(metadataByParent.get(undefined) ?? []), ...current.flatMap((item) => [item, ...(metadataByParent.get(item.uuid) ?? [])])];
+}
+
 /** Read recorded content, without applying the chat's message-kind filters. */
 export function parseClaudeContextWindow(text: string): ContextWindowSuccess {
     const records = readJsonl(text);
-    let boundary = -1;
-    for (let index = 0; index < records.length; index++) {
-        if (records[index].type === 'system' && records[index].subtype === 'compact_boundary') boundary = index;
-    }
-    let current = records.slice(Math.max(0, boundary));
-    if (boundary >= 0) {
-        const metadata = record(records[boundary].compactMetadata);
-        const preservedMessages = record(metadata?.preservedMessages);
-        const preservedSegment = record(metadata?.preservedSegment);
-        const byUuid = new Map(records.filter((item) => typeof item.uuid === 'string').map((item) => [item.uuid, item]));
-        let anchor: unknown;
-        let preserved: TraceRecord[] = [];
-        // Native Claude gives the explicit ordered UUID list precedence over
-        // the older parent-linked segment. Do not invent content for missing IDs.
-        if (preservedMessages) {
-            anchor = preservedMessages.anchorUuid;
-            if (!Array.isArray(preservedMessages.uuids)) throw new Error('Invalid preserved Claude messages');
-            preserved = preservedMessages.uuids.map((uuid) => {
-                const value = byUuid.get(uuid);
-                if (!value) throw new Error('Preserved Claude message is not recorded');
-                return value;
-            });
-        } else if (preservedSegment) {
-            anchor = preservedSegment.anchorUuid;
-            let uuid = preservedSegment.tailUuid;
-            const visited = new Set();
-            while (true) {
-                const value = byUuid.get(uuid);
-                if (!value || visited.has(uuid)) throw new Error('Preserved Claude segment is not recorded');
-                visited.add(uuid);
-                preserved.unshift(value);
-                if (uuid === preservedSegment.headUuid) break;
-                uuid = value.parentUuid;
-            }
-        }
-        if (preserved.length > 0) {
-            const preservedIds = new Set(preserved.map((value) => value.uuid));
-            current = current.filter((value) => !preservedIds.has(value.uuid));
-            const anchorIndex = current.findIndex((value) => value.uuid === anchor);
-            if (anchorIndex < 0) throw new Error('Claude compaction anchor is not recorded');
-            current.splice(anchorIndex + 1, 0, ...preserved);
-        }
-    }
     return {
         type: 'success',
         provider: 'claude',
-        entries: current.map(entry),
+        entries: claudeCurrentBranch(records).map(entry),
         limitations: ['claude_system_prompt_unrecorded', 'claude_tool_definitions_unrecorded', 'provider_input_not_fully_recorded'],
     };
 }
@@ -94,6 +200,7 @@ export function parseClaudeContextWindow(text: string): ContextWindowSuccess {
 export function parseCodexContextWindow(text: string): ContextWindowSuccess {
     const records = readJsonl(text);
     let baseInstructions: string | undefined;
+    let sessionMetadata: ContextWindowEntry | undefined;
     let entries: ContextWindowEntry[] = [];
     let compactedHistoryUnrecorded = false;
     let historyUnavailable = false;
@@ -103,6 +210,11 @@ export function parseCodexContextWindow(text: string): ContextWindowSuccess {
             const instructions = payload?.base_instructions;
             const text = typeof instructions === 'string' ? instructions : record(instructions)?.text;
             if (typeof text === 'string') baseInstructions = text;
+            // Native dynamic_tools and other persisted configuration are part
+            // of the recoverable context too. Keep the actual metadata across
+            // compaction; show base text separately without duplicating it.
+            const { base_instructions: _base, ...metadata } = payload ?? {};
+            sessionMetadata = entry({ ...value, payload: metadata });
             // A paginated fork can reference inputs absent from this file.
             if (payload?.history_base) historyUnavailable = true;
         } else if (value.type === 'compacted') {
@@ -140,6 +252,7 @@ export function parseCodexContextWindow(text: string): ContextWindowSuccess {
     }
     if (historyUnavailable) throw new Error('Codex current history is not recoverable from this trace');
     const limitations: ContextWindowLimitation[] = ['provider_input_not_fully_recorded'];
+    if (sessionMetadata) entries.unshift(sessionMetadata);
     if (baseInstructions === undefined) limitations.push('codex_base_instructions_unrecorded');
     else entries.unshift({ kind: 'base_instructions', content: baseInstructions });
     if (compactedHistoryUnrecorded) limitations.push('codex_compacted_history_unrecorded');
