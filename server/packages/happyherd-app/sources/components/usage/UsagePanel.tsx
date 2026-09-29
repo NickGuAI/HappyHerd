@@ -99,20 +99,20 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
         tokensByProvider: {} as Record<string, number>,
         costByProvider: {} as Record<string, number>
     });
-    
+
     useEffect(() => {
         loadUsageData();
     }, [period, sessionId]);
-    
+
     const loadUsageData = async () => {
         if (!auth.credentials) {
             setError('Not authenticated');
             return;
         }
-        
+
         setLoading(true);
         setError(null);
-        
+
         try {
             const response = await getUsageForPeriod(auth.credentials, period, sessionId);
             setUsageData(response.usage || []);
@@ -129,7 +129,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
             setLoading(false);
         }
     };
-    
+
     const formatTokens = (tokens: number): string => {
         if (tokens >= 1000000) {
             return `${(tokens / 1000000).toFixed(2)}M`;
@@ -138,11 +138,11 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
         }
         return tokens.toLocaleString();
     };
-    
+
     const formatCost = (cost: number): string => {
         return `$${cost.toFixed(4)}`;
     };
-    
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -150,7 +150,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
             </View>
         );
     }
-    
+
     if (error) {
         return (
             <View style={styles.errorContainer}>
@@ -159,11 +159,11 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
             </View>
         );
     }
-    
+
     const providerTotals = Object.entries(totals.tokensByProvider)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5);
-    
+
     const maxProviderTokens = Math.max(...Object.values(totals.tokensByProvider), 1);
     const coverageGaps = coverage.flatMap((entry) => {
         const gaps: string[] = [];
@@ -184,7 +184,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
         }
         return gaps;
     });
-    
+
     return (
         <View style={styles.container}>
             <HerdSegmentedControl<TimePeriod>

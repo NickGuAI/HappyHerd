@@ -656,3 +656,4 @@ CLAUDE_MODEL_DISPLAY_NAMES_GOLDENS	accepted	test(app): refresh Claude model name
 CLAUDE_SUBAGENT_LIFECYCLE	accepted	fix(claude): track native background subagent outcomes	server/packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.background.test.ts
 CLAUDE_SUBAGENT_LIFECYCLE_BASELINES	accepted	test(app): regenerate the KILV changelog baselines for the subagent status entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UI_USAGE_WORKSPACE_RESTYLE	accepted	fix(app): complete Usage and Workspace redesign styling	server/packages/happyherd-app/sources/components/WorkspaceFeedbackComposer.tsx
+UI_USAGE_RESTYLE_WHITESPACE	accepted	fix(app): normalize whitespace in restyled Usage panel	server/packages/happyherd-app/sources/components/usage/UsagePanel.tsx
