@@ -325,6 +325,13 @@ Provider rails delegate lifetime management to the provider process and daemon;
 the exec rail directly spawns the exact executable and argv as the daemon OS
 user with `shell: false`, records its terminal exit, and creates no agent session.
 
+Three consecutive scheduled skips behind an active run latch a blocked episode
+on that run. The list/history projections feed the Automations page; the daemon
+publishes one `automation_blocked` Inbox item through the account-owned feed
+endpoint with a machine/automation/run repeat key. Pending delivery survives
+restart and terminal reconciliation. Stop and abandon still use the existing
+exact-run recovery rules; the alert never closes a run.
+
 ### Governed agent
 
 ```text

@@ -265,6 +265,7 @@ export type TranslationKey =
     | "errors.voiceServiceUnavailable"
     | "errors.voiceSessionFailed"
     | "errors.webViewLoadFailed"
+    | "feed.automationBlocked"
     | "feed.friendAccepted"
     | "feed.friendAcceptedGeneric"
     | "feed.friendRequestFrom"
@@ -393,12 +394,15 @@ export type TranslationKey =
     | "friends.title"
     | "friends.userNotFound"
     | "grok.permissions.noProvideFeedback"
+    | "happyHerd.automations.abandonBlockingRun"
+    | "happyHerd.automations.abandonDescription"
     | "happyHerd.automations.allTags"
     | "happyHerd.automations.arguments"
     | "happyHerd.automations.argumentsHint"
     | "happyHerd.automations.attempt"
     | "happyHerd.automations.automationCount"
     | "happyHerd.automations.backToAutomations"
+    | "happyHerd.automations.blockedDescription"
     | "happyHerd.automations.cadenceDailyAt"
     | "happyHerd.automations.cadenceMonthlyAt"
     | "happyHerd.automations.cadenceScheduled"
@@ -452,6 +456,7 @@ export type TranslationKey =
     | "happyHerd.automations.project"
     | "happyHerd.automations.rail"
     | "happyHerd.automations.railExec"
+    | "happyHerd.automations.refreshStatus"
     | "happyHerd.automations.resume"
     | "happyHerd.automations.runNow"
     | "happyHerd.automations.runStatusCompleted"
@@ -466,7 +471,10 @@ export type TranslationKey =
     | "happyHerd.automations.showLessInstruction"
     | "happyHerd.automations.spawnRetries"
     | "happyHerd.automations.statusActive"
+    | "happyHerd.automations.statusBlocked"
     | "happyHerd.automations.statusPaused"
+    | "happyHerd.automations.stopBlockingRun"
+    | "happyHerd.automations.stopRequested"
     | "happyHerd.automations.subtitle"
     | "happyHerd.automations.tagFilters"
     | "happyHerd.automations.tagGuide"
@@ -478,6 +486,7 @@ export type TranslationKey =
     | "happyHerd.automations.unableDelete"
     | "happyHerd.automations.unableHistory"
     | "happyHerd.automations.unableLoad"
+    | "happyHerd.automations.unableResolveBlock"
     | "happyHerd.automations.unableRun"
     | "happyHerd.automations.unableSave"
     | "happyHerd.automations.unableUpdate"
@@ -1678,6 +1687,7 @@ export interface TranslationParamsByKey {
     "errors.unsupportedPermissionMode": { cliVersion: string; mode: string };
     "errors.validationError": { field: string; max: number; min: number };
     "errors.voiceHardLimitReached": { hours: number };
+    "feed.automationBlocked": { name: string; runId: string };
     "feed.friendAccepted": { name: string };
     "feed.friendRequestFrom": { name: string };
     "files.canvasNode": { node: string };
@@ -1701,8 +1711,10 @@ export interface TranslationParamsByKey {
     "friends.removeFriendConfirm": { name: string };
     "friends.requestSentDescription": { name: string };
     "friends.sentOn": { date: string };
+    "happyHerd.automations.abandonDescription": { id: string };
     "happyHerd.automations.attempt": { count: number };
     "happyHerd.automations.automationCount": { count: number };
+    "happyHerd.automations.blockedDescription": { count: number; id: string };
     "happyHerd.automations.cadenceDailyAt": { time: string };
     "happyHerd.automations.cadenceMonthlyAt": { day: string; time: string };
     "happyHerd.automations.cadenceWeekdaysAt": { time: string };

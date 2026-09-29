@@ -532,6 +532,14 @@ export async function machineRunAutomationNow(machineId: string, id: string): Pr
     return machineAutomationRPC(machineId, 'happyherd-automations-run-now', { id });
 }
 
+export async function machineStopAutomationRun(machineId: string, input: { automationId: string; runId: string }): Promise<HappyHerdAutomationRun> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-stop-run', input);
+}
+
+export async function machineAbandonAutomationRun(machineId: string, input: { automationId: string; runId: string; sessionId: string | null; confirmation: 'ABANDON' }): Promise<HappyHerdAutomationRun> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-abandon-run', input);
+}
+
 export async function machineAutomationHistory(
     machineId: string,
     id: string,

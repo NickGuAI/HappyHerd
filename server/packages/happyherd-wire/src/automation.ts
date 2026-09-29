@@ -304,6 +304,10 @@ export const HappyHerdAutomationRunSchema = z.object({
   startedAt: z.string().datetime(),
   finishedAt: z.string().datetime().nullable(),
   status: HappyHerdAutomationRunStatusSchema,
+  // Durable overlap evidence stays with its active blocker through history pruning.
+  consecutiveSkippedRuns: z.number().int().min(0).optional(),
+  blockedAt: z.string().datetime().nullable().optional(),
+  blockedNotificationSent: z.boolean().optional(),
   // Historical rows omit this field and are provider-agent runs.
   execution: z.enum(['agent', 'exec']).optional(),
   attempt: z.number().int().min(1),
@@ -392,13 +396,24 @@ export const HappyHerdAutomationProviderOutcomeSchema = z.object({
 }).strict();
 export type HappyHerdAutomationProviderOutcome = z.infer<typeof HappyHerdAutomationProviderOutcomeSchema>;
 
+export const HappyHerdAutomationBlockedRunSchema = z.object({
+  automationId: z.string().uuid(),
+  runId: z.string().uuid(),
+  sessionId: z.string().nullable(),
+  consecutiveSkippedRuns: z.number().int().min(3),
+  blockedAt: z.string().datetime(),
+}).strict();
+export type HappyHerdAutomationBlockedRun = z.infer<typeof HappyHerdAutomationBlockedRunSchema>;
+
 export const HappyHerdAutomationListResponseSchema = z.object({
   definitionSchemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default(1),
   automations: z.array(HappyHerdAutomationSchema),
+  blockedRuns: z.array(HappyHerdAutomationBlockedRunSchema).optional(),
 }).strict();
 export type HappyHerdAutomationListResponse = z.output<typeof HappyHerdAutomationListResponseSchema>;
 
 export const HappyHerdAutomationHistoryResponseSchema = z.object({
   runs: z.array(HappyHerdAutomationRunSchema),
+  blockedRun: HappyHerdAutomationBlockedRunSchema.nullable().optional(),
 }).strict();
 export type HappyHerdAutomationHistoryResponse = z.infer<typeof HappyHerdAutomationHistoryResponseSchema>;

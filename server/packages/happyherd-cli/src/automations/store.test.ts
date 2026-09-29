@@ -39,6 +39,30 @@ function input() {
 }
 
 describe('HappyHerdAutomationStore', () => {
+  it('requires consecutive schedule skips and preserves evidence across stale provider updates', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const now = new Date().toISOString();
+    const active = { id: crypto.randomUUID(), automationId: automation.id, source: 'manual' as const, scheduledFor: now, startedAt: now,
+      finishedAt: null, status: 'running' as const, attempt: 1, sessionId: null, message: null };
+    await store.appendRun(active);
+    const skip = () => store.appendRun({ ...active, id: crypto.randomUUID(), source: 'schedule', status: 'skipped', finishedAt: now,
+      message: 'Skipped because the previous run is still active.' });
+    await skip();
+    await skip();
+    await store.appendRun({ ...active, id: crypto.randomUUID(), source: 'schedule', status: 'missed', finishedAt: now });
+    await skip();
+    expect(await store.blockedRun(automation.id)).toBeNull();
+    await skip();
+    await skip();
+    await store.appendRun({ ...active, status: 'started', sessionId: 'late-session' });
+    expect(await store.blockedRun(automation.id)).toMatchObject({ runId: active.id, sessionId: 'late-session', consecutiveSkippedRuns: 3 });
+    await store.appendRun({ ...active, status: 'failed', sessionId: 'late-session', finishedAt: now });
+    await store.markBlockedNotificationSent(automation.id, active.id);
+    expect(await store.getRun(automation.id, active.id)).toMatchObject({ status: 'failed', finishedAt: now, blockedNotificationSent: true });
+    expect(await store.blockedRun(automation.id)).toBeNull();
+  });
+
   it('atomically keeps one interval heartbeat per target session', async () => {
     const store = new HappyHerdAutomationStore();
     const first = await store.upsertHeartbeat('machine-one', {
@@ -278,6 +302,7 @@ describe('HappyHerdAutomationStore', () => {
     expect(result).toEqual({
       definitionSchemaVersion: 4,
       automations: [expect.objectContaining({ machineId: 'machine-one' })],
+      blockedRuns: [],
     });
   });
 

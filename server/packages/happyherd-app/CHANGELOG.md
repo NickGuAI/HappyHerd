@@ -1,3 +1,8 @@
+# September 29 — Blocked automation alerts
+
+- Automations now show “Blocked” after three scheduled runs are skipped behind an active run, identify that run, and offer Stop or Abandon using the existing run rules.
+- Inbox sends one update for each blocked automation episode instead of repeating the alert on every skip. Runs are never closed automatically.
+
 # September 29 — Usage and Workspace styling
 
 - Updated Usage with the new page title, cards, period controls, and amber charts.

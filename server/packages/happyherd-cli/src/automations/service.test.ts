@@ -598,6 +598,56 @@ describe('HappyHerdAutomationService', () => {
     expect((await service.history(created.id)).runs[0]?.status).toBe('missed');
   });
 
+  it('retries one blocked notification episode after a restart without repeating acknowledged updates', async () => {
+    const notify = vi.fn().mockRejectedValueOnce(new Error('lost response')).mockResolvedValue(undefined);
+    const createService = () => new HappyHerdAutomationService('machine-one', async () => ({ type: 'success', sessionId: 'notification-session' }), undefined, undefined, undefined, notify);
+    service = createService();
+    const automation = await service.create(input());
+    const blocker = await service.runNow(automation.id);
+    const scheduled = (target: HappyHerdAutomationService) => (target as unknown as {
+      execute: (id: string, source: 'schedule', at: Date) => Promise<HappyHerdAutomationRun>;
+    }).execute(automation.id, 'schedule', new Date());
+    await scheduled(service);
+    await scheduled(service);
+    expect(notify).not.toHaveBeenCalled();
+    await scheduled(service);
+    expect(notify).toHaveBeenCalledTimes(1);
+    await service.confirmRunTermination({ automationId: automation.id, runId: blocker.id, sessionId: 'notification-session', status: 'completed' });
+    const restarted = createService();
+    await restarted.start();
+    await restarted.stop();
+    expect(notify).toHaveBeenCalledTimes(2);
+    expect(notify.mock.calls[0]).toEqual(notify.mock.calls[1]);
+    expect(notify).toHaveBeenLastCalledWith({ machineId: 'machine-one', automationId: automation.id, automationName: automation.name, runId: blocker.id });
+    await scheduled(createService());
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes a durable blocked episode after three scheduled skips, excluding manual skips', async () => {
+    service = new HappyHerdAutomationService('machine-one', async () => ({ type: 'success', sessionId: 'blocked-session' }));
+    const created = await service.create(input());
+    const blocker = await service.runNow(created.id);
+    const scheduled = (target: HappyHerdAutomationService) => (target as unknown as {
+      execute: (id: string, source: 'schedule', at: Date) => Promise<HappyHerdAutomationRun>;
+    }).execute(created.id, 'schedule', new Date());
+    await service.runNow(created.id);
+    await scheduled(service);
+    await scheduled(service);
+    expect((await service.list()).blockedRuns).toEqual([]);
+    await scheduled(service);
+    expect((await service.list()).blockedRuns).toEqual([expect.objectContaining({
+      automationId: created.id, runId: blocker.id, sessionId: 'blocked-session', consecutiveSkippedRuns: 3,
+    })]);
+    const restarted = new HappyHerdAutomationService('machine-one', async () => ({ type: 'success', sessionId: 'next-session' }));
+    for (let index = 0; index < 55; index++) await scheduled(restarted);
+    expect((await restarted.history(created.id)).blockedRun).toMatchObject({ runId: blocker.id, consecutiveSkippedRuns: 58 });
+    await restarted.confirmRunTermination({ automationId: created.id, runId: blocker.id, sessionId: 'blocked-session', status: 'completed' });
+    expect((await restarted.list()).blockedRuns).toEqual([]);
+    await restarted.runNow(created.id);
+    await scheduled(restarted);
+    expect((await restarted.list()).blockedRuns).toEqual([]);
+  });
+
   it('records a skipped run instead of overlapping one automation', async () => {
     let release!: (result: { type: 'success'; sessionId: string }) => void;
     const spawn = vi.fn(() => new Promise<{ type: 'success'; sessionId: string }>((resolve) => { release = resolve; }));

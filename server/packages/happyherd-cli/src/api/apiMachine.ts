@@ -414,6 +414,19 @@ export class ApiMachineClient {
                 return { deleted: true };
             });
             this.rpcHandlerManager.registerHandler('happyherd-automations-run-now', async (params: any) => automations.runNow(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-stop-run', async (params: any) => automations.stopRun({
+                automationId: requireNonEmptyString(params?.automationId, 'automationId'),
+                runId: requireNonEmptyString(params?.runId, 'runId'),
+            }));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-abandon-run', async (params: any) => {
+                if (params?.confirmation !== 'ABANDON') throw new Error('Explicit ABANDON confirmation is required');
+                return automations.abandonRun({
+                    automationId: requireNonEmptyString(params?.automationId, 'automationId'),
+                    runId: requireNonEmptyString(params?.runId, 'runId'),
+                    sessionId: params?.sessionId === null ? null : requireNonEmptyString(params?.sessionId, 'sessionId'),
+                    confirmation: 'ABANDON',
+                });
+            });
             this.rpcHandlerManager.registerHandler('happyherd-automations-history', async (params: any) => automations.history(requireNonEmptyString(params?.id, 'id')));
             this.rpcHandlerManager.registerHandler('happyherd-heartbeat-control', async (params: any) => automations.controlHeartbeat(params));
         }

@@ -129,6 +129,17 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
             );
         }
 
+        case 'automation_blocked': {
+            const title = t('feed.automationBlocked', { name: item.body.automationName, runId: item.body.runId });
+            const icon = <Ionicons name="warning-outline" size={20} color={theme.colors.textSecondary} />;
+            const { machineId, automationId } = item.body;
+            const onPress = () => router.push({ pathname: '/automations', params: { machineId, automationId } });
+            if (variant === 'card') {
+                return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={icon} onPress={onPress} />;
+            }
+            return <Item title={title} subtitle={getTimeAgo(item.createdAt)} icon={icon} onPress={onPress} showChevron={true} />;
+        }
+
         case 'text':
             if (variant === 'card') {
                 return (

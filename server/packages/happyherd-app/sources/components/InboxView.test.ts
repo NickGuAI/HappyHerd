@@ -78,6 +78,7 @@ vi.mock('@/text', () => ({
 }));
 
 import { InboxView } from './InboxView';
+import { FeedBodySchema } from '@/sync/feedTypes';
 
 const originalConsoleError = console.error;
 beforeAll(() => {
@@ -109,6 +110,23 @@ function render(): ReactTestRenderer {
 const texts = (node: any): unknown[] => node.findAllByType('Text' as any).map((entry: any) => entry.props.children).flat(Infinity);
 
 describe('Inbox page (UI overhaul, mock fidelity)', () => {
+    it.each([1440, 390])('opens Automations from a blocked-run Inbox update at width %i', (width) => {
+        testState.width = width;
+        testState.tablet = width > 768;
+        testState.feed = [{
+            id: 'blocked', repeatKey: 'automation-blocked', cursor: 'c3', counter: 3,
+            createdAt: Date.now(),
+            body: { kind: 'automation_blocked', machineId: 'machine-1', automationId: 'automation-1', automationName: 'Daily archive', runId: 'run-1' },
+        }];
+        expect(FeedBodySchema.parse(testState.feed[0].body)).toEqual(testState.feed[0].body);
+        const renderer = render();
+        const card = renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.testID === 'feed-card-blocked');
+        expect(card).toHaveLength(1);
+        expect(texts(card[0])).toContain('feed.automationBlocked');
+        act(() => card[0].props.onPress());
+        expect(testState.push).toHaveBeenCalledWith({ pathname: '/automations', params: { machineId: 'machine-1', automationId: 'automation-1' } });
+    });
+
     it('draws the large Inbox title with Find Friends on its row on wide web, instead of the header row', () => {
         const renderer = render();
         const head = renderer.root.findAll((node: any) => node.type === 'View' && node.props?.testID === 'inbox-page-header');
