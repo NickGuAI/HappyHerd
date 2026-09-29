@@ -750,7 +750,8 @@ describe('Session screen overhaul (Web)', () => {
             })).resolves.toMatch(/auto|scroll/);
         }
         {
-            await expect(model.innerText()).resolves.toBe('Opus 5.5');
+            // This offline fixture has no advertised display name: keep the exact model ID.
+            await expect(model.innerText()).resolves.toBe('claude-opus-5-5');
             await model.click();
             const popover = foreground.getByTestId('composer-chip-popover-model');
             await popover.waitFor({ state: 'visible', timeout: 3_000 });

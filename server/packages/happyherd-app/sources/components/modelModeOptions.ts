@@ -115,7 +115,7 @@ export function mapMetadataOptions(options?: MetadataOption[] | null): ModeOptio
 
     return options.map((option) => ({
         key: option.code,
-        name: option.value,
+        name: option.value || option.code,
         description: option.description ?? null,
     }));
 }
@@ -203,7 +203,7 @@ export function getMachineAdvertisedModels(
         return {
             ...releaseModelDetails(flavor, model.code),
             key: model.code,
-            name: model.value,
+            name: model.value || model.code,
             description: model.description ?? null,
             isDefault: model.isDefault,
             effortLevels,
@@ -531,7 +531,7 @@ export function getAvailableModels(
     const metadataModels = flavor === 'grok'
         ? (metadata?.models ?? []).map((model) => ({
             key: model.code,
-            name: model.value,
+            name: model.value || model.code,
             description: model.description ?? null,
             thinkingLevels: model.thinkingLevels,
             defaultThinkingLevel: model.defaultThinkingLevel ?? null,

@@ -1,3 +1,7 @@
+# September 29 — Claude model display names
+
+- Claude model chips, pickers, and New Chat forms now use the names advertised by the selected machine, such as Opus 5.5 and Sonnet 5. Models without an advertised name show their exact ID.
+
 # September 29 — New Chat and a clearer session header
 
 - Renamed "Start New Session" and "New session" to "New Chat" wherever you start one: the sidebar, the command palette, keyboard hints, the landing and empty screens, the Commanders page, the machine page and the Connections pairing card.

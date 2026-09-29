@@ -180,6 +180,23 @@ function dshProbe(overrides?: {
 }
 
 describe('agent capability discovery', () => {
+    it('advertises a display name beside every unchanged Claude model ID', () => {
+        const catalog = buildClaudeCapabilityCatalog('', 1);
+
+        expect(catalog.models.map(({ code, value }) => ({ code, value }))).toEqual([
+            { code: 'default', value: 'provider default' },
+            { code: 'claude-fable-5-1', value: 'Fable 5.1' },
+            { code: 'claude-fable-5', value: 'Fable 5' },
+            { code: 'claude-opus-5-5', value: 'Opus 5.5' },
+            { code: 'claude-opus-5', value: 'Opus 5' },
+            { code: 'claude-opus-5[1m]', value: 'Opus 5 1M' },
+            { code: 'claude-opus-4-8', value: 'Opus 4.8' },
+            { code: 'claude-opus-4-6', value: 'Opus 4.6' },
+            { code: 'claude-sonnet-5', value: 'Sonnet 5' },
+            { code: 'claude-haiku-4-5', value: 'Haiku 4.5' },
+        ]);
+    });
+
     it('parses only structured Claude CLI choices and never help-text model prose', () => {
         const help = `
   --effort <level> Effort level for the current session
