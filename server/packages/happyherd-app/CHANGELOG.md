@@ -1,3 +1,8 @@
+# September 29 — Usage and Workspace styling
+
+- Updated Usage with the new page title, cards, period controls, and amber charts.
+- Updated the Workspace feedback composer with a rounded input card and send button, and live-page element outlines now follow the light or dark theme’s accent.
+
 # September 29 — Accurate Claude subagent status
 
 - Claude subagents keep showing Running while background work continues after a launch returns or the parent finishes. Their own completion, failure, or cancellation updates the same card, with child activity retained on replay.

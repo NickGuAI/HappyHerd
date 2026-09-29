@@ -133,8 +133,11 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
             action: 'picker',
             viewId: viewIdRef.current,
             enabled: pickerEnabled,
+            // The iframe has its own document, so send the hook's concrete
+            // theme color instead of relying on the host's CSS variables.
+            accent: theme.colors.kilv.accent,
         }, window.location.origin);
-    }, [pickerEnabled]);
+    }, [pickerEnabled, theme.colors.kilv.accent]);
 
     React.useEffect(() => {
         postPickerState();

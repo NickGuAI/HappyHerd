@@ -5,13 +5,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const mocks = vi.hoisted(() => ({
     registerWorkspaceLiveView: vi.fn(),
+    dark: false,
 }));
 
 vi.mock('@/sync/apiSocket', () => ({ apiSocket: { machineRPC: vi.fn() } }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('react-native-unistyles', async () => {
-    const { lightTheme } = await import('@/theme');
-    return { useUnistyles: () => ({ theme: lightTheme }) };
+    const { lightTheme, darkTheme } = await import('@/theme');
+    return { useUnistyles: () => ({ theme: mocks.dark ? darkTheme : lightTheme }) };
 });
 vi.mock('react-native', () => ({ Platform: { OS: 'web', select: (values: Record<string, unknown>) => values.web ?? values.default } }));
 vi.mock('@/sync/workspaceLive', async (importOriginal) => ({
@@ -28,9 +29,51 @@ beforeAll(() => {
     });
 });
 afterAll(() => vi.restoreAllMocks());
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.dark = false;
+});
 
 describe('LocalhostLiveView picker messages', () => {
+    it('sends the current accent and updates it without reloading the live page', async () => {
+        const iframeWindow = { postMessage: vi.fn() };
+        const dispose = vi.fn();
+        const previousWindow = globalThis.window;
+        Object.defineProperty(globalThis, 'window', {
+            configurable: true,
+            value: { location: { origin: 'https://happy.test' }, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+        });
+        mocks.registerWorkspaceLiveView.mockResolvedValue({ iframeUrl: 'https://happy.test/live', dispose });
+        const props = {
+            machineId: 'machine-ec2', url: 'http://localhost:5173/dashboard', pickerEnabled: true, onPick: vi.fn(),
+        };
+        let renderer: any;
+        try {
+            await act(async () => {
+                renderer = create(React.createElement(LocalhostLiveView, props), {
+                    createNodeMock: (element: { type: string }) => element.type === 'iframe' ? { contentWindow: iframeWindow } : null,
+                });
+                await Promise.resolve();
+            });
+            const iframe = renderer.root.findByType('iframe' as any);
+            act(() => iframe.props.onLoad());
+            expect(iframeWindow.postMessage.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true, accent: '#8F6E36' });
+            mocks.dark = true;
+            act(() => renderer.update(React.createElement(LocalhostLiveView, { ...props, onPick: vi.fn() })));
+            expect(iframeWindow.postMessage.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true, accent: '#F0DCB0' });
+            mocks.dark = false;
+            act(() => renderer.update(React.createElement(LocalhostLiveView, { ...props, onPick: vi.fn() })));
+            expect(iframeWindow.postMessage.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true, accent: '#8F6E36' });
+            expect(renderer.root.findByType('iframe' as any)).toBe(iframe);
+            expect(mocks.registerWorkspaceLiveView).toHaveBeenCalledOnce();
+            expect(dispose).not.toHaveBeenCalled();
+        } finally {
+            if (renderer) act(() => renderer.unmount());
+            if (previousWindow === undefined) Reflect.deleteProperty(globalThis, 'window');
+            else Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });
+        }
+    });
+
     it('creates one bounded comment payload with an upload-ready screenshot', () => {
         const result = workspaceLivePickFromMessage({
             type: 'happyherd-workspace-live',

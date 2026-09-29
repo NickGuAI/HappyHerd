@@ -520,7 +520,8 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
     nativeSetAttribute.call(overlay, 'data-happyherd-picker-overlay', '');
     Object.assign(overlay.style, {
         position: 'fixed', pointerEvents: 'none', zIndex: '2147483647', display: 'none',
-        border: '2px solid #5b8cff', background: 'rgba(91,140,255,.12)', boxSizing: 'border-box',
+        border: '2px solid var(--happyherd-picker-accent)',
+        background: 'color-mix(in srgb, var(--happyherd-picker-accent) 12%, transparent)', boxSizing: 'border-box',
     });
     const mountOverlay = () => { if (!overlay.isConnected) document.documentElement.appendChild(overlay); };
     if (document.documentElement) mountOverlay();
@@ -641,6 +642,7 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
         if (event.source !== parent || event.origin !== location.origin
             || message?.type !== messageType || message.viewId !== viewId) return;
         if (message.action === 'picker') {
+            overlay.style.setProperty('--happyherd-picker-accent', message.accent);
             pickerEnabled = message.enabled === true;
             if (!pickerEnabled) clearOverlay();
         }

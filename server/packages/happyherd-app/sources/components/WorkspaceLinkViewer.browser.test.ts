@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transformSync } from '@babel/core';
 import { chromium, type Browser } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,7 +14,8 @@ const appRoot = resolve(here, '../..');
 // composer, and feedback serialization. Only RPC and platform state are mocked.
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
-        import { lightTheme as theme } from '@/theme';
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
         export const StyleSheet = {
             hairlineWidth: 1,
             create: (factory) => typeof factory === 'function' ? factory(theme) : factory,
@@ -22,10 +24,20 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
-        const Icon = ({ name }) => React.createElement('span', { 'data-icon': name, 'aria-hidden': true }, '+');
-        Icon.glyphMap = {};
-        export const Ionicons = Icon;
-        export const Octicons = Icon;
+        import ioniconsUrl from '@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf';
+        import octiconsUrl from '@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Octicons.ttf';
+        import ioniconsGlyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json';
+        import octiconsGlyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json';
+        const icon = (font, url, glyphs) => {
+            const Icon = ({ name, size, color }) => React.createElement(React.Fragment, null,
+                React.createElement('style', null, '@font-face{font-family:' + font + ';src:url("' + url + '")}'),
+                React.createElement('span', { 'data-icon': name, 'aria-hidden': true,
+                    style: { fontFamily: font, fontSize: size, color, lineHeight: 1 } }, String.fromCodePoint(glyphs[name] ?? 32)));
+            Icon.glyphMap = glyphs;
+            return Icon;
+        };
+        export const Ionicons = icon('FixtureIonicons', ioniconsUrl, ioniconsGlyphs);
+        export const Octicons = icon('FixtureOcticons', octiconsUrl, octiconsGlyphs);
     `,
     'expo-image': `
         import React from 'react';
@@ -112,6 +124,12 @@ const fixturePlugin: Plugin = {
     name: 'workspace-link-viewer-browser-fixture',
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
+            if (args.path.startsWith('react-native-unistyles/components/native/')) {
+                return { path: resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/components/native', `${args.path.split('/').at(-1)}.js`) };
+            }
+            if (args.path === 'react-native-unistyles' && args.importer.endsWith('/WorkspaceFeedbackComposer.tsx')) {
+                return { path: 'feedback-production-styles', namespace: 'fixture-stub' };
+            }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
             if (args.path.startsWith('@/') || args.path.startsWith('.')) {
                 const sourcePath = args.path.startsWith('@/')
@@ -123,8 +141,28 @@ const fixturePlugin: Plugin = {
             return null;
         });
         buildContext.onLoad({ filter: /.*/, namespace: 'fixture-stub' }, (args) => ({
-            contents: virtualModules[args.path], loader: 'tsx', resolveDir: appRoot,
+            contents: args.path === 'feedback-production-styles' ? `
+                import { lightTheme, darkTheme } from '@/theme';
+                import { StyleSheet, useUnistyles } from ${JSON.stringify(resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/index.js'))};
+                StyleSheet.configure({ themes: { light: lightTheme, dark: darkTheme }, settings: {
+                    initialTheme: new URLSearchParams(window.location.search).get('theme') === 'dark' ? 'dark' : 'light',
+                } });
+                export { StyleSheet, useUnistyles };
+            ` : virtualModules[args.path], loader: 'tsx', resolveDir: appRoot,
         }));
+        buildContext.onLoad({ filter: /WorkspaceFeedbackComposer\.tsx$/ }, (args) => {
+            const previousNodeEnv = process.env.NODE_ENV;
+            process.env.NODE_ENV = 'production';
+            try {
+                const transformed = transformSync(readFileSync(args.path, 'utf8'), {
+                    filename: args.path, configFile: false, babelrc: false,
+                    caller: { name: 'metro', platform: 'web', supportsStaticESM: true } as any,
+                    presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
+                    plugins: [['react-native-unistyles/plugin', { root: 'sources' }]],
+                });
+                return { contents: transformed!.code!, loader: 'js', resolveDir: dirname(args.path) };
+            } finally { process.env.NODE_ENV = previousNodeEnv; }
+        });
     },
 };
 
@@ -138,10 +176,14 @@ describe('WorkspaceLinkViewer browser feedback retention', () => {
             entryPoints: [resolve(here, '__testdata__/WorkspaceLinkViewer.browser.fixture.tsx')],
             bundle: true, write: false, outdir: 'out', format: 'esm', splitting: true,
             platform: 'browser', jsx: 'automatic', alias: { 'react-native': 'react-native-web' },
+            define: { __DEV__: 'false' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' }, plugins: [fixturePlugin],
         });
         const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
-        const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
+        const stylesheet = (bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '')
+            + ['SpaceGrotesk-Regular', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular', 'JetBrainsMono-SemiBold']
+                .map((font) => `@font-face{font-family:${font};src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, 'sources/assets/fonts', `${font}.ttf`)).toString('base64')})}`)
+                .join('');
         server = createServer((request, response) => {
             const output = files.get(new URL(request.url ?? '/', 'http://fixture').pathname);
             response.setHeader('content-type', output ? 'text/javascript' : 'text/html; charset=utf-8');
@@ -245,6 +287,50 @@ describe('WorkspaceLinkViewer browser feedback retention', () => {
         expect(await page.getByText('workspace.linkReadErrorTitle', { exact: true }).count()).toBe(0);
         await context.close();
     });
+
+    it.each([1440, 390].flatMap((width) => ['light', 'dark'].map((theme) => ({ width, theme }))))(
+        'renders the redesigned feedback composer at $width in $theme and retains sending',
+        async ({ width, theme }) => {
+            const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } });
+            const page = await context.newPage();
+            const errors: string[] = [];
+            page.on('pageerror', (error) => errors.push(error.message));
+            await page.goto(`${origin}/?theme=${theme}`);
+            const input = page.getByPlaceholder('review.feedbackPrompt');
+            await input.waitFor({ timeout: 5_000 }).catch((error) => {
+                throw new Error(`Feedback fixture did not render: ${errors.join(' | ')}`, { cause: error });
+            });
+            await input.fill('Preserve the exact feedback draft');
+            const card = page.getByTestId('workspace-feedback-card');
+            const cardStyle = await card.evaluate((element) => {
+                const style = getComputedStyle(element);
+                return { radius: style.borderRadius, background: style.backgroundColor, shadow: style.boxShadow };
+            });
+            expect(cardStyle.radius).toBe('12px');
+            expect(cardStyle.background).toBe(theme === 'dark' ? 'rgb(21, 27, 40)' : 'rgb(255, 249, 236)');
+            await expect.poll(() => card.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none');
+            expect(parseFloat(await input.evaluate((element) => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+            const send = page.getByRole('button', { name: 'happyHerd.composer.send', exact: true });
+            expect(await send.evaluate((element) => getComputedStyle(element).borderRadius)).toBe('999px');
+            const rect = await card.boundingBox();
+            expect(rect!.x).toBeGreaterThanOrEqual(0);
+            expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
+            if (process.env.HAPPYHERD_ACCEPTANCE_DIR) {
+                mkdirSync(process.env.HAPPYHERD_ACCEPTANCE_DIR, { recursive: true });
+                await page.evaluate(() => document.fonts.ready);
+                await card.screenshot({ path: resolve(process.env.HAPPYHERD_ACCEPTANCE_DIR, `feedback-${theme}-${width}.png`) });
+            }
+            await send.click();
+            await expect.poll(() => page.evaluate(() => (window as any).__FEEDBACK_CALLS__.length)).toBe(1);
+            expect(await input.inputValue()).toBe('');
+            const sent = await page.evaluate(() => (window as any).__FEEDBACK_CALLS__[0]);
+            expect(sent.sessionId).toBe('linked-session');
+            expect(sent.text).toContain('Preserve the exact feedback draft');
+            expect(sent.text).toContain('Absolute path: /workspace/review.md\nLine: 3\nColumn: 7');
+            expect(errors).toEqual([]);
+            await context.close();
+        }, 30_000,
+    );
 
     it('sends general feedback with the fallback link line and column', async () => {
         const context = await browser.newContext();

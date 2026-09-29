@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a8e555cefb24730490371a4c545b3cda2f666b6d43f4ae874e5c4d7e8dbe84b9",
+  "sourceFingerprint": "caace96f5d13fe13408bd36b06d44d4fef2ad0138bc91e5069d99c514d321b88",
   "routeCount": 44,
   "surfaceCount": 336,
   "hardcodedCopyCount": 0,
@@ -911,7 +911,9 @@
     {
       "path": "/settings/usage",
       "owner": "sources/app/(app)/settings/usage.tsx",
-      "translationKeys": [],
+      "translationKeys": [
+        "settings.usage"
+      ],
       "states": []
     },
     {
@@ -2309,7 +2311,9 @@
       "kind": "route",
       "route": "/settings/usage",
       "exports": [],
-      "translationKeys": [],
+      "translationKeys": [
+        "settings.usage"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
