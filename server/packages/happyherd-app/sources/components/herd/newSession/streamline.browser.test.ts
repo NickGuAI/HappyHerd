@@ -490,7 +490,7 @@ describe('Streamline New Session in the production style runtime', () => {
         { width: 1440, height: 900, theme: 'dark' },
         { width: 390, height: 844, theme: 'light' },
         { width: 390, height: 844, theme: 'dark' },
-    ] as const)('preserves advertised Claude names and model IDs across Streamline and Advanced at $width px in $theme mode', async (surface) => {
+    ] as const)('uses advertised Claude names and exact model IDs when switching Streamline and Advanced at $width px in $theme mode', async (surface) => {
         const { page, errors } = await open({ ...surface, modelNames: 'custom' });
         try {
             await page.getByTestId('streamline-sections').waitFor();
@@ -504,21 +504,61 @@ describe('Streamline New Session in the production style runtime', () => {
             await expect(opus.innerText()).resolves.toBe('Opus Research Preview');
             await expect(opus.getAttribute('aria-checked')).resolves.toBe('true');
             await expect(sonnet.innerText()).resolves.toBe('Sonnet Team Edition');
-            await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Opus Research Preview');
+            if (surface.width >= 700) {
+                await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Opus Research Preview');
+            } else {
+                await expect(page.getByTestId('advanced-chip-model').count()).resolves.toBe(0);
+            }
             await sonnet.click();
             await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.modelMode)).toBe('claude-sonnet-5');
             await expect(sonnet.getAttribute('aria-checked')).resolves.toBe('true');
-            await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Sonnet Team Edition');
+            if (surface.width >= 700) {
+                await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Sonnet Team Edition');
+            } else {
+                await expect(page.getByTestId('advanced-chip-model').count()).resolves.toBe(0);
+            }
             await evidence(page, `claude-model-names-advanced-${surface.width}-${surface.theme}`);
             await page.getByTestId('new-session-mode').getByRole('radio', { name: 'Streamline' }).click();
             await expect(page.getByTestId('streamline-chip-model').count()).resolves.toBe(0);
-            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.modelMode)).toBe('claude-sonnet-5');
-            await expect(page.getByTestId('streamline-settings-link').innerText()).resolves.toBe('Streamline settings');
+            // Re-entering Streamline reapplies its configured defaults.
+            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.modelMode)).toBe('claude-opus-5-5');
+            await expect(page.getByTestId('streamline-settings-link').innerText()).resolves.toContain('Streamline settings');
             await evidence(page, `claude-model-names-streamline-${surface.width}-${surface.theme}`);
             await page.getByTestId('new-session-mode').getByRole('radio', { name: 'Advanced' }).click();
-            await expect(sonnet.innerText()).resolves.toBe('Sonnet Team Edition');
-            await expect(sonnet.getAttribute('aria-checked')).resolves.toBe('true');
-            await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Sonnet Team Edition');
+            await expect(opus.innerText()).resolves.toBe('Opus Research Preview');
+            await expect(opus.getAttribute('aria-checked')).resolves.toBe('true');
+            if (surface.width >= 700) {
+                await expect(page.getByTestId('advanced-chip-model').innerText()).resolves.toBe('Opus Research Preview');
+            } else {
+                await expect(page.getByTestId('advanced-chip-model').count()).resolves.toBe(0);
+            }
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 30_000);
+
+    it.each([
+        { width: 1440, height: 900, theme: 'light' },
+        { width: 1440, height: 900, theme: 'dark' },
+        { width: 390, height: 844, theme: 'light' },
+        { width: 390, height: 844, theme: 'dark' },
+    ] as const)('uses advertised names in Streamline model defaults at $width px in $theme mode', async (surface) => {
+        const { page, errors } = await open({ ...surface, screen: 'settings', modelNames: 'custom' });
+        try {
+            await page.getByText('Opus Research Preview', { exact: true }).first().waitFor();
+            await page.getByText('Model', { exact: true }).first().click();
+            await page.getByText('Sonnet Team Edition', { exact: true }).click();
+            await expect.poll(() => page.evaluate(() => (window as any).__SETTINGS__?.streamlineAgentDefaults?.claude?.modelMode)).toBe('claude-sonnet-5');
+            await page.getByText('Model', { exact: true }).first().click();
+            await page.getByText('Sonnet Team Edition', { exact: true }).waitFor();
+            await page.getByText('Model', { exact: true }).first().click();
+            // The catalog choice follows the Reset row's description.
+            await page.getByText('Opus Research Preview', { exact: true }).last().click();
+            await expect.poll(() => page.evaluate(() => (window as any).__SETTINGS__?.streamlineAgentDefaults?.claude?.modelMode)).toBe('claude-opus-5-5');
+            await page.getByText('Model', { exact: true }).first().click();
+            await page.getByText('Opus Research Preview', { exact: true }).waitFor();
+            await evidence(page, `claude-model-names-settings-${surface.width}-${surface.theme}`);
             expect(errors).toEqual([]);
         } finally {
             await page.close();
