@@ -167,8 +167,15 @@ export type UpdateEvent = {
     type: 'new-feed-post';
     id: string;
     body: any;
+    repeatKey: string | null;
     cursor: string;
     createdAt: number;
+    readAt: number | null;
+} | {
+    type: 'feed-read';
+    id?: string;
+    through?: string;
+    readAt: number;
 } | {
     type: 'kv-batch-update';
     changes: Array<{
@@ -705,8 +712,10 @@ export function buildRelationshipUpdatedEvent(
 export function buildNewFeedPostUpdate(feedItem: {
     id: string;
     body: any;
+    repeatKey: string | null;
     cursor: string;
     createdAt: number;
+    readAt: number | null;
 }, updateSeq: number, updateId: string): UpdatePayload {
     return {
         id: updateId,
@@ -715,9 +724,24 @@ export function buildNewFeedPostUpdate(feedItem: {
             t: 'new-feed-post',
             id: feedItem.id,
             body: feedItem.body,
+            repeatKey: feedItem.repeatKey,
             cursor: feedItem.cursor,
-            createdAt: feedItem.createdAt
+            createdAt: feedItem.createdAt,
+            readAt: feedItem.readAt
         },
+        createdAt: Date.now()
+    };
+}
+
+export function buildFeedReadUpdate(
+    read: ({ id: string } | { through: string }) & { readAt: number },
+    updateSeq: number,
+    updateId: string
+): UpdatePayload {
+    return {
+        id: updateId,
+        seq: updateSeq,
+        body: { t: 'feed-read', ...read },
         createdAt: Date.now()
     };
 }

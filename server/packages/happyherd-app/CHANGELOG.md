@@ -1,3 +1,7 @@
+# September 29 — Mark Inbox updates as read
+
+- Use Done on the Inbox title row to mark all current updates as read, or open an update to read just that item. Unread dots clear and read state is saved to your account across devices; later updates stay unread. Pending friend requests and app-update notifications remain available.
+
 # September 29 — Commander context in the session stream
 
 - Sessions started with a Commander now show its avatar and name at the top of the stream, with a link to Commanders and a chip for each context file successfully loaded for the session. Missing or unread files are not listed.

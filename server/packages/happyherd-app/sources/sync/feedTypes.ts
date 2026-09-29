@@ -21,6 +21,7 @@ export const FeedItemSchema = z.object({
     repeatKey: z.string().nullable(),
     body: FeedBodySchema,
     createdAt: z.number(),
+    readAt: z.number().nullable().optional(),
     cursor: z.string(),
     counter: z.number()
 });
@@ -34,12 +35,19 @@ export const FeedResponseSchema = z.object({
         body: FeedBodySchema,
         repeatKey: z.string().nullable(),
         cursor: z.string(),
-        createdAt: z.number()
+        createdAt: z.number(),
+        readAt: z.number().nullable().optional()
     })),
     hasMore: z.boolean()
 });
 
 export type FeedResponse = z.infer<typeof FeedResponseSchema>;
+
+export const FeedReadReceiptSchema = z.union([
+    z.object({ id: z.string(), readAt: z.number() }),
+    z.object({ through: z.string().regex(/^0-\d+$/), readAt: z.number() }),
+]);
+export type FeedReadReceipt = z.infer<typeof FeedReadReceiptSchema>;
 
 // Feed options for API calls
 export interface FeedOptions {

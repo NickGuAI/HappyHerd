@@ -404,6 +404,8 @@ class Sync {
 
     async #init() {
 
+        storage.getState().setFeedAccount(`${getServerUrl()}|${this.serverID}`);
+
         // Subscribe to updates
         this.subscribeToUpdates();
 
@@ -2262,48 +2264,23 @@ class Sync {
 
         try {
             log.log('📰 Fetching feed...');
-            const state = storage.getState();
-            const existingItems = state.feedItems;
-            const head = state.feedHead;
-            
-            // Load feed items - if we have a head, load newer items
-            let allItems: FeedItem[] = [];
+            const credentials = this.credentials;
+            const { feedAccount: account, feedTail } = storage.getState();
+            const oldestKnown = feedTail ? Number(feedTail.slice(2)) : null;
+            // Re-fetch known rows to reconcile reads made on another device
+            // while disconnected. Pagination follows the server's newest-first
+            // ordering. Initially load up to 500 items; on reconnect also reach
+            // every retained item, even if new arrivals pushed it past that page.
+            const allItems: FeedItem[] = [];
+            let before: string | undefined;
             let hasMore = true;
-            let cursor = head ? { after: head } : undefined;
-            let loadedCount = 0;
-            const maxItems = 500;
-            
-            // Keep loading until we reach known items or hit max limit
-            while (hasMore && loadedCount < maxItems) {
-                const response = await fetchFeed(this.credentials, {
-                    limit: 100,
-                    ...cursor
-                });
-                
-                // Check if we reached known items
-                const foundKnown = response.items.some(item => 
-                    existingItems.some(existing => existing.id === item.id)
-                );
-                
+            while (hasMore && (allItems.length < 500 || (oldestKnown !== null && Number(before?.slice(2) ?? Infinity) > oldestKnown))) {
+                const response = await fetchFeed(credentials, { limit: 100, before });
                 allItems.push(...response.items);
-                loadedCount += response.items.length;
-                hasMore = response.hasMore && !foundKnown;
-                
-                // Update cursor for next page
-                if (response.items.length > 0) {
-                    const lastItem = response.items[response.items.length - 1];
-                    cursor = { after: lastItem.cursor };
-                }
+                hasMore = response.hasMore && response.items.length > 0;
+                before = response.items.at(-1)?.cursor;
             }
-            
-            // If this is initial load (no head), also load older items
-            if (!head && allItems.length < 100) {
-                const response = await fetchFeed(this.credentials, {
-                    limit: 100
-                });
-                allItems.push(...response.items);
-            }
-            
+
             // Collect user IDs from friend-related feed items
             const userIds = new Set<string>();
             allItems.forEach(item => {
@@ -2334,6 +2311,7 @@ class Sync {
             });
             
             // Apply only compatible items to storage
+            if (storage.getState().feedAccount !== account || this.credentials !== credentials) return;
             storage.getState().applyFeedItems(compatibleItems);
             log.log(`📰 fetchFeed completed - loaded ${compatibleItems.length} compatible items (${allItems.length - compatibleItems.length} filtered)`);
         } catch (error) {
@@ -3559,7 +3537,10 @@ class Sync {
             
             // Remove encryption key from memory
             this.artifactDataKeys.delete(artifactId);
+        } else if (updateData.body.t === 'feed-read') {
+            storage.getState().applyFeedRead(updateData.body);
         } else if (updateData.body.t === 'new-feed-post') {
+            const feedAccount = storage.getState().feedAccount;
             log.log('📰 Received new-feed-post update');
             const feedUpdate = updateData.body;
             
@@ -3570,6 +3551,7 @@ class Sync {
                 cursor: feedUpdate.cursor,
                 createdAt: feedUpdate.createdAt,
                 repeatKey: feedUpdate.repeatKey,
+                readAt: feedUpdate.readAt ?? null,
                 counter: parseInt(feedUpdate.cursor.substring(2), 10)
             };
             
@@ -3588,6 +3570,7 @@ class Sync {
             }
             
             // Apply to storage (will handle repeatKey replacement)
+            if (storage.getState().feedAccount !== feedAccount) return;
             storage.getState().applyFeedItems([feedItem]);
         }
     }

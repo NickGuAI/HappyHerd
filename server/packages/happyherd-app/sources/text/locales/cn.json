@@ -14,9 +14,11 @@
   "inbox": {
     "emptyTitle": "收件箱为空",
     "emptyDescription": "与好友建立连接，开始共享会话",
-    "updates": "更新"
+    "updates": "更新",
+    "markReadFailed": "无法将更新标为已读。请重试。"
   },
   "common": {
+    "done": "完成",
     "cancel": "取消",
     "authenticate": "认证",
     "save": "保存",

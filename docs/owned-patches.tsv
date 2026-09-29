@@ -682,3 +682,4 @@ COMMANDER_CONTEXT_IOS_ACCEPTANCE_ARTIFACT	accepted	ci(acceptance): build the iss
 COMMANDER_CONTEXT_WORKFLOW_RECIPE	accepted	ci(acceptance): keep the issue 347 iOS artifact workflow as a recipe	docs/acceptance/issue-347/native-acceptance-workflow.yml
 COMMANDER_CONTEXT_FIXTURE_REBASE_FIX	accepted	test(app): close the Commander context fixture branch after the rebase	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 COMMANDER_CONTEXT_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the KILV changelog baselines for the Commander context entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+INBOX_READ_STATE_345	accepted	feat(inbox): persist per-update reads and add Done action	server/packages/happyherd-app/sources/components/InboxView.browser.test.ts

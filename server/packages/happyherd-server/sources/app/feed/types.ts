@@ -23,6 +23,7 @@ export interface UserFeedItem {
     repeatKey: string | null;
     body: FeedBody;
     createdAt: number;
+    readAt: number | null;
     cursor: string;
 }
 

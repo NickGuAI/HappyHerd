@@ -11,6 +11,8 @@ import { HerdItem as Item } from './herd/pages/HerdList';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from './StyledText';
 import { Typography } from '@/constants/Typography';
+import { markFeedItemRead } from '@/sync/feedRead';
+import { Modal } from '@/modal';
 
 interface FeedItemCardProps {
     item: FeedItem;
@@ -23,10 +25,11 @@ interface FeedItemCardProps {
 }
 
 /** One Inbox update as the mock's card: icon tile, title, and time at the top right. */
-function FeedCard({ title, time, tile, onPress, testID }: {
+function FeedCard({ title, time, tile, unreadDot, onPress, testID }: {
     title: string;
     time: string;
     tile: React.ReactNode;
+    unreadDot: React.ReactNode;
     onPress?: () => void;
     testID: string;
 }) {
@@ -34,7 +37,10 @@ function FeedCard({ title, time, tile, onPress, testID }: {
         <>
             <View style={styles.tile}>{tile}</View>
             <Text style={styles.title} numberOfLines={3}>{title}</Text>
-            <Text style={styles.time} numberOfLines={1}>{time}</Text>
+            <View style={styles.metadata}>
+                <Text style={styles.time} numberOfLines={1}>{time}</Text>
+                {unreadDot}
+            </View>
         </>
     );
     return onPress ? (
@@ -52,11 +58,13 @@ function FeedCard({ title, time, tile, onPress, testID }: {
     );
 }
 
-function AutomationBlockedFeedItem({ itemId, body, time, variant }: {
+function AutomationBlockedFeedItem({ itemId, body, time, variant, unreadDot, onRead }: {
     itemId: string;
     body: Extract<FeedItem['body'], { kind: 'automation_blocked' }>;
     time: string;
     variant: 'row' | 'card';
+    unreadDot: React.ReactNode;
+    onRead: () => void;
 }) {
     const machine = useMachine(body.machineId);
     const { theme } = useUnistyles();
@@ -66,16 +74,45 @@ function AutomationBlockedFeedItem({ itemId, body, time, variant }: {
         : t('feed.automationBlockedGeneric', { runId: body.runId });
     const icon = <Ionicons name="warning-outline" size={20} color={theme.colors.textSecondary} />;
     const { machineId, automationId } = body;
-    const onPress = () => router.push({ pathname: '/automations', params: { machineId, automationId } });
+    const onPress = () => {
+        router.push({ pathname: '/automations', params: { machineId, automationId } });
+        onRead();
+    };
     if (variant === 'card') {
-        return <FeedCard testID={`feed-card-${itemId}`} title={title} time={time} tile={icon} onPress={onPress} />;
+        return <FeedCard testID={`feed-card-${itemId}`} title={title} time={time} tile={icon} unreadDot={unreadDot} onPress={onPress} />;
     }
-    return <Item title={title} subtitle={time} icon={icon} onPress={onPress} showChevron={true} />;
+    return (
+        <Item
+            title={title}
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            subtitle={time}
+            icon={<View>{icon}{unreadDot && <View style={styles.iconUnreadDot}>{unreadDot}</View>}</View>}
+            onPress={onPress}
+            showChevron={true}
+        />
+    );
 }
 
 export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardProps) => {
     const { theme } = useUnistyles();
     const router = useRouter();
+    const reading = React.useRef(false);
+    const read = async (userId?: string) => {
+        if (userId) router.push(`/user/${userId}`);
+        if (reading.current) return;
+        reading.current = true;
+        try {
+            if (item.readAt == null) await markFeedItemRead(item.id);
+        } catch {
+            Modal.alert(t('common.error'), t('inbox.markReadFailed'));
+        } finally {
+            reading.current = false;
+        }
+    };
+    const unreadDot = item.readAt == null
+        ? <View testID={`feed-unread-${item.id}`} style={styles.unreadDot} />
+        : null;
 
     // Get user profile from global users cache for friend-related items
     // User MUST exist for friend-related items or they would have been filtered out
@@ -112,14 +149,16 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
 
             const title = t('feed.friendRequestFrom', { name: user!.firstName || user!.username });
             if (variant === 'card') {
-                return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} onPress={() => router.push(`/user/${user!.id}`)} />;
+                return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} unreadDot={unreadDot} onPress={() => { void read(user!.id); }} />;
             }
             return (
                 <Item
                     title={title}
+                    accessibilityRole="button"
+                    accessibilityLabel={title}
                     subtitle={getTimeAgo(item.createdAt)}
-                    leftElement={avatarElement}
-                    onPress={() => router.push(`/user/${user!.id}`)}
+                    leftElement={<View style={styles.rowIcon}>{avatarElement}{unreadDot}</View>}
+                    onPress={() => { void read(user!.id); }}
                     showChevron={true}
                 />
             );
@@ -138,21 +177,23 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
 
             const title = t('feed.friendAccepted', { name: user!.firstName || user!.username });
             if (variant === 'card') {
-                return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} onPress={() => router.push(`/user/${user!.id}`)} />;
+                return <FeedCard testID={`feed-card-${item.id}`} title={title} time={getTimeAgo(item.createdAt)} tile={avatarElement} unreadDot={unreadDot} onPress={() => { void read(user!.id); }} />;
             }
             return (
                 <Item
                     title={title}
+                    accessibilityRole="button"
+                    accessibilityLabel={title}
                     subtitle={getTimeAgo(item.createdAt)}
-                    leftElement={avatarElement}
-                    onPress={() => router.push(`/user/${user!.id}`)}
+                    leftElement={<View style={styles.rowIcon}>{avatarElement}{unreadDot}</View>}
+                    onPress={() => { void read(user!.id); }}
                     showChevron={true}
                 />
             );
         }
 
         case 'automation_blocked': {
-            return <AutomationBlockedFeedItem itemId={item.id} body={item.body} time={getTimeAgo(item.createdAt)} variant={variant} />;
+            return <AutomationBlockedFeedItem itemId={item.id} body={item.body} time={getTimeAgo(item.createdAt)} variant={variant} unreadDot={unreadDot} onRead={() => { void read(); }} />;
         }
 
         case 'text':
@@ -163,14 +204,20 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
                         title={item.body.text}
                         time={getTimeAgo(item.createdAt)}
                         tile={<Ionicons name="information-circle-outline" size={17} color={theme.colors.textSecondary} />}
+                        unreadDot={unreadDot}
+                        onPress={() => { void read(); }}
                     />
                 );
             }
             return (
                 <Item
                     title={item.body.text}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.body.text}
                     subtitle={getTimeAgo(item.createdAt)}
                     icon={<Ionicons name="information-circle" size={20} color={theme.colors.textSecondary} />}
+                    rightElement={unreadDot}
+                    onPress={() => { void read(); }}
                     showChevron={false}
                 />
             );
@@ -219,5 +266,25 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 11.5,
         lineHeight: 21,
         color: theme.colors.kilv.inkFaint,
+    },
+    metadata: {
+        alignItems: 'flex-end',
+        gap: 6,
+    },
+    unreadDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: theme.colors.kilv.accent,
+    },
+    rowIcon: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    iconUnreadDot: {
+        position: 'absolute',
+        top: -3,
+        right: -5,
     },
 }));

@@ -48,6 +48,7 @@ export async function feedGet(
         items: items.slice(0, limit).map(item => ({
             ...item,
             createdAt: item.createdAt.getTime(),
+            readAt: item.readAt?.getTime() ?? null,
             cursor: '0-' + item.counter.toString(10)
         })),
         hasMore

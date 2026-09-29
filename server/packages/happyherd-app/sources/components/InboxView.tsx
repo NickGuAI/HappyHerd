@@ -19,14 +19,14 @@ import { UpdateBanner } from './UpdateBanner';
 import { Typography } from '@/constants/Typography';
 import { useRouter } from 'expo-router';
 import { layout } from '@/components/layout';
-import { useIsTablet } from '@/utils/responsive';
 import { Header } from './navigation/Header';
-import { HerdWindowInsetsContext } from './herd/shell/windowInsets';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { FeedItemCard } from './FeedItemCard';
 import { HerdButton, HerdPageHeader, useHerdWideLayout } from '@/components/herd/pages/HerdPage';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
+import { markAllFeedRead } from '@/sync/feedRead';
+import { Modal } from '@/modal';
 
 const INBOX_WIDE_MAX_WIDTH = 820;
 
@@ -107,25 +107,30 @@ function HeaderTitleTablet() {
     );
 }
 
-function HeaderRightTablet() {
+function HeaderRightTablet({ done }: { done: React.ReactNode }) {
     const router = useRouter();
     const { theme } = useUnistyles();
     return (
-        <Pressable
-            onPress={() => {
-                trackFriendsSearch();
-                router.push('/friends/search');
-            }}
-            hitSlop={15}
-            style={{
-                width: 32,
-                height: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-        >
-            <Ionicons name="person-add-outline" size={24} color={theme.colors.header.tint} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('friends.findFriends')}
+                onPress={() => {
+                    trackFriendsSearch();
+                    router.push('/friends/search');
+                }}
+                hitSlop={15}
+                style={{
+                    width: 32,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <Ionicons name="person-add-outline" size={24} color={theme.colors.header.tint} />
+            </Pressable>
+            {done}
+        </View>
     );
 }
 
@@ -133,11 +138,37 @@ function HeaderRightTablet() {
  * The Inbox's top (UI overhaul): on wide web the mock's large page title with
  * Find Friends on its row; on tablets and signed-in phones the header row.
  */
-function InboxTop({ showHeader }: { showHeader: boolean }) {
+function InboxTop() {
     const { theme } = useUnistyles();
     const router = useRouter();
     const wide = useHerdWideLayout();
     const realtimeStatus = useRealtimeStatus();
+    const feedItems = useFeedItems();
+    const feedLoaded = useFeedLoaded();
+    const [markingRead, setMarkingRead] = React.useState(false);
+    const markingReadRef = React.useRef(false);
+    const markAll = React.useCallback(async () => {
+        if (markingReadRef.current) return;
+        markingReadRef.current = true;
+        setMarkingRead(true);
+        try {
+            await markAllFeedRead();
+        } catch {
+            Modal.alert(t('common.error'), t('inbox.markReadFailed'));
+        } finally {
+            markingReadRef.current = false;
+            setMarkingRead(false);
+        }
+    }, []);
+    const done = (
+        <HerdButton
+            testID="inbox-mark-all-read"
+            label={t('common.done')}
+            onPress={markAll}
+            loading={markingRead}
+            disabled={!feedLoaded || feedItems.length === 0}
+        />
+    );
     const voice = realtimeStatus !== 'disconnected' ? <VoiceAssistantStatusBar variant="full" /> : null;
     if (wide) {
         return (
@@ -147,14 +178,17 @@ function InboxTop({ showHeader }: { showHeader: boolean }) {
                         testID="inbox-page-header"
                         title={t('tabs.inbox')}
                         actions={(
-                            <HerdButton
-                                icon="person-add-outline"
-                                label={t('friends.findFriends')}
-                                onPress={() => {
-                                    trackFriendsSearch();
-                                    router.push('/friends/search');
-                                }}
-                            />
+                            <>
+                                <HerdButton
+                                    icon="person-add-outline"
+                                    label={t('friends.findFriends')}
+                                    onPress={() => {
+                                        trackFriendsSearch();
+                                        router.push('/friends/search');
+                                    }}
+                                />
+                                {done}
+                            </>
                         )}
                     />
                 </View>
@@ -162,12 +196,12 @@ function InboxTop({ showHeader }: { showHeader: boolean }) {
             </View>
         );
     }
-    if (!showHeader) return null;
     return (
         <View style={{ backgroundColor: Platform.select({ web: theme.colors.groupped.background, default: 'transparent' }) }}>
             <Header
                 title={<HeaderTitleTablet />}
-                headerRight={() => <HeaderRightTablet />}
+                headerRight={() => <HeaderRightTablet done={done} />}
+                headerRightGlass={false}
                 headerLeft={() => null}
                 headerShadowVisible={false}
                 headerTransparent={true}
@@ -186,10 +220,6 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     const feedLoaded = useFeedLoaded();
     const friendsLoaded = useFriendsLoaded();
     const { theme } = useUnistyles();
-    // Tablets and signed-in phones (under the top bar) draw the Inbox title row with Find Friends here.
-    const isTablet = useIsTablet();
-    const underTopBar = React.useContext(HerdWindowInsetsContext) !== null;
-    const showHeader = isTablet || underTopBar;
     const wide = useHerdWideLayout();
 
     const isLoading = !feedLoaded || !friendsLoaded;
@@ -198,7 +228,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isLoading) {
         return (
             <View style={styles.container}>
-                <InboxTop showHeader={showHeader} />
+                <InboxTop />
                 {topContentInset > 0 && <View style={{ height: topContentInset }} />}
                 <UpdateBanner />
                 <View style={styles.emptyContainer}>
@@ -211,7 +241,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
     if (isEmpty) {
         return (
             <View style={styles.container}>
-                <InboxTop showHeader={showHeader} />
+                <InboxTop />
                 {topContentInset > 0 && <View style={{ height: topContentInset }} />}
                 <UpdateBanner />
                 <View style={styles.emptyContainer}>
@@ -230,7 +260,7 @@ export const InboxView = React.memo(({ topContentInset = 0, bottomContentInset =
 
     return (
         <View style={styles.container}>
-            <InboxTop showHeader={showHeader} />
+            <InboxTop />
             <ScrollView
                 contentContainerStyle={{
                     maxWidth: wide ? INBOX_WIDE_MAX_WIDTH : layout.maxWidth,

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "263169f194cf64a75c3fb3fb85a33a57e79e6fd1dd08c5aeb993ce978e9fb2ee",
-  "routeCount": 45,
-  "surfaceCount": 338,
+  "sourceFingerprint": "179b92d40134e0f55fbb6d1c14370897744a7ec551f0a1fddc68fda2557f2d1b",
+  "routeCount": 44,
+  "surfaceCount": 336,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -480,25 +480,6 @@
       "states": []
     },
     {
-      "path": "/session/[id]/context",
-      "owner": "sources/app/(app)/session/[id]/context.tsx",
-      "translationKeys": [
-        "common.loading",
-        "common.retry",
-        "contextWindow.description",
-        "contextWindow.disabled",
-        "contextWindow.empty",
-        "contextWindow.entryCount",
-        "contextWindow.refresh",
-        "contextWindow.title"
-      ],
-      "states": [
-        "disabled",
-        "empty",
-        "loading"
-      ]
-    },
-    {
       "path": "/session/[id]/file",
       "owner": "sources/app/(app)/session/[id]/file.tsx",
       "translationKeys": [
@@ -852,8 +833,6 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
-        "contextWindow.featureSubtitle",
-        "contextWindow.title",
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
@@ -1844,30 +1823,6 @@
       "hardcodedCopy": []
     },
     {
-      "owner": "sources/app/(app)/session/[id]/context.tsx",
-      "kind": "route",
-      "route": "/session/[id]/context",
-      "exports": [
-        "SessionContextWindowScreen"
-      ],
-      "translationKeys": [
-        "common.loading",
-        "common.retry",
-        "contextWindow.description",
-        "contextWindow.disabled",
-        "contextWindow.empty",
-        "contextWindow.entryCount",
-        "contextWindow.refresh",
-        "contextWindow.title"
-      ],
-      "states": [
-        "disabled",
-        "empty",
-        "loading"
-      ],
-      "hardcodedCopy": []
-    },
-    {
       "owner": "sources/app/(app)/session/[id]/file.tsx",
       "kind": "route",
       "route": "/session/[id]/file",
@@ -2268,8 +2223,6 @@
       "route": "/settings/features",
       "exports": [],
       "translationKeys": [
-        "contextWindow.featureSubtitle",
-        "contextWindow.title",
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
@@ -3141,21 +3094,6 @@
       "hardcodedCopy": []
     },
     {
-      "owner": "sources/components/CommanderContextRow.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "CommanderContextRow"
-      ],
-      "translationKeys": [
-        "happyHerd.commander.loadedContext",
-        "happyHerd.commander.loadedFile",
-        "happyHerd.commander.openCommanders"
-      ],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
       "owner": "sources/components/CommanderSessionAvatar.tsx",
       "kind": "component",
       "route": null,
@@ -3808,16 +3746,20 @@
         "FeedItemCard"
       ],
       "translationKeys": [
+        "common.error",
         "feed.automationBlocked",
         "feed.automationBlockedGeneric",
         "feed.friendAccepted",
         "feed.friendRequestFrom",
+        "inbox.markReadFailed",
         "sessionHistory.daysAgo",
         "time.hoursAgo",
         "time.justNow",
         "time.minutesAgo"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -4991,16 +4933,21 @@
         "InboxView"
       ],
       "translationKeys": [
+        "common.done",
+        "common.error",
         "friends.findFriends",
         "friends.myFriends",
         "friends.pendingRequests",
         "friends.requestPending",
         "inbox.emptyDescription",
         "inbox.emptyTitle",
+        "inbox.markReadFailed",
         "inbox.updates",
         "tabs.inbox"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -6975,7 +6922,6 @@
       ],
       "translationKeys": [
         "common.cancel",
-        "contextWindow.title",
         "errors.unsupportedPermissionMode",
         "profile.details",
         "session.duplicateAction",
