@@ -1364,6 +1364,9 @@
   },
   "happyHerd": {
     "commander": {
+      "loadedContext": "Commander-Kontext",
+      "openCommanders": "{name} unter Commanders anzeigen",
+      "loadedFile": "Geladene Kontextdatei: {path}",
       "category": "Commander",
       "createTitle": "Commander erstellen",
       "createSubtitle": "Eine geführte Onboarding-Sitzung starten",

@@ -2,11 +2,25 @@ import { describe, expect, it } from 'vitest';
 import {
   detectHappyHerdCommanderAvatarMimeType,
   HappyHerdCommanderAvatarSchema,
+  HappyHerdCommanderContextFilesSchema,
   HappyHerdCommanderSummarySchema,
   MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES,
 } from './commanderContext';
 
 describe('HappyHerd Commander wire contracts', () => {
+  it('preserves exact loaded-file paths and rejects an invalid receipt', () => {
+    const files = [
+      { kind: 'global-agents', path: '/home/User Name/.happyherd/AGENTS.md' },
+      { kind: 'commander', path: '/context/COMMANDER.md' },
+      { kind: 'working-memory', path: '/context/memory/1-working-memory.md' },
+      { kind: 'long-term-memory', path: '/context/memory/2-long-term-memory.md' },
+    ];
+    expect(HappyHerdCommanderContextFilesSchema.parse(files)).toEqual(files);
+    expect(HappyHerdCommanderContextFilesSchema.parse([])).toEqual([]);
+    expect(HappyHerdCommanderContextFilesSchema.safeParse([{ kind: 'observations', path: '/context/L1' }]).success).toBe(false);
+    expect(HappyHerdCommanderContextFilesSchema.safeParse([{ kind: 'commander', path: '' }]).success).toBe(false);
+  });
+
   it('recognizes complete avatar containers and rejects signature-only files', () => {
     const png = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',

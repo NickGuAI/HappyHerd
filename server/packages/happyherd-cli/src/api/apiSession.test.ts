@@ -8,6 +8,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { configuration } from '@/configuration';
+import { configureHappyHerdSessionReconnect } from '@/utils/sessionReconnect';
 
 const {
     mockIo,
@@ -275,6 +276,44 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(acknowledgement).toHaveBeenCalledOnce();
         expect(mockBackoff).not.toHaveBeenCalled();
         await client.close();
+    });
+
+    it.each(['replace', 'clear'] as const)('persists the resumed Commander receipt through a metadata conflict: %s', async (operation) => {
+        const historicalFiles = [{ kind: 'commander' as const, path: '/old/COMMANDER.md' }];
+        const currentFiles = operation === 'replace'
+            ? [{ kind: 'commander' as const, path: '/current/COMMANDER.md' }]
+            : undefined;
+        const response = {
+            ...session,
+            metadata: { ...session.metadata, contextHash: 'current-context', commanderContextFiles: currentFiles },
+        };
+        let attempts = 0;
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
+            if (event !== 'update-metadata') return { result: 'error' };
+            attempts += 1;
+            if (attempts === 1) {
+                return {
+                    result: 'version-mismatch', version: payload.expectedVersion + 1,
+                    metadata: encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, {
+                        ...session.metadata, hostPid: 987, commanderContextFiles: historicalFiles,
+                    })),
+                };
+            }
+            return { result: 'success', version: payload.expectedVersion + 1, metadata: payload.metadata };
+        });
+        const client = new ApiSessionClient('fake-token', response);
+        try {
+            configureHappyHerdSessionReconnect(client, {
+                response, reconnecting: true, queueMessageIds: [], priorityQueueMessageId: null,
+            });
+            await waitForCheck(() => {
+                expect(attempts).toBe(2);
+                expect(client.getMetadata()?.commanderContextFiles).toEqual(currentFiles);
+            });
+            expect(client.getMetadata()?.hostPid).toBe(987);
+        } finally {
+            await client.close();
+        }
     });
 
     it('retries after initial socket connection error', async () => {

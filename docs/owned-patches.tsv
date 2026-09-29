@@ -671,3 +671,4 @@ CONTEXT_WINDOW_COMPACTION_TRANSITION	accepted	fix(context): select freshly compa
 CONTEXT_WINDOW_AUTOMATION_MAIN_GOLDENS	accepted	test(context): refresh context changelog goldens after automation merge	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 CONTEXT_WINDOW_NATIVE_ACCEPTANCE_RECEIPT	accepted	docs(context): record native acceptance and live prerequisites	docs/acceptance/issue-354.md
 CONTEXT_WINDOW_CODEX_CONTINUATION_SCOPE	accepted	docs(context): honor Codex-only live acceptance scope	docs/acceptance/issue-354.md
+COMMANDER_LOADED_CONTEXT_ROW	accepted	feat(session): show loaded Commander context in the stream	server/packages/happyherd-cli/src/agentContext/commanderContext.test.ts

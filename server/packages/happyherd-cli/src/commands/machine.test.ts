@@ -718,6 +718,7 @@ describe('session Commander reassignment', () => {
       commanderPath: '/old/COMMANDER.md',
       commanderWorkspace: '/old',
       commanderAgentContextPath: '/old/agentcontext',
+      commanderContextFiles: [{ kind: 'commander', path: '/old/COMMANDER.md' }],
       contextHash: 'live-context-hash',
     });
     const owningMachine = machine('machine-B');
@@ -744,6 +745,7 @@ describe('session Commander reassignment', () => {
       {},
     );
     const update = fake.updateSessionMetadata.mock.calls[0][1];
+    expect(update(target.metadata)).not.toHaveProperty('commanderContextFiles');
     expect(update(target.metadata))
       .toMatchObject({
         path: '/srv/project',
@@ -771,6 +773,7 @@ describe('session Commander reassignment', () => {
         commanderPath: targetAthena.commanderPath,
         commanderWorkspace: targetAthena.workspace,
         commanderAgentContextPath: targetAthena.agentContextPath,
+        commanderContextFiles: [{ kind: 'commander', path: targetAthena.commanderPath }],
       }),
     });
     const output = vi.fn();

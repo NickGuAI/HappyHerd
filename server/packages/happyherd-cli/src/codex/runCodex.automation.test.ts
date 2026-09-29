@@ -183,6 +183,7 @@ vi.mock('@/daemon/controlClient', () => ({
 }));
 
 vi.mock('@/agentContext/commanderContext', () => ({
+    commanderContextReceiptForResume: vi.fn(() => ({})),
     readContextPromptFromEnvironment: vi.fn(async () => 'Commander context only'),
     mergeContextPrompt: vi.fn((base: string | undefined, extra: string | undefined) => (
         base && extra ? `${base}\n\n${extra}` : base ?? extra

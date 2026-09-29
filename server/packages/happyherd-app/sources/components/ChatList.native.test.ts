@@ -48,7 +48,7 @@ vi.mock('@shopify/flash-list', async () => {
         }
         ReactModule.useImperativeHandle(ref, () => instanceRef.current);
         ReactModule.useEffect(() => { void Promise.resolve().then(() => props.onLoad?.()); }, []);
-        return ReactModule.createElement('FlashList', props);
+        return ReactModule.createElement('FlashList', props, props.ListFooterComponent);
     });
     return { FlashList };
 });
@@ -74,6 +74,10 @@ vi.mock('react-native-unistyles', async () => {
         useUnistyles: () => ({ theme }),
     };
 });
+vi.mock('@/hooks/useCommanderAvatar', () => ({ useCommanderAvatar: () => null }));
+vi.mock('./layout', () => ({ layout: { maxWidth: 800 } }));
+vi.mock('expo-image', () => ({ Image: 'Image' }));
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 0 }));
 vi.mock('@/sync/storage', () => ({
@@ -428,6 +432,27 @@ describe('ChatList exact feedback focus', () => {
 
         act(() => vi.advanceTimersByTime(60));
         expect(mocks.scrollToIndex).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+});
+
+
+describe('Commander context at the native stream start', () => {
+    it('keeps the row at the true oldest boundary through server and render-window pagination', async () => {
+        mocks.messages = Array.from({ length: 100 }, (_, index) => userMessage('message-' + index));
+        mocks.session = { ...mocks.session, metadata: { commanderId: 'athena', commanderName: 'Athena', commanderContextFiles: [{ kind: 'commander', path: '/context/COMMANDER.md' }] } };
+        mocks.hasMoreOlder = true;
+        let renderer!: ReactTestRenderer;
+        await act(async () => { renderer = create(React.createElement(ChatList, { session: mocks.session })); });
+        expect(renderer.root.findAllByProps({ testID: 'commander-context-row' })).toHaveLength(0);
+        mocks.hasMoreOlder = false;
+        await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
+        expect(renderer.root.findAllByProps({ testID: 'commander-context-row' })).toHaveLength(0);
+        let list = renderer.root.findByType('FlashList' as any);
+        act(() => list.props.onScrollBeginDrag());
+        await act(async () => list.props.onScroll({ nativeEvent: { contentOffset: { y: 500 }, contentSize: { height: 1000 }, layoutMeasurement: { height: 600 } } }));
+        expect(renderer.root.findAllByProps({ testID: 'commander-context-row' }).length).toBeGreaterThan(0);
+        expect(renderer.root.findByType('FlashList' as any).props.ListFooterComponent.props.reachedStart).toBe(true);
         act(() => renderer.unmount());
     });
 });

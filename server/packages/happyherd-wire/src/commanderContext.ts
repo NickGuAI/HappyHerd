@@ -124,6 +124,15 @@ export const HappyHerdCommanderAvatarSchema = z.object({
 
 export type HappyHerdCommanderAvatar = z.infer<typeof HappyHerdCommanderAvatarSchema>;
 
+/** Files successfully read into the Commander context assembled for a launch. */
+export const HappyHerdCommanderContextFileSchema = z.object({
+  kind: z.enum(['global-agents', 'commander', 'working-memory', 'long-term-memory']),
+  path: z.string().min(1),
+});
+
+export type HappyHerdCommanderContextFile = z.infer<typeof HappyHerdCommanderContextFileSchema>;
+export const HappyHerdCommanderContextFilesSchema = z.array(HappyHerdCommanderContextFileSchema);
+
 export const HappyHerdCommanderSummarySchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),

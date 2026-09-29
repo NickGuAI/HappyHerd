@@ -169,7 +169,13 @@ export class ApiClient {
         timeout: 60000,
       },
     );
-    return (await this.inspectSessionForHeartbeat(session)).session;
+    const refreshed = (await this.inspectSessionForHeartbeat(session)).session;
+    if (session.metadata.contextHash && !session.metadata.commanderContextFiles) {
+      // A newly assembled context supersedes an older loaded-file receipt,
+      // including a resume with no Commander or a legacy handoff without one.
+      delete refreshed.metadata.commanderContextFiles;
+    }
+    return refreshed;
   }
 
   /** Read exact encrypted server state without overlaying stale local metadata. */

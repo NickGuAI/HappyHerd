@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "da52e3f899f586d0a56c2d69647a9a7a3397046f5ff34ff0a6907923c2aa7f24",
+  "sourceFingerprint": "263169f194cf64a75c3fb3fb85a33a57e79e6fd1dd08c5aeb993ce978e9fb2ee",
   "routeCount": 45,
-  "surfaceCount": 337,
+  "surfaceCount": 338,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3138,6 +3138,21 @@
         "error",
         "loading"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommanderContextRow.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommanderContextRow"
+      ],
+      "translationKeys": [
+        "happyHerd.commander.loadedContext",
+        "happyHerd.commander.loadedFile",
+        "happyHerd.commander.openCommanders"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

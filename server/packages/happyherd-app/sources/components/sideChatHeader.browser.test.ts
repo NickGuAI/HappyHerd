@@ -29,6 +29,7 @@ const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
         import { lightTheme, darkTheme } from '@/theme';
         const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
+        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) document.body.style.backgroundColor = theme.colors.groupped.background;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -43,7 +44,7 @@ const virtualModules: Record<string, string> = {
         import octicons from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
@@ -115,6 +116,7 @@ const virtualModules: Record<string, string> = {
         import { View } from 'react-native';
         export const KeyboardAvoidingView = View;
         export const KeyboardStickyView = View;
+        export const useKeyboardState = () => ({ isVisible: false, height: 0 });
         export const useReanimatedKeyboardAnimation = () => ({ height: { value: 0 }, progress: { value: 0 } });
     `,
     'expo-constants': `export default { statusBarHeight: 0 };`,
@@ -211,6 +213,13 @@ const virtualModules: Record<string, string> = {
                 codexThreadId: provider === 'codex' ? 'thread-parent' : undefined,
                 codexHome: provider === 'codex' ? '/work/provider-state/codex' : undefined,
             };
+        if (fixtureOptions.commanderContext) {
+            sessions.parent.metadata = { ...sessions.parent.metadata, commanderId: 'athena', commanderName: 'Athena', commanderContextFiles: [
+                { kind: 'global-agents', path: '/global/AGENTS.md' },
+                { kind: 'commander', path: '/athena/COMMANDER.md' },
+                { kind: 'working-memory', path: '/athena/memory/1-working-memory.md' },
+                { kind: 'long-term-memory', path: '/athena/memory/2-long-term-memory.md' },
+            ] };
         }
         if (modelPicker) {
             sessions.parent = {
@@ -470,7 +479,7 @@ const virtualModules: Record<string, string> = {
                 hasMoreOlder: false,
                 isLoaded: messagesLoaded,
                 isLoadingOlder: false,
-                messages: fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
+                messages: fixtureOptions.commanderContext ? (fixtureOptions.commanderContextPopulated ? [messages[0]] : []) : fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
             };
         };
         export const useSessionPendingCommunications = () => [];
@@ -521,7 +530,7 @@ const virtualModules: Record<string, string> = {
             if (typeof value !== 'string') return null;
             return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
         };
-        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) ? productText(key, params) : null) ?? ({
+        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -746,6 +755,7 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/AgentContentView': `
         import React from 'react';
+        import { AgentContentView as ActualAgentContentView } from '${resolve(here, 'AgentContentView.tsx')}';
         import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
         import { MarkdownView } from '@/components/markdown/MarkdownView';
         export const AgentContentView = (props) => {
@@ -753,6 +763,7 @@ const virtualModules: Record<string, string> = {
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) {
                 return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input);
             }
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) return React.createElement(ActualAgentContentView, props);
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceRetention) {
                 return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input,
                     React.createElement(MarkdownView, {
@@ -817,7 +828,7 @@ const virtualModules: Record<string, string> = {
     '@/components/QueuedMessagesPanel': `export const QueuedMessagesPanel = () => null;`,
     '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
     '@/components/Deferred': `export const Deferred = ({ children }) => children;`,
-    '@/components/EmptyMessages': `export const EmptyMessages = () => null;`,
+
     '@/components/SessionStatusBar': `export const SessionStatusBar = () => null;`,
     '@/components/Avatar': `export const Avatar = () => null;`,
     '@/components/VoiceAssistantStatusBar': `
@@ -1440,7 +1451,7 @@ describe('Side chats browser interaction', () => {
         const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
         const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
         server = createServer((_request, response) => {
             if (_request.url === '/fonts/Ionicons.ttf' || _request.url === '/fonts/Octicons.ttf') {
                 response.setHeader('content-type', 'font/ttf');
@@ -1501,6 +1512,39 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].flatMap(theme => [false, true].map(populated => ({ width, theme, populated })))) )('shows Commander context at the top of SessionView (populated: $populated) at $width px in $theme mode', async ({ width, theme, populated }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        page.setDefaultTimeout(5_000);
+        await page.addInitScript((populated) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { commanderContext: true, commanderContextPopulated: populated };
+            (globalThis as any).__HAPPYHERD_ROUTE_PUSH__ = (href: string) => { (window as any).__COMMANDER_ROUTE__ = href; };
+        }, populated);
+        await page.goto(origin + '?theme=' + theme);
+        const host = page.getByTestId('foreground-session');
+        const row = host.getByTestId('commander-context-row');
+        await row.waitFor({ state: 'visible' });
+        expect(await row.count()).toBe(1);
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        const rowBox = (await row.boundingBox())!;
+        expect(rowBox.y).toBeGreaterThanOrEqual(64);
+        const nextBox = (await host.getByText(populated ? 'Visible browser context' : 'No messages yet', { exact: true }).boundingBox())!;
+        expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(nextBox.y);
+        for (const chip of await row.getByTestId('commander-context-file').all()) {
+            const box = (await chip.boundingBox())!;
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
+        await page.evaluate(() => document.fonts.ready);
+        const evidence = process.env.HAPPYHERD_COMMANDER_CONTEXT_SCREENSHOT_DIR;
+        if (evidence) { mkdirSync(evidence, { recursive: true }); await page.screenshot({ path: resolve(evidence, `commander-context-${populated ? 'session' : 'empty'}-${width}-${theme}.png`) }); }
+        await row.getByRole('link', { name: 'View Athena in Commanders' }).click();
+        expect(await page.evaluate(() => (window as any).__COMMANDER_ROUTE__)).toBe('/commanders');
+        await page.reload();
+        await row.waitFor({ state: 'visible' });
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        await page.close();
+    });
 
     it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
         (['completed', 'failed', 'cancelled'] as const).map((status) => ({ width, theme, status })),

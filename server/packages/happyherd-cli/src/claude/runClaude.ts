@@ -48,6 +48,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { RawJSONLinesSchema, type RawJSONLines } from './types';
 import {
+    commanderContextReceiptForResume,
     contextMetadataFromEnvironment,
     instructionReceiptMetadata,
     mergeContextPrompt,
@@ -457,6 +458,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         session.skipExistingMessages(reconnectQueueMessageIds, response.seq);
         session.updateMetadata((meta) => ({
             ...meta,
+            ...commanderContextReceiptForResume(metadata),
             lifecycleState: 'running',
             lifecycleStateSince: undefined,
             archivedBy: undefined,

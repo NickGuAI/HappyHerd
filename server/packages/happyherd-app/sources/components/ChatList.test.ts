@@ -54,6 +54,7 @@ vi.mock('@shopify/flash-list', async () => {
     };
 });
 
+vi.mock('./CommanderContextRow', () => ({ CommanderContextRow: () => null }));
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0 }) }));
 vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 0 }));
 vi.mock('react-native-unistyles', async () => {

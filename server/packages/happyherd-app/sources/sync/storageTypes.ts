@@ -4,6 +4,7 @@ import type { SessionAvatarDescriptor } from './sessionAvatarTypes';
 import {
     AgentMessageQueueStateSchema,
     HappyHerdMachineSessionSettingsSchema,
+    HappyHerdCommanderContextFilesSchema,
     RigBotSchema,
 } from '@happyherd/wire';
 
@@ -215,6 +216,7 @@ export const MetadataSchema = z.object({
     /** HappyHerd Commander/AgentContext provenance for this session. */
     commanderId: z.string().optional(),
     commanderName: z.string().optional(),
+    commanderContextFiles: HappyHerdCommanderContextFilesSchema.optional(),
     commanderPath: z.string().optional(),
     commanderWorkspace: z.string().optional(),
     commanderAgentContextPath: z.string().optional(),

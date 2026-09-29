@@ -79,6 +79,7 @@ import {
     type CodexGoalCommand,
 } from './codexGoalStatus';
 import {
+    commanderContextReceiptForResume,
     instructionReceiptMetadata,
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
@@ -347,6 +348,7 @@ export async function runCodex(opts: {
         session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
         session.updateMetadata((meta) => ({
             ...meta,
+            ...commanderContextReceiptForResume(metadata),
             lifecycleState: 'running',
             lifecycleStateSince: undefined,
             archivedBy: undefined,

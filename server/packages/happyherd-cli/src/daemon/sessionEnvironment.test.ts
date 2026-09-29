@@ -16,6 +16,15 @@ function contaminatedEnvironment(): NodeJS.ProcessEnv {
 }
 
 describe('sessionEnvironment', () => {
+    it('replaces an inherited Commander file receipt only with the explicit launch receipt', () => {
+        const stale = JSON.stringify([{ kind: 'commander', path: '/old/COMMANDER.md' }]);
+        const current = JSON.stringify([{ kind: 'commander', path: '/current/COMMANDER.md' }]);
+        const ambient = { HAPPYHERD_COMMANDER_CONTEXT_FILES: stale };
+        expect(buildSessionChildEnvironment(ambient)).not.toHaveProperty('HAPPYHERD_COMMANDER_CONTEXT_FILES');
+        expect(buildSessionChildEnvironment(ambient, { HAPPYHERD_COMMANDER_CONTEXT_FILES: current }))
+            .toEqual({ HAPPYHERD_COMMANDER_CONTEXT_FILES: current });
+    });
+
     it('removes all inherited session-scoped values without mutating the source', () => {
         const source = contaminatedEnvironment();
 

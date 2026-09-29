@@ -3,6 +3,7 @@ import type { ApiSessionClient } from '@/api/apiSession';
 import { decodeBase64 } from '@/api/encryption';
 import type { AgentState, Metadata, Session } from '@/api/types';
 import { queueMessageIdsForResume } from '@/utils/MessageQueue2';
+import { commanderContextReceiptForResume } from '@/agentContext/commanderContext';
 
 export type SessionReconnectInitialization = {
   response: Session | null;
@@ -80,6 +81,7 @@ export function configureHappyHerdSessionReconnect(
   }
   session.updateMetadata((metadata) => ({
     ...metadata,
+    ...commanderContextReceiptForResume(initialization.response?.metadata ?? {}),
     lifecycleState: 'running',
     lifecycleStateSince: Date.now(),
     archivedBy: undefined,
