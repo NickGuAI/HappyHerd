@@ -659,3 +659,4 @@ UI_USAGE_WORKSPACE_RESTYLE	accepted	fix(app): complete Usage and Workspace redes
 UI_USAGE_RESTYLE_WHITESPACE	accepted	fix(app): normalize whitespace in restyled Usage panel	server/packages/happyherd-app/sources/components/usage/UsagePanel.tsx
 UI_WORKSPACE_COMPOSER_BOUNDS	accepted	test(app): verify restyled composer bounds in narrow workspace	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 UI_USAGE_WORKSPACE_GOLDENS	accepted	test(app): refresh changelog goldens for Usage and Workspace styling	docs/acceptance/issue-348/golden-provenance.json
+UI_USAGE_WORKSPACE_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the KILV changelog baselines for the Usage and Workspace entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
