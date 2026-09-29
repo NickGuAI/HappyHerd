@@ -349,7 +349,7 @@ describe('Settings → Connections → Add device production component journeys'
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
             expect(await page.evaluate(() => JSON.parse(localStorage.getItem('new-session-draft')!).selectedMachineId)).toBe('target-machine');
             await page.evaluate(() => (globalThis as any).__DRAFT__.getState().setMachineId('another-machine'));
-            await page.getByRole('button', { name: 'New Session', exact: true }).click();
+            await page.getByRole('button', { name: 'New Chat', exact: true }).click();
             expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBe('target-machine');
             expect(await page.evaluate(() => (globalThis as any).__ROUTES__.at(-1))).toBe('/new');
             await page.goto(`${origin}/settings/connections`);
@@ -410,12 +410,12 @@ describe('Settings → Connections → Add device production component journeys'
         await open(page);
         await enter(page);
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
-        await page.getByRole('button', { name: 'New Session', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'New Chat', exact: true }).waitFor();
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: false })) }));
         // An offline machine waits behind the list's offline toggle, as it did on the Settings home.
         await page.getByText('Show 1 offline machine', { exact: true }).click();
         await page.getByText('offline', { exact: true }).waitFor();
-        expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
+        expect(await page.getByRole('button', { name: 'New Chat', exact: true }).count()).toBe(0);
         await page.evaluate(() => (globalThis as any).__UPDATE__({ machines: (globalThis as any).__STATE__.machines.map((machine: any) => ({ ...machine, active: true })) }));
         await page.getByText('online', { exact: true }).waitFor();
         await patch(page, { socketStatus: 'disconnected' });
@@ -439,7 +439,7 @@ describe('Settings → Connections → Add device production component journeys'
         await page.evaluate(() => (globalThis as any).__RELEASE_CONFIRM__());
         await page.getByRole('textbox', { name: 'Pairing code', exact: true }).waitFor();
         expect(await page.getByRole('button', { name: 'Cancel', exact: true }).count()).toBe(0);
-        expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
+        expect(await page.getByRole('button', { name: 'New Chat', exact: true }).count()).toBe(0);
         expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBeNull();
         await enter(page);
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
@@ -447,7 +447,7 @@ describe('Settings → Connections → Add device production component journeys'
         await page.evaluate(() => (globalThis as any).__RELEASE_CONFIRM__());
         await page.getByRole('textbox', { name: 'Pairing code', exact: true }).waitFor();
         expect(await page.getByRole('button', { name: 'Connect', exact: true }).count()).toBe(0);
-        expect(await page.getByRole('button', { name: 'New Session', exact: true }).count()).toBe(0);
+        expect(await page.getByRole('button', { name: 'New Chat', exact: true }).count()).toBe(0);
         expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBeNull();
         await page.close();
     });

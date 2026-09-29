@@ -18,9 +18,8 @@ export type StreamlineChip = {
 };
 
 /**
- * Streamline's launch choices as composer chips. Each opens the same picker
- * as the Advanced form. Every chip stays on phones too (they wrap), because
- * Streamline has no other place to change a launch choice.
+ * Streamline keeps the agent picker in the composer. Per-launch choices live
+ * in Advanced; defaults live in Streamline settings.
  */
 export function StreamlineComposerChips({ chips, activeKey, onPress }: {
     chips: readonly StreamlineChip[];
@@ -68,7 +67,6 @@ export function StreamlineComposerChips({ chips, activeKey, onPress }: {
     );
 }
 
-/** One line under the composer: what this launch will use, and where to change the defaults. */
 /**
  * Advanced (UI overhaul): the launch choices echoed in the composer as plain
  * chips, as the mock shows them. The form above is where they change.
@@ -86,18 +84,13 @@ export function StreamlineComposerLabels({ chips }: { chips: readonly Streamline
     );
 }
 
-export function StreamlineSummary({ summary, worktree, onOpenSettings }: {
-    summary: string;
-    worktree: boolean;
+/** The link under the composer opens the agent defaults. */
+export function StreamlineSummary({ onOpenSettings }: {
     onOpenSettings: () => void;
 }) {
     const { theme } = useUnistyles();
     return (
         <View style={styles.summary} testID="streamline-summary">
-            <Ionicons name="sparkles-outline" size={14} color={theme.colors.textLink} />
-            <Text style={styles.summaryText}>
-                {summary} {worktree ? t('newSession.streamline.worktreeOn') : t('newSession.streamline.worktreeOff')}.
-            </Text>
             <Pressable
                 accessibilityRole="link"
                 onPress={onOpenSettings}
@@ -157,14 +150,6 @@ const styles = StyleSheet.create((theme) => ({
         gap: 10,
         marginTop: 12,
         _web: { _classNames: herdWebClasses('herd-fade') },
-    },
-    summaryText: {
-        flex: 1,
-        minWidth: 200,
-        fontSize: 13,
-        lineHeight: 18,
-        color: theme.colors.textSecondary,
-        ...Typography.default(),
     },
     settingsLink: {
         flexDirection: 'row',

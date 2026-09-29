@@ -703,7 +703,6 @@ export type TranslationKey =
     | "newSession.streamline.defaultAgentDescription"
     | "newSession.streamline.defaultAgentTitle"
     | "newSession.streamline.defaultModeTitle"
-    | "newSession.streamline.defaultsSummary"
     | "newSession.streamline.githubBadge"
     | "newSession.streamline.intro"
     | "newSession.streamline.latestModel"
@@ -714,8 +713,6 @@ export type TranslationKey =
     | "newSession.streamline.settingsLink"
     | "newSession.streamline.settingsSubtitle"
     | "newSession.streamline.whereLabel"
-    | "newSession.streamline.worktreeOff"
-    | "newSession.streamline.worktreeOn"
     | "newSession.streamline.worktreeRuleDescription"
     | "newSession.streamline.worktreeRuleTitle"
     | "newSession.switchMachinesHint"
@@ -1742,7 +1739,6 @@ export interface TranslationParamsByKey {
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
-    "newSession.streamline.defaultsSummary": { effort: string; model: string; permission: string };
     "offlineMachines.singleUnreachable": { name: string };
     "projects.renamePrompt": { name: string };
     "projects.sessionCount": { count: number };

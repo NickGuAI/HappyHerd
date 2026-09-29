@@ -328,7 +328,7 @@
     "grokPermissionModeChangeFailed": "无法更改 Grok 权限模式"
   },
   "newSession": {
-    "title": "开始新会话",
+    "title": "新对话",
     "showHidden": "显示隐藏项",
     "machineOffline": "设备离线",
     "switchMachinesHint": "• 点击上方的设备来切换设备",
@@ -346,16 +346,13 @@
       "browseFolder": "选择文件夹",
       "githubBadge": "GitHub",
       "notGithub": "非 git 仓库",
-      "defaultsSummary": "使用 {model}，工作量 {effort}，{permission}。",
-      "worktreeOn": "创建新的 git 工作树",
-      "worktreeOff": "直接在选定的文件夹中运行",
       "settingsLink": "Streamline 设置",
       "settingsSubtitle": "配置启动 Streamline 会话时每个智能体的默认模型、工作量和权限模式。",
       "defaultModeTitle": "默认会话模式",
       "defaultAgentTitle": "默认智能体",
       "defaultAgentDescription": "选择在 Streamline 模式下自动启动的智能体。",
       "agentDefaultsTitle": "智能体默认选项",
-      "agentDefaultsDescription": "为每个智能体设置默认选项，仍可在输入框的选项中修改。",
+      "agentDefaultsDescription": "为每个智能体设置默认选项。若只想为一次对话修改，请使用“高级”。",
       "latestModel": "最新",
       "latestModelDescription": "最新模型将在会话启动时解析。",
       "worktreeRuleTitle": "始终使用 git 工作树",
@@ -664,7 +661,7 @@
     "sessionsTitle": "HappyHerd",
     "showArchived": "显示已归档",
     "hideArchived": "隐藏已归档",
-    "newSession": "新建会话",
+    "newSession": "新对话",
     "projects": "项目"
   },
   "zen": {
@@ -1083,7 +1080,7 @@
     "copiedToClipboard": "{label} 已复制到剪贴板"
   },
   "machine": {
-    "launchNewSessionInDirectory": "在目录中启动新会话",
+    "launchNewSessionInDirectory": "在目录中开始新对话",
     "offlineUnableToSpawn": "设备离线时无法启动",
     "offlineHelp": "• 确保您的计算机在线\n• 运行 `happyherd daemon status` 进行诊断\n• 您是否在运行最新的 CLI 版本？请使用 `npm install -g @happyherd/cli@latest` 升级",
     "daemon": "守护进程",
@@ -1375,7 +1372,7 @@
       "machineLoadFailed": "无法从 {name} 加载 Commander：{message}",
       "memoryReadFailed": "无法读取记忆文件。",
       "memoryEmpty": "记忆文件为空。",
-      "newSessionWith": "与 {name} 新建会话",
+      "newSessionWith": "与 {name} 开始新对话",
       "browseSubtitle": "阅读 Commander 记忆并开始会话"
     },
     "composer": {
@@ -1716,7 +1713,7 @@
     "new": "新的",
     "permissionsShownInTerminalOnlyResetOrSendAMessage": "仅在终端中显示权限。重置或发送消息以从应用程序进行控制。",
     "editorNotAvailableOnThisPlatform": "编辑器在此平台上不可用",
-    "newSession": "新会议",
+    "newSession": "新对话",
     "startANewChatSession": "开始新的聊天会话",
     "viewAllSessions": "查看所有会议",
     "browseYourChatHistory": "浏览你的聊天记录",
@@ -1999,7 +1996,7 @@
     "connected": "已连接",
     "connectedDetail": "已验证 {host}，并为下一次会话选择该已有机器。",
     "openDevice": "打开设备",
-    "newSession": "新建会话",
+    "newSession": "新对话",
     "devices": "账号设备",
     "devicesFooter": "在线状态通过目标 daemon 验证。打开设备可访问其会话和文件；刷新可重新检查是否可达。",
     "noDevices": "此账号暂无设备",

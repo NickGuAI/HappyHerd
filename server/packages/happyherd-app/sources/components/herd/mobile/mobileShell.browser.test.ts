@@ -530,7 +530,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             // The desktop panel's own controls, starting on the 16 px gutter.
             const workspace = (await docked.getByRole('button', { name: 'Workspace', exact: true }).boundingBox())!;
             expect(workspace.x).toBe(16);
-            const newSession = (await docked.getByRole('button', { name: /New session/ }).boundingBox())!;
+            const newSession = (await docked.getByRole('button', { name: /New Chat/ }).boundingBox())!;
             expect(newSession.x).toBe(16);
             for (const label of ['Projects', 'Automations']) {
                 await expect(docked.getByRole('button', { name: label, exact: true }).count()).resolves.toBe(1);
@@ -1163,7 +1163,7 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             const dot = await status.evaluate((element) => Math.round(Math.min(...[...element.querySelectorAll('*')]
                 .map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0).map((rect) => rect.left))));
             expect(dot).toBe(16);
-            const newSession = (await docked.getByRole('button', { name: /New session/ }).boundingBox())!;
+            const newSession = (await docked.getByRole('button', { name: /New Chat/ }).boundingBox())!;
             const list = (await page.getByTestId('fixture-session-list').boundingBox())!;
             expect(line.y).toBeGreaterThanOrEqual(newSession.y + newSession.height);
             expect(line.y + line.height).toBeLessThanOrEqual(list.y + 1);

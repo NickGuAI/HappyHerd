@@ -414,7 +414,7 @@
     "grokPermissionModeChangeFailed": "Grok-Berechtigungsmodus konnte nicht geändert werden"
   },
   "newSession": {
-    "title": "Neue Sitzung starten",
+    "title": "Neuer Chat",
     "showHidden": "Versteckte Elemente anzeigen",
     "machineOffline": "Maschine ist offline",
     "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken",
@@ -432,16 +432,13 @@
       "browseFolder": "Ordner auswählen",
       "githubBadge": "GitHub",
       "notGithub": "Kein git-Repository",
-      "defaultsSummary": "Verwendet {model} mit {effort} Aufwand und {permission}.",
-      "worktreeOn": "Erstellt einen neuen git-Worktree",
-      "worktreeOff": "Wird direkt im ausgewählten Ordner ausgeführt",
       "settingsLink": "Streamline-Einstellungen",
       "settingsSubtitle": "Standardmodelle, Aufwandstufen und Berechtigungsmodi für jeden Agenten beim Starten einer Streamline-Sitzung konfigurieren.",
       "defaultModeTitle": "Standard-Sitzungsmodus",
       "defaultAgentTitle": "Standard-Agent",
       "defaultAgentDescription": "Auswählen, welcher Agent im Streamline-Modus automatisch startet.",
       "agentDefaultsTitle": "Standardoptionen für Agenten",
-      "agentDefaultsDescription": "Standardoptionen für jeden Agenten festlegen, die auf den Composer-Chips weiterhin geändert werden können.",
+      "agentDefaultsDescription": "Standardoptionen für jeden Agenten festlegen. Für einen einzelnen Chat ändern Sie sie unter „Erweitert“.",
       "latestModel": "Neueste",
       "latestModelDescription": "Das neueste Modell wird beim Start der Sitzung ermittelt.",
       "worktreeRuleTitle": "Immer git-Worktrees verwenden",
@@ -750,7 +747,7 @@
     "sessionsTitle": "HappyHerd",
     "showArchived": "Archiviert anzeigen",
     "hideArchived": "Archiviert ausblenden",
-    "newSession": "Neue Sitzung",
+    "newSession": "Neuer Chat",
     "projects": "Projekte"
   },
   "zen": {
@@ -1169,7 +1166,7 @@
     "copiedToClipboard": "{label} in die Zwischenablage kopiert"
   },
   "machine": {
-    "launchNewSessionInDirectory": "Neue Sitzung im Verzeichnis starten",
+    "launchNewSessionInDirectory": "Neuer Chat im Verzeichnis",
     "offlineUnableToSpawn": "Launcher deaktiviert, während die Maschine offline ist",
     "offlineHelp": "• Stellen Sie sicher, dass Ihr Computer online ist\n• Führen Sie zur Diagnose „happyherd daemon status“ aus\n• Führen Sie die neueste CLI-Version aus? Aktualisieren Sie mit „npm install -g @happyherd/cli@latest“.",
     "daemon": "Dämon",
@@ -1375,7 +1372,7 @@
       "machineLoadFailed": "Commander von {name} konnten nicht geladen werden: {message}",
       "memoryReadFailed": "Die Gedächtnisdatei konnte nicht gelesen werden.",
       "memoryEmpty": "Die Gedächtnisdatei ist leer.",
-      "newSessionWith": "Neue Sitzung mit {name}",
+      "newSessionWith": "Neuer Chat mit {name}",
       "browseSubtitle": "Commander-Gedächtnis lesen und Sitzungen starten"
     },
     "composer": {
@@ -1716,7 +1713,7 @@
     "new": "neu",
     "permissionsShownInTerminalOnlyResetOrSendAMessage": "Berechtigungen werden nur im Terminal angezeigt. Zurücksetzen oder eine Nachricht an die Steuerung über die App senden.",
     "editorNotAvailableOnThisPlatform": "Der Editor ist auf dieser Plattform nicht verfügbar",
-    "newSession": "Neue Sitzung",
+    "newSession": "Neuer Chat",
     "startANewChatSession": "Starten Sie eine neue Chat-Sitzung",
     "viewAllSessions": "Alle Sitzungen anzeigen",
     "browseYourChatHistory": "Durchsuchen Sie Ihren Chatverlauf",
@@ -1999,7 +1996,7 @@
     "connected": "Verbunden",
     "connectedDetail": "{host} wurde geprüft und der vorhandene Rechner für deine nächste Sitzung ausgewählt.",
     "openDevice": "Gerät öffnen",
-    "newSession": "Neue Sitzung",
+    "newSession": "Neuer Chat",
     "devices": "Geräte des Kontos",
     "devicesFooter": "Der Onlinestatus wird beim Ziel-Daemon geprüft. Öffne ein Gerät für seine Sitzungen und Dateien. Aktualisiere die Liste, um die Erreichbarkeit erneut zu prüfen.",
     "noDevices": "Dieses Konto hat noch keine Geräte",

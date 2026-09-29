@@ -646,3 +646,6 @@ UI_OVERHAUL_HEADER_COUNT_BUTTON	accepted	fix(app): widen an icon-only header but
 UI_HIDDEN_TOOL_PERMISSION	accepted	fix(app): show a pending permission request on a hidden tool	server/packages/happyherd-app/sources/components/tools/ToolView.test.ts
 UI_SHORT_USER_BUBBLE	accepted	fix(app): size short user bubbles to their text	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_FIX_350_351_DOCS	accepted	docs(app): record the hidden-tool permission and bubble width fixes for upstream merges	docs/upstream-ui-parity.md
+UI_HEADER_ARCHIVE_MACHINE_WORKSPACE	accepted	feat(app): archive from the session header and open the Workspace from a machine button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_NEW_CHAT_STREAMLINE_AGENT_CHIP	accepted	feat(app): call it New Chat and slim Streamline to one Agent chip	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+UI_NEW_CHAT_HEADER_CHANGELOG_BASELINES	accepted	test(app): regenerate the KILV changelog baselines for New Chat and the session header	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

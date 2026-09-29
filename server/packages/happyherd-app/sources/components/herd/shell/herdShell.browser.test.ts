@@ -213,7 +213,7 @@ const virtualModules: Record<string, string> = {
             'status.permissionRequired': 'permission required', 'status.inputRequired': 'waiting for your answer',
             'status.disconnected': 'disconnected', 'status.connecting': 'connecting', 'status.error': 'error',
             'sessionInfo.quickActions': 'Quick Actions', 'workspace.title': 'Workspace', 'sidebar.projects': 'Projects',
-            'happyHerd.automations.title': 'Automations', 'sidebar.newSession': 'New session', 'settings.title': 'Settings',
+            'happyHerd.automations.title': 'Automations', 'sidebar.newSession': 'New Chat', 'settings.title': 'Settings',
             'sidebar.showArchived': 'Show archived', 'sidebar.hideArchived': 'Hide archived', 'superSession.pinned': 'Assistant',
             'agentInput.agent.claude': 'Claude', 'agentInput.agent.codex': 'Codex', 'agentInput.agent.gemini': 'Gemini',
             'agentInput.agent.grok': 'GrokBuild', 'agentInput.agent.dsh': 'dsh', 'sessionInfo.archiveSession': 'Archive',
@@ -471,12 +471,12 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
             const machine = bar.getByTestId('herd-machine-menu');
             await expect(machine.innerText()).resolves.toMatch(/studio-mac\s*online/);
             await expect(machine.locator('[data-herd-icon="monitor"]').count()).resolves.toBe(1);
-            // The panel: the mock's three destinations, New session with its pen and shortcut, and Settings.
+            // The panel: the mock's three destinations, New Chat with its pen and shortcut, and Settings.
             const panel = page.getByTestId('herd-sidebar');
             for (const [label, icon] of [['Workspace', 'split'], ['Projects', 'folders'], ['Automations', 'bolt']] as const) {
                 await expect(panel.getByRole('button', { name: label, exact: true }).locator(`[data-herd-icon="${icon}"]`).count()).resolves.toBe(1);
             }
-            const newSession = panel.getByRole('button', { name: 'New session', exact: true });
+            const newSession = panel.getByRole('button', { name: 'New Chat', exact: true });
             await expect(newSession.locator('[data-herd-icon="pen"]').count()).resolves.toBe(1);
             // The mock's kbd names only the key, so the label stays on one line in the narrower panel.
             await expect(newSession.getByTestId('herd-panel-kbd-N').innerText()).resolves.toBe('N');

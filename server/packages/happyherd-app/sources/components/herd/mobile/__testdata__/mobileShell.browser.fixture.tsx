@@ -13,7 +13,7 @@ const record = (id: string) => () => {
 
 /** A few of the provider's commands, in its categories, to lay the real palette out. */
 const COMMANDS = [
-    { id: 'new-session', title: 'New Session', icon: 'add-circle-outline', shortcut: '⌘N', category: 'Sessions', action: record('new-session') },
+    { id: 'new-session', title: 'New Chat', icon: 'add-circle-outline', shortcut: '⌘N', category: 'Sessions', action: record('new-session') },
     { id: 'session-auth', title: 'Refresh token rotation', subtitle: 'web-app', icon: 'time-outline', category: 'Recent Sessions', action: record('session-auth') },
     { id: 'session-dock', title: 'Composer chips and context meter', subtitle: 'happyherd', icon: 'time-outline', category: 'Recent Sessions', action: record('session-dock') },
     { id: 'settings', title: 'Settings', icon: 'settings-outline', shortcut: '⌘,', category: 'Navigation', action: record('settings') },

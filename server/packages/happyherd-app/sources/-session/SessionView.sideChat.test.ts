@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
     landscape: false,
     realtimeStatus: 'disconnected' as 'connected' | 'disconnected',
     canAbort: false,
+    archivingSession: false,
+    archiveSession: vi.fn(),
     canBrowseFiles: true,
     canUseShell: true,
     isRig: false,
@@ -92,7 +94,10 @@ vi.mock('react-native', async () => {
     return {
         ActivityIndicator: host('ActivityIndicator'),
         Platform,
-        Pressable: host('Pressable'),
+        Pressable: (props: any) => ReactModule.createElement(
+            'Pressable', props,
+            typeof props.children === 'function' ? props.children({ pressed: false }) : props.children,
+        ),
         ScrollView: host('ScrollView'),
         Text: host('Text'),
         TextInput: host('TextInput'),
@@ -401,6 +406,8 @@ vi.mock('@/hooks/useHappyHerdAction', () => ({ useHappyHerdAction: () => [false,
 vi.mock('@/hooks/useSessionQuickActions', () => ({
     useSessionQuickActions: (session: Session) => ({
         actionItems: [],
+        archiveSession: () => mocks.archiveSession(session.id),
+        archivingSession: mocks.archivingSession,
         canResume: !session.active,
         resumeSession: () => mocks.resumeSession(session.id),
         resumeSessionWithQueuedTurn: mocks.resumeSessionWithQueuedTurn,
@@ -775,6 +782,8 @@ beforeEach(() => {
     mocks.landscape = false;
     mocks.realtimeStatus = 'disconnected';
     mocks.canAbort = false;
+    mocks.archivingSession = false;
+    mocks.archiveSession.mockReset();
     mocks.canBrowseFiles = true;
     mocks.canUseShell = true;
     mocks.isRig = false;
@@ -998,6 +1007,42 @@ async function openAndCloseSideChatFileWorkspace(renderer: ReactTestRenderer) {
     return desktopSideChatHosts(renderer)[0];
 }
 
+describe('SessionView header actions', () => {
+    it.each([1280, 390])('puts Archive first and keeps the machine-icon Workspace toggle at %i px', (width) => {
+        mocks.width = width;
+        const renderer = renderParent();
+        const headerButtons = chatHeader(renderer).findAllByType('Pressable' as any);
+
+        expect(headerButtons.map((node: any) => node.props.testID)).toEqual([
+            'session-header-archive', 'session-header-workspace', 'session-header-side-chats', 'session-header-menu',
+        ]);
+        expect(headerButtons[0].props.accessibilityLabel).toBe('uiCopy.archive');
+        expect(headerButtons[0].findByType('Octicons' as any).props.name).toBe('pause');
+        expect(headerButtons[1].findByType('Octicons' as any).props.name).toBe('device-desktop');
+
+        act(() => headerButtons[0].props.onPress());
+        expect(mocks.archiveSession).toHaveBeenCalledExactlyOnceWith('parent');
+        expect(mocks.modalConfirm).not.toHaveBeenCalled();
+
+        expect(headerButtons[1].props.accessibilityState.expanded).toBe(false);
+        pressByLabel(renderer, 'Workspace');
+        expect(headerButtons[1].props.accessibilityState.expanded).toBe(true);
+        pressByLabel(renderer, 'Workspace');
+        expect(headerButtons[1].props.accessibilityState.expanded).toBe(false);
+        act(() => renderer.unmount());
+    });
+
+    it('ignores Archive presses while the session quick action is archiving', () => {
+        mocks.archivingSession = true;
+        const renderer = renderParent();
+        const archive = pressables(renderer).find((node: any) => node.props.testID === 'session-header-archive');
+
+        act(() => archive.props.onPress());
+        expect(mocks.archiveSession).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+});
+
 describe('SessionView mobile back navigation', () => {
     it.each([
         { label: 'portrait narrow Web', width: 390, height: 844, platform: 'web' },
@@ -1060,7 +1105,7 @@ describe('SessionView mobile back navigation', () => {
         const header = chatHeader(renderer);
         expect(header.props.title).toBe('parent');
         expect(header.findAllByType('Pressable' as any).map((node: any) => node.props.testID))
-            .toEqual(['session-header-workspace', 'session-header-side-chats', 'session-header-menu']);
+            .toEqual(['session-header-archive', 'session-header-workspace', 'session-header-side-chats', 'session-header-menu']);
         // The chat starts below the header, and nothing floats over it.
         expect(chatTopPadding(renderer)).toBe(48);
         expect(landscapeBackButton(renderer)).toBeUndefined();

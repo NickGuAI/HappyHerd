@@ -3,13 +3,15 @@ import { View } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { SessionActionsPopover, type SessionActionsAnchor } from '@/components/SessionActionsPopover';
+import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
+import { useSession } from '@/sync/storage';
 import { t } from '@/text';
 import { HerdHeaderButton } from './HeaderButton';
 import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 /**
- * Right side of the session header (UI overhaul; Web, and native phones): the Workspace toggle,
- * Side chats with its molten count, and the ⋯ session menu. The menu is the
+ * Right side of the session header (UI overhaul; Web, and native phones): Archive,
+ * the Workspace toggle, Side chats with its molten count, and the ⋯ session menu. The menu is the
  * existing SessionActionsPopover (same items, labels and shortcuts as the
  * session rows), anchored under the button.
  */
@@ -23,6 +25,8 @@ export function SessionHeaderActions(props: {
         onToggle: () => void;
     } | null;
 }) {
+    const session = useSession(props.sessionId);
+    const { archiveSession, archivingSession } = useSessionQuickActions(session!, {});
     const menuButtonRef = React.useRef<View>(null);
     const [menuAnchor, setMenuAnchor] = React.useState<SessionActionsAnchor | null>(null);
 
@@ -44,13 +48,19 @@ export function SessionHeaderActions(props: {
     const phone = useHerdPhoneLayout();
     return (
         <View style={[styles.row, phone && styles.rowPhone]} testID="session-header-actions">
+            <HerdHeaderButton
+                accessibilityLabel={t('uiCopy.archive')}
+                onPress={() => { if (!archivingSession) archiveSession(); }}
+                renderIcon={(color) => <Octicons name="pause" size={16} color={color} />}
+                testID="session-header-archive"
+            />
             {props.workspace ? (
                 <HerdHeaderButton
                     accessibilityLabel={t('workspace.title')}
                     active={props.workspace.visible}
                     expanded={props.workspace.visible}
                     onPress={props.workspace.onToggle}
-                    renderIcon={(color) => <Octicons name="columns" size={16} color={color} />}
+                    renderIcon={(color) => <Octicons name="device-desktop" size={16} color={color} />}
                     testID="session-header-workspace"
                 />
             ) : null}
