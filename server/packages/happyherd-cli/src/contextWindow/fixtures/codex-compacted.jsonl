@@ -1,0 +1,13 @@
+{"type": "session_meta", "timestamp": "2026-09-29T10:00:00Z", "payload": {"id": "019a0000-0000-7000-8000-000000000001", "cwd": "/fixture/project", "cli_version": "0.154.0", "base_instructions": {"text": "You are the fixture assistant.\nPreserve full native content."}}}
+{"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "An old request removed by compaction."}]}}
+{"type": "compacted", "payload": {"message": "A first historical summary", "replacement_history": [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": "A superseded compaction snapshot."}]}]}}
+{"type": "response_item", "payload": {"type": "function_call", "name": "old_tool", "arguments": "{}", "call_id": "old-call"}}
+{"type": "compacted", "timestamp": "2026-09-29T10:05:00Z", "payload": {"message": "The recorded native compaction summary", "replacement_history": [{"type": "message", "role": "developer", "content": [{"type": "input_text", "text": "Injected fixture developer instructions."}]}, {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Keep this retained user request."}]}, {"type": "compaction", "encrypted_content": "fixture-opaque-compaction-data"}], "replacement_history_metadata": [{"fixture_source": "developer-injection"}, {"fixture_source": "retained-user"}, null]}}
+{"type": "world_state", "payload": {"full": true, "state": {"fixture_environment": {"cwd": "/fixture/project"}}}}
+{"type": "turn_context", "payload": {"turn_id": "fixture-turn", "cwd": "/fixture/project", "model": "fixture-model"}}
+{"type": "response_item", "payload": {"type": "reasoning", "summary": [{"type": "summary_text", "text": "Recorded reasoning summary"}], "encrypted_content": "fixture-opaque-reasoning"}}
+{"type": "response_item", "payload": {"type": "function_call", "name": "fixture_tool", "arguments": "{\"path\":\"/fixture/project/file.txt\"}", "call_id": "fixture-call"}}
+{"type": "response_item", "payload": {"type": "function_call_output", "call_id": "fixture-call", "output": "Full first line\nFull second line\nFinal line"}, "metadata": {"fixture_source": "tool-output"}}
+{"type": "inter_agent_communication", "payload": {"sender_thread_id": "fixture-worker", "receiver_thread_id": "fixture-parent", "message": "A hidden provider-native worker message."}}
+{"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"total_tokens": 100}}}}
+{"type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "All recorded inputs are preserved."}]}}

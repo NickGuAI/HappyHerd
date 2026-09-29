@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 import { darkTheme, lightTheme } from '@/theme';
 import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
+import { contextWindowReply } from './__testdata__/contextWindow.browser.fixture';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -16,6 +17,7 @@ const newSessionRecentPath = (index: number) => `/workspace/products/example-pro
 
 const virtualModules: Record<string, string> = {
     // Settings' What's New entries report through @/track (SettingsFrame).
+    '@/components/CommanderAvatarSettings': `export const CommanderAvatarSettings = () => null;`,
     '@/track': `export const trackWhatsNewClicked = () => {};`,
     'react-native': `
         import React from 'react';
@@ -40,7 +42,7 @@ const virtualModules: Record<string, string> = {
         import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject)
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
@@ -198,6 +200,14 @@ const virtualModules: Record<string, string> = {
         if (fixtureOptions.subagentLifecycle) {
             sessions['child-newest'].metadata.flavor = 'claude';
         }
+        if (fixtureOptions.contextWindow) {
+            const provider = fixtureOptions.contextWindow.provider;
+            sessions.parent.metadata = { ...sessions.parent.metadata, flavor: provider,
+                claudeSessionId: provider === 'claude' ? 'claude-parent' : undefined,
+                codexThreadId: provider === 'codex' ? 'thread-parent' : undefined,
+                codexHome: provider === 'codex' ? '/work/provider-state/codex' : undefined,
+            };
+        }
         if (modelPicker) {
             sessions.parent = {
                 ...sessions.parent,
@@ -261,6 +271,8 @@ const virtualModules: Record<string, string> = {
             agentInputEnterToSend: false,
             diffStyle: 'unified',
             expImageUpload: fixtureOptions.imageAttachments === true,
+            expContextWindow: fixtureOptions.contextWindow
+                ? JSON.parse(localStorage.getItem('context-window-enabled') ?? 'false') : false,
             fileDiffsSidebar: fixtureOptions.newSessionLayout === true,
             machineWorkspace: fixtureOptions.machineWorkspaceEnabled ?? true,
             recentMachinePaths: [],
@@ -284,6 +296,7 @@ const virtualModules: Record<string, string> = {
             } },
             { id: 'machine-newest', active: true, metadata: { displayName: 'SideEC2', host: 'fixture-side', homeDir: '/work/child-newest', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
+        if (fixtureOptions.contextWindow?.failure === 'offline') machines[0].active = false;
         if (fixtureOptions.workspaceDelete) {
             for (const machine of machines) machine.metadata.supportsDirectoryDelete = true;
         }
@@ -363,6 +376,10 @@ const virtualModules: Record<string, string> = {
         };
         export const storage = Object.assign(() => undefined, { getState, __applyBotArchiveSync });
         export const useIsDataReady = () => true;
+        export const useLocalSettingMutable = (key) => [
+            React.useSyncExternalStore(subscribe, () => localSettings[key] ?? false, () => localSettings[key] ?? false),
+            (value) => { localSettings[key] = value; emit(); },
+        ];
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
         export const useProjects = () => projects;
@@ -459,7 +476,7 @@ const virtualModules: Record<string, string> = {
             () => pathProjectFiles[sessionId] ?? null,
         );
         export const useSessionUsage = () => null;
-        export const useSetting = (key) => key === 'sessionStatusBarDisplay' ? 'hidden' : settings[key];
+        export const useSetting = (key) => React.useSyncExternalStore(subscribe, () => key === 'sessionStatusBarDisplay' ? 'hidden' : settings[key], () => settings[key]);
         export const useSettingMutable = (key) => {
             const value = React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
             const setValue = React.useCallback((next) => {
@@ -467,6 +484,7 @@ const virtualModules: Record<string, string> = {
                     globalThis.__MODEL_PICKER_SETTINGS_MUTATIONS__ = [...(globalThis.__MODEL_PICKER_SETTINGS_MUTATIONS__ ?? []), next];
                 }
                 settings[key] = next;
+                if (fixtureOptions.contextWindow && key === 'expContextWindow') localStorage.setItem('context-window-enabled', JSON.stringify(next));
                 emit();
             }, [key]);
             return [value, setValue];
@@ -499,7 +517,7 @@ const virtualModules: Record<string, string> = {
             if (typeof value !== 'string') return null;
             return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
         };
-        export const t = (key, params) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle ? productText(key, params) : null) ?? ({
+        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -728,6 +746,9 @@ const virtualModules: Record<string, string> = {
         import { MarkdownView } from '@/components/markdown/MarkdownView';
         export const AgentContentView = (props) => {
             const openWorkspaceLink = React.useContext(WorkspaceLinkPressContext);
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) {
+                return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input);
+            }
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceRetention) {
                 return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input,
                     React.createElement(MarkdownView, {
@@ -1234,6 +1255,10 @@ const virtualModules: Record<string, string> = {
     '@/sync/apiSocket': `
         export const apiSocket = {
             machineRPC: async (machineId, method, request) => {
+                if (method === 'session-context-window') {
+                    globalThis.__CONTEXT_WINDOW_RPCS__ = [...(globalThis.__CONTEXT_WINDOW_RPCS__ ?? []), { machineId, method, request }];
+                    return fetch('/fixture-context-window', { method: 'POST', body: JSON.stringify(request) }).then((response) => response.json());
+                }
                 window.__LOCALHOST_LINK_RPCS__ = [...(window.__LOCALHOST_LINK_RPCS__ ?? []), { machineId, method, url: request.url }];
                 const pathname = new URL(request.url).pathname;
                 if (method !== 'workspace-live-fetch' || !['machine-1', 'machine-newest'].includes(machineId)) {
@@ -1411,14 +1436,14 @@ describe('Side chats browser interaction', () => {
         const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
         const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
         server = createServer((_request, response) => {
             if (_request.url === '/fonts/Ionicons.ttf') {
                 response.setHeader('content-type', 'font/ttf');
                 response.end(readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')));
                 return;
             }
-            if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-Regular)\.ttf$/.test(_request.url ?? '')) {
+            if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-(Regular|SemiBold))\.ttf$/.test(_request.url ?? '')) {
                 response.setHeader('content-type', 'font/ttf');
                 response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
                 return;
@@ -1541,6 +1566,122 @@ describe('Side chats browser interaction', () => {
             await page.close();
         }
     }, 25_000);
+
+    it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
+        (['claude', 'codex'] as const).map((provider) => ({ width, theme, provider })),
+    )))('Context window switch → header menu → full $provider trace at $width px in $theme mode', async ({ width, theme, provider }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript((provider) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { contextWindow: { provider } };
+        }, provider);
+        const reply = contextWindowReply(provider);
+        await page.route('**/fixture-context-window', (route) => route.fulfill({ json: reply }));
+        const screenshotDirectory = process.env.HAPPYHERD_CONTEXT_WINDOW_SCREENSHOT_DIR?.trim();
+        const capture = async (phase: string) => {
+            if (!screenshotDirectory) return;
+            mkdirSync(screenshotDirectory, { recursive: true });
+            await page.screenshot({ path: resolve(screenshotDirectory, `${provider}-${width}-${theme}-${phase}.png`) });
+        };
+        try {
+            await page.goto(`${origin}/session/parent?theme=${theme}`);
+            await page.getByTestId('session-header-menu').click();
+            const menu = page.getByTestId('session-actions-menu');
+            await menu.waitFor();
+            expect(await menu.getByRole('button', { name: /Context window/ }).count()).toBe(0);
+            expect(await page.evaluate(() => (globalThis as any).__CONTEXT_WINDOW_RPCS__ ?? [])).toEqual([]);
+            // Features is the requested start surface; reopening SessionView reads the saved account setting.
+            await page.goto(`${origin}/settings/features?theme=${theme}`);
+            const toggle = page.getByRole('switch', { name: 'Context window', exact: true });
+            expect(await toggle.isChecked()).toBe(false);
+            await toggle.click();
+            await expect.poll(() => toggle.isChecked()).toBe(true);
+            expect(await page.evaluate(() => localStorage.getItem('context-window-enabled'))).toBe('true');
+            await capture('switch');
+            await page.goto(`${origin}/session/parent?theme=${theme}`);
+            await page.getByTestId('session-header-menu').click();
+            await menu.getByRole('button', { name: /Context window/ }).waitFor();
+            await capture('entry');
+            await menu.getByRole('button', { name: /Context window/ }).click();
+            await expect.poll(() => new URL(page.url()).pathname).toBe('/session/parent/context');
+            await page.getByText(`${reply.entries.length} recorded entries`, { exact: true }).waitFor();
+            expect(await page.getByRole('heading', { name: /^[0-9]+\. / }).allTextContents()).toEqual(reply.entries.map((entry, index) => `${index + 1}. ${entry.kind}`));
+            if (provider === 'claude') {
+                await page.getByText('Claude Code’s built-in system prompt is not recorded in this transcript.', { exact: true }).waitFor();
+                await page.getByText('Claude Code’s built-in tool definitions are not recorded in this transcript.', { exact: true }).waitFor();
+            } else {
+                await page.getByText(reply.entries[0].content, { exact: true }).waitFor();
+            }
+            await capture('open');
+            for (const entry of reply.entries) {
+                const content = page.getByText(entry.content, { exact: true });
+                await content.scrollIntoViewIfNeeded();
+                expect(await content.textContent()).toBe(entry.content);
+                await expectUntruncatedText(content);
+            }
+            await capture('read-final');
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            expect(await page.evaluate(() => (globalThis as any).__CONTEXT_WINDOW_RPCS__)).toEqual([{
+                machineId: 'machine-1', method: 'session-context-window', request: {
+                    provider, directory: '/work/project',
+                    ...(provider === 'claude' ? { claudeSessionId: 'claude-parent' } : { codexThreadId: 'thread-parent', codexHome: '/work/provider-state/codex' }),
+                },
+            }]);
+            await page.goBack();
+            await page.getByTestId('session-header-menu').click();
+            await menu.getByRole('button', { name: /Context window/ }).click();
+            await page.getByText(`${reply.entries.length} recorded entries`, { exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => (globalThis as any).__CONTEXT_WINDOW_RPCS__?.length)).toBe(3);
+            expect(errors).toEqual([]);
+        } finally { await page.close(); }
+    }, 30_000);
+
+    it.each([1440, 390])('Context window direct route stays unread while disabled at %s px', async (width) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { contextWindow: { provider: 'claude' } }; });
+        try {
+            await page.goto(`${origin}/session/parent/context`);
+            await page.getByText('Enable Context window in Settings → Features → Experimental to read this session’s recorded context.', { exact: true }).waitFor();
+            expect(await page.getByRole('button', { name: 'Retry', exact: true }).count()).toBe(0);
+            expect(await page.evaluate(() => (globalThis as any).__CONTEXT_WINDOW_RPCS__ ?? [])).toEqual([]);
+        } finally { await page.close(); }
+    });
+
+    it.each([1440, 390].flatMap((width) => ['offline', 'missing', 'unsupported'].map((failure) => ({ width, failure }))))(
+        'Context window $failure is visible and retryable at $width px', async ({ width, failure }) => {
+            const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
+            page.setDefaultTimeout(5_000);
+            await page.addInitScript((failure) => {
+                (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { contextWindow: { provider: failure === 'unsupported' ? 'dsh' : 'claude', failure } };
+                localStorage.setItem('context-window-enabled', 'true');
+            }, failure);
+            let attempts = 0;
+            await page.route('**/fixture-context-window', (route) => {
+                attempts++;
+                return route.fulfill({ json: attempts === 1 ? { type: 'error', reason: 'missing' } : contextWindowReply('claude') });
+            });
+            try {
+                await page.goto(`${origin}/session/parent`);
+                await page.getByTestId('session-header-menu').click();
+                await page.getByTestId('session-actions-menu').getByRole('button', { name: /Context window/ }).click();
+                const message = failure === 'offline' ? 'The session’s machine is offline or unavailable. Reconnect it and retry.'
+                    : failure === 'unsupported' ? 'This provider’s context window is not supported yet.'
+                        : 'The provider transcript or session identity is missing on this machine.';
+                await page.getByRole('alert').getByText(message, { exact: true }).waitFor();
+                await page.getByRole('button', { name: 'Retry', exact: true }).click();
+                if (failure === 'missing') {
+                    await page.getByText('7 recorded entries', { exact: true }).waitFor();
+                    expect(attempts).toBe(2);
+                } else {
+                    await page.getByRole('alert').getByText(message, { exact: true }).waitFor();
+                    expect(attempts).toBe(0);
+                }
+            } finally { await page.close(); }
+        }, 20_000,
+    );
 
     it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
         ['revise', 'ready'].map((status) => ({ width, theme, status })),

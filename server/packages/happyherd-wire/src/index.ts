@@ -14,3 +14,4 @@ export * from './machineSession';
 export * from './grokPermissionMode';
 export * from './credentialManager';
 export * from './devicePairing';
+export * from './contextWindow';

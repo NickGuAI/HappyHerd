@@ -15,6 +15,7 @@ function FeaturesSettingsScreen() {
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
+    const [expContextWindow, setExpContextWindow] = useSettingMutable('expContextWindow');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
     const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
     const [userSafeguardEnabled, setUserSafeguardEnabled] = useSettingMutable('userSafeguardEnabled');
@@ -79,6 +80,13 @@ function FeaturesSettingsScreen() {
                             onValueChange={setHideInactiveSessions}
                         />
                     }
+                    showChevron={false}
+                />
+                <Item
+                    title={t('contextWindow.title')}
+                    subtitle={t('contextWindow.featureSubtitle')}
+                    icon={<Ionicons name="document-text-outline" size={29} color={theme.colors.textLink} />}
+                    rightElement={<Switch accessibilityLabel={t('contextWindow.title')} value={expContextWindow} onValueChange={setExpContextWindow} />}
                     showChevron={false}
                 />
                 <Item

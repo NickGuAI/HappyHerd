@@ -664,3 +664,4 @@ AUTOMATION_BLOCKED_SKIPS	accepted	fix(automations): surface runs blocked by repe
 AUTOMATION_BLOCKED_SKIPS_REBASED_GOLDENS	accepted	test(automations): refresh rebased blocked-alert visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 AUTOMATION_BLOCKED_FEED_IDS_ONLY	accepted	fix(automations): keep automation names out of the server feed	server/packages/happyherd-server/sources/app/api/routes/feedRoutes.test.ts
 AUTOMATION_BLOCKED_CHANGELOG_BASELINES_REBASED	accepted	test(automations): regenerate the KILV changelog baselines for blocked automation alerts	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+SESSION_CONTEXT_WINDOW	accepted	feat(context): inspect recorded Claude and Codex context windows	docs/acceptance/issue-354.md

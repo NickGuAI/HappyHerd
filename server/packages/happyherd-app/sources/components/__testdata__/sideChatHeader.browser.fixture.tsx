@@ -2,6 +2,8 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { SessionView } from '@/-session/SessionView';
 import SessionInfoScreen from '@/app/(app)/session/[id]/info';
+import SessionContextWindowScreen from '@/app/(app)/session/[id]/context';
+import FeaturesSettingsScreen from '@/app/(app)/settings/features';
 import NewSessionScreen from '@/app/(app)/new/index';
 import AgentDefaultsSettingsScreen from '@/app/(app)/settings/agents';
 import { FlatSessionRow } from '@/components/FlatSessionRow';
@@ -10,6 +12,28 @@ import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { ProviderContinuationLinks } from '@/components/ProviderContinuationLinks';
 import { storage, useSession } from '@/sync/storage';
+
+// Route changes mount the production screens. There is no fixture open control:
+// the browser Back gesture and the SessionView header own the Human journey.
+function ContextWindowJourneyFixture() {
+    const [pathname, setPathname] = React.useState(window.location.pathname);
+    React.useEffect(() => {
+        const onPopState = () => setPathname(window.location.pathname);
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, []);
+    (globalThis as any).__HAPPYHERD_ROUTE_PARAMS__ = { id: 'parent' };
+    (globalThis as any).__HAPPYHERD_ROUTE_PATHNAME__ = pathname;
+    (globalThis as any).__HAPPYHERD_ROUTE_PUSH__ = (href: string) => {
+        window.history.pushState({}, '', href + window.location.search);
+        setPathname(href);
+    };
+    return pathname === '/settings/features' ? <FeaturesSettingsScreen />
+        : pathname === '/session/parent/context' ? <SessionContextWindowScreen />
+            : <div data-testid="foreground-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <SessionView id="parent" />
+            </div>;
+}
 
 function SessionInfoJourneyFixture() {
     const [screen, setScreen] = React.useState<'session' | 'info'>('session');
@@ -210,7 +234,9 @@ const fixtureOptions = (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
 
 createRoot(document.getElementById('root')!).render(
     <>
-        {fixtureOptions.sessionInfoJourney ? (
+        {fixtureOptions.contextWindow ? (
+            <ContextWindowJourneyFixture />
+        ) : fixtureOptions.sessionInfoJourney ? (
             <SessionInfoJourneyFixture />
         ) : fixtureOptions.botActionMenu ? (
             <BotActionMenuFixture />
