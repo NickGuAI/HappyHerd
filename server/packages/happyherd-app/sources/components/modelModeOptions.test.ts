@@ -61,6 +61,26 @@ describe('modelModeOptions', () => {
         expect(getHardcodedModelModes('future-provider', translate)).toEqual([]);
     });
 
+    it('preserves advertised Claude names and falls back to IDs for unnamed models', () => {
+        const models = [
+            { code: 'claude-opus-5-5', value: 'Opus 5.5 (preview)' },
+            { code: 'claude-sonnet-5', value: 'Sonnet 5' },
+            { code: 'claude-haiku-4-5', value: '' },
+        ];
+        const machineMetadata = { agentCapabilities: { claude: {
+            detectedAt: 1, models, effortLevels: [], permissionModes: [],
+            sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'cli-help' },
+        } } } as any;
+        const expected = [
+            { key: 'claude-opus-5-5', name: 'Opus 5.5 (preview)' },
+            { key: 'claude-sonnet-5', name: 'Sonnet 5' },
+            { key: 'claude-haiku-4-5', name: 'claude-haiku-4-5' },
+        ];
+        expect(getMachineAdvertisedModels(machineMetadata, 'claude', translate)).toMatchObject(expected);
+        expect(getSessionAvailableModels('claude', null, machineMetadata, translate)).toMatchObject(expected);
+        expect(getAvailableModels('claude', { models } as any, translate)).toMatchObject(expected);
+    });
+
     it('uses only the selected machine capability catalog', () => {
         const machineMetadata = {
             agentCapabilities: {

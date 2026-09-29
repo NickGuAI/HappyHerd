@@ -197,9 +197,9 @@ const virtualModules: Record<string, string> = {
         if (modelPicker) {
             sessions.parent = {
                 ...sessions.parent,
-                modelMode: 'Gemini 3.6 Flash (High)',
+                modelMode: fixtureOptions.customClaudeNames ? 'claude-opus-5-5' : 'Gemini 3.6 Flash (High)',
                 permissionMode: 'default',
-                metadata: { ...sessions.parent.metadata, flavor: 'agy' },
+                metadata: { ...sessions.parent.metadata, flavor: fixtureOptions.customClaudeNames ? 'claude' : 'agy' },
             };
         }
         if (fixtureOptions.botLifecycle) {
@@ -294,6 +294,18 @@ const virtualModules: Record<string, string> = {
                     { code: 'Claude Sonnet 4.6 (Thinking)', value: 'Claude Sonnet 4.6 (Thinking)', effortLevels: [] },
                     { code: 'Claude Opus 4.6 (Thinking)', value: 'Claude Opus 4.6 (Thinking)', effortLevels: [] },
                     { code: 'GPT-OSS 120B (Medium)', value: 'GPT-OSS 120B (Medium)', effortLevels: [] },
+                ],
+                effortLevels: [],
+                permissionModes: [{ code: 'default', value: 'default', isDefault: true }],
+            } };
+        }
+        if (fixtureOptions.customClaudeNames) {
+            machines[0].metadata.agentCapabilities = { claude: {
+                detectedAt: 1,
+                sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'daemon-defaults' },
+                models: [
+                    { code: 'claude-opus-5-5', value: 'Opus Research Preview', isDefault: true },
+                    { code: 'claude-sonnet-5', value: 'Sonnet Team Edition' },
                 ],
                 effortLevels: [],
                 permissionModes: [{ code: 'default', value: 'default', isDefault: true }],
@@ -1782,6 +1794,48 @@ describe('Side chats browser interaction', () => {
         expect(await page.locator('[aria-disabled="true"]').filter({ visible: true }).count()).toBeGreaterThan(0);
         await page.close();
     });
+
+    it.each([
+        { width: 1440, height: 900, theme: 'light' },
+        { width: 1440, height: 900, theme: 'dark' },
+        { width: 390, height: 844, theme: 'light' },
+        { width: 390, height: 844, theme: 'dark' },
+    ])('preserves advertised Claude names and model IDs in the active composer at $width px in $theme mode', async ({ width, height, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        page.setDefaultTimeout(5_000);
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { modelPicker: true, customClaudeNames: true };
+        });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            const composer = page.getByTestId('foreground-session');
+            const chip = composer.getByTestId('composer-chip-model');
+            await expect(chip.innerText()).resolves.toContain('Opus Research Preview');
+            await chip.click();
+            await page.getByText('Opus Research Preview', { exact: true }).filter({ visible: true }).last().waitFor();
+            await page.getByText('Sonnet Team Edition', { exact: true }).filter({ visible: true }).last().click();
+            await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
+                sessionId: 'parent', patch: { modelMode: 'claude-sonnet-5' },
+            });
+            await expect(chip.innerText()).resolves.toContain('Sonnet Team Edition');
+            await chip.click();
+            await page.getByText('Opus Research Preview', { exact: true }).filter({ visible: true }).last().click();
+            await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
+                sessionId: 'parent', patch: { modelMode: 'claude-opus-5-5' },
+            });
+            await expect(chip.innerText()).resolves.toContain('Opus Research Preview');
+            const directory = process.env.HERD_MODEL_NAMES_EVIDENCE_DIR?.trim();
+            if (directory) {
+                mkdirSync(directory, { recursive: true });
+                await page.screenshot({ path: resolve(directory, `claude-model-names-composer-${width}-${theme}.png`), fullPage: true });
+            }
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 30_000);
 
     it.each([
         ['active session', { width: 1440, height: 900 }],

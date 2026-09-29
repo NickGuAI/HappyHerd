@@ -157,6 +157,17 @@ export function parseClaudeHelp(help: string): {
 }
 
 const CLAUDE_SDK_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<ClaudeSdkOptions['effort']>[];
+const CLAUDE_MODEL_DISPLAY_NAMES: Record<(typeof HAPPYHERD_CLAUDE_MODEL_SLUGS)[number], string> = {
+    'claude-fable-5-1': 'Fable 5.1',
+    'claude-fable-5': 'Fable 5',
+    'claude-opus-5-5': 'Opus 5.5',
+    'claude-opus-5': 'Opus 5',
+    'claude-opus-5[1m]': 'Opus 5 1M',
+    'claude-opus-4-8': 'Opus 4.8',
+    'claude-opus-4-6': 'Opus 4.6',
+    'claude-sonnet-5': 'Sonnet 5',
+    'claude-haiku-4-5': 'Haiku 4.5',
+};
 
 export function buildClaudeCapabilityCatalog(
     help: string,
@@ -183,7 +194,7 @@ export function buildClaudeCapabilityCatalog(
         },
         models: [
             option('default', 'provider default', null),
-            ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]).map((model) => model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
+            ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((code) => option(code, CLAUDE_MODEL_DISPLAY_NAMES[code])).map((model) => model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
                 ? {
                     ...model,
                     effortLevels: HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS.map((effort) => option(

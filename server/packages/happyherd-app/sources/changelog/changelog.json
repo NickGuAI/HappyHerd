@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 29 — Claude model display names",
+      "summary": "",
+      "markdown": "- Claude model chips, pickers, and New Chat forms now use the names advertised by the selected machine, such as Opus 5.5 and Sonnet 5. Models without an advertised name show their exact ID."
+    },
+    {
       "title": "September 29 — New Chat and a clearer session header",
       "summary": "",
       "markdown": "- Renamed \"Start New Session\" and \"New session\" to \"New Chat\" wherever you start one: the sidebar, the command palette, keyboard hints, the landing and empty screens, the Commanders page, the machine page and the Connections pairing card.\n- Updated Streamline to show only the \"New Chat\" title and one \"Agent\" chip. Model, effort, permission and worktree come from your Streamline defaults; change them for one chat in Advanced, or for every chat in \"Streamline settings\", which stays linked under the composer.\n- Updated Streamline on phones so the working folder is one dropdown listing your recent folders and \"Choose folder\".\n- Updated the session header so its pause button archives the session, the same as ⋯ → Archive, and \"Workspace\" opens from its own button with a machine icon."
@@ -841,5 +846,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 29 — New Chat and a clearer session header"
+  "latestTitle": "September 29 — Claude model display names"
 }

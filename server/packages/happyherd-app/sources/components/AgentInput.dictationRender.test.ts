@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const testState = vi.hoisted(() => ({
     width: 1200,
+    platform: 'web',
 }));
 
 vi.mock('react-native', async () => {
@@ -18,8 +19,8 @@ vi.mock('react-native', async () => {
             isVisible: () => false,
         },
         Platform: {
-            OS: 'web',
-            select: (values: Record<string, unknown>) => values.web ?? values.default,
+            get OS() { return testState.platform; },
+            select: (values: Record<string, unknown>) => values[testState.platform] ?? values.default,
         },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
@@ -183,6 +184,7 @@ afterAll(() => vi.restoreAllMocks());
 
 beforeEach(() => {
     testState.width = 1200;
+    testState.platform = 'web';
 });
 
 function pressable(renderer: ReactTestRenderer, label: string) {
@@ -359,6 +361,26 @@ describe.each([
     });
 });
 
+describe.each(['ios', 'android'])('AgentInput %s model names (structural)', (platform) => {
+    it('keeps advertised names in the native trigger and picker and selects the exact ID', () => {
+        testState.platform = platform;
+        const models = [
+            { key: 'claude-opus-5-5', name: 'Opus 5.5 (preview)' },
+            { key: 'claude-sonnet-5', name: 'Sonnet 5 (preview)' },
+        ];
+        const { callbacks, renderer } = renderMobileActionInput({ modelMode: models[0], availableModels: models });
+        const trigger = pressable(renderer, 'agentInput.model.title');
+        expect(trigger?.findAllByType('Text' as any).map((node: any) => node.props.children).join('')).toContain(models[0].name);
+        act(() => trigger?.props.onPress());
+        const option = renderer.root.findAllByType('Pressable' as any).find((node: any) =>
+            node.findAllByType('Text' as any).some((text: any) => text.props.children === models[1].name));
+        expect(option).toBeDefined();
+        act(() => option?.props.onPress());
+        expect(callbacks.onModelModeChange).toHaveBeenCalledWith(models[1]);
+        act(() => renderer.unmount());
+    });
+});
+
 describe('AgentInput Web composer chips', () => {
     function chip(renderer: ReactTestRenderer, testID: string) {
         return renderer.root.findAll((node: any) => node.props.testID === testID && typeof node.type !== 'string')[0];
@@ -368,14 +390,14 @@ describe('AgentInput Web composer chips', () => {
         act(() => composer.props.onLayout({ nativeEvent: { layout: { width, height: 120, x: 0, y: 0 } } }));
     }
 
-    it('labels the model and permission chips with display names, not the daemon values', () => {
+    it('labels model chips with the advertised name and permissions with localized copy', () => {
         const { renderer } = renderMobileActionInput({
-            modelMode: { key: 'claude-opus-5-5', name: 'claude-opus-5-5' },
+            modelMode: { key: 'claude-opus-5-5', name: 'Opus 5.5 (preview)' },
             permissionMode: { key: 'acceptEdits', name: 'acceptEdits' },
         }, 1200);
         const label = (testID: string) => chip(renderer, testID).findAllByType('Text' as any)
             .map((node: any) => node.props.children).join('');
-        expect(label('composer-chip-model')).toBe('Opus 5.5');
+        expect(label('composer-chip-model')).toBe('Opus 5.5 (preview)');
         expect(label('composer-chip-permission')).toBe('agentInput.permissionMode.acceptEdits');
         act(() => renderer.unmount());
     });

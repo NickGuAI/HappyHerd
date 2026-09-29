@@ -27,20 +27,9 @@ export function getPermissionModeDisplayName(mode: Choice): string {
     return copy ? t(copy) : mode.name || mode.key;
 }
 
-const CLAUDE_MODEL_SLUG = /^claude-(fable|opus|sonnet|haiku)-(\d+)(?:-(\d+))?(\[1m\])?$/;
-
-/**
- * "Opus 5.5": the name the machine catalog advertises when it differs from the
- * key. Claude's catalog advertises the model ID itself, so its IDs are read as
- * family and version.
- */
+/** Use the catalog's display name verbatim, or its exact model ID when unnamed. */
 export function getModelDisplayName(model: Choice): string {
-    if (model.name && model.name !== model.key) return model.name;
-    const match = CLAUDE_MODEL_SLUG.exec(model.key);
-    if (!match) return model.name || model.key;
-    const [, family, major, minor, longContext] = match;
-    const version = minor ? `${major}.${minor}` : major;
-    return `${family[0].toUpperCase()}${family.slice(1)} ${version}${longContext ? ' 1M' : ''}`;
+    return model.name || model.key;
 }
 
 /** The harness on a chip: "Claude" rather than the product name "Claude Code". */
