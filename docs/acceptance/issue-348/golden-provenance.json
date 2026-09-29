@@ -1,0 +1,36 @@
+{
+  "sourceRevision": "ea62062f31aa42a5589c410d2d9967d530c49423",
+  "workflowRun": "https://github.com/NickGuAI/HappyHerd/actions/runs/36611008351",
+  "productionJob": "https://github.com/NickGuAI/HappyHerd/actions/runs/36611008351/job/109552487028",
+  "artifact": "kilv-golden-36611008351",
+  "mode": "compare",
+  "variants": 28,
+  "changed": 4,
+  "unchanged": 24,
+  "reviewedThemes": [
+    "light",
+    "dark"
+  ],
+  "reviewedWidths": [
+    1440,
+    390
+  ],
+  "files": [
+    {
+      "path": "docs/acceptance/issue-287/golden/production-changelog-latest-entries-dark-1440.png",
+      "sha256": "72eb731c09ff199f2cc41c0165357a63a071dbf62df915ef730d83aab19a8c2a"
+    },
+    {
+      "path": "docs/acceptance/issue-287/golden/production-changelog-latest-entries-dark-390.png",
+      "sha256": "1003a4a87bac8db08ebea4a153361b22bbfa730aca525cc2524e14cda89d4a73"
+    },
+    {
+      "path": "docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png",
+      "sha256": "80a340e005d5d996be6046bd860abd781b0a28094ec6639a4a993937f1c394b2"
+    },
+    {
+      "path": "docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png",
+      "sha256": "d68b8d214245f77c5fcc393b4930c233535191796de28a31ef3932737d359f28"
+    }
+  ]
+}

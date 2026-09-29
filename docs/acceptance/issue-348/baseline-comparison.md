@@ -46,3 +46,23 @@ Local evidence is retained in `/private/tmp/hh348-contract-final.log`,
 `hh348-focus-baseline.log` and `hh348-focus-final-head.log` in the same temporary
 directory. The PR and final issue receipt record subsequent exact-head CI and
 the complete Workspace browser regression result.
+
+## Comparison after main advanced
+
+After Athena's PR #358 merged, the branch was rebased onto
+`abefe670ec8bdc7e44732ef52c90d8046486e294`. The same commands were run serially
+on an archive of that new base and source head
+`ea62062f31aa42a5589c410d2d9967d530c49423`. Relevant test and runtime blobs are
+identical between that base and head; all invocations reached their assertions.
+
+| Unchanged test | New base | Rebased head |
+| --- | --- | --- |
+| Sidebar collapse | Failed: 1,000 ms timeout at line 753 | Same failure |
+| Four Focus durations | Failed: `45:01` instead of `45:00` at line 785 | Failed: `15:01` instead of `15:00` at the same line |
+| German mobile Focus | Failed: `60:01` instead of `60:00` at line 899 | Passed |
+
+The rebased issue-focused matrix passed all **90 tests in eight files**,
+including the full 48-test Workspace browser suite. Logs for the new comparison
+are `/private/tmp/hh348-rebase-{shell,focus}-{baseline,head}.log`; the focused
+matrix log is `/private/tmp/hh348-rebase-focused.log`. Environment and proof
+limits are unchanged. The old comparison above remains historical evidence.

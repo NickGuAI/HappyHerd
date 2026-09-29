@@ -658,3 +658,4 @@ CLAUDE_SUBAGENT_LIFECYCLE_BASELINES	accepted	test(app): regenerate the KILV chan
 UI_USAGE_WORKSPACE_RESTYLE	accepted	fix(app): complete Usage and Workspace redesign styling	server/packages/happyherd-app/sources/components/WorkspaceFeedbackComposer.tsx
 UI_USAGE_RESTYLE_WHITESPACE	accepted	fix(app): normalize whitespace in restyled Usage panel	server/packages/happyherd-app/sources/components/usage/UsagePanel.tsx
 UI_WORKSPACE_COMPOSER_BOUNDS	accepted	test(app): verify restyled composer bounds in narrow workspace	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
+UI_USAGE_WORKSPACE_GOLDENS	accepted	test(app): refresh changelog goldens for Usage and Workspace styling	docs/acceptance/issue-348/golden-provenance.json

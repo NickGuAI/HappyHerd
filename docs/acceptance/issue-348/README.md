@@ -63,7 +63,7 @@ and fixture target (its blue page content is deliberately unchanged).
 
 Production Web export and its mounted React smoke pass. iOS and Android Expo
 production exports pass; these are bundles, not signed packages or device
-journeys. Localization validates 1,643 keys across English, Chinese and German;
+journeys. Localization validates 1,640 keys across English, Chinese and German;
 the generated inventory covers 44 routes, 336 surfaces and 84 smoke cases.
 The changelog parser reports 169 entries, latest “September 29 — Usage and
 Workspace styling”. Full suite and exact-head CI results remain pinned in the
