@@ -201,8 +201,13 @@ describe('Inbox Done through the production route and shared shell controls', ()
             await page.evaluate(() => (window as any).__ARRIVE__()); release(); await page.getByTestId('feed-unread-text').waitFor({ state: 'detached' });
             expect(await page.getByTestId('feed-unread-incoming').count()).toBe(1); expect(await page.getByTestId('herd-inbox-dot').count()).toBe(1);
             await page.unroute('**/v1/feed/read'); await page.route('**/v1/feed/read', (route) => route.fulfill({ status: 503, json: { error: 'offline' } }));
-            const dialog = page.waitForEvent('dialog'); await page.getByRole('button', { name: 'Done', exact: true }).click(); const failure = await dialog;
-            expect(failure.message()).toContain('mark updates as read'); await failure.dismiss(); expect(await page.getByTestId('feed-unread-incoming').count()).toBe(1);
+            const dialog = page.waitForEvent('dialog').then(async (failure) => {
+                const message = failure.message();
+                await failure.dismiss();
+                return message;
+            });
+            const [message] = await Promise.all([dialog, page.getByRole('button', { name: 'Done', exact: true }).click()]);
+            expect(message).toContain('mark updates as read'); expect(await page.getByTestId('feed-unread-incoming').count()).toBe(1);
             await page.unroute('**/v1/feed/read'); await acknowledge(page); await page.getByRole('button', { name: 'Done', exact: true }).click(); await page.getByTestId('herd-inbox-dot').waitFor({ state: 'detached' });
             expect(await unreadCards(page).count()).toBe(0); expect(errors).toEqual([]); await page.close();
         }, 20_000);
