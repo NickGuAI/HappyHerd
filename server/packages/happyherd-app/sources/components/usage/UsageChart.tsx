@@ -21,6 +21,7 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'flex-end',
         paddingHorizontal: 8,
+        paddingTop: 24, // Space for values above the tallest bar
         paddingBottom: 40, // Space for labels
     },
     barWrapper: {
@@ -30,7 +31,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     bar: {
         width: '100%',
-        borderRadius: 4,
+        borderRadius: theme.kilv.radius,
         minHeight: 2,
     },
     barValue: {
@@ -126,7 +127,7 @@ export const UsageChart: React.FC<UsageChartProps> = ({
                 <View style={[styles.chartContainer, { height }]}>
                     {displayData.map((point, index) => {
                         const value = getValueForDataPoint(point);
-                        const barHeight = (value / maxValue) * height;
+                        const barHeight = (value / maxValue) * Math.max(height - 64, 0);
                         const showValue = value > 0 && barHeight > 20;
                         
                         return (
@@ -141,13 +142,14 @@ export const UsageChart: React.FC<UsageChartProps> = ({
                                     </Text>
                                 )}
                                 <View
+                                    testID="usage-chart-bar"
                                     style={[
                                         styles.bar,
                                         {
                                             height: Math.max(barHeight, 2),
                                             backgroundColor: metric === 'cost' 
-                                                ? theme.colors.warning
-                                                : theme.colors.textLink,
+                                                ? theme.colors.kilv.accentHot
+                                                : theme.colors.kilv.accent,
                                         }
                                     ]}
                                 />

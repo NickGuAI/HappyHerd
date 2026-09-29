@@ -1,6 +1,14 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { UsagePanel } from '../UsagePanel';
+import { usePathname, useRouter } from 'expo-router';
+// @ts-expect-error The browser fixture supplies this router-observation hook.
+import { useFixtureOptions } from 'expo-router';
+import { View } from 'react-native';
+import { useUnistyles } from 'react-native-unistyles';
+import UsageSettingsScreen from '@/app/(app)/settings/usage';
+import { SettingsSectionList } from '@/components/herd/pages/SettingsFrame';
+import { createHeader } from '@/components/navigation/Header';
+import { HerdWindowInsetsContext } from '@/components/herd/shell/windowInsets';
 
 const usageResponse = {
     usage: [{
@@ -31,4 +39,23 @@ Object.assign(globalThis, {
     },
 });
 
-createRoot(document.getElementById('root')!).render(<UsagePanel />);
+function Fixture() {
+    const { theme } = useUnistyles();
+    const path = usePathname();
+    const router = useRouter();
+    // The fixture replaces only router state and transport. Settings entry,
+    // route, header, selectors and charts are the production components.
+    const options = useFixtureOptions();
+    return (
+        <HerdWindowInsetsContext.Provider value={{ top: 0, bottom: 0, left: 0, right: 0 }}>
+            <View style={{ flex: 1 }}>
+                {path === '/settings/usage' ? <>
+                    {createHeader({ options: { headerTintColor: theme.colors.header.tint, headerShadowVisible: false, ...options }, route: { name: 'settings/usage' }, back: { title: 'Settings' }, navigation: { goBack: router.back } } as any)}
+                    <UsageSettingsScreen />
+                </> : <SettingsSectionList />}
+            </View>
+        </HerdWindowInsetsContext.Provider>
+    );
+}
+
+createRoot(document.getElementById('root')!).render(<Fixture />);

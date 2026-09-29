@@ -219,7 +219,9 @@ It reads memory files through the existing `machineReadFileWithinRoot` call,
 bounded to each Commander's AgentContext folder, so older daemons show an
 error with Retry.
 
-Known gaps: the Usage page keeps its current look; Credentials,
+The Usage follow-up (#348) brings `settings/usage.tsx` and `components/usage/UsagePanel.tsx` onto the shared page title, KILV cards, and segmented controls. `UsageChart.tsx` uses the theme accent for bars while preserving period queries, totals, coverage disclosures, provider ordering, and token/cost selection. Merge future API/data fixes into these owners without restoring the former platform-specific card/button styles.
+
+Known gaps: Credentials,
 Commander avatar settings and the Inbox update banner were outside this pass;
 Settings sub-pages keep the base list look until `ItemGroup`/`Item` adopt the
 `HerdList` treatment.
@@ -350,3 +352,21 @@ These files do not exist upstream; upstream merges never conflict with them.
 | `sources/components/FocusPixelSwap.tsx`, `FocusPixelSwapLayer(.web).tsx`, `FocusPixelSwapTile(.web).tsx`, `focusPixelSwapTiming.ts` | The Focus pixel swap that Start plays: the grid, React Bits' diagonal delays and the play/end store; the decorative overlay and its host; a Web Animations tile on the web and a native-driver tile in the apps; an inert fixed web layer above every sheet and menu, and a transparent Modal in the apps. |
 | `sources/components/SidebarNavigationButton.tsx` | HappyHerd-owned; restyled with tokens and given `active`, `emphasis` and `quiet` variants. It takes a `HerdShellIcon` name, the mock's sizes and ink, `aria-pressed`, and an anchored `HerdTooltip` on icon-only buttons instead of a native `title`. |
 | `sources/components/sidebarNavigationLayout.ts` | HappyHerd-owned; the boundary-toggle, persistent-header and header-clearance helpers were removed with those controls. |
+
+
+## Usage and Workspace styling follow-up (#348)
+
+`WorkspaceFeedbackComposer.tsx` keeps its existing controlled draft, attachment,
+voice, strict-send, retry, and safe-area behavior inside a single rounded KILV
+card. The 44 px photo and send/voice targets remain; the send control is round
+and the web card uses the same token-derived focus ring as the session composer.
+Both the integrated file panel and fallback link viewer continue to use this
+one component. Upstream feedback behavior changes belong in the existing
+handlers, independently of the card layout.
+
+`LocalhostLiveView.web.tsx` passes the current concrete theme accent through its
+existing picker-state message. The injected bridge in `public/workspace-live-sw.js`
+uses that accent for the hover/selection border and translucent fill. Theme
+changes update the same iframe without re-registering its transport or reloading
+the page. Picking still captures the element then clears the outline as before;
+HTML/CSS/bounds, screenshot, and feedback delivery are unchanged.

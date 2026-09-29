@@ -17,6 +17,7 @@ import {
     type WorkspaceFeedbackSender,
 } from '@/sync/workspaceFeedback';
 import { t } from '@/text';
+import { herdAlpha } from './herd/session/color';
 
 export type WorkspaceFeedbackComposerProps = {
     originSessionId: string;
@@ -151,44 +152,22 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
             style={[
                 styles.container,
                 {
-                    backgroundColor: theme.colors.surface,
-                    borderTopColor: theme.colors.divider,
                     paddingBottom: safeArea.bottom + 8,
                 },
             ]}
         >
-            <AgentInputAttachmentStrip
-                images={imagePicker.selectedImages}
-                onRemove={imagePicker.removeImage}
-                disabled={isSending}
-            />
-            {(sendError || dictation.error) && (
-                <Text accessibilityRole="alert" style={[styles.error, { color: theme.colors.textDestructive }]}>
-                    {sendError || dictation.error}
-                </Text>
-            )}
-            <View style={styles.row}>
-                <Pressable
-                    onPress={imagePicker.pickImages}
-                    disabled={isSending || dictation.phase === 'transcribing'}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(imagePicker.selectedImages.length > 0
-                        ? 'happyHerd.composer.addPhotos'
-                        : 'happyHerd.composer.addPhoto')}
-                    style={({ pressed }) => [
-                        styles.secondaryButton,
-                        {
-                            backgroundColor: theme.colors.surfaceHigh,
-                            opacity: isSending || dictation.phase === 'transcribing'
-                                ? 0.45
-                                : pressed ? 0.7 : 1,
-                        },
-                    ]}
-                >
-                    <Ionicons name="image-outline" size={20} color={theme.colors.text} />
-                </Pressable>
-
-                <View style={[styles.inputShell, { backgroundColor: theme.colors.input.background }]}>
+            <View style={styles.card} testID="workspace-feedback-card">
+                <AgentInputAttachmentStrip
+                    images={imagePicker.selectedImages}
+                    onRemove={imagePicker.removeImage}
+                    disabled={isSending}
+                />
+                {(sendError || dictation.error) && (
+                    <Text accessibilityRole="alert" style={[styles.error, { color: theme.colors.textDestructive }]}>
+                        {sendError || dictation.error}
+                    </Text>
+                )}
+                <View style={styles.inputShell}>
                     <MultiTextInput
                         value={draft}
                         onChangeText={(text) => {
@@ -204,68 +183,100 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
                         paddingRight={12}
                     />
                 </View>
+                <View style={styles.row}>
+                    <Pressable
+                        onPress={imagePicker.pickImages}
+                        disabled={isSending || dictation.phase === 'transcribing'}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(imagePicker.selectedImages.length > 0
+                            ? 'happyHerd.composer.addPhotos'
+                            : 'happyHerd.composer.addPhoto')}
+                        style={({ pressed }) => [
+                            styles.secondaryButton,
+                            {
+                                backgroundColor: pressed ? theme.colors.surfacePressedOverlay : 'transparent',
+                                opacity: isSending || dictation.phase === 'transcribing'
+                                    ? 0.45
+                                    : pressed ? 0.7 : 1,
+                            },
+                        ]}
+                    >
+                        <Ionicons name="image-outline" size={20} color={theme.colors.kilv.inkDim} />
+                    </Pressable>
 
-                <Pressable
-                    onPress={handlePrimaryPress}
-                    disabled={primaryDisabled}
-                    accessibilityRole="button"
-                    accessibilityLabel={isVoiceAction
-                        ? (isVoiceRetryAction
-                            ? t('happyHerd.composer.retryVoice')
-                            : dictation.phase === 'recording'
-                            ? t('happyHerd.composer.finishVoice')
-                            : t('happyHerd.composer.startVoice'))
-                        : t('happyHerd.composer.send')}
-                    style={({ pressed }) => [
-                        styles.primaryButton,
-                        {
-                            backgroundColor: primaryDisabled
-                                ? theme.colors.surfaceHigh
-                                : theme.colors.button.primary.background,
-                            opacity: pressed ? 0.72 : 1,
-                        },
-                    ]}
-                >
-                    {isSending || dictation.phase === 'transcribing' ? (
-                        <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                    ) : isVoiceAction ? (
-                        <Ionicons
-                            name={isVoiceRetryAction
-                                ? 'refresh'
-                                : dictation.phase === 'recording' ? 'stop' : 'mic'}
-                            size={20}
-                            color={theme.colors.button.primary.tint}
-                        />
-                    ) : (
-                        <Octicons
-                            name="arrow-up"
-                            size={17}
-                            color={primaryDisabled ? theme.colors.textSecondary : theme.colors.button.primary.tint}
-                        />
-                    )}
-                </Pressable>
+
+                    <Pressable
+                        onPress={handlePrimaryPress}
+                        disabled={primaryDisabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={isVoiceAction
+                            ? (isVoiceRetryAction
+                                ? t('happyHerd.composer.retryVoice')
+                                : dictation.phase === 'recording'
+                                ? t('happyHerd.composer.finishVoice')
+                                : t('happyHerd.composer.startVoice'))
+                            : t('happyHerd.composer.send')}
+                        style={({ pressed }) => [
+                            styles.primaryButton,
+                            {
+                                backgroundColor: theme.colors.button.primary.background,
+                                opacity: primaryDisabled ? 0.45 : pressed ? 0.72 : 1,
+                            },
+                        ]}
+                    >
+                        {isSending || dictation.phase === 'transcribing' ? (
+                            <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
+                        ) : isVoiceAction ? (
+                            <Ionicons
+                                name={isVoiceRetryAction
+                                    ? 'refresh'
+                                    : dictation.phase === 'recording' ? 'stop' : 'mic'}
+                                size={20}
+                                color={theme.colors.button.primary.tint}
+                            />
+                        ) : (
+                            <Octicons
+                                name="arrow-up"
+                                size={17}
+                                color={theme.colors.button.primary.tint}
+                            />
+                        )}
+                    </Pressable>
+                </View>
             </View>
         </View>
     );
 }
 
-const styles = StyleSheet.create(() => ({
+const styles = StyleSheet.create((theme) => ({
     container: {
-        borderTopWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
         paddingTop: 8,
+    },
+    card: {
+        borderWidth: 1,
+        borderRadius: theme.kilv.radiusCard,
+        borderColor: theme.colors.kilv.rimLine,
+        backgroundColor: theme.colors.kilv.bgRaised,
+        padding: 8,
+        _web: {
+            '_focus-within': {
+                borderColor: herdAlpha(theme.colors.kilv.accent, 0.55),
+                boxShadow: `0 0 0 3px ${herdAlpha(theme.colors.kilv.accent, 0.08)}, ${theme.kilv.glowMoltenSoft}`,
+            },
+        },
     },
     row: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         gap: 8,
         minWidth: 0,
     },
     inputShell: {
-        flex: 1,
         minWidth: 0,
         minHeight: 44,
-        borderRadius: 6,
+        borderRadius: theme.kilv.radius,
         justifyContent: 'center',
         overflow: 'hidden',
     },
@@ -273,7 +284,7 @@ const styles = StyleSheet.create(() => ({
         width: 44,
         height: 44,
         flexShrink: 0,
-        borderRadius: 6,
+        borderRadius: theme.kilv.radius,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -281,7 +292,7 @@ const styles = StyleSheet.create(() => ({
         width: 44,
         height: 44,
         flexShrink: 0,
-        borderRadius: 6,
+        borderRadius: theme.kilv.radiusPill,
         alignItems: 'center',
         justifyContent: 'center',
     },

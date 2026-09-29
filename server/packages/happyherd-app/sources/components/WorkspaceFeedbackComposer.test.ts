@@ -37,19 +37,8 @@ vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
 }));
 
-vi.mock('react-native-unistyles', () => {
-    const theme = {
-        colors: {
-            surface: '#fff',
-            surfaceHigh: '#eee',
-            divider: '#ddd',
-            text: '#111',
-            textSecondary: '#777',
-            textDestructive: '#c00',
-            input: { background: '#f5f5f5' },
-            button: { primary: { background: '#111', tint: '#fff' } },
-        },
-    };
+vi.mock('react-native-unistyles', async () => {
+    const { lightTheme: theme } = await import('@/theme');
     return {
         StyleSheet: {
             hairlineWidth: 1,
@@ -184,6 +173,25 @@ function button(renderer: ReactTestRenderer, accessibilityLabel: string) {
 }
 
 describe('WorkspaceFeedbackComposer', () => {
+    it('uses the redesigned composer card and round send control on native with safe-area spacing', async () => {
+        const { lightTheme: theme } = await import('@/theme');
+        const renderer = await renderComposer();
+        const card = renderer.root.findAllByType('View' as any).find((node: any) => (
+            node.props.testID === 'workspace-feedback-card'
+        ));
+        expect(card).toBeDefined();
+        const flatten = (style: any): any => Object.assign({}, ...[style].flat(Infinity));
+        expect(flatten(card!.props.style)).toMatchObject({
+            borderRadius: theme.kilv.radiusCard,
+            borderColor: theme.colors.kilv.rimLine,
+            backgroundColor: theme.colors.kilv.bgRaised,
+        });
+        expect(flatten(button(renderer, 'happyHerd.composer.startVoice')!.props.style({ pressed: false })))
+            .toMatchObject({ width: 44, height: 44, borderRadius: theme.kilv.radiusPill });
+        expect(flatten(renderer.root.findAllByType('View' as any)[0].props.style).paddingBottom).toBe(32);
+        act(() => renderer.unmount());
+    });
+
     it('uses the one primary control for voice while empty and makes the transcript editable', async () => {
         const sendMessage = vi.fn();
         const renderer = await renderComposer({ sendMessage });

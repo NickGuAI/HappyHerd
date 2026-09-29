@@ -630,7 +630,8 @@ const fixturePlugin: Plugin = {
             if (args.path.startsWith('react-native-unistyles/components/native/')) {
                 return { path: resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/components/native', `${args.path.split('/').at(-1)}.js`) };
             }
-            if (args.path === 'react-native-unistyles' && args.importer.endsWith('/app/(app)/workspace/index.tsx')) {
+            if (args.path === 'react-native-unistyles' && (args.importer.endsWith('/app/(app)/workspace/index.tsx')
+                || args.importer.endsWith('/LocalhostLiveView.web.tsx'))) {
                 return { path: 'workspace-production-styles', namespace: 'fixture-stub' };
             }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
@@ -687,8 +688,9 @@ const fixturePlugin: Plugin = {
             contents: args.path === 'workspace-production-styles'
                 ? virtualModules['react-native-unistyles'].split('export const StyleSheet =')[0]
                     + `
-                        import { StyleSheet, useUnistyles } from ${JSON.stringify(resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/index.js'))};
-                        StyleSheet.configure({ themes: { fixture: theme }, settings: { initialTheme: 'fixture' } });
+                        import { StyleSheet, useUnistyles, UnistylesRuntime } from ${JSON.stringify(resolve(appRoot, '../../node_modules/react-native-unistyles/lib/module/index.js'))};
+                        StyleSheet.configure({ themes: { light: lightTheme, dark: darkTheme }, settings: { initialTheme: theme.dark ? 'dark' : 'light' } });
+                        window.__WORKSPACE_SET_THEME__ = (name) => UnistylesRuntime.setTheme(name);
                         export { StyleSheet, useUnistyles };
                     `
                 : virtualModules[args.path],
@@ -2012,9 +2014,11 @@ describe('Desktop workspace browser interaction', () => {
     }, 30_000);
 
     it.each([
-        { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop' },
-        { mode: 'mobile', width: 390, height: 844, sessionId: 'side-chat-mobile' },
-    ])('opens selected-machine localhost live and sends one Orca-style element comment on $mode', async ({ mode, width, height, sessionId }) => {
+        { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop', theme: 'light' },
+        { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop', theme: 'dark' },
+        { mode: 'mobile', width: 390, height: 844, sessionId: 'side-chat-mobile', theme: 'light' },
+        { mode: 'mobile', width: 390, height: 844, sessionId: 'side-chat-mobile', theme: 'dark' },
+    ])('opens selected-machine localhost live and sends one Orca-style element comment on $mode ($theme)', async ({ mode, width, height, sessionId, theme }) => {
         const page = await browser.newPage({ viewport: { width, height } });
         const pageErrors = recordPageErrors(page);
         const browserLocalRequests: string[] = [];
@@ -2023,7 +2027,7 @@ describe('Desktop workspace browser interaction', () => {
                 browserLocalRequests.push(request.url());
             }
         });
-        await page.goto(`${origin}?localhost-live=${mode}`);
+        await page.goto(`${origin}?localhost-live=${mode}&theme=${theme}`);
 
         const workspace = page.getByTestId(mode === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop');
         await workspace.getByRole('textbox', { name: 'Open localhost URL' }).fill('http://localhost:3000/live');
@@ -2061,6 +2065,21 @@ describe('Desktop workspace browser interaction', () => {
         await page.waitForTimeout(150);
         await liveTarget.scrollIntoViewIfNeeded();
         await liveTarget.hover();
+        const overlay = frame.locator('[data-happyherd-picker-overlay]');
+        const accent = (name: string) => name === 'dark' ? 'rgb(240, 220, 176)' : 'rgb(143, 110, 54)';
+        await expect.poll(() => overlay.evaluate((element) => getComputedStyle(element).borderColor)).toBe(accent(theme));
+        const iframeUrl = await workspace.locator('iframe').getAttribute('src');
+        const iframeDocument = await liveTarget.evaluateHandle(() => document);
+        const nextTheme = theme === 'dark' ? 'light' : 'dark';
+        await page.evaluate((name) => (window as any).__WORKSPACE_SET_THEME__(name), nextTheme);
+        await expect.poll(() => overlay.evaluate((element) => getComputedStyle(element).borderColor)).toBe(accent(nextTheme));
+        expect(await workspace.locator('iframe').getAttribute('src')).toBe(iframeUrl);
+        expect(await liveTarget.evaluate((_element, originalDocument) => document === originalDocument, iframeDocument)).toBe(true);
+        expect(await liveTarget.innerText()).toBe('Live from machine-2');
+        await page.evaluate((name) => (window as any).__WORKSPACE_SET_THEME__(name), theme);
+        await expect.poll(() => overlay.evaluate((element) => getComputedStyle(element).borderColor)).toBe(accent(theme));
+        const evidenceDirectory = process.env.HAPPYHERD_ISSUE_348_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) await page.screenshot({ path: resolve(evidenceDirectory, `live-outline-${mode}-${theme}.png`) });
         await liveTarget.click();
         const comment = workspace.getByPlaceholder('Write a comment');
         try {
@@ -2070,6 +2089,7 @@ describe('Desktop workspace browser interaction', () => {
         }
         const dockedThread = workspace.getByTestId('inline-comment-thread:docked');
         await dockedThread.waitFor();
+        await expect(overlay.evaluate((element) => getComputedStyle(element).display)).resolves.toBe('none');
         await expect(workspace.locator('[data-testid^="inline-comment-thread:line:"]').count()).resolves.toBe(0);
         await comment.fill('Increase the button hit area');
         await dockedThread.getByRole('button', { name: 'Pin comment' }).click();
