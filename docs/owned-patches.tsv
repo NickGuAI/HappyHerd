@@ -647,3 +647,4 @@ UI_HIDDEN_TOOL_PERMISSION	accepted	fix(app): show a pending permission request o
 UI_SHORT_USER_BUBBLE	accepted	fix(app): size short user bubbles to their text	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
 UI_FIX_350_351_DOCS	accepted	docs(app): record the hidden-tool permission and bubble width fixes for upstream merges	docs/upstream-ui-parity.md
 UI_HEADER_ARCHIVE_MACHINE_WORKSPACE	accepted	feat(app): archive from the session header and open the Workspace from a machine button	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
+UI_NEW_CHAT_STREAMLINE_AGENT_CHIP	accepted	feat(app): call it New Chat and slim Streamline to one Agent chip	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts

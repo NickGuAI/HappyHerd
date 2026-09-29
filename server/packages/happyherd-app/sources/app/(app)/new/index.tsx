@@ -3098,7 +3098,7 @@ function NewSessionScreen() {
         </>
     );
 
-    const streamlineChips = React.useMemo<StreamlineChip[]>(() => [
+    const launchChips = React.useMemo<StreamlineChip[]>(() => [
         {
             key: 'agent',
             label: getHarnessChipName(agent.key),
@@ -3131,8 +3131,8 @@ function NewSessionScreen() {
 
     const streamlineChipsNode = streamline ? (
         <StreamlineComposerChips
-            chips={streamlineChips}
-            activeKey={activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree' ? activePicker : null}
+            chips={[{ ...launchChips[0], label: t('uiCopy.agentValue', { value1: getHarnessChipName(agent.key) }) }]}
+            activeKey={activePicker === 'agent' ? activePicker : null}
             onPress={openStreamlineChip}
         />
     ) : null;
@@ -3140,7 +3140,7 @@ function NewSessionScreen() {
     // phones keep the agent and the permission mode.
     const advancedChipsNode = advancedPage ? (
         <StreamlineComposerLabels
-            chips={streamlineChips.filter((chip) => chip.key === 'agent' || chip.key === 'permission'
+            chips={launchChips.filter((chip) => chip.key === 'agent' || chip.key === 'permission'
                 || (!streamlinePhone && (chip.key === 'model' || chip.key === 'effort')))}
         />
     ) : null;
@@ -3370,14 +3370,16 @@ function NewSessionScreen() {
             testID="new-session-mode"
         />
     ) : null;
-    // Phones stack the title, the intro and a full-width mode switch.
+    // Phones stack the title and a full-width mode switch.
     const modeHeader = streamlineAvailable ? (
         <View style={[styles.modeHeader, streamlinePhone && styles.modeHeaderPhone]}>
             <View style={[styles.modeHeaderText, streamlinePhone && styles.modeHeaderTextPhone]}>
                 <Text style={[styles.modeTitle, streamlinePhone && styles.modeTitlePhone]}>{t('newSession.title')}</Text>
-                <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>
-                    {streamline ? t('newSession.streamline.intro') : t('uiCopy.startANewSessionOnAnyOfYourConnectedMachines')}
-                </Text>
+                {!streamline ? (
+                    <Text style={[styles.modeSubtitle, streamlinePhone && styles.modeSubtitlePhone]}>
+                        {t('uiCopy.startANewSessionOnAnyOfYourConnectedMachines')}
+                    </Text>
+                ) : null}
             </View>
             <View style={[styles.modeSwitch, streamlinePhone && styles.modeSwitchPhone]}>{modeSwitchControl}</View>
         </View>
@@ -3541,7 +3543,7 @@ function NewSessionScreen() {
 
     const streamlineChipPicker = streamline
         && streamlineAnchor
-        && (activePicker === 'agent' || activePicker === 'model' || activePicker === 'effort' || activePicker === 'permission' || activePicker === 'worktree')
+        && activePicker === 'agent'
         && pickerData ? (
         <HerdPopover
             visible
@@ -3557,14 +3559,8 @@ function NewSessionScreen() {
         </HerdPopover>
     ) : null;
 
-    const streamlineSummary = streamline && currentModel && currentEffort && currentPermission ? (
+    const streamlineSummary = streamline ? (
         <StreamlineSummary
-            summary={t('newSession.streamline.defaultsSummary', {
-                model: getModelDisplayName(currentModel),
-                effort: currentEffort.name,
-                permission: getPermissionModeDisplayName(currentPermission),
-            })}
-            worktree={worktreeKey === '__new__'}
             onOpenSettings={() => router.push('/settings/streamline' as any)}
         />
     ) : null;

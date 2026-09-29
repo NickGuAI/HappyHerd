@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "70d4472df5640bdbb95b6f6b90b43b7a93659d38c8a929028bfae7befa1bd21f",
+  "sourceFingerprint": "73d62ece8119331c66bdacd8c98d19c07c23b8d3927f756da15929649e99b80c",
   "routeCount": 44,
   "surfaceCount": 336,
   "hardcodedCopyCount": 0,
@@ -319,8 +319,6 @@
         "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
-        "newSession.streamline.defaultsSummary",
-        "newSession.streamline.intro",
         "newSession.streamline.modeAdvanced",
         "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
@@ -1631,8 +1629,6 @@
         "newSession.machineOffline",
         "newSession.newWorkspace",
         "newSession.noWorkspace",
-        "newSession.streamline.defaultsSummary",
-        "newSession.streamline.intro",
         "newSession.streamline.modeAdvanced",
         "newSession.streamline.modeStreamline",
         "newSession.switchMachinesHint",
@@ -4240,9 +4236,7 @@
         "StreamlineSummary"
       ],
       "translationKeys": [
-        "newSession.streamline.settingsLink",
-        "newSession.streamline.worktreeOff",
-        "newSession.streamline.worktreeOn"
+        "newSession.streamline.settingsLink"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -7447,7 +7441,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "newSession.title": "Start New Session",
+        "newSession.title": "New Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
       }
     },
@@ -7459,7 +7453,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "newSession.title": "Start New Session",
+        "newSession.title": "New Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
       }
     },
@@ -7471,7 +7465,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "newSession.title": "Start New Session",
+        "newSession.title": "New Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
       }
     },
@@ -7483,7 +7477,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "newSession.title": "Start New Session",
+        "newSession.title": "New Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
       }
     },
@@ -7495,7 +7489,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "newSession.title": "开始新会话",
+        "newSession.title": "新对话",
         "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
       }
     },
@@ -7507,7 +7501,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "newSession.title": "开始新会话",
+        "newSession.title": "新对话",
         "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
       }
     },
@@ -7519,7 +7513,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "newSession.title": "开始新会话",
+        "newSession.title": "新对话",
         "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
       }
     },
@@ -7531,7 +7525,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "newSession.title": "开始新会话",
+        "newSession.title": "新对话",
         "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
       }
     },
@@ -7543,7 +7537,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "newSession.title": "Neue Sitzung starten",
+        "newSession.title": "Neuer Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
       }
     },
@@ -7555,7 +7549,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "newSession.title": "Neue Sitzung starten",
+        "newSession.title": "Neuer Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
       }
     },
@@ -7567,7 +7561,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "newSession.title": "Neue Sitzung starten",
+        "newSession.title": "Neuer Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
       }
     },
@@ -7579,7 +7573,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "newSession.title": "Neue Sitzung starten",
+        "newSession.title": "Neuer Chat",
         "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
       }
     },

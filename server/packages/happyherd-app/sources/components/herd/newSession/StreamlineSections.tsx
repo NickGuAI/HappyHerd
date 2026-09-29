@@ -8,6 +8,7 @@ import { Typography } from '@/constants/Typography';
 import { useGithubRepository, type GithubRepositoryStatus } from '@/sync/githubRepository';
 import { t } from '@/text';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
+import { HerdPopover, type HerdAnchorRect } from '../HerdPopover';
 import { herdStaggerClass, herdWebClasses } from '../motion';
 
 export type StreamlineCommanderOption = { id: string; name: string; role?: string | null };
@@ -49,8 +50,8 @@ export function StreamlineLabelLink({ label, onPress, testID }: { label: string;
 
 /**
  * The three Streamline choices: Commander, working folder and project. Wide
- * layouts wrap the cards. Phones (UI overhaul) scroll square Commander cards
- * and folder chips sideways, edge to edge, and wrap the project chips.
+ * layouts wrap the cards. Phones scroll square Commander cards sideways,
+ * choose folders from a dropdown, and wrap the project chips.
  */
 export function StreamlineSections(props: {
     compact: boolean;
@@ -75,53 +76,27 @@ export function StreamlineSections(props: {
     onSelectProject: (id: string | null) => void;
 }) {
     const { theme } = useUnistyles();
+    const folderTriggerRef = React.useRef<View>(null);
+    const [folderAnchor, setFolderAnchor] = React.useState<HerdAnchorRect | null>(null);
+    const closeFolderMenu = React.useCallback(() => setFolderAnchor(null), []);
     const selectedKnown = props.folders.some(props.isFolderSelected);
+    const folderOptions = props.selectedFolder && !selectedKnown && props.selectedFolder.machineId && props.selectedFolder.path
+        ? [...props.folders, {
+            machineId: props.selectedFolder.machineId,
+            path: props.selectedFolder.path,
+            name: props.selectedFolder.name,
+            machineName: props.selectedFolder.machineName ?? props.selectedFolder.machineId,
+            online: true,
+            homeDir: props.selectedFolder.homeDir,
+        }]
+        : props.folders;
+    const selectedFolderPath = props.selectedFolder?.path
+        ? formatPathRelativeToHome(props.selectedFolder.path, props.selectedFolder.homeDir ?? undefined)
+        : null;
 
     // Folder cards continue the Commander cards' entrance stagger.
     let index = props.commanders.length + 2;
-    const folderCards = props.compact ? [
-        ...props.folders.map((folder) => (
-            <StreamlineFolderChip
-                key={`${folder.machineId}:${folder.path}`}
-                folder={folder}
-                selected={props.isFolderSelected(folder)}
-                onPress={() => props.onSelectFolder(folder)}
-            />
-        )),
-        ...(props.selectedFolder && !selectedKnown && props.selectedFolder.machineId && props.selectedFolder.path ? [
-            <StreamlineFolderChip
-                key="selected"
-                folder={{
-                    machineId: props.selectedFolder.machineId,
-                    path: props.selectedFolder.path,
-                    name: props.selectedFolder.name,
-                    machineName: props.selectedFolder.machineName ?? props.selectedFolder.machineId,
-                    online: true,
-                    homeDir: props.selectedFolder.homeDir,
-                }}
-                selected
-                onPress={props.onChooseFolder}
-            />,
-        ] : []),
-        <Pressable
-            key="browse"
-            accessibilityRole="button"
-            accessibilityLabel={t('newSession.streamline.browseFolder')}
-            aria-expanded={props.chooseFolderOpen}
-            onPress={props.onChooseFolder}
-            testID="streamline-choose-folder"
-            style={({ hovered, pressed }: any) => [
-                styles.chip,
-                styles.chipTouch,
-                styles.cardDashed,
-                (hovered || pressed) && !props.chooseFolderOpen && styles.cardHovered,
-                props.chooseFolderOpen && styles.cardSelected,
-            ]}
-        >
-            <Ionicons name="add" size={15} color={theme.colors.textLink} />
-            <Text numberOfLines={1} style={[styles.chipText, styles.cardTitleAccent]}>{t('newSession.streamline.browseFolder')}</Text>
-        </Pressable>,
-    ] : [
+    const folderCards = [
         ...props.folders.map((folder) => (
             <StreamlineFolderCard
                 key={`${folder.machineId}:${folder.path}`}
@@ -186,7 +161,69 @@ export function StreamlineSections(props: {
             {props.commanderNote ? <Text style={styles.note}>{props.commanderNote}</Text> : null}
 
             <StreamlineLabel>{t('newSession.streamline.whereLabel')}</StreamlineLabel>
-            <ChoiceRow compact={props.compact} raised={props.chooseFolderOpen}>{folderCards}</ChoiceRow>
+            {props.compact ? (
+                <>
+                    <Pressable
+                        ref={folderTriggerRef}
+                        accessibilityRole="button"
+                        accessibilityLabel={props.selectedFolder
+                            ? [props.selectedFolder.name, selectedFolderPath, props.selectedFolder.machineName].filter(Boolean).join(', ')
+                            : t('newSession.streamline.browseFolder')}
+                        aria-expanded={folderAnchor !== null}
+                        onPress={() => folderTriggerRef.current?.measureInWindow((x, y, width, height) => setFolderAnchor({ x, y, width, height }))}
+                        testID="streamline-folder-dropdown"
+                        style={({ hovered, pressed }: any) => [styles.chip, styles.folderRow, (hovered || pressed) && styles.cardHovered]}
+                    >
+                        <View style={styles.folderText}>
+                            <Text numberOfLines={1} style={styles.folderTitle}>{props.selectedFolder?.name ?? t('newSession.streamline.browseFolder')}</Text>
+                            {props.selectedFolder ? (
+                                <Text numberOfLines={1} style={styles.folderDetail}>
+                                    {[selectedFolderPath, props.selectedFolder.machineName].filter(Boolean).join(' · ')}
+                                </Text>
+                            ) : null}
+                        </View>
+                        <Ionicons name="chevron-down" size={16} color={theme.colors.textSecondary} />
+                    </Pressable>
+                    <HerdPopover
+                        visible={folderAnchor !== null}
+                        anchor={folderAnchor}
+                        onClose={closeFolderMenu}
+                        width={folderAnchor?.width ?? 0}
+                        align="start"
+                        placement="auto"
+                        accessibilityLabel={t('newSession.streamline.whereLabel')}
+                        testID="streamline-folder-menu"
+                    >
+                        <ScrollView>
+                            {folderOptions.map((folder) => (
+                                <StreamlineFolderRow
+                                    key={`${folder.machineId}:${folder.path}`}
+                                    folder={folder}
+                                    selected={props.isFolderSelected(folder)}
+                                    onPress={() => {
+                                        props.onSelectFolder(folder);
+                                        closeFolderMenu();
+                                    }}
+                                />
+                            ))}
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => {
+                                    closeFolderMenu();
+                                    props.onChooseFolder();
+                                }}
+                                testID="streamline-choose-folder"
+                                style={({ hovered, pressed }: any) => [styles.folderRow, (hovered || pressed) && styles.cardHovered]}
+                            >
+                                <Ionicons name="add" size={16} color={theme.colors.textLink} />
+                                <Text style={[styles.folderTitle, styles.cardTitleAccent]}>{t('newSession.streamline.browseFolder')}</Text>
+                            </Pressable>
+                        </ScrollView>
+                    </HerdPopover>
+                </>
+            ) : (
+                <ChoiceRow compact={false} raised={props.chooseFolderOpen}>{folderCards}</ChoiceRow>
+            )}
 
             <StreamlineLabel>{t('projects.project')}</StreamlineLabel>
             <StreamlineProjectChoices
@@ -433,8 +470,8 @@ function SquareCard(props: {
     );
 }
 
-/** Phones: a working folder as a chip, the name and then its machine, like the project chips. */
-function StreamlineFolderChip({ folder, selected, onPress }: {
+/** Phones: a folder row identifies both its path and machine. */
+function StreamlineFolderRow({ folder, selected, onPress }: {
     folder: StreamlineFolderOption;
     selected: boolean;
     onPress: () => void;
@@ -454,17 +491,20 @@ function StreamlineFolderChip({ folder, selected, onPress }: {
             aria-checked={selected}
             disabled={!folder.online}
             onPress={onPress}
-            testID={`streamline-folder-${folder.machineId}-${folder.name}`}
+            testID={`streamline-folder-${folder.machineId}:${folder.path}`}
             style={({ hovered, pressed }: any) => [
-                styles.chip,
-                styles.chipTouch,
+                styles.folderRow,
                 (hovered || pressed) && !selected && styles.cardHovered,
                 selected && styles.cardSelected,
                 !folder.online && styles.cardDisabled,
             ]}
         >
-            <Text numberOfLines={1} style={styles.chipText}>{folder.name}</Text>
-            <Text numberOfLines={1} style={[styles.chipSub, selected && styles.chipSubSelected]}>{folder.machineName}</Text>
+            <View style={styles.folderText}>
+                <Text numberOfLines={1} style={styles.folderTitle}>{folder.name}</Text>
+                <Text numberOfLines={1} style={styles.folderDetail}>
+                    {formatPathRelativeToHome(folder.path, folder.homeDir ?? undefined)} · {folder.machineName}
+                </Text>
+            </View>
         </Pressable>
     );
 }
@@ -773,12 +813,28 @@ const styles = StyleSheet.create((theme) => ({
         height: 44,
         flexShrink: 0,
     },
-    chipSub: {
-        fontSize: 11.5,
-        color: theme.colors.kilv.inkFaint,
-        ...Typography.mono(),
+    folderRow: {
+        minHeight: 44,
+        height: 'auto',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: theme.kilv.radius,
     },
-    chipSubSelected: {
+    folderText: {
+        flex: 1,
+        minWidth: 0,
+    },
+    folderTitle: {
+        fontSize: 16,
+        color: theme.colors.text,
+        ...Typography.default(),
+    },
+    folderDetail: {
+        fontSize: 16,
         color: theme.colors.textSecondary,
+        ...Typography.mono(),
     },
 }));

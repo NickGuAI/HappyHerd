@@ -1,5 +1,8 @@
-# September 29 — A clearer session header
+# September 29 — New Chat and a clearer session header
 
+- Renamed "Start New Session" and "New session" to "New Chat" wherever you start one: the sidebar, the command palette, keyboard hints, the landing and empty screens, the Commanders page, the machine page and the Connections pairing card.
+- Updated Streamline to show only the "New Chat" title and one "Agent" chip. Model, effort, permission and worktree come from your Streamline defaults; change them for one chat in Advanced, or for every chat in "Streamline settings", which stays linked under the composer.
+- Updated Streamline on phones so the working folder is one dropdown listing your recent folders and "Choose folder".
 - Updated the session header so its pause button archives the session, the same as ⋯ → Archive, and "Workspace" opens from its own button with a machine icon.
 
 # September 27 — Redesigned interface and Streamline session start

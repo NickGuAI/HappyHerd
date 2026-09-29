@@ -414,7 +414,7 @@
     "grokPermissionModeChangeFailed": "Could not change Grok permission mode"
   },
   "newSession": {
-    "title": "Start New Session",
+    "title": "New Chat",
     "showHidden": "Show hidden",
     "machineOffline": "Machine is offline",
     "switchMachinesHint": "• Switch machines by clicking on the machine above",
@@ -432,16 +432,13 @@
       "browseFolder": "Choose folder",
       "githubBadge": "GitHub",
       "notGithub": "Not a git repository",
-      "defaultsSummary": "Uses {model} with {effort} effort and {permission}.",
-      "worktreeOn": "Creates a new git worktree",
-      "worktreeOff": "Runs directly in the selected folder",
       "settingsLink": "Streamline settings",
       "settingsSubtitle": "Configure default models, effort levels, and permission modes for each agent when starting a Streamline session.",
       "defaultModeTitle": "Default session mode",
       "defaultAgentTitle": "Default agent",
       "defaultAgentDescription": "Choose which agent starts automatically in Streamline mode.",
       "agentDefaultsTitle": "Agent option defaults",
-      "agentDefaultsDescription": "Set default options for each agent, which can still be changed on the composer chips.",
+      "agentDefaultsDescription": "Set default options for each agent. To change them for one chat, use Advanced.",
       "latestModel": "Latest",
       "latestModelDescription": "The latest model is resolved when the session starts.",
       "worktreeRuleTitle": "Always use git worktrees",
@@ -750,7 +747,7 @@
     "sessionsTitle": "HappyHerd",
     "showArchived": "Show archived",
     "hideArchived": "Hide archived",
-    "newSession": "New session",
+    "newSession": "New Chat",
     "projects": "Projects"
   },
   "zen": {
@@ -1169,7 +1166,7 @@
     "copiedToClipboard": "{label} copied to clipboard"
   },
   "machine": {
-    "launchNewSessionInDirectory": "Launch New Session in Directory",
+    "launchNewSessionInDirectory": "New Chat in Directory",
     "offlineUnableToSpawn": "Launcher disabled while machine is offline",
     "offlineHelp": "• Make sure your computer is online\n• Run `happyherd daemon status` to diagnose\n• Are you running the latest CLI version? Upgrade with `npm install -g @happyherd/cli@latest`",
     "daemon": "Daemon",
@@ -1375,7 +1372,7 @@
       "machineLoadFailed": "Could not load Commanders from {name}: {message}",
       "memoryReadFailed": "Could not read the memory file.",
       "memoryEmpty": "The memory file is empty.",
-      "newSessionWith": "New session with {name}",
+      "newSessionWith": "New Chat with {name}",
       "browseSubtitle": "Read Commander memory and start sessions"
     },
     "composer": {
@@ -1716,7 +1713,7 @@
     "new": "new",
     "permissionsShownInTerminalOnlyResetOrSendAMessage": "Permissions shown in terminal only. Reset or send a message to control from app.",
     "editorNotAvailableOnThisPlatform": "Editor not available on this platform",
-    "newSession": "New Session",
+    "newSession": "New Chat",
     "startANewChatSession": "Start a new chat session",
     "viewAllSessions": "View All Sessions",
     "browseYourChatHistory": "Browse your chat history",
@@ -1999,7 +1996,7 @@
     "connected": "Connected",
     "connectedDetail": "Verified {host} and selected its existing machine for your next session.",
     "openDevice": "Open device",
-    "newSession": "New Session",
+    "newSession": "New Chat",
     "devices": "Account devices",
     "devicesFooter": "Online status is verified with the target daemon. Open a device for its sessions and files. Refresh to check reachability again.",
     "noDevices": "No devices on this account yet",

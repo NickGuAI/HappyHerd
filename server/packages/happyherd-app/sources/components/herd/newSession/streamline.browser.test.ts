@@ -138,7 +138,7 @@ const virtualModules: Record<string, string> = {
         const now = Date.now();
         export const machines = [
             { id: 'studio-mac', active: true, activeAt: now, createdAt: 3, metadata: { host: 'studio-mac', displayName: 'studio-mac', platform: 'darwin', homeDir: '/Users/example-user', cliAvailability: { claude: true, codex: true }, agentCapabilities: { claude } } },
-            { id: 'gpu-lab', active: false, activeAt: now - 7200000, createdAt: 2, metadata: { host: 'gpu-lab', platform: 'linux', homeDir: '/home/example-user', cliAvailability: { claude: true }, agentCapabilities: { claude } } },
+            { id: 'gpu-lab', active: new URLSearchParams(window.location.search).has('duplicateFolders'), activeAt: now - 7200000, createdAt: 2, metadata: { host: 'gpu-lab', platform: 'linux', homeDir: '/home/example-user', cliAvailability: { claude: true }, agentCapabilities: { claude } } },
         ];
         const machineMap = Object.fromEntries(machines.map((machine) => [machine.id, machine]));
         const projects = {
@@ -200,7 +200,11 @@ const virtualModules: Record<string, string> = {
         export const detectGithubRepository = async (_machineId, path) => statusOf(path);
     `,
     '@/hooks/useStreamlineLocations': `
-        export const useStreamlineLocations = () => [
+        export const useStreamlineLocations = () => new URLSearchParams(window.location.search).has('duplicateFolders') ? [
+            { machineId: 'studio-mac', path: '/work/shared', name: 'shared', machineName: 'studio-mac', online: true },
+            { machineId: 'studio-mac', path: '/other/shared', name: 'shared', machineName: 'studio-mac', online: true },
+            { machineId: 'gpu-lab', path: '/work/shared', name: 'shared', machineName: 'gpu-lab', online: true },
+        ] : [
             { machineId: 'studio-mac', path: '/Users/example-user/code/happyherd', name: 'happyherd', machineName: 'studio-mac', online: true },
             { machineId: 'studio-mac', path: '/Users/example-user/notes', name: 'notes', machineName: 'studio-mac', online: true },
             { machineId: 'gpu-lab', path: '/home/example-user/bench', name: 'bench', machineName: 'gpu-lab', online: false },
@@ -367,12 +371,12 @@ describe('Streamline New Session in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' | 'alpha' } = {}) {
+    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' | 'alpha'; duplicateFolders?: boolean } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
-        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}&mode=${options.mode ?? 'streamline'}${options.screen ? `&screen=${options.screen}` : ''}`);
+        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}&mode=${options.mode ?? 'streamline'}${options.screen ? `&screen=${options.screen}` : ''}${options.duplicateFolders ? '&duplicateFolders=1' : ''}`);
         await page.evaluate(() => document.fonts.ready);
         return { page, errors };
     }
@@ -385,9 +389,26 @@ describe('Streamline New Session in the production style runtime', () => {
         await page.screenshot({ path: resolve(directory, `${name}.png`) });
     }
 
-    const summaryText = (page: Page) => page.getByTestId('streamline-summary').innerText();
     // A chip's label, without its chevron glyph.
     const chipLabel = async (page: Page, key: string) => (await page.getByTestId(`streamline-chip-${key}`).innerText()).split('\n')[0];
+
+    it.each([[1440, 900], [390, 844]])('shows New Chat with one Agent chip and a settings link at %i × %i', async (width, height) => {
+        const { page, errors } = await open({ width, height });
+        await page.getByTestId('streamline-sections').waitFor();
+        await expect(page.getByText('New Chat', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByTestId('streamline-composer-chips').getByRole('button').count()).resolves.toBe(1);
+        await expect(chipLabel(page, 'agent')).resolves.toBe('Agent: Claude');
+        for (const key of ['model', 'effort', 'permission', 'worktree']) {
+            await expect(page.getByTestId(`streamline-chip-${key}`).count()).resolves.toBe(0);
+        }
+        await expect(page.getByTestId('streamline-summary').innerText()).resolves.not.toMatch(/Uses |Creates a new git worktree|Runs directly/);
+        await expect(page.getByTestId('streamline-summary').locator('[data-icon="sparkles-outline"]').count()).resolves.toBe(0);
+        await page.getByTestId('streamline-settings-link').click();
+        await expect.poll(() => page.evaluate(() => (window as any).__ROUTES__ ?? [])).toContain('/settings/streamline');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('starts in Streamline with the Claude defaults and a worktree for the GitHub folder', async () => {
         const { page, errors } = await open();
@@ -396,12 +417,10 @@ describe('Streamline New Session in the production style runtime', () => {
         for (const label of ['Commanders', 'Working folder', 'Project']) {
             await expect(page.getByTestId('streamline-sections').getByRole('heading', { name: label, exact: true }).count()).resolves.toBe(1);
         }
-        // Display labels, not the daemon's values (UI overhaul).
-        await expect.poll(() => summaryText(page)).toContain('Uses Opus 5.5 with xhigh effort and accept edits.');
-        await expect(summaryText(page)).resolves.toContain('Creates a new git worktree');
-        await expect(chipLabel(page, 'agent')).resolves.toBe('Claude');
-        await expect(chipLabel(page, 'model')).resolves.toBe('Opus 5.5');
-        await expect(chipLabel(page, 'permission')).resolves.toBe('accept edits');
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.modelMode)).toBe('claude-opus-5-5');
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.sessionType)).toBe('worktree');
+        await expect(chipLabel(page, 'agent')).resolves.toBe('Agent: Claude');
+        await expect(page.getByTestId('streamline-settings-link').innerText()).resolves.toContain('Streamline settings');
         await expect(page.getByTestId('streamline-github-badge').count()).resolves.toBe(1);
         await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
         // Folders show home-relative paths, as the mock does.
@@ -436,27 +455,30 @@ describe('Streamline New Session in the production style runtime', () => {
         await page.close();
     }, 30_000);
 
-    it('switches folder, Commander and project, and edits a chip for this launch only', async () => {
+    it('switches folder, Commander and project, and opens the Agent picker', async () => {
         const { page, errors } = await open({ theme: 'dark' });
         await page.getByTestId('streamline-sections').waitFor();
         await page.getByTestId('streamline-folder-studio-mac-notes').click();
-        await expect.poll(() => summaryText(page)).toContain('Runs directly in the selected folder');
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.sessionType)).toBe('simple');
         await expect(page.getByTestId('streamline-not-git-badge').count()).resolves.toBe(1);
 
         await page.getByTestId('streamline-commander-athena').click();
         await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.selectedPath)).toBe('/Users/example-user/code/happyherd');
         // A Commander runs in its own workspace, even in a GitHub repository.
-        await expect.poll(() => summaryText(page)).toContain('Runs directly in the selected folder');
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.sessionType)).toBe('simple');
 
         await page.getByRole('radio', { name: 'Docs site' }).click();
         await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.selectedAccountProjectId)).toBe('project-docs');
 
-        await page.getByTestId('streamline-chip-model').click();
+        await page.getByTestId('streamline-chip-agent').click();
         const picker = page.getByTestId('streamline-chip-picker');
         await picker.waitFor();
         await evidence(page, 'streamline-chip-picker-dark-1440');
-        await picker.getByRole('radio', { name: 'claude-sonnet-5' }).click();
-        await expect.poll(() => summaryText(page)).toContain('Uses Sonnet 5 with');
+        await picker.getByRole('radio', { name: 'codex', exact: true }).click();
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.agentType)).toBe('codex');
+        await expect(chipLabel(page, 'agent')).resolves.toBe('Agent: Codex');
+        // This fixture advertises no Codex model or effort catalog.
+        await expect(page.getByTestId('streamline-settings-link').count()).resolves.toBe(1);
         await evidence(page, 'streamline-desktop-dark-1440');
         expect(errors).toEqual([]);
         await page.close();
@@ -466,8 +488,9 @@ describe('Streamline New Session in the production style runtime', () => {
         const { page, errors } = await open();
         await page.goto(`${origin}/?theme=light&mode=streamline&panel=off`);
         await page.getByTestId('streamline-sections').waitFor();
-        await expect(page.getByTestId('streamline-chip-model').count()).resolves.toBe(1);
-        await expect(page.getByTestId('streamline-chip-effort').count()).resolves.toBe(1);
+        await expect(page.getByTestId('streamline-chip-agent').count()).resolves.toBe(1);
+        await expect(page.getByTestId('streamline-chip-model').count()).resolves.toBe(0);
+        await expect(page.getByTestId('streamline-chip-effort').count()).resolves.toBe(0);
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
@@ -687,6 +710,7 @@ describe('Streamline New Session in the production style runtime', () => {
                 await streamline.getByTestId('streamline-sections').waitFor();
                 await streamline.waitForTimeout(700);
                 await evidence(streamline, `streamline-${width}-${theme}`);
+                if (width < 700) await streamline.getByTestId('streamline-folder-dropdown').click();
                 await streamline.getByTestId('streamline-choose-folder').click();
                 await streamline.getByTestId('new-session-recent-path-list').first().waitFor();
                 await streamline.waitForTimeout(400);
@@ -710,14 +734,13 @@ describe('Streamline New Session in the production style runtime', () => {
             const sections = page.getByTestId('streamline-sections');
             await sections.waitFor();
             await settle(page);
-            // The title, the intro and a full-width mode switch with 44 px segments, stacked in that order.
-            const title = (await page.getByText('Start New Session', { exact: true }).boundingBox())!;
+            // The title and a full-width mode switch with 44 px segments.
+            const title = (await page.getByText('New Chat', { exact: true }).boundingBox())!;
             expect(Math.round(title.x)).toBe(16);
-            const intro = (await page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).boundingBox())!;
+            await expect(page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).count()).resolves.toBe(0);
             const mode = await rect(page, 'new-session-mode');
             expect(mode).toMatchObject({ x: 16, width: 390 - 32 });
-            expect(intro.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
-            expect(mode.y).toBeGreaterThanOrEqual(Math.floor(intro.y + intro.height));
+            expect(mode.y).toBeGreaterThanOrEqual(Math.floor(title.y + title.height));
             for (const height of await page.getByTestId('new-session-mode').getByRole('radio').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))) {
                 expect(Math.round(height)).toBeGreaterThanOrEqual(44);
             }
@@ -726,16 +749,14 @@ describe('Streamline New Session in the production style runtime', () => {
             expect(await rect(page, 'streamline-commander-athena')).toMatchObject({ width: 104, height: 104 });
             await expect(page.getByTestId('streamline-commander-athena').getAttribute('aria-label')).resolves.toBe('Athena, Engineering commander');
             await expect(page.getByTestId('streamline-commander-create').getAttribute('role')).resolves.toBe('button');
-            // Working folders: chips with the machine after the name; the offline one is disabled.
-            const folder = page.getByTestId('streamline-folder-studio-mac-happyherd');
-            expect(await rect(page, 'streamline-folder-studio-mac-happyherd')).toMatchObject({ x: 16, height: 44 });
-            await expect(folder.innerText()).resolves.toMatch(/happyherd\s+studio-mac/);
-            await expect(folder.getAttribute('aria-label')).resolves.toContain('GitHub');
-            await expect(page.getByTestId('streamline-folder-gpu-lab-bench').isDisabled()).resolves.toBe(true);
-            expect((await rect(page, 'streamline-choose-folder')).height).toBe(44);
-            // Commanders and folders scroll sideways edge to edge; the project chips wrap.
+            // Working folder is one trigger spanning the form.
+            const folder = page.getByTestId('streamline-folder-dropdown');
+            expect(await rect(page, 'streamline-folder-dropdown')).toMatchObject({ x: 16, width: 390 - 32 });
+            await expect(folder.innerText()).resolves.toContain('happyherd');
+            await expect(folder.innerText()).resolves.toContain('~/code/happyherd · studio-mac');
+            // Commanders scroll sideways edge to edge; the project chips wrap.
             const rows = page.getByTestId('streamline-swipe-row');
-            await expect(rows.count()).resolves.toBe(2);
+            await expect(rows.count()).resolves.toBe(1);
             for (const row of await rows.evaluateAll((nodes) => nodes.map((node) => ({ left: Math.round(node.getBoundingClientRect().left), width: Math.round(node.getBoundingClientRect().width) })))) {
                 expect(row).toEqual({ left: 0, width: 390 });
             }
@@ -763,7 +784,7 @@ describe('Streamline New Session in the production style runtime', () => {
             await page.getByTestId('streamline-composer').scrollIntoViewIfNeeded();
             await settle(page);
             const composer = await rect(page, 'streamline-composer');
-            await page.getByTestId('streamline-chip-permission').click();
+            await page.getByTestId('streamline-chip-agent').click();
             const picker = page.getByTestId('streamline-chip-picker');
             await picker.waitFor();
             expect(await picker.evaluate((element) => [...element.classList])).toContain('herd-pop');
@@ -775,21 +796,75 @@ describe('Streamline New Session in the production style runtime', () => {
             expect(box.y + box.height).toBeLessThanOrEqual(composer.y - 7);
             expect(box.y).toBeGreaterThanOrEqual(8);
             await evidence(page, `streamline-chip-picker-${theme}-390`);
-            await picker.getByRole('radio', { name: 'plan' }).click();
+            await picker.getByRole('radio', { name: 'codex', exact: true }).click();
             await expect.poll(() => picker.count()).toBe(0);
-            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.permissionMode)).toBe('plan');
+            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.agentType)).toBe('codex');
             expect(errors).toEqual([]);
             await page.close();
         }
     }, 40_000);
 
+    it('opens the phone folder dropdown across the form and selects a recent folder', async () => {
+        const { page, errors } = await open({ width: 390, height: 844 });
+        const trigger = page.getByTestId('streamline-folder-dropdown');
+        await trigger.click();
+        const menu = page.getByTestId('streamline-folder-menu');
+        await menu.waitFor();
+        await settle(page);
+        const triggerBox = (await trigger.boundingBox())!;
+        const menuBox = (await menu.boundingBox())!;
+        expect(menuBox.x).toBeCloseTo(triggerBox.x, 0);
+        expect(menuBox.width).toBeCloseTo(triggerBox.width, 0);
+        await expect(menu.getByRole('radio').count()).resolves.toBe(3);
+        await expect(menu.getByRole('button', { name: 'Choose folder', exact: true }).count()).resolves.toBe(1);
+        await expect(menu.getByTestId('streamline-folder-gpu-lab:/home/example-user/bench').isDisabled()).resolves.toBe(true);
+        const rows = await menu.getByRole('radio').evaluateAll((nodes) => nodes.map((node) => ({
+            height: node.getBoundingClientRect().height,
+            fontSizes: [...node.querySelectorAll('*')].filter((child) => [...child.childNodes].some((text) => text.nodeType === Node.TEXT_NODE && text.textContent?.trim()))
+                .map((child) => Number.parseFloat(getComputedStyle(child).fontSize)),
+        })));
+        for (const row of rows) {
+            expect(row.height).toBeGreaterThanOrEqual(44);
+            expect(row.fontSizes.every((size) => size >= 16)).toBe(true);
+        }
+        await menu.getByTestId('streamline-folder-studio-mac:/Users/example-user/notes').click();
+        await expect.poll(() => menu.count()).toBe(0);
+        await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.selectedPath)).toBe('/Users/example-user/notes');
+        await expect(trigger.innerText()).resolves.toContain('~/notes · studio-mac');
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('matches phone folder choices by machine and path, including a selection absent from recents', async () => {
+        const { page, errors } = await open({ width: 390, height: 844, duplicateFolders: true });
+        const trigger = page.getByTestId('streamline-folder-dropdown');
+        await trigger.click();
+        const menu = page.getByTestId('streamline-folder-menu');
+        await menu.waitFor();
+        await expect(menu.getByRole('radio').count()).resolves.toBe(4);
+        await expect(menu.getByTestId('streamline-folder-studio-mac:/Users/example-user/code/happyherd').getAttribute('aria-checked')).resolves.toBe('true');
+        for (const [machineId, path] of [['studio-mac', '/other/shared'], ['gpu-lab', '/work/shared']]) {
+            await menu.getByTestId(`streamline-folder-${machineId}:${path}`).click();
+            await expect.poll(() => menu.count()).toBe(0);
+            await expect.poll(() => page.evaluate(() => [(window as any).__DRAFT__?.selectedMachineId, (window as any).__DRAFT__?.selectedPath])).toEqual([machineId, path]);
+            await trigger.click();
+            await menu.waitFor();
+            await expect(menu.getByRole('radio').count()).resolves.toBe(3);
+            await expect(menu.getByRole('radio', { checked: true }).count()).resolves.toBe(1);
+            await expect(menu.getByTestId(`streamline-folder-${machineId}:${path}`).getAttribute('aria-checked')).resolves.toBe('true');
+        }
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
     it('opens the folder browser on a phone as a card on the bottom edge, and closes it from outside', async () => {
         const { page, errors } = await open({ width: 390, height: 844 });
         await page.getByTestId('streamline-sections').waitFor();
+        await page.getByTestId('streamline-folder-dropdown').click();
         await page.getByTestId('streamline-choose-folder').click();
         const browser = page.getByTestId('streamline-folder-browser');
         await browser.waitFor();
-        await expect(page.getByTestId('streamline-choose-folder').getAttribute('aria-expanded')).resolves.toBe('true');
+        await expect.poll(() => page.getByTestId('streamline-folder-menu').count()).toBe(0);
         await settle(page);
         const box = await rect(page, 'streamline-folder-browser');
         expect({ x: box.x, width: box.width }).toEqual({ x: 8, width: 390 - 16 });
@@ -798,7 +873,7 @@ describe('Streamline New Session in the production style runtime', () => {
         await evidence(page, 'streamline-folder-browser-light-390');
         await page.mouse.click(195, 40);
         await expect.poll(() => browser.count()).toBe(0);
-        await expect(page.getByTestId('streamline-choose-folder').getAttribute('aria-expanded')).resolves.toBe('false');
+        await expect(page.getByTestId('streamline-folder-dropdown').getAttribute('aria-expanded')).resolves.toBe('false');
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
@@ -806,6 +881,7 @@ describe('Streamline New Session in the production style runtime', () => {
     it('scrolls the whole folder browser inside its card on a short phone, so every control is reachable', async () => {
         const { page, errors } = await open({ width: 320, height: 568 });
         await page.getByTestId('streamline-sections').waitFor();
+        await page.getByTestId('streamline-folder-dropdown').click();
         await page.getByTestId('streamline-choose-folder').click();
         const browser = page.getByTestId('streamline-folder-browser');
         // The real folder browser lists the home folder, taller than the card.

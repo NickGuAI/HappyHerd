@@ -1620,7 +1620,7 @@ describe('Streamline New Session', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps the saved Agent Defaults when a Streamline chip changes this launch', async () => {
+    it('keeps the saved Agent Defaults when confirming the Streamline agent', async () => {
         const machine = createDshMachine();
         mocks.renderMachines = [machine];
         mocks.liveMachines = { [machine.id]: machine };
@@ -1631,23 +1631,18 @@ describe('Streamline New Session', () => {
         expect(mocks.draft.setModelMode).toHaveBeenCalledWith('deepseek-v4-flash');
         expect(mocks.draft.setPermissionMode).toHaveBeenCalledWith('workspace-write');
 
-        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-permission');
+        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-agent');
         await act(async () => { chip.props.onPress(); });
         await settle(renderer);
         const picker = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-picker');
-        const option = picker.findAll((node: any) => node.props?.accessibilityLabel === 'read-only' && typeof node.props?.onPress === 'function')[0];
+        const option = picker.findAll((node: any) => node.props?.accessibilityLabel === 'dsh' && typeof node.props?.onPress === 'function')[0];
         expect(option).toBeDefined();
         await act(async () => { option.props.onPress(); });
-        expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('read-only');
+        expect(mocks.draft.setAgentType).toHaveBeenLastCalledWith('dsh');
         expect(mocks.setAgentDefaultOverrides).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
 });
-
-function summaryText(renderer: ReturnType<typeof create>): string {
-    const summary = renderer.root.find((node: any) => node.props?.testID === 'streamline-summary');
-    return summary.findAllByType('Text' as any).map((node: any) => [].concat(node.props.children).join('')).join(' ');
-}
 
 describe('New Session title on Web Mobile', () => {
     it.each([
@@ -1664,7 +1659,7 @@ describe('New Session title on Web Mobile', () => {
         mocks.setOptions.mockClear();
         const renderer = await renderScreen();
         await settle(renderer);
-        // Streamline's page opens with "Start New Session"; a header row would repeat it.
+        // Streamline's page opens with "New Chat"; a header row would repeat it.
         expect(mocks.setOptions).toHaveBeenLastCalledWith({ headerShown });
         act(() => renderer.unmount());
     });
@@ -1708,17 +1703,19 @@ describe('Streamline on native phones', () => {
     it('opens chip pickers as a sheet, and the folder browser in the full form\'s keyboard-aware popover', async () => {
         const renderer = await renderScreen();
         await settle(renderer);
-        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-permission');
+        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-agent');
         await act(async () => { chip.props.onPress(); });
         await settle(renderer);
         // One picker: the menu sheet, not the full form's popover as well.
         expect(byTestID(renderer, 'streamline-chip-picker-handle').length).toBeGreaterThan(0);
         expect(renderer.root.findAllByType('KeyboardStickyView' as any)).toHaveLength(0);
         const option = byTestID(renderer, 'streamline-chip-picker')[0]
-            .findAll((node: any) => node.props?.accessibilityLabel === 'default' && typeof node.props?.onPress === 'function')[0];
+            .findAll((node: any) => node.props?.accessibilityLabel === 'claude code' && typeof node.props?.onPress === 'function')[0];
         await act(async () => { option.props.onPress(); });
-        expect(mocks.draft.setPermissionMode).toHaveBeenLastCalledWith('default');
+        expect(mocks.draft.setAgentType).toHaveBeenLastCalledWith('claude');
 
+        const dropdown = renderer.root.find((node: any) => node.props?.testID === 'streamline-folder-dropdown' && typeof node.props?.onPress === 'function');
+        await act(async () => { dropdown.props.onPress(); });
         const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
         await act(async () => { browse.props.onPress(); });
         await settle(renderer);
@@ -1818,26 +1815,27 @@ describe('Streamline New Session review fixes', () => {
         act(() => renderer.unmount());
     });
 
-    it('lets a worktree chip edit hold for its folder only', async () => {
+    it('restores the Streamline worktree rule after a per-chat change in Advanced', async () => {
         mocks.githubStatusByPath = { '/Users/dev/repo': 'github', '/Users/dev/notes': 'none' };
         const renderer = await renderScreen();
         await settle(renderer);
-        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOn');
-        // Choose no worktree on the chip for the GitHub folder.
-        const chip = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-worktree');
-        await act(async () => { chip.props.onPress(); });
+        expect(mocks.draft.sessionType).toBe('worktree');
+        const mode = () => renderer.root.find((node: any) => node.props?.testID === 'new-session-mode');
+        await act(async () => { mode().props.onChange('advanced'); });
         await settle(renderer);
-        const none = renderer.root.find((node: any) => node.props?.testID === 'streamline-chip-picker')
+        const none = renderer.root.find((node: any) => node.props?.testID === 'advanced-worktree')
             .findAll((node: any) => node.props?.accessibilityLabel === 'uiCopy.noWorktree' && typeof node.props?.onPress === 'function')[0];
         await act(async () => { none.props.onPress(); });
         await settle(renderer);
-        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOff');
+        expect(mocks.draft.sessionType).toBe('simple');
+        await act(async () => { mode().props.onChange('streamline'); });
+        await settle(renderer);
         // Visit the plain folder and come back: the GitHub rule applies again.
         await act(async () => { folderCard(renderer, 'notes').props.onPress(); });
         await settle(renderer);
         await act(async () => { folderCard(renderer, 'repo').props.onPress(); });
         await settle(renderer);
-        expect(summaryText(renderer)).toContain('newSession.streamline.worktreeOn');
+        expect(mocks.draft.sessionType).toBe('worktree');
         act(() => renderer.unmount());
     });
 
@@ -1864,12 +1862,14 @@ describe('Streamline New Session review fixes', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps model and effort chips on a phone', async () => {
-        mocks.dimensions = { width: 390, height: 844 };
+    it.each([1440, 390])('keeps only the Agent chip and the settings link at %i px', async (width) => {
+        mocks.dimensions = { width, height: 844 };
         const renderer = await renderScreen();
         await settle(renderer);
-        for (const key of ['agent', 'model', 'effort', 'permission']) {
-            expect(renderer.root.findAll((node: any) => node.props?.testID === `streamline-chip-${key}`).length).toBeGreaterThan(0);
+        expect(renderer.root.findAll((node: any) => node.props?.testID === 'streamline-chip-agent').length).toBeGreaterThan(0);
+        expect(renderer.root.findAll((node: any) => node.props?.testID === 'streamline-settings-link').length).toBeGreaterThan(0);
+        for (const key of ['model', 'effort', 'permission', 'worktree']) {
+            expect(renderer.root.findAll((node: any) => node.props?.testID === `streamline-chip-${key}`)).toHaveLength(0);
         }
         act(() => renderer.unmount());
     });
@@ -1947,6 +1947,8 @@ describe('Streamline picker anchor on native phones', () => {
         fireLayout(composer.findAllByType('MobileGlassSurface' as any)[0], surfaceHeight);
         fireLayout(composer, composerHeight);
 
+        const dropdown = renderer.root.find((node: any) => node.props?.testID === 'streamline-folder-dropdown' && typeof node.props?.onPress === 'function');
+        await act(async () => { dropdown.props.onPress(); });
         const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
         await act(async () => { browse.props.onPress(); });
         await settle(renderer);
@@ -2003,6 +2005,8 @@ describe('Native phone New Session under the phone top bar', () => {
         await settle(renderer);
         const composerHeight = 176;
         fireLayout(renderer.root.findAll((node: any) => node.props?.testID === 'streamline-composer')[0], composerHeight);
+        const dropdown = renderer.root.find((node: any) => node.props?.testID === 'streamline-folder-dropdown' && typeof node.props?.onPress === 'function');
+        await act(async () => { dropdown.props.onPress(); });
         const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
         await act(async () => { browse.props.onPress(); });
         await settle(renderer);

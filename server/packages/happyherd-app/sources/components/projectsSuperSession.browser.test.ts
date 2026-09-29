@@ -311,7 +311,7 @@ const virtualModules: Record<string, string> = {
         export const getLanguageNativeName = () => 'English';
         export const resolveSupportedLanguage = () => 'en';
         export const t = (key, params) => key.startsWith('focusMode.') ? focusText(key, params) : ({
-            'sidebar.newSession': 'New Session', 'sidebar.projects': 'Projects',
+            'sidebar.newSession': 'New Chat', 'sidebar.projects': 'Projects',
             'sidebar.showArchived': 'Show Archived', 'sidebar.hideArchived': 'Hide Archived',
             'workspace.title': 'Workspace', 'happyHerd.automations.title': 'Automations',
             'settings.title': 'Settings', 'status.unknown': 'Unknown',
@@ -1116,7 +1116,7 @@ describe('Projects and Super Session production UI gestures', () => {
             await page.mouse.move(900, 700);
             if (index) expect(boxes[index]!.x).toBeGreaterThan(boxes[index - 1]!.x);
         }
-        const newButton = page.getByRole('button', { name: 'New Session', exact: true });
+        const newButton = page.getByRole('button', { name: 'New Chat', exact: true });
         const archive = page.getByRole('button', { name: 'Show Archived', exact: true }).first();
         const [newBox, archiveBox, pinnedBox] = await Promise.all([
             newButton.boundingBox(), archive.boundingBox(), page.getByText('Super Session (Pinned)', { exact: true }).boundingBox(),
@@ -1127,7 +1127,7 @@ describe('Projects and Super Session production UI gestures', () => {
         expect(archiveBox!.x).toBeGreaterThan(newBox!.x);
         expect(pinnedBox!.y).toBeGreaterThan(newBox!.y + newBox!.height);
         await screenshot(page, 'compact-sidebar-navigation');
-        for (const [name, destination] of [['Workspace', '/workspace'], ['Projects', '/projects'], ['Automations', '/automations'], ['New Session', '/new']]) {
+        for (const [name, destination] of [['Workspace', '/workspace'], ['Projects', '/projects'], ['Automations', '/automations'], ['New Chat', '/new']]) {
             await page.getByRole('button', { name, exact: true }).click();
             expect((await page.evaluate(() => (window as any).__ROUTER_CALLS__)).at(-1)).toBe(destination);
             await page.getByTestId('fixture-history-back').click();
