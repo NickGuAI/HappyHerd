@@ -2258,8 +2258,18 @@ describe('Desktop workspace browser interaction', () => {
 
         const feedbackBox = await feedback.boundingBox();
         const sendBox = await send.boundingBox();
-        if (!feedbackBox || !sendBox) throw new Error('workspace feedback controls have no layout');
-        expect(feedbackBox.x + feedbackBox.width).toBeLessThanOrEqual(sendBox.x - 8);
+        const cardBox = await host.getByTestId('workspace-feedback-card').boundingBox();
+        if (!feedbackBox || !sendBox || !cardBox) throw new Error('workspace feedback controls have no layout');
+        expect(cardBox.x).toBeGreaterThanOrEqual(hostBox.x);
+        expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(hostBox.x + hostBox.width);
+        for (const controlBox of [feedbackBox, sendBox]) {
+            expect(controlBox.x).toBeGreaterThanOrEqual(cardBox.x);
+            expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
+        }
+        expect(feedbackBox.y + feedbackBox.height).toBeLessThanOrEqual(sendBox.y);
+        expect(sendBox.y + sendBox.height).toBeLessThanOrEqual(cardBox.y + cardBox.height);
+        expect(sendBox.width).toBeGreaterThanOrEqual(44);
+        expect(sendBox.height).toBeGreaterThanOrEqual(44);
         const feedbackMetrics = await feedback.evaluate((element) => ({
             clientWidth: element.clientWidth,
             scrollWidth: element.scrollWidth,
