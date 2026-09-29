@@ -650,3 +650,4 @@ UI_HEADER_ARCHIVE_MACHINE_WORKSPACE	accepted	feat(app): archive from the session
 UI_NEW_CHAT_STREAMLINE_AGENT_CHIP	accepted	feat(app): call it New Chat and slim Streamline to one Agent chip	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
 UI_NEW_CHAT_HEADER_CHANGELOG_BASELINES	accepted	test(app): regenerate the KILV changelog baselines for New Chat and the session header	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 CLAUDE_MODEL_DISPLAY_NAMES	accepted	fix(models): use daemon-advertised Claude display names	server/packages/happyherd-cli/src/capabilities/agentCapabilities.test.ts
+CLAUDE_MODEL_ID_FALLBACK_FIXTURES	accepted	test(app): preserve unnamed model IDs in browser fixtures	server/packages/happyherd-app/sources/components/herd/session/sessionScreen.browser.test.ts
