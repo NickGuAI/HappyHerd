@@ -219,7 +219,6 @@ function sessionScreenModules(): Record<string, string> {
     modules['@/realtime/RealtimeSession'] = `export const stopRealtimeSession = async () => {}; export const getCurrentVoiceSessionDurationSeconds = () => 0;`;
     modules['@/hooks/useAttachmentImage'] = `export const useAttachmentImage = () => ({ uri: null, error: null });`;
     modules['@react-native-masked-view/masked-view'] = `import React from 'react'; import { View } from 'react-native'; export default ({ maskElement, style }) => React.createElement(View, { style }, maskElement);`;
-    modules['react-native-keyboard-controller'] += `export const useKeyboardState = () => ({ isVisible: false, height: 0 });`;
     modules['react-native-reanimated'] = modules['react-native-reanimated']
         .replace('export default { ScrollView, Text, View };', 'export default { ScrollView, Text, View, createAnimatedComponent: (Component) => Component };')
         + `export const cancelAnimation = () => {}; export const withSpring = (value) => value; export const useAnimatedRef = () => React.useRef(null);
