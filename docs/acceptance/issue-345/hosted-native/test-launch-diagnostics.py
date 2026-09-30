@@ -118,7 +118,7 @@ class LaunchDiagnosticsTests(unittest.TestCase):
             with self.subTest(messages=messages):
                 self.assertEqual(classify(messages), {
                     'categories': ['unknown'], 'subtypes': [], 'errorCodes': [],
-                    'signals': [], 'exceptionTypes': [], 'terminationReasons': [],
+                    'signals': [], 'exceptionTypes': [], 'terminationReasons': [], 'serviceReasons': [],
                 })
 
     def test_no_private_text_or_untrusted_enum_can_escape(self):
@@ -143,6 +143,21 @@ class LaunchDiagnosticsTests(unittest.TestCase):
         serialized = json.dumps(result)
         for forbidden in (private, 'https', 'token', 'Hierarchy', 'example.invalid'):
             self.assertNotIn(forbidden, serialized)
+
+    def test_fixed_service_reason_and_codesigning_diagnosis(self):
+        result = classify(['Failed to launch: request was denied by service delegate '
+                           'for reason: Security (has inadequate codesigning entitlements). '
+                           'BSErrorCodeDescription=RequestDenied '
+                           'error domain=fbsopenapplicationserviceerrordomain code=1',
+                           'BSErrorCodeDescription=SECRET-private-value',
+                           'for reason: Security-private-value',
+                           'RBSRequestErrorDomain:5'])
+        self.assertEqual(result['serviceReasons'], ['Security', 'RequestDenied'])
+        self.assertIn('entitlement-invalid', result['subtypes'])
+        self.assertEqual(result['errorCodes'], [
+            {'domain': 'FBSOpenApplicationServiceErrorDomain', 'code': 1},
+            {'domain': 'RBSRequestErrorDomain', 'code': 5}])
+        self.assertNotIn('SECRET', json.dumps(result))
 
     def test_output_and_input_are_bounded(self):
         result = classify(f'Error Domain=NSPOSIXErrorDomain Code={code}' for code in range(10000))

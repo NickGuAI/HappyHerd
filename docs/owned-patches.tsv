@@ -695,3 +695,4 @@ INBOX_NATIVE_AUTH_DIAGNOSTICS_345	accepted	test(inbox): diagnose native account 
 INBOX_NATIVE_SIMULATOR_SIGNING_345	accepted	test(inbox): sign the isolated simulator app for account persistence	docs/acceptance/issue-345/hosted-native/prepare-simulator-signing.py
 INBOX_NATIVE_STARTUP_DIAGNOSTICS_345	accepted	test(inbox): synchronize native startup before the acceptance journey	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
 INBOX_NATIVE_LAUNCH_CLASSIFICATION_345	accepted	test(inbox): classify native launch failures without exposing private logs	docs/acceptance/issue-345/hosted-native/native-driver.py
+INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence coverage and narrow launch diagnostics	docs/acceptance/issue-345/hosted-native/controller.mjs

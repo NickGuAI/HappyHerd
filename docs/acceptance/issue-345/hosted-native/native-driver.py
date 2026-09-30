@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the unchanged issue-345 XCTest on a new private hosted iOS simulator.
+"""Run the issue-345 XCTest on a new private hosted iOS simulator.
 
 Inputs: RUNNER_TEMP, HH345_SOURCE_SHA, HH345_NATIVE_SHA, HH345_APP_ARTIFACT
 (directory with HappyHerd.app.zip/build-manifest.json/archive.sha256),
@@ -31,13 +31,18 @@ EXPECTED_SHA = '67a22ead631e384802e5f7a8657ff674c07ab28d'
 EXPECTED_ARCHIVE_SHA = 'd28905ccf3fcf3d8156a44798a018d766d123afeb3982585a0bcbc56ad8d6133'
 APP_ID = 'app.happyherd.issue345.acceptance'
 RUNNER_ID = 'app.happyherd.issue345.uitests.xctrunner'
-MARKERS = ('HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE')
+MARKERS = ('HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE',
+           'HH345_NATIVE_ACCOUNT_SCOPE', 'HH345_NATIVE_DONE_RACE', 'HH345_NATIVE_SERVER_RESTART')
 STAGES = (
     '00-native-server-before-authentication', '00a-native-inbox-before-assertions',
     '01-native-inbox-unread',
     '02-native-inbox-single-read', '03-native-inbox-done',
     '04-native-inbox-after-relaunch', '05-native-inbox-new-arrival',
     '06-native-inbox-remote-done',
+    '07-native-account-a-unread', '08-native-account-a-done',
+    '09-native-account-b-unread', '10-native-account-b-done', '11-native-account-a-restored',
+    '12-native-race-new-arrival', '13-native-after-server-restart',
+    '14-native-reconnected-new-arrival', '15-native-reconnected-done', '16-native-final-relaunch',
 )
 UUID = r'[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}'
 AUTH_PHASES = {'after-approval', 'notification-declined', 'bell-ready', 'failure'}
@@ -52,6 +57,8 @@ NATIVE_PHASES = {
     'inbox-ready', 'inbox-unread', 'single-read', 'single-read-navigation',
     'single-read-state', 'mark-all-read', 'all-read-state', 'relaunch', 'relaunch-bell',
     'persisted-read-state', 'new-arrival', 'remote-done', 'complete',
+    'account-scope', 'account-logout', 'account-b', 'account-a', 'done-race', 'race-pending',
+    'server-restart', 'reconnected-arrival', 'reconnected-done', 'final-relaunch',
 }
 NATIVE_BOOLEANS = ('uiQueried', 'loginVisible', 'qrRouteVisible', 'serverFieldVisible',
                    'appAlertPresent', 'systemAlertPresent')
@@ -65,10 +72,13 @@ AUTH_LOG_PATTERNS = {
     'missingEntitlementMessage': r"A required entitlement (?:isn't present|is missing)\.",
 }
 LAUNCH_LOG_PREDICATE = (
-    'process == "HappyHerd" OR ((process == "runningboardd" OR '
-    'process == "SpringBoard" OR process == "launchd" OR '
+    '(process == "HappyHerd" OR ((process == "runningboardd" OR '
+    'process == "SpringBoard" OR process == "launchd" OR process == "launchd_sim" OR '
     'process == "amfid" OR process == "ReportCrash") AND '
-    'eventMessage CONTAINS "' + APP_ID + '")'
+    'eventMessage CONTAINS "' + APP_ID + '")) AND ('
+    'messageType == error OR messageType == fault OR '
+    + ' OR '.join('eventMessage CONTAINS[c] "' + term + '"' for term in
+                  ('denied', 'reject', 'failed', 'crash', 'signature', 'entitlement')) + ')'
 )
 launch_spec = importlib.util.spec_from_file_location(
     'launch_diagnostics', Path(__file__).with_name('launch-diagnostics.py'))
@@ -612,7 +622,7 @@ def main():
                       '--info', '--debug', '--predicate', AUTH_LOG_PREDICATE], env, work)
         launch_log = bounded_log_diagnostic(
             simctl + ['spawn', udid, 'log', 'show', '--last', '10m', '--style', 'json',
-                      '--info', '--debug', '--predicate', LAUNCH_LOG_PREDICATE], env, work,
+                      '--info', '--predicate', LAUNCH_LOG_PREDICATE], env, work,
             classify=launch_diagnostics.classify_launch_messages, field='classification')
         private_launch = {'source': 'private-xctest-log-tail', 'available': False}
         try:

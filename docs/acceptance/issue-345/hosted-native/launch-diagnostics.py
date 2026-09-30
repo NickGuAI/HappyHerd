@@ -24,6 +24,8 @@ ERROR_DOMAINS = (
     'IXErrorDomain', 'MIInstallerErrorDomain',
     'DVTDeviceProcessControlServiceErrorDomain',
 )
+SERVICE_REASONS = ('Security', 'Busy', 'NotFound', 'RequestDenied', 'InvalidRequest',
+                   'InvalidArguments', 'ProcessExited', 'Timeout', 'Unspecified')
 CATEGORY_ORDER = ('launch-rejected', 'launch-timed-out', 'process-exited-or-crashed')
 SUBTYPE_ORDER = (
     'signature-invalid', 'entitlement-invalid', 'launch-denied',
@@ -71,6 +73,7 @@ CRASH_PATTERNS = (
 SUBTYPE_PATTERNS = {
     'signature-invalid': (
         r'\b(?:invalid|missing) (?:code )?signature\b',
+        r'\b(?:invalid|untrusted) code ?sign(?:ing|ature)\b',
         r'\b(?:code )?signature (?:is |was )?(?:invalid|not valid|missing)\b',
         r'\bcode sign(?:ature|ing) (?:validation |verification )?failed\b',
         r'\blibrary validation (?:failed|failure)\b',
@@ -78,7 +81,7 @@ SUBTYPE_PATTERNS = {
         r'\bcode signature in [^\n]{1,180}\bnot valid for use in process\b',
     ),
     'entitlement-invalid': (
-        r'\b(?:invalid|missing|unsatisfied) entitlements?\b',
+        r'\b(?:invalid|missing|unsatisfied|inadequate) (?:code ?signing )?entitlements?\b',
         r'\bentitlements? (?:are |is |was |were )?(?:invalid|missing|not permitted)\b',
         r'\bdoes not have (?:the )?(?:required |necessary )?entitlement\b',
         r'\brequired entitlement (?:is missing|isn\'t present|not found)\b',
@@ -106,11 +109,12 @@ SUBTYPE_PATTERNS = {
 # No wildcard may span another error domain, so nested errors keep their codes.
 _DOMAIN = '(?P<domain>' + '|'.join(re.escape(item) for item in ERROR_DOMAINS) + ')'
 _CODE = r'(?P<code>[+-]?\d{1,5})(?!\w|\.\d)'
-_ERROR_CODE_PATTERNS = tuple(re.compile(pattern) for pattern in (
+_ERROR_CODE_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r'(?<![\w./:@-])(?:Error\s+)?Domain\s*[=:]\s*["\']?' + _DOMAIN
     + r'["\']?\s*[,;]?\s*Code\s*[=:]\s*' + _CODE,
     r'(?<![\w./:@-])' + _DOMAIN + r'\s+error\s+' + _CODE,
     r'(?<![\w./:@-])' + _DOMAIN + r'\s*[,;:]?\s+[Cc]ode\s*[=:]?\s*' + _CODE,
+    r'(?<![\w./:@-])' + _DOMAIN + r'\s*:\s*' + _CODE,
 ))
 
 
@@ -134,7 +138,7 @@ def classify_launch_messages(messages):
     establish that launch succeeded or that a suspected cause is absent.
     """
     categories, subtypes, codes = set(), set(), set()
-    signals, exceptions, terminations = set(), set(), set()
+    signals, exceptions, terminations, reasons = set(), set(), set(), set()
     if isinstance(messages, str):
         messages = (messages,)
     remaining = MAX_TOTAL_CHARS
@@ -179,17 +183,22 @@ def classify_launch_messages(messages):
                          + name + r'\b', message, re.IGNORECASE):
                 signals.add(name)
                 categories.add('process-exited-or-crashed')
+        for name in SERVICE_REASONS:
+            if re.search(r'(?:BSErrorCodeDescription\s*[=:]\s*|for reason:\s*)[\"\']?'
+                         + re.escape(name) + r'(?![\w.-])', message, re.IGNORECASE):
+                reasons.add(name)
         for pattern in _ERROR_CODE_PATTERNS:
             for match in pattern.finditer(message):
                 code = int(match['code'])
                 if abs(code) <= MAX_ABS_ERROR_CODE and len(codes) < MAX_ERROR_CODES:
-                    domain = next(name for name in ERROR_DOMAINS if name == match['domain'])
+                    domain = next(name for name in ERROR_DOMAINS if name.casefold() == match['domain'].casefold())
                     codes.add((domain, code))
     return {
         'categories': [name for name in CATEGORY_ORDER if name in categories] or ['unknown'],
         'subtypes': [name for name in SUBTYPE_ORDER if name in subtypes],
         'errorCodes': [{'domain': domain, 'code': code} for domain, code in sorted(codes)],
         'signals': [name for name in SIGNALS if name in signals],
+        'serviceReasons': [name for name in SERVICE_REASONS if name in reasons],
         'exceptionTypes': [name for name in EXCEPTIONS if name in exceptions],
         'terminationReasons': [name for name in TERMINATION_PATTERNS if name in terminations],
     }

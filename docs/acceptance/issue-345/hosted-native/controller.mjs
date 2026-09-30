@@ -11,6 +11,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { runAcceptance } from './run-web-acceptance.mjs';
 import { NATIVE_STAGES, startNativeCoordinator } from './native-coordinator.mjs';
+import { startNativeTransportRelay } from './native-transport-relay.mjs';
 
 const directory = resolve(process.env.HH345_ARTIFACT_DIR || dirname(fileURLToPath(import.meta.url)));
 const root = resolve(process.env.HH345_REPO_ROOT || resolve(directory, '../../..'));
@@ -29,7 +30,10 @@ const receipt = { sourceSha, nativeBuildSha: nativeSha, origin, status: 'RUNNING
         auth: 'Normal Web Restore and native public QR linking; secret values remain in memory',
         native: 'Actual simulator app and XCTest gestures; no renderer fixtures or injected read state' } };
 const pause = ms => new Promise(done => setTimeout(done, ms));
-let stage = 'preflight', serverRunner, browser, coordinator, driver, live;
+let stage = 'preflight', serverRunner, browser, coordinator, driver, live, relay;
+let scopeA, scopeB, protectedA, raceArrival, restartArrival;
+const expectedMarkers = ['HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE',
+    'HH345_NATIVE_ACCOUNT_SCOPE', 'HH345_NATIVE_DONE_RACE', 'HH345_NATIVE_SERVER_RESTART'];
 let serverExit, driverExit, incoming, markerFailure, cleanupStarted = false;
 let verifiedApp;
 const markers = [];
@@ -91,6 +95,7 @@ async function cleanup() {
     }
     await attempt(() => browser?.close());
     await attempt(() => stopOwned(serverRunner, serverCompletion));
+    await attempt(() => relay?.close());
     assert.equal(failures.length, 0, 'Owned resource cleanup failed');
 }
 async function preserveServerReceipt(required = false) {
@@ -101,7 +106,7 @@ async function preserveServerReceipt(required = false) {
     const server = JSON.parse(bytes);
     assert.equal(server.sourceSha, sourceSha);
     await writeFile(resolve(proof, 'server.json'), JSON.stringify(server, null, 2) + '\n');
-    if (required) assert(!server.firstFailure && server.restarts === 1 && server.stoppedAt);
+    if (required) assert(!server.firstFailure && server.restarts === 2 && server.stoppedAt);
 }
 async function unread(ids) {
     const expected = [...ids].sort();
@@ -113,8 +118,8 @@ async function unread(ids) {
             && await live.pageA.getByTestId('herd-inbox-count').count() === 0;
     }, 'Desktop card and bell state did not reconcile');
 }
-async function feed() {
-    const data = await live.api(live.credsA, '/v1/feed?limit=200');
+async function feed(account = 'A') {
+    const data = await live.api(account === 'A' ? live.credsA : live.credsB, '/v1/feed?limit=200');
     assert.equal(data.hasMore, false);
     return data.items.map(({ id, cursor, readAt }) => ({ id, cursor, readAt }));
 }
@@ -255,7 +260,7 @@ async function marker(value) {
             await coordinator.persist();
             await unread([incoming.id]);
         });
-    } else {
+    } else if (value === 'HH345_READY_FOR_REMOTE_DONE') {
         assert.deepEqual(markers, ['HH345_READY_FOR_NEW_ARRIVAL']);
         checkpointPrefix(5);
         await record('real-desktop-done-clears-new-native-arrival', async () => {
@@ -267,7 +272,125 @@ async function marker(value) {
             await capture('desktop-remote-done-cleared');
         });
     }
+    assert.equal(value, expectedMarkers[markers.length]);
     markers.push(value); await save();
+}
+// These commands come only from the test runner after actual native gestures.
+// Replies carry generated nonsecret feed IDs, never account material.
+async function nativeAction(action) {
+    return record('native-' + action, async () => {
+        const expect = (name, account, unreadIds, otherUnreadIds) => coordinator.expectStage(name, account, unreadIds, otherUnreadIds);
+        if (action === 'prepare-scope') {
+            checkpointPrefix(6);
+            scopeA = await live.publishA(); scopeB = await live.publishB();
+            await unread([scopeA.id]);
+            await until(async () => await live.pageB.getByTestId('feed-unread-' + scopeB.id).count() === 1, 'Account B update must be visible');
+            expect('07-native-account-a-unread', 'A', [scopeA.id], [scopeB.id]);
+            expect('08-native-account-a-done', 'A', [], [scopeB.id]);
+            return { first: scopeA.id, other: scopeB.id };
+        }
+        if (action === 'select-b') {
+            checkpointPrefix(8);
+            await unread([]);
+            assert.equal((await feed('B')).find(item => item.id === scopeB.id)?.readAt, null);
+            protectedA = await live.publishA();
+            await unread([protectedA.id]);
+            expect('09-native-account-b-unread', 'B', [scopeB.id], [protectedA.id]);
+            expect('10-native-account-b-done', 'B', [], [protectedA.id]);
+            coordinator.selectAccount('B');
+            return { protected: protectedA.id };
+        }
+        if (action === 'select-a') {
+            checkpointPrefix(10);
+            assert.equal((await feed()).find(item => item.id === protectedA.id)?.readAt, null);
+            assert((await feed('B')).every(item => item.readAt != null));
+            expect('11-native-account-a-restored', 'A', [protectedA.id], []);
+            coordinator.selectAccount('A');
+            return {};
+        }
+        if (action === 'arm-race') {
+            checkpointPrefix(11);
+            await unread([protectedA.id]);
+            relay.arm(protectedA.cursor);
+            return {};
+        }
+        if (action === 'race-pending') {
+            checkpointPrefix(11);
+            const held = await relay.waitForHeld();
+            assert.equal(held.through, protectedA.cursor);
+            // The native UI has asserted disabled while its own real request is held.
+            raceArrival = await live.publishA();
+            assert(Number(raceArrival.cursor.slice(2)) > Number(held.through.slice(2)));
+            assert.equal((await feed()).find(item => item.id === raceArrival.id)?.readAt, null);
+            expect('12-native-race-new-arrival', 'A', [raceArrival.id], []);
+            receipt.nativeRace = { through: held.through, beforeId: protectedA.id,
+                incomingId: raceArrival.id, incomingCursor: raceArrival.cursor, nativePendingObserved: true };
+            return { incoming: raceArrival.id };
+        }
+        if (action === 'release-race') {
+            checkpointPrefix(11);
+            assert(raceArrival && !relay.receipt.failed);
+            assert.equal(relay.receipt.releaseCount, 0);
+            receipt.nativeRace.nativeArrivalObservedWhilePending = true;
+            relay.release();
+            return {};
+        }
+        if (action === 'restart') {
+            checkpointPrefix(12);
+            await unread([raceArrival.id]);
+            assert.equal(relay.receipt.failed, false);
+            const snapshots = { A: await feed(), B: await feed('B') };
+            await live.contextA.setOffline(true); await live.contextB.setOffline(true);
+            await until(() => relay.connectionSnapshot().active.length === 1, 'Only native WebSocket may remain before restart');
+            const nativeConnection = relay.connectionSnapshot().active[0];
+            const readPid = async name => Number((await readFile(resolve(directory, name), 'utf8')).trim());
+            assert.equal(await readPid('server-runner.pid'), serverRunner.pid);
+            const previousPid = await readPid('server.pid');
+            assert(Number.isInteger(previousPid) && previousPid > 1);
+            serverRunner.kill('SIGUSR2');
+            await until(async () => {
+                const current = await readPid('server.pid');
+                return Number.isInteger(current) && current > 1 && current !== previousPid;
+            }, 'Owned native-phase server child must restart');
+            await until(async () => {
+                try { return (await fetch(origin + '/health', { signal: AbortSignal.timeout(2000) })).status === 200; }
+                catch { return false; }
+            }, 'Owned restarted server must become healthy');
+            await until(() => {
+                const transport = relay.connectionSnapshot();
+                return transport.connections.find(item => item.id === nativeConnection)?.closed
+                    && transport.active.length === 1 && transport.active[0] !== nativeConnection;
+            }, 'Native WebSocket must reconnect after owned server restart');
+            assert.deepEqual(await feed(), snapshots.A);
+            assert.deepEqual(await feed('B'), snapshots.B);
+            const server = JSON.parse(await readFile(resolve(directory, 'server-runner-receipt.json'), 'utf8'));
+            assert.equal(server.restarts, 2);
+            receipt.nativeRestart = { previousPid, currentPid: await readPid('server.pid'),
+                accountsRetained: ['A', 'B'], snapshots, restarts: server.restarts,
+                previousNativeConnection: nativeConnection, reconnectedNativeConnection: relay.connectionSnapshot().active[0],
+                browserContextsOffline: true };
+            expect('13-native-after-server-restart', 'A', [raceArrival.id], []);
+            return {};
+        }
+        if (action === 'publish-after-restart') {
+            checkpointPrefix(13);
+            restartArrival = await live.publishA();
+            assert.equal(relay.connectionSnapshot().active.length, 1);
+            expect('14-native-reconnected-new-arrival', 'A', [raceArrival.id, restartArrival.id], []);
+            expect('15-native-reconnected-done', 'A', [], []);
+            expect('16-native-final-relaunch', 'A', [], []);
+            return { incoming: restartArrival.id };
+        }
+        if (action === 'resume-web') {
+            checkpointPrefix(14);
+            assert.equal(relay.connectionSnapshot().active.length, 1);
+            receipt.nativeRestart.nativeReceivedAfterReconnect = true;
+            await live.contextA.setOffline(false); await live.contextB.setOffline(false);
+            await unread([raceArrival.id, restartArrival.id]);
+            return {};
+        }
+        throw new Error('Unknown native acceptance action');
+    });
 }
 async function proofManifest() {
     const rows = [];
@@ -313,7 +436,8 @@ try {
     for (const name of ['web', 'web-native', 'native']) await mkdir(resolve(proof, name));
     await save();
     await record('fresh-isolated-server-and-production-migrations', async () => {
-        await portUnused(43545); await portUnused(43547);
+        await portUnused(43545); await portUnused(43546); await portUnused(43547);
+        relay = await startNativeTransportRelay();
         serverRunner = spawn(process.execPath, [resolve(directory, 'server-runner.mjs')], {
             cwd: root, detached: true, env: { ...process.env, HH345_REPO_ROOT: root,
                 HH345_ARTIFACT_DIR: directory, HH345_SOURCE_SHA: sourceSha },
@@ -334,7 +458,7 @@ try {
         live = await runAcceptance({ browser, origin, artifactDir: resolve(proof, 'web'), sha: sourceSha, runnerPid: serverRunner.pid });
         assert.equal(live.receipt.status, 'PASS'); assert.equal(live.checks.length, 13);
         assert(live.checks.every(check => check.status === 'PASS'));
-        await live.contextM.close(); await live.contextB.close();
+        await live.contextM.close();
     });
     await record('prepare-native-account-with-two-real-unread-updates', async () => {
         await done();
@@ -345,11 +469,12 @@ try {
         receipt.firstId = first.id; receipt.secondId = second.id;
         await sodium.ready;
         coordinator = await startNativeCoordinator({ sodium, seed: Buffer.from(live.seedA, 'base64url'), credentials: live.credsA,
-            api: live.api, socketUpdates: live.receipt.socketUpdates, firstId: first.id, secondId: second.id,
+            api: live.api, accountB: { seed: Buffer.from(live.seedB, 'base64url'), credentials: live.credsB },
+            onAction: nativeAction, socketUpdates: live.receipt.socketUpdates, firstId: first.id, secondId: second.id,
             artifactDir: resolve(proof, 'native'), nativeBuildSha: nativeSha, serverSourceSha: sourceSha });
         await capture('desktop-native-initial-unread');
     });
-    await record('actual-native-xctest-and-six-persisted-checkpoints', async () => {
+    await record('actual-native-xctest-and-sixteen-persisted-checkpoints', async () => {
         driver = spawn(process.env.HH345_PYTHON || 'python3', [resolve(root, 'docs/acceptance/issue-345/hosted-native/native-driver.py')], {
             cwd: root, detached: true,
             env: { ...process.env, HH345_FIRST_ID: receipt.firstId, HH345_SECOND_ID: receipt.secondId,
@@ -360,7 +485,7 @@ try {
         let pending = Promise.resolve();
         const lines = createInterface({ input: driver.stdout });
         lines.on('line', line => {
-            if (!['HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE'].includes(line.trim())) return;
+            if (!expectedMarkers.includes(line.trim())) return;
             pending = pending.then(() => marker(line.trim())).catch(() => {
                 markerFailure = true; driver.kill('SIGTERM');
             });
@@ -369,14 +494,17 @@ try {
         driverCompletion = observeExit(driver, value => { driverExit = value; });
         const exit = await driverCompletion; await pending;
         assert(!markerFailure); assert.equal(exit.code, 0); assert.equal(exit.signal, null);
-        assert.deepEqual(markers, ['HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE']);
+        assert.deepEqual(markers, expectedMarkers);
         await verifyNativeDriverReceipt();
-        checkpointPrefix(6);
+        checkpointPrefix(NATIVE_STAGES.length);
         assert(coordinator.receipt.approvedAt); assert.equal(coordinator.receipt.approvalEndpointStatus, 200);
         await unread([]);
         const final = await feed(); assert(final.every(item => item.readAt != null));
         assert(final.some(item => item.id === incoming.id));
-        assert.deepEqual(final, coordinator.receipt.checkpoints[5].items);
+        assert.deepEqual(final, coordinator.receipt.checkpoints.at(-1).items);
+        assert.deepEqual(coordinator.receipt.links.map(link => link.account), ['A', 'B', 'A']);
+        assert.equal(relay.receipt.failed, false);
+        receipt.nativeTransportRelay = relay.receipt;
         receipt.finalFeed = final; receipt.nativeDriverExit = exit;
         await coordinator.persist();
     });
@@ -386,6 +514,7 @@ try {
     await proofManifest();
     console.log('HH345_HOSTED_ACCEPTANCE_PASS');
 } catch {
+    if (relay) receipt.nativeTransportRelay = relay.receipt;
     receipt.status = 'FAIL'; receipt.firstFailure ??= { stage, type: 'AcceptanceFailure', at: new Date().toISOString() };
     receipt.completedAt = new Date().toISOString();
     await save().catch(() => {});

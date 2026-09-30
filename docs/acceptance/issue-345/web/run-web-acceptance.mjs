@@ -508,16 +508,16 @@ export async function runAcceptance({
             await capture(pageM, 'mobile-new-arrival-unread');
         });
 
-        let credsB, protectedItem;
+        let credsB, seedB, publishB, protectedItem;
         await stage('separate-account-isolation-through-real-ui-and-api', async () => {
-            const seedB = randomBytes(32).toString('base64url');
+            seedB = randomBytes(32).toString('base64url');
             contextB = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-US', colorScheme: 'light' });
             const restored = await restore(contextB, seedB, 'desktop-B');
             pageB = restored.page; credsB = restored.credentials;
             assert(restored.accountId !== accountAId, 'Account B must be independent');
             assert.equal((await feed(credsB)).length, 0, 'Account B must not receive account A updates');
             await openInbox(pageB);
-            const publishB = await makePublisher(credsB, seedB, 'B');
+            publishB = await makePublisher(credsB, seedB, 'B');
             const own = await publishB();
             await expectUnread(pageB, [own.id]);
             await done(pageA);
@@ -573,7 +573,7 @@ export async function runAcceptance({
         await save();
         // Caller retains these live contexts and secret values for native proof.
         // Never JSON.stringify, inspect, log, or write this entire return value.
-        return { pageA, pageM, pageB, contextA, contextM, contextB, seedA, credsA, publishA, api, checks, receipt };
+        return { pageA, pageM, pageB, contextA, contextM, contextB, seedA, credsA, publishA, seedB, credsB, publishB, api, checks, receipt };
     } catch (error) {
         receipt.status = 'FAIL';
         receipt.completedAt = new Date().toISOString();

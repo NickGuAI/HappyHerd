@@ -133,3 +133,43 @@ is inconclusive. Activation, signing, auth, all eight screenshots, assertions
 and timeouts are unchanged. This run diagnoses launch; even a six-checkpoint
 native pass still needs native account-scope, arrival-during-Done and durable
 server-restart proof beyond the existing Web coverage.
+
+The eighth journey at `8b9638b0` again failed only at activation. Both private
+XCTest sources classify it as `launch-rejected` / `launch-denied`; neither
+exposed an allowlisted error domain/code or a crash signal. The owned-simulator
+log query exceeded its unchanged 256 KiB bound and is inconclusive. The auth
+query completed with zero matching failures, and cleanup succeeded. All 13
+Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
+and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
+retain that attempt. The [durable failure summaries](failed-attempts.json)
+preserve all eight hosted failures and original receipt hashes.
+
+The follow-up query retains the same app/device scope, 20-second deadline and
+256 KiB ceiling, selecting only error/fault records or fixed launch-failure
+terms and omitting debug-level records. Fixed service-reason enums and expanded
+Apple error-code syntax distinguish a security, busy or missing-app rejection
+without publishing its description. This is a diagnostic correction; activation
+and simulator signing remain unchanged and no launch repair is claimed.
+
+## Full native acceptance continuation
+
+The original six native checkpoints and eight captures remain required. Ten
+additional checkpoints require native A→B→A account isolation using ordinary
+Logout and visible QR linking; arrival while native Done is pending; durable
+isolated-server restart; native socket reconnect; and a final authenticated
+relaunch. Account seeds, tokens and QR payloads remain only in memory.
+
+The acceptance-only loopback relay forwards real HTTP and Socket.IO traffic to
+the unchanged production server on a second owned port. It can delay exactly one
+real native read request: native must visibly observe Done disabled and both old
+and newly arrived unread dots before releasing the original request unchanged.
+No synthetic response, authentication or read state is injected. Native then
+must show the newer update unread while the acknowledged snapshot clears.
+
+Before the second server restart, both remaining browser contexts go offline.
+The relay must observe exactly one live socket (native), its closure and a new
+native connection while browsers remain offline. The running native app must
+receive a newly published real update before browser transport is restored.
+The server retains its disk database and parent-held secret across the restart;
+account snapshots, existing read timestamps and subsequent native relaunch are
+verified. The final controller requires all 16 checkpoints and 18 captures.

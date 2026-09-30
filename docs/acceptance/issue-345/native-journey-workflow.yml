@@ -85,7 +85,7 @@ jobs:
           pnpm --dir server --filter happyherd-app exec expo export --platform web --clear             --output-dir "$HH345_ARTIFACT_DIR/web-dist" > "$HH345_ARTIFACT_DIR/web-export.log" 2>&1
           git diff --exit-code -- server
           cp docs/acceptance/issue-345/web/run-web-acceptance.mjs "$HH345_ARTIFACT_DIR/"
-          cp docs/acceptance/issue-345/hosted-native/{controller,server-runner,native-coordinator}.mjs "$HH345_ARTIFACT_DIR/"
+          cp docs/acceptance/issue-345/hosted-native/{controller,server-runner,native-coordinator,native-transport-relay}.mjs "$HH345_ARTIFACT_DIR/"
       - name: Execute authenticated desktop, mobile and installed iOS journeys
         run: node "$HH345_ARTIFACT_DIR/controller.mjs"
       - uses: actions/upload-artifact@v4

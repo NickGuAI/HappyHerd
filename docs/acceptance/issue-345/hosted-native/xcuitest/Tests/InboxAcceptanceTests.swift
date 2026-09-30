@@ -47,6 +47,16 @@ final class InboxAcceptanceTests: XCTestCase {
         case persistedReadState = "persisted-read-state"
         case newArrival = "new-arrival"
         case remoteDone = "remote-done"
+        case accountScope = "account-scope"
+        case accountLogout = "account-logout"
+        case accountB = "account-b"
+        case accountA = "account-a"
+        case doneRace = "done-race"
+        case racePending = "race-pending"
+        case serverRestart = "server-restart"
+        case reconnectedArrival = "reconnected-arrival"
+        case reconnectedDone = "reconnected-done"
+        case finalRelaunch = "final-relaunch"
         case complete
     }
 
@@ -169,6 +179,10 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     private func postToCoordinator(_ path: String, body: [String: String]) -> Bool {
+        coordinatorReply(path, body: body) != nil
+    }
+
+    private func coordinatorReply(_ path: String, body: [String: String]) -> [String: Any]? {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
         configuration.httpCookieStorage = nil
@@ -179,9 +193,10 @@ final class InboxAcceptanceTests: XCTestCase {
         request.httpMethod = "POST"
         request.timeoutInterval = 45
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return false }
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return nil }
         request.httpBody = bodyData
         let acknowledged = XCTestExpectation(description: "Local coordinator acknowledged the UI checkpoint.")
+        var reply: [String: Any]?
         let task = session.dataTask(with: request) { data, response, error in
             guard error == nil,
                   let response = response as? HTTPURLResponse,
@@ -189,10 +204,50 @@ final class InboxAcceptanceTests: XCTestCase {
                   let data,
                   let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   payload["ok"] as? Bool == true else { return }
+            reply = payload
             acknowledged.fulfill()
         }
         task.resume()
-        return XCTWaiter.wait(for: [acknowledged], timeout: 50) == .completed
+        return XCTWaiter.wait(for: [acknowledged], timeout: 50) == .completed ? reply : nil
+    }
+
+    private func action(_ name: String) -> [String: Any] {
+        guard let reply = coordinatorReply("/action", body: ["action": name]) else {
+            XCTFail("Native acceptance action must acknowledge.")
+            return [:]
+        }
+        return reply
+    }
+
+    private func feedID(_ reply: [String: Any], _ key: String) -> String {
+        guard let id = reply[key] as? String, !id.isEmpty else {
+            XCTFail("Native acceptance reply must contain its nonsecret feed identity.")
+            return "missing-feed-identity"
+        }
+        return id
+    }
+
+    private func logoutNormally() {
+        setPhase(.accountLogout)
+        restoring = true // Never retain account-settings content on a test failure.
+        app.open(URL(string: "happyherd:///")!)
+        let settings = app.buttons["Settings"].firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 20) && settings.isHittable, "Visible native Settings action must exist.")
+        settings.tap()
+        let account = element("settings-section-account")
+        XCTAssertTrue(account.waitForExistence(timeout: 20) && account.isHittable, "Visible Account settings action must exist.")
+        account.tap()
+        let logout = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Logout")).firstMatch
+        for _ in 0..<12 {
+            if logout.exists && logout.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(logout.exists && logout.isHittable, "Normal Logout action must be visible.")
+        logout.tap()
+        let confirm = app.alerts.buttons["Logout"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 10), "Native Logout confirmation must appear.")
+        confirm.tap()
+        XCTAssertTrue(app.buttons["Login with mobile app"].firstMatch.waitForExistence(timeout: 60), "Normal Logout must return to login.")
     }
 
     private func reportQRDiagnostics() {
@@ -395,6 +450,78 @@ final class InboxAcceptanceTests: XCTestCase {
         marker("HH345_READY_FOR_REMOTE_DONE")
         XCTAssertTrue(wait(180) { unreadDots.count == 0 && !bellDot.exists }, "Desktop Done must clear the native update over the real connection.")
         captureInbox("06-native-inbox-remote-done")
+        // Account scope is proved on this installed app through ordinary
+        // logout and fresh QR linking, with no key typing or state injection.
+        setPhase(.accountScope)
+        marker("HH345_NATIVE_ACCOUNT_SCOPE")
+        let scope = action("prepare-scope")
+        let scopeAID = feedID(scope, "first")
+        let scopeBID = feedID(scope, "other")
+        let scopeADot = element("feed-unread-" + scopeAID)
+        let scopeBDot = element("feed-unread-" + scopeBID)
+        XCTAssertTrue(wait { scopeADot.exists && bellDot.exists && !element("feed-card-" + scopeBID).exists }, "Native A must receive only its own unread update.")
+        captureInbox("07-native-account-a-unread")
+        element("inbox-mark-all-read").tap()
+        XCTAssertTrue(wait { unreadDots.count == 0 && !bellDot.exists }, "Native A Done must clear only A.")
+        captureInbox("08-native-account-a-done")
+        let protectedID = feedID(action("select-b"), "protected")
+        logoutNormally()
+        setPhase(.accountB)
+        guard authenticateIfNeeded() else { return }
+        openInbox()
+        XCTAssertTrue(wait { scopeBDot.exists && bellDot.exists && !element("feed-card-" + scopeAID).exists && !element("feed-card-" + protectedID).exists }, "Native B must not retain A cards after normal account switching.")
+        captureInbox("09-native-account-b-unread")
+        element("inbox-mark-all-read").tap()
+        XCTAssertTrue(wait { !scopeBDot.exists && unreadDots.count == 0 && !bellDot.exists }, "Native B Done must clear only B.")
+        captureInbox("10-native-account-b-done")
+        _ = action("select-a")
+        logoutNormally()
+        setPhase(.accountA)
+        guard authenticateIfNeeded() else { return }
+        openInbox()
+        let protectedDot = element("feed-unread-" + protectedID)
+        XCTAssertTrue(wait { protectedDot.exists && bellDot.exists && !element("feed-card-" + scopeBID).exists }, "A's unread update must survive B Done and normal account restoration.")
+        captureInbox("11-native-account-a-restored")
+
+        setPhase(.doneRace)
+        marker("HH345_NATIVE_DONE_RACE")
+        _ = action("arm-race")
+        let doneButton = element("inbox-mark-all-read")
+        doneButton.tap()
+        setPhase(.racePending)
+        XCTAssertTrue(wait { !doneButton.isEnabled }, "Native Done must remain disabled while its real request is pending.")
+        let raceID = feedID(action("race-pending"), "incoming")
+        let raceDot = element("feed-unread-" + raceID)
+        XCTAssertTrue(wait { !doneButton.isEnabled && protectedDot.exists && raceDot.exists && bellDot.exists }, "The new native update must arrive while its earlier Done request is still pending.")
+        _ = action("release-race")
+        XCTAssertTrue(wait { doneButton.isEnabled && !protectedDot.exists && raceDot.exists && bellDot.exists && unreadDots.count == 1 }, "Native Done must preserve the update arriving after its sent snapshot.")
+        captureInbox("12-native-race-new-arrival")
+
+        setPhase(.serverRestart)
+        marker("HH345_NATIVE_SERVER_RESTART")
+        _ = action("restart")
+        XCTAssertTrue(wait { raceDot.exists && !protectedDot.exists && bellDot.exists }, "The foreground native Inbox must retain durable read state across server restart.")
+        captureInbox("13-native-after-server-restart")
+        setPhase(.reconnectedArrival)
+        let restartID = feedID(action("publish-after-restart"), "incoming")
+        let restartDot = element("feed-unread-" + restartID)
+        XCTAssertTrue(wait(180) { restartDot.exists && raceDot.exists && bellDot.exists && unreadDots.count == 2 }, "The foreground native client must receive a real update after server reconnect.")
+        captureInbox("14-native-reconnected-new-arrival")
+        _ = action("resume-web")
+        setPhase(.reconnectedDone)
+        doneButton.tap()
+        XCTAssertTrue(wait { unreadDots.count == 0 && !bellDot.exists }, "Native Done after reconnect must persist both reads.")
+        captureInbox("15-native-reconnected-done")
+        setPhase(.finalRelaunch)
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(element("herd-inbox-bell").waitForExistence(timeout: 60), "Authentication must survive final relaunch after server restart.")
+        openInbox()
+        XCTAssertTrue(wait {
+            element("feed-card-" + raceID).exists && element("feed-card-" + restartID).exists
+                && unreadDots.count == 0 && !bellDot.exists && !element("feed-card-" + scopeBID).exists
+        }, "Final reload must retain the correct account and all durable read timestamps.")
+        captureInbox("16-native-final-relaunch")
         setPhase(.complete)
     }
 }

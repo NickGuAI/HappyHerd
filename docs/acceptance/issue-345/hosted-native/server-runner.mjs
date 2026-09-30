@@ -21,7 +21,7 @@ const childEnvironment = {
     PATH: process.env.PATH, NODE_ENV: 'production', TZ: 'UTC',
     TMPDIR: process.env.RUNNER_TEMP || process.env.TMPDIR || '/tmp',
     DB_PROVIDER: 'pglite', DATA_DIR: dataDir, PGLITE_DIR: resolve(dataDir, 'pglite'),
-    HOST: '127.0.0.1', PORT: '43545', PUBLIC_URL: 'http://127.0.0.1:43545',
+    HOST: '127.0.0.1', PORT: '43546', PUBLIC_URL: 'http://127.0.0.1:43545',
     HAPPYHERD_STATIC_DIR: resolve(process.env.HH345_WEB_DIST || resolve(directory, 'web-dist')),
     HAPPYHERD_INJECT_HTML_CONFIG: JSON.stringify({ serverUrl: 'http://127.0.0.1:43545', disableAnalytics: true }),
     METRICS_ENABLED: 'false', HANDY_MASTER_SECRET: randomBytes(32).toString('hex'),
@@ -65,7 +65,7 @@ function launch(command) {
 }
 async function serve() {
     const result = launch('serve');
-    event('serve-start', { serverPid: child.pid, runnerPid: process.pid, port: 43545 });
+    event('serve-start', { serverPid: child.pid, runnerPid: process.pid, port: 43546 });
     await result;
     if (stopping) return;
     assert(restarting, 'Isolated server exited unexpectedly');
