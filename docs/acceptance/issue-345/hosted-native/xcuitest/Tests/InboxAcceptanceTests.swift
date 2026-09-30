@@ -15,6 +15,47 @@ final class InboxAcceptanceTests: XCTestCase {
     private var qrDecoderSetupError = false
     private var notificationPromptSeen = false
     private var notificationPromptDeclined = false
+    private var nativePhase: NativePhase = .setup
+    private var reportingNativeFailure = false
+
+    private enum NativePhase: String {
+        case setup, activate
+        case startupWait = "startup-wait"
+        case startupReady = "startup-ready"
+        case openServer = "open-server"
+        case serverField = "server-field"
+        case serverValue = "server-value"
+        case serverCapture = "server-capture"
+        case openRoot = "open-root"
+        case auth
+        case authLogin = "auth-login"
+        case authQR = "auth-qr"
+        case authApproval = "auth-approval"
+        case authBell = "auth-bell"
+        case inboxBell = "inbox-bell"
+        case inboxPopover = "inbox-popover"
+        case inboxOpenPage = "inbox-open-page"
+        case inboxReady = "inbox-ready"
+        case inboxUnread = "inbox-unread"
+        case singleRead = "single-read"
+        case singleReadNavigation = "single-read-navigation"
+        case singleReadState = "single-read-state"
+        case markAllRead = "mark-all-read"
+        case allReadState = "all-read-state"
+        case relaunch
+        case relaunchBell = "relaunch-bell"
+        case persistedReadState = "persisted-read-state"
+        case newArrival = "new-arrival"
+        case remoteDone = "remote-done"
+        case complete
+    }
+
+    private enum NativeAppState: String {
+        case unknown
+        case notRunning = "not-running"
+        case backgroundSuspended = "background-suspended"
+        case background, foreground
+    }
 
     private enum AuthDiagnosticPhase: String {
         case afterApproval = "after-approval"
@@ -36,6 +77,7 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     override func record(_ issue: XCTIssue) {
+        reportNativeFailure()
         // Authentication failures retain no hierarchy, URL or custom attachment.
         // The scheme discards automatic captures with keepNever.
         if restoring {
@@ -49,6 +91,41 @@ final class InboxAcceptanceTests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func setPhase(_ phase: NativePhase) {
+        nativePhase = phase
+        marker("HH345_NATIVE_PHASE phase=\(phase.rawValue)")
+    }
+
+    private func currentAppState() -> NativeAppState {
+        switch app.state {
+        case .unknown: return .unknown
+        case .notRunning: return .notRunning
+        case .runningBackgroundSuspended: return .backgroundSuspended
+        case .runningBackground: return .background
+        case .runningForeground: return .foreground
+        @unknown default: return .unknown
+        }
+    }
+
+    private func reportNativeFailure() {
+        // Fixed vocabulary only: never forward the issue, field values, labels,
+        // hierarchy, URLs or screenshots from a startup/authentication failure.
+        // Emit the phase before any query: even failed activation or a query
+        // that records another XCTest issue must retain the original phase.
+        marker("HH345_NATIVE_FAILURE phase=\(nativePhase.rawValue)")
+        guard !reportingNativeFailure else { return }
+        reportingNativeFailure = true
+        defer { reportingNativeFailure = false }
+        let appState = currentAppState()
+        let uiQueried = appState == .foreground
+        let loginVisible = uiQueried && app.buttons["Login with mobile app"].firstMatch.exists
+        let qrRouteVisible = uiQueried && app.buttons["Restore with Secret Key Instead"].firstMatch.exists
+        let serverFieldVisible = uiQueried && app.textFields.firstMatch.exists
+        let appAlertPresent = uiQueried && app.alerts.firstMatch.exists
+        let systemAlertPresent = uiQueried && springboard.alerts.firstMatch.exists
+        marker("HH345_NATIVE_STATE phase=\(nativePhase.rawValue) appState=\(appState.rawValue) uiQueried=\(uiQueried) loginVisible=\(loginVisible) qrRouteVisible=\(qrRouteVisible) serverFieldVisible=\(serverFieldVisible) appAlertPresent=\(appAlertPresent) systemAlertPresent=\(systemAlertPresent)")
     }
 
     private func wait(_ seconds: TimeInterval = 30, until condition: () -> Bool) -> Bool {
@@ -71,18 +148,23 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     private func verifyServerBeforeAuthentication() {
+        setPhase(.openServer)
         app.open(URL(string: "happyherd:///server")!)
         // The maintained server route has one single-line URL TextInput.
         // Read only this server field's value, never an account-key field.
         let serverURL = app.textFields.firstMatch
+        setPhase(.serverField)
         XCTAssertTrue(serverURL.waitForExistence(timeout: 20), "Server URL field must appear before authentication.")
         XCTAssertTrue(serverURL.isHittable, "Server URL must be visibly accessible.")
-        XCTAssertEqual(serverURL.value as? String, "http://127.0.0.1:43545", "Verify the isolated API before linking.")
+        setPhase(.serverValue)
+        XCTAssertTrue(serverURL.value as? String == "http://127.0.0.1:43545", "Verify the isolated API before linking.")
+        setPhase(.serverCapture)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "00-native-server-before-authentication"
         attachment.lifetime = .keepAlways
         add(attachment)
         // Do not save, update, or validate the form. Return through the normal route.
+        setPhase(.openRoot)
         app.open(URL(string: "happyherd:///")!)
     }
 
@@ -129,15 +211,7 @@ final class InboxAcceptanceTests: XCTestCase {
         let bellVisible = element("herd-inbox-bell").exists
         let appAlertPresent = app.alerts.firstMatch.exists
         let systemAlertPresent = springboard.alerts.firstMatch.exists
-        let appState: String
-        switch app.state {
-        case .unknown: appState = "unknown"
-        case .notRunning: appState = "not-running"
-        case .runningBackgroundSuspended: appState = "background-suspended"
-        case .runningBackground: appState = "background"
-        case .runningForeground: appState = "foreground"
-        @unknown default: appState = "unknown"
-        }
+        let appState = currentAppState().rawValue
         marker("HH345_AUTH_DIAGNOSTICS phase=\(phase.rawValue) qrRouteVisible=\(qrRouteVisible) loginVisible=\(loginVisible) bellVisible=\(bellVisible) appAlertPresent=\(appAlertPresent) systemAlertPresent=\(systemAlertPresent) notificationPromptSeen=\(notificationPromptSeen) notificationPromptDeclined=\(notificationPromptDeclined) appState=\(appState)")
     }
 
@@ -187,11 +261,14 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     private func authenticateIfNeeded() -> Bool {
+        setPhase(.auth)
         if element("herd-inbox-bell").waitForExistence(timeout: 8) { return true }
         restoring = true
+        setPhase(.authLogin)
         let link = app.buttons["Login with mobile app"].firstMatch
         guard link.waitForExistence(timeout: 20) else { return restoreFailed(.loginControlMissing) }
         link.tap()
+        setPhase(.authQR)
         var publicLink: String?
         guard wait(30, until: {
             publicLink = publicLinkFromVisibleQR()
@@ -201,8 +278,10 @@ final class InboxAcceptanceTests: XCTestCase {
         // The coordinator acts as the real authenticated companion. It approves
         // this public request through /v1/auth/account/response; the app's normal
         // /restore polling consumes the encrypted response and performs login.
+        setPhase(.authApproval)
         guard postToCoordinator("/native-link", body: ["url": publicLink]) else { return restoreFailed(.approvalUnacknowledged) }
         var reportedApproval = false
+        setPhase(.authBell)
         guard wait(60, until: {
             declineOwnedNotificationPrompt()
             if !reportedApproval {
@@ -217,13 +296,17 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     private func openInbox() {
+        setPhase(.inboxBell)
         let bell = element("herd-inbox-bell")
         XCTAssertTrue(bell.waitForExistence(timeout: 30), "Authenticated Inbox bell must exist.")
         bell.tap()
+        setPhase(.inboxPopover)
         XCTAssertTrue(element("herd-inbox-popover").waitForExistence(timeout: 10), "Inbox popover must open.")
         let openPage = element("herd-inbox-open-page")
+        setPhase(.inboxOpenPage)
         XCTAssertTrue(openPage.waitForExistence(timeout: 10), "Inbox page action must exist.")
         openPage.tap()
+        setPhase(.inboxReady)
         XCTAssertTrue(element("inbox-mark-all-read").waitForExistence(timeout: 15), "Inbox title Done action must exist.")
     }
 
@@ -245,6 +328,7 @@ final class InboxAcceptanceTests: XCTestCase {
     }
 
     func testNativeInboxReadJourney() {
+        setPhase(.setup)
         let environment = ProcessInfo.processInfo.environment
         guard let firstID = environment["HH345_FIRST_ID"], !firstID.isEmpty,
               let secondID = environment["HH345_SECOND_ID"], !secondID.isEmpty,
@@ -252,7 +336,12 @@ final class InboxAcceptanceTests: XCTestCase {
             XCTFail("Provide the two distinct, nonsecret real feed IDs to the test runner.")
             return
         }
+        setPhase(.activate)
         app.activate()
+        setPhase(.startupWait)
+        let startupLogin = app.buttons["Login with mobile app"].firstMatch
+        XCTAssertTrue(wait(60) { startupLogin.exists && startupLogin.isHittable }, "Unauthenticated login control must become ready before the server route.")
+        setPhase(.startupReady)
         verifyServerBeforeAuthentication()
         guard authenticateIfNeeded() else { return }
         openInbox()
@@ -260,26 +349,35 @@ final class InboxAcceptanceTests: XCTestCase {
         let firstDot = element("feed-unread-" + firstID)
         let secondDot = element("feed-unread-" + secondID)
         let bellDot = element("herd-inbox-dot")
+        setPhase(.inboxUnread)
         XCTAssertTrue(wait { firstDot.exists && secondDot.exists && bellDot.exists }, "Both initial updates and the bell must be unread.")
         captureInbox("01-native-inbox-unread")
 
         let firstCard = element("feed-card-" + firstID)
+        setPhase(.singleRead)
         XCTAssertTrue(firstCard.exists, "First automation update card must exist.")
         firstCard.tap()
+        setPhase(.singleReadNavigation)
         XCTAssertTrue(app.staticTexts["Automations"].firstMatch.waitForExistence(timeout: 20), "Reading the automation update must retain navigation.")
         // Automations is a phone top-level destination and intentionally has no
         // Back button. Return through the same visible bell and Inbox action.
         openInbox()
+        setPhase(.singleReadState)
         XCTAssertTrue(wait { !firstDot.exists && secondDot.exists && bellDot.exists }, "Single read must preserve the other update's unread state.")
         captureInbox("02-native-inbox-single-read")
 
+        setPhase(.markAllRead)
         element("inbox-mark-all-read").tap()
+        setPhase(.allReadState)
         XCTAssertTrue(wait { !firstDot.exists && !secondDot.exists && !bellDot.exists }, "Done must clear both updates and the feed bell.")
         captureInbox("03-native-inbox-done")
+        setPhase(.relaunch)
         app.terminate()
         app.launch()
+        setPhase(.relaunchBell)
         XCTAssertTrue(element("herd-inbox-bell").waitForExistence(timeout: 60), "Authentication must survive relaunch.")
         openInbox()
+        setPhase(.persistedReadState)
         XCTAssertTrue(wait {
             element("feed-card-" + firstID).exists && element("feed-card-" + secondID).exists
                 && !firstDot.exists && !secondDot.exists && !bellDot.exists
@@ -287,13 +385,16 @@ final class InboxAcceptanceTests: XCTestCase {
         captureInbox("04-native-inbox-after-relaunch")
 
         let unreadDots = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "feed-unread-"))
+        setPhase(.newArrival)
         marker("HH345_READY_FOR_NEW_ARRIVAL")
         XCTAssertTrue(wait(180) { unreadDots.count > 0 && bellDot.exists }, "A real incoming update must show a dot and bell.")
         XCTAssertFalse(firstDot.exists)
         XCTAssertFalse(secondDot.exists)
         captureInbox("05-native-inbox-new-arrival")
+        setPhase(.remoteDone)
         marker("HH345_READY_FOR_REMOTE_DONE")
         XCTAssertTrue(wait(180) { unreadDots.count == 0 && !bellDot.exists }, "Desktop Done must clear the native update over the real connection.")
         captureInbox("06-native-inbox-remote-done")
+        setPhase(.complete)
     }
 }

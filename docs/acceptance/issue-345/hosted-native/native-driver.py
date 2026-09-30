@@ -45,6 +45,16 @@ AUTH_STATES = {'unknown', 'not-running', 'background-suspended', 'background', '
 AUTH_BOOLEANS = ('qrRouteVisible', 'loginVisible', 'bellVisible', 'appAlertPresent',
                  'systemAlertPresent', 'notificationPromptSeen', 'notificationPromptDeclined')
 AUTH_FAILURES = {'login-control-missing', 'qr-unavailable', 'approval-unacknowledged', 'bell-unavailable'}
+NATIVE_PHASES = {
+    'setup', 'activate', 'startup-wait', 'startup-ready', 'open-server', 'server-field',
+    'server-value', 'server-capture', 'open-root', 'auth', 'auth-login', 'auth-qr',
+    'auth-approval', 'auth-bell', 'inbox-bell', 'inbox-popover', 'inbox-open-page',
+    'inbox-ready', 'inbox-unread', 'single-read', 'single-read-navigation',
+    'single-read-state', 'mark-all-read', 'all-read-state', 'relaunch', 'relaunch-bell',
+    'persisted-read-state', 'new-arrival', 'remote-done', 'complete',
+}
+NATIVE_BOOLEANS = ('uiQueried', 'loginVisible', 'qrRouteVisible', 'serverFieldVisible',
+                   'appAlertPresent', 'systemAlertPresent')
 AUTH_LOG_PATTERNS = {
     'qrDecryptSuccess': r'\bAuthentication successful\b',
     'qrDecryptFailure': r'Failed to decrypt response\. Please try again\.',
@@ -171,6 +181,31 @@ def parse_auth_diagnostic(line):
             **{key: fields[key] == 'true' for key in AUTH_BOOLEANS}}
 
 
+def parse_native_diagnostic(line):
+    """Static phases are retained even if an optional failure-state query fails."""
+    phase = re.fullmatch(r'HH345_NATIVE_(PHASE|FAILURE) phase=([a-z-]+)', line)
+    if phase:
+        if phase[2] in NATIVE_PHASES:
+            return {'kind': phase[1].lower(), 'phase': phase[2]}
+        return None
+    prefix = 'HH345_NATIVE_STATE '
+    if not line.startswith(prefix):
+        return None
+    pairs = [part.split('=', 1) for part in line[len(prefix):].split(' ')]
+    expected = {'phase', 'appState', *NATIVE_BOOLEANS}
+    if len(pairs) != len(expected) or any(len(pair) != 2 for pair in pairs):
+        return None
+    fields = dict(pairs)
+    if set(fields) != expected or fields['phase'] not in NATIVE_PHASES or fields['appState'] not in AUTH_STATES:
+        return None
+    if any(fields[key] not in ('true', 'false') for key in NATIVE_BOOLEANS):
+        return None
+    if fields['uiQueried'] == 'false' and any(fields[key] != 'false' for key in NATIVE_BOOLEANS[1:]):
+        return None
+    return {'kind': 'state', 'phase': fields['phase'], 'appState': fields['appState'],
+            **{key: fields[key] == 'true' for key in NATIVE_BOOLEANS}}
+
+
 class DriverRequirementError(RuntimeError):
     """A static, code-owned failure message safe for the public receipt."""
 
@@ -214,6 +249,7 @@ def main():
                            'swapPolicy': 'record only on this independent hosted host',
                            'localHostThresholdsChanged': False},
         'commands': [], 'markers': [], 'qrDiagnostics': [], 'authDiagnostics': [], 'authFailures': [], 'screenshots': [],
+        'nativePhases': [], 'nativeFailures': [], 'nativeStates': [],
         'passed': False,
     }
     samples = []
@@ -286,6 +322,14 @@ def main():
                 if allowed:
                     receipt['qrDiagnostics'].append(allowed)
                     save()
+            native_diagnostic = parse_native_diagnostic(line)
+            if native_diagnostic is not None:
+                kind = native_diagnostic.pop('kind')
+                if kind == 'state':
+                    receipt['nativeStates'].append(native_diagnostic)
+                else:
+                    receipt['nativePhases' if kind == 'phase' else 'nativeFailures'].append(native_diagnostic['phase'])
+                save()
             auth_diagnostic = parse_auth_diagnostic(line)
             if auth_diagnostic is not None:
                 receipt['authDiagnostics'].append(auth_diagnostic)

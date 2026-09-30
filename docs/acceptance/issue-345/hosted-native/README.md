@@ -97,3 +97,19 @@ The derivative executable hash is recorded and checked after installation. This
 is an explicit signing variant, not a byte-identical original executable or a
 product authentication change; actual normal login and every Inbox assertion
 remain required. No shared runtime or keychain is modified.
+
+At `f3cc900a`, signature creation and all preservation checks passed: 729 original
+files retained, only the executable signature changed and outer CodeResources
+was added, and all 59 sections, UUID and non-signature executable payload
+matched. The [first execution](https://github.com/NickGuAI/HappyHerd/actions/runs/36683230745/attempts/1)
+then stopped before installation because a bounded resource probe timed out
+during simulator boot; cleanup commands also timed out. No resource-floor
+crossing was recorded. Independent review supported one unchanged-head retry.
+That [retry](https://github.com/NickGuAI/HappyHerd/actions/runs/36683230745/attempts/2)
+installed and verified the derivative, then failed its actual XCTest before
+any server-settings capture or authentication diagnostics. Cleanup succeeded;
+the exact startup failure remains unknown. The next harness waits for the normal
+login screen before opening server settings and records only static phase
+names and typed state flags. Existing server-field/authentication bounds, Inbox
+assertions and evidence requirements remain unchanged. Signing's effect on
+normal account persistence is still unproved.

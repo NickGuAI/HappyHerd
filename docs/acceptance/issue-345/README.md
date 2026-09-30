@@ -136,3 +136,14 @@ passed with the identical product tree and no animation/test changes. This
 establishes intermittency across those executions; it does not establish the
 precise scheduling cause or relabel the first failed run. Final delivery still
 requires passing checks on its own exact head.
+
+At [`f3cc900a` Unit](https://github.com/NickGuAI/HappyHerd/actions/runs/36683230740),
+three unchanged browser-suite setup hooks exceeded their existing 30-second
+bound: CredentialsSettingsView, desktopWorkspace and sideChatHeader. 3,702 app
+tests passed; 238 did not run because setup failed, alongside ten existing
+skips. Later package suites did not execute. The exact stalled setup operation
+is unknown. Independent comparison matched the test/configuration files to main
+and the complete product tree to passing `39f46cbf`. The [same-head Contract
+suite](https://github.com/NickGuAI/HappyHerd/actions/runs/36683231386/job/109783220202)
+passed; this supports intermittency without relabeling the failed Unit run. No
+threshold or skip changed and no manual Unit retry was performed.
