@@ -83,6 +83,28 @@ class OwnedCrashCollectionTests(unittest.TestCase):
         self.assertEqual(rejected['identity-mismatch'], 2)
         self.assertEqual(rejected['malformed'], 1)
         self.assertEqual(rejected['nonregular'], 1)
+        self.assertEqual(len(result['rejectedIdentityReports']), 2)
+        self.assertEqual({row['rejectionGate'] for row in result['rejectedIdentityReports']},
+                         {'body-bundle-identifier', 'installed-path-scope'})
+        self.assertNotIn(self.private, json.dumps(result))
+
+    def test_rejected_candidate_retains_only_fixed_identity_diagnostics_and_byte_hash(self):
+        path = self.write_report(body={'bundleInfo': {'CFBundleIdentifier': self.private},
+                                      'classification': self.private, 'identityChecks': self.private,
+                                      'rejectionGate': self.private, 'sourceSha256': self.private,
+                                      'exception': {'type': 'EXC_CRASH', 'signal': 'SIGABRT'}})
+        result = self.collect()
+        self.assertEqual(result['reports'], [])
+        self.assertEqual(len(result['rejectedIdentityReports']), 1)
+        rejected = result['rejectedIdentityReports'][0]
+        self.assertEqual(set(rejected), {'source', 'sourceSha256', 'rejectionGate', 'identityChecks'})
+        self.assertEqual(rejected['sourceSha256'], driver.digest(path))
+        self.assertEqual(rejected['rejectionGate'], 'body-bundle-identifier')
+        self.assertTrue(rejected['identityChecks']['headerBundleMatches'])
+        self.assertFalse(rejected['identityChecks']['bodyBundleIdentifierMatches'])
+        self.assertTrue(rejected['identityChecks']['installedPathSuffixMatches'])
+        self.assertNotIn('classification', rejected)
+        self.assertNotIn('EXC_CRASH', json.dumps(result))
         self.assertNotIn(self.private, json.dumps(result))
 
     def test_invalid_owned_scope_and_symlink_report_directory_are_not_read(self):
@@ -104,6 +126,12 @@ class OwnedCrashCollectionTests(unittest.TestCase):
         result = self.collect()
         self.assertTrue(result['candidateLimitReached'])
         self.assertEqual(len(result['reports']), 16)
+        for index in range(17):
+            self.write_report(f'HappyHerd-{index}.ips', body={'bundleInfo': {}})
+        result = self.collect()
+        self.assertTrue(result['candidateLimitReached'])
+        self.assertEqual(len(result['rejectedIdentityReports']), 16)
+        self.assertEqual(result['reports'], [])
         for index in range(17):
             self.write_report(f'HappyHerd-{index}.ips', body={'padding': 'x' * (1024 * 1024)})
         result = self.collect()

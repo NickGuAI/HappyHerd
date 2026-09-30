@@ -325,3 +325,16 @@ Native checkpoints 01–08 and all 13 Web stages passed; the full native test st
 failed, with successful cleanup. [Retained evidence and bounded crash diagnostics](hosted-native/README.md)
 preserve the unknown cause and inspect the owned app's reload/process failure
 without changing the journey or automatically reopening the app.
+
+[Native attempt 17](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889053)
+repeated the same post-Logout failure after checkpoints 01–08 and all 13 Web
+stages passed. One recent app-named crash-report candidate failed exact identity
+checks; no crash was classified, so the cause remains unknown. The
+[retained failure and next narrow diagnostic](hosted-native/README.md) distinguish
+the rejected identity predicates without relaxing ownership or changing behavior.
+On that exact head, all six required gates passed in
+[Quality](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889054) and
+[Contract](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889068), as did
+[all four installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36764888923),
+the [server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36764888996)
+and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889054/artifacts/11120097590).

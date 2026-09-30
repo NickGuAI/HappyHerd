@@ -272,7 +272,7 @@ def parse_native_diagnostic(line):
 
 def collect_owned_crash_reports(device_set, udid, installed_executable, since, *, host_home=None, until=None):
     """Inspect bounded recent IPS files in memory; never retain report contents."""
-    result = {'zeroReportsAreInconclusive': True, 'sources': [], 'reports': [],
+    result = {'zeroReportsAreInconclusive': True, 'sources': [], 'reports': [], 'rejectedIdentityReports': [],
               'byteLimitReached': False, 'candidateLimitReached': False}
     try:
         installed_executable.relative_to(device_set / udid)
@@ -351,6 +351,11 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
                             result['reports'].append({'source': source, 'reportModifiedDuringJourney': True, **report})
                         else:
                             row['rejected'][status] += 1
+                            if status == 'identity-mismatch':
+                                result['rejectedIdentityReports'].append({
+                                    'source': source, 'sourceSha256': report['sourceSha256'],
+                                    'rejectionGate': report['rejectionGate'], 'identityChecks': report['identityChecks'],
+                                })
                     except OSError:
                         row['rejected']['unreadable'] += 1
         except FileNotFoundError:

@@ -33,6 +33,69 @@ def _invalid_constant(_):
     raise ValueError()
 
 
+def _identity_rejection(data, header, body, app_id, installed_executable, simulator_udid, gate):
+    """Describe unchanged identity checks without returning any candidate value."""
+    bundle = body.get('bundleInfo')
+    bundle_object = isinstance(bundle, dict)
+    expected = PurePosixPath(installed_executable).parts
+    expected_owned = expected.count(simulator_udid) == 1
+    suffix = expected[expected.index(simulator_udid):] if expected_owned else ()
+    process_path = body.get('procPath')
+    parts = PurePosixPath(process_path).parts if isinstance(process_path, str) else ()
+    coalition = body.get('coalitionName')
+    coalition_matches = coalition == 'com.apple.CoreSimulator.SimDevice.' + simulator_udid
+    if process_path is None:
+        placeholder = 'absent'
+    elif not isinstance(process_path, str):
+        placeholder = 'non-string'
+    elif process_path == '':
+        placeholder = 'empty'
+    elif process_path in ('<redacted>', '<private>'):
+        placeholder = 'whole-redacted'
+    elif any(part.startswith('<') and part.endswith('>') for part in parts):
+        placeholder = 'angle-component'
+    elif '*' in parts:
+        placeholder = 'wildcard-component'
+    elif '...' in parts:
+        placeholder = 'ellipsis-component'
+    elif 'USER' in parts:
+        placeholder = 'user-component'
+    else:
+        placeholder = 'none'
+    return {
+        'status': 'identity-mismatch', 'rejectionGate': gate,
+        'sourceSha256': hashlib.sha256(data).hexdigest(),
+        'identityChecks': {
+            'headerBundlePresent': 'bundleID' in header,
+            'headerBundleString': isinstance(header.get('bundleID'), str),
+            'headerBundleMatches': header.get('bundleID') == app_id,
+            'bodyBundlePresent': 'bundleInfo' in body, 'bodyBundleObject': bundle_object,
+            'bodyBundleIdentifierPresent': bundle_object and 'CFBundleIdentifier' in bundle,
+            'bodyBundleIdentifierString': bundle_object and isinstance(bundle.get('CFBundleIdentifier'), str),
+            'bodyBundleIdentifierMatches': bundle_object and bundle.get('CFBundleIdentifier') == app_id,
+            'processNamePresent': 'procName' in body,
+            'processNameString': isinstance(body.get('procName'), str),
+            'processNameMatches': body.get('procName') == PurePosixPath(installed_executable).name,
+            'expectedPathHasSingleOwnedUuid': expected_owned,
+            'processPathPresent': 'procPath' in body, 'processPathString': isinstance(process_path, str),
+            'installedPathSuffixMatches': bool(suffix) and '..' not in parts and parts[-len(suffix):] == suffix,
+            'installedPathSuffixCaseInsensitiveMatches': bool(suffix) and '..' not in parts
+                and tuple(part.casefold() for part in parts[-len(suffix):]) == tuple(part.casefold() for part in suffix),
+            'ownedSimulatorComponentMatches': simulator_udid in parts,
+            'ownedSimulatorComponentCaseInsensitiveMatches': any(part.casefold() == simulator_udid.casefold() for part in parts),
+            'appLeafMatches': len(parts) >= 2 and len(expected) >= 2 and parts[-2] == expected[-2],
+            'executableLeafMatches': bool(parts) and bool(expected) and parts[-1] == expected[-1],
+            'pathContainsParentTraversal': '..' in parts, 'pathPlaceholderShape': placeholder,
+            'coalitionPresent': 'coalitionName' in body, 'coalitionString': isinstance(coalition, str),
+            'coalitionMatches': coalition_matches,
+            'coalitionCaseInsensitiveMatches': isinstance(coalition, str)
+                and coalition.casefold() == ('com.apple.CoreSimulator.SimDevice.' + simulator_udid).casefold(),
+            'coalitionConflicts': isinstance(coalition, str)
+                and coalition.startswith('com.apple.CoreSimulator.SimDevice.') and not coalition_matches,
+        },
+    }
+
+
 def classify_owned_crash_report(data, *, app_id, installed_executable, simulator_udid, since, until):
     """Read Apple's two-object IPS format; return no input strings or paths.
 
@@ -61,10 +124,15 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
     if (not isinstance(bundle, dict) or bundle.get('CFBundleIdentifier') != app_id
             or ('bundleID' in header and header['bundleID'] != app_id)
             or body.get('procName') != PurePosixPath(installed_executable).name):
-        return {'status': 'identity-mismatch'}
+        gate = ('body-bundle-object' if not isinstance(bundle, dict)
+                else 'body-bundle-identifier' if bundle.get('CFBundleIdentifier') != app_id
+                else 'header-bundle-identifier' if 'bundleID' in header and header['bundleID'] != app_id
+                else 'process-name')
+        return _identity_rejection(data, header, body, app_id, installed_executable, simulator_udid, gate)
     expected = PurePosixPath(installed_executable).parts
     if expected.count(simulator_udid) != 1:
-        return {'status': 'identity-mismatch'}
+        return _identity_rejection(data, header, body, app_id, installed_executable,
+                                   simulator_udid, 'expected-owned-path')
     suffix = expected[expected.index(simulator_udid):]
     process_path = body.get('procPath')
     process_parts = PurePosixPath(process_path).parts if isinstance(process_path, str) else ()
@@ -76,7 +144,8 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
                        and coalition.startswith('com.apple.CoreSimulator.SimDevice.') and not coalition_matches)
     path_unavailable = process_path is None or process_path in ('', '<redacted>', '<private>')
     if not (path_matches or (coalition_matches and path_unavailable)) or other_coalition:
-        return {'status': 'identity-mismatch'}
+        return _identity_rejection(data, header, body, app_id, installed_executable, simulator_udid,
+                                   'simulator-coalition-conflict' if other_coalition else 'installed-path-scope')
     try:
         captured = body.get('captureTime')
         if not isinstance(captured, str) or len(captured) > 64:

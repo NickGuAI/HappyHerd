@@ -36,10 +36,12 @@ class OwnedCrashReportTests(unittest.TestCase):
         payload.update(body or {})
         return (json.dumps(metadata) + '\n' + json.dumps(payload)).encode()
 
-    def classify(self, data):
+    def classify(self, data, **options):
+        scope = {'app_id': self.app_id, 'installed_executable': self.executable,
+                 'simulator_udid': self.udid, 'since': self.since, 'until': self.since + 60}
+        scope.update(options)
         return DIAGNOSTICS.classify_owned_crash_report(
-            data, app_id=self.app_id, installed_executable=self.executable,
-            simulator_udid=self.udid, since=self.since, until=self.since + 60)
+            data, **scope)
 
     def test_owned_recent_crash_exposes_only_classification_and_hash(self):
         data = self.report()
@@ -69,7 +71,111 @@ class OwnedCrashReportTests(unittest.TestCase):
             ({}, {'procPath': None, 'coalitionName': self.private}),
         ):
             with self.subTest(body=body):
-                self.assertEqual(self.classify(self.report(header, body)), {'status': 'identity-mismatch'})
+                self.assertEqual(self.classify(self.report(header, body))['status'], 'identity-mismatch')
+
+    def test_rejection_gates_distinguish_every_unchanged_identity_requirement(self):
+        cases = (
+            ('body-bundle-object', {}, {'bundleInfo': None}, {}),
+            ('body-bundle-identifier', {}, {'bundleInfo': {}}, {}),
+            ('header-bundle-identifier', {'bundleID': self.private}, {}, {}),
+            ('process-name', {}, {'procName': self.private}, {}),
+            ('expected-owned-path', {}, {}, {'installed_executable': '/private/other/HappyHerd'}),
+            ('installed-path-scope', {}, {'procPath': '/private/wrong/HappyHerd'}, {}),
+            ('simulator-coalition-conflict', {},
+             {'coalitionName': 'com.apple.CoreSimulator.SimDevice.' + self.other_udid}, {}),
+        )
+        for gate, header, body, scope in cases:
+            data = self.report(header, body)
+            result = self.classify(data, **scope)
+            self.assertEqual(result['status'], 'identity-mismatch')
+            self.assertEqual(result['rejectionGate'], gate)
+            self.assertEqual(result['sourceSha256'], hashlib.sha256(data).hexdigest())
+            self.assertNotIn('classification', result)
+            self.assertNotIn('termination', result)
+            self.assertNotIn('capturedDuringJourney', result)
+            for field, value in result['identityChecks'].items():
+                if field != 'pathPlaceholderShape':
+                    self.assertIs(type(value), bool)
+            for private in (self.private, self.udid, self.other_udid, self.app_id, 'HappyHerd', '/private/'):
+                self.assertNotIn(private, json.dumps(result))
+
+    def test_identity_checks_distinguish_missing_wrong_type_and_exact_match(self):
+        data = self.report({'bundleID': [self.private]}, {'bundleInfo': self.private,
+                           'procName': {'private': self.private}, 'procPath': [self.private],
+                           'coalitionName': {'private': self.private}})
+        result = self.classify(data)
+        checks = result['identityChecks']
+        self.assertTrue(checks['headerBundlePresent'])
+        self.assertFalse(checks['headerBundleString'])
+        self.assertFalse(checks['headerBundleMatches'])
+        self.assertTrue(checks['bodyBundlePresent'])
+        self.assertFalse(checks['bodyBundleObject'])
+        self.assertFalse(checks['bodyBundleIdentifierPresent'])
+        self.assertTrue(checks['processNamePresent'])
+        self.assertFalse(checks['processNameString'])
+        self.assertFalse(checks['processNameMatches'])
+        self.assertTrue(checks['processPathPresent'])
+        self.assertFalse(checks['processPathString'])
+        self.assertEqual(checks['pathPlaceholderShape'], 'non-string')
+        self.assertTrue(checks['coalitionPresent'])
+        self.assertFalse(checks['coalitionString'])
+        header = {'bug_type': '309'}
+        body = {'bundleInfo': {'CFBundleIdentifier': self.app_id}, 'procName': 'HappyHerd'}
+        result = self.classify((json.dumps(header) + '\n' + json.dumps(body)).encode())
+        checks = result['identityChecks']
+        self.assertFalse(checks['headerBundlePresent'])
+        self.assertTrue(checks['bodyBundleIdentifierPresent'])
+        self.assertTrue(checks['bodyBundleIdentifierString'])
+        self.assertTrue(checks['bodyBundleIdentifierMatches'])
+        self.assertTrue(checks['processNameMatches'])
+        self.assertFalse(checks['processPathPresent'])
+        self.assertFalse(checks['coalitionPresent'])
+        self.assertEqual(checks['pathPlaceholderShape'], 'absent')
+
+    def test_path_shape_diagnostics_never_turn_a_conflicting_path_into_owned_evidence(self):
+        cases = ((None, 'absent'), ('', 'empty'), ('<redacted>', 'whole-redacted'),
+                 ('<private>', 'whole-redacted'), (42, 'non-string'),
+                 ('/Users/USER/wrong/HappyHerd.app/HappyHerd', 'user-component'),
+                 ('/Users/USER/<untrusted>/HappyHerd.app/HappyHerd', 'angle-component'),
+                 ('/Users/USER/*/HappyHerd.app/HappyHerd', 'wildcard-component'),
+                 ('/Users/USER/.../HappyHerd.app/HappyHerd', 'ellipsis-component'),
+                 ('/private/untrusted/HappyHerd.app/HappyHerd', 'none'))
+        for path, shape in cases:
+            result = self.classify(self.report(body={'procPath': path, 'coalitionName': None}))
+            self.assertEqual(result['status'], 'identity-mismatch')
+            self.assertEqual(result['rejectionGate'], 'installed-path-scope')
+            checks = result['identityChecks']
+            self.assertEqual(checks['pathPlaceholderShape'], shape)
+            self.assertFalse(checks['installedPathSuffixMatches'])
+            self.assertFalse(checks['ownedSimulatorComponentMatches'])
+            self.assertNotIn('classification', result)
+            self.assertNotIn('untrusted', json.dumps(result))
+        wrong_container = self.executable.replace('owned-container', 'wrong-container')
+        result = self.classify(self.report(body={'procPath': wrong_container}))
+        checks = result['identityChecks']
+        self.assertEqual(result['status'], 'identity-mismatch')
+        self.assertTrue(checks['coalitionMatches'])
+        self.assertTrue(checks['ownedSimulatorComponentMatches'])
+        self.assertTrue(checks['appLeafMatches'])
+        self.assertTrue(checks['executableLeafMatches'])
+        self.assertFalse(checks['installedPathSuffixMatches'])
+
+    def test_case_insensitive_observations_do_not_change_exact_identity_policy(self):
+        result = self.classify(self.report(body={'procPath': self.executable.replace(self.udid, self.udid.lower())}))
+        self.assertEqual(result['status'], 'identity-mismatch')
+        self.assertEqual(result['rejectionGate'], 'installed-path-scope')
+        checks = result['identityChecks']
+        self.assertFalse(checks['installedPathSuffixMatches'])
+        self.assertFalse(checks['ownedSimulatorComponentMatches'])
+        self.assertTrue(checks['installedPathSuffixCaseInsensitiveMatches'])
+        self.assertTrue(checks['ownedSimulatorComponentCaseInsensitiveMatches'])
+        result = self.classify(self.report(body={
+            'coalitionName': 'com.apple.CoreSimulator.SimDevice.' + self.udid.lower()}))
+        self.assertEqual(result['status'], 'identity-mismatch')
+        self.assertEqual(result['rejectionGate'], 'simulator-coalition-conflict')
+        checks = result['identityChecks']
+        self.assertFalse(checks['coalitionMatches'])
+        self.assertTrue(checks['coalitionCaseInsensitiveMatches'])
 
     def test_redacted_user_prefix_or_wholly_unavailable_path_requires_exact_scope(self):
         body = {'procPath': self.executable.replace('/private/owned', '/Users/USER/owned')}

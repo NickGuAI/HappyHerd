@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all sixteen hosted failures and original receipt hashes.
+preserve all seventeen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -350,3 +350,28 @@ simulator, publishing fixed classifications and safe metadata. It does not
 reopen the app to hide the failure or change logout, authentication, assertions,
 timeouts, screenshots or other acceptance criteria. The exact cause remains
 unproved until the new evidence is available.
+
+The seventeenth attempt at `48252d2b` reproduced that post-Logout failure.
+[Run 36764889053](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889053)
+again completed the ordinary Logout and confirmation taps, then recorded
+`account-logout-login` with the app not-running before protective termination.
+Native checkpoints 01–08 and all 13 Web stages passed; no B authentication
+occurred. All ten captures passed independent hash and visual/privacy review.
+XCTest recorded one failure, zero passes and zero skips; resources remained
+above their floors and simulator cleanup succeeded.
+[Artifact 11122715455](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889053/artifacts/11122715455)
+and the durable failure entry retain the original receipt hashes.
+
+The bounded collector found one recent app-named host report, read 46,775 bytes,
+and rejected it for an identity mismatch. Both source directories were available,
+with no listing, candidate or byte limit reached. The report parsed as a supported
+format, but the receipt cannot distinguish a bundle/process mismatch from an
+installed-path or simulator-coalition mismatch; its capture-time check did not
+run. No report was classified. This does not establish that the candidate belongs
+to the owned app or that a crash caused the observed Logout failure.
+
+The next diagnostic reports only fixed rejection gates and structural/exact-match
+flags for those same ownership predicates. It preserves their acceptance policy,
+the original collection bounds and the full journey. Rejected report contents
+remain unclassified and private. The cause remains unknown until evidence
+establishes ownership and the failure mechanism.
