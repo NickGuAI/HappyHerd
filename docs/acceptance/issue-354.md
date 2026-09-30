@@ -97,8 +97,16 @@ merging the PR, or closing the issue.
 ## Native and authenticated acceptance continuation
 
 The owner requested completion of the real authenticated journeys after the
-initial review-ready handoff. **Full acceptance remains outstanding.** The
-following evidence is separate from the rendered fixtures above.
+initial review-ready handoff. **The current continuation remains outstanding.**
+The following evidence is separate from the rendered fixtures above.
+
+On 2026-09-30, the user corrected the continuation scope to **real Codex plus
+authenticated Web Desktop and Web Mobile only**. Live Claude execution,
+continuation, compaction and login renewal are outside this corrected scope,
+not completed acceptance. No further Claude request or authentication action
+is planned, and Claude OAuth status is not a current blocker. Existing Claude
+fixture/parser coverage and the notices that its built-in system prompt and
+tool definitions are not recorded remain part of the delivered feature.
 
 The selected runtime source is
 `01e76b61d868f9c0be0bc12811f91d4f72e08d8c`, based on
@@ -136,14 +144,16 @@ applies; no plaintext is invented. The public
 [`native-acceptance-report.json`](issue-354/native-acceptance-report.json)
 contains only counts, hashes, environment details and outcomes, not transcripts.
 
-Claude's installed CLI 2.1.216 and the exact-worktree Agent SDK 0.3.260 bundled
+Historical evidence: Claude's installed CLI 2.1.216 and the exact-worktree Agent SDK 0.3.260 bundled
 Claude Code 2.1.260 both returned HTTP 401 `authentication_failed`, reporting
 expired stored OAuth. A normal-settings retry and the distinct bundled-native
 path also failed. No alternate auth environment or configured Claude account
 pool was available. Three genuine file attachments were recorded, but there
 was no successful model turn or compaction; this is not a Claude context pass.
 No logout, account switch, credential copying or shared-login modification was
-performed. A usable renewed Claude login is the external prerequisite.
+performed. This retained failure snapshot is not a request to renew login and
+does not block the user-corrected Codex/Web continuation. Later retained checks
+also failed; none is a live Claude pass.
 
 The isolated CLI's supported terminal pairing was prepared, but automatic
 approval review rejected opening its pairing link because the action could
@@ -155,12 +165,12 @@ Web → encrypted machine RPC → native trace journey remain unproved.
 | Original acceptance criterion | Current acceptance status |
 | --- | --- |
 | Experimental switch defaults off; no session entry while off | **Outstanding overall.** Production authenticated switch/default is proved at both sizes; absence from a real session menu still requires the paired machine. Fixture absence tests pass. |
-| Visible Claude/Codex entry on Web Desktop and Web Mobile | **Outstanding.** Production-component fixture journeys pass; actual session journeys await pairing and the Claude login prerequisite. |
-| Every ordered post-compaction entry, hidden input, Codex base instructions and honest Claude limits | **Outstanding overall.** Actual native Codex trace/oracle passes. Claude successful turns/compaction and both providers' authenticated Web transport remain unproved. |
+| Visible Claude/Codex entry on Web Desktop and Web Mobile | **Outstanding Codex live proof.** Both providers' production-component fixture journeys pass. Actual Codex session journeys await pairing; live Claude execution is outside the user-corrected continuation scope, not a claimed pass. |
+| Every ordered post-compaction entry, hidden input, Codex base instructions and honest Claude limits | **Outstanding Codex Web transport.** Actual native Codex trace/oracle passes. Claude parser/fixture coverage and unrecorded-limit notices remain; live Claude turns/compaction are outside the corrected continuation scope, not completed. |
 | Unsupported, offline and missing transcript states offer retry | **Outstanding live proof.** Six rendered fixture cases pass; actual isolated-runtime failure/recovery journeys await pairing. |
 | Provider recipe and exactly four linked remaining-provider subissues | **PASS.** Recipe and native linked subissues #362, #363, #364 and #365 are present; no additional providers implemented. |
 
-Commands and outcomes from this continuation:
+Recorded commands and outcomes (Claude rows are historical only):
 
 ```text
 APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir <owned-export>  PASS
@@ -169,8 +179,8 @@ tsx packages/happyherd-server/sources/standalone.ts serve (isolated PGlite + pro
 Playwright → production Create account → backup gate → Features, desktop/mobile                          default off PASS
 codex app-server --listen stdio:// → thread/start → turn/start → thread/compact/start → turn/start         PASS
 independent native Codex oracle → parseCodexContextWindow + readContextWindow                             13/13 PASS
-claude -p --session-id <owned UUID> / --resume <owned UUID> with harmless @file inputs                      HTTP 401
-bundled SDK native Claude --resume <same owned UUID>                                                       HTTP 401
+historical: claude -p --session-id <owned UUID> / --resume <owned UUID> with harmless @file inputs          HTTP 401; outside current scope
+historical: bundled SDK native Claude --resume <same owned UUID>                                          HTTP 401; outside current scope
 happyherd auth login (fresh isolated home and loopback server)                                            awaiting pairing approval
 ```
 

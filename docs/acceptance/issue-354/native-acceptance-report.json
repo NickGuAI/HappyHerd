@@ -171,7 +171,10 @@
     "actualFileAttachments": 3,
     "compactions": 0,
     "successfulModelTurns": 0,
-    "prerequisite": "renewed usable Claude login"
+    "evidenceScope": "historical failure snapshot; no live Claude pass",
+    "currentContinuationScope": "outside user-corrected Codex and authenticated Web continuation",
+    "blocksCurrentContinuation": false,
+    "furtherExecutionOrLoginRenewalPlanned": false
   },
   "productionWeb": {
     "sourceRevision": "01e76b61d868f9c0be0bc12811f91d4f72e08d8c",
