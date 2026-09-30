@@ -351,3 +351,39 @@ and [Contract](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957905), 
 with [all four installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957803),
 the [server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957846)
 and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957771/artifacts/11123635715).
+
+The first [Unit job at `30ad7634`](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236146/job/110088102577)
+failed one desktop Workspace test body at its unchanged 10-second limit. The
+other three parameter variants passed; the app suite recorded 3,939 passes,
+one failure and ten existing skips. This differs from the earlier three-suite
+setup timeout. The registration stack does not identify the stalled gesture.
+[Sanitized failure evidence](ci-30ad7634-unit-failure.json) preserves the log hash,
+counts and byte-identical product/test/dependency/workflow comparisons against
+the two preceding passing heads. Those comparisons do not establish a transient
+runner cause. Any retry retains the deadline, assertions and skips; this first
+failure remains recorded independently of subsequent outcomes.
+
+The same Workspace variant passed in 5,499 ms in the exact-head
+[Contract job](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236131/job/110088116673).
+After independent review, one unchanged-head [Unit retry](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236146/job/110095771442)
+passed with all original assertions, deadlines and skips retained. The previously
+failed variant completed in 3,602 ms; all 48 Workspace cases passed. The app
+suite passed 3,940 tests with ten existing skips, followed by passing wire,
+control-agent, CLI and server suites. [Sanitized retry evidence](ci-30ad7634-unit-retry.json)
+keeps the log hash and exact-head results separate from the first failure; the
+precise cause of the first timeout remains unproved.
+
+[Native attempt 19](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236151)
+again failed after Logout, with native checkpoints 01–08 and all 13 Web stages
+passed. The new ownership checks attributed one report to the exact installed
+build and simulator: `EXC_BAD_ACCESS`, `SIGSEGV`, `SIGNAL/11`, captured 11.406
+seconds after checkpoint 08 during the later Logout sequence. All ten captures
+passed independent visual/privacy and integrity review; resource floors held and
+cleanup succeeded. Sixteen symbolized frames yielded no existing fixed tags, so
+the failing code remains unknown. The [durable failure and next bounded code
+attribution](hosted-native/README.md) preserve this distinction without changing
+the product or any native acceptance criterion. At this head, [all four
+installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36774235855), the
+[server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236533)
+and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236146/artifacts/11125576210)
+passed. Native acceptance remains incomplete.

@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-30T20:54:42.059376+00:00",
+  "repository": "NickGuAI/HappyHerd",
+  "headSha": "30ad7634d96a3c8001bb3da074ba1fe8c60ea401",
+  "runId": 36774236146,
+  "jobId": 110088102577,
+  "attempt": 1,
+  "workflow": "Quality gates",
+  "job": "Unit tests",
+  "jobConclusion": "failure",
+  "failedStep": "Run unit suites",
+  "jobStartedAt": "2026-09-30T20:40:29Z",
+  "jobCompletedAt": "2026-09-30T20:50:10Z",
+  "privateLog": {
+    "sha256": "6b9f8028334062bfd6ebc8fd4bc1131be65a5bf6e70f4aa32340d011ebe5ea88",
+    "bytes": 1017429,
+    "posixMode": 384,
+    "rawContentsPublished": false
+  },
+  "failure": {
+    "category": "test-body-timeout",
+    "configuredTimeoutMilliseconds": 10000,
+    "observedTestDurationMilliseconds": 10003,
+    "hookFailure": false,
+    "failedSuite": "server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts",
+    "registrationLine": 813,
+    "registrationColumn": 6,
+    "testTemplate": "keeps Workspace machine choices compact and recovers a missing path: $surface $width",
+    "parameters": {
+      "surface": "standalone",
+      "width": 1440,
+      "height": 900
+    },
+    "innerStalledOperationEstablished": false,
+    "suiteTests": 48,
+    "suiteFailed": 1,
+    "suitePassed": 47,
+    "suiteDurationMilliseconds": 138646,
+    "otherParameterCases": [
+      {
+        "surface": "standalone",
+        "width": 390,
+        "height": 844,
+        "status": "passed",
+        "durationMilliseconds": 1546
+      },
+      {
+        "surface": "embedded",
+        "width": 1440,
+        "height": 900,
+        "status": "passed",
+        "durationMilliseconds": 1620
+      },
+      {
+        "surface": "embedded",
+        "width": 390,
+        "height": 844,
+        "status": "passed",
+        "durationMilliseconds": 1812
+      }
+    ]
+  },
+  "appSummary": {
+    "filesTotal": 359,
+    "filesPassed": 358,
+    "filesFailed": 1,
+    "testsTotal": 3950,
+    "testsPassed": 3939,
+    "testsFailed": 1,
+    "existingSkipped": 10
+  },
+  "subsequentPackageSuitesStarted": {
+    "wire": false,
+    "control-agent": false,
+    "cli": false,
+    "server": false
+  },
+  "fixedPatternCounts": {
+    "test-timeout-10000": 3,
+    "hook-timeout-30000": 0,
+    "assertion-error": 0,
+    "browser-launch-error": 0,
+    "page-navigation-timeout": 0,
+    "connection-refused": 0,
+    "out-of-memory": 0,
+    "unhandled-errors-heading": 0,
+    "exit-code-1": 1
+  },
+  "sourceComparison": {
+    "productTrees": {
+      "30ad7634d96a3c8001bb3da074ba1fe8c60ea401": "e8a2fb1ad9756a56306354861f3d62b73f5f6eb8",
+      "0534e71613bd6703ba765e5e21e93e25d24d82be": "e8a2fb1ad9756a56306354861f3d62b73f5f6eb8",
+      "48252d2b73eb83e1058e631b937a4ca357941bf7": "e8a2fb1ad9756a56306354861f3d62b73f5f6eb8"
+    },
+    "sourceFiles": [
+      {
+        "path": "server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts",
+        "sha256": "8d341098e67a127d86421ec9793a5c1483c0612402acd541ba438e3a2b7e7003",
+        "unchangedAgainstPassingHeads": {
+          "0534e71613bd6703ba765e5e21e93e25d24d82be": true,
+          "48252d2b73eb83e1058e631b937a4ca357941bf7": true
+        }
+      },
+      {
+        "path": "server/packages/happyherd-app/vitest.config.ts",
+        "sha256": "4910f3a52a21ce97407d97e382106b7068294a09d093ec49fb37b3d4dfbff330",
+        "unchangedAgainstPassingHeads": {
+          "0534e71613bd6703ba765e5e21e93e25d24d82be": true,
+          "48252d2b73eb83e1058e631b937a4ca357941bf7": true
+        }
+      },
+      {
+        "path": "server/pnpm-lock.yaml",
+        "sha256": "0941d10be0e8eb1f974caf6bc41494076620ff20ea879b98b67fc0f770643cfd",
+        "unchangedAgainstPassingHeads": {
+          "0534e71613bd6703ba765e5e21e93e25d24d82be": true,
+          "48252d2b73eb83e1058e631b937a4ca357941bf7": true
+        }
+      },
+      {
+        "path": ".github/workflows/quality-gates.yml",
+        "sha256": "9253961fff4f6fd6d789c746c0436824e3e18028e2af4e53c2b86ec53f8a8c07",
+        "unchangedAgainstPassingHeads": {
+          "0534e71613bd6703ba765e5e21e93e25d24d82be": true,
+          "48252d2b73eb83e1058e631b937a4ca357941bf7": true
+        }
+      }
+    ],
+    "passingUnitJobs": [
+      {
+        "headSha": "0534e71613bd6703ba765e5e21e93e25d24d82be",
+        "runId": 36768957771,
+        "jobId": 110070258504,
+        "attempt": 1,
+        "conclusion": "success"
+      },
+      {
+        "headSha": "48252d2b73eb83e1058e631b937a4ca357941bf7",
+        "runId": 36764889054,
+        "jobId": 110056563294,
+        "attempt": 1,
+        "conclusion": "success"
+      }
+    ]
+  },
+  "priorFailureDistinction": {
+    "historicalHead": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+    "runId": 36733047931,
+    "jobId": 109947545876,
+    "category": "browser-before-all-hook-timeout",
+    "hookTimeoutMilliseconds": 30000,
+    "failedSuites": 3,
+    "blockedTests": 238,
+    "passedTests": 3702,
+    "existingSkipped": 10,
+    "source": "docs/acceptance/issue-345/README.md:152",
+    "sameFailureBoundary": false
+  },
+  "interpretation": [
+    "The suite setup and three other variants completed; this is a single body timeout, not the earlier three-suite setup timeout.",
+    "Vitest reports test registration line813, not the awaited page/locator operation where progress stopped. No root cause or precise gesture is established.",
+    "A source comparison proves unchanged product/test/dependency/workflow bytes against two passing unit jobs; it does not prove a transient runner cause.",
+    "The existing10000ms test deadline, assertions, browser setup, screenshot opt-in and skips are unchanged."
+  ],
+  "recommendation": {
+    "action": "one-same-head-failed-unit-job-retry",
+    "basis": "unchanged tested source and two passing reference jobs; isolated single body deadline failure without assertion or setup failure evidence",
+    "condition": "preserve this failure and existing10000ms deadline; if repeated, obtain targeted safe operation attribution before correction",
+    "performed": false
+  },
+  "actions": {
+    "trackedFilesModified": false,
+    "testsRerun": false,
+    "sourceFixAttempted": false,
+    "githubMessagesPosted": false,
+    "commitOrPush": false
+  }
+}

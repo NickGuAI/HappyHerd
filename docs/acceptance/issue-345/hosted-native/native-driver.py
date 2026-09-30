@@ -37,6 +37,10 @@ RUNNER_ID = 'app.happyherd.issue345.uitests.xctrunner'
 FRAMEWORK_EXECUTABLES = frozenset(
     'Frameworks/' + name + '.framework/' + name
     for name in ('hermesvm', 'libswresample', 'libavformat', 'libavutil', 'WebRTC', 'libavcodec'))
+CODE_IMAGE_FILES = dict(zip(
+    ('application', 'hermes', 'audio-resampler', 'media-format', 'media-util', 'web-rtc', 'media-codec'),
+    ('HappyHerd',) + tuple('Frameworks/' + name + '.framework/' + name
+        for name in ('hermesvm', 'libswresample', 'libavformat', 'libavutil', 'WebRTC', 'libavcodec'))))
 MARKERS = ('HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE',
            'HH345_NATIVE_ACCOUNT_SCOPE', 'HH345_NATIVE_DONE_RACE', 'HH345_NATIVE_SERVER_RESTART')
 STAGES = (
@@ -368,8 +372,119 @@ def read_installed_build_uuid(executable, expected_sha256):
         return None, proof
 
 
+def read_verified_code_image(executable, expected_sha256, *, framework=False, maximum_bytes=512 * 1024 * 1024):
+    """Read selected SHA-bound arm64 instruction ranges; return identity privately.
+
+    Accept only the already selected thin executable / single-arm64 FAT dylibs.
+    Diagnostics cannot alter signing, code, test behavior, or report ownership.
+    """
+    proof = {'status': 'expected-sha-unavailable', 'bytesHashed': 0,
+             'sha256Matched': False, 'instructionRangeCount': 0}
+    if not isinstance(expected_sha256, str) or re.fullmatch(r'[0-9a-f]{64}', expected_sha256) is None:
+        return None, proof
+    try:
+        if executable.resolve(strict=True) != executable:
+            raise ValueError()
+        descriptor = os.open(executable, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, 'rb') as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode) or not 32 <= before.st_size <= maximum_bytes:
+                proof['status'] = 'file-or-size-invalid'
+                return None, proof
+            sha = hashlib.sha256()
+            remaining = before.st_size
+            while remaining:
+                chunk = stream.read(min(1024 * 1024, remaining))
+                if not chunk:
+                    raise ValueError()
+                proof['bytesHashed'] += len(chunk)
+                remaining -= len(chunk)
+                sha.update(chunk)
+            hashed = os.fstat(stream.fileno())
+            if (hashed.st_size, hashed.st_mtime_ns, hashed.st_ctime_ns) != (
+                    before.st_size, before.st_mtime_ns, before.st_ctime_ns):
+                raise ValueError()
+            if sha.hexdigest() != expected_sha256:
+                proof['status'] = 'sha-mismatch'
+                return None, proof
+            proof['sha256Matched'] = True
+            stream.seek(0)
+            slice_offset, slice_size = 0, before.st_size
+            if framework:
+                raw = stream.read(28)
+                if len(raw) != 28:
+                    raise ValueError()
+                magic, count, cpu, _, slice_offset, slice_size, alignment = struct.unpack('>7I', raw)
+                if not (magic == 0xcafebabe and count == 1 and cpu == 0x100000c
+                        and alignment <= 31 and slice_offset >= 28
+                        and slice_offset % (1 << alignment) == 0
+                        and slice_size >= 32 and slice_offset + slice_size <= before.st_size):
+                    raise ValueError()
+            stream.seek(slice_offset)
+            raw = stream.read(32)
+            if len(raw) != 32:
+                raise ValueError()
+            magic, cpu, _, kind, count, size, _, _ = struct.unpack('<8I', raw)
+            if not (magic == 0xfeedfacf and cpu == 0x100000c and kind == (6 if framework else 2)
+                    and 1 <= count <= 16384 and 8 <= size <= min(16 * 1024 * 1024, slice_size - 32)):
+                raise ValueError()
+            commands = stream.read(size)
+            if len(commands) != size:
+                raise ValueError()
+            offset, uuids, bases, ranges = 0, [], [], []
+            for _ in range(count):
+                if offset + 8 > size:
+                    raise ValueError()
+                command, length = struct.unpack_from('<II', commands, offset)
+                if length < 8 or length % 8 or offset + length > size:
+                    raise ValueError()
+                if command == 0x1b:
+                    if length != 24:
+                        raise ValueError()
+                    uuids.append(commands[offset + 8:offset + 24])
+                if command == 0x19:
+                    if length < 72:
+                        raise ValueError()
+                    _, _, _, vmaddr, vmsize, fileoff, filesize, maxprot, initprot, sections, _ = struct.unpack_from(
+                        '<II16sQQQQiiII', commands, offset)
+                    if (sections > 4096 or length != 72 + 80 * sections
+                            or fileoff + filesize > slice_size or filesize > vmsize
+                            or vmaddr + vmsize > 0xffffffffffffffff
+                            or not 0 <= initprot <= 7 or not 0 <= maxprot <= 7
+                            or initprot & ~maxprot):
+                        raise ValueError()
+                    if fileoff == 0 and filesize:
+                        bases.append(vmaddr)
+                    if initprot & 4 and maxprot & 4:
+                        for index in range(sections):
+                            values = struct.unpack_from('<16s16sQQ8I', commands, offset + 72 + index * 80)
+                            address, section_size, section_fileoff, flags = values[2], values[3], values[4], values[8]
+                            if flags & 0x80000400 and section_size:
+                                if (not vmaddr <= address < address + section_size <= vmaddr + vmsize
+                                        or not fileoff <= section_fileoff < section_fileoff + section_size <= fileoff + filesize
+                                        or address - vmaddr != section_fileoff - fileoff):
+                                    raise ValueError()
+                                ranges.append((address, address + section_size))
+                offset += length
+            after = os.fstat(stream.fileno())
+            if (offset != size or len(uuids) != 1 or not any(uuids[0]) or len(bases) != 1
+                    or not ranges or len(ranges) > 4096
+                    or (after.st_size, after.st_mtime_ns, after.st_ctime_ns) !=
+                       (before.st_size, before.st_mtime_ns, before.st_ctime_ns)):
+                raise ValueError()
+            relative = sorted((start - bases[0], end - bases[0]) for start, end in ranges)
+            if (any(not 0 <= start < end <= 512 * 1024 * 1024 for start, end in relative)
+                    or any(first[1] > second[0] for first, second in zip(relative, relative[1:]))):
+                raise ValueError()
+            proof.update(status='verified', instructionRangeCount=len(relative))
+            return {'uuid': uuids[0], 'name': executable.name, 'path': str(executable), 'ranges': relative}, proof
+    except (OSError, ValueError, struct.error):
+        proof['status'] = 'unavailable-or-invalid'
+        return None, proof
+
+
 def collect_owned_crash_reports(device_set, udid, installed_executable, since, *, host_home=None, until=None,
-                                expected_executable_sha256=None):
+                                expected_executable_sha256=None, expected_code_image_sha256=None):
     """Inspect bounded recent IPS files in memory; never retain report contents."""
     result = {'zeroReportsAreInconclusive': True, 'sources': [], 'reports': [], 'rejectedIdentityReports': [],
               'byteLimitReached': False, 'candidateLimitReached': False}
@@ -382,6 +497,18 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
         return result
     installed_uuid, result['installedBuildIdentity'] = read_installed_build_uuid(
         installed_executable, expected_executable_sha256)
+    verified_images = {}
+    result['selectedCodeImageIdentities'] = []
+    code_image_budget = 512 * 1024 * 1024
+    for role, relative in CODE_IMAGE_FILES.items():
+        expected_sha = (expected_code_image_sha256.get(relative)
+                        if isinstance(expected_code_image_sha256, dict) else None)
+        identity, proof = read_verified_code_image(installed_executable.parent / relative, expected_sha,
+                                                   framework=role != 'application', maximum_bytes=code_image_budget)
+        code_image_budget -= proof['bytesHashed']
+        result['selectedCodeImageIdentities'].append({'image': role, **proof})
+        if identity is not None:
+            verified_images[role] = identity
     until = time.time() if until is None else until
     remaining_bytes, remaining_candidates = 8 * 1024 * 1024, 16
     locations = (
@@ -445,7 +572,8 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
                             continue
                         report = launch_diagnostics.classify_owned_crash_report(
                             data, app_id=APP_ID, installed_executable=str(installed_executable),
-                            simulator_udid=udid, since=since, until=until, installed_uuid=installed_uuid)
+                            simulator_udid=udid, since=since, until=until, installed_uuid=installed_uuid,
+                            verified_code_images=verified_images)
                         status = report.pop('status')
                         if status == 'matched':
                             row['matchedReports'] += 1
@@ -1022,7 +1150,7 @@ def main():
                                if entry['phase'] == 'native-journey')
         receipt['ownedCrashReports'] = collect_owned_crash_reports(
             device_set, udid, installed_app / info['CFBundleExecutable'], journey_started,
-            expected_executable_sha256=receipt['app']['executableSha256'])
+            expected_executable_sha256=receipt['app']['executableSha256'], expected_code_image_sha256=files)
         save()
         require(digest(original) == original_hash, 'Original generated manifest changed.')
         receipt['originalXctestrunUnchanged'] = True

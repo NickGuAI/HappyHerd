@@ -24,6 +24,94 @@ class OwnedCrashReportTests(unittest.TestCase):
     private = 'PRIVATE-account https://private.invalid/token /private/user/path'
     build_uuid = 'e1234567-89ab-4cde-8f01-23456789abcd'
 
+    def code_image(self):
+        return {'application': {'name': 'HappyHerd', 'path': self.executable,
+                               'uuid': bytes.fromhex(self.build_uuid.replace('-', '')),
+                               'ranges': [(512, 640), (1024, 1056)]}}
+
+    def code_body(self):
+        return {'usedImages': self.partial_body()['usedImages'], 'faultingThread': 0,
+                'threads': [{'triggered': True, 'frames': [
+                    {'imageIndex': 0, 'imageOffset': 520, 'symbol': self.private},
+                    {'imageIndex': 0, 'imageOffset': 1032, 'symbol': self.private}]}],
+                'lastExceptionBacktrace': [{'imageIndex': 0, 'imageOffset': 532}]}
+
+    def code_result(self, **changes):
+        body = self.code_body()
+        body.update(changes)
+        return self.classify(self.report(body=body), verified_code_images=self.code_image())
+
+    def test_selected_code_offsets_keep_exception_and_faulting_frame_order(self):
+        result = self.code_result(exception={'type': 'EXC_BAD_ACCESS', 'signal': 'SIGSEGV',
+                                            'subtype': 'KERN_INVALID_ADDRESS at 0xdeadbeef ' + self.private})
+        frames = result['codeFrames']
+        self.assertEqual(frames['faultingThreadSelection'], 'index-trigger-agree')
+        self.assertEqual(frames['exceptionBacktrace'], [
+            {'frameIndex': 0, 'status': 'verified-code-offset', 'image': 'application', 'imageOffset': 532}])
+        self.assertEqual([row['frameIndex'] for row in frames['faultingThread']], [0, 1])
+        self.assertEqual([row['imageOffset'] for row in frames['faultingThread']], [520, 1032])
+        self.assertEqual(result['exceptionSubtype'], 'KERN_INVALID_ADDRESS')
+        for secret in (self.private, self.build_uuid, self.executable, '0xdeadbeef', 'HappyHerd'):
+            self.assertNotIn(secret, json.dumps(result))
+
+    def test_code_offsets_reject_noncode_unbounded_and_wrongly_typed_offsets(self):
+        offsets = [True, '520', -1, 511, 640, 1023, 1056, 2 ** 64, None]
+        frames = [{'imageIndex': 0, 'imageOffset': offset, 'symbol': self.private} for offset in offsets]
+        result = self.code_result(threads=[{'frames': frames}])['codeFrames']['faultingThread']
+        self.assertEqual(len(result), len(offsets))
+        self.assertTrue(all(row['status'] == 'outside-verified-code' for row in result))
+        self.assertTrue(all('imageOffset' not in row for row in result))
+        invalid = [{'imageIndex': value, 'imageOffset': 520} for value in (True, '0', -1, 1, 2 ** 64, None)]
+        result = self.code_result(threads=[{'frames': invalid}])['codeFrames']['faultingThread']
+        self.assertTrue(all(row['status'] == 'invalid-image-index' for row in result))
+
+    def test_code_offsets_require_complete_unique_owned_arm64_build_image(self):
+        image = self.code_body()['usedImages'][0]
+        for changes in ({'uuid': self.other_udid}, {'arch': 'x86_64'}, {'name': self.private},
+                        {'path': self.executable.replace(self.udid, self.other_udid)},
+                        {'path': self.executable.replace('owned-container', 'other-container')},
+                        {'uuid': None}, {'path': '<private>'}):
+            with self.subTest(changes=changes):
+                result = self.code_result(usedImages=[{**image, **changes}])
+                self.assertEqual(result['status'], 'matched')  # Ownership policy is unchanged.
+                self.assertTrue(all(row['status'] == 'unverified-image'
+                                    for row in result['codeFrames']['faultingThread']))
+        for images in ([image, image], [image, {**image, 'path': self.private}],
+                       [image, {**image, 'name': 'other', 'uuid': self.other_udid}]):
+            result = self.code_result(usedImages=images)['codeFrames']['faultingThread']
+            self.assertTrue(all(row['status'] == 'unverified-image' for row in result))
+        for images in ([image] + [{}] * 256, [image, None], self.private):
+            result = self.code_result(usedImages=images)['codeFrames']
+            self.assertFalse(result['completeImageArray'])
+            self.assertTrue(all(row['status'] == 'image-array-unavailable' for row in result['faultingThread']))
+
+    def test_code_offsets_allow_compatible_redaction_but_never_report_base_or_size(self):
+        image = self.code_body()['usedImages'][0]
+        result = self.code_result(usedImages=[{**image, 'path': '/private/owned/*/HappyHerd.app/HappyHerd',
+                                               'base': 2 ** 64, 'size': 2 ** 64}])
+        self.assertEqual(result['codeFrames']['faultingThread'][0]['imageOffset'], 520)
+        unavailable = self.classify(self.report(body=self.code_body()))
+        self.assertTrue(all(row['status'] == 'unverified-image'
+                            for row in unavailable['codeFrames']['faultingThread']))
+
+    def test_ambiguous_faulting_thread_never_publishes_a_selected_thread(self):
+        frame = {'frames': [{'imageIndex': 0, 'imageOffset': 520}]}
+        for body in ({'threads': [frame, {**frame, 'triggered': True}]},
+                     {'threads': [{**frame, 'triggered': True}, {**frame, 'triggered': True}]},
+                     {'faultingThread': True}, {'faultingThread': 100},
+                     {'threads': [frame] * 129}, {'threads': [None]}):
+            with self.subTest(body=body):
+                result = self.code_result(**body)['codeFrames']
+                self.assertEqual(result['faultingThread'], [])
+                self.assertEqual(len(result['exceptionBacktrace']), 1)
+
+    def test_frame_attribution_limits_preserve_first_64_ordinals(self):
+        frames = [{'imageIndex': 0, 'imageOffset': 520, 'symbol': self.private}] * 65
+        result = self.code_result(threads=[{'frames': frames}], lastExceptionBacktrace=frames)['codeFrames']
+        for key in ('faultingThread', 'exceptionBacktrace'):
+            self.assertEqual([row['frameIndex'] for row in result[key]], list(range(64)))
+            self.assertTrue(result[key + 'Truncated'])
+
     def partial_body(self, **updates):
         body = {'procPath': '/private/owned/*/HappyHerd.app/HappyHerd',
                 'usedImages': [{'name': 'HappyHerd', 'arch': 'arm64', 'uuid': self.build_uuid,

@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all eighteen hosted failures and original receipt hashes.
+preserve all nineteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -404,3 +404,57 @@ unchanged. A matched report carries only a bounded integer capture offset from
 journey start, allowing correlation with the existing checkpoint timings without
 publishing a raw report timestamp. The Logout cause remains unproved pending the
 resulting evidence.
+
+The nineteenth attempt at `30ad7634` established an owned crash after normal
+Logout. [Run 36774236151](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236151)
+again passed all 13 Web stages and native checkpoints 01–08, then failed at
+`account-logout-login` with the app already not-running before protective
+termination. No B authentication occurred. XCTest recorded one failure, zero
+passes and zero skips. All ten original captures passed independent hash and
+direct visual/privacy review. Minimum available memory was 24%, minimum disk
+space was 87,466,520,576 bytes, and simulator shutdown/deletion both succeeded.
+[Artifact 11125849819](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236151/artifacts/11125849819)
+and the durable failure entry preserve all original receipt hashes.
+
+One 48,745-byte host report matched the exact simulator coalition and compatible
+redacted process path, with one matching main arm64 image/build UUID bound to the
+hash-verified installed executable. No collection bound was reached. It reports
+`EXC_BAD_ACCESS`, `SIGSEGV` and `SIGNAL/11`. Its bounded capture offset places it
+11.406 seconds after checkpoint 08, 19.395 seconds after the earlier persistence
+relaunch checkpoint and 85.806 seconds before XCTest exited. This identifies a
+crash in the later Logout sequence; the earlier intentional persistence
+termination and subsequent protective termination do not explain it. The
+`isSimulated` metadata is absent. Sixteen inspected symbolized frames matched no
+current fixed tags, so the faulty function/component and invalid-access subtype
+remain unknown. Earlier rejected reports are not retroactively classified.
+
+The next diagnostic adds bounded code attribution tied to the exact verified
+app/framework binaries. Numeric image-relative code offsets can be resolved
+against the retained build locally; raw symbols, absolute addresses, image paths,
+UUID values, report text and account material remain private. This is diagnostic
+work, not a product correction or a native acceptance pass. The original journey,
+authentication, assertions, timeouts, captures and resource floors remain required.
+
+Code attribution reads only the selected main executable and the six existing
+framework executables, under a shared 512 MiB hashing budget. Each file must match
+the verified manifest SHA-256 and a stable regular-file read, with one supported
+arm64 Mach-O slice and build UUID. Offsets are accepted only inside validated
+instruction sections of executable segments, relative to the preferred image
+base. A complete bounded report image array must uniquely match the private
+name/path/build identity; conflicting or ambiguous frames receive only a fixed
+unattributed status. Exception and faulting-thread frame order is retained with
+64-frame bounds, and conflicting faulting-thread selectors suppress attribution.
+Only the fixed `KERN_INVALID_ADDRESS` or `KERN_PROTECTION_FAILURE` subtype may be
+copied from an address-bearing exception subtype. The local retained archive
+passed all seven image checks and main-executable offline symbol resolution;
+that feasibility check is not evidence of which function crashed.
+
+For offline resolution, first reverify the retained binary against its selected
+manifest. Privately read its preferred image base from the Mach-O header-bearing
+segment, add a verified receipt offset, and pass that result to
+`atos -arch arm64 -o <verified-binary> <preferred-base-plus-offset>`. Keep the
+resolved symbols and absolute addresses private and publish only reviewed
+source-grounded classifications. A hexadecimal fallback is not symbolization:
+the attempted `atos -l 0` recipe produced that fallback on the selected app and
+must not be used as resolution proof. Direct preferred-address resolution was
+verified independently against the retained executable.

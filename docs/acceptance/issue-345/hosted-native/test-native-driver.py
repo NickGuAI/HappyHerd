@@ -20,6 +20,106 @@ driver = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(driver)
 
 
+class SelectedCodeImageTests(unittest.TestCase):
+    private_uuid = bytes.fromhex('e123456789ab4cde8f0123456789abcd')
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.path = Path(temporary.name).resolve() / 'HappyHerd'
+
+    def binary(self, *, framework=False, instruction_flags=0x80000400, section_start=512,
+               section_size=128, initprot=5, maxprot=7, duplicate_uuid=False, base=0x100000000):
+        uuid = struct.pack('<II', 0x1b, 24) + self.private_uuid
+        segment = struct.pack('<II16sQQQQiiII', 0x19, 152, b'__TEXT', base, 1024,
+                              0, 1024, maxprot, initprot, 1, 0)
+        segment += struct.pack('<16s16sQQ8I', b'__text', b'__TEXT', base + section_start,
+                               section_size, section_start, 2, 0, 0, instruction_flags, 0, 0, 0)
+        commands = uuid + segment + (uuid if duplicate_uuid else b'')
+        header = struct.pack('<8I', 0xfeedfacf, 0x100000c, 0, 6 if framework else 2,
+                             3 if duplicate_uuid else 2, len(commands), 0, 0)
+        payload = (header + commands).ljust(1024, b'x')
+        if framework:
+            payload = struct.pack('>7I', 0xcafebabe, 1, 0x100000c, 0, 4096, len(payload), 12).ljust(4096, b'\0') + payload
+        return payload
+
+    def read(self, payload, **options):
+        self.path.write_bytes(payload)
+        return driver.read_verified_code_image(self.path, hashlib.sha256(payload).hexdigest(), **options)
+
+    def test_thin_and_one_slice_framework_offsets_use_preferred_image_base(self):
+        for framework, base in ((False, 0x100000000), (True, 0)):
+            payload = self.binary(framework=framework, base=base)
+            identity, proof = self.read(payload, framework=framework)
+            self.assertEqual(proof['status'], 'verified')
+            self.assertEqual(identity['ranges'], [(512, 640)])
+            self.assertEqual(identity['uuid'], self.private_uuid)
+            self.assertEqual(proof['bytesHashed'], len(payload))
+            self.assertEqual(self.path.read_bytes(), payload)
+            for secret in (str(self.path), self.private_uuid.hex(), str(base)):
+                if len(secret) > 1:
+                    self.assertNotIn(secret, json.dumps(proof))
+
+    def test_invalid_instruction_layout_or_ambiguous_uuid_has_no_identity(self):
+        for parameters in ({'instruction_flags': 0}, {'initprot': 1}, {'section_start': 1000},
+                           {'section_size': 2048}, {'duplicate_uuid': True},
+                           {'base': 0xfffffffffffffdff}, {'initprot': 5, 'maxprot': 6}):
+            with self.subTest(parameters=parameters):
+                identity, proof = self.read(self.binary(**parameters))
+                self.assertIsNone(identity)
+                self.assertEqual(proof['status'], 'unavailable-or-invalid')
+                self.assertTrue(proof['sha256Matched'])
+
+    def test_exact_file_hash_architecture_kind_symlink_and_byte_limit_are_required(self):
+        payload = self.binary()
+        self.path.write_bytes(payload)
+        identity, proof = driver.read_verified_code_image(self.path, '0' * 64)
+        self.assertIsNone(identity)
+        self.assertEqual(proof['status'], 'sha-mismatch')
+        identity, proof = self.read(payload, maximum_bytes=1023)
+        self.assertIsNone(identity)
+        self.assertEqual(proof['bytesHashed'], 0)
+
+    def test_growing_file_does_not_read_beyond_original_hash_budget(self):
+        payload = self.binary()
+        self.path.write_bytes(payload)
+        original_fdopen = os.fdopen
+        reads = []
+
+        def opened(*args, **kwargs):
+            stream = original_fdopen(*args, **kwargs)
+            original_read = stream.read
+
+            def read(size=-1):
+                reads.append(size)
+                data = original_read(size)
+                if len(reads) == 1:
+                    with self.path.open('ab') as writer:
+                        writer.write(b'changed')
+                return data
+
+            stream.read = read
+            return stream
+
+        with patch.object(driver.os, 'fdopen', side_effect=opened):
+            identity, proof = driver.read_verified_code_image(
+                self.path, hashlib.sha256(payload).hexdigest(), maximum_bytes=len(payload))
+        self.assertIsNone(identity)
+        self.assertEqual(proof['bytesHashed'], len(payload))
+        self.assertEqual(reads, [len(payload)])
+        for payload, framework in ((self.binary(), True), (self.binary(framework=True), False),
+                                   (self.binary()[:4] + struct.pack('<I', 0x1000007) + self.binary()[8:], False)):
+            identity, proof = self.read(payload, framework=framework)
+            self.assertIsNone(identity)
+        target = self.path.with_name('other')
+        target.write_bytes(self.binary())
+        self.path.unlink()
+        self.path.symlink_to(target)
+        identity, proof = driver.read_verified_code_image(self.path, hashlib.sha256(target.read_bytes()).hexdigest())
+        self.assertIsNone(identity)
+        self.assertEqual(proof['bytesHashed'], 0)
+
+
 class OwnedCrashCollectionTests(unittest.TestCase):
     udid = 'A1111111-1111-4111-8111-111111111111'
     private = 'PRIVATE-account https://private.invalid/token /private/user/path'
@@ -56,6 +156,52 @@ class OwnedCrashCollectionTests(unittest.TestCase):
     def collect(self, **options):
         return driver.collect_owned_crash_reports(self.device_set, self.udid, self.executable,
                                                   self.since, host_home=self.host_home, until=self.until, **options)
+
+    def test_collection_binds_all_seven_fixed_image_files_to_manifest_and_keeps_offsets(self):
+        fixture = SelectedCodeImageTests()
+        files = {}
+        for index, (role, relative) in enumerate(driver.CODE_IMAGE_FILES.items()):
+            path = self.executable.parent / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = fixture.binary(framework=role != 'application')
+            private_uuid = fixture.private_uuid[:-1] + bytes([index + 1])
+            payload = payload.replace(fixture.private_uuid, private_uuid)
+            path.write_bytes(payload)
+            files[relative] = hashlib.sha256(payload).hexdigest()
+            if role == 'application':
+                main_uuid = private_uuid.hex()
+                main_uuid = '-'.join((main_uuid[:8], main_uuid[8:12], main_uuid[12:16], main_uuid[16:20], main_uuid[20:]))
+        files['../../private'] = self.private  # Only fixed image paths may be opened.
+        self.write_report(body={'usedImages': [{'name': 'HappyHerd', 'path': str(self.executable),
+                                                'arch': 'arm64', 'uuid': main_uuid}],
+                                'faultingThread': 0, 'threads': [{'triggered': True, 'frames': [
+                                    {'imageIndex': 0, 'imageOffset': 520, 'symbol': self.private}]}]})
+        result = self.collect(expected_executable_sha256=files['HappyHerd'], expected_code_image_sha256=files)
+        self.assertEqual(len(result['reports']), 1)
+        self.assertEqual(len(result['selectedCodeImageIdentities']), 7)
+        self.assertTrue(all(row['status'] == 'verified' for row in result['selectedCodeImageIdentities']))
+        frame = result['reports'][0]['codeFrames']['faultingThread'][0]
+        self.assertEqual(frame, {'frameIndex': 0, 'status': 'verified-code-offset',
+                                 'image': 'application', 'imageOffset': 520})
+        self.assertEqual(sum(row['bytesHashed'] for row in result['selectedCodeImageIdentities']), 31744)
+        for secret in (self.private, main_uuid, str(self.root)):
+            self.assertNotIn(secret, json.dumps(result))
+        for relative, sha in files.items():
+            if not relative.startswith('..'):
+                self.assertEqual(driver.digest(self.executable.parent / relative), sha)
+
+    def test_collection_never_exceeds_aggregate_selected_image_hash_budget(self):
+        requested = []
+
+        def read(_path, _sha, **options):
+            remaining = options['maximum_bytes']
+            requested.append(remaining)
+            return None, {'status': 'unavailable-or-invalid', 'bytesHashed': min(remaining, 200 * 1024 * 1024)}
+
+        with patch.object(driver, 'read_verified_code_image', side_effect=read):
+            result = self.collect(expected_code_image_sha256={})
+        self.assertEqual(requested, [512 * 1024 * 1024, 312 * 1024 * 1024, 112 * 1024 * 1024, 0, 0, 0, 0])
+        self.assertEqual(sum(row['bytesHashed'] for row in result['selectedCodeImageIdentities']), 512 * 1024 * 1024)
 
     def test_partial_report_requires_real_selected_executable_hash_and_private_build_uuid(self):
         private_uuid = bytes.fromhex('e123456789ab4cde8f0123456789abcd')

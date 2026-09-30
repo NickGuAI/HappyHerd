@@ -20,6 +20,90 @@ MAX_ABS_ERROR_CODE = 65535
 MAX_CRASH_REPORT_BYTES = 2 * 1024 * 1024
 MAX_USED_IMAGES = 256
 MAX_PATH_COMPONENTS = 64
+CODE_IMAGE_ROLES = ('application', 'hermes', 'audio-resampler', 'media-format',
+                    'media-util', 'web-rtc', 'media-codec')
+
+
+def _code_frame_records(body, verified_images):
+    """Expose ordered code offsets only for privately verified selected images.
+
+    Image offsets are relative to the selected Mach-O's preferred image base,
+    never absolute addresses or offsets inferred from report size/base fields.
+    Caller-supplied image identities/ranges are private and never serialized.
+    """
+    images = body.get('usedImages')
+    complete_images = (isinstance(images, list) and len(images) <= MAX_USED_IMAGES
+                       and all(isinstance(item, dict) for item in images))
+    matched = {}
+    if complete_images:
+        for role in CODE_IMAGE_ROLES:
+            expected = verified_images.get(role) if isinstance(verified_images, dict) else None
+            if not isinstance(expected, dict):
+                continue
+            candidates = [index for index, item in enumerate(images)
+                          if (item.get('name') == expected['name']
+                              or _uuid_bytes(item.get('uuid')) == expected['uuid']
+                              or (isinstance(item.get('path'), str)
+                                  and PurePosixPath(item['path']).name == expected['name']))]
+            if len(candidates) != 1:
+                continue
+            index = candidates[0]
+            item = images[index]
+            if (item.get('name') == expected['name'] and item.get('arch') == 'arm64'
+                    and _uuid_bytes(item.get('uuid')) == expected['uuid']
+                    and _compatible_image_path(item.get('path'), expected['path'])):
+                matched[index] = (role, expected['ranges'])
+
+    def records(frames):
+        if not isinstance(frames, list):
+            return []
+        result = []
+        for ordinal, frame in enumerate(frames[:64]):
+            row = {'frameIndex': ordinal, 'status': 'invalid-frame'}
+            if isinstance(frame, dict):
+                index, offset = frame.get('imageIndex'), frame.get('imageOffset')
+                if not complete_images:
+                    row['status'] = 'image-array-unavailable'
+                elif type(index) is not int or not 0 <= index < len(images):
+                    row['status'] = 'invalid-image-index'
+                elif index not in matched:
+                    row['status'] = 'unverified-image'
+                elif (type(offset) is not int or not 0 <= offset < 512 * 1024 * 1024
+                      or not any(start <= offset < end for start, end in matched[index][1])):
+                    row['status'] = 'outside-verified-code'
+                else:
+                    row.update(status='verified-code-offset', image=matched[index][0], imageOffset=offset)
+            result.append(row)
+        return result
+
+    threads, faulting = body.get('threads'), body.get('faultingThread')
+    selected, selection = None, 'no-faulting-thread'
+    if not isinstance(threads, list):
+        selection = 'thread-array-unavailable'
+    elif len(threads) > 128:
+        selection = 'thread-array-limit'
+    elif any(not isinstance(thread, dict) for thread in threads):
+        selection = 'thread-array-invalid'
+    else:
+        triggered = [index for index, thread in enumerate(threads) if thread.get('triggered') is True]
+        valid_index = type(faulting) is int and 0 <= faulting < len(threads)
+        if 'faultingThread' in body and not valid_index:
+            selection = 'invalid-faulting-index'
+        elif len(triggered) > 1 or (valid_index and triggered and triggered[0] != faulting):
+            selection = 'ambiguous-faulting-thread'
+        elif valid_index:
+            selection = 'index-trigger-agree' if triggered else 'selected-by-index'
+            selected = threads[faulting].get('frames')
+        elif triggered:
+            selection = 'selected-by-trigger'
+            selected = threads[triggered[0]].get('frames')
+    backtrace = body.get('lastExceptionBacktrace')
+    return {'offsetBasis': 'verified-preferred-image-base',
+            'completeImageArray': complete_images,
+            'faultingThreadSelection': selection,
+            'exceptionBacktrace': records(backtrace), 'faultingThread': records(selected),
+            'exceptionBacktraceTruncated': isinstance(backtrace, list) and len(backtrace) > 64,
+            'faultingThreadTruncated': isinstance(selected, list) and len(selected) > 64}
 
 
 def _uuid_bytes(value):
@@ -199,7 +283,7 @@ def _identity_rejection(data, header, body, app_id, installed_executable, simula
 
 
 def classify_owned_crash_report(data, *, app_id, installed_executable, simulator_udid, since, until,
-                                installed_uuid=None):
+                                installed_uuid=None, verified_code_images=None):
     """Read Apple's two-object IPS format; return no input strings or paths.
 
     Identity and capture time are mandatory before any crash classification.
@@ -290,6 +374,12 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
     classification = classify_launch_messages([json.dumps({
         'exception': safe_exception, 'termination': safe_termination,
     })])
+    # Apple's subtype often appends a fault address. Keep only the fixed leading
+    # exception enum, without its address or any arbitrary suffix.
+    subtype = exception.get('subtype')
+    exception_subtype = next((value for value in ('KERN_INVALID_ADDRESS', 'KERN_PROTECTION_FAILURE')
+                              if isinstance(subtype, str) and re.match(
+                                  r'^' + value + r'(?:\s+at\s|$)', subtype)), None)
 
     frames = []
     frame_limit_reached = False
@@ -342,6 +432,8 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
         **({'partialPathIdentity': partial_checks} if partial_checks is not None else {}),
         'isSimulatedMetadata': _simulated_report_metadata(body),
         'classification': classification, 'termination': safe_termination,
+        **({'exceptionSubtype': exception_subtype} if exception_subtype else {}),
+        'codeFrames': _code_frame_records(body, verified_code_images),
         'faultingOrExceptionBacktraceTags': sorted(tags),
         'framesInspected': len(frames), 'symbolizedFramesInspected': symbolized_frames,
         'frameInspectionTruncated': frame_limit_reached,
