@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type {
     HappyHerdAutomation,
+    HappyHerdAutomationBlockedRun,
     HappyHerdAutomationCreateInput,
     HappyHerdAutomationRun,
     HappyHerdCommanderSummary,
@@ -52,6 +53,8 @@ import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
 import { Modal } from '@/modal';
 import {
     machineAutomationHistory,
+    machineStopAutomationRun,
+    machineAbandonAutomationRun,
     machineCreateAutomation,
     machineDeleteAutomation,
     machineListAutomations,
@@ -258,6 +261,8 @@ function Field({
 export default function AutomationsScreen() {
     const { theme } = useUnistyles();
     const navigateToSession = useNavigateToSession();
+    const routeParams = useLocalSearchParams<{ machineId?: string; automationId?: string }>();
+    const appliedTargetRef = React.useRef<string | null>(null);
     const { width } = useWindowDimensions();
     const desktop = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
     const machines = useAllMachines({ includeOffline: true });
@@ -283,6 +288,8 @@ export default function AutomationsScreen() {
     const [selectedTag, setSelectedTag] = React.useState<string | null>(null);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [selectedAutomationId, setSelectedAutomationId] = React.useState<string | null>(null);
+    const [stopRequestedRunId, setStopRequestedRunId] = React.useState<string | null>(null);
+    const [resolvingBlock, setResolvingBlock] = React.useState<string | null>(null);
     const [freshRunId, setFreshRunId] = React.useState<string | null>(null);
     const execHistoryRefreshTokensRef = React.useRef(new Map<string, symbol>());
     const routeStartedAtRef = React.useRef<number | null>(null);
@@ -314,6 +321,21 @@ export default function AutomationsScreen() {
     const selectedDefinitionSchemaVersion = machineCollections.find(
         (collection) => collection.machine.id === (editingMachineId ?? machineId),
     )?.definitionSchemaVersion ?? 1;
+    React.useEffect(() => {
+        const targetMachineId = routeParams.machineId;
+        const targetAutomationId = routeParams.automationId;
+        if (typeof targetMachineId !== 'string' || typeof targetAutomationId !== 'string') return;
+        const targetKey = JSON.stringify([targetMachineId, targetAutomationId]);
+        if (appliedTargetRef.current === targetKey) return;
+        const collection = machineCollections.find((item) => item.machine.id === targetMachineId);
+        if (!collection?.automations.some((item) => item.id === targetAutomationId)) return;
+        appliedTargetRef.current = targetKey;
+        setMachineId(targetMachineId);
+        setSelectedTag(null);
+        setSearchQuery('');
+        setSelectedAutomationId(targetAutomationId);
+    }, [machineCollections, routeParams.machineId, routeParams.automationId]);
+
     const tagsSupported = selectedDefinitionSchemaVersion >= 2;
     const execSupported = selectedDefinitionSchemaVersion >= 4;
 
@@ -632,6 +654,39 @@ export default function AutomationsScreen() {
         }
     }, [refresh]);
 
+    const resolveBlockingRun = React.useCallback(async (
+        automation: HappyHerdAutomation,
+        blockedRun: HappyHerdAutomationBlockedRun,
+        abandon: boolean,
+    ) => {
+        if (abandon) {
+            const confirmed = await Modal.confirm(
+                t('happyHerd.automations.abandonBlockingRun'),
+                t('happyHerd.automations.abandonDescription', { id: blockedRun.runId }),
+                { confirmText: t('happyHerd.automations.abandonBlockingRun'), destructive: true },
+            );
+            if (!confirmed) return;
+        }
+        setResolvingBlock(blockedRun.runId);
+        try {
+            if (abandon) {
+                await machineAbandonAutomationRun(automation.machineId, {
+                    automationId: automation.id, runId: blockedRun.runId,
+                    sessionId: blockedRun.sessionId, confirmation: 'ABANDON',
+                });
+            } else {
+                await machineStopAutomationRun(automation.machineId, { automationId: automation.id, runId: blockedRun.runId });
+                setStopRequestedRunId(blockedRun.runId);
+            }
+            await refresh();
+            await ensureHistory(automation, true);
+        } catch (nextError) {
+            Modal.alert(t('happyHerd.automations.unableResolveBlock'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
+        } finally {
+            setResolvingBlock(null);
+        }
+    }, [ensureHistory, refresh]);
+
     const formOpenInline = formVisible && !desktop;
     const formTitle = editingId ? t('happyHerd.automations.edit') : t('happyHerd.automations.create');
     const canCreate = !!machine && isMachineOnline(machine);
@@ -948,6 +1003,8 @@ export default function AutomationsScreen() {
                                 {filteredAutomations.map((automation, index) => {
                                     const open = automation.id === selectedAutomationId;
                                     const active = automation.status === 'active';
+                                    const blockedRun = machineCollections.find((collection) => collection.machine.id === automation.machineId)?.blockedRuns?.find((run) => run.automationId === automation.id);
+                                    const statusColor = blockedRun ? theme.colors.status.disconnected : active ? theme.colors.diff.success : theme.colors.textSecondary;
                                     const meta = [
                                         happyHerdAutomationRowMeta(automation, translateAutomation, getCurrentLanguage()),
                                         automation.timezone,
@@ -976,10 +1033,8 @@ export default function AutomationsScreen() {
                                                     testID="automation-status-dot"
                                                     style={[
                                                         styles.rowDot,
-                                                        active
-                                                            ? { backgroundColor: theme.colors.diff.success }
-                                                            : { backgroundColor: theme.colors.textSecondary },
-                                                        active && styles.rowDotActive,
+                                                        { backgroundColor: statusColor },
+                                                        active && !blockedRun && styles.rowDotActive,
                                                     ]}
                                                 />
                                                 <View style={styles.rowCopy}>
@@ -989,10 +1044,12 @@ export default function AutomationsScreen() {
                                                     </Text>
                                                 </View>
                                                 <Text style={[styles.rowState, {
-                                                    color: active ? theme.colors.diff.success : theme.colors.textSecondary,
+                                                    color: statusColor,
                                                 }]}>
                                                     {t(
-                                                        active
+                                                        blockedRun
+                                                            ? 'happyHerd.automations.statusBlocked'
+                                                            : active
                                                             ? 'happyHerd.automations.statusActive'
                                                             : 'happyHerd.automations.statusPaused',
                                                     )}
@@ -1007,6 +1064,12 @@ export default function AutomationsScreen() {
                                             >
                                                     <HappyHerdAutomationDetail
                                                         automation={automation}
+                                                        blockedRun={blockedRun}
+                                                        stopRequested={stopRequestedRunId === blockedRun?.runId}
+                                                        onRefreshBlock={() => { void refresh(); void ensureHistory(automation, true); }}
+                                                        resolvingBlock={resolvingBlock === blockedRun?.runId}
+                                                        onStopBlockingRun={() => blockedRun && void resolveBlockingRun(automation, blockedRun, false)}
+                                                        onAbandonBlockingRun={() => blockedRun && void resolveBlockingRun(automation, blockedRun, true)}
                                                         machineName={machine ? happyHerdAutomationMachineName(machine) : automation.machineId}
                                                         commanderName={automation.kind !== 'heartbeat' && automation.rail !== 'exec' && automation.commanderId
                                                             ? commanderNames.get(automation.commanderId) ?? null

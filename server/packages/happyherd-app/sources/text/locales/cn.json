@@ -1358,7 +1358,9 @@
     "friendRequestFrom": "{name} 向您发送了好友请求",
     "friendRequestGeneric": "新的好友请求",
     "friendAccepted": "您现在与 {name} 成为了好友",
-    "friendAcceptedGeneric": "好友请求已接受"
+    "friendAcceptedGeneric": "好友请求已接受",
+    "automationBlocked": "{machine} 上的一个自动化被运行 {runId} 阻塞。打开自动化以停止或放弃该运行。",
+    "automationBlockedGeneric": "一个自动化被运行 {runId} 阻塞。打开自动化以停止或放弃该运行。"
   },
   "happyHerd": {
     "commander": {
@@ -1533,7 +1535,15 @@
       "openSession": "打开会话 {id}",
       "openSessionLink": "打开会话",
       "commanderValue": "指挥官 {id}",
-      "attempt": "第 {count} 次尝试"
+      "attempt": "第 {count} 次尝试",
+      "statusBlocked": "已阻塞",
+      "blockedDescription": "运行 {id} 已导致此自动化连续跳过 {count} 次计划执行。",
+      "stopBlockingRun": "停止运行",
+      "abandonBlockingRun": "放弃运行",
+      "abandonDescription": "放弃运行 {id}？此操作会清除其活动记录，但不会停止会话或进程。请仅在确认之前的任务已不再运行后使用。",
+      "unableResolveBlock": "无法解除自动化阻塞",
+      "refreshStatus": "刷新状态",
+      "stopRequested": "已请求停止。在进程退出前，此运行仍处于阻塞状态。请刷新状态以检查。"
     },
     "heartbeat": {
       "title": "心跳",

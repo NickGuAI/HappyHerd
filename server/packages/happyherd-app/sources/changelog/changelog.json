@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 29 — Blocked automation alerts",
+      "summary": "",
+      "markdown": "- Automations now show “Blocked” after three scheduled runs are skipped behind an active run, identify that run, and offer Stop or Abandon using the existing run rules.\n- Inbox sends one update for each blocked automation episode instead of repeating the alert on every skip. Runs are never closed automatically."
+    },
+    {
       "title": "September 29 — Usage and Workspace styling",
       "summary": "",
       "markdown": "- Updated Usage with the new page title, cards, period controls, and amber charts.\n- Updated the Workspace feedback composer with a rounded input card and send button, and live-page element outlines now follow the light or dark theme’s accent."
@@ -856,5 +861,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 29 — Usage and Workspace styling"
+  "latestTitle": "September 29 — Blocked automation alerts"
 }

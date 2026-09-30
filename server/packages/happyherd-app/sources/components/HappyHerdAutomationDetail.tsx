@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@happyherd/wire';
+import type { HappyHerdAutomation, HappyHerdAutomationRun, HappyHerdAutomationBlockedRun } from '@happyherd/wire';
 
 import { Text as StyledText } from '@/components/StyledText';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
@@ -61,6 +61,12 @@ function RunState({ run, fresh }: { run: HappyHerdAutomationRun; fresh: boolean 
 export type HappyHerdAutomationDetailProps = {
     automation: HappyHerdAutomation;
     machineName: string;
+    blockedRun?: HappyHerdAutomationBlockedRun;
+    resolvingBlock?: boolean;
+    stopRequested?: boolean;
+    onRefreshBlock?: () => void;
+    onStopBlockingRun?: () => void;
+    onAbandonBlockingRun?: () => void;
     /** Display name for `automation.commanderId` when the machine's Commander list is loaded. */
     commanderName?: string | null;
     history?: HappyHerdAutomationRun[];
@@ -84,6 +90,12 @@ export type HappyHerdAutomationDetailProps = {
 export function HappyHerdAutomationDetail({
     automation,
     machineName,
+    blockedRun,
+    resolvingBlock = false,
+    stopRequested = false,
+    onRefreshBlock,
+    onStopBlockingRun,
+    onAbandonBlockingRun,
     commanderName,
     history,
     historyLoading,
@@ -127,6 +139,20 @@ export function HappyHerdAutomationDetail({
 
     return (
         <View accessibilityLabel={t('happyHerd.automations.details')} style={styles.body}>
+            {blockedRun && (
+                <View style={styles.blockedNotice}>
+                    <Text selectable style={{ color: theme.colors.status.disconnected }}>
+                        {t('happyHerd.automations.blockedDescription', { id: blockedRun.runId, count: blockedRun.consecutiveSkippedRuns })}
+                    </Text>
+                    {stopRequested && <Text>{t('happyHerd.automations.stopRequested')}</Text>}
+                    <View style={styles.actions}>
+                        <HerdButton size="sm" label={t('happyHerd.automations.refreshStatus')} onPress={onRefreshBlock} />
+                        {blockedRun.sessionId && <HerdButton size="sm" label={t('happyHerd.automations.openSessionLink')} onPress={() => onOpenSession(blockedRun.sessionId!)} />}
+                        {blockedRun.sessionId && <HerdButton size="sm" disabled={resolvingBlock} label={t('happyHerd.automations.stopBlockingRun')} onPress={onStopBlockingRun} />}
+                        <HerdButton size="sm" disabled={resolvingBlock} label={t('happyHerd.automations.abandonBlockingRun')} onPress={onAbandonBlockingRun} />
+                    </View>
+                </View>
+            )}
             {/* Instructions (or the command) first, then the actions, as in the mock. */}
             {automation.rail === 'exec' ? (
                 <>
@@ -339,6 +365,7 @@ export function HappyHerdAutomationDetail({
 }
 
 const styles = StyleSheet.create((theme) => ({
+    blockedNotice: { gap: 10, marginBottom: 14 },
     body: {
         paddingTop: 14,
     },

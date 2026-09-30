@@ -1358,7 +1358,9 @@
     "friendRequestFrom": "{name} sent you a friend request",
     "friendRequestGeneric": "New friend request",
     "friendAccepted": "You are now friends with {name}",
-    "friendAcceptedGeneric": "Friend request accepted"
+    "friendAcceptedGeneric": "Friend request accepted",
+    "automationBlocked": "An automation on {machine} is blocked by run {runId}. Open Automations to stop or abandon it.",
+    "automationBlockedGeneric": "An automation is blocked by run {runId}. Open Automations to stop or abandon it."
   },
   "happyHerd": {
     "commander": {
@@ -1533,7 +1535,15 @@
       "openSession": "Open session {id}",
       "openSessionLink": "Open session",
       "commanderValue": "Commander {id}",
-      "attempt": "attempt {count}"
+      "attempt": "attempt {count}",
+      "statusBlocked": "Blocked",
+      "blockedDescription": "Run {id} is blocking this automation after {count} consecutive scheduled skips.",
+      "stopBlockingRun": "Stop run",
+      "abandonBlockingRun": "Abandon run",
+      "abandonDescription": "Abandon run {id}? This clears its active record but does not stop the session or process. Use only after confirming the previous work is no longer running.",
+      "unableResolveBlock": "Unable to resolve blocked automation",
+      "refreshStatus": "Refresh status",
+      "stopRequested": "Stop requested. The run remains blocked until its process exits. Refresh status to check."
     },
     "heartbeat": {
       "title": "Heartbeat",

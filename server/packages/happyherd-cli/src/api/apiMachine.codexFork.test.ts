@@ -337,6 +337,8 @@ describe('ApiMachineClient Codex fork RPCs', () => {
     it('registers automation handlers against the daemon service', async () => {
         const automations = {
             list: vi.fn().mockResolvedValue({ automations: [] }),
+            stopRun: vi.fn().mockResolvedValue({ status: 'started' }),
+            abandonRun: vi.fn().mockResolvedValue({ status: 'failed' }),
         } as any;
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());
@@ -351,6 +353,14 @@ describe('ApiMachineClient Codex fork RPCs', () => {
 
         expect(result).toEqual({ automations: [] });
         expect(automations.list).toHaveBeenCalledOnce();
+        const target = { automationId: 'automation-one', runId: 'run-one' };
+        await handlersFrom(client).get('machine-1:happyherd-automations-stop-run')?.(target);
+        expect(automations.stopRun).toHaveBeenCalledWith(target);
+        const abandon = handlersFrom(client).get('machine-1:happyherd-automations-abandon-run')!;
+        await expect(abandon({ ...target, sessionId: null })).rejects.toThrow('ABANDON');
+        expect(automations.abandonRun).not.toHaveBeenCalled();
+        await abandon({ ...target, sessionId: null, confirmation: 'ABANDON' });
+        expect(automations.abandonRun).toHaveBeenCalledWith({ ...target, sessionId: null, confirmation: 'ABANDON' });
     });
 
     it('lists Codex rewind points from thread/read', async () => {

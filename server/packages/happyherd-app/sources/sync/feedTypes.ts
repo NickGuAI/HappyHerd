@@ -4,7 +4,13 @@ import { z } from 'zod';
 export const FeedBodySchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('friend_request'), uid: z.string() }),
     z.object({ kind: z.literal('friend_accepted'), uid: z.string() }),
-    z.object({ kind: z.literal('text'), text: z.string() })
+    z.object({ kind: z.literal('text'), text: z.string() }),
+    z.object({
+        kind: z.literal('automation_blocked'),
+        machineId: z.string(),
+        automationId: z.string(),
+        runId: z.string(),
+    })
 ]);
 
 export type FeedBody = z.infer<typeof FeedBodySchema>;

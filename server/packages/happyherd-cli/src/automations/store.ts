@@ -9,6 +9,7 @@ import {
   HappyHerdAutomationSchema,
   HappyHerdAutomationUpdateInputSchema,
   type HappyHerdAutomation,
+  type HappyHerdAutomationBlockedRun,
   type HappyHerdAutomationCreateInput,
   type HappyHerdHeartbeatAutomation,
   type HappyHerdAutomationListResponse,
@@ -48,10 +49,11 @@ function normalizeStoredRun(value: unknown): unknown {
 }
 
 function retainBoundedHistory(runs: HappyHerdAutomationRun[]): HappyHerdAutomationRun[] {
-  const activeCount = runs.filter((run) => ACTIVE_RUN_STATUSES.has(run.status)).length;
+  const mustRetain = (run: HappyHerdAutomationRun) => ACTIVE_RUN_STATUSES.has(run.status) || Boolean(run.blockedAt && !run.blockedNotificationSent);
+  const activeCount = runs.filter(mustRetain).length;
   let remainingTerminalSlots = Math.max(0, HISTORY_CAP - activeCount);
   return runs.filter((run) => {
-    if (ACTIVE_RUN_STATUSES.has(run.status)) return true;
+    if (mustRetain(run)) return true;
     if (remainingTerminalSlots === 0) return false;
     remainingTerminalSlots -= 1;
     return true;
@@ -186,6 +188,7 @@ export class HappyHerdAutomationStore {
     return {
       definitionSchemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
       automations,
+      blockedRuns: (await Promise.all(automations.filter((automation) => automation.kind !== 'heartbeat').map((automation) => this.blockedRun(automation.id)))).filter((run): run is HappyHerdAutomationBlockedRun => run !== null),
     };
   }
 
@@ -371,6 +374,30 @@ export class HappyHerdAutomationStore {
     return retainBoundedHistory(await this.readRuns(id));
   }
 
+  async blockedRun(id: string): Promise<HappyHerdAutomationBlockedRun | null> {
+    const run = (await this.activeRuns(id)).find((entry) => (entry.consecutiveSkippedRuns ?? 0) >= 3 && entry.blockedAt);
+    return run ? {
+      automationId: id, runId: run.id, sessionId: run.sessionId,
+      consecutiveSkippedRuns: run.consecutiveSkippedRuns!, blockedAt: run.blockedAt!,
+    } : null;
+  }
+
+  async pendingBlockedNotifications(id: string): Promise<HappyHerdAutomationRun[]> {
+    assertUuid(id);
+    return (await this.readRuns(id)).filter((run) => run.blockedAt && !run.blockedNotificationSent);
+  }
+
+  async markBlockedNotificationSent(id: string, runId: string): Promise<void> {
+    await this.serialize(async () => {
+      const history = await this.readRuns(id);
+      const run = history.find((entry) => entry.id === runId);
+      if (!run) return;
+      // Delivery metadata is independent of the immutable provider outcome.
+      run.blockedNotificationSent = true;
+      await writeJsonAtomic(runsPath(id), retainBoundedHistory(history));
+    });
+  }
+
   async activeRun(id: string): Promise<HappyHerdAutomationRun | null> {
     return (await this.activeRuns(id))[0] ?? null;
   }
@@ -406,6 +433,26 @@ export class HappyHerdAutomationStore {
       const history = await this.readRuns(parsed.automationId);
       const current = history.find((entry) => entry.id === parsed.id);
       if (current) assertValidRunTransition(current, parsed);
+      // Provider updates may have read the run before a scheduler skip. Keep
+      // the latest overlap evidence when applying that lifecycle transition.
+      if (current) {
+        parsed.consecutiveSkippedRuns = current.consecutiveSkippedRuns;
+        parsed.blockedAt = current.blockedAt;
+        parsed.blockedNotificationSent = current.blockedNotificationSent;
+      }
+      if (!current && parsed.source === 'schedule' && parsed.status === 'skipped'
+        && parsed.message === 'Skipped because the previous run is still active.') {
+        const blocker = history.find((entry) => ACTIVE_RUN_STATUSES.has(entry.status));
+        if (blocker) {
+          blocker.consecutiveSkippedRuns = (blocker.consecutiveSkippedRuns ?? 0) + 1;
+          if (blocker.consecutiveSkippedRuns >= 3 && !blocker.blockedAt) blocker.blockedAt = parsed.startedAt;
+        }
+      }
+      if (!current && parsed.source === 'schedule' && parsed.status !== 'skipped') {
+        for (const blocker of history.filter((entry) => ACTIVE_RUN_STATUSES.has(entry.status))) {
+          if (!blocker.blockedAt) blocker.consecutiveSkippedRuns = 0;
+        }
+      }
       const next = [parsed, ...history.filter((entry) => entry.id !== parsed.id)];
       await writeJsonAtomic(runsPath(parsed.automationId), retainBoundedHistory(next));
     });

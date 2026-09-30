@@ -8,6 +8,7 @@ const testState = vi.hoisted(() => ({
     tablet: true,
     push: vi.fn(),
     feed: [] as any[],
+    machines: {} as Record<string, { metadata: { displayName: string; host: string } }>,
 }));
 
 vi.mock('react-native', async () => {
@@ -72,12 +73,22 @@ vi.mock('@/sync/storage', () => ({
     useFriendsLoaded: () => true,
     useRealtimeStatus: () => 'disconnected',
     useUser: () => undefined,
+    useMachine: (machineId: string) => testState.machines[machineId] ?? null,
 }));
-vi.mock('@/text', () => ({
-    t: (key: string, values?: Record<string, unknown>) => (values?.count !== undefined ? `${key}(${values.count})` : key),
-}));
+vi.mock('@/text', async () => {
+    const { default: en } = await import('@/text/locales/en.json');
+    return {
+        t: (key: string, values?: Record<string, unknown>) => {
+            const message = key === 'feed.automationBlocked' ? en.feed.automationBlocked
+                : key === 'feed.automationBlockedGeneric' ? en.feed.automationBlockedGeneric : undefined;
+            if (message) return message.replace(/\{(\w+)\}/g, (_, name) => String(values?.[name]));
+            return values?.count !== undefined ? `${key}(${values.count})` : key;
+        },
+    };
+});
 
 import { InboxView } from './InboxView';
+import { FeedBodySchema } from '@/sync/feedTypes';
 
 const originalConsoleError = console.error;
 beforeAll(() => {
@@ -92,6 +103,7 @@ beforeEach(() => {
     testState.width = 1440;
     testState.tablet = true;
     testState.push.mockReset();
+    testState.machines = {};
     testState.feed = [
         { id: 'feed-1', repeatKey: null, cursor: 'c1', counter: 1, createdAt: Date.now() - 2 * 60_000, body: { kind: 'text', text: 'Nightly audit finished' } },
         { id: 'feed-2', repeatKey: null, cursor: 'c2', counter: 2, createdAt: Date.now() - 3 * 3_600_000, body: { kind: 'text', text: 'HappyHerd 1.4.2 is available' } },
@@ -109,6 +121,35 @@ function render(): ReactTestRenderer {
 const texts = (node: any): unknown[] => node.findAllByType('Text' as any).map((entry: any) => entry.props.children).flat(Infinity);
 
 describe('Inbox page (UI overhaul, mock fidelity)', () => {
+    it.each([
+        { width: 1440, machineKnown: true },
+        { width: 390, machineKnown: true },
+        { width: 1440, machineKnown: false },
+        { width: 390, machineKnown: false },
+    ])('opens Automations from a blocked-run Inbox update at width $width (machine known: $machineKnown)', ({ width, machineKnown }) => {
+        testState.width = width;
+        testState.tablet = width > 768;
+        if (machineKnown) {
+            testState.machines['machine-1'] = { metadata: { displayName: 'Work laptop', host: 'work-host' } };
+        }
+        testState.feed = [{
+            id: 'blocked', repeatKey: 'automation-blocked', cursor: 'c3', counter: 3,
+            createdAt: Date.now(),
+            body: { kind: 'automation_blocked', machineId: 'machine-1', automationId: 'automation-1', runId: 'run-1' },
+        }];
+        expect(FeedBodySchema.parse(testState.feed[0].body)).toEqual(testState.feed[0].body);
+        const renderer = render();
+        const card = renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.testID === 'feed-card-blocked');
+        expect(card).toHaveLength(1);
+        const title = machineKnown
+            ? 'An automation on Work laptop is blocked by run run-1. Open Automations to stop or abandon it.'
+            : 'An automation is blocked by run run-1. Open Automations to stop or abandon it.';
+        expect(texts(card[0])).toContain(title);
+        expect(card[0].props.accessibilityLabel).toBe(title);
+        act(() => card[0].props.onPress());
+        expect(testState.push).toHaveBeenCalledWith({ pathname: '/automations', params: { machineId: 'machine-1', automationId: 'automation-1' } });
+    });
+
     it('draws the large Inbox title with Find Friends on its row on wide web, instead of the header row', () => {
         const renderer = render();
         const head = renderer.root.findAll((node: any) => node.type === 'View' && node.props?.testID === 'inbox-page-header');

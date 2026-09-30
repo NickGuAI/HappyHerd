@@ -1358,7 +1358,9 @@
     "friendRequestFrom": "{name} hat dir eine Freundschaftsanfrage gesendet",
     "friendRequestGeneric": "Neue Freundschaftsanfrage",
     "friendAccepted": "Du bist jetzt mit {name} befreundet",
-    "friendAcceptedGeneric": "Freundschaftsanfrage angenommen"
+    "friendAcceptedGeneric": "Freundschaftsanfrage angenommen",
+    "automationBlocked": "Eine Automatisierung auf {machine} wird durch Lauf {runId} blockiert. Öffnen Sie Automatisierungen, um ihn zu stoppen oder aufzugeben.",
+    "automationBlockedGeneric": "Eine Automatisierung wird durch Lauf {runId} blockiert. Öffnen Sie Automatisierungen, um ihn zu stoppen oder aufzugeben."
   },
   "happyHerd": {
     "commander": {
@@ -1533,7 +1535,15 @@
       "openSession": "Sitzung {id} öffnen",
       "openSessionLink": "Sitzung öffnen",
       "commanderValue": "Kommandant {id}",
-      "attempt": "Versuch {count}"
+      "attempt": "Versuch {count}",
+      "statusBlocked": "Blockiert",
+      "blockedDescription": "Lauf {id} blockiert diese Automatisierung nach {count} aufeinanderfolgenden übersprungenen geplanten Ausführungen.",
+      "stopBlockingRun": "Lauf stoppen",
+      "abandonBlockingRun": "Lauf aufgeben",
+      "abandonDescription": "Lauf {id} aufgeben? Dies entfernt seinen aktiven Eintrag, beendet aber weder Sitzung noch Prozess. Nur verwenden, wenn die vorherige Arbeit nachweislich nicht mehr läuft.",
+      "unableResolveBlock": "Blockierte Automatisierung konnte nicht freigegeben werden",
+      "refreshStatus": "Status aktualisieren",
+      "stopRequested": "Stopp angefordert. Der Lauf bleibt blockiert, bis sein Prozess beendet ist. Aktualisiere den Status zur Überprüfung."
     },
     "heartbeat": {
       "title": "Herzschlag",

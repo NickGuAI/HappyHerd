@@ -10,6 +10,7 @@ import type { Machine } from '@/sync/storageTypes';
 const testState = vi.hoisted(() => ({
     machines: [] as Machine[],
     width: 1200,
+    routeParams: {} as Record<string, string>,
     focusEpoch: 0,
     listAutomations: vi.fn(),
     automationHistory: vi.fn(),
@@ -17,6 +18,8 @@ const testState = vi.hoisted(() => ({
     createAutomation: vi.fn(),
     updateAutomation: vi.fn(),
     runAutomationNow: vi.fn(),
+    stopRun: vi.fn(),
+    abandonRun: vi.fn(),
     profileRpc: vi.fn(),
     profileStart: vi.fn(),
     recordProfile: vi.fn(),
@@ -78,6 +81,7 @@ vi.mock('@expo/vector-icons', async () => {
 vi.mock('expo-router', async () => {
     const ReactModule = await import('react');
     return {
+        useLocalSearchParams: () => testState.routeParams,
         Stack: {
             Screen: (props: any) => ReactModule.createElement('StackScreen', props),
         },
@@ -133,6 +137,8 @@ vi.mock('@/modal', () => ({
 
 vi.mock('@/sync/ops', () => ({
     machineAutomationHistory: testState.automationHistory,
+    machineStopAutomationRun: testState.stopRun,
+    machineAbandonAutomationRun: testState.abandonRun,
     machineCreateAutomation: testState.createAutomation,
     machineDeleteAutomation: vi.fn(),
     machineListAutomations: testState.listAutomations,
@@ -188,6 +194,7 @@ vi.mock('@/text', () => ({
 }));
 
 import AutomationsScreen from '../app/(app)/automations/index';
+import { Modal } from '@/modal';
 
 const originalConsoleError = console.error;
 
@@ -204,6 +211,11 @@ afterAll(() => vi.restoreAllMocks());
 beforeEach(() => {
     testState.machines = [];
     testState.width = 1200;
+    testState.routeParams = {};
+    testState.stopRun.mockReset();
+    testState.abandonRun.mockReset();
+    vi.mocked(Modal.confirm).mockReset().mockResolvedValue(false);
+    vi.mocked(Modal.alert).mockClear();
     testState.focusEpoch = 0;
     testState.listAutomations.mockReset().mockResolvedValue({
         definitionSchemaVersion: 2,
@@ -316,6 +328,72 @@ function rowLabels(renderer: ReactTestRenderer): string[] {
 }
 
 describe('AutomationsScreen refresh behavior', () => {
+    it.each([1200, 390])('shows a blocked state before expansion at width %s', async (width) => {
+        testState.width = width;
+        testState.machines = [machine('machine-a', 100)];
+        const item = { ...automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Blocked job', []), status: 'active' };
+        const blockedRun = { automationId: item.id, runId: '22222222-2222-4222-8222-222222222222', sessionId: 'session-blocker', consecutiveSkippedRuns: 3, blockedAt: '2026-09-29T01:00:00.000Z' };
+        testState.listAutomations.mockResolvedValue({ definitionSchemaVersion: 4, automations: [item], blockedRuns: [blockedRun] });
+        const renderer = await renderScreen();
+        expect(visibleText(renderer)).toContain('happyHerd.automations.statusBlocked');
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Show details for Blocked job' }).props.onPress());
+        expect(renderer.root.findByType('AutomationDetail' as any).props.blockedRun).toEqual(blockedRun);
+    });
+
+    it('targets the exact blocker, requires abandon confirmation, refreshes success and retains recovery after errors', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        const item = { ...automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Blocked job', []), status: 'active' };
+        const blockedRun = { automationId: item.id, runId: '22222222-2222-4222-8222-222222222222', sessionId: 'session-blocker', consecutiveSkippedRuns: 3, blockedAt: '2026-09-29T01:00:00.000Z' };
+        testState.listAutomations.mockResolvedValue({ definitionSchemaVersion: 4, automations: [item], blockedRuns: [blockedRun] });
+        const renderer = await renderScreen();
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Show details for Blocked job' }).props.onPress());
+        const detail = () => renderer.root.findByType('AutomationDetail' as any);
+        await act(async () => detail().props.onAbandonBlockingRun());
+        expect(testState.abandonRun).not.toHaveBeenCalled();
+        testState.stopRun.mockRejectedValue(new Error('Run is no longer tracked'));
+        await act(async () => detail().props.onStopBlockingRun());
+        expect(testState.stopRun).toHaveBeenCalledWith('machine-a', { automationId: item.id, runId: blockedRun.runId });
+        expect(Modal.alert).toHaveBeenCalledWith('happyHerd.automations.unableResolveBlock', 'Run is no longer tracked');
+        expect(detail().props.resolvingBlock).toBe(false);
+        expect(visibleText(renderer)).toContain('happyHerd.automations.statusBlocked');
+        vi.mocked(Modal.confirm).mockResolvedValue(true);
+        testState.abandonRun.mockResolvedValue({});
+        testState.listAutomations.mockResolvedValue({ definitionSchemaVersion: 4, automations: [item], blockedRuns: [] });
+        await act(async () => detail().props.onAbandonBlockingRun());
+        expect(testState.abandonRun).toHaveBeenCalledWith('machine-a', {
+            automationId: item.id, runId: blockedRun.runId, sessionId: blockedRun.sessionId, confirmation: 'ABANDON',
+        });
+        expect(visibleText(renderer)).not.toContain('happyHerd.automations.statusBlocked');
+        expect(detail().props.blockedRun).toBeUndefined();
+    });
+
+    it('opens an Inbox target on its owning machine after machine lists load', async () => {
+        testState.machines = [machine('machine-a', 100), machine('machine-b', 100)];
+        const item = automation('11111111-1111-4111-8111-111111111111', 'machine-b', 'Inbox target', []);
+        testState.routeParams = { machineId: 'machine-b', automationId: item.id };
+        testState.listAutomations.mockImplementation(async (id) => ({ definitionSchemaVersion: 4, automations: id === 'machine-b' ? [item] : [] }));
+        const renderer = await renderScreen();
+        expect(renderer.root.findByType('AutomationDetail' as any).props.automation.machineId).toBe('machine-b');
+        expect(rowLabels(renderer)).toEqual(['Hide details for Inbox target']);
+    });
+
+    it('keeps a stopped run blocked until explicit status refresh observes exit', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        const item = { ...automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Blocked job', []), status: 'active' };
+        const blocker = { automationId: item.id, runId: '22222222-2222-4222-8222-222222222222', sessionId: 'session-blocker', consecutiveSkippedRuns: 3, blockedAt: '2026-09-29T01:00:00.000Z' };
+        testState.listAutomations.mockResolvedValue({ definitionSchemaVersion: 4, automations: [item], blockedRuns: [blocker] });
+        testState.stopRun.mockResolvedValue({});
+        const renderer = await renderScreen();
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Show details for Blocked job' }).props.onPress());
+        const detail = () => renderer.root.findByType('AutomationDetail' as any);
+        await act(async () => detail().props.onStopBlockingRun());
+        expect(detail().props.stopRequested).toBe(true);
+        expect(detail().props.blockedRun).toEqual(blocker);
+        testState.listAutomations.mockResolvedValue({ definitionSchemaVersion: 4, automations: [item], blockedRuns: [] });
+        await act(async () => detail().props.onRefreshBlock());
+        expect(detail().props.blockedRun).toBeUndefined();
+    });
+
     it('shows dynamic tag filters and search without opening the form', async () => {
         testState.machines = [machine('machine-a', 100)];
         testState.listAutomations.mockResolvedValue({

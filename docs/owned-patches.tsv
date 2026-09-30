@@ -660,3 +660,7 @@ UI_USAGE_RESTYLE_WHITESPACE	accepted	fix(app): normalize whitespace in restyled 
 UI_WORKSPACE_COMPOSER_BOUNDS	accepted	test(app): verify restyled composer bounds in narrow workspace	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 UI_USAGE_WORKSPACE_GOLDENS	accepted	test(app): refresh changelog goldens for Usage and Workspace styling	docs/acceptance/issue-348/golden-provenance.json
 UI_USAGE_WORKSPACE_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the KILV changelog baselines for the Usage and Workspace entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+AUTOMATION_BLOCKED_SKIPS	accepted	fix(automations): surface runs blocked by repeated active-run skips	server/packages/happyherd-cli/src/automations/service.test.ts
+AUTOMATION_BLOCKED_SKIPS_REBASED_GOLDENS	accepted	test(automations): refresh rebased blocked-alert visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+AUTOMATION_BLOCKED_FEED_IDS_ONLY	accepted	fix(automations): keep automation names out of the server feed	server/packages/happyherd-server/sources/app/api/routes/feedRoutes.test.ts
+AUTOMATION_BLOCKED_CHANGELOG_BASELINES_REBASED	accepted	test(automations): regenerate the KILV changelog baselines for blocked automation alerts	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

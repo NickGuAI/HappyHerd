@@ -132,6 +132,7 @@ describe('HappyHerd automation machine loading', () => {
 
         expect(result.collections).toEqual([{
             machine: alpha,
+            blockedRuns: [],
             definitionSchemaVersion: 2,
             automations: [alphaResult],
         }]);

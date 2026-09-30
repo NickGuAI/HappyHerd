@@ -143,6 +143,13 @@ export class ApiClient {
     }
   }
 
+  async postAutomationBlocked(input: { machineId: string; automationId: string; runId: string }): Promise<void> {
+    await axios.post(`${configuration.serverUrl}/v1/feed/automation-blocked`, input, {
+      headers: { Authorization: `Bearer ${this.credential.token}` },
+      timeout: 10_000,
+    });
+  }
+
   /**
    * Reload the authoritative encrypted state for a session that is being
    * resumed in place. The daemon-provided reconnect tuple deliberately keeps

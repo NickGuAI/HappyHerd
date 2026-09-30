@@ -1664,7 +1664,7 @@ export async function startDaemon(): Promise<void> {
         if (!session || hasProviderProcessExited(session.pid)) return false;
         return stopSession(session.happySessionId ?? `PID-${session.pid}`);
       },
-    });
+    }, undefined, (input) => api.postAutomationBlocked(input));
     await automations.start();
     await reconcileAutomationRuns();
 

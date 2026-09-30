@@ -4,7 +4,8 @@ import { FeedItem } from '@/sync/feedTypes';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '@/text';
 import { useRouter } from 'expo-router';
-import { useUser } from '@/sync/storage';
+import { useMachine, useUser } from '@/sync/storage';
+import { getMachineName } from '@/sync/machineChoices';
 import { Avatar } from './Avatar';
 import { HerdItem as Item } from './herd/pages/HerdList';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -49,6 +50,27 @@ function FeedCard({ title, time, tile, onPress, testID }: {
     ) : (
         <View testID={testID} style={styles.card}>{body}</View>
     );
+}
+
+function AutomationBlockedFeedItem({ itemId, body, time, variant }: {
+    itemId: string;
+    body: Extract<FeedItem['body'], { kind: 'automation_blocked' }>;
+    time: string;
+    variant: 'row' | 'card';
+}) {
+    const machine = useMachine(body.machineId);
+    const { theme } = useUnistyles();
+    const router = useRouter();
+    const title = machine
+        ? t('feed.automationBlocked', { machine: getMachineName(machine), runId: body.runId })
+        : t('feed.automationBlockedGeneric', { runId: body.runId });
+    const icon = <Ionicons name="warning-outline" size={20} color={theme.colors.textSecondary} />;
+    const { machineId, automationId } = body;
+    const onPress = () => router.push({ pathname: '/automations', params: { machineId, automationId } });
+    if (variant === 'card') {
+        return <FeedCard testID={`feed-card-${itemId}`} title={title} time={time} tile={icon} onPress={onPress} />;
+    }
+    return <Item title={title} subtitle={time} icon={icon} onPress={onPress} showChevron={true} />;
 }
 
 export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardProps) => {
@@ -127,6 +149,10 @@ export const FeedItemCard = React.memo(({ item, variant = 'row' }: FeedItemCardP
                     showChevron={true}
                 />
             );
+        }
+
+        case 'automation_blocked': {
+            return <AutomationBlockedFeedItem itemId={item.id} body={item.body} time={getTimeAgo(item.createdAt)} variant={variant} />;
         }
 
         case 'text':

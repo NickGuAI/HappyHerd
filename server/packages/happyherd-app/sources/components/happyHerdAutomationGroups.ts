@@ -1,5 +1,7 @@
 import {
     HappyHerdAutomationSchema,
+    HappyHerdAutomationBlockedRunSchema,
+    type HappyHerdAutomationBlockedRun,
     type HappyHerdAutomation,
     type HappyHerdAutomationCreateInput,
 } from '@happyherd/wire';
@@ -16,6 +18,7 @@ type HappyHerdAutomationReloadMachine = Pick<
 type RuntimeListResponse = {
     definitionSchemaVersion?: 1 | 2 | 3 | 4;
     automations: unknown[];
+    blockedRuns?: unknown[];
 };
 
 export type HappyHerdAutomationMachineCollection<
@@ -24,6 +27,7 @@ export type HappyHerdAutomationMachineCollection<
     machine: TMachine;
     definitionSchemaVersion: 1 | 2 | 3 | 4;
     automations: HappyHerdAutomation[];
+    blockedRuns?: HappyHerdAutomationBlockedRun[];
 };
 
 export type HappyHerdAutomationMachineFailure<
@@ -172,6 +176,7 @@ export async function loadHappyHerdAutomationMachines<
                             ? 2
                             : 1,
                 automations: result.value.automations.map(normalizeRuntimeAutomation),
+                blockedRuns: (result.value.blockedRuns ?? []).map((run) => HappyHerdAutomationBlockedRunSchema.parse(run)),
             });
         } catch (error) {
             failures.push({

@@ -283,6 +283,7 @@ export class HappyHerdAutomationService {
     private readonly heartbeatDependencies?: HappyHerdHeartbeatDependencies,
     private readonly runRecoveryDependencies?: HappyHerdAutomationRunRecoveryDependencies,
     private readonly execCommandRunner: HappyHerdExecCommandRunner = runHappyHerdExecCommand,
+    private readonly notifyBlocked?: (input: { machineId: string; automationId: string; runId: string }) => Promise<void>,
   ) {}
 
   async start(): Promise<void> {
@@ -329,6 +330,7 @@ export class HappyHerdAutomationService {
   private async writeHeartbeat(now: Date): Promise<void> {
     await writeJsonAtomic(schedulerStatePath(), { schemaVersion: 1, lastSeenAt: now.toISOString() });
     await this.reconcileHeartbeats(now);
+    await this.publishBlockedNotifications();
   }
 
   private async recordOfflineWindows(from: Date, until: Date): Promise<void> {
@@ -550,6 +552,7 @@ export class HappyHerdAutomationService {
       message: 'Skipped because the previous run is still active.',
     };
     await this.store.appendRun(skipped);
+    await this.publishBlockedNotifications();
     return skipped;
   }
 
@@ -883,6 +886,23 @@ export class HappyHerdAutomationService {
     });
   }
 
+  private async publishBlockedNotifications(): Promise<void> {
+    if (!this.notifyBlocked) return;
+    const { automations } = await this.store.list(this.machineId);
+    for (const automation of automations.filter((entry) => entry.kind !== 'heartbeat')) {
+      for (const run of await this.store.pendingBlockedNotifications(automation.id)) {
+        try {
+          await this.notifyBlocked({ machineId: this.machineId, automationId: automation.id, runId: run.id });
+          await this.store.markBlockedNotificationSent(automation.id, run.id);
+        } catch (error) {
+          // Retry the same episode key even if its provider has since exited.
+          // Server deduplication also covers delivery with a lost response.
+          logger.warn('[AUTOMATIONS] Failed to publish blocked automation update', error);
+        }
+      }
+    }
+  }
+
   async list(): Promise<HappyHerdAutomationListResponse> {
     return this.store.list(this.machineId);
   }
@@ -1074,7 +1094,7 @@ export class HappyHerdAutomationService {
   async history(id: string): Promise<HappyHerdAutomationHistoryResponse> {
     const current = await this.store.get(id);
     if (current.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
-    return { runs: await this.store.history(id) };
+    return { runs: await this.store.history(id), blockedRun: await this.store.blockedRun(id) };
   }
 
   private async assertCommanderWorkspace(commanderId: string | null, workspace: string): Promise<void> {

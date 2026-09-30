@@ -172,6 +172,21 @@ function renderDetail(overrides: Partial<React.ComponentProps<typeof HappyHerdAu
 }
 
 describe('HappyHerdAutomationDetail', () => {
+    it('identifies the exact blocker and exposes its existing recovery actions', () => {
+        const blockedRun = { automationId: automation.id, runId: run.id, sessionId: 'session-blocker', consecutiveSkippedRuns: 3, blockedAt: '2026-09-29T01:00:00.000Z' };
+        const onStopBlockingRun = vi.fn();
+        const onAbandonBlockingRun = vi.fn();
+        const { renderer, props } = renderDetail({ blockedRun, onStopBlockingRun, onAbandonBlockingRun });
+        expect(renderedText(renderer)).toContain(`happyHerd.automations.blockedDescription:${run.id}`);
+        const press = (label: string) => renderer.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0];
+        act(() => press('happyHerd.automations.stopBlockingRun').props.onPress());
+        act(() => press('happyHerd.automations.abandonBlockingRun').props.onPress());
+        act(() => press('happyHerd.automations.openSessionLink').props.onPress());
+        expect(onStopBlockingRun).toHaveBeenCalledOnce();
+        expect(onAbandonBlockingRun).toHaveBeenCalledOnce();
+        expect(props.onOpenSession).toHaveBeenCalledWith('session-blocker');
+    });
+
     function renderedText(renderer: ReactTestRenderer): unknown[] {
         return renderer.root.findAllByType('Text' as any)
             .map((node: any) => node.props.children)
