@@ -1,0 +1,89 @@
+name: Issue 345 authenticated native journey
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/issue-345-native-journey.yml
+      - docs/acceptance/issue-345/hosted-native/**
+      - docs/acceptance/issue-345/web/run-web-acceptance.mjs
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-inbox:
+    name: Authenticated Inbox on iOS simulator
+    if: github.event.pull_request.number == 367
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      APP_ENV: production
+      EXPO_NO_TELEMETRY: 1
+      HH345_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      HH345_NATIVE_SHA: 67a22ead631e384802e5f7a8657ff674c07ab28d
+      EXPO_PUBLIC_HAPPYHERD_SERVER_URL: http://127.0.0.1:43545
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - name: Pin unchanged product source and isolated paths
+        run: |
+          test "$(git rev-parse HEAD)" = "$HH345_SOURCE_SHA"
+          test "$(git rev-parse HEAD:server)" = "$(git rev-parse "$HH345_NATIVE_SHA:server")"
+          mkdir -p .artifacts/issue-345/live-acceptance acceptance-proof "$RUNNER_TEMP/issue-345-metro"
+          echo "HH345_ARTIFACT_DIR=$GITHUB_WORKSPACE/.artifacts/issue-345/live-acceptance" >> "$GITHUB_ENV"
+          echo "HH345_PROOF_DIR=$GITHUB_WORKSPACE/acceptance-proof" >> "$GITHUB_ENV"
+          echo "HH345_APP_ARTIFACT=$GITHUB_WORKSPACE/.artifacts/issue-345/live-acceptance/hosted-app-artifact" >> "$GITHUB_ENV"
+          echo "HH345_APP_PATH=$RUNNER_TEMP/issue-345-app/HappyHerd.app" >> "$GITHUB_ENV"
+          echo "HAPPYHERD_BUILD_COMMIT_SHA=$HH345_SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "TMPDIR=$RUNNER_TEMP/issue-345-metro/" >> "$GITHUB_ENV"
+          { git rev-parse HEAD HEAD:server; xcodebuild -version; node --version; pnpm --version; bun --version; sysctl hw.memsize hw.ncpu; df -h .; } > acceptance-proof/toolchain.txt
+      - name: Prepare the tiny native test project generator
+        run: |
+          if ! command -v xcodegen >/dev/null; then brew install xcodegen; fi
+          xcodegen --version >> acceptance-proof/toolchain.txt
+      - name: Install frozen dependencies and browser
+        working-directory: server
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter happyherd-app exec playwright-core install chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue-345-native-67a22ead631e384802e5f7a8657ff674c07ab28d
+          run-id: 36669543990
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .artifacts/issue-345/live-acceptance/hosted-app-artifact
+      - name: Verify selected native app before installation
+        run: |
+          python3 docs/acceptance/issue-345/hosted-native/verify-hosted-app.py archive             --artifact-dir "$HH345_APP_ARTIFACT" --receipt "$HH345_PROOF_DIR/native-app-archive.json"
+          ditto -xk "$HH345_APP_ARTIFACT/HappyHerd.app.zip" "$RUNNER_TEMP/issue-345-app"
+          python3 docs/acceptance/issue-345/hosted-native/verify-hosted-app.py extracted             --artifact-dir "$HH345_APP_ARTIFACT" --app "$HH345_APP_PATH"             --receipt "$HH345_PROOF_DIR/native-app-extracted.json"
+      - name: Export the same product and prepare acceptance tooling
+        run: |
+          pnpm --dir server --filter happyherd-app exec expo export --platform web --clear             --output-dir "$HH345_ARTIFACT_DIR/web-dist" > "$HH345_ARTIFACT_DIR/web-export.log" 2>&1
+          git diff --exit-code -- server
+          cp docs/acceptance/issue-345/web/run-web-acceptance.mjs "$HH345_ARTIFACT_DIR/"
+          cp docs/acceptance/issue-345/hosted-native/{controller,server-runner,native-coordinator}.mjs "$HH345_ARTIFACT_DIR/"
+      - name: Execute authenticated desktop, mobile and installed iOS journeys
+        run: node "$HH345_ARTIFACT_DIR/controller.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue-345-authenticated-native-${{ github.event.pull_request.head.sha }}
+          path: acceptance-proof/
+          retention-days: 30
+          if-no-files-found: error

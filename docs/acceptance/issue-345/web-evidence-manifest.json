@@ -1,0 +1,81 @@
+{
+  "runtimeSource": "62eaa1555621d35a4ab1042d111c2afed850bf1d",
+  "independentReview": "No actionable Web findings; all13stages/13captures/29socketupdates and runtime provenance independently inspected.",
+  "files": [
+    {
+      "path": "web/account-b-done-cleared.png",
+      "sha256": "c79ac41aeca4d13e4cf08caf5f0787a05f8b2c2be8896e558b5d8f4fda799857",
+      "bytes": 58542
+    },
+    {
+      "path": "web/desktop-after-server-restart.png",
+      "sha256": "d488e90e1baa7f3c0ed63f6d207eef22e5031153424bdbd4c19b3a1889f54273",
+      "bytes": 159970
+    },
+    {
+      "path": "web/desktop-done-cleared.png",
+      "sha256": "cabda6941e47ed716a5df10012ae2d45b2268db6c7faf0c9cfccf7840a631638",
+      "bytes": 72272
+    },
+    {
+      "path": "web/desktop-empty-inbox.png",
+      "sha256": "9c1174aa5d548b5eb1c2992a808fe28a8fc66ec1ec4e7e4977afd7538f37130b",
+      "bytes": 45421
+    },
+    {
+      "path": "web/desktop-new-arrival-unread.png",
+      "sha256": "ec9a542089f9ed1811931b0ca706083ebcc80f2c4a9be034a62b8f03b4943ba5",
+      "bytes": 146805
+    },
+    {
+      "path": "web/desktop-two-unread.png",
+      "sha256": "34d73fa2dfe1d6e9fa276083b6eda394d3a77e030c413821ea0686b46287ee2e",
+      "bytes": 73212
+    },
+    {
+      "path": "web/mobile-after-server-restart.png",
+      "sha256": "c97997742362842146be3eff8b20377c7221a1ba309e8ec13ce86dfb9b74f607",
+      "bytes": 74973
+    },
+    {
+      "path": "web/mobile-done-cleared.png",
+      "sha256": "a97638b583b9977deed9bd5bcb3cd8865f30b1f4d72211af70616b1658eb3750",
+      "bytes": 48082
+    },
+    {
+      "path": "web/mobile-new-arrival-unread.png",
+      "sha256": "5a563b49008d8c0d8c2843f364ecc6f7ce1a337bb3faf1b5adbe70ca385c7c37",
+      "bytes": 74732
+    },
+    {
+      "path": "web/mobile-offline-unread.png",
+      "sha256": "874a26ce0872a1328fc25b087c1295a51dc915fab760ce21cb95d8ccf559d719",
+      "bytes": 57554
+    },
+    {
+      "path": "web/mobile-reconnected-cleared.png",
+      "sha256": "9be2c32369d5c1eb5ea785bcb2e37bc5f8246db53e0f5c360016c1b56bf71614",
+      "bytes": 57276
+    },
+    {
+      "path": "web/mobile-socket-cleared.png",
+      "sha256": "46f36fec29784f02b21f23d91eb319b8ac80dd2f908d486503e5142939153708",
+      "bytes": 31228
+    },
+    {
+      "path": "web/mobile-two-unread.png",
+      "sha256": "b1e41a670abc65469a180d8e14415fb83b51a6da756e171810f5faba6babb824",
+      "bytes": 31583
+    },
+    {
+      "path": "web/run-web-acceptance.mjs",
+      "sha256": "518687390145ee8ccd476836e7ba4deb90810d35b180eff05d69832f24f23155",
+      "bytes": 37180
+    },
+    {
+      "path": "web/web-acceptance.json",
+      "sha256": "13b56ee8a376df7c63971edcffe1554c42e4dd8cee0151802d6c5db02714e5c0",
+      "bytes": 39584
+    }
+  ]
+}

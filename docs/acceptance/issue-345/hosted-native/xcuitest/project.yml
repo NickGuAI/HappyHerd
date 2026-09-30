@@ -1,0 +1,32 @@
+name: HH345Acceptance
+settings:
+  base:
+    GENERATE_INFOPLIST_FILE: YES
+    CODE_SIGNING_ALLOWED: NO
+    ARCHS: arm64
+    ONLY_ACTIVE_ARCH: YES
+    SWIFT_VERSION: "5.0"
+targets:
+  HH345UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Tests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.happyherd.issue345.uitests
+        TARGETED_DEVICE_FAMILY: "1,2"
+schemes:
+  HH345UITests:
+    build:
+      targets:
+        HH345UITests: [test]
+    test:
+      targets:
+        - name: HH345UITests
+          parallelizable: false
+      language: en
+      region: US
+      gatherCoverageData: false
+      captureScreenshotsAutomatically: false
+      preferredScreenCaptureFormat: screenshots
