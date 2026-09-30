@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { build, type Plugin } from 'esbuild';
+import { build, type BuildOptions, type Plugin } from 'esbuild';
 import { PRODUCT } from '../constants/product';
 import { createServer, type Server } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 import { darkTheme, lightTheme } from '@/theme';
@@ -1425,9 +1425,7 @@ describe('Side chats browser interaction', () => {
     let origin: string;
 
     beforeAll(async () => {
-        const bundle = await build({
-            entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
-            outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+        const buildOptions: BuildOptions = {
             bundle: true,
             write: false,
             format: 'iife',
@@ -1441,17 +1439,34 @@ describe('Side chats browser interaction', () => {
             jsx: 'automatic',
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
-        });
+        };
+        // Leave the shared journey bundle unchanged. The launch-context cases
+        // only need the foreground host and a smaller script to parse on load.
+        const bundles = await Promise.all([
+            build({
+                ...buildOptions,
+                entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
+                outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+            }),
+            build({
+                ...buildOptions,
+                entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
+                outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
+                minify: true,
+                keepNames: true,
+            }),
+        ]);
         // Keep debug maps available without transferring/parsing them as part
         // of every document. Reuse response bytes across the isolated pages.
-        const script = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.contents);
-        const scriptMap = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js.map'))!.contents);
-        const cssFile = bundle.outputFiles.find((file) => file.path.endsWith('.css'));
-        const css = cssFile ? Buffer.from(cssFile.contents) : Buffer.alloc(0);
-        const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
-        const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
+        const assets = new Map(bundles.flatMap((bundle) => bundle.outputFiles!.map((file) => [
+            '/' + basename(file.path), Buffer.from(file.contents),
+        ] as const)));
+        const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
         const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const commanderHtml = Buffer.from(html.toString()
+            .replace('/fixture.css', '/commander-context.css')
+            .replace('/side-chat.js', '/commander-context.js'));
         server = createServer((_request, response) => {
             if (_request.url === '/fonts/Ionicons.ttf' || _request.url === '/fonts/Octicons.ttf') {
                 response.setHeader('content-type', 'font/ttf');
@@ -1463,14 +1478,12 @@ describe('Side chats browser interaction', () => {
                 response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
                 return;
             }
-            if (_request.url === '/side-chat.js') {
-                response.setHeader('content-type', 'text/javascript; charset=utf-8');
-                response.end(script);
-                return;
-            }
-            if (_request.url === '/side-chat.js.map' || (_request.url === '/side-chat.css.map' && cssMap)) {
-                response.setHeader('content-type', 'application/json; charset=utf-8');
-                response.end(_request.url === '/side-chat.js.map' ? scriptMap : cssMap);
+            const asset = assets.get(_request.url ?? '');
+            if (asset) {
+                response.setHeader('content-type', _request.url!.endsWith('.map')
+                    ? 'application/json; charset=utf-8'
+                    : _request.url!.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
+                response.end(asset);
                 return;
             }
             if (_request.url === '/fixture.css') {
@@ -1485,7 +1498,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(html);
+            response.end(_request.url?.split('?')[0] === '/commander-context' ? commanderHtml : html);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1520,7 +1533,7 @@ describe('Side chats browser interaction', () => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { commanderContext: true, commanderContextPopulated: populated };
             (globalThis as any).__HAPPYHERD_ROUTE_PUSH__ = (href: string) => { (window as any).__COMMANDER_ROUTE__ = href; };
         }, populated);
-        await page.goto(origin + '?theme=' + theme);
+        await page.goto(origin + '/commander-context?theme=' + theme);
         const host = page.getByTestId('foreground-session');
         const row = host.getByTestId('commander-context-row');
         await row.waitFor({ state: 'visible' });
