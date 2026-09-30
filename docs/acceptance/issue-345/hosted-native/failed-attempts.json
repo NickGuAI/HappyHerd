@@ -1395,6 +1395,141 @@
         }
       ],
       "diagnosis": "native-account-logout-before-second-account-link"
+    },
+    {
+      "attempt": 14,
+      "runId": 36752956252,
+      "runAttempt": 1,
+      "jobId": 110015937633,
+      "artifactId": 11115467604,
+      "receiptSha256": "fcfb7ada75cc9e1fe2d5d63109d0460cf3b0dbd848a1b6bffdec81a947535ac5",
+      "controllerReceiptSha256": "9aaab0401e8c617fc70e0bef56f671f446b3dcccca2f440edaad82c22d6b3f8b",
+      "transportReceiptSha256": "5e8805cd5ce18c2335c2fe95df1d64f697a94bec0f9530900ead988d41426c87",
+      "sourceSha": "7487650d6bea30a6c0420540629f9a2bf9e42754",
+      "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+      "startedAt": 1790790460.145207,
+      "finishedAt": 1790790676.483507,
+      "phase": "wait-for-boot",
+      "passed": false,
+      "errorType": "TimeoutExpired",
+      "exitCode": 1,
+      "buildSigningVerified": true,
+      "exactPrivateDestinationVerified": true,
+      "resourceStopped": false,
+      "resourcePolicy": {
+        "hostDiskMinimumGiB": 10,
+        "memoryAvailableMinimumPercent": 15,
+        "swapPolicy": "record only on this independent hosted host",
+        "localHostThresholdsChanged": false
+      },
+      "resources": {
+        "initial": {
+          "time": 1790790460.165715,
+          "diskFreeBytes": 95078993920,
+          "memoryAvailablePercent": 69,
+          "swapUsedMiB": 0.0
+        },
+        "latest": {
+          "time": 1790790613.715279,
+          "diskFreeBytes": 94706753536,
+          "memoryAvailablePercent": 46,
+          "swapUsedMiB": 0.0
+        },
+        "sampleCount": 64,
+        "minimumDiskFreeBytes": 94706753536,
+        "minimumMemoryAvailablePercent": 46,
+        "maximumSwapUsedMiB": 0.0
+      },
+      "cleanup": {
+        "shutdownExitCode": 0,
+        "deleteExitCode": 0
+      },
+      "nativePhases": [],
+      "nativeFailures": [],
+      "screenshots": [],
+      "authDiagnostics": [],
+      "authFailures": [],
+      "markers": [],
+      "commands": [
+        {
+          "phase": "xcode-version",
+          "startedAt": 1790790460.223063,
+          "exitCode": 0,
+          "finishedAt": 1790790462.484958
+        },
+        {
+          "phase": "generate-test-project",
+          "startedAt": 1790790464.747305,
+          "exitCode": 0,
+          "finishedAt": 1790790466.878478
+        },
+        {
+          "phase": "build-tests",
+          "startedAt": 1790790466.89815,
+          "exitCode": 0,
+          "finishedAt": 1790790496.701397
+        },
+        {
+          "phase": "simulator-sdk-version",
+          "startedAt": 1790790496.722102,
+          "exitCode": 0,
+          "finishedAt": 1790790500.901182
+        },
+        {
+          "phase": "list-runtimes",
+          "startedAt": 1790790500.9186828,
+          "exitCode": 0,
+          "finishedAt": 1790790503.056813
+        },
+        {
+          "phase": "list-device-types",
+          "startedAt": 1790790503.079016,
+          "exitCode": 0,
+          "finishedAt": 1790790505.250092
+        },
+        {
+          "phase": "create-private-device",
+          "startedAt": 1790790505.273751,
+          "exitCode": 0,
+          "finishedAt": 1790790507.468478
+        },
+        {
+          "phase": "showdestinations",
+          "startedAt": 1790790507.490859,
+          "exitCode": 0,
+          "finishedAt": 1790790511.587531
+        },
+        {
+          "phase": "boot-private-device",
+          "startedAt": 1790790511.603982,
+          "exitCode": 0,
+          "finishedAt": 1790790530.9121768
+        },
+        {
+          "phase": "wait-for-boot",
+          "startedAt": 1790790548.931276,
+          "exitCode": -15,
+          "finishedAt": 1790790631.645123
+        }
+      ],
+      "completedWebStages": 13,
+      "nativeXCTestStarted": false,
+      "installedAppVerificationCompleted": false,
+      "completedNativeCheckpointCount": 0,
+      "normalAuthLinkCount": 0,
+      "diagnosis": "resource-probe-timeout-during-boot-monitoring",
+      "diagnosisBasis": {
+        "bootWaitElapsedSeconds": 82.714,
+        "bootWaitTimeoutSeconds": 600,
+        "resourceProbeTimeoutSeconds": 10,
+        "specificProbeEstablished": false,
+        "possibleProbes": [
+          "memory-pressure",
+          "swap-usage"
+        ],
+        "bootDeadlineExpired": false,
+        "nativeDrawerCorrectionExecuted": false
+      }
     }
   ]
 }

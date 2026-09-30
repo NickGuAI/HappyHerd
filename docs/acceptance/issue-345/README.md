@@ -271,5 +271,20 @@ preserves the failure, original log hash and comparison to the unchanged,
 fully passing `bba99d30` installer source. The other three current targets passed.
 One independently justified retry of only the failed job was started in
 [run 36748692750, attempt 2](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692750/attempts/2).
-Its outcome is separate from the first failure; no threshold, assertion or skip
-was changed. Final delivery still requires all four targets on the final head.
+That retry passed: both normal pairings, both encrypted RPC checks and both
+retained-history upgrade checks completed, with the final macOS x64 success
+marker. The [sanitized retry receipt](ci-a6f1b8b3-installer-retry.json) binds its
+private log hash and exact job; the first failure remains separate and unchanged.
+No threshold, assertion or skip was changed. Final delivery still requires all
+four targets on the final head.
+
+
+[Native attempt 14](https://github.com/NickGuAI/HappyHerd/actions/runs/36752956252)
+failed during resource monitoring of simulator boot, before app installation or
+native UI. All 13 Web stages passed. Source and receipt timing distinguish a
+ten-second resource-probe timeout from the unexpired 600-second boot deadline;
+the exact probe was not retained. Cleanup succeeded, and completed samples
+remained above the original floors. The [failure ledger and diagnostic recipe](hosted-native/README.md)
+preserve the failure and add only fixed probe attribution, without changing
+commands, timeouts, sampling or acceptance criteria. The drawer correction and
+remaining native criteria are still unproved.

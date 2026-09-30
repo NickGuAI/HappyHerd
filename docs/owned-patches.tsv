@@ -702,3 +702,4 @@ INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native 
 INBOX_NATIVE_INSTALL_VERIFICATION_DIAGNOSTICS_345	accepted	test(inbox): classify installed artifact verification failures	docs/acceptance/issue-345/hosted-native/native-driver.py
 INBOX_NATIVE_INSTALLED_FRAMEWORK_MODES_345	accepted	test(inbox): restore verified simulator framework permissions	docs/acceptance/issue-345/hosted-native/native-driver.py
 INBOX_NATIVE_NORMAL_SETTINGS_NAVIGATION_345	accepted	test(inbox): open native account settings through the phone drawer	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
+INBOX_NATIVE_RESOURCE_PROBE_DIAGNOSTICS_345	accepted	test(inbox): attribute native resource probe failures safely	docs/acceptance/issue-345/hosted-native/native-driver.py

@@ -262,6 +262,32 @@ def require(condition, message):
         raise DriverRequirementError(message)
 
 
+def resource_probe(probe, receipt, save):
+    """Attribute an unchanged bounded host probe without publishing its output."""
+    command = {
+        'memory-pressure': ['/usr/bin/memory_pressure', '-Q'],
+        'swap-usage': ['/usr/sbin/sysctl', '-n', 'vm.swapusage'],
+    }[probe]
+    try:
+        return subprocess.check_output(command, text=True, timeout=10)
+    except Exception as error:
+        failure = {'probe': probe, 'category': 'unexpected'}
+        if isinstance(error, subprocess.TimeoutExpired):
+            failure.update(category='timed-out', timeoutSeconds=10)
+        elif isinstance(error, subprocess.CalledProcessError):
+            failure['category'] = 'command-failed'
+            if type(error.returncode) is int and -65535 <= error.returncode <= 65535:
+                failure['returnCode'] = error.returncode
+        elif isinstance(error, OSError):
+            failure['category'] = 'unavailable'
+        receipt['resourceProbeFailure'] = failure
+        try:
+            save()
+        except Exception:
+            pass  # A diagnostic write must not replace the original probe error.
+        raise
+
+
 def framework_macho_matches(stream):
     """Recognize the selected frameworks' one-slice FAT arm64 MH_DYLIB files."""
     stream.seek(0)
@@ -389,8 +415,8 @@ def main():
         (private / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
 
     def resources():
-        memory = subprocess.check_output(['/usr/bin/memory_pressure', '-Q'], text=True, timeout=10)
-        swap = subprocess.check_output(['/usr/sbin/sysctl', '-n', 'vm.swapusage'], text=True, timeout=10)
+        memory = resource_probe('memory-pressure', receipt, save)
+        swap = resource_probe('swap-usage', receipt, save)
         match = re.search(r'used = ([\d.]+)([MG])', swap)
         return {
             'time': time.time(), 'diskFreeBytes': shutil.disk_usage(work).free,

@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all thirteen hosted failures and original receipt hashes.
+preserve all fourteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -269,3 +269,29 @@ content. Existing assertions, 20/10/60-second bounds, twelve-scroll limit and
 all 18 required captures remain. The original receipt cannot establish which
 old logout assertion failed, so the correction is supported by the live layout
 and source contract, not a recovered private XCTest message.
+
+
+The fourteenth attempt at `7487650d` passed all 13 Web stages and built the
+XCTest runner, then [run 36752956252](https://github.com/NickGuAI/HappyHerd/actions/runs/36752956252)
+stopped before app installation or any native UI. Its receipt reports
+`TimeoutExpired` during `wait-for-boot`, after only 82.713 seconds of the unchanged
+600-second boot budget; the monitored command was terminated with exit -15.
+The boot deadline itself raises a different, fixed requirement error. Source
+review identifies the uncaught ten-second `memory_pressure` or `sysctl` resource
+probe as the timeout boundary; the old receipt cannot distinguish those probes.
+This is not evidence that simulator boot exceeded its bound or that the drawer
+correction ran. The last completed samples had at least 46% available memory,
+about 88 GiB free disk and no swap use; no observed floor was crossed, but the
+failed probe supplied no fresh sample. Owned simulator cleanup succeeded.
+[Artifact 11115467604](https://github.com/NickGuAI/HappyHerd/actions/runs/36752956252/artifacts/11115467604)
+and all three original receipt hashes remain preserved.
+
+The next diagnostic attributes a resource-probe failure using only a fixed probe
+name, fixed category and numeric timeout/exit code. It retains both original
+commands, ten-second probe bounds, sampling, resource floors, 600-second boot
+bound, failure propagation and cleanup. It exposes no exception text, command
+output, path or account material. The same simulator/runtime and monitor had
+completed boot and native checkpoints 01–08 in attempt 13. This supports one
+independently reviewed diagnostic journey; it does not establish a root cause
+for the delayed host probe or justify a timeout increase, skipped sample or
+boot workaround.

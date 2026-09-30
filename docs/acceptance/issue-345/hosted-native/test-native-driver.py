@@ -4,15 +4,63 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import Mock, patch
 
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location('native_driver', Path(__file__).with_name('native-driver.py'))
 driver = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(driver)
+
+
+class ResourceProbeTests(unittest.TestCase):
+    def test_success_keeps_exact_commands_bounds_output_and_sampling(self):
+        for probe, command in (
+            ('memory-pressure', ['/usr/bin/memory_pressure', '-Q']),
+            ('swap-usage', ['/usr/sbin/sysctl', '-n', 'vm.swapusage']),
+        ):
+            receipt, save = {}, Mock()
+            with self.subTest(probe=probe), patch.object(driver.subprocess, 'check_output', return_value='private raw output') as call:
+                self.assertEqual(driver.resource_probe(probe, receipt, save), 'private raw output')
+                call.assert_called_once_with(command, text=True, timeout=10)
+                self.assertEqual(receipt, {})
+                save.assert_not_called()
+
+    def test_failure_attribution_is_fixed_and_rethrows_original_without_raw_data(self):
+        for probe in ('memory-pressure', 'swap-usage'):
+            for error, expected in (
+                (subprocess.TimeoutExpired(['private-command'], 10, output='private-token', stderr='private-path'),
+                 {'category': 'timed-out', 'timeoutSeconds': 10}),
+                (subprocess.CalledProcessError(-15, ['private-command'], output='private-token', stderr='private-path'),
+                 {'category': 'command-failed', 'returnCode': -15}),
+                (FileNotFoundError(2, 'private-error', '/private/path'), {'category': 'unavailable'}),
+                (ValueError('private-error https://private.invalid/token'), {'category': 'unexpected'}),
+                (subprocess.CalledProcessError('private-return-code', ['private-command']), {'category': 'command-failed'}),
+            ):
+                receipt, save = {}, Mock()
+                with self.subTest(probe=probe, category=expected['category']), \
+                        patch.object(driver.subprocess, 'check_output', side_effect=error):
+                    with self.assertRaises(type(error)) as caught:
+                        driver.resource_probe(probe, receipt, save)
+                    self.assertIs(caught.exception, error)
+                    self.assertEqual(receipt, {'resourceProbeFailure': {'probe': probe, **expected}})
+                    self.assertNotIn('private', json.dumps(receipt))
+                    save.assert_called_once_with()
+
+    def test_failed_diagnostic_write_does_not_replace_probe_failure(self):
+        original = subprocess.TimeoutExpired(['private-command'], 10, output='private-token')
+        receipt = {}
+        with patch.object(driver.subprocess, 'check_output', side_effect=original):
+            with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                driver.resource_probe('memory-pressure', receipt, Mock(side_effect=OSError('private-write-error')))
+        self.assertIs(caught.exception, original)
+        self.assertEqual(receipt['resourceProbeFailure'], {
+            'probe': 'memory-pressure', 'category': 'timed-out', 'timeoutSeconds': 10,
+        })
 
 
 class DiagnosticCollectionTests(unittest.TestCase):
