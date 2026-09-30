@@ -18,6 +18,108 @@ MAX_TOTAL_CHARS = 4 * 1024 * 1024
 MAX_ERROR_CODES = 32
 MAX_ABS_ERROR_CODE = 65535
 MAX_CRASH_REPORT_BYTES = 2 * 1024 * 1024
+MAX_USED_IMAGES = 256
+MAX_PATH_COMPONENTS = 64
+
+
+def _uuid_bytes(value):
+    if not isinstance(value, str) or re.fullmatch(
+            r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', value) is None:
+        return None
+    result = bytes.fromhex(value.replace('-', ''))
+    return result if any(result) else None
+
+
+def _compatible_image_path(value, installed_executable, *, require_redaction=False):
+    """Match only complete '*' components and Apple's /Users/USER placeholder.
+
+    A star must consume at least one component. Every visible literal must match
+    the installed absolute path, so a conflicting simulator/container cannot be
+    rescued by a matching coalition or binary UUID. No arbitrary glob syntax.
+    """
+    if not isinstance(value, str) or len(value) > 4096 or not value.startswith('/'):
+        return False
+    raw = value.split('/')[1:]
+    expected = str(installed_executable).split('/')[1:]
+    if (not 2 <= len(raw) <= MAX_PATH_COMPONENTS or not 2 <= len(expected) <= MAX_PATH_COMPONENTS
+            or any(part in ('', '.', '..') for part in raw + expected)
+            or raw[-2:] != expected[-2:] or (require_redaction and '*' not in raw)
+            or any(any(char in part for char in '*?[]<>') for part in raw if part != '*')):
+        return False
+    # Bounded dynamic programming, not a filesystem glob or regex over paths.
+    reachable = {0}
+    for index, part in enumerate(raw):
+        next_positions = set()
+        for position in reachable:
+            if part == '*':
+                next_positions.update(range(position + 1, len(expected) + 1))
+            elif position < len(expected) and (part == expected[position] or
+                    (index == 1 and raw[0] == 'Users' and part == 'USER'
+                     and position == 1 and expected[0] == 'Users')):
+                next_positions.add(position + 1)
+        reachable = next_positions
+    return len(expected) in reachable
+
+
+def _partial_path_identity(body, installed_executable, installed_uuid):
+    """Additional evidence needed only for an explicitly partly redacted path."""
+    checks = {'processPathCompatible': _compatible_image_path(
+        body.get('procPath'), installed_executable, require_redaction=True),
+        'installedBuildUuidAvailable': isinstance(installed_uuid, bytes)
+            and len(installed_uuid) == 16 and any(installed_uuid),
+        'usedImagesArray': isinstance(body.get('usedImages'), list),
+        'usedImagesTruncated': False, 'imagesInspected': 0, 'mainImageCandidates': 0,
+        'mainImageNameMatches': False, 'mainImageArm64': False,
+        'mainImagePathCompatible': False, 'mainImageUuidValid': False,
+        'mainImageUuidMatches': False}
+    if not checks['processPathCompatible']:
+        return 'partial-path-conflict', checks
+    if not checks['installedBuildUuidAvailable']:
+        return 'installed-build-uuid-unavailable', checks
+    images = body.get('usedImages')
+    if not isinstance(images, list):
+        return 'main-image-array-missing', checks
+    if len(images) > MAX_USED_IMAGES:
+        checks['usedImagesTruncated'] = True
+        return 'main-image-array-limit', checks
+    candidates = []
+    name = PurePosixPath(installed_executable).name
+    for item in images:
+        checks['imagesInspected'] += 1
+        if not isinstance(item, dict):
+            return 'main-image-array-invalid', checks
+        path = item.get('path')
+        leaf_matches = isinstance(path, str) and PurePosixPath(path).name == name
+        if item.get('name') == name or leaf_matches or _uuid_bytes(item.get('uuid')) == installed_uuid:
+            candidates.append(item)
+    checks['mainImageCandidates'] = len(candidates)
+    if len(candidates) != 1:
+        return 'main-image-missing' if not candidates else 'main-image-ambiguous', checks
+    item = candidates[0]
+    checks.update(mainImageNameMatches=item.get('name') == name,
+                  mainImageArm64=item.get('arch') == 'arm64',
+                  mainImagePathCompatible=_compatible_image_path(item.get('path'), installed_executable),
+                  mainImageUuidValid=_uuid_bytes(item.get('uuid')) is not None,
+                  mainImageUuidMatches=_uuid_bytes(item.get('uuid')) == installed_uuid)
+    for key, gate in (('mainImageNameMatches', 'main-image-name'), ('mainImageArm64', 'main-image-architecture'),
+                      ('mainImagePathCompatible', 'main-image-path'), ('mainImageUuidValid', 'main-image-uuid-invalid'),
+                      ('mainImageUuidMatches', 'main-image-build-mismatch')):
+        if not checks[key]:
+            return gate, checks
+    return None, checks
+
+
+def _simulated_report_metadata(body):
+    """Apple's isSimulated marks an OS non-crash report, not an iOS simulator."""
+    value = body.get('isSimulated')
+    kind = ('absent' if 'isSimulated' not in body else 'boolean' if type(value) is bool
+            else 'string' if isinstance(value, str) else 'integer' if type(value) is int else 'other')
+    state = ('true' if value is True or value == 'true' else
+             'false' if value is False or value == 'false' else 'unknown')
+    return {'present': 'isSimulated' in body, 'type': kind, 'value': state,
+            **({'integerValue': value} if type(value) is int and value in (0, 1) else {}),
+            'meansOsNonCrashReport': True, 'isIosSimulatorIdentity': False,
+            'reportPresenceAloneProvesCrashOrCause': False}
 
 
 def _unique_object(pairs):
@@ -96,14 +198,18 @@ def _identity_rejection(data, header, body, app_id, installed_executable, simula
     }
 
 
-def classify_owned_crash_report(data, *, app_id, installed_executable, simulator_udid, since, until):
+def classify_owned_crash_report(data, *, app_id, installed_executable, simulator_udid, since, until,
+                                installed_uuid=None):
     """Read Apple's two-object IPS format; return no input strings or paths.
 
     Identity and capture time are mandatory before any crash classification.
     procPath may redact the user's home, so compare the complete installed path
     suffix starting with this owned simulator's UUID, including its app-container
     UUID. An exact simulator coalition can establish scope if that path is absent
-    or wholly redacted. Neither filename nor bundle identity alone establishes scope.
+    or wholly redacted. A partly redacted compatible path additionally requires
+    that exact coalition and a unique main image matching the privately supplied
+    SHA-verified installed executable's LC_UUID. UUID alone cannot prove simulator
+    identity or the bytes of an arbitrary report's binary.
     https://developer.apple.com/documentation/xcode/interpreting-the-json-format-of-a-crash-report
     """
     if not isinstance(data, bytes) or len(data) > MAX_CRASH_REPORT_BYTES:
@@ -143,9 +249,16 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
     other_coalition = (isinstance(coalition, str)
                        and coalition.startswith('com.apple.CoreSimulator.SimDevice.') and not coalition_matches)
     path_unavailable = process_path is None or process_path in ('', '<redacted>', '<private>')
+    partial_checks = None
     if not (path_matches or (coalition_matches and path_unavailable)) or other_coalition:
-        return _identity_rejection(data, header, body, app_id, installed_executable, simulator_udid,
-                                   'simulator-coalition-conflict' if other_coalition else 'installed-path-scope')
+        gate = 'simulator-coalition-conflict' if other_coalition else 'installed-path-scope'
+        if not other_coalition and coalition_matches and '*' in process_parts:
+            gate, partial_checks = _partial_path_identity(body, installed_executable, installed_uuid)
+        if gate is not None:
+            rejected = _identity_rejection(data, header, body, app_id, installed_executable, simulator_udid, gate)
+            if partial_checks is not None:
+                rejected['partialPathIdentity'] = partial_checks
+            return rejected
     try:
         captured = body.get('captureTime')
         if not isinstance(captured, str) or len(captured) > 64:
@@ -207,6 +320,10 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
             tags.add('react-fatal')
         if symbol.startswith('-[RCTExceptionsManager reportFatalException:'):
             tags.add('react-js-fatal')
+        if symbol == '-[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:]':
+            tags.add('react-js-fatal')
+        if symbol == '-[RCTExceptionsManager reportException:]':
+            tags.add('react-js-exception')
         if symbol in ('RCTTriggerReloadCommandListeners', '-[RCTHost didReceiveReloadCommand]',
                       '-[RCTHost _reloadWithShouldRestartSurfaces:]'):
             tags.add('react-reload')
@@ -216,6 +333,14 @@ def classify_owned_crash_report(data, *, app_id, installed_executable, simulator
         'status': 'matched', 'sourceSha256': hashlib.sha256(data).hexdigest(),
         'bundleIdentifierMatched': True, 'installedProcessPathMatched': path_matches,
         'simulatorCoalitionMatched': coalition_matches, 'capturedDuringJourney': True,
+        # Matched reports only: floor elapsed time, bounded by the validated
+        # collection window. No absolute timestamp or input string is exposed.
+        'captureOffsetMilliseconds': max(0, min(int((until - since) * 1000),
+                                               int((timestamp.timestamp() - since) * 1000))),
+        'identityMethod': ('installed-path' if path_matches else 'coalition-unavailable-path'
+                           if path_unavailable else 'coalition-redacted-path-build-uuid'),
+        **({'partialPathIdentity': partial_checks} if partial_checks is not None else {}),
+        'isSimulatedMetadata': _simulated_report_metadata(body),
         'classification': classification, 'termination': safe_termination,
         'faultingOrExceptionBacktraceTags': sorted(tags),
         'framesInspected': len(frames), 'symbolizedFramesInspected': symbolized_frames,

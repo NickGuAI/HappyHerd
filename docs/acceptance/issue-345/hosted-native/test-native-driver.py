@@ -1,11 +1,13 @@
 """Exercise bounded diagnostic collection without Xcode or a simulator."""
 import importlib.util
+import hashlib
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
+import struct
 import sys
 import tempfile
 import time
@@ -25,7 +27,7 @@ class OwnedCrashCollectionTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.device_set = self.root / 'Simulators'
         self.executable = self.device_set / self.udid / 'data/Containers/Bundle/Application/container/HappyHerd.app/HappyHerd'
         self.host_home = self.root / 'host'
@@ -51,9 +53,40 @@ class OwnedCrashCollectionTests(unittest.TestCase):
         os.utime(path, (changed, changed))
         return path
 
-    def collect(self):
+    def collect(self, **options):
         return driver.collect_owned_crash_reports(self.device_set, self.udid, self.executable,
-                                                  self.since, host_home=self.host_home, until=self.until)
+                                                  self.since, host_home=self.host_home, until=self.until, **options)
+
+    def test_partial_report_requires_real_selected_executable_hash_and_private_build_uuid(self):
+        private_uuid = bytes.fromhex('e123456789ab4cde8f0123456789abcd')
+        self.executable.parent.mkdir(parents=True)
+        payload = struct.pack('<8I', 0xfeedfacf, 0x100000c, 0, 2, 1, 24, 0, 0)
+        payload += struct.pack('<II', 0x1b, 24) + private_uuid + b'private-selected-binary'
+        self.executable.write_bytes(payload)
+        self.executable = self.executable.resolve()
+        redacted_path = str(self.device_set.parent) + '/*/HappyHerd.app/HappyHerd'
+        # The prefix is deliberately derived from this test's private owned path;
+        # no actual simulator or application is used.
+        self.write_report(body={'procPath': redacted_path,
+            'coalitionName': 'com.apple.CoreSimulator.SimDevice.' + self.udid,
+            'usedImages': [{'name': 'HappyHerd', 'arch': 'arm64',
+                            'uuid': 'e1234567-89ab-4cde-8f01-23456789abcd', 'path': redacted_path}]})
+        digest = hashlib.sha256(payload).hexdigest()
+        result = self.collect(expected_executable_sha256=digest)
+        self.assertEqual(len(result['reports']), 1)
+        self.assertEqual(result['installedBuildIdentity']['status'], 'verified')
+        self.assertTrue(result['reports'][0]['partialPathIdentity']['mainImageUuidMatches'])
+        self.assertEqual(self.executable.read_bytes(), payload)
+        for secret in (private_uuid.hex(), self.udid, str(self.root), 'private-selected-binary'):
+            self.assertNotIn(secret, json.dumps(result))
+        self.executable.write_bytes(payload + b'changed')
+        result = self.collect(expected_executable_sha256=digest)
+        self.assertEqual(result['reports'], [])
+        self.assertEqual(result['installedBuildIdentity']['status'], 'sha-mismatch')
+        rejected = result['rejectedIdentityReports'][0]
+        self.assertEqual(rejected['rejectionGate'], 'installed-build-uuid-unavailable')
+        self.assertTrue(rejected['partialPathIdentity']['processPathCompatible'])
+        self.assertFalse(rejected['partialPathIdentity']['installedBuildUuidAvailable'])
 
     def test_collects_both_owned_locations_without_paths_names_or_raw_report_content(self):
         self.write_report(root=self.owned_reports)
@@ -157,6 +190,104 @@ class OwnedCrashCollectionTests(unittest.TestCase):
         self.assertEqual(result['sources'][1]['rejected']['unreadable'], 1)
         self.assertEqual(result['reports'], [])
         self.assertNotIn(self.private, json.dumps(result))
+
+
+class InstalledBuildUuidTests(unittest.TestCase):
+    private_uuid = bytes.fromhex('e123456789ab4cde8f0123456789abcd')
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.path = self.root / 'private-executable'
+
+    def executable(self, *, commands=None, count=None, **changes):
+        commands = struct.pack('<II', 0x1b, 24) + self.private_uuid if commands is None else commands
+        header = dict(magic=0xfeedfacf, cpu=0x100000c, subtype=0, kind=2,
+                      count=1 if count is None else count, size=len(commands), flags=0, reserved=0)
+        header.update(changes)
+        return struct.pack('<8I', *header.values()) + commands + b'private-binary-payload'
+
+    def read(self, data, expected=None):
+        self.path.write_bytes(data)
+        return driver.read_installed_build_uuid(self.path, expected or hashlib.sha256(data).hexdigest())
+
+    def test_uuid_is_private_and_bound_to_complete_selected_bytes_without_writes(self):
+        data = self.executable()
+        identity, proof = self.read(data)
+        self.assertEqual(identity, self.private_uuid)
+        self.assertEqual(proof, {'status': 'verified', 'bytesHashed': len(data),
+            'bytesRead': len(data) + 32 + 24, 'sha256Matched': True,
+            'arm64Executable': True, 'uuidCommandCount': 1, 'privateUuidAvailable': True})
+        self.assertEqual(self.path.read_bytes(), data)
+        self.assertNotIn(self.private_uuid.hex(), json.dumps(proof))
+        self.assertNotIn(str(self.path), json.dumps(proof))
+        identity, proof = self.read(data + b'changed', hashlib.sha256(data).hexdigest())
+        self.assertIsNone(identity)
+        self.assertEqual(proof['status'], 'sha-mismatch')
+        self.assertFalse(proof['privateUuidAvailable'])
+
+    def test_invalid_headers_command_bounds_missing_duplicate_and_zero_uuid_reject(self):
+        command = struct.pack('<II', 0x1b, 24) + self.private_uuid
+        cases = ((self.executable(magic=0), 'header-invalid'),
+                 (self.executable(cpu=0x1000007), 'header-invalid'),
+                 (self.executable(kind=6), 'header-invalid'),
+                 (self.executable(count=16385), 'command-bounds'),
+                 (self.executable(size=16 * 1024 * 1024 + 1), 'command-bounds'),
+                 (self.executable(size=4096), 'command-bounds'),
+                 (self.executable(count=2), 'command-bounds'),
+                 (self.executable(commands=struct.pack('<II', 0x1b, 25) + self.private_uuid), 'command-bounds'),
+                 (self.executable(commands=struct.pack('<II', 0x1b, 16) + b'x' * 8), 'uuid-command-invalid'),
+                 (self.executable(commands=command + command, count=2), 'uuid-missing-or-ambiguous'),
+                 (self.executable(commands=struct.pack('<II', 1, 8)), 'uuid-missing-or-ambiguous'),
+                 (self.executable(commands=struct.pack('<II', 0x1b, 24) + b'\0' * 16), 'uuid-command-invalid'),
+                 (self.executable(commands=command + b'\0' * 8), 'command-bounds'))
+        for data, expected in cases:
+            identity, proof = self.read(data)
+            self.assertIsNone(identity)
+            self.assertEqual(proof['status'], expected)
+            self.assertFalse(proof['privateUuidAvailable'])
+
+    def test_missing_invalid_hash_nonregular_size_limit_and_read_errors_are_safe(self):
+        for digest in (None, '', 'private-token', 'G' * 64):
+            with patch.object(driver.os, 'open') as opened:
+                identity, proof = driver.read_installed_build_uuid(self.path, digest)
+            opened.assert_not_called()
+            self.assertEqual(proof['status'], 'expected-sha-unavailable')
+            self.assertIsNone(identity)
+        data = self.executable()
+        self.path.write_bytes(data)
+        link = self.root / 'private-link'
+        link.symlink_to(self.path)
+        self.assertEqual(driver.read_installed_build_uuid(link, hashlib.sha256(data).hexdigest())[1]['status'], 'nonregular')
+        for size in (0, 31, 512 * 1024 * 1024 + 1):
+            with self.path.open('wb') as stream:
+                stream.truncate(size)
+            identity, proof = driver.read_installed_build_uuid(self.path, '0' * 64)
+            self.assertIsNone(identity)
+            self.assertEqual(proof['status'], 'executable-size-limit')
+            self.assertEqual(proof['bytesRead'], 0)
+        self.path.write_bytes(data)
+        with patch.object(driver.os, 'open', side_effect=PermissionError('private-token /private/path')):
+            identity, proof = driver.read_installed_build_uuid(self.path, hashlib.sha256(data).hexdigest())
+        self.assertIsNone(identity)
+        self.assertEqual(proof['status'], 'unreadable')
+        self.assertNotIn('private-token', json.dumps(proof))
+
+    def test_file_changes_between_hash_and_uuid_reads_remain_inconclusive(self):
+        data = self.executable()
+        self.path.write_bytes(data)
+        before = self.path.stat()
+        changed = Mock(wraps=before)
+        changed.st_size = before.st_size
+        changed.st_mtime_ns = before.st_mtime_ns + 1
+        changed.st_ctime_ns = before.st_ctime_ns
+        for observations in ([before, changed], [before, before, changed]):
+            with patch.object(driver.os, 'fstat', side_effect=observations):
+                identity, proof = driver.read_installed_build_uuid(self.path, hashlib.sha256(data).hexdigest())
+            self.assertIsNone(identity)
+            self.assertEqual(proof['status'], 'unstable-file')
+            self.assertFalse(proof['privateUuidAvailable'])
 
 
 class ResourceProbeTests(unittest.TestCase):

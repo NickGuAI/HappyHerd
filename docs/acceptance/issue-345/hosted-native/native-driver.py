@@ -270,7 +270,106 @@ def parse_native_diagnostic(line):
             **{key: fields[key] == 'true' for key in NATIVE_BOOLEANS}}
 
 
-def collect_owned_crash_reports(device_set, udid, installed_executable, since, *, host_home=None, until=None):
+def read_installed_build_uuid(executable, expected_sha256):
+    """Recheck selected bytes and read one private LC_UUID without modifying them.
+
+    This is diagnostic evidence only; failure cannot change existing exact-path
+    report scoping or the native journey. No UUID, path or exception text escapes.
+    """
+    proof = {'status': 'expected-sha-unavailable', 'bytesHashed': 0, 'bytesRead': 0, 'sha256Matched': False,
+             'arm64Executable': False, 'uuidCommandCount': 0, 'privateUuidAvailable': False}
+    if not isinstance(expected_sha256, str) or re.fullmatch(r'[0-9a-f]{64}', expected_sha256) is None:
+        return None, proof
+    try:
+        if executable.resolve(strict=True) != executable:
+            proof['status'] = 'nonregular'
+            return None, proof
+        descriptor = os.open(executable, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, 'rb') as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                proof['status'] = 'nonregular'
+                return None, proof
+            if not 32 <= before.st_size <= 512 * 1024 * 1024:
+                proof['status'] = 'executable-size-limit'
+                return None, proof
+            sha = hashlib.sha256()
+            remaining = before.st_size
+            while remaining:
+                data = stream.read(min(1024 * 1024, remaining))
+                if not data:
+                    break
+                sha.update(data)
+                proof['bytesRead'] += len(data)
+                proof['bytesHashed'] += len(data)
+                remaining -= len(data)
+            after = os.fstat(stream.fileno())
+            if remaining or (after.st_size, after.st_mtime_ns, after.st_ctime_ns) != (
+                    before.st_size, before.st_mtime_ns, before.st_ctime_ns):
+                proof['status'] = 'unstable-file'
+                return None, proof
+            if sha.hexdigest() != expected_sha256:
+                proof['status'] = 'sha-mismatch'
+                return None, proof
+            proof['sha256Matched'] = True
+            stream.seek(0)
+            header = stream.read(32)
+            proof['bytesRead'] += len(header)
+            if len(header) != 32:
+                proof['status'] = 'header-invalid'
+                return None, proof
+            magic, cpu, _, kind, count, size, _, _ = struct.unpack('<8I', header)
+            if (magic, cpu, kind) != (0xfeedfacf, 0x100000c, 2):
+                proof['status'] = 'header-invalid'
+                return None, proof
+            proof['arm64Executable'] = True
+            if not 1 <= count <= 16384 or not 8 <= size <= 16 * 1024 * 1024 or size > before.st_size - 32:
+                proof['status'] = 'command-bounds'
+                return None, proof
+            commands = stream.read(size)
+            proof['bytesRead'] += len(commands)
+            if len(commands) != size:
+                proof['status'] = 'command-bounds'
+                return None, proof
+            offset, found = 0, []
+            for _ in range(count):
+                if offset + 8 > size:
+                    proof['status'] = 'command-bounds'
+                    return None, proof
+                command, length = struct.unpack_from('<II', commands, offset)
+                if length < 8 or length % 8 or offset + length > size:
+                    proof['status'] = 'command-bounds'
+                    return None, proof
+                if command == 0x1b:
+                    proof['uuidCommandCount'] += 1
+                    if length != 24:
+                        proof['status'] = 'uuid-command-invalid'
+                        return None, proof
+                    found.append(commands[offset + 8:offset + 24])
+                offset += length
+            if offset != size:
+                proof['status'] = 'command-bounds'
+                return None, proof
+            final = os.fstat(stream.fileno())
+            if (final.st_size, final.st_mtime_ns, final.st_ctime_ns) != (
+                    before.st_size, before.st_mtime_ns, before.st_ctime_ns):
+                proof['status'] = 'unstable-file'
+                return None, proof
+            if len(found) != 1:
+                proof['status'] = 'uuid-missing-or-ambiguous'
+                return None, proof
+            if not any(found[0]):
+                proof['status'] = 'uuid-command-invalid'
+                return None, proof
+            proof.update(status='verified', privateUuidAvailable=True)
+            return found[0], proof
+    except (OSError, ValueError):
+        proof['status'] = 'unreadable'
+        return None, proof
+
+
+def collect_owned_crash_reports(device_set, udid, installed_executable, since, *, host_home=None, until=None,
+                                expected_executable_sha256=None):
     """Inspect bounded recent IPS files in memory; never retain report contents."""
     result = {'zeroReportsAreInconclusive': True, 'sources': [], 'reports': [], 'rejectedIdentityReports': [],
               'byteLimitReached': False, 'candidateLimitReached': False}
@@ -281,6 +380,8 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
     except ValueError:
         result['notAvailableReason'] = 'invalid-owned-scope'
         return result
+    installed_uuid, result['installedBuildIdentity'] = read_installed_build_uuid(
+        installed_executable, expected_executable_sha256)
     until = time.time() if until is None else until
     remaining_bytes, remaining_candidates = 8 * 1024 * 1024, 16
     locations = (
@@ -344,7 +445,7 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
                             continue
                         report = launch_diagnostics.classify_owned_crash_report(
                             data, app_id=APP_ID, installed_executable=str(installed_executable),
-                            simulator_udid=udid, since=since, until=until)
+                            simulator_udid=udid, since=since, until=until, installed_uuid=installed_uuid)
                         status = report.pop('status')
                         if status == 'matched':
                             row['matchedReports'] += 1
@@ -355,6 +456,8 @@ def collect_owned_crash_reports(device_set, udid, installed_executable, since, *
                                 result['rejectedIdentityReports'].append({
                                     'source': source, 'sourceSha256': report['sourceSha256'],
                                     'rejectionGate': report['rejectionGate'], 'identityChecks': report['identityChecks'],
+                                    **({'partialPathIdentity': report['partialPathIdentity']}
+                                       if 'partialPathIdentity' in report else {}),
                                 })
                     except OSError:
                         row['rejected']['unreadable'] += 1
@@ -918,7 +1021,8 @@ def main():
         journey_started = next(entry['startedAt'] for entry in receipt['commands']
                                if entry['phase'] == 'native-journey')
         receipt['ownedCrashReports'] = collect_owned_crash_reports(
-            device_set, udid, installed_app / info['CFBundleExecutable'], journey_started)
+            device_set, udid, installed_app / info['CFBundleExecutable'], journey_started,
+            expected_executable_sha256=receipt['app']['executableSha256'])
         save()
         require(digest(original) == original_hash, 'Original generated manifest changed.')
         receipt['originalXctestrunUnchanged'] = True

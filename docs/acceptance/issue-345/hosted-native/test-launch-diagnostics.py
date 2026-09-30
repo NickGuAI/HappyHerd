@@ -22,6 +22,124 @@ class OwnedCrashReportTests(unittest.TestCase):
     executable = '/private/owned/Simulators/' + udid + '/data/Containers/Bundle/Application/owned-container/HappyHerd.app/HappyHerd'
     since = datetime(2026, 9, 30, 18, 0, tzinfo=timezone.utc).timestamp()
     private = 'PRIVATE-account https://private.invalid/token /private/user/path'
+    build_uuid = 'e1234567-89ab-4cde-8f01-23456789abcd'
+
+    def partial_body(self, **updates):
+        body = {'procPath': '/private/owned/*/HappyHerd.app/HappyHerd',
+                'usedImages': [{'name': 'HappyHerd', 'arch': 'arm64', 'uuid': self.build_uuid,
+                                'path': self.executable}]}
+        body.update(updates)
+        return body
+
+    def classify_partial(self, body=None, **options):
+        return self.classify(self.report(body=self.partial_body(**(body or {}))),
+                             installed_uuid=bytes.fromhex(self.build_uuid.replace('-', '')), **options)
+
+    def test_partial_path_requires_owned_coalition_compatible_path_and_unique_selected_build(self):
+        result = self.classify_partial()
+        self.assertEqual(result['status'], 'matched')
+        self.assertFalse(result['installedProcessPathMatched'])
+        self.assertEqual(result['identityMethod'], 'coalition-redacted-path-build-uuid')
+        self.assertTrue(result['simulatorCoalitionMatched'])
+        self.assertEqual(result['partialPathIdentity']['mainImageCandidates'], 1)
+        self.assertTrue(result['partialPathIdentity']['mainImageUuidMatches'])
+        for private in (self.build_uuid, self.udid, self.executable, 'HappyHerd'):
+            self.assertNotIn(private, json.dumps(result))
+        executable = self.executable.replace('/private/owned', '/Users/runner/owned')
+        body = self.partial_body(procPath='/Users/USER/*/HappyHerd.app/HappyHerd', usedImages=[
+            {'name': 'HappyHerd', 'arch': 'arm64', 'uuid': self.build_uuid.upper(),
+             'path': '/Users/USER/*/HappyHerd.app/HappyHerd'}])
+        self.assertEqual(self.classify(self.report(body=body), installed_executable=executable,
+            installed_uuid=bytes.fromhex(self.build_uuid.replace('-', '')))['status'], 'matched')
+
+    def test_partial_path_visible_conflicts_and_unsupported_redaction_are_rejected(self):
+        for path in ('/private/foreign/*/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/' + self.other_udid + '/*/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/wrong-container/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/data/WRONG/*/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/../HappyHerd.app/HappyHerd',
+                     '/private/owned/*/./HappyHerd.app/HappyHerd',
+                     '/private/owned/*//HappyHerd.app/HappyHerd',
+                     '/private/owned/*/HappyHerd.app/Wrong',
+                     '/private/owned/*/<private>/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/embedded*/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/ques?tion/HappyHerd.app/HappyHerd',
+                     '/private/owned/*/' + 'x/' * 65 + 'HappyHerd.app/HappyHerd'):
+            result = self.classify_partial({'procPath': path})
+            self.assertEqual(result['rejectionGate'], 'partial-path-conflict')
+            self.assertNotIn('classification', result)
+        for coalition in (None, self.private, 'com.apple.CoreSimulator.SimDevice.' + self.other_udid,
+                          'com.apple.CoreSimulator.SimDevice.' + self.udid.lower()):
+            self.assertEqual(self.classify_partial({'coalitionName': coalition})['status'], 'identity-mismatch')
+
+    def test_partial_path_requires_independently_verified_installed_uuid(self):
+        for identity in (None, b'', b'x' * 15, b'\0' * 16, self.build_uuid):
+            result = self.classify(self.report(body=self.partial_body()), installed_uuid=identity)
+            self.assertEqual(result['rejectionGate'], 'installed-build-uuid-unavailable')
+        # Existing exact-path and wholly unavailable-path policy is unchanged,
+        # including when optional build/image diagnostics cannot be interpreted.
+        for path in (self.executable, None, '', '<private>', '<redacted>'):
+            result = self.classify(self.report(body={'procPath': path, 'usedImages': self.private}))
+            self.assertEqual(result['status'], 'matched')
+
+    def test_partial_image_array_missing_ambiguous_malformed_or_truncated_never_matches(self):
+        main = self.partial_body()['usedImages'][0]
+        cases = ((None, 'main-image-array-missing'), ({}, 'main-image-array-missing'),
+                 ([], 'main-image-missing'), ([None], 'main-image-array-invalid'),
+                 ([main, main], 'main-image-ambiguous'),
+                 ([main, {'uuid': self.build_uuid}], 'main-image-ambiguous'),
+                 ([main, {'path': '/private/other/HappyHerd'}], 'main-image-ambiguous'),
+                 ([{}] * DIAGNOSTICS.MAX_USED_IMAGES + [main], 'main-image-array-limit'))
+        for images, gate in cases:
+            result = self.classify_partial({'usedImages': images})
+            self.assertEqual(result['rejectionGate'], gate)
+            self.assertNotIn('classification', result)
+        # The main image is selected by evidence, not assumed to be array index0.
+        result = self.classify_partial({'usedImages': [{'name': 'other'}, main]})
+        self.assertEqual(result['status'], 'matched')
+        self.assertEqual(result['partialPathIdentity']['imagesInspected'], 2)
+
+    def test_partial_image_rejections_distinguish_name_architecture_path_and_build(self):
+        main = self.partial_body()['usedImages'][0]
+        cases = (({'name': self.private}, 'main-image-name'),
+                 ({'arch': 'arm64e'}, 'main-image-architecture'),
+                 ({'path': None}, 'main-image-path'),
+                 ({'path': self.executable.replace('owned-container', 'private-wrong')}, 'main-image-path'),
+                 ({'path': self.executable.replace(self.udid, self.other_udid)}, 'main-image-path'),
+                 ({'uuid': self.private}, 'main-image-uuid-invalid'),
+                 ({'uuid': '00000000-0000-0000-0000-000000000000'}, 'main-image-uuid-invalid'),
+                 ({'uuid': self.other_udid}, 'main-image-build-mismatch'))
+        for changes, gate in cases:
+            result = self.classify_partial({'usedImages': [{**main, **changes}]})
+            self.assertEqual(result['rejectionGate'], gate)
+            self.assertNotIn('classification', result)
+            for value in result['partialPathIdentity'].values():
+                self.assertIn(type(value), (bool, int))
+            for private in (self.private, self.other_udid, self.build_uuid, 'private-wrong'):
+                self.assertNotIn(private, json.dumps(result))
+
+    def test_simulated_metadata_never_claims_simulator_identity_or_actual_crash(self):
+        for value, kind, state in ((True, 'boolean', 'true'), (False, 'boolean', 'false'),
+                ('true', 'string', 'true'), ('false', 'string', 'false'),
+                (1, 'integer', 'unknown'), (0, 'integer', 'unknown'), (2, 'integer', 'unknown'),
+                (self.private, 'string', 'unknown'), ({'private': self.private}, 'other', 'unknown')):
+            result = self.classify(self.report(body={'isSimulated': value}))['isSimulatedMetadata']
+            self.assertEqual(result['type'], kind)
+            self.assertEqual(result['value'], state)
+            self.assertTrue(result['meansOsNonCrashReport'])
+            self.assertFalse(result['isIosSimulatorIdentity'])
+            self.assertFalse(result['reportPresenceAloneProvesCrashOrCause'])
+            self.assertNotIn(self.private, json.dumps(result))
+            self.assertEqual('integerValue' in result, type(value) is int and value in (0, 1))
+        self.assertEqual(self.classify(self.report())['isSimulatedMetadata']['type'], 'absent')
+
+    def test_modern_exception_symbols_distinguish_fatal_and_general_report(self):
+        for symbol, tag in (('-[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:]', 'react-js-fatal'),
+                            ('-[RCTExceptionsManager reportException:]', 'react-js-exception')):
+            result = self.classify(self.report(body={'lastExceptionBacktrace': [{'symbol': symbol}]}))
+            self.assertEqual(result['faultingOrExceptionBacktraceTags'], [tag])
+            result = self.classify(self.report(body={'lastExceptionBacktrace': [{'symbol': symbol + self.private}]}))
+            self.assertEqual(result['faultingOrExceptionBacktraceTags'], [])
 
     def report(self, header=None, body=None):
         metadata = {'bug_type': '309', 'bundleID': self.app_id, 'app_name': self.private}
@@ -192,6 +310,28 @@ class OwnedCrashReportTests(unittest.TestCase):
             self.assertEqual(self.classify(self.report(body={'captureTime': capture})), {'status': 'time-mismatch'})
         result = self.classify(self.report(body={'captureTime': '2026-09-30 14:00:01.0000 -0400'}))
         self.assertEqual(result['status'], 'matched')
+
+    def test_matched_capture_offset_is_floored_window_bounded_and_not_an_absolute_timestamp(self):
+        for captured, expected in (('2026-09-30 18:00:00.0000 +0000', 0),
+                                   ('2026-09-30 18:00:01.9999 +0000', 1999),
+                                   ('2026-09-30 18:01:00.0000 +0000', 60000)):
+            result = self.classify(self.report(body={'captureTime': captured}))
+            offset = result['captureOffsetMilliseconds']
+            self.assertIs(type(offset), int)
+            self.assertEqual(offset, expected)
+            self.assertGreaterEqual(offset, 0)
+            self.assertLessEqual(offset, 60000)
+            self.assertNotIn(captured, json.dumps(result))
+            self.assertNotIn(str(int(self.since)), json.dumps(result))
+        result = self.classify(self.report(body={'captureTime': '2026-09-30 18:00:00.0000 +0000'}),
+                               until=self.since)
+        self.assertEqual(result['captureOffsetMilliseconds'], 0)
+        for body in ({'captureTime': '2026-09-30 18:01:00.0001 +0000'},
+                     {'captureTime': '2026-09-30 17:59:59.9999 +0000'},
+                     {'captureTime': self.private}, {'procName': self.private}):
+            result = self.classify(self.report(body=body))
+            self.assertNotEqual(result['status'], 'matched')
+            self.assertNotIn('captureOffsetMilliseconds', result)
 
     def test_malformed_duplicate_unsupported_and_oversized_reports_do_not_classify(self):
         for data in (b'private raw text', b'\xff', b'{}', self.report() + b'\n{}',

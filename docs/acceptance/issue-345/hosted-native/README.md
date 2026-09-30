@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all seventeen hosted failures and original receipt hashes.
+preserve all eighteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -375,3 +375,32 @@ flags for those same ownership predicates. It preserves their acceptance policy,
 the original collection bounds and the full journey. Rejected report contents
 remain unclassified and private. The cause remains unknown until evidence
 establishes ownership and the failure mechanism.
+
+The eighteenth attempt at `0534e716` again failed after normal Logout confirmation,
+before the login screen returned. [Run 36768957795](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957795)
+passed native checkpoints 01–08 and all 13 Web stages, with no B authentication.
+The app was already not-running before protective harness termination; XCTest
+recorded one failure, zero passes and zero skips. Resources held and cleanup
+succeeded. All ten intended captures passed independent hash and visual/privacy
+review. [Artifact 11123562255](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957795/artifacts/11123562255)
+and the durable failure entry preserve the original receipts.
+
+The new diagnostics identify the rejected candidate's `installed-path-scope`
+boundary. Both bundle identifiers, process name, app/executable leaves and exact
+owned-simulator coalition matched. The path had a wildcard component, no parent
+traversal and no visible owned simulator UUID; neither exact nor case-insensitive
+installed suffix comparison matched. The single recent 46,542-byte report was
+not classified, and no collection bound was reached. These flags establish the
+redacted-path diagnostic gap, not the application's failure mechanism.
+
+The correction for this observed case keeps exact simulator-coalition and app
+identity matching, rejects visible path conflicts, and adds corroboration from
+the verified installed executable's build UUID and a unique matching main-image
+entry. UUID values and raw image/path/report content remain private. A build UUID
+alone proves neither simulator ownership nor exact file bytes; the existing
+archive hashes, complete installed-file verification and signature checks remain
+the exact-artifact evidence. The full native journey and its assertions remain
+unchanged. A matched report carries only a bounded integer capture offset from
+journey start, allowing correlation with the existing checkpoint timings without
+publishing a raw report timestamp. The Logout cause remains unproved pending the
+resulting evidence.

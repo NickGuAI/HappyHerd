@@ -338,3 +338,16 @@ On that exact head, all six required gates passed in
 [all four installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36764888923),
 the [server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36764888996)
 and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889054/artifacts/11120097590).
+
+[Native attempt 18](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957795)
+again failed after Logout confirmation. The rejected report now shows matching
+app identities and exact simulator coalition, with a wildcard-redacted process
+path; it still provides no crash classification. The
+[narrow diagnostic correction and retained failure](hosted-native/README.md)
+bind that observed redaction case to the verified installed binary while keeping
+simulator ownership and all journey criteria. At `0534e716`, all six required
+gates passed in [Quality](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957771)
+and [Contract](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957905), along
+with [all four installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957803),
+the [server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957846)
+and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957771/artifacts/11123635715).
