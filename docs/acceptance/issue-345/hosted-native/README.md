@@ -113,3 +113,23 @@ login screen before opening server settings and records only static phase
 names and typed state flags. Existing server-field/authentication bounds, Inbox
 assertions and evidence requirements remain unchanged. Signing's effect on
 normal account persistence is still unproved.
+
+The seventh journey at `4f0be596` reached only `setup` and `activate`:
+XCTest failed at `app.activate()`, with app state `not-running` and no UI query.
+The startup wait, server settings, QR/authentication and Inbox assertions never
+ran. Signing and installed hashes passed, disk remained above the resource
+floor, and simulator cleanup succeeded. [Run 36687095663](https://github.com/NickGuAI/HappyHerd/actions/runs/36687095663)
+and [sanitized artifact 11085075383](https://github.com/NickGuAI/HappyHerd/actions/runs/36687095663/artifacts/11085075383)
+retain that failure. The public receipt cannot yet distinguish launch rejection
+from an immediate crash.
+
+The next diagnostic classifies private XCTest failures and a bounded unified-log
+query on only the newly owned simulator. The query selects the HappyHerd process
+or launcher/crash processes mentioning the exact isolated bundle identifier.
+Only fixed launch/crash categories, allowlisted Apple error domains, bounded
+numeric codes and fixed signal/exception enums enter public proof. Raw error
+messages, URLs and UI hierarchy remain private. An unmatched or unavailable log
+is inconclusive. Activation, signing, auth, all eight screenshots, assertions
+and timeouts are unchanged. This run diagnoses launch; even a six-checkpoint
+native pass still needs native account-scope, arrival-during-Done and durable
+server-restart proof beyond the existing Web coverage.

@@ -64,6 +64,17 @@ AUTH_LOG_PATTERNS = {
     'missingEntitlementStatus': r'(?<![\w-])-34018(?!\w)',
     'missingEntitlementMessage': r"A required entitlement (?:isn't present|is missing)\.",
 }
+LAUNCH_LOG_PREDICATE = (
+    'process == "HappyHerd" OR ((process == "runningboardd" OR '
+    'process == "SpringBoard" OR process == "launchd" OR '
+    'process == "amfid" OR process == "ReportCrash") AND '
+    'eventMessage CONTAINS "' + APP_ID + '")'
+)
+launch_spec = importlib.util.spec_from_file_location(
+    'launch_diagnostics', Path(__file__).with_name('launch-diagnostics.py'))
+launch_diagnostics = importlib.util.module_from_spec(launch_spec)
+launch_spec.loader.exec_module(launch_diagnostics)
+
 AUTH_LOG_PREDICATE = 'process == "HappyHerd" AND (' + ' OR '.join(
     'eventMessage CONTAINS "' + text + '"' for text in (
         'Authentication successful', 'Failed to decrypt response.',
@@ -95,10 +106,11 @@ def private_test_auth_counts(path):
     return result
 
 
-def bounded_auth_log_counts(command, env, cwd, timeout=20, limit=256 * 1024):
+def bounded_log_diagnostic(command, env, cwd, timeout=20, limit=256 * 1024,
+                           classify=auth_log_counts, field='counts'):
     """Read a selected owned-simulator log in memory; never persist raw output."""
     result = {'source': 'owned-simulator-unified-log', 'startedAt': time.time(),
-              'available': False, 'exitCode': None, 'counts': auth_log_counts([]),
+              'available': False, 'exitCode': None, field: classify([]),
               'outputLimitReached': False, 'timedOut': False}
     process = None
     data = bytearray()
@@ -130,7 +142,8 @@ def bounded_auth_log_counts(command, env, cwd, timeout=20, limit=256 * 1024):
         result['notAvailableReason'] = 'command-unavailable'
     finally:
         if process is not None:
-            if process.poll() is None:
+            bounded_stop = result['timedOut'] or result['outputLimitReached']
+            if process.poll() is None or bounded_stop:
                 try:
                     os.killpg(process.pid, signal.SIGTERM)
                 except ProcessLookupError:
@@ -143,6 +156,12 @@ def bounded_auth_log_counts(command, env, cwd, timeout=20, limit=256 * 1024):
                     except ProcessLookupError:
                         pass
                     process.wait(timeout=2)
+                if bounded_stop:
+                    # A leader may exit while its child still holds the pipe.
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
             result['exitCode'] = process.returncode
             if process.stdout is not None:
                 process.stdout.close()
@@ -155,9 +174,10 @@ def bounded_auth_log_counts(command, env, cwd, timeout=20, limit=256 * 1024):
                 entries = json.loads(data)
                 if not isinstance(entries, list):
                     raise ValueError()
-                result.update(available=True, counts=auth_log_counts(
+                result.update(available=True)
+                result[field] = classify(
                     entry['eventMessage'] for entry in entries if isinstance(entry, dict)
-                    and isinstance(entry.get('eventMessage'), str)))
+                    and isinstance(entry.get('eventMessage'), str))
             except (ValueError, UnicodeError):
                 result['notAvailableReason'] = 'unreadable-result'
     return result
@@ -397,6 +417,13 @@ def main():
             summary['result'] = raw_summary['result']
         (proof / 'test-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
         receipt['testSummary'] = summary
+        # Read only XCTest failure text; the classifier emits fixed enums and
+        # allowlisted Apple domains/numeric codes, never descriptions or URLs.
+        failures = raw_summary.get('testFailures', [])
+        receipt['xctestLaunchFailures'] = launch_diagnostics.classify_launch_messages(
+            row[key] for row in failures if isinstance(row, dict)
+            for key in ('failureText', 'message') if isinstance(row.get(key), str))
+        save()
         attachments = private / 'attachments'
         run(['/usr/bin/xcrun', 'xcresulttool', 'export', 'attachments', '--path', str(result),
              '--output-path', str(attachments)], 'export-private-attachments')
@@ -580,9 +607,32 @@ def main():
             '-resultBundlePath', str(result)], 'native-journey', timeout=1500, check=False)
         # The device belongs to this attempt. Inspect only its HappyHerd process,
         # after the actual journey and before cleanup; raw log bytes stay in memory.
-        log_diagnostic = bounded_auth_log_counts(
+        log_diagnostic = bounded_log_diagnostic(
             simctl + ['spawn', udid, 'log', 'show', '--last', '10m', '--style', 'json',
                       '--info', '--debug', '--predicate', AUTH_LOG_PREDICATE], env, work)
+        launch_log = bounded_log_diagnostic(
+            simctl + ['spawn', udid, 'log', 'show', '--last', '10m', '--style', 'json',
+                      '--info', '--debug', '--predicate', LAUNCH_LOG_PREDICATE], env, work,
+            classify=launch_diagnostics.classify_launch_messages, field='classification')
+        private_launch = {'source': 'private-xctest-log-tail', 'available': False}
+        try:
+            with (private / 'native-journey.log').open('rb') as stream:
+                stream.seek(0, os.SEEK_END)
+                length = stream.tell()
+                stream.seek(max(0, length - 1024 * 1024))
+                data = stream.read(1024 * 1024)
+            private_launch.update(available=True, outputLimitReached=length > len(data),
+                                  classification=launch_diagnostics.classify_launch_messages(
+                                      [data.decode('utf-8', errors='replace')]))
+        except OSError:
+            private_launch['notAvailableReason'] = 'read-failed'
+        receipt['launchLogDiagnostics'] = {
+            'zeroMatchesAreInconclusive': True, 'sources': [private_launch, launch_log],
+        }
+        receipt['commands'].append({
+            'phase': 'sanitized-launch-log-diagnostic',
+            **{key: launch_log[key] for key in ('startedAt', 'finishedAt', 'exitCode')},
+        })
         receipt['authLogDiagnostics'] = {
             'zeroCountsAreInconclusive': True,
             'sources': [private_test_auth_counts(private / 'native-journey.log'), log_diagnostic],
