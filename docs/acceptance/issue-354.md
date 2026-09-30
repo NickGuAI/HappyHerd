@@ -90,6 +90,91 @@ Unrecorded content is labeled; unavailable referenced history is unreadable
 with retry. A read is a snapshot and Refresh requests another snapshot.
 
 This change affects Web/frontend, the shared wire contract, daemon-resident
-CLI and provider documentation. Activation would require deploying the selected
-Web artifact and installing/restarting the selected daemon artifact under
-separate authority. This delivery performs no merge, activation or issue closure.
+CLI and provider documentation. The continuation below authorizes isolated
+acceptance activation; it does not authorize changing the shared deployment,
+merging the PR, or closing the issue.
+
+## Native and authenticated acceptance continuation
+
+The owner requested completion of the real authenticated journeys after the
+initial review-ready handoff. **Full acceptance remains outstanding.** The
+following evidence is separate from the rendered fixtures above.
+
+The selected runtime source is
+`01e76b61d868f9c0be0bc12811f91d4f72e08d8c`, based on
+`0217e4c629415eda601856cd21e535489e5e1f06`. Its production Web export and CLI
+build passed with Node 20 and pnpm 10.11.0. A disposable loopback server on
+`127.0.0.1:46354` uses the real standalone server, its own PGlite database
+(40 migrations), and the unchanged production Web export. Its health endpoint
+passed. No shared daemon, server, account configuration or provider credential
+was replaced. This is a local acceptance environment, not a deployed release.
+
+A fresh local account was created and authenticated through the production
+Web UI. The normal backup gate was completed without exporting its key to an
+artifact; the temporary clipboard was cleared. No storage state was injected,
+HTTP or Socket.IO transport mocked, or existing account credentials copied.
+Google Chrome in headless mode showed the Context window switch present and
+unchecked at both 1440×900 and 390×844. These are real Web viewport checks, not
+physical-device or native-mobile checks. The sanitized captures are
+[`production-features-desktop-off.png`](issue-354/production-features-desktop-off.png)
+and [`production-features-mobile-off.png`](issue-354/production-features-mobile-off.png).
+
+The native Codex 0.154.0 app-server completed two harmless model turns around
+one real `thread/compact/start`, waiting for completion before the second turn.
+The native stream reports three completion events because compaction itself
+also emits a turn-completed event.
+An independently derived oracle read only this newly generated trace. It used
+the last native `replacement_history` plus later `response_item` records,
+rather than deriving expectations with the parser under test. The disk reader
+and parser returned all 13 expected entries in exact order and with matching
+full-content hashes. This includes the actual 21,428-byte base instructions,
+three hidden developer inputs, an image retained by native replacement history,
+and the post-compaction marker. The original trace hash and modification time
+were unchanged. Native encrypted compaction content remains opaque: the
+recorded bytes are preserved, and the existing provider-recording limitation
+applies; no plaintext is invented. The public
+[`native-acceptance-report.json`](issue-354/native-acceptance-report.json)
+contains only counts, hashes, environment details and outcomes, not transcripts.
+
+Claude's installed CLI 2.1.216 and the exact-worktree Agent SDK 0.3.260 bundled
+Claude Code 2.1.260 both returned HTTP 401 `authentication_failed`, reporting
+expired stored OAuth. A normal-settings retry and the distinct bundled-native
+path also failed. No alternate auth environment or configured Claude account
+pool was available. Three genuine file attachments were recorded, but there
+was no successful model turn or compaction; this is not a Claude context pass.
+No logout, account switch, credential copying or shared-login modification was
+performed. A usable renewed Claude login is the external prerequisite.
+
+The isolated CLI's supported terminal pairing was prepared, but automatic
+approval review rejected opening its pairing link because the action could
+grant machine access. Explicit approval was requested to pair only the fresh
+isolated CLI home with the disposable local account. No pairing or equivalent
+API workaround was performed. Until approved, the real daemon and authenticated
+Web → encrypted machine RPC → native trace journey remain unproved.
+
+| Original acceptance criterion | Current acceptance status |
+| --- | --- |
+| Experimental switch defaults off; no session entry while off | **Outstanding overall.** Production authenticated switch/default is proved at both sizes; absence from a real session menu still requires the paired machine. Fixture absence tests pass. |
+| Visible Claude/Codex entry on Web Desktop and Web Mobile | **Outstanding.** Production-component fixture journeys pass; actual session journeys await pairing and the Claude login prerequisite. |
+| Every ordered post-compaction entry, hidden input, Codex base instructions and honest Claude limits | **Outstanding overall.** Actual native Codex trace/oracle passes. Claude successful turns/compaction and both providers' authenticated Web transport remain unproved. |
+| Unsupported, offline and missing transcript states offer retry | **Outstanding live proof.** Six rendered fixture cases pass; actual isolated-runtime failure/recovery journeys await pairing. |
+| Provider recipe and exactly four linked remaining-provider subissues | **PASS.** Recipe and native linked subissues #362, #363, #364 and #365 are present; no additional providers implemented. |
+
+Commands and outcomes from this continuation:
+
+```text
+APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir <owned-export>  PASS
+HAPPYHERD_BUILD_COMMIT_SHA=01e76b61... pnpm --filter @happyherd/cli build                                    PASS
+tsx packages/happyherd-server/sources/standalone.ts serve (isolated PGlite + production export)             healthy
+Playwright → production Create account → backup gate → Features, desktop/mobile                          default off PASS
+codex app-server --listen stdio:// → thread/start → turn/start → thread/compact/start → turn/start         PASS
+independent native Codex oracle → parseCodexContextWindow + readContextWindow                             13/13 PASS
+claude -p --session-id <owned UUID> / --resume <owned UUID> with harmless @file inputs                      HTTP 401
+bundled SDK native Claude --resume <same owned UUID>                                                       HTTP 401
+happyherd auth login (fresh isolated home and loopback server)                                            awaiting pairing approval
+```
+
+The exact-head CI and preserved local baseline failures remain recorded in
+the PR receipt. Green source/build/CI and the native oracle do not complete the
+outstanding authenticated journeys. No merge, release publication, issue
+closure or shared production restart occurred.

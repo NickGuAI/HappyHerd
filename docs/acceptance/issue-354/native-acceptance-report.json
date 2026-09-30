@@ -1,0 +1,199 @@
+{
+  "sourceSha": "01e76b61d868f9c0be0bc12811f91d4f72e08d8c",
+  "traceSha256": "9fecbd74bf43097d331f8e06a96eb01d29bb05bce5274e50763c94252c69ab39",
+  "traceBytes": 119608,
+  "nativeRecordCount": 37,
+  "nativeCliVersion": "0.154.0",
+  "checkpointLine": 18,
+  "compactionCount": 1,
+  "replacementHistoryCount": 2,
+  "responseItemsAfterCheckpoint": 6,
+  "postCheckpointMetadataCount": 2,
+  "preCheckpointResponseItemsExcluded": 6,
+  "modelHistoryInputCount": 8,
+  "modelHistoryKinds": {
+    "message:user": 3,
+    "compaction": 1,
+    "message:developer": 3,
+    "message:assistant": 1
+  },
+  "displayedEntryCount": 13,
+  "displayedKinds": {
+    "base_instructions": 1,
+    "session_meta": 1,
+    "compacted": 1,
+    "message:user": 3,
+    "compaction": 1,
+    "message:developer": 3,
+    "world_state": 1,
+    "turn_context": 1,
+    "message:assistant": 1
+  },
+  "orderedEntries": [
+    {
+      "index": 0,
+      "origin": "session_meta/base_instructions/text",
+      "kind": "base_instructions",
+      "utf8Bytes": 21428,
+      "contentSha256": "35bd51b5f577cb7b24cd5f4629e49e37cb724ab57754ce6f8f202001635bab8a"
+    },
+    {
+      "index": 1,
+      "origin": "line:1 (base_instructions split out)",
+      "kind": "session_meta",
+      "utf8Bytes": 592,
+      "contentSha256": "f37dcccd38abb6dfcf64aff92bb8d4a4ca3f6298d6eaf5f66dae05e3c3f489b0"
+    },
+    {
+      "index": 2,
+      "origin": "line:18 (replacement_history split out)",
+      "kind": "compacted",
+      "utf8Bytes": 15525,
+      "contentSha256": "a8041afcd18c348f39fdfe3005ba872f95cd7a345a140f7d9131dc679429e537"
+    },
+    {
+      "index": 3,
+      "origin": "line:18/replacement_history/0",
+      "kind": "message:user",
+      "utf8Bytes": 1075,
+      "contentSha256": "6f4444b6b8ce0d5884db3eae88441f430366a3d6628ee1c87fc876f58f509394"
+    },
+    {
+      "index": 4,
+      "origin": "line:18/replacement_history/1",
+      "kind": "compaction",
+      "utf8Bytes": 2268,
+      "contentSha256": "20899b5484d17a991d51ebe9fd286d3f04c37398f5760cb4b3ef3026f3d0012a"
+    },
+    {
+      "index": 5,
+      "origin": "line:25",
+      "kind": "message:developer",
+      "utf8Bytes": 13821,
+      "contentSha256": "70b54d68344b10c3d1f959ed85a8e814b0a2b1ddd215e7a6efdd758c1f317ecf"
+    },
+    {
+      "index": 6,
+      "origin": "line:26",
+      "kind": "message:developer",
+      "utf8Bytes": 2998,
+      "contentSha256": "108650ba6c5a8e9918031f1370802ad32ce4847749c907635214457ff8193054"
+    },
+    {
+      "index": 7,
+      "origin": "line:27",
+      "kind": "message:developer",
+      "utf8Bytes": 804,
+      "contentSha256": "1e3390b84b92acbdbb3368f377491e5cc7d133b65766d6d97c2ad0a384d8c25c"
+    },
+    {
+      "index": 8,
+      "origin": "line:28",
+      "kind": "message:user",
+      "utf8Bytes": 1995,
+      "contentSha256": "3aef45780b4c97def9194388aadfd83e4c4bea4de340749da19a46544b8290c3"
+    },
+    {
+      "index": 9,
+      "origin": "line:29",
+      "kind": "world_state",
+      "utf8Bytes": 24189,
+      "contentSha256": "23aaf2da81009abc716ddab35064fa449ee0ba2a53d69fe96b9a0a47fe00d3a9"
+    },
+    {
+      "index": 10,
+      "origin": "line:30",
+      "kind": "turn_context",
+      "utf8Bytes": 1360,
+      "contentSha256": "d60e85caaed230b51d24318d1b9185bbd5a0901de2eba10ee8f6561a380a666a"
+    },
+    {
+      "index": 11,
+      "origin": "line:31",
+      "kind": "message:user",
+      "utf8Bytes": 639,
+      "contentSha256": "fe02f7e35272abecb1b155209c16128f7af4239852a6734802ef9ff2f64f3ad1"
+    },
+    {
+      "index": 12,
+      "origin": "line:34",
+      "kind": "message:assistant",
+      "utf8Bytes": 585,
+      "contentSha256": "35764431e66a11c1294991d279bfedee27709bfe573778bb52a2c38cecfcc5e0"
+    }
+  ],
+  "baseInstructions": {
+    "equalToRecordedText": true,
+    "utf8Bytes": 21428,
+    "sha256": "35bd51b5f577cb7b24cd5f4629e49e37cb724ab57754ce6f8f202001635bab8a"
+  },
+  "hiddenDeveloper": {
+    "count": 3,
+    "acceptanceMarkerPresent": true,
+    "contentHashes": [
+      "70b54d68344b10c3d1f959ed85a8e814b0a2b1ddd215e7a6efdd758c1f317ecf",
+      "108650ba6c5a8e9918031f1370802ad32ce4847749c907635214457ff8193054",
+      "1e3390b84b92acbdbb3368f377491e5cc7d133b65766d6d97c2ad0a384d8c25c"
+    ]
+  },
+  "inputImages": [
+    {
+      "origin": "line:18/replacement_history/0",
+      "sha256": "cfd85665d5eff362c67422ed9de0b8df101fbbf6acc6f80913b0e429ca8c79f3",
+      "utf8Bytes": 220
+    }
+  ],
+  "encryptedCompactionItems": 1,
+  "checks": {
+    "parserMatchesIndependentOracle": true,
+    "diskReaderMatchesParser": true,
+    "exactOrderAndFullContent": true,
+    "postBoundaryMarkerPresent": true,
+    "traceBytesAndMtimeUnchanged": true
+  },
+  "limitations": [
+    "provider_input_not_fully_recorded"
+  ],
+  "evidenceLimits": [
+    "This independently checks saved native trace content; it does not establish app-to-machine transport or rendered UI.",
+    "The native compaction item contains encrypted_content. Its recorded bytes are retained, but its internal plaintext is not recoverable here.",
+    "World state, turn context, checkpoint metadata and session metadata remain native records, not reconstructed model messages.",
+    "The pre-compaction user image is intentionally retained by native replacement_history; physical-age filtering would incorrectly discard it."
+  ],
+  "proofPlane": "real native provider trace and disk parser; authenticated Web RPC not yet proved",
+  "claude": {
+    "installedVersion": "2.1.216",
+    "bundledVersion": "2.1.260",
+    "sdkVersion": "0.3.260",
+    "outcome": "authentication_failed",
+    "httpStatus": 401,
+    "expiredOAuth": true,
+    "actualFileAttachments": 3,
+    "compactions": 0,
+    "successfulModelTurns": 0,
+    "prerequisite": "renewed usable Claude login"
+  },
+  "productionWeb": {
+    "sourceRevision": "01e76b61d868f9c0be0bc12811f91d4f72e08d8c",
+    "origin": "http://127.0.0.1:46354",
+    "server": "standalone with isolated PGlite",
+    "authenticatedAccount": "disposable; created through UI",
+    "transportMocked": false,
+    "storageInjected": false,
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "contextWindowDefault": false,
+    "browser": "headless Google Chrome",
+    "liveMachineRpcProved": false,
+    "pairing": "awaiting explicit approval after automatic approval review rejection",
+    "mainBundleSha256": "eda579ca3cc9f2b01057f21c417ca73605f0228f48d99398f94a3312ac51a1b6"
+  }
+}

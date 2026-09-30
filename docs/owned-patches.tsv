@@ -669,3 +669,4 @@ CONTEXT_WINDOW_VISIBLE_HEADER_PROOF	accepted	test(context): render native header
 CURRENT_CONTEXT_BRANCH_FIDELITY	accepted	fix(context): preserve active branches and recorded tool definitions	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
 CONTEXT_WINDOW_COMPACTION_TRANSITION	accepted	fix(context): select freshly compacted and retained model inputs	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
 CONTEXT_WINDOW_AUTOMATION_MAIN_GOLDENS	accepted	test(context): refresh context changelog goldens after automation merge	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+CONTEXT_WINDOW_NATIVE_ACCEPTANCE_RECEIPT	accepted	docs(context): record native acceptance and live prerequisites	docs/acceptance/issue-354.md
