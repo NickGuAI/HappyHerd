@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all nine hosted failures and original receipt hashes.
+preserve all ten hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -189,3 +189,15 @@ receive a newly published real update before browser transport is restored.
 The server retains its disk database and parent-held secret across the restart;
 account snapshots, existing read timestamps and subsequent native relaunch are
 verified. The final controller requires all 16 checkpoints and 18 captures.
+
+
+The tenth attempt at `5d6d468a` verified the selected normal archive and extracted
+app, but [run 36741430930](https://github.com/NickGuAI/HappyHerd/actions/runs/36741430930)
+failed immediately in controller preflight. One controller assertion still
+pinned native source `67a22ead` while the selected artifact and other consumers
+correctly pinned `4933c0c7`. The controller completed no stage and started no
+server, Web journey or native driver. [Artifact 11111035654](https://github.com/NickGuAI/HappyHerd/actions/runs/36741430930/artifacts/11111035654)
+and its controller receipt hash remain preserved in the failure ledger. The
+correction updates that single selected-source assertion and adds a cross-file
+provenance regression check. It changes no artifact, authentication path,
+acceptance assertion, timeout, capture requirement or skip.

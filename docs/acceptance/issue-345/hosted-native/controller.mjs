@@ -431,7 +431,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
 });
 try {
     assert.match(sourceSha || '', /^[a-f0-9]{40}$/);
-    assert.equal(nativeSha, '67a22ead631e384802e5f7a8657ff674c07ab28d');
+    assert.equal(nativeSha, '4933c0c727b08f2dbe7f90ae5e261d89a917e0de');
     assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceSha);
     assert.equal(dirname(fileURLToPath(import.meta.url)), directory, 'Run copied controller from the isolated work directory');
     const proofRelative = relative(directory, proof);

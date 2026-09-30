@@ -697,6 +697,28 @@
       "startedAt": 1790778960.8929431,
       "failureReason": "Actual native test did not pass.",
       "resourceStopped": false
+    },
+    {
+      "attempt": 10,
+      "runId": 36741430930,
+      "runAttempt": 1,
+      "artifactId": 11111035654,
+      "controllerReceiptSha256": "4be0ded2bd7c4b4edc3b0cbe217473b5e369a94b34a7788d2c35c8be7a54820a",
+      "sourceSha": "5d6d468ade03d47c8ce6d50b9a17702fe2af9b83",
+      "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+      "startedAt": "2026-09-30T16:07:40.618Z",
+      "finishedAt": "2026-09-30T16:07:40.619Z",
+      "passed": false,
+      "phase": "preflight",
+      "firstFailure": {
+        "stage": "preflight",
+        "type": "AcceptanceFailure",
+        "at": "2026-09-30T16:07:40.619Z"
+      },
+      "completedStages": [],
+      "webJourneyStarted": false,
+      "nativeDriverStarted": false,
+      "diagnosis": "controller-selected-native-source-pin-mismatch"
     }
   ]
 }

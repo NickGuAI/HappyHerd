@@ -698,3 +698,4 @@ INBOX_NATIVE_LAUNCH_CLASSIFICATION_345	accepted	test(inbox): classify native lau
 INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence coverage and narrow launch diagnostics	docs/acceptance/issue-345/hosted-native/controller.mjs
 INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal Xcode simulator signing	docs/acceptance/issue-345/native-signed-build-workflow.yml
 INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/hosted-native/verify-hosted-app.py
+INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native controller artifact pin	docs/acceptance/issue-345/hosted-native/controller.mjs

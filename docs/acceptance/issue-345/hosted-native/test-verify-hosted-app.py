@@ -1,14 +1,16 @@
-"""Synthetic verifier contracts only: no build, simulator, install or launch proof.
+"""Verifier and selected-artifact contracts: no build, install or launch proof.
 
 The fixture's signature has parser structure, not a valid cryptographic signature.
 Only external lipo/file/codesign calls are mocked; payload and signing parsers run.
 Archive pins are replaced solely in scoped mocks, never in production source.
 """
+import ast
 import hashlib
 import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import stat
 import struct
@@ -47,6 +49,57 @@ def synthetic_macho():
     signature = struct.pack('>5I', 0xfade0cc0, 20 + len(directory), 1, 0, 20) + directory
     return (struct.pack('<8I', 0xfeedfacf, 0x100000c, 0, 2, 1, 16, 0, 0)
             + struct.pack('<4I', 0x1d, 16, 48, len(signature)) + signature)
+
+
+class SelectedArtifactProvenanceTests(unittest.TestCase):
+    def test_selected_artifact_agrees_across_all_retained_consumers(self):
+        # Read the driver as syntax only: importing/running it is unnecessary.
+        driver = ast.parse((BASE / 'native-driver.py').read_text())
+        constants = {}
+        for name in ('EXPECTED_SHA', 'EXPECTED_ARCHIVE_SHA'):
+            assignments = [node.value for node in driver.body
+                           if isinstance(node, ast.Assign)
+                           and any(isinstance(target, ast.Name) and target.id == name
+                                   for target in node.targets)]
+            self.assertEqual(len(assignments), 1, f'Driver must define one {name}')
+            constants[name] = ast.literal_eval(assignments[0])
+        self.assertRegex(verifier.EXPECTED_SHA, r'^[0-9a-f]{40}$')
+        self.assertRegex(verifier.EXPECTED_ARCHIVE_SHA, r'^[0-9a-f]{64}$')
+        self.assertEqual(constants, {'EXPECTED_SHA': verifier.EXPECTED_SHA,
+                                    'EXPECTED_ARCHIVE_SHA': verifier.EXPECTED_ARCHIVE_SHA})
+
+        def one(pattern, text, consumer):
+            matches = re.findall(pattern, text, re.MULTILINE)
+            self.assertEqual(len(matches), 1, f'Expected one selected-artifact field in {consumer}')
+            return matches[0]
+
+        # These narrow matches require the live preflight assertion and the
+        # retained workflow's actual environment/download step, not comments.
+        controller = (BASE / 'controller.mjs').read_text()
+        controller_sha = one(
+            r"^[ \t]*assert\.equal\(nativeSha, '([0-9a-f]{40})'\);[ \t]*$",
+            controller, 'controller preflight')
+        self.assertEqual(controller_sha, verifier.EXPECTED_SHA,
+                         'Controller preflight rejects the selected native artifact')
+
+        # The recipe remains authoritative after the temporary active workflow
+        # is removed; this regression never depends on .github/workflows/.
+        workflow = (BASE.parent / 'native-journey-workflow.yml').read_text()
+        workflow_sha = one(r'^      HH345_NATIVE_SHA: ([0-9a-f]{40})[ \t]*$',
+                           workflow, 'retained journey environment')
+        download = one(r'^      - uses: actions/download-artifact@[^\n]+\n'
+                       r'((?:^        [^\n]*\n)+)', workflow, 'retained journey download step')
+        artifact_name = one(r'^          name: ([^\s#]+)[ \t]*$', download, 'download artifact name')
+        run_id = one(r'^          run-id: ([0-9]+)[ \t]*$', download, 'download run ID')
+        self.assertEqual(workflow_sha, verifier.EXPECTED_SHA)
+        self.assertEqual(artifact_name, 'issue-345-native-signed-' + verifier.EXPECTED_SHA)
+        self.assertEqual(verifier.EXPECTED_RUN,
+                         'https://github.com/NickGuAI/HappyHerd/actions/runs/' + run_id)
+
+        manifest = json.loads((BASE.parent / 'native-signed-build-manifest.json').read_text())
+        self.assertEqual(manifest['sourceSha'], verifier.EXPECTED_SHA)
+        self.assertEqual(manifest['productTree'], verifier.EXPECTED_PRODUCT_TREE)
+        self.assertEqual(manifest['nativeBuildMode'], verifier.EXPECTED_BUILD_MODE)
 
 
 class HostedAppVerifierTests(unittest.TestCase):
