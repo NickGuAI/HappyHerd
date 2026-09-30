@@ -677,3 +677,4 @@ COMMANDER_CONTEXT_SHARED_KEYBOARD_FIXTURE	accepted	test(app): reuse the shared k
 COMMANDER_CONTEXT_BROWSER_STARTUP	accepted	test(app): isolate Commander context browser fixture startup	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 COMMANDER_CONTEXT_CHANGELOG_GOLDENS	accepted	test(app): refresh Commander context changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 COMMANDER_CONTEXT_UNUSED_DIAGRAM_FIXTURE	accepted	test(app): omit unused diagrams from Commander browser fixture	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+COMMANDER_CONTEXT_NATIVE_RESUME_DELIVERY	accepted	fix(codex): apply Commander context before the resume receipt	server/packages/happyherd-cli/src/codex/resumeExistingThread.test.ts

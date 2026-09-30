@@ -34,11 +34,45 @@ not attribute the former Commander's file receipt to the new selection.
 
 Browser fixtures inject session state but render the production stream host.
 They do not prove that an authenticated provider launched on a deployed
-revision. Native renderer coverage is not a physical-device gesture. This
-delivery does not authorize runtime installation, deployment, daemon restart,
-merge, or issue closure. The final PR description and issue handoff retain
-the exact head/base, commands, CI links, independent review and remaining live
-prerequisites.
+revision. Native renderer coverage is not an installed-app gesture. The first
+review-ready handoff did not establish full acceptance. The subsequent owner
+instruction authorizes reversible isolated acceptance runtimes, local builds,
+and authenticated test journeys, while excluding shared production runtime
+disruption, merge, release publication, and issue closure.
+
+## Authenticated acceptance continuation
+
+The initial live build is `ba75ce5a4f184d234bd23d444bc0596893f4f367`, based on
+`0217e4c629415eda601856cd21e535489e5e1f06`. Node 20.19.0 and pnpm 10.11.0 built
+the wire package, CLI, and production Web export. An isolated HappyHerd home
+references the existing machine login without copying credentials, has its own
+machine identity and daemon, and uses a controlled Commander/workspace. The
+shared production daemon and server were not replaced or restarted. The real
+native Codex app-server uses its existing authorized provider login.
+
+| Live probe on initial build | Direct result |
+|---|---|
+| Commander launch | PASS: authoritative encrypted server metadata records global AGENTS, Commander, empty working memory, and long-term memory; actual assistant output matches the synthetic global and long-term markers and the turn completes |
+| Receipt independent of current disk | PASS: after stopping the test provider, making global AGENTS unreadable, and removing long-term memory, the retained launch receipt still records its original four files |
+| Actual resume | FAIL: same HappyHerd session and Codex thread resume, and metadata changes to the two readable files, but the actual assistant still returns the old Commander marker; the new marker is absent from the native rollout |
+| No-Commander launch | PASS at transport boundary: a real session has no Commander identity or loaded-file receipt; visible absence still requires authenticated UI proof |
+| Web Desktop / Mobile | Outstanding: exact-source Web export is available, but authenticated row/navigation journeys remain to be exercised |
+| Native applications | Outstanding: installed exact-source iOS, macOS, and Android journeys remain to be exercised; simulator/emulator interaction is acceptable functional evidence, and physical hardware/store publication is not required by #347 |
+
+The failed resume is a product finding, not an environment failure. A loaded
+Codex thread ignores the `developerInstructions` configuration override sent by
+`thread/resume`; reading the new bundle in the HappyHerd process alone did not
+prove that the model received it. Its correction must use the existing native
+developer-item mechanism and publish the new provenance only after successful
+application, preserving concurrent Commander reassignment/detachment.
+
+Local evidence is retained under the issue-owned temporary acceptance root:
+`build-manifest.json`, `launch-authoritative-complete.json`,
+`pre-resume-files-changed.json`, `resume-authoritative.json`,
+`resume-marker-comparison.json`, and `resume-native-marker-audit.json`.
+Receipts contain allowlisted metadata and marker/completion booleans, not
+credentials or raw transcripts. The readback script validates the exact owned
+session, machine, workspace, and home before decrypting server state.
 
 ## Reproducible focused evidence
 

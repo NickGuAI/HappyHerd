@@ -1,5 +1,6 @@
 import { trimIdent } from '@/utils/trimIdent';
 import type { ApprovalPolicy, SandboxMode } from './codexAppServerTypes';
+import { instructionReceiptMetadata, type CommanderContextMetadata } from '@/agentContext/commanderContext';
 
 type ResumeThreadClient = {
     resumeThread: (opts: {
@@ -12,10 +13,11 @@ type ResumeThreadClient = {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
     }) => Promise<{ threadId: string; model: string }>;
+    injectDeveloperInstructions: (opts: { threadId: string; instructions: string }) => Promise<unknown>;
 };
 
 type ResumeThreadSession = {
-    updateMetadata: (handler: (currentMetadata: any) => any) => void;
+    updateMetadata: (handler: (currentMetadata: any) => any) => Promise<void>;
     sendSessionEvent: (event: { type: 'message'; message: string }) => void;
 };
 
@@ -32,6 +34,8 @@ export async function resumeExistingThread(opts: {
     cwd: string;
     mcpServers: Record<string, unknown>;
     developerInstructions?: string;
+    /** Freshly assembled context; publish only after native delivery succeeds. */
+    contextMetadata?: CommanderContextMetadata;
     approvalPolicy?: ApprovalPolicy;
     sandbox?: SandboxMode;
     /**
@@ -53,9 +57,27 @@ export async function resumeExistingThread(opts: {
             ...(opts.sandbox ? { sandbox: opts.sandbox } : {}),
         });
 
-        opts.session.updateMetadata((currentMetadata) => ({
+        // A resumed Codex history may ignore the thread configuration override.
+        // Existing developer-item injection makes this launch's context visible
+        // to the next turn and provides the acknowledgement for its receipt.
+        if (opts.developerInstructions) {
+            await opts.client.injectDeveloperInstructions({
+                threadId: resumedThread.threadId,
+                instructions: opts.developerInstructions,
+            });
+        }
+
+        await opts.session.updateMetadata((currentMetadata) => ({
             ...currentMetadata,
             codexThreadId: resumedThread.threadId,
+            ...(opts.contextMetadata && opts.developerInstructions
+                && opts.contextMetadata.commanderId === currentMetadata.commanderId ? {
+                    contextHash: opts.contextMetadata.contextHash,
+                    commanderContextFiles: opts.contextMetadata.commanderContextFiles,
+                    ...instructionReceiptMetadata({
+                        provider: 'codex', layer: 'developer', deliveredInstruction: opts.developerInstructions,
+                    }),
+                } : {}),
         }));
         opts.messageBuffer.addMessage(`Resumed thread ${trimIdent(resumedThread.threadId)}`, 'status');
         if (opts.announce !== false) {
