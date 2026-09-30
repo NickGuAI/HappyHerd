@@ -977,6 +977,424 @@
         }
       ],
       "diagnosis": "six-installed-file-mode-mismatches-with-unchanged-payloads"
+    },
+    {
+      "attempt": 13,
+      "runId": 36748692792,
+      "runAttempt": 1,
+      "jobId": 110001395099,
+      "artifactId": 11113829464,
+      "receiptSha256": "57ad3db615885ef203e9876366c7981398db72037e0ac543886360dfc59ca896",
+      "controllerReceiptSha256": "81392e839a31b92940eb830472733fd967a28786313e98fc6a49a033c306d24b",
+      "transportReceiptSha256": "df2d5ca91fc7db40210c5aa9962ac57fe76dc1963abb37ade140e4b91f09f931",
+      "sourceSha": "a6f1b8b3fef15f1b1514a0e0c36feae487999cf0",
+      "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+      "startedAt": 1790788246.293292,
+      "finishedAt": 1790789225.657017,
+      "phase": "export-private-attachments",
+      "passed": false,
+      "errorType": "DriverRequirementError",
+      "failureReason": "Actual native test did not pass.",
+      "exitCode": 1,
+      "buildSigningVerified": true,
+      "installedAllManifestFilesVerified": true,
+      "installedArtifactHashesVerified": true,
+      "exactPrivateDestinationVerified": true,
+      "resourceStopped": false,
+      "cleanup": {
+        "shutdownExitCode": 0,
+        "deleteExitCode": 0
+      },
+      "nativePhases": [
+        "setup",
+        "activate",
+        "startup-wait",
+        "startup-ready",
+        "open-server",
+        "server-field",
+        "server-value",
+        "server-capture",
+        "open-root",
+        "auth",
+        "auth-login",
+        "auth-qr",
+        "auth-approval",
+        "auth-bell",
+        "inbox-bell",
+        "inbox-popover",
+        "inbox-open-page",
+        "inbox-ready",
+        "inbox-unread",
+        "single-read",
+        "single-read-navigation",
+        "inbox-bell",
+        "inbox-popover",
+        "inbox-open-page",
+        "inbox-ready",
+        "single-read-state",
+        "mark-all-read",
+        "all-read-state",
+        "relaunch",
+        "relaunch-bell",
+        "inbox-bell",
+        "inbox-popover",
+        "inbox-open-page",
+        "inbox-ready",
+        "persisted-read-state",
+        "new-arrival",
+        "remote-done",
+        "account-scope",
+        "account-logout"
+      ],
+      "nativeFailures": [
+        "account-logout"
+      ],
+      "nativeStates": [
+        {
+          "phase": "account-logout",
+          "appState": "foreground",
+          "uiQueried": true,
+          "loginVisible": false,
+          "qrRouteVisible": false,
+          "serverFieldVisible": false,
+          "appAlertPresent": false,
+          "systemAlertPresent": false
+        }
+      ],
+      "screenshots": [
+        {
+          "stage": "08-native-account-a-done",
+          "file": "png/08-native-account-a-done.png",
+          "sha256": "1f09ab57e3583ea468ac6f3005633906a250d01debe64b01f3f3f570f56c0ddb",
+          "bytes": 291595
+        },
+        {
+          "stage": "07-native-account-a-unread",
+          "file": "png/07-native-account-a-unread.png",
+          "sha256": "9c6ec85513ae36bc0a0dfa5cff2dfe9c9bccdd7f92cecfaae72330abdc84d790",
+          "bytes": 292568
+        },
+        {
+          "stage": "06-native-inbox-remote-done",
+          "file": "png/06-native-inbox-remote-done.png",
+          "sha256": "61ab49493450d6b0d0f538bee4e832e649268233c0bb990c3541468c1cfe9a1d",
+          "bytes": 287626
+        },
+        {
+          "stage": "05-native-inbox-new-arrival",
+          "file": "png/05-native-inbox-new-arrival.png",
+          "sha256": "1e9025a38137b04ebe28358bced985c8c3593b8d246e45494dc5102066ec5873",
+          "bytes": 288675
+        },
+        {
+          "stage": "04-native-inbox-after-relaunch",
+          "file": "png/04-native-inbox-after-relaunch.png",
+          "sha256": "d70a8175142f587ed0225bcc20da7a59d9fe4fb8470abb0d1baca376d81f47c5",
+          "bytes": 284198
+        },
+        {
+          "stage": "03-native-inbox-done",
+          "file": "png/03-native-inbox-done.png",
+          "sha256": "17a7f469229a8bf789e6557835dbf5cd2eae4f08916470972d829949340095b4",
+          "bytes": 283132
+        },
+        {
+          "stage": "02-native-inbox-single-read",
+          "file": "png/02-native-inbox-single-read.png",
+          "sha256": "25d078b26c8bc930c73bd0a2d7afd110272bddb7ade916ca3058b975dcddee45",
+          "bytes": 284590
+        },
+        {
+          "stage": "01-native-inbox-unread",
+          "file": "png/01-native-inbox-unread.png",
+          "sha256": "aba23aa3dc7752ecb22f6dbdc26925e0c94537db41a81915b55620574e8eeaa8",
+          "bytes": 286884
+        },
+        {
+          "stage": "00a-native-inbox-before-assertions",
+          "file": "png/00a-native-inbox-before-assertions.png",
+          "sha256": "aba23aa3dc7752ecb22f6dbdc26925e0c94537db41a81915b55620574e8eeaa8",
+          "bytes": 286884
+        },
+        {
+          "stage": "00-native-server-before-authentication",
+          "file": "png/00-native-server-before-authentication.png",
+          "sha256": "5e62ab152a29fe7e215a7f1f8de647ba8a3ebcb913f96ebb7c4ddb6cbbf4f008",
+          "bytes": 156144
+        }
+      ],
+      "authDiagnostics": [
+        {
+          "phase": "after-approval",
+          "appState": "foreground",
+          "qrRouteVisible": true,
+          "loginVisible": false,
+          "bellVisible": false,
+          "appAlertPresent": false,
+          "systemAlertPresent": false,
+          "notificationPromptSeen": false,
+          "notificationPromptDeclined": false
+        },
+        {
+          "phase": "notification-declined",
+          "appState": "foreground",
+          "qrRouteVisible": false,
+          "loginVisible": false,
+          "bellVisible": true,
+          "appAlertPresent": false,
+          "systemAlertPresent": false,
+          "notificationPromptSeen": true,
+          "notificationPromptDeclined": true
+        },
+        {
+          "phase": "bell-ready",
+          "appState": "foreground",
+          "qrRouteVisible": false,
+          "loginVisible": false,
+          "bellVisible": true,
+          "appAlertPresent": false,
+          "systemAlertPresent": false,
+          "notificationPromptSeen": true,
+          "notificationPromptDeclined": true
+        }
+      ],
+      "authFailures": [],
+      "markers": [
+        "HH345_READY_FOR_NEW_ARRIVAL",
+        "HH345_READY_FOR_REMOTE_DONE",
+        "HH345_NATIVE_ACCOUNT_SCOPE"
+      ],
+      "installedFrameworkModeRestoration": {
+        "observedMismatchCount": 6,
+        "changedCount": 6,
+        "restorationApplied": true,
+        "expectedMode": 493,
+        "observedMode": 420,
+        "byteHashesUnchanged": true,
+        "allManifestFilesVerified": true,
+        "strictSignatureVerified": true,
+        "frameworkIdentityVerified": true
+      },
+      "testSummary": {
+        "totalTestCount": 1,
+        "passedTests": 0,
+        "failedTests": 1,
+        "skippedTests": 0,
+        "expectedFailures": 0,
+        "result": "Failed"
+      },
+      "launchLogDiagnostics": {
+        "zeroMatchesAreInconclusive": true,
+        "sources": [
+          {
+            "source": "private-xctest-log-tail",
+            "available": true,
+            "outputLimitReached": false,
+            "classification": {
+              "categories": [
+                "unknown"
+              ],
+              "subtypes": [],
+              "errorCodes": [],
+              "signals": [],
+              "serviceReasons": [],
+              "exceptionTypes": [],
+              "terminationReasons": []
+            }
+          },
+          {
+            "source": "owned-simulator-unified-log",
+            "startedAt": 1790789204.870956,
+            "available": false,
+            "exitCode": 143,
+            "classification": {
+              "categories": [
+                "unknown"
+              ],
+              "subtypes": [],
+              "errorCodes": [],
+              "signals": [],
+              "serviceReasons": [],
+              "exceptionTypes": [],
+              "terminationReasons": []
+            },
+            "outputLimitReached": true,
+            "timedOut": false,
+            "notAvailableReason": "output-limit",
+            "finishedAt": 1790789213.866603
+          }
+        ]
+      },
+      "commands": [
+        {
+          "phase": "xcode-version",
+          "startedAt": 1790788246.354676,
+          "exitCode": 0,
+          "finishedAt": 1790788248.403158
+        },
+        {
+          "phase": "generate-test-project",
+          "startedAt": 1790788249.8800561,
+          "exitCode": 0,
+          "finishedAt": 1790788251.9681768
+        },
+        {
+          "phase": "build-tests",
+          "startedAt": 1790788251.9784498,
+          "exitCode": 0,
+          "finishedAt": 1790788272.986198
+        },
+        {
+          "phase": "simulator-sdk-version",
+          "startedAt": 1790788273.0014699,
+          "exitCode": 0,
+          "finishedAt": 1790788277.1199942
+        },
+        {
+          "phase": "list-runtimes",
+          "startedAt": 1790788277.130529,
+          "exitCode": 0,
+          "finishedAt": 1790788279.251851
+        },
+        {
+          "phase": "list-device-types",
+          "startedAt": 1790788279.2631092,
+          "exitCode": 0,
+          "finishedAt": 1790788281.3551302
+        },
+        {
+          "phase": "create-private-device",
+          "startedAt": 1790788281.3676748,
+          "exitCode": 0,
+          "finishedAt": 1790788283.5313861
+        },
+        {
+          "phase": "showdestinations",
+          "startedAt": 1790788283.5424461,
+          "exitCode": 0,
+          "finishedAt": 1790788285.613954
+        },
+        {
+          "phase": "boot-private-device",
+          "startedAt": 1790788285.6254048,
+          "exitCode": 0,
+          "finishedAt": 1790788292.2309499
+        },
+        {
+          "phase": "wait-for-boot",
+          "startedAt": 1790788292.716738,
+          "exitCode": 0,
+          "finishedAt": 1790788427.892915
+        },
+        {
+          "phase": "install-app",
+          "startedAt": 1790788428.3010979,
+          "exitCode": 0,
+          "finishedAt": 1790788473.522749
+        },
+        {
+          "phase": "install-runner",
+          "startedAt": 1790788474.52203,
+          "exitCode": 0,
+          "finishedAt": 1790788496.399252
+        },
+        {
+          "phase": "container-acceptance",
+          "startedAt": 1790788496.840232,
+          "exitCode": 0,
+          "finishedAt": 1790788507.994236
+        },
+        {
+          "phase": "container-xctrunner",
+          "startedAt": 1790788508.021588,
+          "exitCode": 0,
+          "finishedAt": 1790788510.159741
+        },
+        {
+          "phase": "native-journey",
+          "startedAt": 1790788522.909333,
+          "exitCode": 65,
+          "finishedAt": 1790789197.578966
+        },
+        {
+          "phase": "sanitized-launch-log-diagnostic",
+          "startedAt": 1790789204.870956,
+          "finishedAt": 1790789213.866603,
+          "exitCode": 143
+        },
+        {
+          "phase": "sanitized-auth-log-diagnostic",
+          "startedAt": 1790789197.57968,
+          "finishedAt": 1790789204.8567731,
+          "exitCode": 0
+        },
+        {
+          "phase": "result-summary",
+          "startedAt": 1790789214.051509,
+          "exitCode": 0,
+          "finishedAt": 1790789218.3649669
+        },
+        {
+          "phase": "export-private-attachments",
+          "startedAt": 1790789218.3732328,
+          "exitCode": 0,
+          "finishedAt": 1790789220.543592
+        }
+      ],
+      "completedWebStages": 13,
+      "nativeXCTestStarted": true,
+      "completedNativeCheckpoints": [
+        {
+          "stage": "01-native-inbox-unread",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "02-native-inbox-single-read",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "03-native-inbox-done",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "04-native-inbox-after-relaunch",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "05-native-inbox-new-arrival",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "06-native-inbox-remote-done",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "07-native-account-a-unread",
+          "account": "A",
+          "passed": true
+        },
+        {
+          "stage": "08-native-account-a-done",
+          "account": "A",
+          "passed": true
+        }
+      ],
+      "nativeAuthenticationLinks": [
+        {
+          "account": "A",
+          "epoch": 0,
+          "authorized": true,
+          "storedCiphertextMatches": true,
+          "tokenPresent": true
+        }
+      ],
+      "diagnosis": "native-account-logout-before-second-account-link"
     }
   ]
 }

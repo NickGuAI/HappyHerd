@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import time
@@ -23,6 +24,40 @@ class DiagnosticCollectionTests(unittest.TestCase):
         result = self.collect('print(\'[ {"eventMessage": "Authentication successful"} ]\')')
         self.assertTrue(result['available'])
         self.assertEqual(result['counts']['qrDecryptSuccess'], 1)
+
+    def test_swift_phase_contract_matches_public_diagnostic_allowlist(self):
+        source = Path(__file__).with_name('xcuitest') / 'Tests/InboxAcceptanceTests.swift'
+        body = re.search(r'private enum NativePhase: String \{(.*?)\n    \}', source.read_text(), re.DOTALL)
+        self.assertIsNotNone(body)
+        phases = set()
+        for declaration in re.findall(r'^\s*case (.+)$', body[1], re.MULTILINE):
+            for item in declaration.split(','):
+                parts = item.strip().split(' = ')
+                phases.add(parts[-1].strip('"'))
+        self.assertEqual(phases, driver.NATIVE_PHASES,
+                         'Swift phase additions must not silently disappear from sanitized receipts')
+        for phase in phases:
+            for kind in ('PHASE', 'FAILURE'):
+                self.assertEqual(driver.parse_native_diagnostic(f'HH345_NATIVE_{kind} phase={phase}'),
+                                 {'kind': kind.lower(), 'phase': phase})
+
+    def test_logout_diagnostics_accept_fixed_state_and_reject_private_additions(self):
+        phases = sorted(phase for phase in driver.NATIVE_PHASES if phase.startswith('account-logout'))
+        self.assertEqual(len(phases), 9)
+        for phase in phases:
+            state = (f'HH345_NATIVE_STATE phase={phase} appState=foreground '
+                     'uiQueried=true loginVisible=false qrRouteVisible=false serverFieldVisible=false '
+                     'appAlertPresent=false systemAlertPresent=false')
+            parsed = driver.parse_native_diagnostic(state)
+            self.assertEqual(parsed['phase'], phase)
+            self.assertTrue(parsed['uiQueried'])
+            self.assertFalse(parsed['appAlertPresent'])
+            for invalid in (state + ' url=https://private.invalid/secret',
+                            state.replace('appState=foreground', 'appState=private-secret'),
+                            state.replace('loginVisible=false', 'loginVisible=private-secret'),
+                            state.replace(f'phase={phase}', 'phase=account-logout-private-secret'),
+                            f'HH345_NATIVE_FAILURE phase={phase} private=secret'):
+                self.assertIsNone(driver.parse_native_diagnostic(invalid))
 
     def test_launch_output_contains_no_raw_fields(self):
         message = 'Failed to launch private-app https://private.invalid/secret Error Domain=FBSOpenApplicationServiceErrorDomain Code=1'

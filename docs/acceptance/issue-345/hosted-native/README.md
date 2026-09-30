@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all twelve hosted failures and original receipt hashes.
+preserve all thirteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -242,3 +242,30 @@ This is installed-permission restoration, not an untouched default installation
 or a product fix. Unknown differences still fail, and normal authentication and
 every native criterion remain required. No native launch or acceptance pass is
 claimed from either preceding mode-verification failure.
+
+The thirteenth attempt at `a6f1b8b3` verified the exact six installed framework
+mode differences, restored their original permissions and passed all 736 file
+hashes and strict signature checks. [Run 36748692792](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692792)
+then launched the app, completed normal QR linking and passed native checkpoints
+01–08: initial unread dots/bell, per-item read with navigation, Done, persisted
+relaunch, real arrival, remote Done, and account A's own unread/Done state.
+Ten intended captures match their receipt hashes and were visually reviewed.
+It subsequently failed in the coarse `account-logout` phase before linking B;
+XCTest remains one failure, zero passes and zero skips. Account B/A restoration,
+the native Done race and native durable restart/reconnect remain unproved.
+All 13 Web stages passed, resource floors held, and simulator cleanup succeeded.
+[Artifact 11113829464](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692792/artifacts/11113829464)
+and the native/controller/transport receipt hashes preserve this failed attempt.
+
+The last Inbox screenshot has its navigation drawer closed. Source review
+confirms Settings is in that drawer, while the old helper unnecessarily opened
+the root route before searching for Settings. The correction stays on the
+already asserted Inbox page, opens its existing navigation-sidebar toggle and
+uses the existing drawer Settings button, then normal Account/Logout/confirmation
+and QR authentication. On the root page that toggle instead folds the home
+panel, so it must not be blindly added after the old deep link. Fixed logout
+subphases distinguish subsequent failures without capturing settings or account
+content. Existing assertions, 20/10/60-second bounds, twelve-scroll limit and
+all 18 required captures remain. The original receipt cannot establish which
+old logout assertion failed, so the correction is supported by the live layout
+and source contract, not a recovered private XCTest message.

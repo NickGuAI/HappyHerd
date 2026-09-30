@@ -64,6 +64,9 @@ NATIVE_PHASES = {
     'single-read-state', 'mark-all-read', 'all-read-state', 'relaunch', 'relaunch-bell',
     'persisted-read-state', 'new-arrival', 'remote-done', 'complete',
     'account-scope', 'account-logout', 'account-b', 'account-a', 'done-race', 'race-pending',
+    'account-logout-panel', 'account-logout-settings', 'account-logout-account',
+    'account-logout-scroll', 'account-logout-action', 'account-logout-confirmation',
+    'account-logout-confirm', 'account-logout-login',
     'server-restart', 'reconnected-arrival', 'reconnected-done', 'final-relaunch',
 }
 NATIVE_BOOLEANS = ('uiQueried', 'loginVisible', 'qrRouteVisible', 'serverFieldVisible',

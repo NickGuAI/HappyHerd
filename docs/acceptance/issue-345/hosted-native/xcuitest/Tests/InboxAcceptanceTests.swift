@@ -49,6 +49,14 @@ final class InboxAcceptanceTests: XCTestCase {
         case remoteDone = "remote-done"
         case accountScope = "account-scope"
         case accountLogout = "account-logout"
+        case accountLogoutPanel = "account-logout-panel"
+        case accountLogoutSettings = "account-logout-settings"
+        case accountLogoutAccount = "account-logout-account"
+        case accountLogoutScroll = "account-logout-scroll"
+        case accountLogoutAction = "account-logout-action"
+        case accountLogoutConfirmation = "account-logout-confirmation"
+        case accountLogoutConfirm = "account-logout-confirm"
+        case accountLogoutLogin = "account-logout-login"
         case accountB = "account-b"
         case accountA = "account-a"
         case doneRace = "done-race"
@@ -230,23 +238,36 @@ final class InboxAcceptanceTests: XCTestCase {
     private func logoutNormally() {
         setPhase(.accountLogout)
         restoring = true // Never retain account-settings content on a test failure.
-        app.open(URL(string: "happyherd:///")!)
-        let settings = app.buttons["Settings"].firstMatch
-        XCTAssertTrue(settings.waitForExistence(timeout: 20) && settings.isHittable, "Visible native Settings action must exist.")
+        XCTAssertTrue(element("inbox-mark-all-read").exists, "Normal account switching must start on Inbox.")
+        // Both callers remain on Inbox. Open its ordinary navigation drawer;
+        // navigating home first would change the toggle into a home-panel fold.
+        setPhase(.accountLogoutPanel)
+        let panel = element("navigation-sidebar-toggle")
+        XCTAssertTrue(wait(20) { panel.exists && panel.isHittable }, "Visible navigation drawer action must exist.")
+        panel.tap()
+        setPhase(.accountLogoutSettings)
+        let settings = element("herd-panel-settings")
+        XCTAssertTrue(wait(20) { settings.exists && settings.isHittable }, "Visible native Settings action must exist.")
         settings.tap()
+        setPhase(.accountLogoutAccount)
         let account = element("settings-section-account")
         XCTAssertTrue(account.waitForExistence(timeout: 20) && account.isHittable, "Visible Account settings action must exist.")
         account.tap()
+        setPhase(.accountLogoutScroll)
         let logout = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Logout")).firstMatch
         for _ in 0..<12 {
             if logout.exists && logout.isHittable { break }
             app.swipeUp()
         }
         XCTAssertTrue(logout.exists && logout.isHittable, "Normal Logout action must be visible.")
+        setPhase(.accountLogoutAction)
         logout.tap()
+        setPhase(.accountLogoutConfirmation)
         let confirm = app.alerts.buttons["Logout"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 10), "Native Logout confirmation must appear.")
+        setPhase(.accountLogoutConfirm)
         confirm.tap()
+        setPhase(.accountLogoutLogin)
         XCTAssertTrue(app.buttons["Login with mobile app"].firstMatch.waitForExistence(timeout: 60), "Normal Logout must return to login.")
     }
 

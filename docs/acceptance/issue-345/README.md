@@ -248,5 +248,28 @@ The [retained failure history and preparation](hosted-native/README.md)
 describe conditional restoration of only the six declared framework executable
 permissions on the owned simulator, followed by all original integrity and
 strict signature checks. The archive and app bytes remain unchanged, with no
-re-signing. This preparation is an explicit installed-metadata change; native
-launch, normal authentication and the full Inbox journey are still unproved.
+re-signing. This preparation is an explicit installed-metadata change; at that
+point native launch, authentication and the full Inbox journey remained unproved.
+
+The subsequent [native attempt 13](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692792)
+passed the actual installed-permission restoration and integrity checks, native
+startup, normal QR authentication and the first eight persisted checkpoints.
+Per-item navigation/read, Done/bell/card dots, authenticated relaunch and real
+arrival/remote-Done now have installed iOS simulator proof in that failed run.
+The test then failed during normal logout before account B; the remaining
+account-scope, native Done race and durable restart/reconnect criteria are still
+unproved. The [retained history](hosted-native/README.md) records the source-based
+phone drawer navigation correction and all original failure hashes. Partial
+checkpoint success is not a full native acceptance pass.
+
+The first `a6f1b8b3` macOS x64 installer job failed during the second isolated
+host's installer-rerun stage with child exit 1. Both normal pairings and encrypted
+RPC checks, nine self-host tests and the first host's retained-history upgrade
+had passed. The exact failed child and cause were not retained by that test's
+output. [Sanitized independent review](ci-a6f1b8b3-installer-failure.json)
+preserves the failure, original log hash and comparison to the unchanged,
+fully passing `bba99d30` installer source. The other three current targets passed.
+One independently justified retry of only the failed job was started in
+[run 36748692750, attempt 2](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692750/attempts/2).
+Its outcome is separate from the first failure; no threshold, assertion or skip
+was changed. Final delivery still requires all four targets on the final head.
