@@ -165,3 +165,29 @@ For local CLI checks on macOS use Node 20, pnpm 10.11.0, Bun 1.3.11,
 `TZ=UTC`, and `TMPDIR=/private/tmp`; `/var` and `/private/var` aliases otherwise
 produce existing path-expectation failures. Preserve those failed runs when
 classifying them. Browser suites use one worker on the shared machine.
+
+## Isolated iOS build preparation
+
+The released local native build slot did not restore disk capacity: the next
+readback had 1.9 GiB free, below the coordinated 2.5 GiB floor. No local native
+build, simulator boot, or unrelated cleanup followed. Only Xcode 27 is installed
+locally; the other issue's retained attempts identify a compiler incompatibility
+with its locked native dependencies. Its independently verified hosted Release
+artifact is not reused or modified for this issue.
+
+The scoped `issue-347-native-acceptance.yml` workflow adapts the successful,
+unmodified Xcode 26.2 recipe from issue #345 to this PR's exact head. It uses a
+fresh macOS runner, Node 20, pnpm 10.11.0, Bun 1.3.11, a private bundle identity,
+and the controlled loopback endpoint. It builds an unsigned arm64 Release
+simulator app without native source patches, provider credentials, signing
+credentials, or publication. It records the source revision, toolchain,
+Podfile.lock, embedded build metadata, every app-file hash and archive hash.
+Small receipts/logs and the app archive are separate CI artifacts, so evidence
+can be inspected without allocating local space for the app.
+
+This workflow establishes an own-source artifact prerequisite only when its
+actual run succeeds. A build is not an installed or authenticated acceptance
+journey. Normal pairing approval, sufficient capacity for an owned simulator,
+and actual row/chip/navigation gestures remain required; macOS and Android
+journeys remain separate. The PR records actual run conclusions and selected
+artifact revision. No Release JavaScript/resource substitution is permitted.
