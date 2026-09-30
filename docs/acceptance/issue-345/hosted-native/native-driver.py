@@ -17,6 +17,7 @@ import os
 import platform
 import plistlib
 import re
+import selectors
 import shutil
 import signal
 import subprocess
@@ -42,6 +43,112 @@ AUTH_STATES = {'unknown', 'not-running', 'background-suspended', 'background', '
 AUTH_BOOLEANS = ('qrRouteVisible', 'loginVisible', 'bellVisible', 'appAlertPresent',
                  'systemAlertPresent', 'notificationPromptSeen', 'notificationPromptDeclined')
 AUTH_FAILURES = {'login-control-missing', 'qr-unavailable', 'approval-unacknowledged', 'bell-unavailable'}
+AUTH_LOG_PATTERNS = {
+    'qrDecryptSuccess': r'\bAuthentication successful\b',
+    'qrDecryptFailure': r'Failed to decrypt response\. Please try again\.',
+    'credentialWriteFailure': r'Error setting credentials:',
+    'backupStateWriteFailure': r'Error setting account key backup state:',
+    'missingEntitlementName': r'\berrSecMissingEntitlement\b',
+    'missingEntitlementStatus': r'(?<![\w-])-34018(?!\w)',
+    'missingEntitlementMessage': r"A required entitlement (?:isn't present|is missing)\.",
+}
+AUTH_LOG_PREDICATE = 'process == "HappyHerd" AND (' + ' OR '.join(
+    'eventMessage CONTAINS "' + text + '"' for text in (
+        'Authentication successful', 'Failed to decrypt response.',
+        'Error setting credentials:', 'Error setting account key backup state:',
+        'errSecMissingEntitlement', '-34018', 'A required entitlement',
+    )) + ')'
+
+
+def auth_log_counts(messages):
+    """Publish only counts of code-owned strings, never input messages."""
+    counts = dict.fromkeys(AUTH_LOG_PATTERNS, 0)
+    for message in messages:
+        for name, pattern in AUTH_LOG_PATTERNS.items():
+            counts[name] += len(re.findall(pattern, message))
+    return counts
+
+
+def private_test_auth_counts(path):
+    result = {'source': 'private-xctest-log', 'available': False,
+              'counts': auth_log_counts([]), 'outputLimitReached': False}
+    try:
+        # This log already exists privately. Do not make another raw copy.
+        with path.open('rb') as stream:
+            data = stream.read(1024 * 1024 + 1)
+        result.update(available=True, outputLimitReached=len(data) > 1024 * 1024,
+                      counts=auth_log_counts([data[:1024 * 1024].decode('utf-8', errors='replace')]))
+    except OSError:
+        result['notAvailableReason'] = 'read-failed'
+    return result
+
+
+def bounded_auth_log_counts(command, env, cwd, timeout=20, limit=256 * 1024):
+    """Read a selected owned-simulator log in memory; never persist raw output."""
+    result = {'source': 'owned-simulator-unified-log', 'startedAt': time.time(),
+              'available': False, 'exitCode': None, 'counts': auth_log_counts([]),
+              'outputLimitReached': False, 'timedOut': False}
+    process = None
+    data = bytearray()
+    try:
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL, start_new_session=True)
+        deadline = time.monotonic() + timeout
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                if time.monotonic() >= deadline:
+                    result.update(timedOut=True, notAvailableReason='timed-out')
+                    break
+                for key, _ in selector.select(min(0.25, max(0, deadline - time.monotonic()))):
+                    chunk = os.read(key.fd, min(8192, limit + 1 - len(data)))
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                    else:
+                        data.extend(chunk)
+                if len(data) > limit:
+                    result.update(outputLimitReached=True, notAvailableReason='output-limit')
+                    break
+        if 'notAvailableReason' not in result:
+            try:
+                process.wait(timeout=max(0.01, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                result.update(timedOut=True, notAvailableReason='timed-out')
+    except Exception:
+        result['notAvailableReason'] = 'command-unavailable'
+    finally:
+        if process is not None:
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait(timeout=2)
+            result['exitCode'] = process.returncode
+            if process.stdout is not None:
+                process.stdout.close()
+        result['finishedAt'] = time.time()
+    if 'notAvailableReason' not in result:
+        if result['exitCode'] != 0:
+            result['notAvailableReason'] = 'command-failed'
+        else:
+            try:
+                entries = json.loads(data)
+                if not isinstance(entries, list):
+                    raise ValueError()
+                result.update(available=True, counts=auth_log_counts(
+                    entry['eventMessage'] for entry in entries if isinstance(entry, dict)
+                    and isinstance(entry.get('eventMessage'), str)))
+            except (ValueError, UnicodeError):
+                result['notAvailableReason'] = 'unreadable-result'
+    return result
 
 
 def parse_auth_diagnostic(line):
@@ -411,6 +518,20 @@ def main():
             '-only-testing:HH345UITests/InboxAcceptanceTests/testNativeInboxReadJourney',
             '-collect-test-diagnostics', 'never', '-testLanguage', 'en', '-testRegion', 'US',
             '-resultBundlePath', str(result)], 'native-journey', timeout=1500, check=False)
+        # The device belongs to this attempt. Inspect only its HappyHerd process,
+        # after the actual journey and before cleanup; raw log bytes stay in memory.
+        log_diagnostic = bounded_auth_log_counts(
+            simctl + ['spawn', udid, 'log', 'show', '--last', '10m', '--style', 'json',
+                      '--info', '--debug', '--predicate', AUTH_LOG_PREDICATE], env, work)
+        receipt['authLogDiagnostics'] = {
+            'zeroCountsAreInconclusive': True,
+            'sources': [private_test_auth_counts(private / 'native-journey.log'), log_diagnostic],
+        }
+        receipt['commands'].append({
+            'phase': 'sanitized-auth-log-diagnostic',
+            **{key: log_diagnostic[key] for key in ('startedAt', 'finishedAt', 'exitCode')},
+        })
+        save()
         require(digest(original) == original_hash, 'Original generated manifest changed.')
         receipt['originalXctestrunUnchanged'] = True
         summary = export_evidence()

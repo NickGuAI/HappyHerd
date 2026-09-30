@@ -691,3 +691,4 @@ INBOX_NATIVE_RELEASE_COMPILATION	accepted	test(inbox): use standard Release comp
 INBOX_NATIVE_HOSTED_JOURNEY_345	accepted	test(inbox): run authenticated native acceptance on an isolated runner	docs/acceptance/issue-345/hosted-native/controller.mjs
 INBOX_NATIVE_RUNTIME_MATCH_345	accepted	test(inbox): match the acceptance simulator to its Xcode SDK	docs/acceptance/issue-345/hosted-native/native-driver.py
 INBOX_NATIVE_PERMISSION_JOURNEY_345	accepted	test(inbox): handle the native notification prompt during acceptance	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
+INBOX_NATIVE_AUTH_DIAGNOSTICS_345	accepted	test(inbox): diagnose native account persistence on the acceptance device	docs/acceptance/issue-345/hosted-native/native-driver.py

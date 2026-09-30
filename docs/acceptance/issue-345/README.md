@@ -130,3 +130,9 @@ job passed the app suite, and the complete product tree is identical to the
 previous passing `62eaa155` and `67a22ead` Contract revisions. The first failure
 log is retained. No timing threshold, assertion or skip was changed; a later
 exact-head Contract pass is still required.
+
+The later [`6ccb8dc5` Contract run](https://github.com/NickGuAI/HappyHerd/actions/runs/36678849724/job/109769738810)
+passed with the identical product tree and no animation/test changes. This
+establishes intermittency across those executions; it does not establish the
+precise scheduling cause or relabel the first failed run. Final delivery still
+requires passing checks on its own exact head.

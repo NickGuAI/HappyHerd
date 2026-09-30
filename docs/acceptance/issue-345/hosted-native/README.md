@@ -64,3 +64,21 @@ The companion also reads its approval back through the normal request endpoint,
 asserting the stored encrypted response matches entirely in memory. That
 read-back is not proof of native consumption. The 60-second authentication
 bound and every Inbox assertion remain unchanged.
+
+The third hosted journey at `6ccb8dc5` again decoded and approved the actual
+native QR; the companion read-back confirmed the server retained exactly the
+encrypted response and an authorized token. Fresh native diagnostics showed
+the app in the foreground on its restore route with an app alert, no system
+alert, no matched notification prompt and no bell. [Run 36678849730](https://github.com/NickGuAI/HappyHerd/actions/runs/36678849730)
+did not detect the narrowly matched notification prompt; the app-alert cause
+remains unknown. No native Inbox checkpoint passed.
+
+A read-only Mach-O inspection confirmed the selected executable already has a
+linker-generated ad-hoc signature, with no embedded entitlement slots. That
+fact alone does not prove a SecureStore failure. The next diagnostic retains
+only static error-category counts from this owned app's bounded simulator log
+and existing private XCTest log. Queried unified-log messages stay in memory
+and are discarded; the existing private XCTest log remains excluded from
+uploaded proof. No credentials enter the diagnostic receipt. It does not change signing, authentication, read
+state, acceptance assertions or timeouts. Zero matching log records remain
+inconclusive.
