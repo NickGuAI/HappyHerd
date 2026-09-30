@@ -700,3 +700,4 @@ INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal X
 INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/hosted-native/verify-hosted-app.py
 INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native controller artifact pin	docs/acceptance/issue-345/hosted-native/controller.mjs
 INBOX_NATIVE_INSTALL_VERIFICATION_DIAGNOSTICS_345	accepted	test(inbox): classify installed artifact verification failures	docs/acceptance/issue-345/hosted-native/native-driver.py
+INBOX_NATIVE_INSTALLED_FRAMEWORK_MODES_345	accepted	test(inbox): restore verified simulator framework permissions	docs/acceptance/issue-345/hosted-native/native-driver.py

@@ -37,6 +37,7 @@ def load_module(name, path):
 
 verifier = load_module('hh345_fixture_verifier', BASE / 'verify-hosted-app.py')
 signer = load_module('hh345_fixture_signer', BASE.parent / 'native-signing-receipt.py')
+driver = load_module('hh345_fixture_driver', BASE / 'native-driver.py')
 
 
 def sha256(data):
@@ -114,6 +115,7 @@ class HostedAppVerifierTests(unittest.TestCase):
         self.artifact.mkdir()
         self.app = self.root / 'extracted' / verifier.APP_ROOT
         self.config_path = 'EXConstants.bundle/app.config'
+        self.executable_paths = {'HappyHerd'}
         info = {
             'CFBundleIdentifier': verifier.EXPECTED_BUNDLE_ID,
             'CFBundleExecutable': 'HappyHerd', 'CFBundleVersion': '1',
@@ -184,7 +186,7 @@ class HostedAppVerifierTests(unittest.TestCase):
 
     def write_archive(self, extras=()):
         entries = [(verifier.APP_ROOT + '/' + name, contents,
-                    stat.S_IFREG | (0o755 if name == 'HappyHerd' else 0o644))
+                    stat.S_IFREG | (0o755 if name in self.executable_paths else 0o644))
                    for name, contents in sorted(self.payloads.items())]
         with zipfile.ZipFile(self.archive, 'w') as archive:
             for name, contents, mode in entries + list(extras):
@@ -207,7 +209,7 @@ class HostedAppVerifierTests(unittest.TestCase):
         self.assertEqual(len(command), 2)
         return 'synthetic-fixture: Mach-O 64-bit executable arm64\n'
 
-    def verify_extracted(self, app, archive_receipt, manifest, returncode=0):
+    def verify_extracted(self, app, archive_receipt, manifest, returncode=0, operation=None):
         def codesign(command, **kwargs):
             self.assertEqual(command, ['codesign', '--verify', '--strict', str(app.resolve())])
             self.assertEqual(kwargs, {'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE,
@@ -215,9 +217,157 @@ class HostedAppVerifierTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, returncode, b'private fixture output', b'private fixture error')
         with patch.object(verifier.subprocess, 'check_output', side_effect=self.tool_output), \
                 patch.object(signer.subprocess, 'run', side_effect=codesign) as strict_verify:
-            result = verifier.verify_extracted(app, archive_receipt, manifest)
+            result = operation() if operation else verifier.verify_extracted(app, archive_receipt, manifest)
             strict_verify.assert_called_once()
             return result
+
+    def framework_installed_fixture(self, invalid_identity=None):
+        dylib = struct.pack('<8I', 0xfeedfacf, 0x100000c, 0, 6, 0, 0, 0, 0)
+        fat = struct.pack('>7I', 0xcafebabe, 1, 0x100000c, 0, 32, len(dylib), 2) + bytes(4) + dylib
+        last = sorted(driver.FRAMEWORK_EXECUTABLES)[-1]
+        for name in driver.FRAMEWORK_EXECUTABLES:
+            path = self.app / name
+            path.parent.mkdir(parents=True)
+            info = {'CFBundleExecutable': path.name, 'CFBundlePackageType': 'FMWK'}
+            payload = fat
+            if name == last and invalid_identity == 'declaration':
+                info['CFBundleExecutable'] = 'private-wrong-executable'
+            if name == last and invalid_identity == 'macho':
+                payload = b'private-not-a-macho'
+            self.payloads[name] = payload
+            self.payloads[str(Path(name).parent / 'Info.plist')] = plistlib.dumps(info)
+            self.executable_paths.add(name)
+        for name, payload in self.payloads.items():
+            (self.app / name).write_bytes(payload)
+            (self.app / name).chmod(0o755 if name in self.executable_paths else 0o644)
+        self.manifest['files'] = {name: sha256(payload) for name, payload in self.payloads.items()}
+        self.write_manifest()
+        self.write_archive()
+        archive_receipt, manifest = self.verify_archive(pin=sha256(self.archive.read_bytes()))
+        device_set = self.root / 'owned-devices'
+        installed = device_set / verifier.APP_ROOT
+        shutil.copytree(self.app, installed)
+        for name in driver.FRAMEWORK_EXECUTABLES:
+            (installed / name).chmod(0o644)
+        return installed, device_set, archive_receipt, manifest
+
+    def prepare_frameworks(self, fixture, returncode=0):
+        installed, device_set, archive_receipt, manifest = fixture
+        self.preparation_receipt = {}
+        return self.verify_extracted(installed, archive_receipt, manifest, returncode,
+            operation=lambda: driver.verify_installed_app(installed, device_set, archive_receipt, manifest,
+                verifier, self.preparation_receipt, lambda: None))
+
+    def test_exact_six_installed_framework_modes_restore_without_source_or_byte_changes(self):
+        fixture = self.framework_installed_fixture()
+        archive_hash = sha256(self.archive.read_bytes())
+        result = self.prepare_frameworks(fixture)
+        restoration = self.preparation_receipt['installedFrameworkModeRestoration']
+        self.assertEqual(restoration['observedMismatchCount'], 6)
+        self.assertEqual(restoration['changedCount'], 6)
+        for key in ('restorationApplied', 'frameworkIdentityVerified', 'byteHashesUnchanged',
+                    'allManifestFilesVerified', 'strictSignatureVerified'):
+            self.assertTrue(restoration[key])
+        self.assertEqual((restoration['expectedMode'], restoration['observedMode']), (0o755, 0o644))
+        self.assertTrue(result['archiveModesAndSymlinkTargetsMatch'])
+        self.assertEqual(sha256(self.archive.read_bytes()), archive_hash)
+        for name, payload in self.payloads.items():
+            self.assertEqual((fixture[0] / name).read_bytes(), payload)
+            self.assertEqual((self.app / name).read_bytes(), payload)
+            self.assertEqual(stat.S_IMODE((self.app / name).stat().st_mode),
+                             0o755 if name in self.executable_paths else 0o644)
+        self.assertNotIn('Frameworks/', json.dumps(restoration))
+        self.assertNotIn(str(self.root), json.dumps(restoration))
+
+    def test_matching_installed_modes_require_no_restoration(self):
+        fixture = self.framework_installed_fixture()
+        for name in driver.FRAMEWORK_EXECUTABLES:
+            (fixture[0] / name).chmod(0o755)
+        with patch.object(driver.os, 'fchmod') as chmod:
+            self.prepare_frameworks(fixture)
+            chmod.assert_not_called()
+        restoration = self.preparation_receipt['installedFrameworkModeRestoration']
+        self.assertEqual(restoration['changedCount'], 0)
+        self.assertEqual(restoration['observedMismatchCount'], 0)
+        self.assertFalse(restoration['restorationApplied'])
+        self.assertTrue(restoration['strictSignatureVerified'])
+
+    def test_partial_extra_unexpected_mode_and_hash_deltas_reject_before_any_chmod(self):
+        original = self.framework_installed_fixture()
+        name = sorted(driver.FRAMEWORK_EXECUTABLES)[-1]
+        for change in ('partial', 'extra', 'substituted', 'mode', 'hash', 'symlink', 'hardlink'):
+            installed = original[1] / change / verifier.APP_ROOT
+            shutil.copytree(original[0], installed)
+            path = installed / name
+            if change == 'partial': path.chmod(0o755)
+            elif change == 'extra': (installed / 'assets/noncritical.txt').chmod(0o600)
+            elif change == 'substituted':
+                path.chmod(0o755)
+                (installed / 'assets/noncritical.txt').chmod(0o600)
+            elif change == 'mode': path.chmod(0o600)
+            elif change == 'hash': path.write_bytes(b'private-changed-bytes')
+            else:
+                outside = self.root / ('private-' + change)
+                outside.write_bytes(path.read_bytes())
+                outside.chmod(0o644)
+                path.unlink()
+                if change == 'symlink': path.symlink_to(outside)
+                else: os.link(outside, path)
+            with self.subTest(change=change), patch.object(driver.os, 'fchmod') as chmod:
+                with self.assertRaises((driver.DriverRequirementError, verifier.VerificationError)):
+                    self.prepare_frameworks((installed, *original[1:]))
+                chmod.assert_not_called()
+                self.assertEqual(self.preparation_receipt['installedFrameworkModeRestoration']['changedCount'], 0)
+
+    def test_all_framework_identities_are_validated_before_first_chmod(self):
+        for invalid in ('declaration', 'macho'):
+            # Each identity case uses its own fixture instance/directory.
+            test = HostedAppVerifierTests()
+            test.setUp()
+            try:
+                fixture = test.framework_installed_fixture(invalid)
+                with self.subTest(invalid=invalid), patch.object(driver.os, 'fchmod') as chmod:
+                    with self.assertRaises(driver.DriverRequirementError):
+                        test.prepare_frameworks(fixture)
+                    chmod.assert_not_called()
+                    for name in driver.FRAMEWORK_EXECUTABLES:
+                        self.assertEqual(stat.S_IMODE((fixture[0] / name).stat().st_mode), 0o644)
+            finally:
+                test.doCleanups()
+
+    def test_framework_restoration_cannot_target_an_unowned_app(self):
+        fixture = self.framework_installed_fixture()
+        with patch.object(driver.os, 'fchmod') as chmod:
+            with self.assertRaises(driver.DriverRequirementError):
+                self.prepare_frameworks((self.app, *fixture[1:]))
+            chmod.assert_not_called()
+
+    def test_framework_restoration_still_requires_final_strict_signature_success(self):
+        fixture = self.framework_installed_fixture()
+        with self.assertRaises(verifier.VerificationError) as failure:
+            self.prepare_frameworks(fixture, returncode=1)
+        self.assertEqual(failure.exception.category, 'signature-verification-failure')
+        restoration = self.preparation_receipt['installedFrameworkModeRestoration']
+        self.assertTrue(restoration['restorationApplied'])
+        self.assertEqual(restoration['changedCount'], 6)
+        self.assertFalse(restoration['strictSignatureVerified'])
+
+    def test_complete_file_verification_runs_after_restoring_framework_modes(self):
+        fixture = self.framework_installed_fixture()
+        original_chmod = driver.os.fchmod
+        calls = []
+        def chmod_then_change_other_payload(descriptor, mode):
+            original_chmod(descriptor, mode)
+            calls.append(mode)
+            if len(calls) == 6:
+                (fixture[0] / 'assets/noncritical.txt').write_bytes(b'private-after-restoration-change')
+        with patch.object(driver.os, 'fchmod', side_effect=chmod_then_change_other_payload):
+            with self.assertRaises(verifier.VerificationError) as failure:
+                self.prepare_frameworks(fixture)
+        self.assertEqual(failure.exception.category, 'file-payload-mismatch')
+        restoration = self.preparation_receipt['installedFrameworkModeRestoration']
+        self.assertEqual(restoration['changedCount'], 6)
+        self.assertFalse(restoration['allManifestFilesVerified'])
 
     def test_synthetic_archive_binds_selected_source_mode_tree_and_signing(self):
         receipt, manifest = self.verify_archive()

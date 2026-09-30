@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all eleven hosted failures and original receipt hashes.
+preserve all twelve hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -213,3 +213,32 @@ and both original receipt hashes remain in the failure ledger. The selected app'
 launch behavior is still unproved. The next diagnostic records only fixed
 verification categories and bounded counts/modes to identify this failure;
 all artifact hash, file-set, type, symlink, mode and signature checks remain.
+
+The twelfth attempt at `bba99d30` reproduced the installed-verification failure
+with a precise sanitized classification. [Run 36745820581](https://github.com/NickGuAI/HappyHerd/actions/runs/36745820581)
+found all 736 installed file hashes identical, with no missing/extra files,
+member-type changes or link-target changes. Six POSIX modes differed; the first
+was archive `0755` versus installed `0644`. No XCTest or native UI phase started.
+All 13 Web stages passed; resources remained above the existing floors and the
+owned simulator was cleaned up. [Artifact 11113575520](https://github.com/NickGuAI/HappyHerd/actions/runs/36745820581/artifacts/11113575520)
+and original receipt hashes remain preserved. Archive inspection finds exactly
+seven executable files: the main app and six embedded framework Mach-O binaries.
+The diagnostic count alone does not prove which six installed paths changed.
+
+The following preparation may restore only those six installed framework
+executables to their selected archive permissions. Before any permission write,
+it must prove every file hash, member type and link target, then identify the
+complete mode-delta set as exactly those six declared framework executables,
+each archive `0755` and installed `0644`. Framework Info.plist bindings and
+Mach-O identities must match; every other mode, including the main executable,
+must already match. No subset, extra delta or different mode is accepted.
+
+Only the owned installed files receive individual permission changes. The
+archive, extracted build, all app bytes and signatures are untouched; there is
+no re-signing. The complete original verifier, strict codesign and critical
+installed hashes run again afterward. The receipt records fixed counts/modes,
+whether restoration was applied and the post-restoration verification result.
+This is installed-permission restoration, not an untouched default installation
+or a product fix. Unknown differences still fail, and normal authentication and
+every native criterion remain required. No native launch or acceptance pass is
+claimed from either preceding mode-verification failure.

@@ -12,6 +12,7 @@ isolated application API localhost:43545. No account secret enters this driver.
 Stdout contains only the two static HH345 coordination markers.
 """
 from pathlib import Path
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 import json
@@ -22,6 +23,8 @@ import re
 import selectors
 import shutil
 import signal
+import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -31,6 +34,9 @@ EXPECTED_SHA = '4933c0c727b08f2dbe7f90ae5e261d89a917e0de'
 EXPECTED_ARCHIVE_SHA = '0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5'
 APP_ID = 'app.happyherd.issue345.acceptance'
 RUNNER_ID = 'app.happyherd.issue345.uitests.xctrunner'
+FRAMEWORK_EXECUTABLES = frozenset(
+    'Frameworks/' + name + '.framework/' + name
+    for name in ('hermesvm', 'libswresample', 'libavformat', 'libavutil', 'WebRTC', 'libavcodec'))
 MARKERS = ('HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE',
            'HH345_NATIVE_ACCOUNT_SCOPE', 'HH345_NATIVE_DONE_RACE', 'HH345_NATIVE_SERVER_RESTART')
 STAGES = (
@@ -251,6 +257,93 @@ def digest(path):
 def require(condition, message):
     if not condition:
         raise DriverRequirementError(message)
+
+
+def framework_macho_matches(stream):
+    """Recognize the selected frameworks' one-slice FAT arm64 MH_DYLIB files."""
+    stream.seek(0)
+    header = stream.read(28)
+    if len(header) != 28:
+        return False
+    magic, count, cpu, _, offset, size, alignment = struct.unpack('>7I', header)
+    file_size = os.fstat(stream.fileno()).st_size
+    if not (magic == 0xcafebabe and count == 1 and cpu == 0x100000c
+            and alignment <= 31 and offset >= 28 and offset % (1 << alignment) == 0
+            and size >= 32 and offset + size <= file_size):
+        return False
+    stream.seek(offset)
+    macho = struct.unpack('<8I', stream.read(32))
+    return (macho[0] == 0xfeedfacf and macho[1] == 0x100000c and macho[3] == 6
+            and macho[4] <= 16384 and macho[5] <= size - 32)
+
+
+def verify_installed_app(app, device_set, archive_receipt, manifest, verifier, receipt, save):
+    """Restore only the exact six observed installed framework mode deltas."""
+    restoration = {'observedMismatchCount': 0, 'changedCount': 0, 'restorationApplied': False,
+                   'expectedMode': 0o755, 'observedMode': 0o755,
+                   'byteHashesUnchanged': False, 'allManifestFilesVerified': False,
+                   'strictSignatureVerified': False}
+    receipt['installedFrameworkModeRestoration'] = restoration
+    require(app.resolve().is_relative_to(device_set.resolve()),
+            'Framework preparation must remain inside the owned simulator device set.')
+    try:
+        verified = verifier.verify_extracted(app, archive_receipt, manifest)
+    except verifier.VerificationError as error:
+        if error.category != 'mode-mismatch':
+            raise
+        details = error.details
+        restoration.update(observedMismatchCount=details['modeMismatchCount'], observedMode=details['actualMode'])
+        receipt['verificationStep'] = 'installed-framework-mode-restoration'
+        save()
+        require(details['modeMismatchCount'] == len(FRAMEWORK_EXECUTABLES)
+                and all(details[key] == 0 for key in ('missingFileCount', 'extraFileCount',
+                    'changedFileHashCount', 'missingMemberCount', 'extraMemberCount',
+                    'typeMismatchCount', 'linkTargetMismatchCount')),
+                'Framework restoration requires only the six mode differences and unchanged files/types/links.')
+        members = {row['path']: row for row in archive_receipt['appMembers']}
+        changed = {name for name, row in members.items() if row['kind'] == 'file' and row['mode']
+                   and stat.S_IMODE((app / name).stat().st_mode) != row['mode']}
+        require(changed == FRAMEWORK_EXECUTABLES,
+                'Installed mode differences must be exactly the six selected framework binaries.')
+        # Validate every candidate and retain its descriptor before any chmod.
+        # No candidate may be a symlink/hardlink or have a symlink ancestor.
+        with ExitStack() as stack:
+            candidates = []
+            for name in sorted(FRAMEWORK_EXECUTABLES):
+                path = app / name
+                require(all(not (app / Path(*Path(name).parts[:index])).is_symlink()
+                            for index in range(1, len(Path(name).parts) + 1)),
+                        'Selected installed framework paths must contain no symlinks.')
+                stream = stack.enter_context(os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), 'rb'))
+                status = os.fstat(stream.fileno())
+                require(members[name]['kind'] == 'file' and members[name]['mode'] == 0o755
+                        and stat.S_ISREG(status.st_mode) and stat.S_IMODE(status.st_mode) == 0o644
+                        and status.st_nlink == 1,
+                        'Selected frameworks must be single-link regular files with the exact 0755-to-0644 delta.')
+                require(verifier.digest_stream(stream) == manifest['files'][name],
+                        'Selected installed framework bytes must match the archive before restoration.')
+                info = plistlib.loads((path.parent / 'Info.plist').read_bytes())
+                require(info.get('CFBundleExecutable') == path.name and info.get('CFBundlePackageType') == 'FMWK'
+                        and framework_macho_matches(stream),
+                        'Selected framework declaration and arm64 dynamic-library identity must match.')
+                candidates.append((name, stream))
+            restoration['frameworkIdentityVerified'] = True
+            save()
+            for _, stream in candidates:
+                os.fchmod(stream.fileno(), 0o755)
+                restoration.update(changedCount=restoration['changedCount'] + 1, restorationApplied=True)
+            save()
+            for name, stream in candidates:
+                stream.seek(0)
+                require(verifier.digest_stream(stream) == manifest['files'][name],
+                        'Framework byte hashes must remain unchanged after restoring modes.')
+        receipt['verificationStep'] = 'installed-complete-verification'
+        save()
+        verified = verifier.verify_extracted(app, archive_receipt, manifest)
+    restoration.update(byteHashesUnchanged=True, allManifestFilesVerified=True,
+                       strictSignatureVerified=verified['buildSigningVerified'] is True)
+    save()
+    return verified
 
 
 def main():
@@ -595,11 +688,17 @@ def main():
                 'Installed production app hash mismatch.')
         receipt['verificationStep'] = 'installed-complete-verification'
         save()
-        installed_verification = verifier.verify_extracted(installed_app, archive_receipt, manifest)
+        installed_verification = verify_installed_app(installed_app, device_set, archive_receipt, manifest,
+                                                    verifier, receipt, save)
         require(installed_verification['allFileHashesMatchArchiveManifest'] is True
                 and installed_verification['appFileCount'] == len(files)
                 and installed_verification['buildSigningVerified'] is True,
                 'Installed app must preserve every selected manifest file and its signature.')
+        require(digest(installed_app / 'main.jsbundle') == receipt['app']['bundleSha256'] and
+                digest(installed_app / info['CFBundleExecutable']) == receipt['app']['executableSha256'] and
+                digest(installed_app / 'Info.plist') == files['Info.plist'] and
+                digest(installed_app / manifest['appConfigPath']) == files[manifest['appConfigPath']],
+                'Installed production app hash mismatch after framework preparation.')
         receipt['installedAllManifestFilesVerified'] = True
         receipt['verificationStep'] = 'installed-runner-hashes'
         save()

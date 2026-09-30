@@ -839,6 +839,144 @@
         }
       ],
       "diagnosis": "unclassified-installed-app-verification-error"
+    },
+    {
+      "attempt": 12,
+      "runId": 36745820581,
+      "runAttempt": 1,
+      "jobId": 109991631263,
+      "artifactId": 11113575520,
+      "receiptSha256": "bbe7b1e0e06d5ecca556c2c2b7cdbb4530292b6967fc57337a53596006337377",
+      "controllerReceiptSha256": "5688394bb496521f15affd81a40aa981e3dfea3a6fc1e4917d2d429ba77602af",
+      "sourceSha": "bba99d3099057c78e345bc67eefabcd7f2d43fb6",
+      "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+      "startedAt": 1790786839.091975,
+      "finishedAt": 1790787147.252029,
+      "phase": "installed-app-verification",
+      "passed": false,
+      "errorType": "VerificationError",
+      "exitCode": 1,
+      "buildSigningVerified": true,
+      "exactPrivateDestinationVerified": true,
+      "resourceStopped": false,
+      "cleanup": {
+        "shutdownExitCode": 0,
+        "deleteExitCode": 0
+      },
+      "nativePhases": [],
+      "nativeFailures": [],
+      "screenshots": [],
+      "authDiagnostics": [],
+      "authFailures": [],
+      "markers": [],
+      "verificationStep": "installed-complete-verification",
+      "verificationFailure": {
+        "category": "mode-mismatch",
+        "details": {
+          "expectedFileCount": 736,
+          "actualFileCount": 736,
+          "missingFileCount": 0,
+          "extraFileCount": 0,
+          "changedFileHashCount": 0,
+          "missingMemberCount": 0,
+          "extraMemberCount": 0,
+          "typeMismatchCount": 0,
+          "linkTargetMismatchCount": 0,
+          "modeMismatchCount": 6,
+          "expectedMode": 493,
+          "actualMode": 420
+        }
+      },
+      "completedWebStages": 13,
+      "nativeXCTestStarted": false,
+      "installedAppVerificationCompleted": false,
+      "commands": [
+        {
+          "phase": "xcode-version",
+          "startedAt": 1790786839.133419,
+          "exitCode": 0,
+          "finishedAt": 1790786841.275671
+        },
+        {
+          "phase": "generate-test-project",
+          "startedAt": 1790786843.165812,
+          "exitCode": 0,
+          "finishedAt": 1790786845.2128708
+        },
+        {
+          "phase": "build-tests",
+          "startedAt": 1790786845.2199419,
+          "exitCode": 0,
+          "finishedAt": 1790786872.377813
+        },
+        {
+          "phase": "simulator-sdk-version",
+          "startedAt": 1790786872.402325,
+          "exitCode": 0,
+          "finishedAt": 1790786876.63963
+        },
+        {
+          "phase": "list-runtimes",
+          "startedAt": 1790786876.647774,
+          "exitCode": 0,
+          "finishedAt": 1790786878.763253
+        },
+        {
+          "phase": "list-device-types",
+          "startedAt": 1790786878.783328,
+          "exitCode": 0,
+          "finishedAt": 1790786880.925791
+        },
+        {
+          "phase": "create-private-device",
+          "startedAt": 1790786880.941186,
+          "exitCode": 0,
+          "finishedAt": 1790786883.029541
+        },
+        {
+          "phase": "showdestinations",
+          "startedAt": 1790786883.055718,
+          "exitCode": 0,
+          "finishedAt": 1790786887.283057
+        },
+        {
+          "phase": "boot-private-device",
+          "startedAt": 1790786887.29319,
+          "exitCode": 0,
+          "finishedAt": 1790786896.7457101
+        },
+        {
+          "phase": "wait-for-boot",
+          "startedAt": 1790786908.330454,
+          "exitCode": 0,
+          "finishedAt": 1790787087.504413
+        },
+        {
+          "phase": "install-app",
+          "startedAt": 1790787087.520282,
+          "exitCode": 0,
+          "finishedAt": 1790787115.203177
+        },
+        {
+          "phase": "install-runner",
+          "startedAt": 1790787117.047795,
+          "exitCode": 0,
+          "finishedAt": 1790787134.346577
+        },
+        {
+          "phase": "container-acceptance",
+          "startedAt": 1790787134.391819,
+          "exitCode": 0,
+          "finishedAt": 1790787138.958529
+        },
+        {
+          "phase": "container-xctrunner",
+          "startedAt": 1790787138.982774,
+          "exitCode": 0,
+          "finishedAt": 1790787141.188263
+        }
+      ],
+      "diagnosis": "six-installed-file-mode-mismatches-with-unchanged-payloads"
     }
   ]
 }

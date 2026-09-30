@@ -241,3 +241,12 @@ synchronize trigger is suspended to avoid rebuilding an already selected
 artifact. Both retained workflow recipes match their active copies. All prior
 failures, assertions, timeouts, screenshots, checkpoints and skips remain
 preserved. Native acceptance is still unproved until the full journey passes.
+
+The subsequent installed-artifact diagnostic found six permission mismatches
+while all 736 file hashes, file/member sets, types and link targets matched.
+The [retained failure history and preparation](hosted-native/README.md)
+describe conditional restoration of only the six declared framework executable
+permissions on the owned simulator, followed by all original integrity and
+strict signature checks. The archive and app bytes remain unchanged, with no
+re-signing. This preparation is an explicit installed-metadata change; native
+launch, normal authentication and the full Inbox journey are still unproved.
