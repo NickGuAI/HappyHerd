@@ -15,7 +15,7 @@ two real unread updates for the installed iOS app and approves only that app's
 visible public QR through the ordinary authenticated companion API.
 
 `native-driver.py` builds the small XCTest target, creates one new private iOS
-26 simulator, installs and verifies the selected app, and performs the actual
+26.2 simulator matching the selected Xcode SDK, verifies its exact destination before boot, installs and verifies the selected app, and performs the actual
 Inbox journey. The controller responds to its two static markers by publishing
 a real incoming update and clicking Desktop Done. Success requires one passing,
 non-skipped XCTest, all six ordered persisted checkpoints, native/desktop state
@@ -34,3 +34,14 @@ provider/daemon execution claim. A simulator pass is not physical-device proof.
 The independent hosted machine has its own recorded resource measurements.
 This does not relabel the stopped local attempts or raise their resource limits.
 All failed attempts remain separate from any later passing run.
+
+The first hosted journey at `aaf11cf0` reran all 13 real Web stages successfully
+but failed before native authentication: Xcode 26.2 did not list the selected
+iOS 26.5 private UDID as an available destination. App and runner installation
+and hashes had passed; no XCTest Inbox gesture ran. The driver now selects the
+installed runtime matching the actual simulator SDK ([Xcode 26.2 SDK](https://developer.apple.com/documentation/xcode-release-notes/xcode-26_2-release-notes)) and checks the destination
+before boot, retaining sanitized runtime/destination diagnostics. This corrects
+the runtime-selection weakness; the precise prior discovery cause remains
+unconfirmed without its private destination log. It preserves the exact-UDID
+requirement without changing the app or acceptance assertions.
+The first failure remains at [run 36675257832](https://github.com/NickGuAI/HappyHerd/actions/runs/36675257832).

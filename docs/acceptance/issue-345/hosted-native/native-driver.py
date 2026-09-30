@@ -5,7 +5,7 @@ Inputs: RUNNER_TEMP, HH345_SOURCE_SHA, HH345_NATIVE_SHA, HH345_APP_ARTIFACT
 (directory with HappyHerd.app.zip/build-manifest.json/archive.sha256),
 HH345_APP_PATH (already extracted/verified app), HH345_ARTIFACT_DIR (PRIVATE),
 HH345_PROOF_DIR (public allowlist), HH345_FIRST_ID and HH345_SECOND_ID.
-Requires selected Xcode, xcodegen and an installed iOS 26/iPhone 17 runtime.
+Requires selected Xcode, xcodegen and its matching installed iOS/iPhone 17 runtime.
 The companion coordinator must already serve localhost:43547 and the real
 isolated application API localhost:43545. No account secret enters this driver.
 Stdout contains only the two static HH345 coordination markers.
@@ -310,11 +310,20 @@ def main():
                              'testExecutableSha256': digest(runner / test_relative),
                              'originalXctestrunSha256': original_hash}
 
+        sdk_log, _ = run(['/usr/bin/xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version'],
+                         'simulator-sdk-version')
+        sdk_version = sdk_log.read_text().strip()
+        require(sdk_version == '26.2', 'Expected the selected Xcode 26.2 simulator SDK.')
         runtimes = command_json(simctl + ['list', 'runtimes', '-j'], 'list-runtimes')['runtimes']
+        receipt['runtimeSelection'] = {
+            'sdkVersion': sdk_version, 'policy': 'exact installed SDK-version match',
+            'installedIOS': [{k: r[k] for k in ('identifier', 'version', 'isAvailable') if k in r}
+                             for r in runtimes if r['identifier'].startswith('com.apple.CoreSimulator.SimRuntime.iOS-')],
+        }
         choices = [r for r in runtimes if r.get('isAvailable') and
-                   re.fullmatch(r'26(?:\.\d+)*', r.get('version', '')) and
+                   r.get('version') == sdk_version and
                    r['identifier'].startswith('com.apple.CoreSimulator.SimRuntime.iOS-')]
-        require(choices, 'Installed iOS 26 runtime required; driver never installs runtimes.')
+        require(choices, 'Installed SDK-matching iOS runtime required; driver never installs runtimes.')
         runtime = max(choices, key=lambda r: tuple(int(n) for n in r['version'].split('.')))
         device_type = 'com.apple.CoreSimulator.SimDeviceType.iPhone-17'
         types = command_json(simctl + ['list', 'devicetypes', '-j'], 'list-device-types')['devicetypes']
@@ -326,6 +335,21 @@ def main():
         receipt['simulator'] = {'udid': udid, 'deviceType': device_type, 'privateDeviceSet': True,
                                 'runtime': {k: runtime[k] for k in ('identifier', 'version', 'buildversion')}}
         save()
+        prefix = ['/usr/bin/xcodebuild', '-DVTSimulatorSetLocation=' + str(device_set)]
+        destinations, _ = run(prefix + ['-project', str(project), '-scheme', 'HH345UITests',
+                                      '-sdk', 'iphonesimulator', '-showdestinations'], 'showdestinations')
+        available = destinations.read_text().split('Available destinations for', 1)[-1].split('Ineligible destinations for', 1)[0]
+        receipt['destinationCheck'] = {
+            'outputSha256': digest(destinations),
+            'selectedUDIDPresentAnywhere': udid.lower() in destinations.read_text().lower(),
+            'selectedUDIDIneligible': udid.lower() in destinations.read_text().split('Ineligible destinations for', 1)[-1].lower() if 'Ineligible destinations for' in destinations.read_text() else False,
+            'selectedUDIDAvailable': bool(re.search(r'id:\s*' + re.escape(udid) + r'\s*[,}]', available, re.IGNORECASE)),
+            'availableSimulatorOSVersions': sorted(set(re.findall(r'platform:iOS Simulator[^}]*OS:([0-9.]+)', available))),
+        }
+        save()
+        require(receipt['destinationCheck']['selectedUDIDAvailable'],
+                'Exact private UDID unavailable to xcodebuild.')
+        receipt['exactPrivateDestinationVerified'] = True
         run(simctl + ['boot', udid, '--arch=arm64'], 'boot-private-device')
         run(simctl + ['bootstatus', udid], 'wait-for-boot', timeout=600)
         run(simctl + ['install', udid, str(app)], 'install-app')
@@ -349,13 +373,6 @@ def main():
         adapted = products / 'HH345UITests.hosted.xctestrun'
         adapted.write_bytes(plistlib.dumps(specification))
         receipt['runner']['adaptedXctestrunSha256'] = digest(adapted)
-        prefix = ['/usr/bin/xcodebuild', '-DVTSimulatorSetLocation=' + str(device_set)]
-        destinations, _ = run(prefix + ['-project', str(project), '-scheme', 'HH345UITests',
-                                      '-sdk', 'iphonesimulator', '-showdestinations'], 'showdestinations')
-        available = destinations.read_text().split('Available destinations for', 1)[-1].split('Ineligible destinations for', 1)[0]
-        require(re.search(r'id:\s*' + re.escape(udid) + r'\s*[,}]', available, re.IGNORECASE),
-                'Exact private UDID unavailable to xcodebuild.')
-        receipt['exactPrivateDestinationVerified'] = True
         _, test_code = run(prefix + [
             'test-without-building', '-xctestrun', str(adapted), '-destination',
             'platform=iOS Simulator,id=' + udid + ',arch=arm64', '-destination-timeout', '30',
