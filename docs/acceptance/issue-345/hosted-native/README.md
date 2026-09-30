@@ -45,3 +45,22 @@ the runtime-selection weakness; the precise prior discovery cause remains
 unconfirmed without its private destination log. It preserves the exact-UDID
 requirement without changing the app or acceptance assertions.
 The first failure remains at [run 36675257832](https://github.com/NickGuAI/HappyHerd/actions/runs/36675257832).
+
+The second hosted journey at `6f73a629` selected installed iOS 26.2, verified
+the exact private destination, installed the same app and executed XCTest.
+The native screen's QR decoded successfully and the real companion approval
+returned HTTP 200. The test then failed waiting for the authenticated bell; no
+Inbox checkpoint passed. [Run 36676547772](https://github.com/NickGuAI/HappyHerd/actions/runs/36676547772)
+and its sanitized receipt remain preserved.
+
+The next harness revision handles only the normal HappyHerd notification
+permission prompt, which production login requests on a fresh native app. It
+chooses **Don't Allow** for this isolated test device; feed reads use the real
+HTTP/socket connection and do not require push permission. The prior attempt's
+route/error flags were sampled before approval, so the precise post-link failure
+cause is still unconfirmed. Refreshed booleans now distinguish the current
+login/restore/bell and app/system alert states, without retaining their content.
+The companion also reads its approval back through the normal request endpoint,
+asserting the stored encrypted response matches entirely in memory. That
+read-back is not proof of native consumption. The 60-second authentication
+bound and every Inbox assertion remain unchanged.

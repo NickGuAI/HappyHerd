@@ -690,3 +690,4 @@ INBOX_READ_NATIVE_POD_CWD_345	accepted	test(inbox): install native pods from the
 INBOX_NATIVE_RELEASE_COMPILATION	accepted	test(inbox): use standard Release compilation for acceptance	docs/acceptance/issue-345/native-build-workflow.yml
 INBOX_NATIVE_HOSTED_JOURNEY_345	accepted	test(inbox): run authenticated native acceptance on an isolated runner	docs/acceptance/issue-345/hosted-native/controller.mjs
 INBOX_NATIVE_RUNTIME_MATCH_345	accepted	test(inbox): match the acceptance simulator to its Xcode SDK	docs/acceptance/issue-345/hosted-native/native-driver.py
+INBOX_NATIVE_PERMISSION_JOURNEY_345	accepted	test(inbox): handle the native notification prompt during acceptance	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift

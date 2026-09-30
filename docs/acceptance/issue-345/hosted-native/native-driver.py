@@ -37,6 +37,29 @@ STAGES = (
     '06-native-inbox-remote-done',
 )
 UUID = r'[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}'
+AUTH_PHASES = {'after-approval', 'notification-declined', 'bell-ready', 'failure'}
+AUTH_STATES = {'unknown', 'not-running', 'background-suspended', 'background', 'foreground'}
+AUTH_BOOLEANS = ('qrRouteVisible', 'loginVisible', 'bellVisible', 'appAlertPresent',
+                 'systemAlertPresent', 'notificationPromptSeen', 'notificationPromptDeclined')
+AUTH_FAILURES = {'login-control-missing', 'qr-unavailable', 'approval-unacknowledged', 'bell-unavailable'}
+
+
+def parse_auth_diagnostic(line):
+    """Accept only the complete, typed, code-owned diagnostic marker."""
+    prefix = 'HH345_AUTH_DIAGNOSTICS '
+    if not line.startswith(prefix):
+        return None
+    pairs = [part.split('=', 1) for part in line[len(prefix):].split(' ')]
+    expected = {'phase', 'appState', *AUTH_BOOLEANS}
+    if len(pairs) != len(expected) or any(len(pair) != 2 for pair in pairs):
+        return None
+    fields = dict(pairs)
+    if set(fields) != expected or fields['phase'] not in AUTH_PHASES or fields['appState'] not in AUTH_STATES:
+        return None
+    if any(fields[key] not in ('true', 'false') for key in AUTH_BOOLEANS):
+        return None
+    return {'phase': fields['phase'], 'appState': fields['appState'],
+            **{key: fields[key] == 'true' for key in AUTH_BOOLEANS}}
 
 
 class DriverRequirementError(RuntimeError):
@@ -81,7 +104,7 @@ def main():
         'resourcePolicy': {'hostDiskMinimumGiB': 10, 'memoryAvailableMinimumPercent': 15,
                            'swapPolicy': 'record only on this independent hosted host',
                            'localHostThresholdsChanged': False},
-        'commands': [], 'markers': [], 'qrDiagnostics': [], 'screenshots': [],
+        'commands': [], 'markers': [], 'qrDiagnostics': [], 'authDiagnostics': [], 'authFailures': [], 'screenshots': [],
         'passed': False,
     }
     samples = []
@@ -154,6 +177,14 @@ def main():
                 if allowed:
                     receipt['qrDiagnostics'].append(allowed)
                     save()
+            auth_diagnostic = parse_auth_diagnostic(line)
+            if auth_diagnostic is not None:
+                receipt['authDiagnostics'].append(auth_diagnostic)
+                save()
+            failure = re.fullmatch(r'HH345_AUTH_FAILURE reason=([a-z-]+)', line)
+            if failure and failure[1] in AUTH_FAILURES:
+                receipt['authFailures'].append(failure[1])
+                save()
         return lines[-1][-2048:]
 
     def run(command, phase, timeout=300, check=True):

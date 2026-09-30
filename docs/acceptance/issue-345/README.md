@@ -119,3 +119,14 @@ fresh private simulator, server and generated accounts. The local browser,
 server, coordinator and RAM volume were then released; no shared service or
 existing simulator was changed. These local attempts remain failures, not
 native acceptance passes.
+
+### Continuation CI failure retained
+
+At `6f73a629`, [Contract run 36676547729](https://github.com/NickGuAI/HappyHerd/actions/runs/36676547729)
+failed one unchanged Focus animation timing assertion: the measured onset
+difference was `152.447058823576 ms`, above its existing `<150 ms` bound. The
+app suite otherwise had 3,939 passes and ten existing skips. The same-head Unit
+job passed the app suite, and the complete product tree is identical to the
+previous passing `62eaa155` and `67a22ead` Contract revisions. The first failure
+log is retained. No timing threshold, assertion or skip was changed; a later
+exact-head Contract pass is still required.

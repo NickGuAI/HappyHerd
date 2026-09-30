@@ -85,6 +85,19 @@ export async function startNativeCoordinator({ sodium, seed, credentials, api, s
                 approvedPublicKey = publicKey;
                 receipt.approvedAt = new Date().toISOString();
                 receipt.approvalEndpointStatus = 200;
+                // A companion-side read-back verifies the real stored response.
+                // The token/ciphertext stay in memory; this does not claim the
+                // native app consumed the approval or completed its own login.
+                const readBack = await api(credentials, '/v1/auth/account/request', {
+                    method: 'POST', body: { publicKey: publicKey.toString('base64') },
+                });
+                assert.equal(readBack.state, 'authorized');
+                assert.equal(typeof readBack.token, 'string');
+                assert(readBack.token.length > 0);
+                assert(Buffer.from(readBack.response, 'base64').equals(answer));
+                receipt.companionApprovalReadBack = {
+                    authorized: true, storedCiphertextMatches: true, tokenPresent: true,
+                };
             } else if (request.url === '/checkpoint') {
                 assert.equal(typeof body.stage, 'string');
                 assert(receipt.approvedAt, 'Normal native linking must complete before checkpoints');

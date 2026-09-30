@@ -4,6 +4,7 @@ import XCTest
 
 final class InboxAcceptanceTests: XCTestCase {
     private let app = XCUIApplication(bundleIdentifier: "app.happyherd.issue345.acceptance")
+    private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private var restoring = false
     private lazy var qrDetector = CIDetector(ofType: CIDetectorTypeQRCode, context: nil,
                                              options: [CIDetectorAccuracy: CIDetectorAccuracyHigh])
@@ -11,9 +12,23 @@ final class InboxAcceptanceTests: XCTestCase {
     private var qrFeatureCountMax = 0
     private var qrPayloadPresent = false
     private var qrLinkShapeMatched = false
-    private var qrRouteVisible = false
-    private var qrErrorAlertPresent = false
     private var qrDecoderSetupError = false
+    private var notificationPromptSeen = false
+    private var notificationPromptDeclined = false
+
+    private enum AuthDiagnosticPhase: String {
+        case afterApproval = "after-approval"
+        case notificationDeclined = "notification-declined"
+        case bellReady = "bell-ready"
+        case failure
+    }
+
+    private enum AuthFailure: String {
+        case loginControlMissing = "login-control-missing"
+        case qrUnavailable = "qr-unavailable"
+        case approvalUnacknowledged = "approval-unacknowledged"
+        case bellUnavailable = "bell-unavailable"
+    }
 
     override func setUp() {
         super.setUp()
@@ -45,8 +60,10 @@ final class InboxAcceptanceTests: XCTestCase {
         return condition()
     }
 
-    private func restoreFailed() -> Bool {
+    private func restoreFailed(_ reason: AuthFailure) -> Bool {
+        reportAuthDiagnostics(.failure)
         reportQRDiagnostics()
+        marker("HH345_AUTH_FAILURE reason=\(reason.rawValue)")
         app.terminate()
         restoring = false
         XCTFail("Native linking did not complete; app terminated.")
@@ -56,7 +73,7 @@ final class InboxAcceptanceTests: XCTestCase {
     private func verifyServerBeforeAuthentication() {
         app.open(URL(string: "happyherd:///server")!)
         // The maintained server route has one single-line URL TextInput.
-        // This is the only text value read by the test; no account key is read.
+        // Read only this server field's value, never an account-key field.
         let serverURL = app.textFields.firstMatch
         XCTAssertTrue(serverURL.waitForExistence(timeout: 20), "Server URL field must appear before authentication.")
         XCTAssertTrue(serverURL.isHittable, "Server URL must be visibly accessible.")
@@ -99,7 +116,52 @@ final class InboxAcceptanceTests: XCTestCase {
     private func reportQRDiagnostics() {
         // Counts and booleans only. Never emit image data, decoded payloads,
         // linking URLs, error descriptions or accessibility hierarchies.
-        marker("HH345_QR_DIAGNOSTICS attempts=\(qrAttempts) featuresMax=\(qrFeatureCountMax) payloadPresent=\(qrPayloadPresent) linkShapeMatched=\(qrLinkShapeMatched) routeVisible=\(qrRouteVisible) errorAlertPresent=\(qrErrorAlertPresent) decoderSetupError=\(qrDecoderSetupError)")
+        let routeVisible = app.buttons["Restore with Secret Key Instead"].firstMatch.exists
+        let errorAlertPresent = app.alerts.firstMatch.exists
+        marker("HH345_QR_DIAGNOSTICS attempts=\(qrAttempts) featuresMax=\(qrFeatureCountMax) payloadPresent=\(qrPayloadPresent) linkShapeMatched=\(qrLinkShapeMatched) routeVisible=\(routeVisible) errorAlertPresent=\(errorAlertPresent) decoderSetupError=\(qrDecoderSetupError)")
+    }
+
+    private func reportAuthDiagnostics(_ phase: AuthDiagnosticPhase) {
+        // Query current state each time. Never record labels, hierarchy, URLs,
+        // screenshots, account material or descriptions from an auth alert.
+        let qrRouteVisible = app.buttons["Restore with Secret Key Instead"].firstMatch.exists
+        let loginVisible = app.buttons["Login with mobile app"].firstMatch.exists
+        let bellVisible = element("herd-inbox-bell").exists
+        let appAlertPresent = app.alerts.firstMatch.exists
+        let systemAlertPresent = springboard.alerts.firstMatch.exists
+        let appState: String
+        switch app.state {
+        case .unknown: appState = "unknown"
+        case .notRunning: appState = "not-running"
+        case .runningBackgroundSuspended: appState = "background-suspended"
+        case .runningBackground: appState = "background"
+        case .runningForeground: appState = "foreground"
+        @unknown default: appState = "unknown"
+        }
+        marker("HH345_AUTH_DIAGNOSTICS phase=\(phase.rawValue) qrRouteVisible=\(qrRouteVisible) loginVisible=\(loginVisible) bellVisible=\(bellVisible) appAlertPresent=\(appAlertPresent) systemAlertPresent=\(systemAlertPresent) notificationPromptSeen=\(notificationPromptSeen) notificationPromptDeclined=\(notificationPromptDeclined) appState=\(appState)")
+    }
+
+    private func declineOwnedNotificationPrompt() {
+        // A fresh native login can trigger the normal push-permission prompt.
+        // Match this app's notification title AND both permission choices;
+        // never dismiss generic authentication errors or unrelated system UI.
+        let title = NSPredicate(format: "label CONTAINS %@ AND label CONTAINS[c] %@",
+                                "HappyHerd", "Would Like to Send You Notifications")
+        for owner in [app, springboard] {
+            for alert in owner.alerts.allElementsBoundByIndex {
+                guard title.evaluate(with: ["label": alert.label])
+                        || alert.staticTexts.matching(title).firstMatch.exists else { continue }
+                guard alert.buttons["Allow"].firstMatch.exists,
+                      let decline = ["Don’t Allow", "Don't Allow"].map({ alert.buttons[$0].firstMatch })
+                        .first(where: { $0.exists }) else { continue }
+                notificationPromptSeen = true
+                guard decline.isHittable else { continue }
+                decline.tap()
+                notificationPromptDeclined = true
+                reportAuthDiagnostics(.notificationDeclined)
+                return
+            }
+        }
     }
 
     private func publicLinkFromVisibleQR() -> String? {
@@ -128,21 +190,28 @@ final class InboxAcceptanceTests: XCTestCase {
         if element("herd-inbox-bell").waitForExistence(timeout: 8) { return true }
         restoring = true
         let link = app.buttons["Login with mobile app"].firstMatch
-        guard link.waitForExistence(timeout: 20) else { return restoreFailed() }
+        guard link.waitForExistence(timeout: 20) else { return restoreFailed(.loginControlMissing) }
         link.tap()
-        qrRouteVisible = app.buttons["Restore with Secret Key Instead"].firstMatch.exists
-        qrErrorAlertPresent = app.alerts.firstMatch.exists
         var publicLink: String?
         guard wait(30, until: {
             publicLink = publicLinkFromVisibleQR()
             return publicLink != nil
-        }), let publicLink else { return restoreFailed() }
+        }), let publicLink else { return restoreFailed(.qrUnavailable) }
         reportQRDiagnostics()
         // The coordinator acts as the real authenticated companion. It approves
         // this public request through /v1/auth/account/response; the app's normal
         // /restore polling consumes the encrypted response and performs login.
-        guard postToCoordinator("/native-link", body: ["url": publicLink]) else { return restoreFailed() }
-        guard element("herd-inbox-bell").waitForExistence(timeout: 60) else { return restoreFailed() }
+        guard postToCoordinator("/native-link", body: ["url": publicLink]) else { return restoreFailed(.approvalUnacknowledged) }
+        var reportedApproval = false
+        guard wait(60, until: {
+            declineOwnedNotificationPrompt()
+            if !reportedApproval {
+                reportAuthDiagnostics(.afterApproval)
+                reportedApproval = true
+            }
+            return element("herd-inbox-bell").exists
+        }) else { return restoreFailed(.bellUnavailable) }
+        reportAuthDiagnostics(.bellReady)
         restoring = false
         return true
     }
