@@ -1,0 +1,149 @@
+# Bounded build experiment only: normal Xcode signing is not yet a launch or Inbox pass.
+name: Issue 345 normal Xcode signing experiment
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/issue-345-native-signed-build.yml
+      - docs/acceptance/issue-345/native-signed-build-workflow.yml
+      - docs/acceptance/issue-345/native-signing-receipt.py
+
+permissions:
+  contents: read
+
+jobs:
+  simulator-app:
+    name: Normal Xcode simulator signing experiment
+    if: github.event.pull_request.number == 367
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      APP_ENV: production
+      EXPO_NO_TELEMETRY: 1
+      HAPPYHERD_APP_BUNDLE_ID: app.happyherd.issue345.acceptance
+      HAPPYHERD_BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPO_PUBLIC_HAPPYHERD_SERVER_URL: http://127.0.0.1:43545
+      HAPPYHERD_EAS_PROJECT_ID: ''
+# rename:preserve
+      HAPPY_EAS_PROJECT_ID: ''
+# /rename:preserve
+      HAPPYHERD_EAS_OWNER: ''
+# rename:preserve
+      HAPPY_EAS_OWNER: ''
+# /rename:preserve
+      APPLE_TEAM_ID: ''
+      RCT_NO_LAUNCH_PACKAGER: 1
+      RCT_USE_RN_DEP: 1
+      RCT_USE_PREBUILT_RNCORE: 1
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - name: Record toolchain and isolate caches
+        run: |
+          mkdir -p acceptance-artifact "$RUNNER_TEMP/issue-345-metro" "$RUNNER_TEMP/issue-345-native-signed"
+          echo "TMPDIR=$RUNNER_TEMP/issue-345-metro/" >> "$GITHUB_ENV"
+          echo "NODE_BINARY=$(command -v node)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD HEAD:server; xcodebuild -version; swift --version; node --version; pnpm --version; bun --version; pod --version; sysctl hw.memsize hw.ncpu; } > acceptance-artifact/toolchain.txt
+          df -h . > "$RUNNER_TEMP/issue-345-native-signed/disk.log"
+          test "$(git rev-parse HEAD)" = "$HAPPYHERD_BUILD_COMMIT_SHA"
+      - name: Install unchanged dependencies
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: Generate the isolated native host
+        run: |
+          set -o pipefail
+          pnpm --dir server --filter happyherd-app exec expo prebuild --platform ios --no-install > "$RUNNER_TEMP/issue-345-native-signed/prebuild.log" 2>&1
+          (cd server/packages/happyherd-app/ios && pod install) > "$RUNNER_TEMP/issue-345-native-signed/pods.log" 2>&1
+          git diff --exit-code -- server > "$RUNNER_TEMP/issue-345-native-signed/server-diff.log" 2>&1
+          test "$(shasum -a 256 server/packages/happyherd-app/ios/Pods/RevenueCat/Sources/Paywalls/PaywallColor.swift | cut -d ' ' -f 1)" = 7d5eb572233ad587841d61be7294b32583d35724be6aa39006982d298774c511
+          xcodebuild -project server/packages/happyherd-app/ios/Pods/Pods.xcodeproj \
+            -target RevenueCat -configuration Release -sdk iphonesimulator \
+            -showBuildSettings SWIFT_OPTIMIZATION_LEVEL=-O 2> "$RUNNER_TEMP/issue-345-native-signed/revenuecat-settings-stderr.log" | \
+            awk '/^[[:space:]]*(SWIFT_COMPILATION_MODE|SWIFT_ENABLE_BATCH_MODE|SWIFT_OPTIMIZATION_LEVEL|SDKROOT)[[:space:]]*=/' \
+            > "$RUNNER_TEMP/issue-345-native-signed/RevenueCat-Release-settings.txt"
+          test -s "$RUNNER_TEMP/issue-345-native-signed/RevenueCat-Release-settings.txt"
+      - name: Record normal Release signing settings privately
+        run: |
+          xcodebuild -workspace server/packages/happyherd-app/ios/HappyHerd.xcworkspace \
+            -scheme HappyHerd -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/issue-345-derived" -jobs 1 -showBuildTimingSummary \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            IPHONEOS_DEPLOYMENT_TARGET=15.1 \
+            SWIFT_OPTIMIZATION_LEVEL=-O -showBuildSettings -json \
+            > "$RUNNER_TEMP/issue-345-native-signed/build-settings.json" \
+            2> "$RUNNER_TEMP/issue-345-native-signed/build-settings-stderr.log"
+      - name: Build Release simulator app with normal Xcode signing
+        timeout-minutes: 75
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -workspace server/packages/happyherd-app/ios/HappyHerd.xcworkspace \
+            -scheme HappyHerd -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/issue-345-derived" -jobs 1 -showBuildTimingSummary \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            IPHONEOS_DEPLOYMENT_TARGET=15.1 \
+            SWIFT_OPTIMIZATION_LEVEL=-O build \
+            > "$RUNNER_TEMP/issue-345-native-signed/xcodebuild.log" 2>&1
+      - name: Preserve only classified signing diagnostics
+        if: always()
+        run: |
+          python3 docs/acceptance/issue-345/native-signing-receipt.py \
+            --app "$RUNNER_TEMP/issue-345-derived/Build/Products/Release-iphonesimulator/HappyHerd.app" \
+            --derived-data "$RUNNER_TEMP/issue-345-derived" \
+            --build-settings "$RUNNER_TEMP/issue-345-native-signed/build-settings.json" \
+            --receipt acceptance-artifact/signing-receipt.json \
+            --source-sha "$HAPPYHERD_BUILD_COMMIT_SHA"
+      - name: Verify and preserve the normally built app
+        run: |
+          export ISSUE345_APP="$RUNNER_TEMP/issue-345-derived/Build/Products/Release-iphonesimulator/HappyHerd.app"
+          python3 - <<'PY' > "$RUNNER_TEMP/issue-345-native-signed/artifact-verification.log" 2>&1
+          import hashlib, json, os, pathlib, plistlib, subprocess
+          app = pathlib.Path(os.environ['ISSUE345_APP'])
+          signing_path = pathlib.Path('acceptance-artifact/signing-receipt.json')
+          signing = json.loads(signing_path.read_text())
+          assert signing['verified'] is True
+          bundle = (app / 'main.jsbundle').read_bytes()
+          sha = os.environ['HAPPYHERD_BUILD_COMMIT_SHA']
+          assert signing['sourceSha'] == sha
+          assert b'http://127.0.0.1:43545' in bundle
+          configs = list(app.rglob('EXConstants.bundle/app.config'))
+          assert len(configs) == 1
+          config = json.loads(configs[0].read_text())
+          assert config['extra']['app']['buildCommitSha'] == sha
+          info = plistlib.loads((app / 'Info.plist').read_bytes())
+          assert info['CFBundleIdentifier'] == 'app.happyherd.issue345.acceptance'
+          files = {str(p.relative_to(app)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(app.rglob('*')) if p.is_file()}
+          assert signing['machO']['executableSha256'] == files['HappyHerd']
+          receipt = {'sourceSha': sha, 'productTree': subprocess.check_output(['git', 'rev-parse', 'HEAD:server'], text=True).strip(), 'nativeBuildMode': 'xcode-default-simulator-signing', 'signingReceiptSha256': hashlib.sha256(signing_path.read_bytes()).hexdigest(), 'taskSpecificNativeSourcePatches': [], 'revenueCatSourcePatched': False, 'configuration': 'Release', 'architecture': 'arm64', 'bundleSha256': hashlib.sha256(bundle).hexdigest(), 'bundleIdentifier': info['CFBundleIdentifier'], 'appConfigPath': str(configs[0].relative_to(app)), 'appConfigSha256': hashlib.sha256(configs[0].read_bytes()).hexdigest(), 'files': files}
+          pathlib.Path('acceptance-artifact/build-manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+          git diff --exit-code -- server > "$RUNNER_TEMP/issue-345-native-signed/server-diff.log" 2>&1
+          ditto -c -k --sequesterRsrc --keepParent "$ISSUE345_APP" acceptance-artifact/HappyHerd.app.zip
+          shasum -a 256 acceptance-artifact/HappyHerd.app.zip > acceptance-artifact/archive.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue-345-native-signed-${{ github.event.pull_request.head.sha }}
+          path: |
+            acceptance-artifact/HappyHerd.app.zip
+            acceptance-artifact/build-manifest.json
+            acceptance-artifact/archive.sha256
+            acceptance-artifact/toolchain.txt
+            acceptance-artifact/signing-receipt.json
+          retention-days: 30
+          if-no-files-found: error

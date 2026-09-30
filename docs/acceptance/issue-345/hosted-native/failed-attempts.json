@@ -528,6 +528,175 @@
       "startedAt": 1790777858.163434,
       "failureReason": "Actual native test did not pass.",
       "resourceStopped": false
+    },
+    {
+      "attempt": 9,
+      "runId": 36729388901,
+      "runAttempt": 1,
+      "artifactId": 11104637921,
+      "receiptSha256": "7c8c44c151c72bcfaca15593874d2af13edb175a50b1511182855b0277a8d10f",
+      "simulatorSigningVerified": true,
+      "installedArtifactHashesVerified": true,
+      "exactPrivateDestinationVerified": true,
+      "xctestLaunchFailures": {
+        "categories": [
+          "launch-rejected"
+        ],
+        "subtypes": [
+          "launch-denied"
+        ],
+        "errorCodes": [],
+        "signals": [],
+        "serviceReasons": [],
+        "exceptionTypes": [],
+        "terminationReasons": []
+      },
+      "testSummary": {
+        "totalTestCount": 1,
+        "passedTests": 0,
+        "failedTests": 1,
+        "skippedTests": 0,
+        "expectedFailures": 0,
+        "result": "Failed"
+      },
+      "errorType": "DriverRequirementError",
+      "cleanup": {
+        "shutdownExitCode": 0,
+        "deleteExitCode": 0
+      },
+      "launchLogDiagnostics": {
+        "zeroMatchesAreInconclusive": true,
+        "sources": [
+          {
+            "source": "private-xctest-log-tail",
+            "available": true,
+            "outputLimitReached": false,
+            "classification": {
+              "categories": [
+                "launch-rejected"
+              ],
+              "subtypes": [
+                "launch-denied"
+              ],
+              "errorCodes": [],
+              "signals": [],
+              "serviceReasons": [],
+              "exceptionTypes": [],
+              "terminationReasons": []
+            }
+          },
+          {
+            "source": "owned-simulator-unified-log",
+            "startedAt": 1790779345.658784,
+            "available": true,
+            "exitCode": 0,
+            "classification": {
+              "categories": [
+                "launch-rejected"
+              ],
+              "subtypes": [
+                "launch-denied"
+              ],
+              "errorCodes": [
+                {
+                  "domain": "FBProcessExit",
+                  "code": 64
+                },
+                {
+                  "domain": "FBSOpenApplicationServiceErrorDomain",
+                  "code": 1
+                },
+                {
+                  "domain": "NSOSStatusErrorDomain",
+                  "code": -10814
+                },
+                {
+                  "domain": "NSPOSIXErrorDomain",
+                  "code": 162
+                },
+                {
+                  "domain": "RBSRequestErrorDomain",
+                  "code": 5
+                }
+              ],
+              "signals": [],
+              "serviceReasons": [],
+              "exceptionTypes": [],
+              "terminationReasons": []
+            },
+            "outputLimitReached": false,
+            "timedOut": false,
+            "finishedAt": 1790779359.915203
+          }
+        ]
+      },
+      "phase": "export-private-attachments",
+      "nativeSourceSha": "67a22ead631e384802e5f7a8657ff674c07ab28d",
+      "authDiagnostics": [],
+      "passed": false,
+      "authFailures": [],
+      "sourceSha": "7bb61275bd10f00543be6eaf424b2401398a9b80",
+      "nativeFailures": [
+        "activate"
+      ],
+      "nativeStates": [
+        {
+          "phase": "activate",
+          "appState": "not-running",
+          "uiQueried": false,
+          "loginVisible": false,
+          "qrRouteVisible": false,
+          "serverFieldVisible": false,
+          "appAlertPresent": false,
+          "systemAlertPresent": false
+        }
+      ],
+      "finishedAt": 1790779378.7811892,
+      "exitCode": 1,
+      "nativePhases": [
+        "setup",
+        "activate"
+      ],
+      "authLogDiagnostics": {
+        "zeroCountsAreInconclusive": true,
+        "sources": [
+          {
+            "source": "private-xctest-log",
+            "available": true,
+            "counts": {
+              "qrDecryptSuccess": 0,
+              "qrDecryptFailure": 0,
+              "credentialWriteFailure": 0,
+              "backupStateWriteFailure": 0,
+              "missingEntitlementName": 0,
+              "missingEntitlementStatus": 0,
+              "missingEntitlementMessage": 0
+            },
+            "outputLimitReached": false
+          },
+          {
+            "source": "owned-simulator-unified-log",
+            "startedAt": 1790779326.18326,
+            "available": true,
+            "exitCode": 0,
+            "counts": {
+              "qrDecryptSuccess": 0,
+              "qrDecryptFailure": 0,
+              "credentialWriteFailure": 0,
+              "backupStateWriteFailure": 0,
+              "missingEntitlementName": 0,
+              "missingEntitlementStatus": 0,
+              "missingEntitlementMessage": 0
+            },
+            "outputLimitReached": false,
+            "timedOut": false,
+            "finishedAt": 1790779345.632225
+          }
+        ]
+      },
+      "startedAt": 1790778960.8929431,
+      "failureReason": "Actual native test did not pass.",
+      "resourceStopped": false
     }
   ]
 }

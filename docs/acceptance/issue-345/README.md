@@ -147,3 +147,46 @@ and the complete product tree to passing `39f46cbf`. The [same-head Contract
 suite](https://github.com/NickGuAI/HappyHerd/actions/runs/36683231386/job/109783220202)
 passed; this supports intermittency without relabeling the failed Unit run. No
 threshold or skip changed and no manual Unit retry was performed.
+
+### Launch rejection and normal-signing build comparison
+
+The narrowed diagnostic at `7bb61275` completed its owned-simulator query without
+truncation or timeout. [Run 36729388901](https://github.com/NickGuAI/HappyHerd/actions/runs/36729388901)
+([artifact 11104637921](https://github.com/NickGuAI/HappyHerd/actions/runs/36729388901/artifacts/11104637921))
+again failed at activation before startup, authentication or Inbox. It retained
+only launch-rejection enums and safe domain/code pairs: `FBProcessExit/64`,
+`FBSOpenApplicationServiceErrorDomain/1`, `RBSRequestErrorDomain/5`,
+`NSPOSIXErrorDomain/162`, and `NSOSStatusErrorDomain/-10814`. No crash signal was
+observed. Apple's signed `/bin/launchctl error posix 162` decodes the underlying
+code as `162: Codesigning issue` on the local macOS 27.0 build 26A428; the
+hosted comparison repeats that read-only decoder and retains only a fixed enum.
+This supports a signing-related failure class, but does not identify a unique
+signature or entitlement defect. All 13 real Web stages passed with the new
+transparent transport relay; the full 16-checkpoint native continuation remains
+unproved.
+
+The next bounded build comparison uses the successful Xcode 26.2 Release recipe
+with only its explicit signing-disable override removed. This is supported by
+the observed contrast: the original artifact reached normal QR authentication,
+while its verified signature-only derivative repeatedly fails before startup.
+That contrast and the domain-specific decoder support investigating the signing
+path, without claiming an identified entitlement defect. Xcode will generate and
+apply its normal simulator signing configuration; no guessed entitlement, developer account or provisioning profile
+is introduced. Apple describes simulator [Sign to Run Locally](https://developer.apple.com/forums/thread/826882)
+as ad-hoc signing that needs no Apple Development identity.
+
+The original archive and custom derivative failures remain preserved. A new
+build must have its own manifest, archive hash, effective-signing metadata and
+sanitized generated-entitlement evidence before selection for native acceptance.
+It cannot inherit the prior derivative's claim of unchanged executable bytes.
+The [normal-signing recipe](native-signed-build-workflow.yml) is an experiment
+until the installed artifact completes normal authentication and all native
+criteria. It changes no product source, initial activation call, assertion,
+timeout, screenshot requirement or skip.
+
+For this build-only comparison, the existing journey temporarily accepts only
+`opened` and `reopened` pull-request events, preventing a synchronize event from
+rerunning the already-failed derivative. Pull-request path filters alone cannot
+isolate this experiment because they evaluate the whole PR diff. Restore
+`synchronize` when the new artifact is verified and selected. No native pass or
+acceptance skip is claimed for the build-only head.

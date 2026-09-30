@@ -2,6 +2,8 @@ name: Issue 345 authenticated native journey
 
 on:
   pull_request:
+    # Build comparison only: restore synchronize when selecting the verified new app.
+    types: [opened, reopened]
     paths:
       - .github/workflows/issue-345-native-journey.yml
       - docs/acceptance/issue-345/hosted-native/**
