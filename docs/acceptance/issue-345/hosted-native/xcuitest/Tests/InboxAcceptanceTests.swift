@@ -254,11 +254,19 @@ final class InboxAcceptanceTests: XCTestCase {
         XCTAssertTrue(account.waitForExistence(timeout: 20) && account.isHittable, "Visible Account settings action must exist.")
         account.tap()
         setPhase(.accountLogoutScroll)
-        let logout = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Logout")).firstMatch
+        // Item's native label combines its leading icon, title and subtitle.
+        // Match both visible text parts instead of assuming the title is first.
+        let logoutRows = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@", "Logout", "Sign out and clear local data"))
+        var swipes = 0
         for _ in 0..<12 {
-            if logout.exists && logout.isHittable { break }
+            if reportLogoutDiagnostics(swipes: swipes, rows: logoutRows) { break }
             app.swipeUp()
+            swipes += 1
         }
+        reportLogoutDiagnostics(swipes: swipes, rows: logoutRows)
+        XCTAssertEqual(logoutRows.count, 1, "Normal Logout row must be uniquely identified.")
+        let logout = logoutRows.element(boundBy: 0)
         XCTAssertTrue(logout.exists && logout.isHittable, "Normal Logout action must be visible.")
         setPhase(.accountLogoutAction)
         logout.tap()
@@ -269,6 +277,20 @@ final class InboxAcceptanceTests: XCTestCase {
         confirm.tap()
         setPhase(.accountLogoutLogin)
         XCTAssertTrue(app.buttons["Login with mobile app"].firstMatch.waitForExistence(timeout: 60), "Normal Logout must return to login.")
+    }
+
+    @discardableResult
+    private func reportLogoutDiagnostics(swipes: Int, rows: XCUIElementQuery) -> Bool {
+        // Only bounded counts and booleans leave this account-settings screen.
+        // The old prefix is diagnostic-only and is never a fallback selector.
+        let prefixMatches = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Logout")).count
+        let rowMatches = rows.count
+        let rowHittable = rowMatches == 1 && rows.element(boundBy: 0).isHittable
+        let scrollViewPresent = app.scrollViews.firstMatch.exists
+        let appAlertPresent = app.alerts.firstMatch.exists
+        marker("HH345_LOGOUT_DIAGNOSTICS swipes=\(min(max(swipes, 0), 12)) prefixMatches=\(min(prefixMatches, 100)) rowMatches=\(min(rowMatches, 100)) rowHittable=\(rowHittable) scrollViewPresent=\(scrollViewPresent) appAlertPresent=\(appAlertPresent)")
+        return rowHittable
     }
 
     private func reportQRDiagnostics() {

@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all fourteen hosted failures and original receipt hashes.
+preserve all fifteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -295,3 +295,30 @@ completed boot and native checkpoints 01–08 in attempt 13. This supports one
 independently reviewed diagnostic journey; it does not establish a root cause
 for the delayed host probe or justify a timeout increase, skipped sample or
 boot workaround.
+
+
+The fifteenth attempt at `7d570f36` passed simulator boot and resource monitoring,
+all installed integrity checks, normal QR authentication and native checkpoints
+01–08. [Run 36755579409](https://github.com/NickGuAI/HappyHerd/actions/runs/36755579409)
+then passed the new drawer, Settings and Account phases but failed in
+`account-logout-scroll`: the Logout row was not found and hittable after the
+existing twelve-swipe bound. It did not tap Logout or link account B. XCTest
+records one failure, zero passes and zero skips. All 13 Web stages passed;
+resource floors held, no resource-probe failure was recorded, and simulator
+cleanup succeeded. [Artifact 11117642217](https://github.com/NickGuAI/HappyHerd/actions/runs/36755579409/artifacts/11117642217)
+and all original hashes remain preserved. All ten intended screenshots passed
+independent hash and visual/privacy review. The full native criteria remain
+unproved beyond checkpoint 08; the Account action tap does not separately prove
+that page's readiness.
+
+Source review finds the test's `label BEGINSWITH Logout` assumption does not
+match the existing native row composition. The Logout Item has an icon before
+its title and subtitle, no explicit accessibility label, and an accessible
+Pressable wrapper. Locked React Native 0.83.1 recursively combines child labels
+in order; the icon renders as Text. The correction identifies the ordinary
+row by its catalog title and subtitle instead of assuming the title starts its
+combined label. It keeps normal gestures, the twelve-swipe bound, hittability,
+confirmation and login assertions, and all timeouts and captures. Fixed
+counts/booleans attribute the row query without publishing labels, account
+content, hierarchy or additional screenshots. The prior receipt establishes the
+failed assertion boundary; it does not preserve the actual runtime label.

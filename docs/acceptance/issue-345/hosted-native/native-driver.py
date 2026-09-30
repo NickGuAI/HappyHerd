@@ -220,6 +220,31 @@ def parse_auth_diagnostic(line):
             **{key: fields[key] == 'true' for key in AUTH_BOOLEANS}}
 
 
+def parse_logout_diagnostic(line):
+    """Only fixed bounded counts and booleans from the normal Logout query."""
+    prefix = 'HH345_LOGOUT_DIAGNOSTICS '
+    if not line.startswith(prefix):
+        return None
+    pairs = [part.split('=', 1) for part in line[len(prefix):].split(' ')]
+    limits = {'swipes': 12, 'prefixMatches': 100, 'rowMatches': 100}
+    booleans = ('rowHittable', 'scrollViewPresent', 'appAlertPresent')
+    expected = {*limits, *booleans}
+    if len(pairs) != len(expected) or any(len(pair) != 2 for pair in pairs):
+        return None
+    fields = dict(pairs)
+    if set(fields) != expected:
+        return None
+    if any(not re.fullmatch(r'0|[1-9][0-9]{0,2}', fields[key]) or int(fields[key]) > limit
+           for key, limit in limits.items()):
+        return None
+    if any(fields[key] not in ('true', 'false') for key in booleans):
+        return None
+    if fields['rowHittable'] == 'true' and fields['rowMatches'] != '1':
+        return None
+    return {**{key: int(fields[key]) for key in limits},
+            **{key: fields[key] == 'true' for key in booleans}}
+
+
 def parse_native_diagnostic(line):
     """Static phases are retained even if an optional failure-state query fails."""
     phase = re.fullmatch(r'HH345_NATIVE_(PHASE|FAILURE) phase=([a-z-]+)', line)
@@ -401,7 +426,7 @@ def main():
                            'swapPolicy': 'record only on this independent hosted host',
                            'localHostThresholdsChanged': False},
         'commands': [], 'markers': [], 'qrDiagnostics': [], 'authDiagnostics': [], 'authFailures': [], 'screenshots': [],
-        'nativePhases': [], 'nativeFailures': [], 'nativeStates': [],
+        'nativePhases': [], 'nativeFailures': [], 'nativeStates': [], 'logoutDiagnostics': [],
         'passed': False,
     }
     samples = []
@@ -486,6 +511,10 @@ def main():
             auth_diagnostic = parse_auth_diagnostic(line)
             if auth_diagnostic is not None:
                 receipt['authDiagnostics'].append(auth_diagnostic)
+                save()
+            logout_diagnostic = parse_logout_diagnostic(line)
+            if logout_diagnostic is not None:
+                receipt['logoutDiagnostics'].append(logout_diagnostic)
                 save()
             failure = re.fullmatch(r'HH345_AUTH_FAILURE reason=([a-z-]+)', line)
             if failure and failure[1] in AUTH_FAILURES:

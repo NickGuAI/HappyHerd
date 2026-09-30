@@ -288,3 +288,14 @@ remained above the original floors. The [failure ledger and diagnostic recipe](h
 preserve the failure and add only fixed probe attribution, without changing
 commands, timeouts, sampling or acceptance criteria. The drawer correction and
 remaining native criteria are still unproved.
+
+
+[Native attempt 15](https://github.com/NickGuAI/HappyHerd/actions/runs/36755579409)
+passed resource monitoring, normal QR authentication and checkpoints 01–08.
+The drawer correction completed Settings and Account navigation actions. It then failed
+the Logout row visibility query within the unchanged twelve-swipe limit, before
+any logout or B link. The [retained source review and failure history](hosted-native/README.md)
+identify the test's unsupported label-prefix assumption and the targeted row
+query correction. No resource-probe failure occurred, all 13 Web stages passed,
+and cleanup succeeded. Full native account scope, race and restart remain
+unproved.

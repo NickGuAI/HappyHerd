@@ -107,6 +107,39 @@ class DiagnosticCollectionTests(unittest.TestCase):
                             f'HH345_NATIVE_FAILURE phase={phase} private=secret'):
                 self.assertIsNone(driver.parse_native_diagnostic(invalid))
 
+    def test_logout_row_diagnostic_distinguishes_missing_ambiguous_and_hittable(self):
+        for swipes, prefix, rows, hittable in ((0, 0, 0, False), (7, 0, 1, False),
+                                             (12, 0, 1, True), (12, 1, 2, False),
+                                             (12, 100, 100, False)):
+            line = (f'HH345_LOGOUT_DIAGNOSTICS swipes={swipes} prefixMatches={prefix} '
+                    f'rowMatches={rows} rowHittable={str(hittable).lower()} '
+                    'scrollViewPresent=true appAlertPresent=false')
+            self.assertEqual(driver.parse_logout_diagnostic(line), {
+                'swipes': swipes, 'prefixMatches': prefix, 'rowMatches': rows,
+                'rowHittable': hittable, 'scrollViewPresent': True, 'appAlertPresent': False,
+            })
+
+    def test_logout_row_diagnostic_rejects_private_extra_duplicate_or_malformed_fields(self):
+        line = ('HH345_LOGOUT_DIAGNOSTICS swipes=12 prefixMatches=0 rowMatches=1 '
+                'rowHittable=true scrollViewPresent=true appAlertPresent=false')
+        for invalid in (line + ' label=private-account',
+                        line + ' url=https://private.invalid/token',
+                        line + ' rowMatches=1',
+                        line.replace('prefixMatches=0', 'rowMatches=1'),
+                        line.replace('swipes=12', 'swipes=13'),
+                        line.replace('swipes=12', 'swipes=-1'),
+                        line.replace('swipes=12', 'swipes=12.0'),
+                        line.replace('rowMatches=1', 'rowMatches=101'),
+                        line.replace('rowMatches=1', 'rowMatches=private-secret'),
+                        line.replace('rowMatches=1', 'rowMatches=0'),
+                        line.replace('rowMatches=1', 'rowMatches=2'),
+                        line.replace('rowHittable=true', 'rowHittable=private-secret'),
+                        line.replace('scrollViewPresent=true', 'scrollViewPresent=1'),
+                        line.replace('appAlertPresent=false', 'appAlertPresent=private-secret'),
+                        line + '\nprivate-account'):
+            with self.subTest(invalid=invalid):
+                self.assertIsNone(driver.parse_logout_diagnostic(invalid))
+
     def test_launch_output_contains_no_raw_fields(self):
         message = 'Failed to launch private-app https://private.invalid/secret Error Domain=FBSOpenApplicationServiceErrorDomain Code=1'
         result = self.collect('print(' + repr(json.dumps([{'eventMessage': message, 'private': 'secret'}])) + ')',
