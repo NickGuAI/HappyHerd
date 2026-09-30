@@ -1,0 +1,47 @@
+{
+  "sourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+  "productTree": "e8a2fb1ad9756a56306354861f3d62b73f5f6eb8",
+  "runId": 36733047107,
+  "jobId": 109947439643,
+  "artifactId": 11109961474,
+  "buildResult": "success",
+  "buildSeconds": 2998,
+  "archiveSha256": "0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5",
+  "buildManifestSha256": "3016a99e2f8ae5326eeb059c662b7f760041ea2bfbcb2a0e2a008d9771c73297",
+  "signingReceiptSha256": "92dc112c223620037390fa943a266de13fcae33929e07048a97a01fe7c643a20",
+  "appFileCount": 736,
+  "verification": {
+    "allFileHashesMatchArchiveManifest": true,
+    "archiveModesAndSymlinkTargetsMatch": true,
+    "buildSigningVerified": true,
+    "executableSha256": "a5ff209ab9eac4bae346c557c2b43a1f0bf2a4ca4ad29c76391bd08554b8442a",
+    "executableArchitectures": "arm64"
+  },
+  "nativeAcceptance": "unproved",
+  "independentArtifactReview": "passed",
+  "fixedSigningComparison": {
+    "original67": {
+      "simulatedXmlSectionPresent": false,
+      "simulatedDerSectionPresent": false,
+      "codeDirectoryFlags": 131074,
+      "signatureSlotCount": 1,
+      "signedXmlEntitlementsPresent": false,
+      "signedDerEntitlementsPresent": false
+    },
+    "normal4933": {
+      "simulatedXmlSectionPresent": true,
+      "simulatedDerSectionPresent": true,
+      "codeDirectoryFlags": 2,
+      "signatureSlotCount": 5,
+      "signedXmlEntitlementsPresent": true,
+      "signedDerEntitlementsPresent": true
+    }
+  },
+  "durableManifest": {
+    "file": "native-signed-build-manifest.json",
+    "encoding": "json-at-sign-unicode-escape",
+    "parsedContentMatchesOriginal": true,
+    "originalBytesReconstructByReplacingUnicodeAtEscape": true,
+    "encodedFileSha256": "b66ac4bb20fd62b46828ddc0e23dff41d79b03c92b1261d287d06fdd81cdfdb9"
+  }
+}

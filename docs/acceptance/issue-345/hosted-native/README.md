@@ -2,12 +2,13 @@
 
 This temporary acceptance tooling runs the unchanged production app and actual
 standalone server. It does not run fixtures or inject authenticated/read state.
-The native app comes from successful build `67a22ead631e384802e5f7a8657ff674c07ab28d`
-and [artifact 11078832466](https://github.com/NickGuAI/HappyHerd/actions/runs/36669543990/artifacts/11078832466).
+The native app is selected from the normal Xcode simulator-signing build
+`4933c0c727b08f2dbe7f90ae5e261d89a917e0de`
+([run 36733047107](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047107)).
 The workflow requires its checkout's complete `server/` tree to match that build.
 
 The workflow installs the pinned package toolchain, verifies all native app
-files, exports production Web, and copies the three JavaScript helpers plus the
+files, exports production Web, and copies the four JavaScript helpers plus the
 retained Web runner into the task's ignored artifact directory. `controller.mjs`
 starts a new disk-backed PGlite database, applies all 41 production migrations,
 and runs the 13 real Web stages using normal account-restore UI. It then leaves
@@ -16,10 +17,10 @@ visible public QR through the ordinary authenticated companion API.
 
 `native-driver.py` builds the small XCTest target, creates one new private iOS
 26.2 simulator matching the selected Xcode SDK, verifies its exact destination before boot, installs and verifies the selected app, and performs the actual
-Inbox journey. The controller responds to its two static markers by publishing
-a real incoming update and clicking Desktop Done. Success requires one passing,
-non-skipped XCTest, all six ordered persisted checkpoints, native/desktop state
-agreement and the deliberate screenshots. The driver cleans up only its newly
+Inbox journey. Five static markers coordinate real arrivals, Desktop Done, normal
+account switching, a pending native Done race and isolated-server restart.
+Success requires one passing, non-skipped XCTest, all 16 ordered persisted
+checkpoints, native/desktop state agreement and all 18 deliberate captures. The driver cleans up only its newly
 created simulator; the controller stops only its own browser/server processes.
 
 Required environment is documented in the workflow and driver. The sensitive
@@ -142,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all eight hosted failures and original receipt hashes.
+preserve all nine hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -150,6 +151,21 @@ terms and omitting debug-level records. Fixed service-reason enums and expanded
 Apple error-code syntax distinguish a security, busy or missing-app rejection
 without publishing its description. This is a diagnostic correction; activation
 and simulator signing remain unchanged and no launch repair is claimed.
+
+The ninth journey at `7bb61275` completed that narrowed query without timeout or
+truncation, then retained safe domain/code pairs including `NSPOSIXErrorDomain/162`.
+It again failed at activation before any startup/authentication/Inbox phase.
+[Run 36729388901](https://github.com/NickGuAI/HappyHerd/actions/runs/36729388901)
+and [artifact 11104637921](https://github.com/NickGuAI/HappyHerd/actions/runs/36729388901/artifacts/11104637921)
+remain failures. Apple's local domain-aware launchctl decoder maps 162 to a
+codesigning issue; this does not identify a particular entitlement defect. The
+next build uses normal Xcode simulator signing with only the prior explicit
+signing-disable override removed. Its own source, archive, signing receipt and
+all-file manifest must verify before the original app is installed directly.
+No post-build re-signing or claim of identical rebuilt executable bytes remains
+in the selected path. The prior custom derivative and its recipe stay preserved
+at [revision 7bb61275](https://github.com/NickGuAI/HappyHerd/tree/7bb61275bd10f00543be6eaf424b2401398a9b80/docs/acceptance/issue-345/hosted-native);
+reproducing that historical variant requires its matching verifier revision.
 
 ## Full native acceptance continuation
 

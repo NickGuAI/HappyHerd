@@ -175,28 +175,36 @@ async function verifyPrerequisiteReceipts() {
     assert.equal(verified.allFileHashesMatchArchiveManifest, true);
     assert.equal(verified.archiveModesAndSymlinkTargetsMatch, true);
     assert.equal(verified.executableArchitectures, 'arm64');
-    assert.equal(verified.appPath, resolve(process.env.HH345_ORIGINAL_APP_PATH));
+    assert.equal(verified.appPath, resolve(process.env.HH345_APP_PATH));
     assert.equal(verified.metadata.sourceSha, nativeSha);
     assert.deepEqual(verified.metadata, archive.archive.metadata);
     assert.equal(verified.metadata.bundleSha256, manifest.bundleSha256);
     assert.equal(verified.metadata.appConfigSha256, manifest.appConfigSha256);
-    for (const key of ['verified', 'codesignVerified', 'unchangedCodeSections', 'unchangedUnsignedPayload', 'unchangedUUID', 'unchangedBundle', 'unchangedAppConfig']) {
-        assert.equal(signing[key], true);
-    }
+    assert.equal(manifest.nativeBuildMode, 'xcode-default-simulator-signing');
+    assert.equal(archive.archive.nativeBuildMode, manifest.nativeBuildMode);
+    const signingHash = createHash('sha256').update(signingBytes).digest('hex');
+    assert.equal(manifest.signingReceiptSha256, signingHash);
+    assert.equal(archive.archive.signingReceiptSha256, signingHash);
+    assert.equal(verified.signingReceiptSha256, signingHash);
+    assert.equal(verified.buildSigningVerified, true);
+    assert.equal(signing.verified, true);
     assert.equal(signing.sourceSha, nativeSha);
-    assert.equal(signing.originalAppPath, verified.appPath);
-    assert.equal(signing.signedAppPath, resolve(process.env.HH345_APP_PATH));
-    assert.notEqual(signing.originalAppPath, signing.signedAppPath);
-    assert.equal(signing.originalArchiveSha256, archive.archive.archiveSha256);
-    assert.equal(signing.buildManifestSha256, archive.archive.buildManifestSha256);
-    assert.equal(signing.originalFilesVerified, verified.appFileCount);
-    assert.equal(signing.originalExecutableSha256, manifest.files[verified.metadata.executable]);
-    assert.equal(signing.signedExecutableSha256, signing.files[verified.metadata.executable]);
-    assert.equal(signing.bundleSha256, manifest.bundleSha256);
-    assert.equal(signing.appConfigSha256, manifest.appConfigSha256);
-    assert.deepEqual(signing.entitlements, { 'application-identifier': 'HH345SIM01.app.happyherd.issue345.acceptance' });
+    assert.equal(signing.app.status, 'parsed');
+    for (const key of ['bundleIdentifierMatches', 'executableMatches', 'simulatorPlatform']) {
+        assert.equal(signing.app[key], true);
+    }
+    assert.equal(signing.codesign.status, 'parsed');
+    assert.equal(signing.codesign.returnCode, 0);
+    assert.equal(signing.machO.status, 'parsed');
+    assert.equal(signing.machO.architecture, 'arm64');
+    assert.equal(signing.machO.thin, true);
+    assert.equal(signing.machO.codeSignaturePresent, true);
+    assert.equal(signing.machO.executableSha256, manifest.files[verified.metadata.executable]);
+    assert.equal(verified.executableSha256, signing.machO.executableSha256);
     const serverTree = execFileSync('git', ['rev-parse', `${sourceSha}:server`], { cwd: root, encoding: 'utf8' }).trim();
     assert.equal(serverTree, execFileSync('git', ['rev-parse', `${nativeSha}:server`], { cwd: root, encoding: 'utf8' }).trim());
+    assert.equal(manifest.productTree, serverTree);
+    assert.equal(archive.archive.productTree, serverTree);
     execFileSync('git', ['diff', '--exit-code', '--', 'server'], { cwd: root, stdio: 'pipe' });
     const toolchain = await readFile(resolve(proof, 'toolchain.txt'), 'utf8');
     assert.deepEqual(toolchain.split(/\r?\n/).slice(0, 2), [sourceSha, serverTree]);
@@ -205,10 +213,8 @@ async function verifyPrerequisiteReceipts() {
         buildManifestSha256: verifiedApp.buildManifestSha256, appFileCount: verified.appFileCount,
         bundleSha256: manifest.bundleSha256, appConfigSha256: manifest.appConfigSha256,
         unchangedServerTree: serverTree,
-        simulatorSigning: { originalExecutableSha256: signing.originalExecutableSha256,
-            signedExecutableSha256: signing.signedExecutableSha256,
-            signingReceiptSha256: createHash('sha256').update(signingBytes).digest('hex'),
-            applicationCodeUnchanged: true, variant: 'owned-simulator-application-identifier' },
+        normalSigning: { executableSha256: signing.machO.executableSha256,
+            signingReceiptSha256: signingHash, variant: 'xcode-default-simulator-signing' },
         receipts: prerequisiteFiles };
 }
 async function verifyNativeDriverReceipt() {
@@ -228,10 +234,10 @@ async function verifyNativeDriverReceipt() {
     assert.equal(native.app.archiveSha256, verifiedApp.archiveSha256);
     assert.equal(native.app.buildManifestSha256, verifiedApp.buildManifestSha256);
     assert.equal(native.app.bundleSha256, verifiedApp.metadata.bundleSha256);
-    assert.equal(native.app.executableSha256, receipt.artifactVerification.simulatorSigning.signedExecutableSha256);
-    assert.equal(native.app.signingReceiptSha256, receipt.artifactVerification.simulatorSigning.signingReceiptSha256);
-    assert.equal(native.app.originalExecutableSha256, receipt.artifactVerification.simulatorSigning.originalExecutableSha256);
-    assert.equal(native.simulatorSigningVerified, true);
+    assert.equal(native.app.executableSha256, receipt.artifactVerification.normalSigning.executableSha256);
+    assert.equal(native.app.signingReceiptSha256, receipt.artifactVerification.normalSigning.signingReceiptSha256);
+    assert.equal(native.buildSigningVerified, true);
+    assert.equal(native.installedAllManifestFilesVerified, true);
     assert.deepEqual(native.nonsecretFeedIds, [receipt.firstId, receipt.secondId]);
     assert.deepEqual(native.markers, markers);
     assert.deepEqual(native.testSummary, summary);

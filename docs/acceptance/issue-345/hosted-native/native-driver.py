@@ -2,8 +2,8 @@
 """Run the issue-345 XCTest on a new private hosted iOS simulator.
 
 Inputs: RUNNER_TEMP, HH345_SOURCE_SHA, HH345_NATIVE_SHA, HH345_APP_ARTIFACT
-(directory with HappyHerd.app.zip/build-manifest.json/archive.sha256),
-HH345_APP_PATH (verified signing variant), HH345_ORIGINAL_APP_PATH (original),
+(directory with HappyHerd.app.zip/build-manifest.json/archive.sha256/signing-receipt.json),
+HH345_APP_PATH (byte-faithful, normally Xcode-signed extracted app),
 HH345_ARTIFACT_DIR (PRIVATE),
 HH345_PROOF_DIR (public allowlist), HH345_FIRST_ID and HH345_SECOND_ID.
 Requires selected Xcode, xcodegen and its matching installed iOS/iPhone 17 runtime.
@@ -27,8 +27,8 @@ import sys
 import tempfile
 import time
 
-EXPECTED_SHA = '67a22ead631e384802e5f7a8657ff674c07ab28d'
-EXPECTED_ARCHIVE_SHA = 'd28905ccf3fcf3d8156a44798a018d766d123afeb3982585a0bcbc56ad8d6133'
+EXPECTED_SHA = '4933c0c727b08f2dbe7f90ae5e261d89a917e0de'
+EXPECTED_ARCHIVE_SHA = '0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5'
 APP_ID = 'app.happyherd.issue345.acceptance'
 RUNNER_ID = 'app.happyherd.issue345.uitests.xctrunner'
 MARKERS = ('HH345_READY_FOR_NEW_ARRIVAL', 'HH345_READY_FOR_REMOTE_DONE',
@@ -466,7 +466,8 @@ def main():
     save()
     try:
         require(sys.platform == 'darwin' and platform.machine() == 'arm64', 'Expected arm64 hosted macOS.')
-        require(os.environ.get('HH345_NATIVE_SHA') == EXPECTED_SHA, 'Native source must be verified hosted67.')
+        require(os.environ.get('HH345_NATIVE_SHA') == EXPECTED_SHA, 'Native source must be the verified normal-signing build.')
+        require(re.fullmatch(r'[0-9a-f]{64}', EXPECTED_ARCHIVE_SHA), 'Signed archive selection is pending verified build evidence.')
         require(re.fullmatch(r'[0-9a-f]{40}', receipt['sourceSha'] or ''), 'Expected proof source SHA.')
         check_resources()
         receipt['hardware'] = {
@@ -479,24 +480,19 @@ def main():
         receipt['xcodeVersion'] = xcode_log.read_text().strip()
         artifact = Path(os.environ['HH345_APP_ARTIFACT']).resolve()
         app = Path(os.environ['HH345_APP_PATH']).resolve()
-        manifest = json.loads((artifact / 'build-manifest.json').read_text())
-        require(digest(artifact / 'HappyHerd.app.zip') == EXPECTED_ARCHIVE_SHA, 'Verified app ZIP changed.')
-        for key, expected in {'sourceSha': EXPECTED_SHA, 'architecture': 'arm64', 'configuration': 'Release',
-                              'bundleIdentifier': APP_ID, 'taskSpecificNativeSourcePatches': [],
-                              'revenueCatSourcePatched': False}.items():
-            require(manifest.get(key) == expected, 'Hosted app manifest mismatch.')
+        verification_spec = importlib.util.spec_from_file_location('hh345_selected_app', source / 'verify-hosted-app.py')
+        verifier = importlib.util.module_from_spec(verification_spec)
+        verification_spec.loader.exec_module(verifier)
+        require(verifier.EXPECTED_SHA == EXPECTED_SHA and verifier.EXPECTED_ARCHIVE_SHA == EXPECTED_ARCHIVE_SHA,
+                'Driver and selected artifact verifier must agree.')
+        archive_receipt, manifest = verifier.verify_archive(artifact)
+        extracted = verifier.verify_extracted(app, archive_receipt, manifest)
+        require(extracted['buildSigningVerified'] is True, 'Expected strictly verified normal Xcode signing.')
         signing_path = Path(os.environ['HH345_PROOF_DIR']) / 'native-app-signing.json'
-        signing = json.loads(signing_path.read_text())
-        signing_spec = importlib.util.spec_from_file_location('hh345_simulator_signing', source / 'prepare-simulator-signing.py')
-        signing_module = importlib.util.module_from_spec(signing_spec)
-        signing_spec.loader.exec_module(signing_module)
-        variant = signing_module.verify_variant(Path(os.environ['HH345_ORIGINAL_APP_PATH']).resolve(), app, manifest)
-        require(all(signing.get(key) == value for key, value in variant.items()),
-                'Signing variant differs from its verification receipt.')
-        require(signing.get('codesignVerified') is True and signing.get('originalArchiveSha256') == EXPECTED_ARCHIVE_SHA,
-                'Expected verified isolated simulator signature.')
-        files = variant['files']
-        receipt['simulatorSigningVerified'] = True
+        require(digest(signing_path) == manifest['signingReceiptSha256'],
+                'Published signing receipt differs from selected build manifest.')
+        files = manifest['files']
+        receipt['buildSigningVerified'] = True
         info = plistlib.loads((app / 'Info.plist').read_bytes())
         require(info['CFBundleIdentifier'] == APP_ID and info['DTPlatformName'] == 'iphonesimulator',
                 'Expected isolated simulator app.')
@@ -508,7 +504,6 @@ def main():
                           'executableSha256': digest(app / info['CFBundleExecutable']),
                           'buildManifestSha256': digest(artifact / 'build-manifest.json'),
                           'bundleIdentifier': APP_ID,
-                          'originalExecutableSha256': variant['originalExecutableSha256'],
                           'signingReceiptSha256': digest(signing_path)}
         first_id, second_id = os.environ.get('HH345_FIRST_ID', ''), os.environ.get('HH345_SECOND_ID', '')
         require(first_id and second_id and first_id != second_id, 'Expected two distinct nonsecret feed IDs.')
@@ -594,6 +589,12 @@ def main():
                 digest(installed_app / 'Info.plist') == files['Info.plist'] and
                 digest(installed_app / manifest['appConfigPath']) == files[manifest['appConfigPath']],
                 'Installed production app hash mismatch.')
+        installed_verification = verifier.verify_extracted(installed_app, archive_receipt, manifest)
+        require(installed_verification['allFileHashesMatchArchiveManifest'] is True
+                and installed_verification['appFileCount'] == len(files)
+                and installed_verification['buildSigningVerified'] is True,
+                'Installed app must preserve every selected manifest file and its signature.')
+        receipt['installedAllManifestFilesVerified'] = True
         require(digest(installed_runner / runner_info['CFBundleExecutable']) == digest(runner_binary) and
                 digest(installed_runner / test_relative) == digest(runner / test_relative),
                 'Installed test runner hash mismatch.')

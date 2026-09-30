@@ -8,6 +8,7 @@ Neither mode modifies the archive/app, starts a simulator, or performs cleanup.
 from __future__ import annotations
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -21,9 +22,12 @@ import time
 import zipfile
 
 BASE = Path(__file__).resolve().parent
-EXPECTED_SHA = '67a22ead631e384802e5f7a8657ff674c07ab28d'
-EXPECTED_TIMESTAMP = '2026-09-30T00:33:49-04:00'
-EXPECTED_RUN = 'https://github.com/NickGuAI/HappyHerd/actions/runs/36669543990'
+EXPECTED_SHA = '4933c0c727b08f2dbe7f90ae5e261d89a917e0de'
+EXPECTED_ARCHIVE_SHA = '0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5'
+EXPECTED_PRODUCT_TREE = 'e8a2fb1ad9756a56306354861f3d62b73f5f6eb8'
+EXPECTED_BUILD_MODE = 'xcode-default-simulator-signing'
+EXPECTED_TIMESTAMP = '2026-09-30T10:55:41-04:00'
+EXPECTED_RUN = 'https://github.com/NickGuAI/HappyHerd/actions/runs/36733047107'
 EXPECTED_BUNDLE_ID = 'app.happyherd.issue345.acceptance'
 EXPECTED_SERVER = b'http://127.0.0.1:43545'
 APP_ROOT = 'HappyHerd.app'
@@ -62,6 +66,40 @@ def safe_name(name):
 def load_json(path):
     with path.open(encoding='utf-8') as stream:
         return json.load(stream)
+
+
+def signing_parser():
+    spec = importlib.util.spec_from_file_location('hh345_native_signing_receipt', BASE.parent / 'native-signing-receipt.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_signing_receipt(artifact, manifest):
+    path = artifact / 'signing-receipt.json'
+    expected_hash = manifest.get('signingReceiptSha256')
+    require(isinstance(expected_hash, str) and HEX256.fullmatch(expected_hash), 'Invalid signing receipt hash')
+    require(digest_file(path) == expected_hash, 'Build signing receipt bytes differ from manifest')
+    signing = load_json(path)
+    require(signing.get('schemaVersion') == 1 and signing.get('verified') is True
+            and signing.get('sourceSha') == EXPECTED_SHA,
+            'Expected verified signing receipt from selected native build')
+    require(signing.get('app') == {'status': 'parsed', 'bundleIdentifierMatches': True,
+            'executableMatches': True, 'simulatorPlatform': True}, 'Signing app identity mismatch')
+    for name in ('buildSettings', 'generatedEntitlements', 'machO'):
+        require(signing.get(name, {}).get('status') == 'parsed', 'Incomplete build signing receipt')
+    require(signing.get('codesign') == {'status': 'parsed', 'returnCode': 0}, 'Build codesign verification did not pass')
+    require(signing['machO'].get('executableSha256') == manifest['files'].get('HappyHerd'),
+            'Signing receipt executable hash differs from manifest')
+    return signing
+
+
+def verify_macho_signing(data, signing):
+    # The producer emits only fixed fields; reread the selected executable's
+    # signature without printing raw identifiers, entitlement values or output.
+    actual = signing_parser().summarize_macho(data)
+    require(signing['machO'] == {'status': 'parsed', **actual}, 'Executable signing fields differ from build receipt')
+    return actual
 
 
 def metadata_checks(info_bytes, config_bytes, bundle_hash, manifest):
@@ -105,6 +143,7 @@ def metadata_checks(info_bytes, config_bytes, bundle_hash, manifest):
 
 
 def verify_archive(artifact):
+    require(HEX256.fullmatch(EXPECTED_ARCHIVE_SHA), 'Signed archive selection is pending verified build evidence')
     archive = artifact / 'HappyHerd.app.zip'
     manifest_path = artifact / 'build-manifest.json'
     checksum_path = artifact / 'archive.sha256'
@@ -115,10 +154,12 @@ def verify_archive(artifact):
     checksum_name = safe_name(match.group(2))
     require(PurePosixPath(checksum_name).name == archive.name, 'Checksum filename mismatch')
     archive_hash = digest_file(archive)
-    require(archive_hash == match.group(1).lower(), 'Downloaded archive SHA256 mismatch')
+    require(archive_hash == match.group(1).lower() == EXPECTED_ARCHIVE_SHA, 'Downloaded archive SHA256 mismatch')
     manifest = load_json(manifest_path)
     for key, expected in {
         'sourceSha': EXPECTED_SHA,
+        'nativeBuildMode': EXPECTED_BUILD_MODE,
+        'productTree': EXPECTED_PRODUCT_TREE,
         'configuration': 'Release',
         'architecture': 'arm64',
         'bundleIdentifier': EXPECTED_BUNDLE_ID,
@@ -140,6 +181,7 @@ def verify_archive(artifact):
             'Invalid app.config path')
     require(config_path.endswith('EXConstants.bundle/app.config'), 'Unexpected app.config location')
 
+    signing = load_signing_receipt(artifact, manifest)
     entries, member_receipts, metadata_members = {}, [], []
     with zipfile.ZipFile(archive) as zipped:
         seen, seen_casefold = set(), set()
@@ -236,11 +278,14 @@ def verify_archive(artifact):
         metadata = metadata_checks(read_app('Info.plist'), read_app(config_path),
                                    hashlib.sha256(bundle).hexdigest(), manifest)
         require(metadata['executable'] in actual_files, 'Executable missing from file manifest')
+        verify_macho_signing(read_app(metadata['executable']), signing)
 
     return {
         'archivePath': str(archive), 'archiveBytes': archive.stat().st_size,
         'archiveSha256': archive_hash, 'buildManifestSha256': digest_file(manifest_path),
         'sourceSha': EXPECTED_SHA, 'expectedWorkflowRun': EXPECTED_RUN,
+        'nativeBuildMode': EXPECTED_BUILD_MODE, 'productTree': EXPECTED_PRODUCT_TREE,
+        'signingReceiptSha256': manifest['signingReceiptSha256'],
         'manifestAttestsNoTaskSpecificNativeSourcePatches': True,
         'manifestAttestsRevenueCatSourceUnpatched': True,
         'appFileCount': len(actual_files), 'appMembers': member_receipts,
@@ -289,7 +334,14 @@ def verify_extracted(app, archive_receipt, manifest):
     require(architectures.split() == ['arm64'], 'Extracted executable is not arm64-only')
     require('Mach-O' in file_description and 'executable arm64' in file_description,
             'Unexpected Mach-O executable type')
+    signing = load_signing_receipt(Path(archive_receipt['archivePath']).parent, manifest)
+    parser = signing_parser()
+    parser.inspect_app(root)
+    actual_signing = verify_macho_signing(executable.read_bytes(), signing)
+    require(parser.verify_codesign(root) == {'returnCode': 0}, 'Extracted app codesign verification did not pass')
     return {'appPath': str(root), 'appFileCount': len(actual_files),
+            'buildSigningVerified': True, 'executableSha256': actual_signing['executableSha256'],
+            'signingReceiptSha256': manifest['signingReceiptSha256'],
             'allFileHashesMatchArchiveManifest': True,
             'archiveModesAndSymlinkTargetsMatch': True,
             'executableArchitectures': architectures, 'executableDescription': file_description,

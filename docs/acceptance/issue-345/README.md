@@ -148,6 +148,21 @@ suite](https://github.com/NickGuAI/HappyHerd/actions/runs/36683231386/job/109783
 passed; this supports intermittency without relabeling the failed Unit run. No
 threshold or skip changed and no manual Unit retry was performed.
 
+
+At [`4933c0c7` Unit](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047931/job/109947545876),
+the same three unchanged browser setup hooks exceeded 30 seconds: Credentials
+Settings, desktop Workspace and side-chat Header. 3,702 tests passed; 238 did not
+run after setup failure, plus ten existing skips. Their files, the complete
+product tree and both verification workflows are byte-identical to passing
+`7bb61275`. The log does not identify which fixture/server/browser setup phase
+stalled and contains no classified resource-exhaustion signal. This supports
+intermittent setup timing, without establishing its cause or relabeling the
+failure. The [same-head Contract suite](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047067/job/109947530173)
+passed all 359 app test files and 3,940 tests, including all 238 tests from those
+three suites; only the ten existing skips remain. No timeout, threshold,
+assertion or skip was changed; final-head Unit and Contract passes remain
+required.
+
 ### Launch rejection and normal-signing build comparison
 
 The narrowed diagnostic at `7bb61275` completed its owned-simulator query without
@@ -190,3 +205,39 @@ rerunning the already-failed derivative. Pull-request path filters alone cannot
 isolate this experiment because they evaluate the whole PR diff. Restore
 `synchronize` when the new artifact is verified and selected. No native pass or
 acceptance skip is claimed for the build-only head.
+
+
+The [normal-signing build](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047107)
+at `4933c0c7` passed its Release build in 49m58s, signing verification and archive
+upload. [Artifact 11109961474](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047107/artifacts/11109961474)
+contains 736 manifest-verified files; its archive SHA-256 is
+`0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5`.
+The [build evidence](native-signed-build-evidence.json),
+[complete manifest](native-signed-build-manifest.json) and
+[sanitized signing receipt](native-signed-signing-receipt.json) are retained here.
+The durable manifest uses standard JSON Unicode escapes for at-signs in image
+filenames, which the publication checker otherwise misclassifies as emails.
+Parsed filenames/hashes are unchanged, and reversing only those escapes
+reconstructs the original manifest bytes and recorded SHA-256 exactly. The
+signing receipt remains byte-identical to the build output.
+Read-only archive and extracted-app verification, including strict codesign,
+passed. Product source remains unchanged.
+
+The hosted macOS 26.6.2 decoder also maps POSIX 162 to `codesigning-issue`.
+Xcode enabled local ad-hoc signing without a development team. It generated
+normal and simulator entitlement inputs: only the simulator input reports an
+application identifier matching this app; the normal XML signature reports no
+application identifier. These are fixed presence/match flags, not raw entitlement
+values. Independent Mach-O inspection also found the normal build contains
+simulator XML and DER entitlement sections absent from the original unsigned
+build. These differences support using Xcode's own simulator-signing path; they
+do not yet prove startup, normal authentication or Inbox behavior, or isolate a
+single cause of the earlier signature rejection.
+
+The next journey selects the original normally signed artifact directly and
+verifies every installed manifest file, with no post-build re-signing. The
+journey's synchronize trigger is restored; the completed build comparison's
+synchronize trigger is suspended to avoid rebuilding an already selected
+artifact. Both retained workflow recipes match their active copies. All prior
+failures, assertions, timeouts, screenshots, checkpoints and skips remain
+preserved. Native acceptance is still unproved until the full journey passes.

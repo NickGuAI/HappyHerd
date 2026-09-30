@@ -2,8 +2,7 @@ name: Issue 345 authenticated native journey
 
 on:
   pull_request:
-    # Build comparison only: restore synchronize when selecting the verified new app.
-    types: [opened, reopened]
+    types: [opened, synchronize, reopened]
     paths:
       - .github/workflows/issue-345-native-journey.yml
       - docs/acceptance/issue-345/hosted-native/**
@@ -24,7 +23,7 @@ jobs:
       APP_ENV: production
       EXPO_NO_TELEMETRY: 1
       HH345_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      HH345_NATIVE_SHA: 67a22ead631e384802e5f7a8657ff674c07ab28d
+      HH345_NATIVE_SHA: 4933c0c727b08f2dbe7f90ae5e261d89a917e0de
       EXPO_PUBLIC_HAPPYHERD_SERVER_URL: http://127.0.0.1:43545
       TZ: UTC
     steps:
@@ -50,7 +49,6 @@ jobs:
           echo "HH345_ARTIFACT_DIR=$GITHUB_WORKSPACE/.artifacts/issue-345/live-acceptance" >> "$GITHUB_ENV"
           echo "HH345_PROOF_DIR=$GITHUB_WORKSPACE/acceptance-proof" >> "$GITHUB_ENV"
           echo "HH345_APP_ARTIFACT=$GITHUB_WORKSPACE/.artifacts/issue-345/live-acceptance/hosted-app-artifact" >> "$GITHUB_ENV"
-          echo "HH345_ORIGINAL_APP_PATH=$RUNNER_TEMP/issue-345-app/HappyHerd.app" >> "$GITHUB_ENV"
           echo "HH345_APP_PATH=$RUNNER_TEMP/issue-345-app/HappyHerd.app" >> "$GITHUB_ENV"
           echo "HAPPYHERD_BUILD_COMMIT_SHA=$HH345_SOURCE_SHA" >> "$GITHUB_ENV"
           echo "TMPDIR=$RUNNER_TEMP/issue-345-metro/" >> "$GITHUB_ENV"
@@ -66,8 +64,8 @@ jobs:
           pnpm --filter happyherd-app exec playwright-core install chromium
       - uses: actions/download-artifact@v4
         with:
-          name: issue-345-native-67a22ead631e384802e5f7a8657ff674c07ab28d
-          run-id: 36669543990
+          name: issue-345-native-signed-4933c0c727b08f2dbe7f90ae5e261d89a917e0de
+          run-id: 36733047107
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: .artifacts/issue-345/live-acceptance/hosted-app-artifact
       - name: Verify selected native app before installation
@@ -75,13 +73,9 @@ jobs:
           python3 docs/acceptance/issue-345/hosted-native/verify-hosted-app.py archive             --artifact-dir "$HH345_APP_ARTIFACT" --receipt "$HH345_PROOF_DIR/native-app-archive.json"
           ditto -xk "$HH345_APP_ARTIFACT/HappyHerd.app.zip" "$RUNNER_TEMP/issue-345-app"
           python3 docs/acceptance/issue-345/hosted-native/verify-hosted-app.py extracted             --artifact-dir "$HH345_APP_ARTIFACT" --app "$HH345_APP_PATH"             --receipt "$HH345_PROOF_DIR/native-app-extracted.json"
-      - name: Sign a separate simulator variant for its own keychain group
+      - name: Preserve the verified original Xcode signing receipt
         run: |
-          python3 docs/acceptance/issue-345/hosted-native/prepare-simulator-signing.py \
-            --artifact-dir "$HH345_APP_ARTIFACT" --original-app "$HH345_ORIGINAL_APP_PATH" \
-            --signed-app "$RUNNER_TEMP/issue-345-signed/HappyHerd.app" \
-            --receipt "$HH345_PROOF_DIR/native-app-signing.json"
-          echo "HH345_APP_PATH=$RUNNER_TEMP/issue-345-signed/HappyHerd.app" >> "$GITHUB_ENV"
+          cp "$HH345_APP_ARTIFACT/signing-receipt.json" "$HH345_PROOF_DIR/native-app-signing.json"
       - name: Export the same product and prepare acceptance tooling
         run: |
           pnpm --dir server --filter happyherd-app exec expo export --platform web --clear             --output-dir "$HH345_ARTIFACT_DIR/web-dist" > "$HH345_ARTIFACT_DIR/web-export.log" 2>&1

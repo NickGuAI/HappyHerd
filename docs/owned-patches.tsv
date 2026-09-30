@@ -697,3 +697,4 @@ INBOX_NATIVE_STARTUP_DIAGNOSTICS_345	accepted	test(inbox): synchronize native st
 INBOX_NATIVE_LAUNCH_CLASSIFICATION_345	accepted	test(inbox): classify native launch failures without exposing private logs	docs/acceptance/issue-345/hosted-native/native-driver.py
 INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence coverage and narrow launch diagnostics	docs/acceptance/issue-345/hosted-native/controller.mjs
 INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal Xcode simulator signing	docs/acceptance/issue-345/native-signed-build-workflow.yml
+INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/hosted-native/verify-hosted-app.py

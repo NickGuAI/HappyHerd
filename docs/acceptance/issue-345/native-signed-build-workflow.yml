@@ -3,6 +3,8 @@ name: Issue 345 normal Xcode signing experiment
 
 on:
   pull_request:
+    # Selected artifact is immutable; synchronize runs its full native journey.
+    types: [opened, reopened]
     paths:
       - .github/workflows/issue-345-native-signed-build.yml
       - docs/acceptance/issue-345/native-signed-build-workflow.yml
