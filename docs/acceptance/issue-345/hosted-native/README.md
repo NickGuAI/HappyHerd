@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all fifteen hosted failures and original receipt hashes.
+preserve all sixteen hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -322,3 +322,31 @@ confirmation and login assertions, and all timeouts and captures. Fixed
 counts/booleans attribute the row query without publishing labels, account
 content, hierarchy or additional screenshots. The prior receipt establishes the
 failed assertion boundary; it does not preserve the actual runtime label.
+
+
+The sixteenth attempt at `ec7567a7` confirmed the Logout selector correction.
+[Run 36759522116](https://github.com/NickGuAI/HappyHerd/actions/runs/36759522116)
+recorded zero matches for the old prefix, exactly one compound row match and
+hittability after two swipes. The ordinary Logout tap, native confirmation
+assertion and confirmation tap completed. It then failed at `account-logout-login`:
+the app was `not-running`, and no UI query ran for the failure-state diagnostic.
+No B authentication occurred. The preceding native checkpoints 01–08 and all 13
+Web stages passed; XCTest still records one failure, zero passes and zero skips.
+Resources remained above their floors, no resource probe failed, and simulator
+cleanup succeeded. [Artifact 11118948370](https://github.com/NickGuAI/HappyHerd/actions/runs/36759522116/artifacts/11118948370)
+and the original native/controller/transport hashes preserve this failed run.
+All ten intended screenshots passed independent hash and visual/privacy review.
+The failure-state capture precedes the harness's protective app termination, so
+that termination does not explain the recorded not-running state.
+
+Normal logout clears stored credentials/auth state and calls
+`Updates.reloadAsync()`. With this app's disabled OTA configuration, the locked
+Expo implementation triggers a React-context reload; the inspected path does
+not intentionally exit the app process. Existing scoped XCTest/unified-log
+classifications are available and untruncated but report only `unknown`, which
+cannot distinguish a crash from another process/lifecycle failure. The next
+bounded diagnostic inspects only reports matched to this app and private
+simulator, publishing fixed classifications and safe metadata. It does not
+reopen the app to hide the failure or change logout, authentication, assertions,
+timeouts, screenshots or other acceptance criteria. The exact cause remains
+unproved until the new evidence is available.

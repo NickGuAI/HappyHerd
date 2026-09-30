@@ -5,6 +5,10 @@ The caller owns app/simulator scoping, collection bounds and source provenance.
 This module performs no I/O. Results describe observed failure evidence, not a
 proven root cause: e.g. a launch rejection can wrap a process crash.
 """
+from datetime import datetime
+import hashlib
+import json
+from pathlib import PurePosixPath
 import re
 
 
@@ -13,6 +17,141 @@ MAX_MESSAGE_CHARS = 1024 * 1024
 MAX_TOTAL_CHARS = 4 * 1024 * 1024
 MAX_ERROR_CODES = 32
 MAX_ABS_ERROR_CODE = 65535
+MAX_CRASH_REPORT_BYTES = 2 * 1024 * 1024
+
+
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError()
+        result[key] = value
+    return result
+
+
+def _invalid_constant(_):
+    raise ValueError()
+
+
+def classify_owned_crash_report(data, *, app_id, installed_executable, simulator_udid, since, until):
+    """Read Apple's two-object IPS format; return no input strings or paths.
+
+    Identity and capture time are mandatory before any crash classification.
+    procPath may redact the user's home, so compare the complete installed path
+    suffix starting with this owned simulator's UUID, including its app-container
+    UUID. An exact simulator coalition can establish scope if that path is absent
+    or wholly redacted. Neither filename nor bundle identity alone establishes scope.
+    https://developer.apple.com/documentation/xcode/interpreting-the-json-format-of-a-crash-report
+    """
+    if not isinstance(data, bytes) or len(data) > MAX_CRASH_REPORT_BYTES:
+        return {'status': 'oversized'}
+    try:
+        decoder = json.JSONDecoder(object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
+        text = data.decode('utf-8').lstrip()
+        header, offset = decoder.raw_decode(text)
+        body_text = text[offset:].lstrip()
+        body, offset = decoder.raw_decode(body_text)
+        if body_text[offset:].strip() or not isinstance(header, dict) or not isinstance(body, dict):
+            raise ValueError()
+    except (ValueError, UnicodeError, RecursionError):
+        return {'status': 'malformed'}
+    if header.get('bug_type') != '309':
+        return {'status': 'unsupported-report'}
+    bundle = body.get('bundleInfo')
+    if (not isinstance(bundle, dict) or bundle.get('CFBundleIdentifier') != app_id
+            or ('bundleID' in header and header['bundleID'] != app_id)
+            or body.get('procName') != PurePosixPath(installed_executable).name):
+        return {'status': 'identity-mismatch'}
+    expected = PurePosixPath(installed_executable).parts
+    if expected.count(simulator_udid) != 1:
+        return {'status': 'identity-mismatch'}
+    suffix = expected[expected.index(simulator_udid):]
+    process_path = body.get('procPath')
+    process_parts = PurePosixPath(process_path).parts if isinstance(process_path, str) else ()
+    path_matches = '..' not in process_parts and process_parts[-len(suffix):] == suffix
+    coalition = body.get('coalitionName')
+    coalition_matches = coalition == 'com.apple.CoreSimulator.SimDevice.' + simulator_udid
+    # A conflicting simulator UUID must not be rescued by another matching field.
+    other_coalition = (isinstance(coalition, str)
+                       and coalition.startswith('com.apple.CoreSimulator.SimDevice.') and not coalition_matches)
+    path_unavailable = process_path is None or process_path in ('', '<redacted>', '<private>')
+    if not (path_matches or (coalition_matches and path_unavailable)) or other_coalition:
+        return {'status': 'identity-mismatch'}
+    try:
+        captured = body.get('captureTime')
+        if not isinstance(captured, str) or len(captured) > 64:
+            raise ValueError()
+        for pattern in ('%Y-%m-%d %H:%M:%S.%f %z', '%Y-%m-%d %H:%M:%S %z',
+                        '%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z'):
+            try:
+                timestamp = datetime.strptime(captured, pattern)
+                break
+            except ValueError:
+                continue
+        else:
+            raise ValueError()
+        if timestamp.tzinfo is None or not since <= timestamp.timestamp() <= until:
+            raise ValueError()
+    except (ValueError, OverflowError, OSError):
+        return {'status': 'time-mismatch'}
+
+    exception = body.get('exception') if isinstance(body.get('exception'), dict) else {}
+    termination = body.get('termination') if isinstance(body.get('termination'), dict) else {}
+    safe_exception = {key: exception[key] for key, values in (('type', EXCEPTIONS), ('signal', SIGNALS))
+                      if exception.get(key) in values}
+    namespaces = ('SIGNAL', 'CODESIGNING', 'DYLD', 'WATCHDOG', 'RUNNINGBOARD', 'FRONTBOARD', 'JETSAM', 'LIBSYSTEM')
+    namespace = termination.get('namespace')
+    safe_termination = {'namespace': namespace} if namespace in namespaces else {}
+    code = termination.get('code')
+    if type(code) is int and 0 <= code <= 0xffffffff:
+        safe_termination['code'] = code
+    classification = classify_launch_messages([json.dumps({
+        'exception': safe_exception, 'termination': safe_termination,
+    })])
+
+    frames = []
+    frame_limit_reached = False
+    backtrace = body.get('lastExceptionBacktrace')
+    if isinstance(backtrace, list):
+        frames.extend(backtrace[:64])
+        frame_limit_reached = len(backtrace) > 64
+    threads = body.get('threads')
+    faulting = body.get('faultingThread')
+    if isinstance(threads, list):
+        frame_limit_reached = frame_limit_reached or len(threads) > 128
+        for index, thread in enumerate(threads[:128]):
+            if isinstance(thread, dict) and (thread.get('triggered') is True or
+                                            (type(faulting) is int and index == faulting)):
+                if isinstance(thread.get('frames'), list):
+                    frames.extend(thread['frames'][:64])
+                    frame_limit_reached = frame_limit_reached or len(thread['frames']) > 64
+                break
+    tags = set()
+    symbolized_frames = 0
+    for frame in frames:
+        symbol = frame.get('symbol') if isinstance(frame, dict) else None
+        if not isinstance(symbol, str) or len(symbol) > 1024:
+            continue
+        symbolized_frames += 1
+        # Source-owned React Native / Expo symbol names, never arbitrary symbols.
+        if symbol in ('RCTFatal', 'RCTFatalException'):
+            tags.add('react-fatal')
+        if symbol.startswith('-[RCTExceptionsManager reportFatalException:'):
+            tags.add('react-js-fatal')
+        if symbol in ('RCTTriggerReloadCommandListeners', '-[RCTHost didReceiveReloadCommand]',
+                      '-[RCTHost _reloadWithShouldRestartSurfaces:]'):
+            tags.add('react-reload')
+        if re.search(r'\bRecreateReactContextProcedure\.run\(procedureContext:\)', symbol):
+            tags.add('expo-updates-reload')
+    return {
+        'status': 'matched', 'sourceSha256': hashlib.sha256(data).hexdigest(),
+        'bundleIdentifierMatched': True, 'installedProcessPathMatched': path_matches,
+        'simulatorCoalitionMatched': coalition_matches, 'capturedDuringJourney': True,
+        'classification': classification, 'termination': safe_termination,
+        'faultingOrExceptionBacktraceTags': sorted(tags),
+        'framesInspected': len(frames), 'symbolizedFramesInspected': symbolized_frames,
+        'frameInspectionTruncated': frame_limit_reached,
+    }
 
 # Emit the constants below, never a domain or enum copied from input.
 ERROR_DOMAINS = (

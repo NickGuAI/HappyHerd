@@ -270,6 +270,96 @@ def parse_native_diagnostic(line):
             **{key: fields[key] == 'true' for key in NATIVE_BOOLEANS}}
 
 
+def collect_owned_crash_reports(device_set, udid, installed_executable, since, *, host_home=None, until=None):
+    """Inspect bounded recent IPS files in memory; never retain report contents."""
+    result = {'zeroReportsAreInconclusive': True, 'sources': [], 'reports': [],
+              'byteLimitReached': False, 'candidateLimitReached': False}
+    try:
+        installed_executable.relative_to(device_set / udid)
+        if re.fullmatch(UUID, udid) is None:
+            raise ValueError()
+    except ValueError:
+        result['notAvailableReason'] = 'invalid-owned-scope'
+        return result
+    until = time.time() if until is None else until
+    remaining_bytes, remaining_candidates = 8 * 1024 * 1024, 16
+    locations = (
+        ('owned-device-crash-reports', device_set / udid / 'data/Library/Logs/CrashReporter'),
+        ('host-diagnostic-reports', (host_home or Path.home()) / 'Library/Logs/DiagnosticReports'),
+    )
+    for source, directory in locations:
+        row = {'source': source, 'available': False, 'entriesScanned': 0, 'candidates': 0,
+               'recentCandidates': 0, 'bytesRead': 0, 'matchedReports': 0, 'listingTruncated': False,
+               'rejected': {key: 0 for key in ('nonregular', 'outside-time-window', 'unreadable',
+                                              'oversized', 'malformed', 'unsupported-report',
+                                              'identity-mismatch', 'time-mismatch')}}
+        result['sources'].append(row)
+        try:
+            if not stat.S_ISDIR(directory.lstat().st_mode):
+                row['notAvailableReason'] = 'not-regular-directory'
+                continue
+            with os.scandir(directory) as entries:
+                row['available'] = True
+                for index, entry in enumerate(entries):
+                    if index >= 128:
+                        row['listingTruncated'] = True
+                        break
+                    row['entriesScanned'] += 1
+                    if not (entry.name.startswith('HappyHerd-') and entry.name.endswith('.ips')):
+                        continue
+                    row['candidates'] += 1
+                    try:
+                        info = entry.stat(follow_symlinks=False)
+                        if not stat.S_ISREG(info.st_mode):
+                            row['rejected']['nonregular'] += 1
+                            continue
+                        if not since <= info.st_mtime <= until:
+                            row['rejected']['outside-time-window'] += 1
+                            continue
+                        row['recentCandidates'] += 1
+                        if info.st_size > launch_diagnostics.MAX_CRASH_REPORT_BYTES:
+                            row['rejected']['oversized'] += 1
+                            continue
+                        if info.st_size > remaining_bytes:
+                            result['byteLimitReached'] = True
+                            break
+                        if remaining_candidates <= 0:
+                            result['candidateLimitReached'] = True
+                            break
+                        remaining_candidates -= 1
+                        descriptor = os.open(entry.path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                        with os.fdopen(descriptor, 'rb') as stream:
+                            before = os.fstat(stream.fileno())
+                            if (not stat.S_ISREG(before.st_mode) or before.st_ino != info.st_ino
+                                    or before.st_size != info.st_size or before.st_mtime_ns != info.st_mtime_ns):
+                                row['rejected']['unreadable'] += 1
+                                continue
+                            data = stream.read(info.st_size)
+                            after = os.fstat(stream.fileno())
+                        row['bytesRead'] += len(data)
+                        remaining_bytes -= len(data)
+                        if (len(data) != info.st_size or after.st_size != info.st_size
+                                or after.st_mtime_ns != info.st_mtime_ns):
+                            row['rejected']['unreadable'] += 1
+                            continue
+                        report = launch_diagnostics.classify_owned_crash_report(
+                            data, app_id=APP_ID, installed_executable=str(installed_executable),
+                            simulator_udid=udid, since=since, until=until)
+                        status = report.pop('status')
+                        if status == 'matched':
+                            row['matchedReports'] += 1
+                            result['reports'].append({'source': source, 'reportModifiedDuringJourney': True, **report})
+                        else:
+                            row['rejected'][status] += 1
+                    except OSError:
+                        row['rejected']['unreadable'] += 1
+        except FileNotFoundError:
+            row['notAvailableReason'] = 'directory-missing'
+        except OSError:
+            row['notAvailableReason'] = 'directory-unreadable'
+    return result
+
+
 class DriverRequirementError(RuntimeError):
     """A static, code-owned failure message safe for the public receipt."""
 
@@ -820,6 +910,10 @@ def main():
             'phase': 'sanitized-auth-log-diagnostic',
             **{key: log_diagnostic[key] for key in ('startedAt', 'finishedAt', 'exitCode')},
         })
+        journey_started = next(entry['startedAt'] for entry in receipt['commands']
+                               if entry['phase'] == 'native-journey')
+        receipt['ownedCrashReports'] = collect_owned_crash_reports(
+            device_set, udid, installed_app / info['CFBundleExecutable'], journey_started)
         save()
         require(digest(original) == original_hash, 'Original generated manifest changed.')
         receipt['originalXctestrunUnchanged'] = True

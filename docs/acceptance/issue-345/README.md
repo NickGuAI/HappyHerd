@@ -315,3 +315,13 @@ being added to the test harness before another run, retaining all commands,
 timeouts, assertions, authentication, continuity checks and cleanup. Only fixed
 labels/categories and safe numeric fields may be published, never raw child
 output, messages, arguments, paths or account material.
+
+
+[Native attempt 16](https://github.com/NickGuAI/HappyHerd/actions/runs/36759522116)
+proved the corrected Logout query: one matching row became hittable after two
+swipes, and the normal Logout and confirmation taps completed. The app then
+became not-running before login returned, so no B authentication occurred.
+Native checkpoints 01–08 and all 13 Web stages passed; the full native test still
+failed, with successful cleanup. [Retained evidence and bounded crash diagnostics](hosted-native/README.md)
+preserve the unknown cause and inspect the owned app's reload/process failure
+without changing the journey or automatically reopening the app.

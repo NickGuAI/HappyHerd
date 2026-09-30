@@ -1,5 +1,6 @@
 """Exercise bounded diagnostic collection without Xcode or a simulator."""
 import importlib.util
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,119 @@ sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location('native_driver', Path(__file__).with_name('native-driver.py'))
 driver = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(driver)
+
+
+class OwnedCrashCollectionTests(unittest.TestCase):
+    udid = 'A1111111-1111-4111-8111-111111111111'
+    private = 'PRIVATE-account https://private.invalid/token /private/user/path'
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.device_set = self.root / 'Simulators'
+        self.executable = self.device_set / self.udid / 'data/Containers/Bundle/Application/container/HappyHerd.app/HappyHerd'
+        self.host_home = self.root / 'host'
+        self.owned_reports = self.device_set / self.udid / 'data/Library/Logs/CrashReporter'
+        self.host_reports = self.host_home / 'Library/Logs/DiagnosticReports'
+        self.since = 1790791200
+        self.until = self.since + 60
+
+    def write_report(self, name='HappyHerd-private.ips', *, root=None, body=None, modified=None, data=None):
+        root = root or self.host_reports
+        root.mkdir(parents=True, exist_ok=True)
+        if data is None:
+            header = {'bug_type': '309', 'bundleID': driver.APP_ID, 'private': self.private}
+            payload = {'procName': 'HappyHerd', 'procPath': str(self.executable),
+                       'bundleInfo': {'CFBundleIdentifier': driver.APP_ID},
+                       'captureTime': datetime.fromtimestamp(self.since + 1, timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f %z'),
+                       'exception': {'type': 'EXC_CRASH', 'signal': 'SIGABRT'}, 'private': self.private}
+            payload.update(body or {})
+            data = (json.dumps(header) + '\n' + json.dumps(payload)).encode()
+        path = root / name
+        path.write_bytes(data)
+        changed = self.since + 2 if modified is None else modified
+        os.utime(path, (changed, changed))
+        return path
+
+    def collect(self):
+        return driver.collect_owned_crash_reports(self.device_set, self.udid, self.executable,
+                                                  self.since, host_home=self.host_home, until=self.until)
+
+    def test_collects_both_owned_locations_without_paths_names_or_raw_report_content(self):
+        self.write_report(root=self.owned_reports)
+        self.write_report()
+        result = self.collect()
+        self.assertTrue(result['zeroReportsAreInconclusive'])
+        self.assertEqual(len(result['reports']), 2)
+        self.assertEqual([row['matchedReports'] for row in result['sources']], [1, 1])
+        for report in result['reports']:
+            self.assertTrue(report['reportModifiedDuringJourney'])
+            self.assertTrue(report['installedProcessPathMatched'])
+        for secret in (self.private, str(self.root), self.udid, 'HappyHerd-private', 'captureTime'):
+            self.assertNotIn(secret, json.dumps(result))
+
+    def test_stale_wrong_app_wrong_simulator_malformed_and_symlink_candidates_do_not_match(self):
+        self.write_report('HappyHerd-stale.ips', modified=self.since - 1)
+        self.write_report('HappyHerd-future.ips', modified=self.until + 1)
+        self.write_report('HappyHerd-wrong-app.ips', body={'bundleInfo': {'CFBundleIdentifier': self.private}})
+        self.write_report('HappyHerd-wrong-simulator.ips', body={'procPath': str(self.executable).replace(self.udid, 'B2222222-2222-4222-8222-222222222222')})
+        target = self.write_report('HappyHerd-malformed.ips', data=self.private.encode())
+        (self.host_reports / 'HappyHerd-link.ips').symlink_to(target)
+        self.write_report('OtherApp-private.ips')
+        result = self.collect()
+        self.assertEqual(result['reports'], [])
+        rejected = result['sources'][1]['rejected']
+        self.assertEqual(rejected['outside-time-window'], 2)
+        self.assertEqual(rejected['identity-mismatch'], 2)
+        self.assertEqual(rejected['malformed'], 1)
+        self.assertEqual(rejected['nonregular'], 1)
+        self.assertNotIn(self.private, json.dumps(result))
+
+    def test_invalid_owned_scope_and_symlink_report_directory_are_not_read(self):
+        result = driver.collect_owned_crash_reports(self.device_set, self.udid, self.root / 'not-owned', self.since)
+        self.assertEqual(result['notAvailableReason'], 'invalid-owned-scope')
+        self.assertEqual(result['sources'], [])
+        target = self.root / 'elsewhere'
+        self.write_report(root=target)
+        self.host_reports.parent.mkdir(parents=True)
+        self.host_reports.symlink_to(target)
+        result = self.collect()
+        self.assertFalse(result['sources'][1]['available'])
+        self.assertEqual(result['sources'][1]['notAvailableReason'], 'not-regular-directory')
+        self.assertEqual(result['reports'], [])
+
+    def test_candidate_listing_and_byte_budgets_are_explicit_and_bounded(self):
+        for index in range(17):
+            self.write_report(f'HappyHerd-{index}.ips')
+        result = self.collect()
+        self.assertTrue(result['candidateLimitReached'])
+        self.assertEqual(len(result['reports']), 16)
+        for index in range(17):
+            self.write_report(f'HappyHerd-{index}.ips', body={'padding': 'x' * (1024 * 1024)})
+        result = self.collect()
+        self.assertTrue(result['byteLimitReached'])
+        self.assertLessEqual(sum(row['bytesRead'] for row in result['sources']), 8 * 1024 * 1024)
+        for index in range(130):
+            self.write_report(f'Unrelated-{index}.ips')
+        for path in self.host_reports.glob('HappyHerd-*.ips'):
+            path.unlink()
+        result = self.collect()
+        self.assertTrue(result['sources'][1]['listingTruncated'])
+        self.assertEqual(result['sources'][1]['entriesScanned'], 128)
+        self.assertEqual(result['reports'], [])
+
+    def test_oversized_or_unreadable_report_is_inconclusive_without_raw_error(self):
+        self.write_report(data=b'x' * (driver.launch_diagnostics.MAX_CRASH_REPORT_BYTES + 1))
+        result = self.collect()
+        self.assertEqual(result['sources'][1]['rejected']['oversized'], 1)
+        self.assertEqual(result['sources'][1]['bytesRead'], 0)
+        self.write_report()
+        with patch.object(driver.os, 'open', side_effect=PermissionError(self.private)):
+            result = self.collect()
+        self.assertEqual(result['sources'][1]['rejected']['unreadable'], 1)
+        self.assertEqual(result['reports'], [])
+        self.assertNotIn(self.private, json.dumps(result))
 
 
 class ResourceProbeTests(unittest.TestCase):
