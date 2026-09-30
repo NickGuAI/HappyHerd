@@ -82,3 +82,18 @@ and are discarded; the existing private XCTest log remains excluded from
 uploaded proof. No credentials enter the diagnostic receipt. It does not change signing, authentication, read
 state, acceptance assertions or timeouts. Zero matching log records remain
 inconclusive.
+
+The fourth hosted journey at `39f46cbf` reached real QR approval and then failed
+before Inbox. Its bounded owned-app log query completed successfully without
+truncation: one account-backup-state write failure and three static missing-
+entitlement messages were observed; no numeric OSStatus was emitted.
+[Run 36681073979](https://github.com/NickGuAI/HappyHerd/actions/runs/36681073979)
+retains that first failure. The original Release executable has a linker ad-hoc
+signature without application entitlements. The next isolated setup creates a
+separate ad-hoc signed simulator variant with only its own application identifier,
+preserving and re-verifying the original archive and extracted app. All non-
+signature files, executable code/data sections and UUID must remain unchanged.
+The derivative executable hash is recorded and checked after installation. This
+is an explicit signing variant, not a byte-identical original executable or a
+product authentication change; actual normal login and every Inbox assertion
+remain required. No shared runtime or keychain is modified.

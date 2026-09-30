@@ -17,7 +17,7 @@ const root = resolve(process.env.HH345_REPO_ROOT || resolve(directory, '../../..
 const proof = resolve(process.env.HH345_PROOF_DIR || resolve(root, 'acceptance-proof'));
 const sourceSha = process.env.HH345_SOURCE_SHA;
 const nativeSha = process.env.HH345_NATIVE_SHA;
-const prerequisiteFiles = ['native-app-archive.json', 'native-app-extracted.json', 'toolchain.txt'];
+const prerequisiteFiles = ['native-app-archive.json', 'native-app-extracted.json', 'native-app-signing.json', 'toolchain.txt'];
 const nativeCaptures = ['00-native-server-before-authentication', '00a-native-inbox-before-assertions', ...NATIVE_STAGES];
 const origin = 'http://127.0.0.1:43545';
 const requireApp = createRequire(resolve(root, 'server/packages/happyherd-app/package.json'));
@@ -144,13 +144,15 @@ function checkpointPrefix(count) {
 async function verifyPrerequisiteReceipts() {
     const entries = await readdir(proof, { withFileTypes: true });
     assert.deepEqual(entries.map(entry => entry.name).sort(), prerequisiteFiles,
-        'Proof must initially contain only the three workflow verification receipts');
+        'Proof must initially contain only the four workflow verification receipts');
     assert(entries.every(entry => entry.isFile()), 'Verification receipts must be regular files');
     const archive = JSON.parse(await readFile(resolve(proof, 'native-app-archive.json'), 'utf8'));
     const extracted = JSON.parse(await readFile(resolve(proof, 'native-app-extracted.json'), 'utf8'));
     assert.equal(archive.verified, true); assert.equal(archive.mode, 'archive');
     assert.equal(extracted.verified, true); assert.equal(extracted.mode, 'extracted');
     assert.deepEqual(archive.archive, extracted.archive);
+    const signingBytes = await readFile(resolve(proof, 'native-app-signing.json'));
+    const signing = JSON.parse(signingBytes);
     const verified = extracted.extracted;
     const manifestBytes = await readFile(resolve(process.env.HH345_APP_ARTIFACT, 'build-manifest.json'));
     const manifest = JSON.parse(manifestBytes);
@@ -168,11 +170,26 @@ async function verifyPrerequisiteReceipts() {
     assert.equal(verified.allFileHashesMatchArchiveManifest, true);
     assert.equal(verified.archiveModesAndSymlinkTargetsMatch, true);
     assert.equal(verified.executableArchitectures, 'arm64');
-    assert.equal(verified.appPath, resolve(process.env.HH345_APP_PATH));
+    assert.equal(verified.appPath, resolve(process.env.HH345_ORIGINAL_APP_PATH));
     assert.equal(verified.metadata.sourceSha, nativeSha);
     assert.deepEqual(verified.metadata, archive.archive.metadata);
     assert.equal(verified.metadata.bundleSha256, manifest.bundleSha256);
     assert.equal(verified.metadata.appConfigSha256, manifest.appConfigSha256);
+    for (const key of ['verified', 'codesignVerified', 'unchangedCodeSections', 'unchangedUnsignedPayload', 'unchangedUUID', 'unchangedBundle', 'unchangedAppConfig']) {
+        assert.equal(signing[key], true);
+    }
+    assert.equal(signing.sourceSha, nativeSha);
+    assert.equal(signing.originalAppPath, verified.appPath);
+    assert.equal(signing.signedAppPath, resolve(process.env.HH345_APP_PATH));
+    assert.notEqual(signing.originalAppPath, signing.signedAppPath);
+    assert.equal(signing.originalArchiveSha256, archive.archive.archiveSha256);
+    assert.equal(signing.buildManifestSha256, archive.archive.buildManifestSha256);
+    assert.equal(signing.originalFilesVerified, verified.appFileCount);
+    assert.equal(signing.originalExecutableSha256, manifest.files[verified.metadata.executable]);
+    assert.equal(signing.signedExecutableSha256, signing.files[verified.metadata.executable]);
+    assert.equal(signing.bundleSha256, manifest.bundleSha256);
+    assert.equal(signing.appConfigSha256, manifest.appConfigSha256);
+    assert.deepEqual(signing.entitlements, { 'application-identifier': 'HH345SIM01.app.happyherd.issue345.acceptance' });
     const serverTree = execFileSync('git', ['rev-parse', `${sourceSha}:server`], { cwd: root, encoding: 'utf8' }).trim();
     assert.equal(serverTree, execFileSync('git', ['rev-parse', `${nativeSha}:server`], { cwd: root, encoding: 'utf8' }).trim());
     execFileSync('git', ['diff', '--exit-code', '--', 'server'], { cwd: root, stdio: 'pipe' });
@@ -182,7 +199,12 @@ async function verifyPrerequisiteReceipts() {
     receipt.artifactVerification = { sourceSha: nativeSha, archiveSha256: verifiedApp.archiveSha256,
         buildManifestSha256: verifiedApp.buildManifestSha256, appFileCount: verified.appFileCount,
         bundleSha256: manifest.bundleSha256, appConfigSha256: manifest.appConfigSha256,
-        unchangedServerTree: serverTree, receipts: prerequisiteFiles };
+        unchangedServerTree: serverTree,
+        simulatorSigning: { originalExecutableSha256: signing.originalExecutableSha256,
+            signedExecutableSha256: signing.signedExecutableSha256,
+            signingReceiptSha256: createHash('sha256').update(signingBytes).digest('hex'),
+            applicationCodeUnchanged: true, variant: 'owned-simulator-application-identifier' },
+        receipts: prerequisiteFiles };
 }
 async function verifyNativeDriverReceipt() {
     const attempts = (await readdir(resolve(proof, 'native'), { withFileTypes: true }))
@@ -201,6 +223,10 @@ async function verifyNativeDriverReceipt() {
     assert.equal(native.app.archiveSha256, verifiedApp.archiveSha256);
     assert.equal(native.app.buildManifestSha256, verifiedApp.buildManifestSha256);
     assert.equal(native.app.bundleSha256, verifiedApp.metadata.bundleSha256);
+    assert.equal(native.app.executableSha256, receipt.artifactVerification.simulatorSigning.signedExecutableSha256);
+    assert.equal(native.app.signingReceiptSha256, receipt.artifactVerification.simulatorSigning.signingReceiptSha256);
+    assert.equal(native.app.originalExecutableSha256, receipt.artifactVerification.simulatorSigning.originalExecutableSha256);
+    assert.equal(native.simulatorSigningVerified, true);
     assert.deepEqual(native.nonsecretFeedIds, [receipt.firstId, receipt.secondId]);
     assert.deepEqual(native.markers, markers);
     assert.deepEqual(native.testSummary, summary);

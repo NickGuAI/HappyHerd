@@ -3,7 +3,8 @@
 
 Inputs: RUNNER_TEMP, HH345_SOURCE_SHA, HH345_NATIVE_SHA, HH345_APP_ARTIFACT
 (directory with HappyHerd.app.zip/build-manifest.json/archive.sha256),
-HH345_APP_PATH (already extracted/verified app), HH345_ARTIFACT_DIR (PRIVATE),
+HH345_APP_PATH (verified signing variant), HH345_ORIGINAL_APP_PATH (original),
+HH345_ARTIFACT_DIR (PRIVATE),
 HH345_PROOF_DIR (public allowlist), HH345_FIRST_ID and HH345_SECOND_ID.
 Requires selected Xcode, xcodegen and its matching installed iOS/iPhone 17 runtime.
 The companion coordinator must already serve localhost:43547 and the real
@@ -12,6 +13,7 @@ Stdout contains only the two static HH345 coordination markers.
 """
 from pathlib import Path
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -402,8 +404,18 @@ def main():
                               'bundleIdentifier': APP_ID, 'taskSpecificNativeSourcePatches': [],
                               'revenueCatSourcePatched': False}.items():
             require(manifest.get(key) == expected, 'Hosted app manifest mismatch.')
-        files = {str(p.relative_to(app)): digest(p) for p in sorted(app.rglob('*')) if p.is_file()}
-        require(files == manifest['files'], 'Extracted app differs from verified hosted artifact.')
+        signing_path = Path(os.environ['HH345_PROOF_DIR']) / 'native-app-signing.json'
+        signing = json.loads(signing_path.read_text())
+        signing_spec = importlib.util.spec_from_file_location('hh345_simulator_signing', source / 'prepare-simulator-signing.py')
+        signing_module = importlib.util.module_from_spec(signing_spec)
+        signing_spec.loader.exec_module(signing_module)
+        variant = signing_module.verify_variant(Path(os.environ['HH345_ORIGINAL_APP_PATH']).resolve(), app, manifest)
+        require(all(signing.get(key) == value for key, value in variant.items()),
+                'Signing variant differs from its verification receipt.')
+        require(signing.get('codesignVerified') is True and signing.get('originalArchiveSha256') == EXPECTED_ARCHIVE_SHA,
+                'Expected verified isolated simulator signature.')
+        files = variant['files']
+        receipt['simulatorSigningVerified'] = True
         info = plistlib.loads((app / 'Info.plist').read_bytes())
         require(info['CFBundleIdentifier'] == APP_ID and info['DTPlatformName'] == 'iphonesimulator',
                 'Expected isolated simulator app.')
@@ -414,7 +426,9 @@ def main():
                           'bundleSha256': digest(app / 'main.jsbundle'),
                           'executableSha256': digest(app / info['CFBundleExecutable']),
                           'buildManifestSha256': digest(artifact / 'build-manifest.json'),
-                          'bundleIdentifier': APP_ID}
+                          'bundleIdentifier': APP_ID,
+                          'originalExecutableSha256': variant['originalExecutableSha256'],
+                          'signingReceiptSha256': digest(signing_path)}
         first_id, second_id = os.environ.get('HH345_FIRST_ID', ''), os.environ.get('HH345_SECOND_ID', '')
         require(first_id and second_id and first_id != second_id, 'Expected two distinct nonsecret feed IDs.')
         receipt['nonsecretFeedIds'] = [first_id, second_id]
@@ -495,7 +509,9 @@ def main():
         installed_app = installed(APP_ID)
         installed_runner = installed(RUNNER_ID)
         require(digest(installed_app / 'main.jsbundle') == receipt['app']['bundleSha256'] and
-                digest(installed_app / info['CFBundleExecutable']) == receipt['app']['executableSha256'],
+                digest(installed_app / info['CFBundleExecutable']) == receipt['app']['executableSha256'] and
+                digest(installed_app / 'Info.plist') == files['Info.plist'] and
+                digest(installed_app / manifest['appConfigPath']) == files[manifest['appConfigPath']],
                 'Installed production app hash mismatch.')
         require(digest(installed_runner / runner_info['CFBundleExecutable']) == digest(runner_binary) and
                 digest(installed_runner / test_relative) == digest(runner / test_relative),
