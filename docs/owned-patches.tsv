@@ -668,3 +668,4 @@ SESSION_CONTEXT_WINDOW	accepted	feat(context): inspect recorded Claude and Codex
 CONTEXT_WINDOW_VISIBLE_HEADER_PROOF	accepted	test(context): render native header icons in context journeys	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 CURRENT_CONTEXT_BRANCH_FIDELITY	accepted	fix(context): preserve active branches and recorded tool definitions	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
 CONTEXT_WINDOW_COMPACTION_TRANSITION	accepted	fix(context): select freshly compacted and retained model inputs	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
+CONTEXT_WINDOW_AUTOMATION_MAIN_GOLDENS	accepted	test(context): refresh context changelog goldens after automation merge	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
