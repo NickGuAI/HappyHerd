@@ -25,12 +25,12 @@ not attribute the former Commander's file receipt to the new selection.
 
 | Acceptance | Owner | Required evidence |
 |---|---|---|
-| Avatar/name, Commanders navigation, one row | Shared Commander context row in ChatList and EmptyMessages | Production host browser click at 1440×900 and 390×844; shared native structural assertions |
-| Only successfully loaded files | CLI Commander context assembly → child environment → encrypted session metadata → app schema | Successful/empty/missing/unread file fixtures, environment transit and authoritative resume replacement |
-| No Commander, no row | Shared row conditional | Web and native negative cases, including stale path metadata |
-| Web Desktop | Production stream host | Light/dark rendered row, exact filenames, wrapping and link gesture |
-| Web Mobile | Production stream host | Light/dark rendered row at 390×844, bounds and link gesture |
-| Native apps | Shared React Native component and hosts | Native branch structural/navigation assertions and app build/typecheck; authenticated physical-device journey remains separate |
+| Avatar/name, Commanders navigation, one row | Shared Commander context row in ChatList and EmptyMessages | Authenticated server-backed session in the production host; actual avatar/name gesture opens Commanders; focused host regressions support this proof |
+| Only successfully loaded files | CLI assembly → native provider delivery → encrypted session metadata → app schema | Successful/empty/missing/unread inputs, actual native bundle and authoritative receipt comparison at launch/resume, then visible matching chips |
+| No Commander, no row | Shared row conditional | Actual no-Commander session has no receipt and no visible row; focused stale-metadata negatives support this proof |
+| Web Desktop | Production stream host | Authenticated 1440×900 row, exact filenames, retained state and actual navigation |
+| Web Mobile | Production stream host | Authenticated 390×844 row, bounds/wrapping, retained state and actual navigation |
+| Native apps | Shared React Native component and native hosts | Installed iOS simulator, macOS Tauri and Android emulator journeys with actual authentication/transport; physical hardware and store publication are not required by #347 |
 
 Browser fixtures inject session state but render the production stream host.
 They do not prove that an authenticated provider launched on a deployed
@@ -73,6 +73,72 @@ Local evidence is retained under the issue-owned temporary acceptance root:
 Receipts contain allowlisted metadata and marker/completion booleans, not
 credentials or raw transcripts. The readback script validates the exact owned
 session, machine, workspace, and home before decrypting server state.
+
+## Corrected build: real launch and resume
+
+CLI revision `89732b925cf903ce7d64ebbf3d88703ef8ccd3fb` fixes the observed
+resume failure. The isolated daemon was stopped and rebuilt; the shared
+production daemon was unchanged. A new session launched on this revision, then
+resumed on the same revision. The original failing session also resumed after
+the correction. Both retained their respective HappyHerd and Codex identities.
+
+The [sanitized native audit](issue-347-live-provenance.json) records direct
+native-provider and encrypted-server comparisons for both cases:
+
+- Launch records four files, including an empty successfully read working
+  memory file; the native developer bundle matches the launch receipt hash.
+- Before resume, global AGENTS is unreadable to the normal account and
+  long-term memory is absent. The resumed receipt records only Commander and
+  working memory.
+- The actual native developer item appears after the prior completed turn and
+  before the resumed turn. Its entire text hash equals both the authoritative
+  context hash and instruction hash. The new item contains the changed
+  Commander marker and neither excluded file's marker.
+- The resumed assistant returns the new marker, not the old one; both turns
+  complete with zero native tool calls. The original failed resume's hash
+  remains absent from its pre-fix native history, preserving failure evidence.
+
+The controlled journey used the maintained command surface, with every command
+selecting the issue-owned home and existing server login:
+
+```sh
+happyherd commander create --manifest "$ISSUE_347_MANIFEST"
+happyherd commander list
+happyherd daemon start
+happyherd session create --local --path "$ISSUE_347_WORKSPACE" \
+  --provider codex --permission read-only --commander issue347-probe --json
+happyherd session send "$ISSUE_347_SESSION" \
+  --text-file "$ISSUE_347_LAUNCH_PROMPT" --message-id "$ISSUE_347_LAUNCH_ID" --json
+happyherd daemon stop-session "$ISSUE_347_SESSION"
+happyherd session inspect "$ISSUE_347_SESSION" --limit 1 --json
+# Change only the controlled Commander marker; make global AGENTS unreadable
+# and move long-term memory out of its canonical fixture path.
+happyherd session send "$ISSUE_347_SESSION" \
+  --text-file "$ISSUE_347_RESUME_PROMPT" --message-id "$ISSUE_347_RESUME_ID" --json
+```
+
+The source readback calls `ApiClient.inspectSessionAuthoritative`, since the
+public inspect command intentionally omits loaded-file metadata. It validates
+the exact fixture owner before reading encrypted state and emits allowlisted
+metadata and marker booleans only. The native audit reads only the two owned
+test threads and emits no transcript text. The no-Commander launch also
+completed a real provider turn with null Commander identity and null receipt.
+
+Focused regression evidence is four failing tests before the correction and
+89 passing tests afterward, plus CLI typecheck/build. Independent exact-head
+review found no actionable issues and independently passed the 17 tests in
+the two changed files. Failure injection verifies that failed native delivery
+publishes no replacement receipt or user turn; callback tests preserve a
+concurrently reassigned or detached Commander.
+
+This closes the real provider/transport gap. Authenticated Web Desktop/Mobile
+row visibility, the actual Commanders destination, and installed native
+journeys remain separate outstanding rows. The available Web export was built
+at `ba75ce5a`; app source, manifest and lockfile equality with `89732b9` was
+verified, rather than claiming that export was built from the later SHA.
+Native build work is serialized with the other issue owners because shared
+disk capacity fell below 2.5 GiB. No unrelated cache, simulator, or runtime was
+removed or restarted.
 
 ## Reproducible focused evidence
 
