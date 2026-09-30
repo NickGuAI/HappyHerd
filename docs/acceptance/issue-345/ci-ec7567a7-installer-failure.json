@@ -1,0 +1,82 @@
+{
+  "reviewedAt": "2026-09-30T18:58:50.723013+00:00",
+  "head": "ec7567a74fb28b989ba81d0d11e598053b58cfd3",
+  "runId": 36759521990,
+  "runAttempt": 1,
+  "jobId": 110038207154,
+  "target": "darwin-x64",
+  "step": "Exercise the prepared install and upgrade",
+  "result": "FAIL",
+  "stepStartedAt": "2026-09-30T18:46:45Z",
+  "stepCompletedAt": "2026-09-30T18:55:07Z",
+  "failureAt": "2026-09-30T18:53:59.2652340Z",
+  "failureBoundary": "second-remote-host-initial-online-daemon-child-exit",
+  "ownedChildCommand": "initial-daemon-start",
+  "childExitCode": 1,
+  "childSignal": null,
+  "timeoutReported": false,
+  "specificChildCommandEstablished": true,
+  "pairingPassCount": 2,
+  "encryptedRpcPassCount": 1,
+  "completedContinuityPassCount": 1,
+  "finalSuccessMarkerCount": 0,
+  "selfHostTestTotals": {
+    "tests": 9,
+    "suites": 0,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "failedLogSha256": "425fce910fcd14f0b9c468a2c8bc5575054c4dcd2a3b1fa2be1522f098804881",
+  "otherCurrentPlatformJobsPassed": 3,
+  "previousPassingComparisons": [
+    {
+      "head": "7d570f36c5dcb689dd89dc73ade93fb553280ecb",
+      "runId": 36755579273,
+      "darwinX64JobId": 110024848284,
+      "allFourInstallersPassed": true
+    },
+    {
+      "head": "7487650d6bea30a6c0420540629f9a2bf9e42754",
+      "runId": 36752956283,
+      "darwinX64JobId": 110015939721,
+      "allFourInstallersPassed": true,
+      "darwinX64PairingPassCount": 2,
+      "darwinX64EncryptedRpcPassCount": 2,
+      "darwinX64ContinuityPassCount": 2,
+      "darwinX64FinalSuccessMarker": true
+    }
+  ],
+  "priorFailureComparison": {
+    "head": "a6f1b8b3fef15f1b1514a0e0c36feae487999cf0",
+    "runId": 36748692750,
+    "jobId": 110001395428,
+    "boundary": "second-remote-host-installer-rerun-stage-child-exit",
+    "sameExactBoundary": false,
+    "singleFailedJobRetryPassed": true,
+    "retryJobId": 110010435918
+  },
+  "completeProductTreeUnchanged": true,
+  "unchangedSourceSha256": {
+    ".github/workflows/native-installer-release.yml": "01750f11dcd26b980404175579de8cfa27ea87802ed15d3a097a1292ddd58bb3",
+    "scripts/test-native-installer-asset.sh": "44c5a72e374d1ff3682e58718d35e5b3a7eac803e171e843b670d5f3f1af6be0",
+    "scripts/test-native-installer-auth.mjs": "9e182a87f3ff9735a8e23932f990467a3937cba30c5a8813418a71e4daa1abe2",
+    "scripts/build-native-installer-asset.sh": "771b9ec548e6d6e7b39876813992991025d1886f72c974e856785bde520fd175",
+    "scripts/prepare-native-installer-deployment.mjs": "e2e2431421bb394015b13c068cc8f16d35829bb5db4bb271113a0a243b63c56d",
+    "install.sh": "188fb5cd881c9ca6b35dc07207abf281eefc252adaf01aded0dacc97c5047e77",
+    "installers/uninstall.sh": "150bf9e7ca83df2bf71d01e2243d063343a51d72746b2f8b2b6d7d5d84f77701",
+    "installers/cleanup-legacy.sh": "910fa7f9c227c99eb9eb11e96c70374ec7d143571f68ed15162d8366d16d3221",
+    "server/packages/happyherd-server-self-host/index.test.cjs": "7ef1945ec6d4853a00cf80522761aa7f31078a878c7272eaea6b28eb5639d1ba"
+  },
+  "diagnosis": "owned-daemon-start-child-exited-with-insufficient-retained-cause-detail",
+  "recommendation": "Preserve failure and add fixed owned-child labels plus source-supported safe failure categories before further retries. Do not alter commands, timeouts, assertions or skips. The precise stage differs from a6f but macOS x64 child failures recur on unchanged source.",
+  "actionsTaken": {
+    "modifiedSourceDuringDiagnosis": false,
+    "reranCI": false,
+    "cancelledCI": false,
+    "published": false,
+    "nativeExecution": false
+  }
+}

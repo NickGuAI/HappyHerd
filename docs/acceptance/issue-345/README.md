@@ -299,3 +299,19 @@ identify the test's unsupported label-prefix assumption and the targeted row
 query correction. No resource-probe failure occurred, all 13 Web stages passed,
 and cleanup succeeded. Full native account scope, race and restart remain
 unproved.
+
+
+The `ec7567a7` macOS x64 installer job also failed with unchanged installer,
+test, workflow and product source, after all four targets passed on `7487650d`
+and `7d570f36`. [Run 36759521990, job 110038207154](https://github.com/NickGuAI/HappyHerd/actions/runs/36759521990/job/110038207154)
+passed both normal pairings, nine self-host tests and the first host's RPC and
+retained-history upgrade. The second host's initial `daemon start` child then
+exited 1 without a reported timeout. This is a different stage from the prior
+`a6f1b8b3` failure. The [sanitized independent diagnosis](ci-ec7567a7-installer-failure.json)
+preserves the exact child boundary, source comparisons and original log hash;
+the captured child output was discarded, so its root cause remains unproved.
+The other three installer targets passed. Narrow command/failure attribution is
+being added to the test harness before another run, retaining all commands,
+timeouts, assertions, authentication, continuity checks and cleanup. Only fixed
+labels/categories and safe numeric fields may be published, never raw child
+output, messages, arguments, paths or account material.
