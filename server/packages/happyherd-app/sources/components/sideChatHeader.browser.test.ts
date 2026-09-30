@@ -1356,6 +1356,22 @@ const fixturePlugin: Plugin = {
     },
 };
 
+// These launch-context journeys contain only empty or plain-text transcripts.
+// Keep the real MarkdownView/MermaidRenderer, but avoid eagerly bundling every
+// diagram compiler into their IIFE. Unexpected diagram use must fail visibly.
+const commanderDiagramPlugin: Plugin = {
+    name: 'commander-context-no-diagrams',
+    setup(build) {
+        build.onResolve({ filter: /^mermaid$/ }, (args) => ({
+            path: args.path, namespace: 'commander-diagram-fixture',
+        }));
+        build.onLoad({ filter: /.*/, namespace: 'commander-diagram-fixture' }, () => ({
+            contents: `throw new Error('Commander context fixture does not contain Mermaid diagrams'); export default {};`,
+            loader: 'js',
+        }));
+    },
+};
+
 async function swipeUp(page: Page, x: number, startY: number, endY: number) {
     const session = await page.context().newCDPSession(page);
     await session.send('Input.dispatchTouchEvent', {
@@ -1454,6 +1470,7 @@ describe('Side chats browser interaction', () => {
                 outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
                 minify: true,
                 keepNames: true,
+                plugins: [commanderDiagramPlugin, fixturePlugin],
             }),
         ]);
         // Keep debug maps available without transferring/parsing them as part
