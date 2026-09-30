@@ -143,7 +143,7 @@ query completed with zero matching failures, and cleanup succeeded. All 13
 Web stages passed again. [Run 36727434094](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094)
 and [artifact 11102654323](https://github.com/NickGuAI/HappyHerd/actions/runs/36727434094/artifacts/11102654323)
 retain that attempt. The [durable failure summaries](failed-attempts.json)
-preserve all ten hosted failures and original receipt hashes.
+preserve all eleven hosted failures and original receipt hashes.
 
 The follow-up query retains the same app/device scope, 20-second deadline and
 256 KiB ceiling, selecting only error/fault records or fixed launch-failure
@@ -201,3 +201,15 @@ and its controller receipt hash remain preserved in the failure ledger. The
 correction updates that single selected-source assertion and adds a cross-file
 provenance regression check. It changes no artifact, authentication path,
 acceptance assertion, timeout, capture requirement or skip.
+
+The eleventh attempt at `c2dbdf04` passed all 13 Web stages, verified the selected
+archive and extracted app, and installed both app and test runner on the exact
+private simulator. [Run 36742616651](https://github.com/NickGuAI/HappyHerd/actions/runs/36742616651)
+then failed with an unclassified `ValueError` after container discovery, before
+installed-app verification completed or XCTest started. No native UI phase,
+authentication or Inbox checkpoint ran; simulator cleanup succeeded and resource
+floors were not crossed. [Artifact 11111677207](https://github.com/NickGuAI/HappyHerd/actions/runs/36742616651/artifacts/11111677207)
+and both original receipt hashes remain in the failure ledger. The selected app's
+launch behavior is still unproved. The next diagnostic records only fixed
+verification categories and bounded counts/modes to identify this failure;
+all artifact hash, file-set, type, symlink, mode and signature checks remain.

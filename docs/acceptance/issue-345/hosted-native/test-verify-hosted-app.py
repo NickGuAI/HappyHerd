@@ -5,9 +5,12 @@ Only external lipo/file/codesign calls are mocked; payload and signing parsers r
 Archive pins are replaced solely in scoped mocks, never in production source.
 """
 import ast
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
+import os
 from pathlib import Path
 import plistlib
 import re
@@ -306,13 +309,157 @@ class HostedAppVerifierTests(unittest.TestCase):
                         architecture.assert_not_called()
                         codesign.assert_not_called()
 
+    def public_verification_failure(self, app, archive_receipt, manifest):
+        with patch.object(verifier.subprocess, 'check_output') as architecture, \
+                patch.object(signer.subprocess, 'run') as codesign:
+            with self.assertRaises(ValueError) as failure:
+                verifier.verify_extracted(app, archive_receipt, manifest)
+            architecture.assert_not_called()
+            codesign.assert_not_called()
+        return verifier.public_failure(failure.exception)['verificationFailure']
+
+    def test_payload_diagnostic_counts_missing_extra_and_hash_changes_without_names(self):
+        archive_receipt, manifest = self.verify_archive()
+        (self.app / 'assets/noncritical.txt').unlink()
+        (self.app / 'private-account-token-secret').write_bytes(b'private payload')
+        (self.app / 'main.jsbundle').write_bytes(b'private changed content')
+        diagnostic = self.public_verification_failure(self.app, archive_receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'file-payload-mismatch')
+        self.assertEqual({key: diagnostic['details'][key] for key in
+                          ('missingFileCount', 'extraFileCount', 'changedFileHashCount')},
+                         {'missingFileCount': 1, 'extraFileCount': 1, 'changedFileHashCount': 1})
+        self.assertNotIn('private', json.dumps(diagnostic))
+        self.assertNotIn(str(self.root), json.dumps(diagnostic))
+
+    def test_mode_diagnostic_preserves_rejection_and_reports_bounded_modes(self):
+        archive_receipt, manifest = self.verify_archive()
+        (self.app / 'assets/noncritical.txt').chmod(0o600)
+        diagnostic = self.public_verification_failure(self.app, archive_receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'mode-mismatch')
+        self.assertEqual(diagnostic['details']['modeMismatchCount'], 1)
+        self.assertEqual(diagnostic['details']['expectedMode'], 0o644)
+        self.assertEqual(diagnostic['details']['actualMode'], 0o600)
+        self.assertEqual(diagnostic['details']['changedFileHashCount'], 0)
+
+    def test_same_hash_type_and_link_target_changes_remain_distinct_failures(self):
+        asset = 'assets/noncritical.txt'
+        self.payloads[asset] = self.payloads['main.jsbundle']
+        (self.app / asset).write_bytes(self.payloads[asset])
+        self.manifest['files'][asset] = sha256(self.payloads[asset])
+        self.write_manifest()
+        self.write_archive()
+        receipt, manifest = self.verify_archive(pin=sha256(self.archive.read_bytes()))
+        (self.app / asset).unlink()
+        (self.app / asset).symlink_to('../main.jsbundle')
+        diagnostic = self.public_verification_failure(self.app, receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'member-type-mismatch')
+        self.assertEqual(diagnostic['details']['typeMismatchCount'], 1)
+        receipt['appMembers'] = [dict(row, kind='symlink', target='../main.jsbundle')
+                                 if row['path'] == asset else row for row in receipt['appMembers']]
+        (self.app / asset).unlink()
+        (self.app / asset).symlink_to('../assets/../main.jsbundle')
+        diagnostic = self.public_verification_failure(self.app, receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'link-target-mismatch')
+        self.assertEqual(diagnostic['details']['linkTargetMismatchCount'], 1)
+
+    def test_extra_directory_link_is_classified_even_without_a_file_hash_delta(self):
+        receipt, manifest = self.verify_archive()
+        (self.app / 'private-extra-link').symlink_to('assets')
+        diagnostic = self.public_verification_failure(self.app, receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'member-set-mismatch')
+        self.assertEqual(diagnostic['details']['extraMemberCount'], 1)
+        self.assertEqual(diagnostic['details']['extraFileCount'], 0)
+        self.assertNotIn('private', json.dumps(diagnostic))
+
+    def test_unsafe_and_unresolved_links_and_unsupported_types_have_safe_categories(self):
+        receipt, manifest = self.verify_archive()
+        outside = self.root / 'private-account-secret'
+        outside.write_bytes(b'private content')
+        path = self.app / 'private-member-secret'
+        for target, category in ((outside, 'symlink-outside-app'),
+                                 (self.root / 'private-missing-secret', 'symlink-resolution')):
+            with self.subTest(category=category):
+                path.symlink_to(target)
+                try:
+                    diagnostic = self.public_verification_failure(self.app, receipt, manifest)
+                    self.assertEqual(diagnostic['category'], category)
+                    self.assertNotIn('private', json.dumps(diagnostic))
+                finally:
+                    path.unlink()
+        os.mkfifo(path)
+        diagnostic = self.public_verification_failure(self.app, receipt, manifest)
+        self.assertEqual(diagnostic['category'], 'unsupported-member-type')
+
+    def test_public_cli_omits_raw_typed_and_unknown_error_details(self):
+        errors = [ValueError('https://private.invalid/token=private-secret'),
+                  verifier.VerificationError('mode-mismatch', 'private-path-secret',
+                      {'modeMismatchCount': 2, 'expectedMode': 0o644, 'actualMode': 0o600,
+                       'private-field-secret': 'private-value-secret'})]
+        for index, error in enumerate(errors):
+            output = self.root / f'private-receipt-{index}.json'
+            console = io.StringIO()
+            with patch.object(sys, 'argv', ['verify-hosted-app', 'archive', '--receipt', str(output)]), \
+                    patch.object(verifier, 'verify_archive', side_effect=error), \
+                    contextlib.redirect_stdout(console):
+                self.assertEqual(verifier.main(), 1)
+            public = output.read_text() + console.getvalue()
+            self.assertNotIn('private', public)
+            self.assertNotIn('https://', public)
+            self.assertNotIn(str(self.root), public)
+            self.assertEqual(json.loads(output.read_text())['errorType'], type(error).__name__)
+
+    def test_unknown_cli_failure_never_publishes_its_raw_message(self):
+        output = self.root / 'failure.json'
+        console = io.StringIO()
+        with patch.object(sys, 'argv', ['verify-hosted-app', 'archive', '--receipt', str(output)]), \
+                patch.object(verifier, 'verify_archive', side_effect=ValueError('private-secret')), \
+                contextlib.redirect_stdout(console):
+            self.assertEqual(verifier.main(), 1)
+        self.assertNotIn('private-secret', output.read_text() + console.getvalue())
+
+    def test_actual_zip_traversal_failure_never_publishes_member_name(self):
+        self.write_archive([('HappyHerd.app/../private-member-secret', b'private contents', stat.S_IFREG | 0o644)])
+        output = self.root / 'failure.json'
+        console = io.StringIO()
+        with patch.object(sys, 'argv', ['verify-hosted-app', 'archive', '--artifact-dir', str(self.artifact),
+                                      '--receipt', str(output)]), \
+                patch.object(verifier, 'EXPECTED_ARCHIVE_SHA', sha256(self.archive.read_bytes())), \
+                contextlib.redirect_stdout(console):
+            self.assertEqual(verifier.main(), 1)
+        public = output.read_text() + console.getvalue()
+        self.assertNotIn('private', public)
+        self.assertNotIn(str(self.root), public)
+        self.assertEqual(json.loads(output.read_text())['verificationFailure']['category'], 'artifact-validation')
+
+    def test_public_diagnostics_filter_untrusted_values_and_bound_counts(self):
+        error = verifier.VerificationError('mode-mismatch', 'private exception detail', {
+            'modeMismatchCount': 10**30, 'missingFileCount': 'private-token',
+            'expectedMode': -1, 'actualMode': 0o10000, 'private-key': 'private-value',
+        })
+        diagnostic = verifier.public_failure(error)['verificationFailure']
+        self.assertEqual(diagnostic['details'], {'modeMismatchCount': 1000000})
+        self.assertNotIn('private', json.dumps(diagnostic))
+        unknown_error = type('private-secret-exception-name', (Exception,), {})('private message')
+        self.assertEqual(verifier.public_failure(unknown_error), {'errorType': 'UnknownError'})
+
     def test_codesign_nonzero_result_fails_extracted_verification(self):
         archive_receipt, manifest = self.verify_archive()
-        with self.assertRaises(signer.SafeFailure) as failure:
+        with self.assertRaises(verifier.VerificationError) as failure:
             self.verify_extracted(self.app, archive_receipt, manifest, returncode=1)
-        self.assertEqual(failure.exception.category, 'verification-failed')
-        self.assertEqual(failure.exception.fields, {'returnCode': 1})
-        self.assertNotIn('private fixture', str(failure.exception))
+        public = verifier.public_failure(failure.exception)
+        self.assertEqual(public['verificationFailure'], {
+            'category': 'signature-verification-failure',
+            'details': {'signatureCategory': 'verification-failed', 'returnCode': 1},
+        })
+        self.assertNotIn('private fixture', json.dumps(public))
+
+    def test_malformed_signature_is_classified_without_parser_inputs(self):
+        with self.assertRaises(verifier.VerificationError) as failure:
+            verifier.verify_macho_signing(b'private malformed executable', self.signing)
+        public = verifier.public_failure(failure.exception)
+        self.assertEqual(public['verificationFailure']['category'], 'signature-parser-failure')
+        self.assertEqual(public['verificationFailure']['details']['signatureCategory'], 'bounds')
+        self.assertNotIn('private', json.dumps(public))
 
     def test_zip_traversal_and_escaping_symlink_guards_remain_active(self):
         for name, contents, mode, message in (

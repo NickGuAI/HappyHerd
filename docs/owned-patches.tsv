@@ -699,3 +699,4 @@ INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence 
 INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal Xcode simulator signing	docs/acceptance/issue-345/native-signed-build-workflow.yml
 INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/hosted-native/verify-hosted-app.py
 INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native controller artifact pin	docs/acceptance/issue-345/hosted-native/controller.mjs
+INBOX_NATIVE_INSTALL_VERIFICATION_DIAGNOSTICS_345	accepted	test(inbox): classify installed artifact verification failures	docs/acceptance/issue-345/hosted-native/native-driver.py

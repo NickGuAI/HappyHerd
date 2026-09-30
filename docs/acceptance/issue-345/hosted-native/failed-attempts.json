@@ -719,6 +719,126 @@
       "webJourneyStarted": false,
       "nativeDriverStarted": false,
       "diagnosis": "controller-selected-native-source-pin-mismatch"
+    },
+    {
+      "attempt": 11,
+      "runId": 36742616651,
+      "runAttempt": 1,
+      "jobId": 109980624960,
+      "artifactId": 11111677207,
+      "receiptSha256": "6f819d9fae16bdb97640080bb56ea1e41d75c4ff7716f5df45f7847b8b8a3c68",
+      "controllerReceiptSha256": "4932a0baad1f5131bec0cad2695d280255215fb8e4acfb9287d1877032c59fa3",
+      "sourceSha": "c2dbdf0406e01f3bde0e50d5ae498290496c77f8",
+      "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+      "startedAt": 1790785262.272663,
+      "finishedAt": 1790785579.931235,
+      "phase": "container-xctrunner",
+      "passed": false,
+      "errorType": "ValueError",
+      "exitCode": 1,
+      "buildSigningVerified": true,
+      "exactPrivateDestinationVerified": true,
+      "resourceStopped": false,
+      "cleanup": {
+        "shutdownExitCode": 0,
+        "deleteExitCode": 0
+      },
+      "nativePhases": [],
+      "nativeFailures": [],
+      "screenshots": [],
+      "authDiagnostics": [],
+      "authFailures": [],
+      "markers": [],
+      "completedWebStages": 13,
+      "nativeXCTestStarted": false,
+      "installedAppVerificationCompleted": false,
+      "commands": [
+        {
+          "phase": "xcode-version",
+          "startedAt": 1790785262.361585,
+          "exitCode": 0,
+          "finishedAt": 1790785264.538184
+        },
+        {
+          "phase": "generate-test-project",
+          "startedAt": 1790785269.0331829,
+          "exitCode": 0,
+          "finishedAt": 1790785271.22228
+        },
+        {
+          "phase": "build-tests",
+          "startedAt": 1790785271.239085,
+          "exitCode": 0,
+          "finishedAt": 1790785296.450505
+        },
+        {
+          "phase": "simulator-sdk-version",
+          "startedAt": 1790785296.476647,
+          "exitCode": 0,
+          "finishedAt": 1790785302.883499
+        },
+        {
+          "phase": "list-runtimes",
+          "startedAt": 1790785302.895144,
+          "exitCode": 0,
+          "finishedAt": 1790785305.077502
+        },
+        {
+          "phase": "list-device-types",
+          "startedAt": 1790785305.103561,
+          "exitCode": 0,
+          "finishedAt": 1790785307.2117429
+        },
+        {
+          "phase": "create-private-device",
+          "startedAt": 1790785307.226816,
+          "exitCode": 0,
+          "finishedAt": 1790785309.348077
+        },
+        {
+          "phase": "showdestinations",
+          "startedAt": 1790785309.359261,
+          "exitCode": 0,
+          "finishedAt": 1790785313.536282
+        },
+        {
+          "phase": "boot-private-device",
+          "startedAt": 1790785313.5528162,
+          "exitCode": 0,
+          "finishedAt": 1790785320.188237
+        },
+        {
+          "phase": "wait-for-boot",
+          "startedAt": 1790785324.6274471,
+          "exitCode": 0,
+          "finishedAt": 1790785433.390381
+        },
+        {
+          "phase": "install-app",
+          "startedAt": 1790785433.43711,
+          "exitCode": 0,
+          "finishedAt": 1790785503.389687
+        },
+        {
+          "phase": "install-runner",
+          "startedAt": 1790785503.405901,
+          "exitCode": 0,
+          "finishedAt": 1790785528.875267
+        },
+        {
+          "phase": "container-acceptance",
+          "startedAt": 1790785529.006309,
+          "exitCode": 0,
+          "finishedAt": 1790785540.1222882
+        },
+        {
+          "phase": "container-xctrunner",
+          "startedAt": 1790785547.278451,
+          "exitCode": 0,
+          "finishedAt": 1790785571.956853
+        }
+      ],
+      "diagnosis": "unclassified-installed-app-verification-error"
     }
   ]
 }

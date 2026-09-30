@@ -287,6 +287,7 @@ def main():
     udid = None
     result = private / 'test.xcresult'
     status = 1
+    verifier = None
 
     def save():
         (private / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
@@ -481,8 +482,9 @@ def main():
         artifact = Path(os.environ['HH345_APP_ARTIFACT']).resolve()
         app = Path(os.environ['HH345_APP_PATH']).resolve()
         verification_spec = importlib.util.spec_from_file_location('hh345_selected_app', source / 'verify-hosted-app.py')
-        verifier = importlib.util.module_from_spec(verification_spec)
-        verification_spec.loader.exec_module(verifier)
+        loaded_verifier = importlib.util.module_from_spec(verification_spec)
+        verification_spec.loader.exec_module(loaded_verifier)
+        verifier = loaded_verifier
         require(verifier.EXPECTED_SHA == EXPECTED_SHA and verifier.EXPECTED_ARCHIVE_SHA == EXPECTED_ARCHIVE_SHA,
                 'Driver and selected artifact verifier must agree.')
         archive_receipt, manifest = verifier.verify_archive(artifact)
@@ -584,21 +586,30 @@ def main():
         run(simctl + ['install', udid, str(runner)], 'install-runner')
         installed_app = installed(APP_ID)
         installed_runner = installed(RUNNER_ID)
+        receipt.update(phase='installed-app-verification', verificationStep='installed-critical-hashes')
+        save()
         require(digest(installed_app / 'main.jsbundle') == receipt['app']['bundleSha256'] and
                 digest(installed_app / info['CFBundleExecutable']) == receipt['app']['executableSha256'] and
                 digest(installed_app / 'Info.plist') == files['Info.plist'] and
                 digest(installed_app / manifest['appConfigPath']) == files[manifest['appConfigPath']],
                 'Installed production app hash mismatch.')
+        receipt['verificationStep'] = 'installed-complete-verification'
+        save()
         installed_verification = verifier.verify_extracted(installed_app, archive_receipt, manifest)
         require(installed_verification['allFileHashesMatchArchiveManifest'] is True
                 and installed_verification['appFileCount'] == len(files)
                 and installed_verification['buildSigningVerified'] is True,
                 'Installed app must preserve every selected manifest file and its signature.')
         receipt['installedAllManifestFilesVerified'] = True
+        receipt['verificationStep'] = 'installed-runner-hashes'
+        save()
         require(digest(installed_runner / runner_info['CFBundleExecutable']) == digest(runner_binary) and
                 digest(installed_runner / test_relative) == digest(runner / test_relative),
                 'Installed test runner hash mismatch.')
         receipt['installedArtifactHashesVerified'] = True
+        receipt.update(phase='xctestrun-adaptation')
+        receipt.pop('verificationStep', None)
+        save()
         specification = plistlib.loads(original.read_bytes())
         target = specification['HH345UITests']
         require(target.get('UseUITargetAppProvidedByTests') is True and
@@ -672,7 +683,9 @@ def main():
         status = 1
     except Exception as error:
         receipt['errorType'] = type(error).__name__
-        # Only a static, code-owned phase and error type are published.
+        if verifier is not None:
+            receipt.update(verifier.public_failure(error))
+        # Unknown failures expose only their type; messages/paths stay private.
         status = 1
     finally:
         stop_active()

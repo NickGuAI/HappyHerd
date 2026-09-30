@@ -32,11 +32,61 @@ EXPECTED_BUNDLE_ID = 'app.happyherd.issue345.acceptance'
 EXPECTED_SERVER = b'http://127.0.0.1:43545'
 APP_ROOT = 'HappyHerd.app'
 HEX256 = re.compile(r'^[0-9a-f]{64}$')
+VERIFICATION_CATEGORIES = {
+    'artifact-validation', 'app-directory', 'symlink-resolution', 'symlink-outside-app',
+    'unsupported-member-type', 'file-payload-mismatch', 'member-set-mismatch',
+    'member-type-mismatch', 'link-target-mismatch', 'mode-mismatch', 'metadata-mismatch',
+    'isolated-api-mismatch', 'architecture-mismatch', 'executable-type-mismatch',
+    'signing-receipt-mismatch', 'signature-fields-mismatch', 'signature-parser-failure',
+    'signature-identity-failure', 'signature-verification-failure',
+}
+DIAGNOSTIC_COUNTS = {
+    'expectedFileCount', 'actualFileCount', 'missingFileCount', 'extraFileCount',
+    'changedFileHashCount', 'missingMemberCount', 'extraMemberCount',
+    'typeMismatchCount', 'linkTargetMismatchCount', 'modeMismatchCount',
+}
+SIGNATURE_CATEGORIES = {
+    'missing', 'malformed', 'bounds', 'wrong-architecture', 'missing-signature',
+    'missing-target', 'identity-mismatch', 'verification-failed', 'timeout',
+    'unavailable', 'io', 'invalid-arguments', 'unexpected', 'self-test-failed',
+}
 
 
-def require(condition, message):
+class VerificationError(ValueError):
+    """Private explanation plus code-owned, strictly allowlisted public fields."""
+    def __init__(self, category, message, details=None):
+        if category not in VERIFICATION_CATEGORIES:
+            raise ValueError('Unknown verification category')
+        super().__init__(message)
+        self.category = category
+        self.details = details or {}
+
+
+def public_failure(error):
+    known_types = {VerificationError, ValueError, TypeError, KeyError, OSError,
+                   FileNotFoundError, PermissionError, IsADirectoryError, NotADirectoryError,
+                   RuntimeError, AssertionError, UnicodeDecodeError, json.JSONDecodeError,
+                   plistlib.InvalidFileException, subprocess.CalledProcessError, subprocess.TimeoutExpired}
+    result = {'errorType': type(error).__name__ if type(error) in known_types else 'UnknownError'}
+    if isinstance(error, VerificationError):
+        details = {}
+        for key, value in error.details.items():
+            if key in DIAGNOSTIC_COUNTS and type(value) is int and value >= 0:
+                details[key] = min(value, 1000000)
+            elif key in ('expectedMode', 'actualMode') and type(value) is int and 0 <= value <= 0o7777:
+                details[key] = value
+            elif key == 'returnCode' and type(value) is int and -65535 <= value <= 65535:
+                details[key] = value
+            elif key == 'signatureCategory' and isinstance(value, str) and value in SIGNATURE_CATEGORIES:
+                details[key] = value
+        category = error.category if isinstance(error.category, str) and error.category in VERIFICATION_CATEGORIES else 'unknown'
+        result['verificationFailure'] = {'category': category, 'details': details}
+    return result
+
+
+def require(condition, message, *, category='artifact-validation', details=None):
     if not condition:
-        raise ValueError(message)
+        raise VerificationError(category, message, details)
 
 
 def digest_stream(stream):
@@ -97,8 +147,14 @@ def load_signing_receipt(artifact, manifest):
 def verify_macho_signing(data, signing):
     # The producer emits only fixed fields; reread the selected executable's
     # signature without printing raw identifiers, entitlement values or output.
-    actual = signing_parser().summarize_macho(data)
-    require(signing['machO'] == {'status': 'parsed', **actual}, 'Executable signing fields differ from build receipt')
+    parser = signing_parser()
+    try:
+        actual = parser.summarize_macho(data)
+    except parser.SafeFailure as error:
+        raise VerificationError('signature-parser-failure', 'Executable signature could not be parsed',
+                                {'signatureCategory': error.category}) from error
+    require(signing['machO'] == {'status': 'parsed', **actual}, 'Executable signing fields differ from build receipt',
+            category='signature-fields-mismatch')
     return actual
 
 
@@ -297,7 +353,8 @@ def verify_archive(artifact):
 
 
 def verify_extracted(app, archive_receipt, manifest):
-    require(app.is_dir() and not app.is_symlink(), 'Expected an extracted app directory, not a symlink')
+    require(app.is_dir() and not app.is_symlink(), 'Expected an extracted app directory, not a symlink',
+            category='app-directory')
     root = app.resolve()
     actual_files, all_non_directories = {}, {}
     for directory, dirs, files in os.walk(root, followlinks=False):
@@ -305,40 +362,89 @@ def verify_extracted(app, archive_receipt, manifest):
             path = Path(directory) / name
             relative = path.relative_to(root).as_posix()
             if path.is_symlink():
-                resolved = path.resolve(strict=True)
-                require(resolved.is_relative_to(root), f'Extracted symlink escapes app: {relative}')
+                try:
+                    resolved = path.resolve(strict=True)
+                except (OSError, RuntimeError) as error:
+                    raise VerificationError('symlink-resolution', 'Extracted symlink could not be resolved') from error
+                require(resolved.is_relative_to(root), f'Extracted symlink escapes app: {relative}',
+                        category='symlink-outside-app')
                 all_non_directories[relative] = {'kind': 'symlink', 'target': str(path.readlink())}
                 if resolved.is_file(): actual_files[relative] = digest_file(path)
             elif path.is_file():
                 actual_files[relative] = digest_file(path)
                 all_non_directories[relative] = {'kind': 'file'}
             else:
-                require(path.is_dir(), f'Unsupported extracted file type: {relative}')
-    require(actual_files == manifest['files'], 'Extracted app file set/hashes differ from hosted manifest')
+                require(path.is_dir(), f'Unsupported extracted file type: {relative}',
+                        category='unsupported-member-type')
+    expected_files = manifest['files']
+    counts = {
+        'expectedFileCount': len(expected_files), 'actualFileCount': len(actual_files),
+        'missingFileCount': len(expected_files.keys() - actual_files.keys()),
+        'extraFileCount': len(actual_files.keys() - expected_files.keys()),
+        'changedFileHashCount': sum(actual_files[name] != expected_files[name]
+                                   for name in actual_files.keys() & expected_files.keys()),
+    }
+    require(actual_files == manifest['files'], 'Extracted app file set/hashes differ from hosted manifest',
+            category='file-payload-mismatch', details=counts)
     expected_non_dirs = {r['path']: r for r in archive_receipt['appMembers'] if r['kind'] != 'directory'}
-    require(set(all_non_directories) == set(expected_non_dirs), 'Extracted file/link set differs from ZIP')
+    counts.update(missingMemberCount=len(expected_non_dirs.keys() - all_non_directories.keys()),
+                  extraMemberCount=len(all_non_directories.keys() - expected_non_dirs.keys()))
+    require(set(all_non_directories) == set(expected_non_dirs), 'Extracted file/link set differs from ZIP',
+            category='member-set-mismatch', details=counts)
+    counts.update(typeMismatchCount=0, linkTargetMismatchCount=0, modeMismatchCount=0)
     for name, row in all_non_directories.items():
         expected = expected_non_dirs[name]
-        require(row['kind'] == expected['kind'], f'Extracted member type mismatch: {name}')
+        if row['kind'] != expected['kind']:
+            counts['typeMismatchCount'] += 1
+        elif row['kind'] == 'symlink':
+            counts['linkTargetMismatchCount'] += row['target'] != expected['target']
+        elif expected['mode']:
+            counts['modeMismatchCount'] += stat.S_IMODE((root/name).stat().st_mode) != expected['mode']
+    for name, row in all_non_directories.items():
+        expected = expected_non_dirs[name]
+        require(row['kind'] == expected['kind'], f'Extracted member type mismatch: {name}',
+                category='member-type-mismatch', details=counts)
         if row['kind'] == 'symlink':
-            require(row['target'] == expected['target'], f'Extracted link target mismatch: {name}')
+            require(row['target'] == expected['target'], f'Extracted link target mismatch: {name}',
+                    category='link-target-mismatch', details=counts)
         elif expected['mode']:
             require(stat.S_IMODE((root/name).stat().st_mode) == expected['mode'],
-                    f'Extracted mode differs from ZIP: {name}')
-    metadata = metadata_checks((root/'Info.plist').read_bytes(),
-        (root/manifest['appConfigPath']).read_bytes(), digest_file(root/'main.jsbundle'), manifest)
-    require(EXPECTED_SERVER in (root/'main.jsbundle').read_bytes(), 'Extracted bundle API mismatch')
+                    f'Extracted mode differs from ZIP: {name}', category='mode-mismatch',
+                    details={**counts, 'expectedMode': expected['mode'],
+                             'actualMode': stat.S_IMODE((root/name).stat().st_mode)})
+    try:
+        metadata = metadata_checks((root/'Info.plist').read_bytes(),
+            (root/manifest['appConfigPath']).read_bytes(), digest_file(root/'main.jsbundle'), manifest)
+    except VerificationError as error:
+        raise VerificationError('metadata-mismatch', 'Extracted app metadata mismatch') from error
+    require(EXPECTED_SERVER in (root/'main.jsbundle').read_bytes(), 'Extracted bundle API mismatch',
+            category='isolated-api-mismatch')
     executable = root / metadata['executable']
     architectures = subprocess.check_output(['xcrun', 'lipo', '-archs', str(executable)], text=True).strip()
     file_description = subprocess.check_output(['/usr/bin/file', str(executable)], text=True).strip()
-    require(architectures.split() == ['arm64'], 'Extracted executable is not arm64-only')
+    require(architectures.split() == ['arm64'], 'Extracted executable is not arm64-only',
+            category='architecture-mismatch')
     require('Mach-O' in file_description and 'executable arm64' in file_description,
-            'Unexpected Mach-O executable type')
-    signing = load_signing_receipt(Path(archive_receipt['archivePath']).parent, manifest)
+            'Unexpected Mach-O executable type', category='executable-type-mismatch')
+    try:
+        signing = load_signing_receipt(Path(archive_receipt['archivePath']).parent, manifest)
+    except VerificationError as error:
+        raise VerificationError('signing-receipt-mismatch', 'Selected signing receipt mismatch') from error
     parser = signing_parser()
-    parser.inspect_app(root)
+    try:
+        parser.inspect_app(root)
+    except parser.SafeFailure as error:
+        raise VerificationError('signature-identity-failure', 'Signature app identity check failed',
+                                {'signatureCategory': error.category}) from error
     actual_signing = verify_macho_signing(executable.read_bytes(), signing)
-    require(parser.verify_codesign(root) == {'returnCode': 0}, 'Extracted app codesign verification did not pass')
+    try:
+        codesign_result = parser.verify_codesign(root)
+    except parser.SafeFailure as error:
+        raise VerificationError('signature-verification-failure', 'Extracted app codesign verification did not pass',
+                                {'signatureCategory': error.category,
+                                 'returnCode': error.fields.get('returnCode')}) from error
+    require(codesign_result == {'returnCode': 0}, 'Extracted app codesign verification did not pass',
+            category='signature-verification-failure')
     return {'appPath': str(root), 'appFileCount': len(actual_files),
             'buildSigningVerified': True, 'executableSha256': actual_signing['executableSha256'],
             'signingReceiptSha256': manifest['signingReceiptSha256'],
@@ -369,13 +475,13 @@ def main():
             receipt['extracted'] = verify_extracted(args.app, archive_receipt, manifest)
         receipt['verified'] = True
     except Exception as error:
-        receipt['error'] = f'{type(error).__name__}: {error}'
+        receipt.update(public_failure(error))
         code = 1
     receipt['finishedAt'] = time.time()
     with args.receipt.open('x', encoding='utf-8') as output:
         json.dump(receipt, output, indent=2); output.write('\n')
-    print(json.dumps({'verified': receipt['verified'], 'mode': args.mode,
-                      'receipt': str(args.receipt), 'error': receipt.get('error')}, indent=2))
+    print(json.dumps({key: receipt[key] for key in
+                      ('verified', 'mode', 'errorType', 'verificationFailure') if key in receipt}, indent=2))
     return code
 
 
