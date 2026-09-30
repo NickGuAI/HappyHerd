@@ -57,7 +57,7 @@ jobs:
       - name: Generate the isolated native host
         run: |
           pnpm --dir server --filter happyherd-app exec expo prebuild --platform ios --no-install > acceptance-artifact/prebuild.log 2>&1
-          pod install --project-directory=server/packages/happyherd-app/ios > acceptance-artifact/pods.log 2>&1
+          (cd server/packages/happyherd-app/ios && pod install) > acceptance-artifact/pods.log 2>&1
           git diff --exit-code -- server
           cp server/packages/happyherd-app/ios/Podfile.lock acceptance-artifact/Podfile.lock
           test "$(shasum -a 256 server/packages/happyherd-app/ios/Pods/RevenueCat/Sources/Paywalls/PaywallColor.swift | cut -d ' ' -f 1)" = 7d5eb572233ad587841d61be7294b32583d35724be6aa39006982d298774c511

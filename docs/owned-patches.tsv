@@ -686,3 +686,4 @@ INBOX_READ_STATE_345	accepted	feat(inbox): persist per-update reads and add Done
 INBOX_READ_ERROR_DIALOG_345	accepted	test(inbox): dismiss failure dialogs while clicks settle	server/packages/happyherd-app/sources/components/InboxView.browser.test.ts
 INBOX_READ_GOLDENS_345	accepted	test(inbox): refresh read-state changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 INBOX_READ_NATIVE_ARTIFACT_345	accepted	test(inbox): build an unmodified iOS acceptance artifact	docs/acceptance/issue-345/native-build-workflow.yml
+INBOX_READ_NATIVE_POD_CWD_345	accepted	test(inbox): install native pods from the generated project	docs/acceptance/issue-345/native-build-workflow.yml
