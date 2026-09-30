@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-30T22:11:41.244050+00:00",
+  "sourceSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+  "nativeSourceSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+  "runId": 36779331859,
+  "jobId": 110105150356,
+  "artifactId": 11127794140,
+  "verdict": "PASS",
+  "scope": "Independent non-image publication privacy, original proof integrity, acceptance receipts and retained recipe/storage review.",
+  "originalNonImageFiles": [
+    {
+      "path": "controller.json",
+      "bytes": 10715,
+      "sha256": "37922169c8dac6b6dd7ffa2b9e58b392452270737441ca7951723c5d4364830e"
+    },
+    {
+      "path": "native-app-archive.json",
+      "bytes": 208804,
+      "sha256": "770247187d9f7764ed10ab3a04f9cddeb55f23bf1e8fa70b2b970363e1b41da3"
+    },
+    {
+      "path": "native-app-extracted.json",
+      "bytes": 210099,
+      "sha256": "6013e2849750f1012ca06525c66697fb29a90676f86f0bcb017d66e46bd99782"
+    },
+    {
+      "path": "native-app-signing.json",
+      "bytes": 2819,
+      "sha256": "92dc112c223620037390fa943a266de13fcae33929e07048a97a01fe7c643a20"
+    },
+    {
+      "path": "native/1790803826340113000/receipt.json",
+      "bytes": 22969,
+      "sha256": "eb7c5b7a705d4220f692cb11774ca403262940720da7ad1c686704969fe0b780"
+    },
+    {
+      "path": "native/1790803826340113000/test-summary.json",
+      "bytes": 134,
+      "sha256": "26557f0838f4977368df63b2477ac01d8fc2c23b57d9d6cff8bc0d7a347dc920"
+    },
+    {
+      "path": "native/native-transport.json",
+      "bytes": 61322,
+      "sha256": "1ad3bcaef3be40e7c2ecc3c1968aefba9e1136a4a18345c49e63a489b1507012"
+    },
+    {
+      "path": "proof-manifest.json",
+      "bytes": 8104,
+      "sha256": "825c9e28c58eed4470f3494cc00cd890e53494da7cbd375f1c275d98b471f569"
+    },
+    {
+      "path": "server.json",
+      "bytes": 3305,
+      "sha256": "4960faaf1bc6170e3ef5ba4f87282ef58b379626a54936e904ebd84d934f79be"
+    },
+    {
+      "path": "toolchain.txt",
+      "bytes": 351,
+      "sha256": "bf45918a149cd39b5549be5f5fdc423d73d2617f5014d1504acf5cb62b4503d1"
+    },
+    {
+      "path": "web/web-acceptance.json",
+      "bytes": 40316,
+      "sha256": "a8e75a6d2719fc7ecdd0ee6e5cb272fa327d8b32e8fb5df728754f919fd05ed0"
+    }
+  ],
+  "proofIntegrity": {
+    "exactRegularFileCount": 46,
+    "manifestEntryCount": 45,
+    "manifestSha256": "825c9e28c58eed4470f3494cc00cd890e53494da7cbd375f1c275d98b471f569",
+    "pngCount": 35,
+    "allManifestHashesAndByteLengthsVerified": true,
+    "missingExtraSymlinkOrTraversalMembers": false,
+    "allNativeCaptureBindingsVerified": true
+  },
+  "privacy": {
+    "allElevenNonImagesReviewed": true,
+    "rawCredentialAccountTokenCiphertextQrHierarchyOrCrashContentsFound": false,
+    "unencodedScannerFindings": "public-image-scale-filename-email-pattern",
+    "unencodedAffectedFiles": 2,
+    "distinctImageFilenameMatchesPerAffectedFile": 19,
+    "encodedUnchangedPublicBoundaryScanner": "PASS",
+    "publicBoundaryExceptionAdded": false
+  },
+  "storage": {
+    "exactlyTwoReversiblyEncodedFiles": [
+      {
+        "path": "native-app-archive.json",
+        "encoding": "json-unicode-at",
+        "replacements": 71,
+        "originalBytes": 208804,
+        "originalSha256": "770247187d9f7764ed10ab3a04f9cddeb55f23bf1e8fa70b2b970363e1b41da3",
+        "storedBytes": 209159,
+        "storedSha256": "b57508c5ad317777259f709ad25420a93ff121fb4816625e2158bc08203b3d06",
+        "originalHadPreexistingEscape": false,
+        "jsonSemanticsUnchanged": true,
+        "originalBytesReconstructed": true
+      },
+      {
+        "path": "native-app-extracted.json",
+        "encoding": "json-unicode-at",
+        "replacements": 71,
+        "originalBytes": 210099,
+        "originalSha256": "6013e2849750f1012ca06525c66697fb29a90676f86f0bcb017d66e46bd99782",
+        "storedBytes": 210454,
+        "storedSha256": "722dbf3fbfb686f7fcd6a3f60e92b4e8c3818d3d5ddd5850588fab5b369dcec5",
+        "originalHadPreexistingEscape": false,
+        "jsonSemanticsUnchanged": true,
+        "originalBytesReconstructed": true
+      }
+    ],
+    "allOther44FilesByteIdentical": true,
+    "originalManifestByteIdentical": true,
+    "originalDownloadedFilesUnchanged": true,
+    "metadataOutsideProof": true
+  },
+  "acceptance": {
+    "controllerStages": 15,
+    "webStages": 13,
+    "nativeCheckpoints": 16,
+    "nativeCaptures": 18,
+    "normalQrAuthAccountOrder": [
+      "A",
+      "B",
+      "A"
+    ],
+    "xctestPassed": 1,
+    "xctestFailed": 0,
+    "xctestSkipped": 0,
+    "nativePendingDoneRace": true,
+    "realNativeReadRequestHeldAndForwarded": 1,
+    "durableIsolatedServerRestarts": 2,
+    "nativeOnlyWebSocketReconnectBeforeBrowserResume": true,
+    "finalReadStatePersistsAcrossRelaunch": true,
+    "all736SelectedAndInstalledFilesVerified": true,
+    "strictSignatureVerified": true,
+    "simulatorShutdownExitCode": 0,
+    "simulatorDeleteExitCode": 0,
+    "resourceStopped": false,
+    "minimumDiskFreeBytes": 90081320960,
+    "minimumMemoryAvailablePercent": 20
+  },
+  "retainedRecipe": {
+    "journeyWorkflowMatchesExecutedSource": true,
+    "buildWorkflowMatchesExecutedSource": true,
+    "swiftAndVerifierHashBindingsVerified": true,
+    "selected736FileHashMapMatchesTrackedBuildManifest": true,
+    "selectedSigningReceiptByteIdentical": true,
+    "trackedBuildManifest": "docs/acceptance/issue-345/native-signed-build-manifest.json",
+    "reconstructedSelectedBuildManifestSha256": "3016a99e2f8ae5326eeb059c662b7f760041ea2bfbcb2a0e2a008d9771c73297",
+    "durableAuditorUsesTrackedDefaultManifest": true,
+    "durableAuditorAll11ChecksPassed": true,
+    "auditorSha256": "7243a2fa67e48c1eba6b4aa691aae0f8f8b204b6f7b86778f00bb03a15bbbcd7",
+    "testedHeadCiByteIdenticalToIndependentReceipt": true
+  },
+  "limits": [
+    "This audit verifies all 35 PNG hashes and receipt bindings; separate named agents performed direct visual/privacy review.",
+    "The earlier Logout-time SIGSEGV remains unexplained; this PASS does not establish a product correction or absence of recurrence.",
+    "The relay recorded 165 transport errors during the journey; all required offline, restart and reconnect assertions passed.",
+    "Current-main, final evidence-head CI/installers/image/goldens and GitHub merge readiness require separate final checks."
+  ],
+  "actions": {
+    "trackedFilesModified": false,
+    "nativeExecutionStarted": false,
+    "ciRerunsIssued": false,
+    "githubMessagesPosted": false
+  }
+}

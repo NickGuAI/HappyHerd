@@ -1,6 +1,11 @@
 # Isolated hosted Inbox acceptance
 
-This temporary acceptance tooling runs the unchanged production app and actual
+The [complete authenticated journey passed at `d197a1be`](pass-d197a1be/README.md).
+Its durable receipts, original captures and retained recipes remain after removal
+of the temporary active workflows. All nineteen earlier failures remain below;
+the earlier Logout-time memory-access crash is not claimed fixed by this pass.
+
+This retained acceptance tooling runs the unchanged production app and actual
 standalone server. It does not run fixtures or inject authenticated/read state.
 The native app is selected from the normal Xcode simulator-signing build
 `4933c0c727b08f2dbe7f90ae5e261d89a917e0de`

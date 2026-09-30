@@ -1,0 +1,2401 @@
+{
+  "serverSourceSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+  "nativeBuildSha": "4933c0c727b08f2dbe7f90ae5e261d89a917e0de",
+  "startedAt": "2026-09-30T21:30:25.989Z",
+  "authentication": "Normal native Link with mobile app QR request/poll; real authenticated companion approval API. No injected app state.",
+  "firstId": "cmuomczki0001jzo4ny0ndmwo",
+  "secondId": "cmuomczl40003jzo4oplq8bdi",
+  "checkpoints": [
+    {
+      "stage": "01-native-inbox-unread",
+      "account": "A",
+      "at": "2026-09-30T21:41:20.518Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": null
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": null
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": null
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": null
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "02-native-inbox-single-read",
+      "account": "A",
+      "at": "2026-09-30T21:41:29.236Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": null
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": null
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "03-native-inbox-done",
+      "account": "A",
+      "at": "2026-09-30T21:41:30.649Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "04-native-inbox-after-relaunch",
+      "account": "A",
+      "at": "2026-09-30T21:44:53.378Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "05-native-inbox-new-arrival",
+      "account": "A",
+      "at": "2026-09-30T21:44:58.596Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": null
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": null
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "06-native-inbox-remote-done",
+      "account": "A",
+      "at": "2026-09-30T21:45:00.428Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "07-native-account-a-unread",
+      "account": "A",
+      "at": "2026-09-30T21:45:01.718Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": null
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": null
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "08-native-account-a-done",
+      "account": "A",
+      "at": "2026-09-30T21:45:04.796Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": null
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "09-native-account-b-unread",
+      "account": "B",
+      "at": "2026-09-30T21:49:47.815Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvqdx000fjzo4v9q8kuli",
+          "cursor": "0-2",
+          "readAt": null
+        },
+        {
+          "id": "cmuomcwny000ijz3681j5u3yt",
+          "cursor": "0-1",
+          "readAt": 1790803822403
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": null
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "10-native-account-b-done",
+      "account": "B",
+      "at": "2026-09-30T21:49:48.846Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvqdx000fjzo4v9q8kuli",
+          "cursor": "0-2",
+          "readAt": 1790804988151
+        },
+        {
+          "id": "cmuomcwny000ijz3681j5u3yt",
+          "cursor": "0-1",
+          "readAt": 1790803822403
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "11-native-account-a-restored",
+      "account": "A",
+      "at": "2026-09-30T21:54:21.638Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": null
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "12-native-race-new-arrival",
+      "account": "A",
+      "at": "2026-09-30T21:54:24.269Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuon7rzq000rjzo4h5z37sc6",
+          "cursor": "0-14",
+          "readAt": null
+        },
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": 1790805263039
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuon7rzq000rjzo4h5z37sc6",
+            "cursor": "0-14",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": 1790805263039
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "13-native-after-server-restart",
+      "account": "A",
+      "at": "2026-09-30T21:54:48.930Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuon7rzq000rjzo4h5z37sc6",
+          "cursor": "0-14",
+          "readAt": null
+        },
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": 1790805263039
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuon7rzq000rjzo4h5z37sc6",
+            "cursor": "0-14",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": 1790805263039
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "14-native-reconnected-new-arrival",
+      "account": "A",
+      "at": "2026-09-30T21:54:49.475Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuon8cgv0001jz7b4se06ssx",
+          "cursor": "0-15",
+          "readAt": null
+        },
+        {
+          "id": "cmuon7rzq000rjzo4h5z37sc6",
+          "cursor": "0-14",
+          "readAt": null
+        },
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": 1790805263039
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuon8cgv0001jz7b4se06ssx",
+            "cursor": "0-15",
+            "readAt": null
+          },
+          {
+            "id": "cmuon7rzq000rjzo4h5z37sc6",
+            "cursor": "0-14",
+            "readAt": null
+          },
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": 1790805263039
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "15-native-reconnected-done",
+      "account": "A",
+      "at": "2026-09-30T21:54:53.076Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuon8cgv0001jz7b4se06ssx",
+          "cursor": "0-15",
+          "readAt": 1790805292561
+        },
+        {
+          "id": "cmuon7rzq000rjzo4h5z37sc6",
+          "cursor": "0-14",
+          "readAt": 1790805292561
+        },
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": 1790805263039
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuon8cgv0001jz7b4se06ssx",
+            "cursor": "0-15",
+            "readAt": 1790805292561
+          },
+          {
+            "id": "cmuon7rzq000rjzo4h5z37sc6",
+            "cursor": "0-14",
+            "readAt": 1790805292561
+          },
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": 1790805263039
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    },
+    {
+      "stage": "16-native-final-relaunch",
+      "account": "A",
+      "at": "2026-09-30T21:58:13.091Z",
+      "passed": true,
+      "items": [
+        {
+          "id": "cmuon8cgv0001jz7b4se06ssx",
+          "cursor": "0-15",
+          "readAt": 1790805292561
+        },
+        {
+          "id": "cmuon7rzq000rjzo4h5z37sc6",
+          "cursor": "0-14",
+          "readAt": 1790805292561
+        },
+        {
+          "id": "cmuomvtsi000hjzo4j3wukffu",
+          "cursor": "0-13",
+          "readAt": 1790805263039
+        },
+        {
+          "id": "cmuomvqcr000djzo4r2y3z28q",
+          "cursor": "0-12",
+          "readAt": 1790804703620
+        },
+        {
+          "id": "cmuomvo9c000bjzo4dkp92spc",
+          "cursor": "0-11",
+          "readAt": 1790804699941
+        },
+        {
+          "id": "cmuomczl40003jzo4oplq8bdi",
+          "cursor": "0-10",
+          "readAt": 1790804489598
+        },
+        {
+          "id": "cmuomczki0001jzo4ny0ndmwo",
+          "cursor": "0-9",
+          "readAt": 1790804481043
+        },
+        {
+          "id": "cmuomcwrx000kjz36fp0izh8h",
+          "cursor": "0-8",
+          "readAt": 1790803825889
+        },
+        {
+          "id": "cmuomcu4e000fjz36o58vylrd",
+          "cursor": "0-7",
+          "readAt": 1790803822253
+        },
+        {
+          "id": "cmuomcu2o000djz369yusb24a",
+          "cursor": "0-6",
+          "readAt": 1790803818869
+        },
+        {
+          "id": "cmuomct5x000bjz361vi352tc",
+          "cursor": "0-5",
+          "readAt": 1790803817805
+        },
+        {
+          "id": "cmuomcsf00009jz36zjod3frv",
+          "cursor": "0-4",
+          "readAt": 1790803816989
+        },
+        {
+          "id": "cmuomcseg0007jz36ft0m3syf",
+          "cursor": "0-3",
+          "readAt": 1790803816841
+        },
+        {
+          "id": "cmuomcq9o0004jz36ha0525vk",
+          "cursor": "0-2",
+          "readAt": 1790803816542
+        },
+        {
+          "id": "cmuomcq800002jz36ru992qch",
+          "cursor": "0-1",
+          "readAt": 1790803816110
+        }
+      ],
+      "snapshots": {
+        "A": [
+          {
+            "id": "cmuon8cgv0001jz7b4se06ssx",
+            "cursor": "0-15",
+            "readAt": 1790805292561
+          },
+          {
+            "id": "cmuon7rzq000rjzo4h5z37sc6",
+            "cursor": "0-14",
+            "readAt": 1790805292561
+          },
+          {
+            "id": "cmuomvtsi000hjzo4j3wukffu",
+            "cursor": "0-13",
+            "readAt": 1790805263039
+          },
+          {
+            "id": "cmuomvqcr000djzo4r2y3z28q",
+            "cursor": "0-12",
+            "readAt": 1790804703620
+          },
+          {
+            "id": "cmuomvo9c000bjzo4dkp92spc",
+            "cursor": "0-11",
+            "readAt": 1790804699941
+          },
+          {
+            "id": "cmuomczl40003jzo4oplq8bdi",
+            "cursor": "0-10",
+            "readAt": 1790804489598
+          },
+          {
+            "id": "cmuomczki0001jzo4ny0ndmwo",
+            "cursor": "0-9",
+            "readAt": 1790804481043
+          },
+          {
+            "id": "cmuomcwrx000kjz36fp0izh8h",
+            "cursor": "0-8",
+            "readAt": 1790803825889
+          },
+          {
+            "id": "cmuomcu4e000fjz36o58vylrd",
+            "cursor": "0-7",
+            "readAt": 1790803822253
+          },
+          {
+            "id": "cmuomcu2o000djz369yusb24a",
+            "cursor": "0-6",
+            "readAt": 1790803818869
+          },
+          {
+            "id": "cmuomct5x000bjz361vi352tc",
+            "cursor": "0-5",
+            "readAt": 1790803817805
+          },
+          {
+            "id": "cmuomcsf00009jz36zjod3frv",
+            "cursor": "0-4",
+            "readAt": 1790803816989
+          },
+          {
+            "id": "cmuomcseg0007jz36ft0m3syf",
+            "cursor": "0-3",
+            "readAt": 1790803816841
+          },
+          {
+            "id": "cmuomcq9o0004jz36ha0525vk",
+            "cursor": "0-2",
+            "readAt": 1790803816542
+          },
+          {
+            "id": "cmuomcq800002jz36ru992qch",
+            "cursor": "0-1",
+            "readAt": 1790803816110
+          }
+        ],
+        "B": [
+          {
+            "id": "cmuomvqdx000fjzo4v9q8kuli",
+            "cursor": "0-2",
+            "readAt": 1790804988151
+          },
+          {
+            "id": "cmuomcwny000ijz3681j5u3yt",
+            "cursor": "0-1",
+            "readAt": 1790803822403
+          }
+        ]
+      }
+    }
+  ],
+  "socketUpdates": [
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 4,
+      "at": "2026-09-30T21:41:22.918Z",
+      "eventId": "PdOXwwfgyUJ6",
+      "id": "cmuomczki0001jzo4ny0ndmwo",
+      "readAt": 1790804481043
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 4,
+      "at": "2026-09-30T21:41:29.854Z",
+      "eventId": "5NjOkxxQIM9K",
+      "through": "0-10",
+      "readAt": 1790804489598
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "new-feed-post",
+      "connection": 4,
+      "at": "2026-09-30T21:44:58.116Z",
+      "eventId": "2lNF4VS4DFyM",
+      "id": "cmuomvo9c000bjzo4dkp92spc",
+      "readAt": null
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 4,
+      "at": "2026-09-30T21:45:00.308Z",
+      "eventId": "s0WlXHNadcI2",
+      "through": "0-11",
+      "readAt": 1790804699941
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "new-feed-post",
+      "connection": 4,
+      "at": "2026-09-30T21:45:00.523Z",
+      "eventId": "f6tAVd50sOH2",
+      "id": "cmuomvqcr000djzo4r2y3z28q",
+      "readAt": null
+    },
+    {
+      "source": "desktop-B",
+      "event": "update",
+      "type": "new-feed-post",
+      "connection": 3,
+      "at": "2026-09-30T21:45:00.875Z",
+      "eventId": "f4sTldeIfQxS",
+      "id": "cmuomvqdx000fjzo4v9q8kuli",
+      "readAt": null
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 4,
+      "at": "2026-09-30T21:45:03.860Z",
+      "eventId": "YpggzCMX33Cl",
+      "through": "0-12",
+      "readAt": 1790804703620
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "new-feed-post",
+      "connection": 4,
+      "at": "2026-09-30T21:45:04.976Z",
+      "eventId": "lmeLdFUuGI36",
+      "id": "cmuomvtsi000hjzo4j3wukffu",
+      "readAt": null
+    },
+    {
+      "source": "desktop-B",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 3,
+      "at": "2026-09-30T21:49:49.992Z",
+      "eventId": "k7F8il4z8AjV",
+      "through": "0-2",
+      "readAt": 1790804988151
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "new-feed-post",
+      "connection": 4,
+      "at": "2026-09-30T21:54:23.307Z",
+      "eventId": "WHbYfMm8wuDX",
+      "id": "cmuon7rzq000rjzo4h5z37sc6",
+      "readAt": null
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 4,
+      "at": "2026-09-30T21:54:23.321Z",
+      "eventId": "9wJr6TWYWk8Z",
+      "through": "0-13",
+      "readAt": 1790805263039
+    },
+    {
+      "source": "desktop-A",
+      "event": "update",
+      "type": "feed-read",
+      "connection": 11,
+      "at": "2026-09-30T21:54:52.629Z",
+      "eventId": "UyVjpMrTRquM",
+      "through": "0-15",
+      "readAt": 1790805292561
+    }
+  ],
+  "links": [
+    {
+      "account": "A",
+      "epoch": 0,
+      "approvedAt": "2026-09-30T21:38:04.747Z",
+      "authorized": true,
+      "storedCiphertextMatches": true,
+      "tokenPresent": true
+    },
+    {
+      "account": "B",
+      "epoch": 1,
+      "approvedAt": "2026-09-30T21:46:38.738Z",
+      "authorized": true,
+      "storedCiphertextMatches": true,
+      "tokenPresent": true
+    },
+    {
+      "account": "A",
+      "epoch": 2,
+      "approvedAt": "2026-09-30T21:51:12.592Z",
+      "authorized": true,
+      "storedCiphertextMatches": true,
+      "tokenPresent": true
+    }
+  ],
+  "approvedAt": "2026-09-30T21:51:12.592Z",
+  "approvalEndpointStatus": 200,
+  "companionApprovalReadBack": {
+    "authorized": true,
+    "storedCiphertextMatches": true,
+    "tokenPresent": true
+  },
+  "incomingId": "cmuomvo9c000bjzo4dkp92spc",
+  "actions": [
+    "prepare-scope",
+    "select-b",
+    "select-a",
+    "arm-race",
+    "race-pending",
+    "release-race",
+    "restart",
+    "publish-after-restart",
+    "resume-web"
+  ]
+}

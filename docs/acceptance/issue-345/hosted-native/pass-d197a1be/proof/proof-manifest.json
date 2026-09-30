@@ -1,0 +1,229 @@
+{
+  "files": [
+    {
+      "path": "controller.json",
+      "bytes": 10715,
+      "sha256": "37922169c8dac6b6dd7ffa2b9e58b392452270737441ca7951723c5d4364830e"
+    },
+    {
+      "path": "native/1790803826340113000/png/00-native-server-before-authentication.png",
+      "bytes": 158107,
+      "sha256": "a732da0a5ea91928d60fafde149a54aa1e5e3fa2def7fe33253deda26622ed21"
+    },
+    {
+      "path": "native/1790803826340113000/png/00a-native-inbox-before-assertions.png",
+      "bytes": 287395,
+      "sha256": "8a58785372b4b3f48b6cbe68a648ebb50a54fe750418936d95f9fc0df9dd429a"
+    },
+    {
+      "path": "native/1790803826340113000/png/01-native-inbox-unread.png",
+      "bytes": 287395,
+      "sha256": "8a58785372b4b3f48b6cbe68a648ebb50a54fe750418936d95f9fc0df9dd429a"
+    },
+    {
+      "path": "native/1790803826340113000/png/02-native-inbox-single-read.png",
+      "bytes": 284145,
+      "sha256": "3dc2b1c36576625ca0df5526792b799b55a1400996cba0254a30718500f072c1"
+    },
+    {
+      "path": "native/1790803826340113000/png/03-native-inbox-done.png",
+      "bytes": 283171,
+      "sha256": "f2c5abbec767ce36b23cc894ee8411b28b77ab427b2e2540bcab0c33ccb22a92"
+    },
+    {
+      "path": "native/1790803826340113000/png/04-native-inbox-after-relaunch.png",
+      "bytes": 284447,
+      "sha256": "9e0f02d9278dbeb0080e98eef565e770433fd808d3c423a2a6c62713abe80e9f"
+    },
+    {
+      "path": "native/1790803826340113000/png/05-native-inbox-new-arrival.png",
+      "bytes": 288006,
+      "sha256": "5672ee33ab08807ad4faff07f1e9f49bb99e85a1d538c72d555dd7ede8d0f8ac"
+    },
+    {
+      "path": "native/1790803826340113000/png/06-native-inbox-remote-done.png",
+      "bytes": 287893,
+      "sha256": "301d00382574da977d48bd2b90d8e45b7bd1dca5038d2f41a397549dcd77bc9d"
+    },
+    {
+      "path": "native/1790803826340113000/png/07-native-account-a-unread.png",
+      "bytes": 293025,
+      "sha256": "fa57b9ed1427bf9fe7e60700761f0428e067af3e562b0e2eb393d7cae0436340"
+    },
+    {
+      "path": "native/1790803826340113000/png/08-native-account-a-done.png",
+      "bytes": 292061,
+      "sha256": "d9a5d0dd2ad21b00fd4272e200151f7f5bf687502144a590dadc9c00e7de3c8e"
+    },
+    {
+      "path": "native/1790803826340113000/png/09-native-account-b-unread.png",
+      "bytes": 151945,
+      "sha256": "1907c26a9bec249f2732d66bf4c392e3db3835a5247b4546d6541c61198e8c60"
+    },
+    {
+      "path": "native/1790803826340113000/png/10-native-account-b-done.png",
+      "bytes": 150927,
+      "sha256": "7f2f07eaec1c529b54f174098aebe3e27d4ea251bee3b6557689fad48d3f7036"
+    },
+    {
+      "path": "native/1790803826340113000/png/11-native-account-a-restored.png",
+      "bytes": 297470,
+      "sha256": "379cd2041efd231c0c623c522b9c59ea7cc9aaf696b24f24dbf94145c8dc7a4e"
+    },
+    {
+      "path": "native/1790803826340113000/png/12-native-race-new-arrival.png",
+      "bytes": 301699,
+      "sha256": "ac6e6b44dcc3c613134c575260cbc515ffe4949cfaca94019c04a2950f0376f7"
+    },
+    {
+      "path": "native/1790803826340113000/png/13-native-after-server-restart.png",
+      "bytes": 301015,
+      "sha256": "a5dfbb5bdda639b4c6c33c86e9d1e3ed0c350f1eca8f0866e0a63e0c3b2472f6"
+    },
+    {
+      "path": "native/1790803826340113000/png/14-native-reconnected-new-arrival.png",
+      "bytes": 303983,
+      "sha256": "35c250dcac22ad090ee1b970b540d08db82fb92985bbe9f315c9d5c5d8f6ba5e"
+    },
+    {
+      "path": "native/1790803826340113000/png/15-native-reconnected-done.png",
+      "bytes": 302534,
+      "sha256": "69940665e23719a0f6ef76cb9246965138578017322a16de5c3a5e5e6b46aff1"
+    },
+    {
+      "path": "native/1790803826340113000/png/16-native-final-relaunch.png",
+      "bytes": 294035,
+      "sha256": "0a5aedf654ace8f5a8a413187057d81076aa76c412979dfe83a15ff250b0f390"
+    },
+    {
+      "path": "native/1790803826340113000/receipt.json",
+      "bytes": 22969,
+      "sha256": "eb7c5b7a705d4220f692cb11774ca403262940720da7ad1c686704969fe0b780"
+    },
+    {
+      "path": "native/1790803826340113000/test-summary.json",
+      "bytes": 134,
+      "sha256": "26557f0838f4977368df63b2477ac01d8fc2c23b57d9d6cff8bc0d7a347dc920"
+    },
+    {
+      "path": "native/native-transport.json",
+      "bytes": 61322,
+      "sha256": "1ad3bcaef3be40e7c2ecc3c1968aefba9e1136a4a18345c49e63a489b1507012"
+    },
+    {
+      "path": "native-app-archive.json",
+      "bytes": 208804,
+      "sha256": "770247187d9f7764ed10ab3a04f9cddeb55f23bf1e8fa70b2b970363e1b41da3"
+    },
+    {
+      "path": "native-app-extracted.json",
+      "bytes": 210099,
+      "sha256": "6013e2849750f1012ca06525c66697fb29a90676f86f0bcb017d66e46bd99782"
+    },
+    {
+      "path": "native-app-signing.json",
+      "bytes": 2819,
+      "sha256": "92dc112c223620037390fa943a266de13fcae33929e07048a97a01fe7c643a20"
+    },
+    {
+      "path": "server.json",
+      "bytes": 3305,
+      "sha256": "4960faaf1bc6170e3ef5ba4f87282ef58b379626a54936e904ebd84d934f79be"
+    },
+    {
+      "path": "toolchain.txt",
+      "bytes": 351,
+      "sha256": "bf45918a149cd39b5549be5f5fdc423d73d2617f5014d1504acf5cb62b4503d1"
+    },
+    {
+      "path": "web/account-b-done-cleared.png",
+      "bytes": 59473,
+      "sha256": "c47354536283f6186155b8263ee2351842569eafff59a541ca3b123f5f9a70dd"
+    },
+    {
+      "path": "web/desktop-after-server-restart.png",
+      "bytes": 165243,
+      "sha256": "368f1c91de8118b7906188e82df192a1b7e14e2a3c5c08e1edfd659a47571714"
+    },
+    {
+      "path": "web/desktop-done-cleared.png",
+      "bytes": 75134,
+      "sha256": "cdd8774a93df18853d08f06cf08334be3a28da3597f6d095dd24698bcb3c8d9b"
+    },
+    {
+      "path": "web/desktop-empty-inbox.png",
+      "bytes": 49572,
+      "sha256": "cd2e2d050b70484025f4662d47f71273a40615e65294d17deb990320f838c37f"
+    },
+    {
+      "path": "web/desktop-new-arrival-unread.png",
+      "bytes": 151243,
+      "sha256": "2d49db6fadde450487c70b4f37da41d0685079918445f8efac0b088154b9f9fe"
+    },
+    {
+      "path": "web/desktop-two-unread.png",
+      "bytes": 76013,
+      "sha256": "43797811fd808ae6c71078bf41126d0d935d6103b595156b8afe54339300932f"
+    },
+    {
+      "path": "web/mobile-after-server-restart.png",
+      "bytes": 77627,
+      "sha256": "9dd965536aec8b35f0b93f78e60c88a6a20e49caef4d0bb313c09e95033f6b07"
+    },
+    {
+      "path": "web/mobile-done-cleared.png",
+      "bytes": 48926,
+      "sha256": "c34df4ad7c31deb478c7e0ae8ea41a72e87b66bea013dbd5e2fd248f6bc7db9b"
+    },
+    {
+      "path": "web/mobile-new-arrival-unread.png",
+      "bytes": 77638,
+      "sha256": "2ac5a2e8b5069d4201f2d3717dc5478483f52b3e0bf3e8d18eaecd019a101fdb"
+    },
+    {
+      "path": "web/mobile-offline-unread.png",
+      "bytes": 59643,
+      "sha256": "ab6d655548f08c719bfcc4ee6b7b9f8e0903eb359fbb0e5a3a4463e45d112b84"
+    },
+    {
+      "path": "web/mobile-reconnected-cleared.png",
+      "bytes": 58978,
+      "sha256": "2900e9782f101a806e60e55444a8285d2f3f01a7b627b785ac124da410b1240a"
+    },
+    {
+      "path": "web/mobile-socket-cleared.png",
+      "bytes": 30828,
+      "sha256": "63dbf73d2a37ed56699f89468b09dbb0960b67ea3b28a715944047259702cc3c"
+    },
+    {
+      "path": "web/mobile-two-unread.png",
+      "bytes": 31627,
+      "sha256": "c79e3405ae27745ec1f01963c4295e68c506f60b6fb2aead99f923d3f546cea4"
+    },
+    {
+      "path": "web/web-acceptance.json",
+      "bytes": 40316,
+      "sha256": "a8e75a6d2719fc7ecdd0ee6e5cb272fa327d8b32e8fb5df728754f919fd05ed0"
+    },
+    {
+      "path": "web-native/desktop-after-native-done-and-relaunch.png",
+      "bytes": 180895,
+      "sha256": "c025d3da4ef341c6fd7cc0cf98bab1e6db050306e2821e7acaa10837d9d449ac"
+    },
+    {
+      "path": "web-native/desktop-native-initial-unread.png",
+      "bytes": 180470,
+      "sha256": "d73435f0dd4579a933ceb7d73b8cb39e886a0eb88aac6d74862d3ce0b998b48d"
+    },
+    {
+      "path": "web-native/desktop-new-arrival-before-done.png",
+      "bytes": 181224,
+      "sha256": "5814aed666ee6fe0716a9aa3a06430f36603e61f440355b9bbd82a6564d210e2"
+    },
+    {
+      "path": "web-native/desktop-remote-done-cleared.png",
+      "bytes": 180402,
+      "sha256": "83255b38f40b578c2f65afec5eb1145c125e1340a44b8c99385bd527761b28d4"
+    }
+  ]
+}

@@ -2,16 +2,30 @@
 
 Owner: [#345](https://github.com/NickGuAI/HappyHerd/issues/345). PR: [#367](https://github.com/NickGuAI/HappyHerd/pull/367). Durable session: `cmun8rx40083it0o1o82chj4s`.
 
-Runtime source: `62eaa1555621d35a4ab1042d111c2afed850bf1d`; comparison base: `0217e4c629415eda601856cd21e535489e5e1f06`. This continuation validates the existing implementation under the owner's authorization for reversible isolated deployment, authenticated journeys and native test builds. Shared production services were not installed, restarted or reconfigured, and other sessions' runtimes were not changed. The earlier default-service test-account mistake is disclosed below.
+The full authenticated Desktop, Mobile Web and iOS simulator journey **passed** at
+`d197a1be1d423a5ea644818cf63ba7818c37231e`, against main
+`0217e4c629415eda601856cd21e535489e5e1f06`. The native app was the independently
+verified normal Xcode build `4933c0c7`, with the identical complete product tree
+`e8a2fb1ad9756a56306354861f3d62b73f5f6eb8`.
+[Durable complete proof](hosted-native/pass-d197a1be/README.md) retains all 35
+original captures, receipts and the execution manifest. The earlier standalone
+Web proof at `62eaa155` and every native failure remain below.
+
+This continuation uses the owner's authorization for reversible isolated
+deployment, authenticated journeys and native test builds. Shared production
+services and other sessions' runtimes were not changed. The earlier default-service
+test-account mistake is disclosed below. The earlier Logout-time `SIGSEGV` remains
+unexplained: this successful execution is not a product fix or a claim that the
+failure cannot recur.
 
 ## Original acceptance
 
 | Criterion | Web Desktop | Web Mobile | Native app |
 | --- | --- | --- | --- |
-| Title-row Done marks every Inbox update read | PASS: real click, persisted account feed | PASS: real touch gesture, persisted account feed | Pending installed-app execution |
-| Inbox bell's unread indicator clears | PASS: indicator absent after Done | PASS: indicator absent after Done | Pending installed-app execution |
-| Reading a single update still works | PASS: one timestamp changes; exact automation destination retained | PASS: one timestamp changes; exact automation destination retained | Pending installed-app execution |
-| Cards show a dot until read; Done clears all dots | PASS: per-ID dots before/after; newer arrival stays unread | PASS: per-ID dots before/after; newer arrival stays unread | Pending installed-app execution |
+| Title-row Done marks every Inbox update read | PASS: real click, persisted account feed | PASS: real touch gesture, persisted account feed | PASS: normal tap, exact persisted snapshot |
+| Inbox bell's unread indicator clears | PASS: indicator absent after Done | PASS: indicator absent after Done | PASS: bell dot clears; popover navigation retained |
+| Reading a single update still works | PASS: one timestamp changes; exact automation destination retained | PASS: one timestamp changes; exact automation destination retained | PASS: one item read; Automations navigation retained |
+| Cards show a dot until read; Done clears all dots | PASS: per-ID dots before/after; newer arrival stays unread | PASS: per-ID dots before/after; newer arrival stays unread | PASS: per-card dots; pending-Done newer arrival stays unread |
 
 Independent friend-request, app-update and changelog indicators keep their established behavior. The live accounts had none of those independent notifications; focused hook tests cover them. Live feed content is the supported `automation_blocked` kind. Text/friend/accepted-friend and all shared platform branches retain the existing focused regression coverage.
 
@@ -81,7 +95,14 @@ The prior local contract failure and historical CI failures remain disclosed in 
 
 ## Native acceptance
 
-The exact hosted Release app has been built, independently verified and installed on a private iOS simulator. Authenticated Inbox execution remains pending. Export, shared renderer tests and installation are not a native interaction pass. This section must be completed with the selected artifact, simulator/device identity, actual gestures and sanitized captures before full issue acceptance is claimed.
+The exact hosted Release app completed the full authenticated journey on a
+private iPhone 17 / iOS 26.2 simulator in
+[attempt 20](https://github.com/NickGuAI/HappyHerd/actions/runs/36779331859).
+[Durable proof and reproduction recipe](hosted-native/pass-d197a1be/README.md)
+cover all 16 native checkpoints, 18 native captures, normal A → B → A QR linking,
+pending-Done race and durable isolated-server restart/reconnect. XCTest passed
+one test with zero failures or skips. This is simulator evidence, not a physical
+device claim. The following setup and journey failures are retained history.
 
 ### Native setup attempts retained
 

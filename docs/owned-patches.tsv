@@ -709,3 +709,4 @@ INBOX_NATIVE_OWNED_CRASH_DIAGNOSTICS_345	accepted	test(inbox): classify owned si
 INBOX_NATIVE_CRASH_IDENTITY_DIAGNOSTICS_345	accepted	test(inbox): attribute crash report identity mismatches safely	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
 INBOX_NATIVE_REDACTED_CRASH_IDENTITY_345	accepted	test(inbox): bind redacted crash paths to the verified native build	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
 INBOX_NATIVE_CRASH_CODE_ATTRIBUTION_345	accepted	test(inbox): attribute owned crash frames to verified native code	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
+INBOX_AUTHENTICATED_NATIVE_ACCEPTANCE_345	accepted	docs(inbox): retain complete authenticated simulator acceptance	docs/acceptance/issue-345/hosted-native/pass-d197a1be/README.md

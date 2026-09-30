@@ -1,0 +1,485 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-09-30T21:59:29.349680+00:00",
+  "repository": "NickGuAI/HappyHerd",
+  "headSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+  "verdict": "PASS",
+  "allRunsExactHead": true,
+  "requiredGates": [
+    {
+      "name": "Typecheck",
+      "jobId": 110105243967,
+      "conclusion": "success"
+    },
+    {
+      "name": "Lint",
+      "jobId": 110105244025,
+      "conclusion": "success"
+    },
+    {
+      "name": "Clean install",
+      "jobId": 110105243836,
+      "conclusion": "success"
+    },
+    {
+      "name": "Production build",
+      "jobId": 110105243805,
+      "conclusion": "success"
+    },
+    {
+      "name": "Unit tests",
+      "jobId": 110105243705,
+      "conclusion": "success"
+    },
+    {
+      "name": "Contract suite",
+      "jobId": 110105240637,
+      "conclusion": "success"
+    }
+  ],
+  "allSixRequiredGatesPassed": true,
+  "allFourInstallersPassed": true,
+  "serverWebImagePassed": true,
+  "allRunsFirstAttempt": true,
+  "runs": {
+    "quality": {
+      "runId": 36779331930,
+      "attempt": 1,
+      "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/36779331930",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+      "createdAt": "2026-09-30T21:25:29Z",
+      "updatedAt": "2026-09-30T21:40:25Z",
+      "jobs": [
+        {
+          "jobId": 110105151741,
+          "name": "Change scope",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:34Z",
+          "completedAt": "2026-09-30T21:25:45Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105243705,
+          "name": "Unit tests",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:48Z",
+          "completedAt": "2026-09-30T21:40:24Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105243805,
+          "name": "Production build",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:48Z",
+          "completedAt": "2026-09-30T21:31:04Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105243836,
+          "name": "Clean install",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:48Z",
+          "completedAt": "2026-09-30T21:27:08Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105243967,
+          "name": "Typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:49Z",
+          "completedAt": "2026-09-30T21:28:03Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105244025,
+          "name": "Lint",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:49Z",
+          "completedAt": "2026-09-30T21:27:17Z",
+          "failedStepCount": 0
+        }
+      ]
+    },
+    "contract": {
+      "runId": 36779331891,
+      "attempt": 1,
+      "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/36779331891",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+      "createdAt": "2026-09-30T21:25:29Z",
+      "updatedAt": "2026-09-30T21:43:27Z",
+      "jobs": [
+        {
+          "jobId": 110105150829,
+          "name": "Change scope",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:33Z",
+          "completedAt": "2026-09-30T21:25:45Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105240637,
+          "name": "Contract suite",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:48Z",
+          "completedAt": "2026-09-30T21:43:26Z",
+          "failedStepCount": 0
+        }
+      ]
+    },
+    "installers": {
+      "runId": 36779331897,
+      "attempt": 1,
+      "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/36779331897",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+      "createdAt": "2026-09-30T21:25:29Z",
+      "updatedAt": "2026-09-30T21:58:14Z",
+      "jobs": [
+        {
+          "jobId": 110105150421,
+          "name": "Build and test linux-x64",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:34Z",
+          "completedAt": "2026-09-30T21:33:21Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105150658,
+          "name": "Build and test linux-arm64",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:36Z",
+          "completedAt": "2026-09-30T21:32:13Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105150696,
+          "name": "Build and test darwin-x64",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:35Z",
+          "completedAt": "2026-09-30T21:58:12Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105150825,
+          "name": "Build and test darwin-arm64",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:39Z",
+          "completedAt": "2026-09-30T21:36:57Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110105153130,
+          "name": "Public install and auth ${{ matrix.target }}",
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-09-30T21:25:30Z",
+          "completedAt": "2026-09-30T21:25:30Z",
+          "failedStepCount": 0
+        },
+        {
+          "jobId": 110116804700,
+          "name": "Publish tagged release assets",
+          "status": "completed",
+          "conclusion": "skipped",
+          "startedAt": "2026-09-30T21:58:13Z",
+          "completedAt": "2026-09-30T21:58:13Z",
+          "failedStepCount": 0
+        }
+      ]
+    },
+    "image": {
+      "runId": 36779331880,
+      "attempt": 1,
+      "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/36779331880",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+      "createdAt": "2026-09-30T21:25:29Z",
+      "updatedAt": "2026-09-30T21:33:48Z",
+      "jobs": [
+        {
+          "jobId": 110105150902,
+          "name": "Build server + Web image",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-09-30T21:25:34Z",
+          "completedAt": "2026-09-30T21:33:47Z",
+          "failedStepCount": 0
+        }
+      ]
+    }
+  },
+  "goldens": {
+    "artifactId": 11126783726,
+    "artifactName": "kilv-golden-36779331930",
+    "archiveBytes": 2153869,
+    "artifactDigest": "sha256:3a9497546e195e22460f8aaaedcb768bbeb442651a25bf12ae28899a6b188606",
+    "expiredAtVerification": false,
+    "sourceRevision": "d197a1be1d423a5ea644818cf63ba7818c37231e",
+    "summarySha256": "63b6c546d5acc054beb21cc2614e974d5ebf4225b75f57a0b96e0deed7f53295",
+    "manifestSha256": {
+      "production": "8c3c44696048be8762c7f5f8deca264200f526f373f27878b2d5aaba90e5f817",
+      "routes": "7658fe20dbaec8c2b339de8ef1c86b81af25d1c79fdb1b68103328c04d3c5eef"
+    },
+    "productionCaptures": 20,
+    "routeCaptures": 8,
+    "total": 28,
+    "failed": 0,
+    "differentPixels": 0,
+    "dimensionsChanged": false,
+    "manifestAndSummaryCaptureNamesMatch": true,
+    "pngDimensionsMatchManifestViewports": true,
+    "pageErrors": 0,
+    "routeCaptureFailures": 0,
+    "captures": [
+      {
+        "name": "production-landing-default-light-1440.png",
+        "sha256": "e30eb63742fc2eb605c829ff7607277201605f7df6d6d5f208a0b3034705c9b0",
+        "bytes": 497039,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-key-draft-light-1440.png",
+        "sha256": "01948b5b424774e20b9703fc3ce5424d31b4e352a0fa396175ae43abd8904660",
+        "bytes": 22428,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-device-offline-light-1440.png",
+        "sha256": "5c569d62d4762ab8e730724e073518b56e85ba061697372c8755ac4f8626a9a4",
+        "bytes": 25471,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-server-config-draft-light-1440.png",
+        "sha256": "c97b72a394b7668c9ff82e6826c08e4d66a66fddeb112db5cc9b491097aa4f8d",
+        "bytes": 32014,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-changelog-latest-entries-light-1440.png",
+        "sha256": "56b78786292711ef40a2665db00aa610fe5a6a9e9eb1e0bd8a69e2c0f1c29e0c",
+        "bytes": 143110,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-landing-default-light-390.png",
+        "sha256": "66ba370c1df676a6f67541cf89e19133204f7278ce86dcda1009840f5223e13a",
+        "bytes": 91738,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-key-draft-light-390.png",
+        "sha256": "632fb6e567c333c73a9b0c7fdc53c31bab934066c498f8ee5e5d276e36057c04",
+        "bytes": 19532,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-device-offline-light-390.png",
+        "sha256": "bc41115770d745296655fb69fee2efeb47cea9e51f398237dda31b4bf7f5edcd",
+        "bytes": 21137,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-server-config-draft-light-390.png",
+        "sha256": "665e5b0e2912a293d6037adf0f678b37a0ba2e8fccb1b1ec00aad2114a98aac2",
+        "bytes": 27790,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-changelog-latest-entries-light-390.png",
+        "sha256": "0aa4b9f412c8195db90ffbcf3bfae57703c458d98dcf3263fa794b84c8f82c9c",
+        "bytes": 68536,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-landing-default-dark-1440.png",
+        "sha256": "bf7337339508e09ea1423ce6504eaf6f12e0a95cdbcdfd52c212c23811fb200c",
+        "bytes": 337697,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-key-draft-dark-1440.png",
+        "sha256": "e31542109832ec818a40237c9e4b3901e4f5ab3833e59eeabb6d3aa59d61f697",
+        "bytes": 22868,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-device-offline-dark-1440.png",
+        "sha256": "fbc7ca3e64373e3b2f0ec57eec9e3eb2ed48353712e596be10c450d42fe8dc95",
+        "bytes": 26839,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-server-config-draft-dark-1440.png",
+        "sha256": "dab0dbdd997d6523fa8ea9ad2d017f198dd030dfa51004a4d53d2e513483cff8",
+        "bytes": 32132,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-changelog-latest-entries-dark-1440.png",
+        "sha256": "acb3341825e2c458bb651cc0994028e7a0c467cb290b01fa02851255a6e298c0",
+        "bytes": 139597,
+        "width": 1440,
+        "height": 900,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-landing-default-dark-390.png",
+        "sha256": "05ae6181dd91c9ece9200cef9ed36387b038576c4e0be8d8df0b42a5608bcd07",
+        "bytes": 84260,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-key-draft-dark-390.png",
+        "sha256": "51e7b60ea72cfcbbf32d2eac0cf7caccbf2985811fbd828113a0837cb91ba154",
+        "bytes": 19804,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-restore-device-offline-dark-390.png",
+        "sha256": "7869cbe3ed6353679b415011f8cb0b5deea5a7c264c76122156cd0cbcc7aed52",
+        "bytes": 22296,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-server-config-draft-dark-390.png",
+        "sha256": "229cc98fc753854bd7322f405b3b3da75c6bba9fb8c3501c405a75d0cc5a410a",
+        "bytes": 28146,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "production-changelog-latest-entries-dark-390.png",
+        "sha256": "ddea127e042dcc77fbdf832bd6ce9de4e7a226eaa38f39d19b5afa24ee285d27",
+        "bytes": 66612,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-appearance-populated-light-1440.png",
+        "sha256": "74491f51642792a69e23396a506fed38c437770fc3a48c0228ba2a2bb7500059",
+        "bytes": 107116,
+        "width": 1440,
+        "height": 1000,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-appearance-populated-light-390.png",
+        "sha256": "95efcf0e09aac7d1f53b71e29b9b4ce88967e235d40d137fd82d7ea740bc1037",
+        "bytes": 59423,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-appearance-populated-dark-1440.png",
+        "sha256": "44544e7dfe77b44542cde8e5cd6b674f7db73c6728797bc877210bdf997471e5",
+        "bytes": 108413,
+        "width": 1440,
+        "height": 1000,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-appearance-populated-dark-390.png",
+        "sha256": "ff6b1349e97881da62d15668a1d8c251c19aece3310a9dc12e4a57499276b841",
+        "bytes": 60835,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-terminal-populated-light-1440.png",
+        "sha256": "11eda92b85eeeede279b103c6a73365648784ee858bb04dab8b657f6b6705b18",
+        "bytes": 54711,
+        "width": 1440,
+        "height": 1000,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-terminal-populated-light-390.png",
+        "sha256": "62291cfdd2a8abc82dfbfbb2215a6dfdb6d792f5676d071f83806f3554f652db",
+        "bytes": 48008,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-terminal-populated-dark-1440.png",
+        "sha256": "89287261d5700f237e2679e63a9248e6c214634d85254c6173ff4ac1c0b54166",
+        "bytes": 55246,
+        "width": 1440,
+        "height": 1000,
+        "differentPixels": 0
+      },
+      {
+        "name": "routes-terminal-populated-dark-390.png",
+        "sha256": "26d30af6feab75e41bc7ee186fb074cdefe8d42c652a21eff532c1449ad412bf",
+        "bytes": 48232,
+        "width": 390,
+        "height": 844,
+        "differentPixels": 0
+      }
+    ]
+  },
+  "actions": {
+    "rerunsIssued": false,
+    "trackedFilesModified": false,
+    "githubMessagesPosted": false,
+    "rawLogsPublished": false
+  },
+  "scopeLimit": "CI and golden verification only; this receipt does not claim authenticated native acceptance or final merge readiness."
+}

@@ -1,0 +1,12 @@
+d197a1be1d423a5ea644818cf63ba7818c37231e
+e8a2fb1ad9756a56306354861f3d62b73f5f6eb8
+Xcode 26.2
+Build version 17C52
+v20.20.2
+10.11.0
+1.3.11
+hw.memsize: 7516192768
+hw.ncpu: 3
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk2s5   320Gi   205Gi    95Gi    69%    1.9M  993M    0%   /System/Volumes/Data
+Version: 2.46.0
