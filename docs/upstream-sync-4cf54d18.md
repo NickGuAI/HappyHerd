@@ -271,3 +271,13 @@ button/text styles, bounds and button pixels; only enclosing height grows by
 Help present/hidden after the original unmodified golden capture. These files
 are separate from the 28 baseline panels and do not change thresholds, masks,
 accepted UI states or baseline selection.
+
+The first Linux diagnostic captured the light phone panel, then failed while
+restoring the hidden Help control because a role locator excludes hidden
+elements. Retaining its original element handle fixes that diagnostic boundary;
+the full 20-panel production capture now completes locally with both diagnostic
+JSON files. The retained Linux light pair is conclusive: Help-present matches
+the preceding actual image, while Help-hidden matches the entire old expected
+image pixel-for-pixel. Thus the light button raster delta is caused by Help
+presence, not a separate control/style change. Dark-theme attribution and the
+complete Linux comparison remain pending the corrected diagnostic run.

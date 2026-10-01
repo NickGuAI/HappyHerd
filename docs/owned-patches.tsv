@@ -746,3 +746,4 @@ UPSTREAM_4CF54D18_FINAL_LOCAL_ACCEPTANCE	accepted	docs(sync): record final local
 UPSTREAM_4CF54D18_PACKET_SIZE_UNITS	accepted	docs(sync): state the exact polling payload size in acceptance evidence	docs/upstream-sync-4cf54d18.md
 UPSTREAM_4CF54D18_ONBOARDING_DELIVERY	accepted	feat(app): complete persistent onboarding checklist and help	server/packages/happyherd-app/sources/components/OnboardingHelpAction.tsx
 UPSTREAM_4CF54D18_ONBOARDING_FIXTURE_BOUNDARIES	accepted	test(app): retain signed-out journeys and diagnose onboarding golden deltas	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
+UPSTREAM_4CF54D18_ONBOARDING_DIAGNOSTIC_HANDLE	accepted	test(visual): retain the hidden help diagnostic element	scripts/kilv-capture/production.mjs

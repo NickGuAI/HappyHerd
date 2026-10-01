@@ -73,7 +73,8 @@ try{
     const diagnosticDirectory=resolve(directory,'diagnostics');
     mkdirSync(diagnosticDirectory,{recursive:true});
     const restore=page.getByRole('button',{name:'Restore Account',exact:true});
-    const help=page.getByRole('button',{name:'Get help',exact:true});
+    const help=await page.getByRole('button',{name:'Get help',exact:true}).elementHandle();
+    if(!help)throw new Error('Missing Help control for restore diagnostic');
     const measure=()=>restore.evaluate(element=>{
       const nodes=[element,...element.querySelectorAll('*')];
       let parent=element.parentElement;
