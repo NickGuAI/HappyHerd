@@ -157,3 +157,142 @@ Run the focused tests first, then the affected wire, `@happyherd/cli`, and `happ
 package checks from [`../VERIFY.md`](../VERIFY.md). Record unavailable live
 prerequisites explicitly; do not replace missing behavioral proof with argv or
 snapshot assertions.
+
+## 6. Add a provider to the experimental Context window
+
+The Context window exposes recorded provider context through the existing
+same-account encrypted machine RPC. It is a read-only snapshot: do not start
+a provider, alter its transcript, send a model turn, or change the chat's
+message filters to populate this view. The `expContextWindow` setting is off
+by default, and the session entry is absent while it is off.
+
+The first slice covers Claude Code and Codex. Extend these owners for another
+provider:
+
+- [Wire schemas](../../server/packages/happyherd-wire/src/contextWindow.ts):
+  `ContextWindowRequestSchema`, `ContextWindowEntrySchema`, and
+  `ContextWindowResponseSchema`.
+- [Machine reader](../../server/packages/happyherd-cli/src/contextWindow/readContextWindow.ts)
+  and its `session-context-window` registration in
+  [apiMachine.ts](../../server/packages/happyherd-cli/src/api/apiMachine.ts).
+- [App RPC client](../../server/packages/happyherd-app/sources/sync/contextWindow.ts)
+  and [session view](../../server/packages/happyherd-app/sources/app/(app)/session/[id]/context.tsx).
+
+### Locate the native trace and identify the current window
+
+Establish the location, native identifiers, retention rules, and compaction
+semantics from the installed provider or its versioned sources before adding
+a reader. Keep those facts in the provider reference; do not infer them from
+another harness.
+
+| Provider | Trace location and identity | Current-window boundary |
+|---|---|---|
+| Claude Code | `getProjectPath(directory)/<claudeSessionId>.jsonl`, using the same project-path resolver as the rewind-point RPC. | The last `system` record with `subtype: compact_boundary`; ordinary `summary` records are not compaction boundaries. Preserve the boundary, following records, and any explicitly retained earlier messages in native order. |
+| Codex | `*-<codexThreadId>.jsonl` under the resolved Codex home's `sessions` or `archived_sessions`. | A `compacted.payload.replacement_history` checkpoint replaces the earlier response history. Keep its ordered replacement entries and subsequent recorded inputs; keep recorded base instructions separately. |
+
+For Claude, first reconstruct the latest eligible mainline conversation from
+`parentUuid` links. A rewind/resume can leave discarded branches in the same
+file; physical append order alone does not identify current messages. Preserve
+native same-message assistant/tool-result siblings and current hidden
+attachments while excluding abandoned conversation branches.
+
+The on-disk `compactMetadata.preservedMessages` contains
+`anchorUuid` and an ordered `uuids` list. It takes precedence over the older
+`preservedSegment` form, whose `headUuid`, `tailUuid`, and parent links identify
+the kept segment. Splice kept entries after `anchorUuid`, including attachments
+that precede the physical boundary. Missing anchors, missing retained records,
+or broken parent chains cannot be repaired with invented content. Preserve
+hidden `attachment`, metadata, and compact-summary content; the SDK's
+chat-oriented `getSessionMessages` filtering is insufficient for this view.
+These field names and precedence were checked against Agent SDK 0.3.260's
+`SDKCompactBoundaryMessage` types and native transcript loader; the SDK event
+shape uses snake_case while on-disk metadata uses camelCase.
+
+For Codex, reuse
+[resolveCodexHomeForResume](../../server/packages/happyherd-cli/src/resume/codexHome.ts).
+A retained `metadata.codexHome` takes precedence; the resolver also knows the
+configured/default home, existing legacy credential-pool homes, and retained
+token-spawn homes. Do not substitute the daemon's default `~/.codex` for the
+session's original state home. Render `session_meta.base_instructions.text`
+verbatim when recorded. Preserve recorded `session_meta` fields, including
+`dynamic_tools`, across compaction; a missing-content notice is not a substitute
+for recorded tool definitions. Include `inter_agent_communication` records: native
+Codex converts them to model input. Preserve `world_state` and `turn_context`
+as labeled trace metadata, without inventing rendered messages from them.
+
+Codex rollback requires selecting a surviving checkpoint, not blindly using
+the last compaction. A `thread_rolled_back` event removes real instruction
+turns; injected `role: user` context does not itself establish a real turn.
+Likewise, `session_meta.history_base` may refer to inherited context outside
+the current file. The initial reader reports these windows unreadable until a
+later complete replacement checkpoint supplies a recoverable history. A legacy
+compaction with no `replacement_history` retains its recorded marker and
+explicitly reports the missing compacted history; it must not synthesize that
+history from old messages. See the versioned native
+[replay implementation](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session/rollout_reconstruction.rs),
+[persisted record shapes](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/history/src/rollout_payload.rs),
+and [rollback rules](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/context_manager/history.rs#L519).
+
+### Preserve content and name what is unrecorded
+
+Each returned entry has a native `kind` and full string `content`. Keep the
+provider's ordering and full structured content, including unknown fields,
+attachments, tool calls/results, and recorded injected items. Do not shorten
+large entries, translate provider content, or reuse chat normalization that
+drops hidden kinds. Native metadata must remain identifiable as metadata;
+displaying a trace record does not prove every field was sent to the model.
+Keep Codex response-item envelopes and their provenance metadata. A compaction
+checkpoint may expose its metadata separately from its ordered replacement
+entries to avoid duplicating the history; preserve positional correspondence
+with any `replacement_history_metadata` array.
+
+Return `{ type: 'success', provider, entries, limitations }` for recoverable
+recorded content. Extend the shared provider/limitation schemas, client dispatch,
+and translations together. Use the existing `{ type: 'error', reason }` result
+for `unsupported`, `missing`, or `unreadable` sources; the app also distinguishes
+`offline`. Every unavailable state offers retry. If the current window cannot
+be recovered, report it unreadable rather than present stale or fabricated
+messages as current input.
+
+Claude's built-in system prompt and tool definitions are not recorded in its
+transcript and must be explicitly marked as such. Codex base instructions may
+be absent in older traces; never replace them with today's model defaults.
+Both readers explain that a native trace cannot recover all runtime-assembled
+input. For example, Codex does not persist every additional-tool record and
+applies model-specific normalization before constructing a request; opaque
+encrypted content is not recoverable plaintext. See its
+[persistence policy](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/rollout/src/policy.rs#L42)
+and [prompt preparation](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/context_manager/history.rs#L336).
+
+### Prove the reader and the Human journey
+
+Start from realistic sanitized native JSONL fixtures, keeping structural fields
+and boundaries while replacing private content. Record provider/source version
+provenance; never commit a private transcript or provider home. Exercise the
+machine RPC, not only standalone parsing. Cover multiple compactions, retained
+history ordering, hidden attachments/injections, full long content, unfamiliar
+native kinds, base instructions, and explicit missing/unreadable/unsupported
+results. Include malformed or incomplete records, missing preserved references,
+and the provider's supported rollback/fork shapes without claiming invented
+recovery. Prove that lookup retains the original state home and does not write
+the trace or launch a provider.
+
+Render the complete `switch off → entry absent → switch on → entry → open →
+read → refresh/retry` journey for each supported provider at **1440 × 900** and
+**390 × 844**. Keep product copy in **en/cn/de** catalogs, including every
+limitation and error, and verify that native kinds/content remain unchanged.
+Check full-content scrolling, hidden items, correct order, and visible retry
+for offline, missing, and unsupported cases. Keep rendered fixtures, encrypted
+RPC tests, and live authenticated machine journeys as separate evidence;
+fixtures do not establish a live runtime journey. Run the applicable
+[verification gates](../VERIFY.md), including i18n, changelog regeneration,
+UI inventory/tree regeneration, owned-patches, and web export.
+
+The [#354](https://github.com/NickGuAI/HappyHerd/issues/354) delivery links one
+follow-up sub-issue for each remaining active provider:
+[GrokBuild #362](https://github.com/NickGuAI/HappyHerd/issues/362),
+[dsh #363](https://github.com/NickGuAI/HappyHerd/issues/363),
+[Antigravity #364](https://github.com/NickGuAI/HappyHerd/issues/364), and
+[HappyHerd #365](https://github.com/NickGuAI/HappyHerd/issues/365). Each follow-up owns native trace investigation, current-window semantics,
+unrecorded limits, and the same reader/UI evidence. Their implementation is
+outside the first slice; Gemini is retired and is not a follow-up provider.

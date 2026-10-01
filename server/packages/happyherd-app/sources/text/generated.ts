@@ -174,6 +174,22 @@ export type TranslationKey =
     | "connectButton.authenticate"
     | "connectButton.authenticateWithUrlPaste"
     | "connectButton.pasteAuthUrl"
+    | "contextWindow.description"
+    | "contextWindow.disabled"
+    | "contextWindow.empty"
+    | "contextWindow.entryCount"
+    | "contextWindow.errors.missing"
+    | "contextWindow.errors.offline"
+    | "contextWindow.errors.unreadable"
+    | "contextWindow.errors.unsupported"
+    | "contextWindow.featureSubtitle"
+    | "contextWindow.limitations.claude_system_prompt_unrecorded"
+    | "contextWindow.limitations.claude_tool_definitions_unrecorded"
+    | "contextWindow.limitations.codex_base_instructions_unrecorded"
+    | "contextWindow.limitations.codex_compacted_history_unrecorded"
+    | "contextWindow.limitations.provider_input_not_fully_recorded"
+    | "contextWindow.refresh"
+    | "contextWindow.title"
     | "devicePairing.account"
     | "devicePairing.activeServer"
     | "devicePairing.addDevice"
@@ -1671,6 +1687,7 @@ export interface TranslationParamsByKey {
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };
     "components.sessionStatusBar.limitResets": { time: string };
+    "contextWindow.entryCount": { count: number };
     "devicePairing.account": { account: string };
     "devicePairing.activeServer": { server: string };
     "devicePairing.connectedDetail": { host: string };

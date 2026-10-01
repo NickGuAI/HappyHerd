@@ -273,7 +273,7 @@ export function SessionActionsPopover({
         }
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            const action = actions.find((candidate) => matchesShortcutChord(
+            const action = actions.find((candidate) => candidate.id !== 'context-window' && matchesShortcutChord(
                 event,
                 preferredModifier,
                 SESSION_ACTION_SHORTCUTS[candidate.id],
@@ -298,7 +298,7 @@ export function SessionActionsPopover({
     const actionItems = actions.map((action, index) => {
         const isLast = index === actions.length - 1;
         const color = action.destructive ? theme.colors.status.error : theme.colors.text;
-        const shortcutLabel = formatShortcutChord(
+        const shortcutLabel = action.id === 'context-window' ? '' : formatShortcutChord(
             preferredModifier,
             SESSION_ACTION_SHORTCUTS[action.id],
         );

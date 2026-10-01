@@ -2042,5 +2042,27 @@
     "noMachine": "Keine Maschine",
     "addMachine": "Maschine hinzufügen",
     "noMachinesYet": "Noch keine Maschinen in diesem Konto"
+  },
+  "contextWindow": {
+    "title": "Kontextfenster",
+    "featureSubtitle": "Aufgezeichneten Kontext von Claude Code und Codex einschließlich verborgener und eingefügter Einträge anzeigen.",
+    "description": "Schreibgeschützte Momentaufnahme der Anbieteraufzeichnung seit der letzten Komprimierung, einschließlich aufgezeichnetem beibehaltenem Kontext. Einträge erscheinen vollständig und in Reihenfolge.",
+    "disabled": "Aktiviere das Kontextfenster unter Einstellungen → Funktionen → Experimentell, um den aufgezeichneten Sitzungskontext zu lesen.",
+    "entryCount": "{count} aufgezeichnete Einträge",
+    "empty": "Die Aufzeichnung enthält keine aktuellen Einträge.",
+    "errors": {
+      "unsupported": "Das Kontextfenster dieses Anbieters wird noch nicht unterstützt.",
+      "offline": "Der Rechner der Sitzung ist offline oder nicht verfügbar. Verbinde ihn erneut und versuche es noch einmal.",
+      "missing": "Das Anbieterprotokoll oder die Sitzungskennung fehlt auf diesem Rechner.",
+      "unreadable": "Das Kontextfenster konnte nicht gelesen werden. Prüfe die Rechnerverbindung und CLI-Version und versuche es erneut."
+    },
+    "limitations": {
+      "claude_system_prompt_unrecorded": "Der integrierte Systemprompt von Claude Code ist in diesem Protokoll nicht aufgezeichnet.",
+      "claude_tool_definitions_unrecorded": "Die integrierten Werkzeugdefinitionen von Claude Code sind in diesem Protokoll nicht aufgezeichnet.",
+      "codex_base_instructions_unrecorded": "Die Codex-Basisanweisungen sind in dieser Aufzeichnung nicht enthalten.",
+      "codex_compacted_history_unrecorded": "Codex hat den Ersatzverlauf dieser Komprimierung nicht aufgezeichnet. Frühere Modelleingaben können nicht wiederhergestellt werden.",
+      "provider_input_not_fully_recorded": "Dies ist der aufgezeichnete Kontext des Anbieters. Die Prompt-Erstellung zur Laufzeit und nicht aufgezeichnete Inhalte können nicht wiederhergestellt werden."
+    },
+    "refresh": "Aktualisieren"
   }
 }

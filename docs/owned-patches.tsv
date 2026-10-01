@@ -664,3 +664,10 @@ AUTOMATION_BLOCKED_SKIPS	accepted	fix(automations): surface runs blocked by repe
 AUTOMATION_BLOCKED_SKIPS_REBASED_GOLDENS	accepted	test(automations): refresh rebased blocked-alert visual baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 AUTOMATION_BLOCKED_FEED_IDS_ONLY	accepted	fix(automations): keep automation names out of the server feed	server/packages/happyherd-server/sources/app/api/routes/feedRoutes.test.ts
 AUTOMATION_BLOCKED_CHANGELOG_BASELINES_REBASED	accepted	test(automations): regenerate the KILV changelog baselines for blocked automation alerts	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+SESSION_CONTEXT_WINDOW	accepted	feat(context): inspect recorded Claude and Codex context windows	docs/acceptance/issue-354.md
+CONTEXT_WINDOW_VISIBLE_HEADER_PROOF	accepted	test(context): render native header icons in context journeys	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+CURRENT_CONTEXT_BRANCH_FIDELITY	accepted	fix(context): preserve active branches and recorded tool definitions	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
+CONTEXT_WINDOW_COMPACTION_TRANSITION	accepted	fix(context): select freshly compacted and retained model inputs	server/packages/happyherd-cli/src/contextWindow/readContextWindow.test.ts
+CONTEXT_WINDOW_AUTOMATION_MAIN_GOLDENS	accepted	test(context): refresh context changelog goldens after automation merge	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+CONTEXT_WINDOW_NATIVE_ACCEPTANCE_RECEIPT	accepted	docs(context): record native acceptance and live prerequisites	docs/acceptance/issue-354.md
+CONTEXT_WINDOW_CODEX_CONTINUATION_SCOPE	accepted	docs(context): honor Codex-only live acceptance scope	docs/acceptance/issue-354.md

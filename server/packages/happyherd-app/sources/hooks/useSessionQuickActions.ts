@@ -30,7 +30,7 @@ import { isRigMetadata } from '@/sync/rig';
 import { getProviderContinuationTarget } from '@/utils/providerContinuation';
 
 export interface SessionActionItem {
-    id: SessionActionShortcutId;
+    id: SessionActionShortcutId | 'context-window';
     label: string;
     icon: string;
     onPress: () => void;
@@ -56,6 +56,7 @@ export function useSessionQuickActions(
     const sessionStatus = useSessionStatus(session);
     const machineId = session.metadata?.machineId ?? '';
     const machine = useMachine(machineId);
+    const contextWindowEnabled = useSetting('expContextWindow');
     const devModeEnabled = useLocalSetting('devModeEnabled');
     const continuationExperimentsEnabled = useSetting('expResumeSession');
     const resumeAvailability = React.useMemo(
@@ -103,6 +104,10 @@ export function useSessionQuickActions(
 
     const openDetails = React.useCallback(() => {
         router.push(`/session/${session.id}/info`);
+    }, [router, session.id]);
+
+    const openContextWindow = React.useCallback(() => {
+        router.push(`/session/${session.id}/context`);
     }, [router, session.id]);
 
     const copySessionMetadata = React.useCallback(() => {
@@ -297,6 +302,10 @@ export function useSessionQuickActions(
             { id: 'details', icon: 'information-circle-outline', label: t('profile.details'), onPress: openDetails },
         ];
 
+        if (contextWindowEnabled) {
+            items.push({ id: 'context-window', icon: 'document-text-outline', label: t('contextWindow.title'), onPress: openContextWindow });
+        }
+
         if (resumeAvailability.canShowResume) {
             items.push({ id: 'resume', icon: 'play-circle-outline', label: t('sessionInfo.resumeSession'), onPress: resumeSession });
         }
@@ -333,6 +342,8 @@ export function useSessionQuickActions(
         forkSource,
         forkSession,
         openDetails,
+        contextWindowEnabled,
+        openContextWindow,
         openDuplicateSheet,
         openProviderContinuationSheet,
         resumeAvailability.canShowResume,

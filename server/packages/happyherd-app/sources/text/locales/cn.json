@@ -2042,5 +2042,27 @@
     "noMachine": "没有机器",
     "addMachine": "添加机器",
     "noMachinesYet": "此账户还没有机器"
+  },
+  "contextWindow": {
+    "title": "上下文窗口",
+    "featureSubtitle": "查看 Claude Code 和 Codex 记录的上下文，包括隐藏和注入的条目。",
+    "description": "提供方最近一次压缩后轨迹的只读快照，包括记录的保留上下文。按顺序显示每个条目的完整记录内容。",
+    "disabled": "在设置 → 功能 → 实验性功能中启用上下文窗口，以查看此会话记录的上下文。",
+    "entryCount": "{count} 个记录条目",
+    "empty": "轨迹中没有当前条目。",
+    "errors": {
+      "unsupported": "尚不支持此提供方的上下文窗口。",
+      "offline": "会话所在机器离线或不可用。请重新连接后重试。",
+      "missing": "此机器上缺少提供方的会话记录或会话标识。",
+      "unreadable": "无法读取上下文窗口。请检查机器连接和 CLI 版本后重试。"
+    },
+    "limitations": {
+      "claude_system_prompt_unrecorded": "此会话记录不包含 Claude Code 的内置系统提示词。",
+      "claude_tool_definitions_unrecorded": "此会话记录不包含 Claude Code 的内置工具定义。",
+      "codex_base_instructions_unrecorded": "此轨迹不包含 Codex 基础指令。",
+      "codex_compacted_history_unrecorded": "Codex 未记录此次压缩的替代历史。无法恢复更早的模型输入。",
+      "provider_input_not_fully_recorded": "此处显示提供方记录的上下文。无法恢复运行时提示词构建过程以及提供方未记录的内容。"
+    },
+    "refresh": "刷新"
   }
 }

@@ -64,6 +64,7 @@ import type {
     SideChatLifecycleRequest,
 } from '@/commands/sideChat';
 import type { CredentialAccountManager } from '@/credentialPool/manager';
+import { readContextWindow } from '@/contextWindow/readContextWindow';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -476,6 +477,10 @@ export class ApiMachineClient {
             }
             return this.forkClaudeBackendSession(directory, claudeSessionId);
         });
+
+        // The same account-owned encrypted machine RPC reads provider traces;
+        // it does not resume a provider or write to the session's history.
+        this.rpcHandlerManager.registerHandler('session-context-window', readContextWindow);
 
         // List user-text rewind points directly from the on-disk JSONL.
         // The server-side session log misses claudeUuid for messages typed

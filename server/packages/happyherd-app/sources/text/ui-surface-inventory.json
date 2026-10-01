@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "c7ede563297512b9aebeed2f96a8d2e1c1f3d3a0e6c865898fd8e25cdcd9749d",
-  "routeCount": 44,
-  "surfaceCount": 336,
+  "sourceFingerprint": "da52e3f899f586d0a56c2d69647a9a7a3397046f5ff34ff0a6907923c2aa7f24",
+  "routeCount": 45,
+  "surfaceCount": 337,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -480,6 +480,25 @@
       "states": []
     },
     {
+      "path": "/session/[id]/context",
+      "owner": "sources/app/(app)/session/[id]/context.tsx",
+      "translationKeys": [
+        "common.loading",
+        "common.retry",
+        "contextWindow.description",
+        "contextWindow.disabled",
+        "contextWindow.empty",
+        "contextWindow.entryCount",
+        "contextWindow.refresh",
+        "contextWindow.title"
+      ],
+      "states": [
+        "disabled",
+        "empty",
+        "loading"
+      ]
+    },
+    {
       "path": "/session/[id]/file",
       "owner": "sources/app/(app)/session/[id]/file.tsx",
       "translationKeys": [
@@ -833,6 +852,8 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
+        "contextWindow.featureSubtitle",
+        "contextWindow.title",
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
@@ -1823,6 +1844,30 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/app/(app)/session/[id]/context.tsx",
+      "kind": "route",
+      "route": "/session/[id]/context",
+      "exports": [
+        "SessionContextWindowScreen"
+      ],
+      "translationKeys": [
+        "common.loading",
+        "common.retry",
+        "contextWindow.description",
+        "contextWindow.disabled",
+        "contextWindow.empty",
+        "contextWindow.entryCount",
+        "contextWindow.refresh",
+        "contextWindow.title"
+      ],
+      "states": [
+        "disabled",
+        "empty",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/app/(app)/session/[id]/file.tsx",
       "kind": "route",
       "route": "/session/[id]/file",
@@ -2223,6 +2268,8 @@
       "route": "/settings/features",
       "exports": [],
       "translationKeys": [
+        "contextWindow.featureSubtitle",
+        "contextWindow.title",
         "happyHerd.features.commanderProfilePictures",
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
@@ -6913,6 +6960,7 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "contextWindow.title",
         "errors.unsupportedPermissionMode",
         "profile.details",
         "session.duplicateAction",

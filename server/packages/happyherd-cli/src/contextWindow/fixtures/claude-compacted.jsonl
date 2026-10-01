@@ -1,0 +1,13 @@
+{"type": "user", "uuid": "discarded-user", "parentUuid": null, "message": {"role": "user", "content": "Old request no longer retained."}}
+{"type": "summary", "summary": "A sidebar title is not a compaction boundary", "leafUuid": "discarded-user"}
+{"type": "user", "uuid": "kept-user", "parentUuid": "discarded-user", "message": {"role": "user", "content": "Keep the output format as plain text."}}
+{"type": "attachment", "uuid": "kept-attachment", "parentUuid": "kept-user", "attachment": {"type": "skill_listing", "content": [{"name": "fixture-skill", "description": "Sanitized skill instructions"}]}}
+{"type": "system", "subtype": "compact_boundary", "uuid": "boundary", "parentUuid": null, "logicalParentUuid": "kept-attachment", "content": "Conversation compacted", "compactMetadata": {"trigger": "auto", "preTokens": 120000, "postTokens": 14000, "preservedMessages": {"anchorUuid": "compact-summary", "uuids": ["kept-user", "kept-attachment"]}, "preservedSegment": {"anchorUuid": "must-not-use", "headUuid": "missing", "tailUuid": "missing"}}}
+{"type": "user", "uuid": "compact-summary", "parentUuid": "boundary", "isCompactSummary": true, "isMeta": true, "message": {"role": "user", "content": "The previous work established a plain text output format."}}
+{"type": "attachment", "uuid": "environment", "parentUuid": "compact-summary", "attachment": {"type": "environment", "content": "Working directory: /fixture/project\nPlatform: fixture-os"}}
+{"type": "attachment", "uuid": "session-context", "parentUuid": "environment", "attachment": {"type": "session_context", "content": "Use this sanitized session context.\nKeep all lines intact."}}
+{"type": "attachment", "uuid": "deferred-tools", "parentUuid": "session-context", "attachment": {"type": "deferred_tools", "tools": [{"name": "fixture_tool", "description": "A hidden deferred tool descriptor"}]}}
+{"type": "attachment", "uuid": "reminder", "parentUuid": "deferred-tools", "attachment": {"type": "system_reminder", "content": "This reminder is hidden in the ordinary chat."}}
+{"type": "assistant", "uuid": "assistant", "parentUuid": "reminder", "message": {"role": "assistant", "content": [{"type": "thinking", "thinking": "Sanitized recorded reasoning."}, {"type": "text", "text": "I will use the requested format."}]}}
+{"type": "file-history-snapshot", "messageId": "assistant", "snapshot": {"messageId": "assistant", "trackedFileBackups": {}}, "isSnapshotUpdate": false}
+{"type": "summary", "summary": "This later sidebar summary does not reset the window", "leafUuid": "assistant"}

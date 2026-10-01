@@ -1,3 +1,8 @@
+# September 29 — Experimental context window
+
+- Enable Context window in Settings → Features → Experimental, then open it from a session’s menu on desktop or mobile to read the full recorded Claude Code or Codex context since its latest compaction, including retained, hidden and injected entries. Codex base instructions are shown when recorded; unavailable provider content is explicitly marked.
+- The view reads the trace from the session’s machine over the existing encrypted connection. Unsupported providers, offline machines and missing transcripts offer retry.
+
 # September 29 — Blocked automation alerts
 
 - Automations now show “Blocked” after three scheduled runs are skipped behind an active run, identify that run, and offer Stop or Abandon using the existing run rules.
