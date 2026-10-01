@@ -48,7 +48,8 @@
     "loading": "Laden...",
     "retry": "Wiederholen",
     "delete": "Löschen",
-    "optional": "wahlweise"
+    "optional": "wahlweise",
+    "loadMore": "Mehr laden"
   },
   "profile": {
     "userProfile": "Benutzerprofil",
@@ -361,7 +362,12 @@
       }
     },
     "notSupportedTitle": "Bilder werden nicht unterstützt",
-    "notSupportedMessage": "Dieser Agent unterstützt keine Bildanhänge. Bilder wurden nicht gesendet."
+    "notSupportedMessage": "Dieser Agent unterstützt keine Bildanhänge. Bilder wurden nicht gesendet.",
+    "attachTitle": "Bild anhängen",
+    "pasteFromClipboard": "Bild einfügen",
+    "chooseFromLibrary": "Aus Fotobibliothek auswählen",
+    "nothingToPasteTitle": "Kein Bild zum Einfügen",
+    "nothingToPasteMessage": "Kopieren Sie ein Bild in die Zwischenablage und versuchen Sie es erneut."
   },
   "errors": {
     "networkError": "Es ist ein Netzwerkfehler aufgetreten",
@@ -616,7 +622,7 @@
       "bringMachineOnline": "Bringen Sie einen Rechner online, um eine Sitzung zu starten.",
       "troubleshoot": "Fehlerbehebung",
       "troubleshootConnection": "Verbindung prüfen",
-      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happyherd` erneut aus.\n3. Öffnen Sie HappyHerd erneut.\n\nKI-Prompt:\n{aiPrompt}",
+      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happyherd` erneut aus.\n3. Öffnen Sie HappyHerd erneut.\n\nKI-Prompt:\n{aiPrompt}\n\nMelden Sie das Verbindungsproblem unter {helpUrl}, wenn Sie Hilfe benötigen. Geben Sie die CLI-Version und Fehlermeldung an; keine Kontoschlüssel oder Zugangsdaten.",
       "copyAiPrompt": "KI-Prompt kopieren",
       "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden.",
       "installDescription": "Führen Sie diesen Befehl auf Ihrem macOS- oder Linux-Computer in einem Terminal aus.",

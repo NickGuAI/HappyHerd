@@ -6,6 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Machine, Session } from '@/sync/storageTypes';
 
 const mocks = vi.hoisted(() => ({
+    markArchiving: vi.fn(),
+    unmarkArchiving: vi.fn(),
     machine: null as Machine | null,
     transport: undefined as { providerRunning: boolean; errorCode?: string } | undefined,
     settings: {},
@@ -48,6 +50,8 @@ vi.mock('@/sync/storage', () => ({
             machines: mocks.machine ? { [mocks.machine.id]: mocks.machine } : {},
             settings: mocks.settings,
             sessions: mocks.sessions,
+            markArchiving: mocks.markArchiving,
+            unmarkArchiving: mocks.unmarkArchiving,
         }),
     },
     useLocalSetting: () => false,

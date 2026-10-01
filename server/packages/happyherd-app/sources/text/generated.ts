@@ -125,6 +125,7 @@ export type TranslationKey =
     | "common.fileViewer"
     | "common.files"
     | "common.home"
+    | "common.loadMore"
     | "common.loading"
     | "common.logout"
     | "common.message"
@@ -629,12 +630,17 @@ export type TranslationKey =
     | "happyHerd.voice.signIn"
     | "happyHerd.voice.startFailed"
     | "happyHerd.voice.transcriptionFailed"
+    | "imageUpload.attachTitle"
+    | "imageUpload.chooseFromLibrary"
     | "imageUpload.fileTooLargeMessage"
     | "imageUpload.fileTooLargeTitle"
     | "imageUpload.limitMessage"
     | "imageUpload.limitTitle"
     | "imageUpload.notSupportedMessage"
     | "imageUpload.notSupportedTitle"
+    | "imageUpload.nothingToPasteMessage"
+    | "imageUpload.nothingToPasteTitle"
+    | "imageUpload.pasteFromClipboard"
     | "imageUpload.permissionMessage"
     | "imageUpload.permissionTitle"
     | "imageUpload.uploadFailedMessage"
@@ -1711,7 +1717,7 @@ export interface TranslationParamsByKey {
     "components.emptyMainScreen.discoveryDescription": { newSession: string };
     "components.emptyMainScreen.machineUnreachable": { machine: string };
     "components.emptyMainScreen.serverSelection": { serverUrl: string };
-    "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string };
+    "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string; helpUrl: string };
     "components.sessionStatusBar.contextUsage": { percent: number; total: string | number; used: string | number };
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };

@@ -12,7 +12,7 @@ import { Metadata } from "@/sync/storageTypes";
 import { ToolView } from "./tools/ToolView";
 import { AgentEvent, SessionAuthor } from "@/sync/typesRaw";
 import { sync } from '@/sync/sync';
-import { useSession, useSetting } from '@/sync/storage';
+import { useSetting } from '@/sync/storage';
 import { Option } from './markdown/MarkdownView';
 import { layout } from "./layout";
 import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
@@ -107,22 +107,24 @@ function RenderBlock(props: {
 
 /**
  * The frame every user message sits in. While a message is pending the agent
- * has not read it yet, so it is dimmed and says what it is waiting for; the
- * chat keeps it at the bottom until then, letting the turn it interrupted
- * finish streaming above it.
+ * has not read it yet; the chat keeps it at the bottom until then, letting the
+ * turn it interrupted finish streaming above it. Busy sends are labelled at
+ * once; idle/new-chat sends stay quiet through a grace period and only show a
+ * status if acceptance is actually taking time.
  *
  * A message from another participant of a shared session sits on the left,
- * the side that is not "you", with the sender's name under it — the same
- * attribution the desktop shows, in the space this layout has for it.
+ * the side that is not "you", with the sender's name under it.
  */
 function UserMessageFrame(props: {
   pending?: boolean;
+  queuedWhileBusy?: boolean;
+  createdAt: number;
   sendError?: string;
   author?: SessionAuthor;
-  sessionId: string;
   children: React.ReactNode;
 }) {
   const fromOther = isOtherParticipantMessage(props);
+  const showPendingStatus = usePendingStatusVisible(props.pending, props.queuedWhileBusy, props.createdAt);
   // The tree here must keep the same shape in both states. Settling flips
   // `pending` while the row is on screen, and a structural change — a wrapper
   // that exists in one state only, or a different component type — makes React
@@ -139,13 +141,17 @@ function UserMessageFrame(props: {
         style={[
           styles.userMessageBody,
           fromOther && styles.userMessageBodyOther,
-          props.pending && styles.userMessageBodyPending,
+          showPendingStatus && styles.userMessageBodyPending,
         ]}
       >
         {props.children}
       </View>
       {fromOther ? <Text numberOfLines={1} style={styles.userMessageAuthorText}>{props.author!.name}</Text> : null}
-      {props.pending ? <PendingStatusLine sessionId={props.sessionId} /> : null}
+      {showPendingStatus ? (
+        <Text style={styles.pendingStatusText}>
+          {props.queuedWhileBusy === true ? t('message.sendsAfterThisTurn') : t('message.sending')}
+        </Text>
+      ) : null}
       {props.sendError !== undefined ? (
         <Text style={[styles.pendingStatusText, styles.sendErrorText]}>{t('message.sendFailed', { reason: props.sendError })}</Text>
       ) : null}
@@ -153,16 +159,34 @@ function UserMessageFrame(props: {
   );
 }
 
-function PendingStatusLine(props: { sessionId: string }) {
-  // Kept in its own component so the session subscription exists only while a
-  // message is waiting. Held on the frame above, every settled message in the
-  // chat would re-render on each thinking / agentState tick while streaming.
-  const session = useSession(props.sessionId);
-  return (
-    <Text style={styles.pendingStatusText}>
-      {session?.thinking ? t('message.sendsAfterThisTurn') : t('message.sending')}
-    </Text>
+// Fast acknowledgements should feel instantaneous. If an idle/new-chat send is
+// genuinely taking time, surface that after a short grace period instead of
+// leaving a pending message with no explanation. Use createdAt so remounting an
+// already-stale row shows its state immediately rather than restarting the wait.
+const PENDING_STATUS_GRACE_MS = 1_000;
+
+function usePendingStatusVisible(pending: boolean | undefined, queuedWhileBusy: boolean | undefined, createdAt: number) {
+  const shouldDelay = pending === true && queuedWhileBusy !== true;
+  const [graceElapsed, setGraceElapsed] = React.useState(
+    () => shouldDelay && Date.now() - createdAt >= PENDING_STATUS_GRACE_MS,
   );
+
+  React.useEffect(() => {
+    if (!shouldDelay) {
+      setGraceElapsed(false);
+      return;
+    }
+    const remaining = PENDING_STATUS_GRACE_MS - (Date.now() - createdAt);
+    if (remaining <= 0) {
+      setGraceElapsed(true);
+      return;
+    }
+    setGraceElapsed(false);
+    const timeout = setTimeout(() => setGraceElapsed(true), remaining);
+    return () => clearTimeout(timeout);
+  }, [createdAt, shouldDelay]);
+
+  return pending === true && (queuedWhileBusy === true || graceElapsed);
 }
 
 function UserTextBlock(props: {
@@ -204,7 +228,7 @@ function UserTextBlock(props: {
   }
   if (parsed.kind === 'goal-run') {
     return (
-      <UserMessageFrame pending={props.message.pending} sendError={props.message.sendError} author={props.message.author} sessionId={props.sessionId}>
+      <UserMessageFrame pending={props.message.pending} queuedWhileBusy={props.message.meta?.queuedWhileBusy} createdAt={props.message.createdAt} sendError={props.message.sendError} author={props.message.author}>
         <LongPressCopyable style={copyTargetStyle} text={parsed.goal}>
           <View style={[styles.userMessageBubble, bubbleShape, styles.userMessageBubbleSolid, bubbleStyle, styles.goalMessageBubble]}>
             <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
@@ -220,7 +244,7 @@ function UserTextBlock(props: {
   if (parsed.kind === 'command-run') {
     const commandText = parsed.args ? `/${parsed.commandName} ${parsed.args}` : `/${parsed.commandName}`;
     return (
-      <UserMessageFrame pending={props.message.pending} sendError={props.message.sendError} author={props.message.author} sessionId={props.sessionId}>
+      <UserMessageFrame pending={props.message.pending} queuedWhileBusy={props.message.meta?.queuedWhileBusy} createdAt={props.message.createdAt} sendError={props.message.sendError} author={props.message.author}>
         <LongPressCopyable style={copyTargetStyle} text={commandText}>
           {parsed.args ? (
             <View style={[styles.userMessageBubble, bubbleShape, styles.userMessageBubbleSolid, bubbleStyle, styles.commandMessageBubble]}>
@@ -236,7 +260,7 @@ function UserTextBlock(props: {
   }
 
   return (
-    <UserMessageFrame pending={props.message.pending} sendError={props.message.sendError} author={props.message.author} sessionId={props.sessionId}>
+    <UserMessageFrame pending={props.message.pending} queuedWhileBusy={props.message.meta?.queuedWhileBusy} createdAt={props.message.createdAt} sendError={props.message.sendError} author={props.message.author}>
       {/* Long-press copies the whole message through our own menu rather than the
           OS selection callout. Rewind remains in session actions. */}
       <LongPressCopyable style={copyTargetStyle} text={parsed.text}>

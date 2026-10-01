@@ -12,11 +12,8 @@ import { useAllMachines, useSessionGitStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useSessionPressHandlers } from '@/hooks/useNavigateToSession';
-import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
-import { HappyHerdError } from '@/utils/errors';
 import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPopover';
-import { useSessionActionAlert } from '@/hooks/useSessionQuickActions';
-import { sessionKill } from '@/sync/ops';
+import { useSessionActionAlert, useSessionArchiveAction } from '@/hooks/useSessionQuickActions';
 import { isWorktreePath, getRepoPath, getWorktreeName } from '@/utils/worktree';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useRouter } from 'expo-router';
@@ -227,12 +224,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     const swipeEnabled = Platform.OS !== 'web';
     const [actionsAnchor, setActionsAnchor] = React.useState<SessionActionsAnchor | null>(null);
 
-    const [archivingSession, performArchive] = useHappyHerdAction(async () => {
-        const result = await sessionKill(session.id);
-        if (!result.success) {
-            throw new HappyHerdError(result.message || t('sessionInfo.failedToArchiveSession'), false);
-        }
-    });
+    const { archivingSession, archiveSession: performArchive } = useSessionArchiveAction(session.id);
 
     const handleArchive = React.useCallback(() => {
         swipeableRef.current?.close();

@@ -204,9 +204,14 @@ export const MultiTextInput = React.forwardRef<MultiTextInputHandle, MultiTextIn
                     paddingBottom: props.paddingBottom,
                     paddingLeft: props.paddingLeft,
                     paddingRight: props.paddingRight,
+                    // Read-only rather than disabled: a disabled textarea is
+                    // skipped by the caret but still greys its own text, and the
+                    // opacity above already says the field is out of reach.
+                    pointerEvents: editable ? undefined : ('none' as const),
                 }}
-                placeholder={placeholder}
                 readOnly={!editable}
+                tabIndex={editable ? undefined : -1}
+                placeholder={placeholder}
                 {...(isControlled ? { value } : { defaultValue })}
                 onChange={handleChange}
                 onSelect={handleSelect}

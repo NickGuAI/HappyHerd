@@ -263,6 +263,7 @@ const virtualModules: Record<string, string> = {
             { id: 'archive', icon: 'archive-outline', label: t('uiCopy.archive'), onPress: record('archive'), destructive: true },
         ] });
         export const useSessionActionAlert = () => () => {};
+        export const useSessionArchiveAction = () => ({ archiveSession: record('archive'), archivingSession: false });
     `,
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = () => [false, () => {}];`,
     '@/utils/sessionListTimestamp': `export const formatSessionListTimestamp = () => '2m';`,

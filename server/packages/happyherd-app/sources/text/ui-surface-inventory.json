@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e64397071d4c3fac6d560a0791992aa21ec164f801dc64659a32a2c06adcef7d",
+  "sourceFingerprint": "f7e5e3620d1425e8cdd7e684ec934a9d0fa9e5658fe36938717ff480aea6702f",
   "routeCount": 45,
   "surfaceCount": 339,
   "hardcodedCopyCount": 0,
@@ -2707,7 +2707,6 @@
       ],
       "translationKeys": [
         "sessionInfo.archiveSession",
-        "sessionInfo.failedToArchiveSession",
         "status.unknown"
       ],
       "states": [],
@@ -3065,6 +3064,8 @@
         "windowEndForTurn"
       ],
       "translationKeys": [
+        "common.loadMore",
+        "common.retry",
         "uiCopy.jumpToLatest",
         "uiCopy.newMessagesJumpToLatest"
       ],
@@ -3753,6 +3754,8 @@
         "EmptyMessages"
       ],
       "translationKeys": [
+        "common.loadMore",
+        "common.retry",
         "sessionHistory.daysAgo",
         "sessionInfo.created",
         "time.hoursAgo",
@@ -3950,8 +3953,7 @@
         "flatListBackgroundColor"
       ],
       "translationKeys": [
-        "sessionInfo.archiveSession",
-        "sessionInfo.failedToArchiveSession"
+        "sessionInfo.archiveSession"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5402,6 +5404,7 @@
       "route": null,
       "exports": [
         "CLI_VERSION_WITH_AUTO",
+        "MODEL_CHIP_LABEL_MAX_LENGTH",
         "filterPermissionModesForCli",
         "findOptionByKey",
         "getAdvertisedDefaultOptionKey",
@@ -5440,7 +5443,8 @@
         "mapMetadataOptions",
         "modeSupportedByCli",
         "permissionModeSupportedByCli",
-        "resolveCurrentOption"
+        "resolveCurrentOption",
+        "truncateModelLabel"
       ],
       "translationKeys": [
         "agentInput.codexPermissionMode.autoDescription",
@@ -6965,14 +6969,21 @@
         "MAX_FILE_SIZE",
         "MAX_IMAGES_PER_MESSAGE",
         "normalizePickedAssetForUpload",
+        "readImageDataUri",
         "useImagePicker"
       ],
       "translationKeys": [
+        "common.cancel",
         "common.ok",
+        "imageUpload.attachTitle",
+        "imageUpload.chooseFromLibrary",
         "imageUpload.fileTooLargeMessage",
         "imageUpload.fileTooLargeTitle",
         "imageUpload.limitMessage",
         "imageUpload.limitTitle",
+        "imageUpload.nothingToPasteMessage",
+        "imageUpload.nothingToPasteTitle",
+        "imageUpload.pasteFromClipboard",
         "imageUpload.permissionMessage",
         "imageUpload.permissionTitle",
         "imageUpload.uploadFailedMessage",
@@ -7021,7 +7032,9 @@
       "kind": "component",
       "route": null,
       "exports": [
+        "MISSING_SESSION",
         "useSessionActionAlert",
+        "useSessionArchiveAction",
         "useSessionQuickActions"
       ],
       "translationKeys": [
@@ -7036,6 +7049,7 @@
         "session.providerContinuationAction",
         "sessionInfo.botArchiveRequiresMachine",
         "sessionInfo.copyMetadata",
+        "sessionInfo.failedToArchiveSession",
         "sessionInfo.resumeSession",
         "sessionInfo.resumeSessionMissingMachine",
         "sessionInfo.resumeSessionUnexpectedDirectoryPrompt",

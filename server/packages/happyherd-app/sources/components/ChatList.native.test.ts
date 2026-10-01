@@ -135,7 +135,7 @@ beforeEach(() => {
     mocks.hasMoreOlder = false;
     mocks.isLoadingOlder = false;
     mocks.loadOlderMessages.mockReset();
-    mocks.loadOlderMessages.mockResolvedValue(undefined);
+    mocks.loadOlderMessages.mockResolvedValue(false);
     mocks.session = {
         id: 'origin-session',
         active: true,
@@ -174,10 +174,10 @@ async function renderChat(): Promise<ReactTestRenderer> {
 }
 
 describe('ChatList turn-aligned history window', () => {
-    it('includes the opening prompt, holds incomplete older tails, and handles an empty store', () => {
+    it('includes the opening prompt, renders incomplete older tails while history loads, and handles an empty store', () => {
         const messages = [agentMessage('new-final'), userMessage('new-prompt'), agentMessage('old-final'), agentMessage('old-progress')];
         expect(windowEndForTurn(messages, 1, true)).toBe(2);
-        expect(windowEndForTurn(messages, 3, true)).toBe(2);
+        expect(windowEndForTurn(messages, 3, true)).toBe(4);
         expect(windowEndForTurn(messages, 3, false)).toBe(4);
         expect(windowEndForTurn([], 60, true)).toBe(0);
     });
@@ -381,7 +381,7 @@ describe('ChatList exact feedback focus', () => {
         act(() => renderer.unmount());
     });
 
-    it('waits through partial older turns but re-arms a background fetch that makes no progress', async () => {
+    it('renders partial older turns and retries no-progress pages only on new demand', async () => {
         mocks.messages = [userMessage('latest'), agentMessage('older-final')];
         mocks.hasMoreOlder = true;
         mocks.isLoadingOlder = true;
@@ -399,16 +399,18 @@ describe('ChatList exact feedback focus', () => {
         mocks.isLoadingOlder = false;
         await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
         list = renderer.root.findByType('FlashList' as any);
-        expect(list.props.data).toHaveLength(1);
-        act(() => list.props.onScroll(edge));
-        expect(mocks.loadOlderMessages).not.toHaveBeenCalled();
+        expect(list.props.data).toHaveLength(3);
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        await act(async () => { list.props.onScroll(edge); await Promise.resolve(); });
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(2);
         mocks.isLoadingOlder = true;
         await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
         mocks.isLoadingOlder = false;
         await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
         list = renderer.root.findByType('FlashList' as any);
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(2);
         await act(async () => { list.props.onScroll(edge); await Promise.resolve(); });
-        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(3);
         mocks.messages = [...mocks.messages, userMessage('older-prompt')];
         await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
         expect(renderer.root.findByType('FlashList' as any).props.data).toHaveLength(4);

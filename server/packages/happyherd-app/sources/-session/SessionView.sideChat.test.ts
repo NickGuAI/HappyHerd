@@ -573,6 +573,7 @@ vi.mock('@/sync/rig', () => ({
     getRigGitSummary: () => null,
     getRigReasoningSelection: () => undefined,
     isRigMetadata: () => mocks.isRig,
+    isRigMetadataV1: () => mocks.isRig,
     isRigModelSelectionEnabled: () => false,
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,

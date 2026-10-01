@@ -9,8 +9,9 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { getInfoAsync } from 'expo-file-system/legacy';
+import { cacheDirectory, getInfoAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { MAX_WORKSPACE_UPLOAD_BYTES } from '@happyherd/wire';
 import { Modal } from '@/modal';
@@ -29,6 +30,8 @@ type UseImagePickerResult = {
     selectedImages: AttachmentPreview[];
     pickImages: () => Promise<AttachmentPreview[]>;
     pickImagesForUpload: (maxImages?: number) => Promise<AttachmentPreview[]>;
+    pasteImages: () => Promise<boolean>;
+    attachImages: () => Promise<void>;
     removeImage: (id: string) => void;
     clearImages: () => void;
     addImages: (images: AttachmentPreview[]) => void;
@@ -43,6 +46,12 @@ type UseImagePickerOptions = {
     images?: AttachmentPreview[];
     onChange?: (images: AttachmentPreview[]) => void;
 };
+/** Splits `data:image/png;base64,AAAA` into its type and its bytes. */
+export function readImageDataUri(uri: string): { mimeType: string; base64: string } | null {
+    const match = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is.exec(uri.trim());
+    if (!match) return null;
+    return { mimeType: match[1].toLowerCase(), base64: match[2] };
+}
 
 function withJpegExtension(fileName: string | null | undefined): string {
     const fallback = `image_${Date.now()}.jpg`;
@@ -95,6 +104,53 @@ export async function normalizePickedAssetForUpload(asset: ImagePicker.ImagePick
         mimeType: 'image/jpeg',
         name: withJpegExtension(asset.fileName),
         size: info.size,
+    };
+}
+
+/**
+ * One image, normalized and measured, or nothing plus the reason on screen.
+ *
+ * Shared by picking and pasting so the limits are enforced in one place: a
+ * pasted screenshot is as capable of being too large as a chosen photo.
+ */
+async function previewForAsset(asset: ImagePicker.ImagePickerAsset): Promise<AttachmentPreview | null> {
+    let normalized: Awaited<ReturnType<typeof normalizePickedAssetForUpload>>;
+    try {
+        normalized = await normalizePickedAssetForUpload(asset);
+    } catch {
+        Modal.alert(
+            t('imageUpload.uploadFailedTitle'),
+            t('imageUpload.uploadFailedMessage', { count: 1 }),
+            [{ text: t('common.ok') }],
+        );
+        return null;
+    }
+
+    const size = normalized.size;
+    const maxSize = Platform.OS === 'ios' ? (MAX_FILE_SIZE - 40) : MAX_FILE_SIZE;
+    if (size > maxSize) {
+        Modal.alert(
+            t('imageUpload.fileTooLargeTitle'),
+            t('imageUpload.fileTooLargeMessage', { name: asset.fileName ?? 'image', maxMb: 10 }),
+            [{ text: t('common.ok') }],
+        );
+        return null;
+    }
+
+    // Skip thumbhash if dimensions are unavailable (prevents divide-by-zero).
+    const thumbhash = (normalized.width > 0 && normalized.height > 0)
+        ? await generateThumbhash(normalized.uri, normalized.width, normalized.height)
+        : undefined;
+
+    return {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        uri: normalized.uri,
+        width: normalized.width,
+        height: normalized.height,
+        mimeType: normalized.mimeType,
+        size,
+        name: normalized.name,
+        thumbhash,
     };
 }
 
@@ -224,6 +280,113 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
         (maxImages = MAX_IMAGES_PER_MESSAGE) => selectImages(maxImages, MAX_WORKSPACE_UPLOAD_BYTES),
         [selectImages],
     );
+    /**
+     * Attaches the image on the clipboard.
+     *
+     * A pasted image takes the same road as a picked one — same normalizing,
+     * same limits, same thumbhash — so nothing downstream can tell where it
+     * came from. It arrives as base64 rather than a file, so it is written to
+     * the cache first: the upload reads a file, and on Android the picker's own
+     * path never converts.
+     *
+     * Asked for by name, so an empty clipboard is answered rather than passed
+     * over in silence. On iOS 16+ a refused paste looks the same as an empty
+     * clipboard and gets the same answer. Answers whether anything was
+     * attached.
+     */
+    const pasteImages = useCallback(async (): Promise<boolean> => {
+        if (Platform.OS === 'web') return false;
+        if (imagesRef.current.length >= MAX_IMAGES_PER_MESSAGE) {
+            Modal.alert(
+                t('imageUpload.limitTitle'),
+                t('imageUpload.limitMessage', { max: MAX_IMAGES_PER_MESSAGE }),
+                [{ text: t('common.ok') }],
+            );
+            return false;
+        }
+
+        let pasted: Clipboard.ClipboardImage | null = null;
+        try {
+            if (await Clipboard.hasImageAsync()) {
+                pasted = await Clipboard.getImageAsync({ format: 'png' });
+            }
+        } catch {
+            pasted = null;
+        }
+        const image = pasted && readImageDataUri(pasted.data);
+        if (!pasted || !image) {
+            Modal.alert(
+                t('imageUpload.nothingToPasteTitle'),
+                t('imageUpload.nothingToPasteMessage'),
+                [{ text: t('common.ok') }],
+            );
+            return false;
+        }
+
+        let uri: string;
+        let fileSize: number;
+        try {
+            if (!cacheDirectory) throw new Error('No cache directory to paste into');
+            uri = `${cacheDirectory}paste_${Date.now()}.png`;
+            await writeAsStringAsync(uri, image.base64, { encoding: 'base64' });
+            // Measured here because the clipboard hands over bytes rather than
+            // a file. A picked photo arrives with its size already known; off
+            // iOS nothing downstream measures, so an unmeasured paste would
+            // count as nothing and clear the limit however large it is.
+            const written = await getInfoAsync(uri);
+            if (!written.exists || written.isDirectory || !Number.isFinite(written.size) || written.size <= 0) {
+                throw new Error('Could not determine pasted image size');
+            }
+            fileSize = written.size;
+        } catch {
+            Modal.alert(
+                t('imageUpload.uploadFailedTitle'),
+                t('imageUpload.uploadFailedMessage', { count: 1 }),
+                [{ text: t('common.ok') }],
+            );
+            return false;
+        }
+
+        const preview = await previewForAsset({
+            uri,
+            width: pasted.size.width,
+            height: pasted.size.height,
+            mimeType: image.mimeType,
+            fileName: `pasted_${Date.now()}.png`,
+            fileSize,
+        } as ImagePicker.ImagePickerAsset);
+        if (!preview || imagesRef.current.length >= MAX_IMAGES_PER_MESSAGE) return false;
+
+        updateImages(prev => (
+            prev.length >= MAX_IMAGES_PER_MESSAGE ? prev : [...prev, preview]
+        ));
+        return true;
+    }, [updateImages]);
+
+    /**
+     * What the add button does: asks, every time, whether to paste or to pick.
+     *
+     * It always asks rather than only when the clipboard holds a picture, so
+     * that Paste is somewhere you can see and reach for. A choice that only
+     * appeared under a condition read as missing when the condition was not
+     * met — and there is no telling from the button whether it was.
+     *
+     * The web composer already takes a paste and a drop on its own, and there
+     * is no cache to paste into there, so on web this stays the button it was.
+     * A true native long-press image Paste action is not exposed by React
+     * Native and would require a custom native text-input module.
+     */
+    const attachImages = useCallback(async () => {
+        if (Platform.OS === 'web') {
+            await pickImages();
+            return;
+        }
+        Modal.alert(t('imageUpload.attachTitle'), undefined, [
+            { text: t('imageUpload.pasteFromClipboard'), onPress: () => { void pasteImages(); } },
+            { text: t('imageUpload.chooseFromLibrary'), onPress: () => { void pickImages(); } },
+            { text: t('common.cancel'), style: 'cancel' },
+        ]);
+    }, [pasteImages, pickImages]);
 
     const removeImage = useCallback((id: string) => {
         updateImages(prev => prev.filter(img => img.id !== id));
@@ -241,5 +404,5 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
         });
     }, [updateImages]);
 
-    return { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages, addImages };
+    return { selectedImages, pickImages, pickImagesForUpload, pasteImages, attachImages, removeImage, clearImages, addImages };
 }

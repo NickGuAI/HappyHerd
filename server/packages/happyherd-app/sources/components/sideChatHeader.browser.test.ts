@@ -363,7 +363,11 @@ const virtualModules: Record<string, string> = {
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
+        const archivingSessionIds = new Set();
         const getState = () => ({
+            archivingSessionIds,
+            markArchiving(id) { archivingSessionIds.add(id); emit(); },
+            unmarkArchiving(id) { archivingSessionIds.delete(id); emit(); },
             localSettings,
             settings,
             projects,
@@ -751,6 +755,7 @@ const virtualModules: Record<string, string> = {
                 });
                 root.render(React.createElement(request.component, {
                     ...(request.props ?? {}),
+                    onConfirm: (value) => { request.props?.onConfirm?.(value); close(); },
                     onClose: close,
                 }));
             },
@@ -951,7 +956,7 @@ const virtualModules: Record<string, string> = {
             window.__WORKTREE_CLEANUP_CALLS__ = [...(window.__WORKTREE_CLEANUP_CALLS__ ?? []), args];
         };
     `,
-    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; }; export const useSessionPressHandlers = (id) => ({onPress: () => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = id; }, onPressIn() {}});`,
+    '@/hooks/useNavigateToSession': `export const navigateToSession = (router,id) => router.push('/session/' + encodeURIComponent(id)); export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; }; export const useSessionPressHandlers = (id) => ({onPress: () => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = id; }, onPressIn() {}});`,
     '@/sync/agentSessionPlaces': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentSessionPlaces.ts')}';
         export const collectSessionPlaces = (options) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout
@@ -1173,7 +1178,7 @@ const virtualModules: Record<string, string> = {
         export { qualifyRigModelKey } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         import { isRigMetadata as nativeIsRigMetadata } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
-        export const getRigIdentity = () => null;
+        export const getRigIdentity = () => null; export const getRigComposerMode = () => null;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
         export const isRigMetadata = (metadata) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow ? nativeIsRigMetadata(metadata) : Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
         export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;

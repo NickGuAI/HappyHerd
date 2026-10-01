@@ -384,7 +384,8 @@ const virtualModules: Record<string, string> = {
         export const StatusDot = () => null;
         export const StatusPulse = ({ isPulsing }) => React.createElement('span', { 'data-status-pulse': isPulsing ? 'true' : 'false', 'aria-hidden': true });
     `,
-    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};`,
+    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};
+        export const useSessionArchiveAction = () => ({ archiveSession() {}, archivingSession: false });`,
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = (action) => [false, action];`,
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ exitCode: 0 });`,
     '@/utils/errors': `export class HappyHerdError extends Error {}`,

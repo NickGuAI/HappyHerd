@@ -1,3 +1,4 @@
+vi.mock('@/hooks/useNavigateToSession', () => ({ navigateToSession: (router: any, id: string) => router.push(`/session/${encodeURIComponent(id)}`) }));
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';

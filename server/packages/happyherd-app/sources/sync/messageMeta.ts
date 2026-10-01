@@ -7,22 +7,50 @@ import {
     resolveSupportedAgentEffortLevel,
     retirePermissionMode,
 } from './agentDefaults';
+import type { MessageMeta } from './typesMessageMeta';
+import { resolveSessionState } from './sessionState';
 import type { PermissionModeKey } from '@/components/PermissionModeSelector';
 import { permissionModeSupportedByCli } from '@/components/modelModeOptions';
 import {
+    getRigComposerMode,
     getRigCurrentModel,
     getRigModels,
     getRigReasoningLevels,
     getRigReasoningSelection,
     getRigSelectedModelKey,
     isRigMetadataV1,
+    rigSendsMessageReceipts,
 } from './rig';
+
+export function resolveMessageDeliveryMeta(
+    session: Pick<Session, 'metadata' | 'thinking' | 'agentState'>,
+    isNewSession = false,
+    hasPendingUserMessage = false,
+): Pick<MessageMeta, 'expectsAcceptance' | 'queuedWhileBusy'> {
+    if (!rigSendsMessageReceipts(session.metadata)) return {};
+    const state = resolveSessionState({
+        agentState: session.agentState,
+        thinking: session.thinking,
+        isOnline: true,
+    });
+    return {
+        expectsAcceptance: true,
+        // Startup is not a previous turn to wait for. Ignore connectivity here:
+        // being offline alone does not mean another turn is occupying the agent.
+        // A pending question is also ready for the user's answer, not a turn the
+        // answer must wait behind. Permission requests still block new input.
+        queuedWhileBusy: !isNewSession && (
+            hasPendingUserMessage || state === 'thinking' || state === 'permission_required'
+        ),
+    };
+}
 
 export type MessageModeMeta = {
     permissionMode?: PermissionModeKey;
     model?: string | null;
     modelProviderId?: string;
     effort?: string | null;
+    serviceTier?: string | null;
 };
 
 /**
@@ -48,17 +76,23 @@ type MessageModeCapabilityContext = {
 };
 
 export function resolveMessageModeMeta(
-    session: Pick<Session, 'permissionMode' | 'modelMode' | 'metadata' | 'effortLevel'>,
+    session: Pick<Session, 'permissionMode' | 'modelMode' | 'metadata' | 'effortLevel' | 'serviceTier'>,
     settings?: Pick<Settings, 'agentDefaultOverrides'>,
     capabilities?: MessageModeCapabilityContext,
 ): MessageModeMeta {
     if (isRigMetadataV1(session.metadata)) {
+        // The local mirror is the composer (draft, then lastMode); the
+        // deprecated display fields are only the final fallback.
         const meta: MessageModeMeta = {};
+        const composerMode = getRigComposerMode(session.metadata);
         const permissionMode = session.permissionMode
+            ?? composerMode?.permissionMode
             ?? session.metadata?.currentOperatingModeCode
             ?? session.metadata?.permissionMode
             ?? session.metadata?.session?.permissionMode;
         if (permissionMode) meta.permissionMode = permissionMode;
+        if (session.serviceTier !== undefined) meta.serviceTier = session.serviceTier;
+        else if (composerMode) meta.serviceTier = composerMode.serviceTier;
 
         const selectedKey = session.modelMode ?? getRigSelectedModelKey(session.metadata);
         const selectedModel = getRigModels(session.metadata).find((model) => model.key === selectedKey)

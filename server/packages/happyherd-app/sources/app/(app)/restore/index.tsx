@@ -105,7 +105,7 @@ export default function Restore() {
                     const secretString = encodeBase64(credentials.secret, 'base64url');
                     await auth.login(credentials.token, secretString, 'linked-device');
                     if (!isCancelledRef.current) {
-                        router.back();
+                        router.dismissTo('/');
                     }
                 } else if (!isCancelledRef.current) {
                     Modal.alert(t('common.error'), t('errors.authenticationFailed'));

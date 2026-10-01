@@ -107,7 +107,7 @@ export default function Restore() {
             await auth.login(token, normalizedKey, 'account-key');
 
             // Dismiss
-            router.back();
+            router.dismissTo('/');
 
         } catch (error) {
             console.error('Restore error:', error);

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { storage, useAllMachines, useSessions, useSetting } from '@/sync/storage';
+import { storage, useAllMachines, useSetting } from '@/sync/storage';
 import {
     getCodeAgentDefaults,
     resolveAgentDefaultConfig,
@@ -125,7 +125,6 @@ function resolveOption<T extends { key: string }>(
 
 export function useStartSessionFromDraft() {
     const machines = useAllMachines({ includeOffline: true });
-    const sessions = useSessions();
     const defaultOverrides = useSetting('agentDefaultOverrides');
     const navigateToSession = useNavigateToSession();
     // The composer stays on screen for the whole flow, so what it is waiting on
@@ -172,6 +171,7 @@ export function useStartSessionFromDraft() {
 
         const draft = useNewSessionDraft.getState();
         const accountState = storage.getState();
+        const sessions = accountState.sessionsData;
         const selectedAccountProjectId = resolveNewSessionProjectId(
             draft.selectedAccountProjectId,
             accountState.settings.focusMode,
@@ -706,7 +706,7 @@ export function useStartSessionFromDraft() {
                 if (isMountedRef.current) setPhase(null);
             }
         }
-    }, [defaultOverrides, machines, navigateToSession, sessions]);
+    }, [defaultOverrides, machines, navigateToSession]);
 
     return { isStarting: phase !== null, phase, startSession, cancelStart };
 }

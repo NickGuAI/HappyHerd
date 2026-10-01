@@ -110,6 +110,7 @@ import {
     getRigGitSummary,
     getRigReasoningSelection,
     isRigMetadata,
+    isRigMetadataV1,
     isRigModelSelectionEnabled,
     isRigPermissionSelectionEnabled,
     isRigReasoningSelectionEnabled,
@@ -1173,7 +1174,7 @@ export const SessionView = React.memo((props: {
             <View
                 style={{
                     flex: 1,
-                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac())
+                    paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS === 'ios' && !isRunningOnMac())
                         ? contentRunsUnderHeader
                             ? 0
                             : safeArea.top
@@ -1208,7 +1209,7 @@ export const SessionView = React.memo((props: {
 
             {/* Render the overlay header after the dynamic list so native blur samples its content.
                 Native phones hide it in landscape; the iOS app on a Mac keeps it in any window. */}
-            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web' && !isRunningOnMac()) && (
+            {!(isLandscape && deviceType === 'phone' && Platform.OS === 'ios' && !isRunningOnMac()) && (
                 <View style={{
                     position: 'absolute',
                     top: 0,
@@ -1858,7 +1859,7 @@ export function SessionViewLoaded({
     const resumeCommandBlock = getResumeCommandBlock(session);
 
     // Attachment availability is capability-driven by the active session.
-    const { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages, addImages } = useImagePicker();
+    const { selectedImages, attachImages, pickImagesForUpload, removeImage, clearImages, addImages } = useImagePicker();
     const canUseAttachments = rigCanUseAttachments(session.metadata)
         && supportsImageAttachmentsForFlavor(flavor, session.metadata?.acpCapabilities);
     React.useEffect(() => {
@@ -2013,6 +2014,7 @@ export function SessionViewLoaded({
         if (dshUploadBusy) return;
         if (sendingSessionsRef.current.has(sessionId)) return;
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
+        const sentDraftUpdatedAt = storage.getState().sessions[sessionId]?.draftUpdatedAt;
         if (!liveMessage.trim() && !(expImageUpload && canUseAttachments && selectedImages.length > 0) && selectedContextEntries.length === 0) {
             return;
         }
@@ -2020,7 +2022,10 @@ export function SessionViewLoaded({
         const isCurrent = () => currentSessionIdRef.current === sessionId;
         const clearAcceptedDraft = () => {
             if (!isCurrent()) return;
-            composerHandleRef.current?.clearSentMessage(liveMessage);
+            const latest = storage.getState().sessions[sessionId];
+            if (!isRigMetadataV1(latest?.metadata) || latest?.draftUpdatedAt === sentDraftUpdatedAt) {
+                composerHandleRef.current?.clearSentMessage(liveMessage);
+            }
             if (expImageUpload && canUseAttachments) selectedImages.forEach(image => removeImage(image.id));
             clearWorkspaceContextFiles(sessionId);
         };
@@ -2287,7 +2292,7 @@ export function SessionViewLoaded({
                 )}
                 selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
                 onPickImages={expImageUpload && canUseAttachments
-                    ? pickImages
+                    ? attachImages
                     : canUploadDshPhotos
                         ? handlePickDshPhotos
                         : undefined}

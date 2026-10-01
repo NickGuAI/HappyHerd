@@ -48,7 +48,8 @@
     "loading": "Loading...",
     "retry": "Retry",
     "delete": "Delete",
-    "optional": "optional"
+    "optional": "optional",
+    "loadMore": "Load more"
   },
   "profile": {
     "userProfile": "User Profile",
@@ -361,7 +362,12 @@
       }
     },
     "notSupportedTitle": "Images Not Supported",
-    "notSupportedMessage": "This agent does not support image attachments. Images were not sent."
+    "notSupportedMessage": "This agent does not support image attachments. Images were not sent.",
+    "attachTitle": "Attach image",
+    "pasteFromClipboard": "Paste image",
+    "chooseFromLibrary": "Choose from library",
+    "nothingToPasteTitle": "No image to paste",
+    "nothingToPasteMessage": "Copy an image to your clipboard, then try again."
   },
   "errors": {
     "networkError": "Network error occurred",
@@ -616,7 +622,7 @@
       "bringMachineOnline": "Bring a machine online to start a session.",
       "troubleshoot": "Troubleshoot",
       "troubleshootConnection": "Troubleshoot connection",
-      "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happyherd` again.\n3. Reopen HappyHerd.\n\nAI prompt:\n{aiPrompt}",
+      "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happyherd` again.\n3. Reopen HappyHerd.\n\nAI prompt:\n{aiPrompt}\n\nFor help, report the connection problem at {helpUrl}. Include the CLI version and error message; do not include account keys or credentials.",
       "copyAiPrompt": "Copy AI prompt",
       "copyAiPromptFailed": "Could not copy the AI prompt.",
       "installDescription": "On your macOS or Linux computer, run this command in a terminal.",

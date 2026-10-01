@@ -198,7 +198,8 @@ const virtualModules: Record<string, string> = {
         import { selectFixtureSession } from '${resolve(here, '__testdata__/herdShellFixtureState.ts')}';
         export const useSessionPressHandlers = (id) => ({ onPress: () => selectFixtureSession(id), onPressIn: () => {} });
     `,
-    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};`,
+    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};
+        export const useSessionArchiveAction = () => ({ archiveSession() {}, archivingSession: false });`,
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = () => [false, () => {}];`,
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ success: false });`,
     '@/utils/sessionListTimestamp': `export const formatSessionListTimestamp = () => '2m';`,

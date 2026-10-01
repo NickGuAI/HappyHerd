@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardTypeOptions, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardTypeOptions, Platform, InteractionManager } from 'react-native';
 import { BaseModal } from './BaseModal';
 import { PromptModalConfig } from '../types';
 import { Typography } from '@/constants/Typography';
@@ -11,11 +11,10 @@ import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 
 interface WebPromptModalProps {
     config: PromptModalConfig;
-    onClose: () => void;
     onConfirm: (value: string | null) => void;
 }
 
-export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalProps) {
+export function WebPromptModal({ config, onConfirm }: WebPromptModalProps) {
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the dialog rests on the bottom edge at the window's width less 8 px a side.
     const phoneDialog = useHerdPhoneLayout();
@@ -24,22 +23,28 @@ export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalPro
     const inputRef = useRef<TextInput>(null);
 
     useEffect(() => {
-        // Auto-focus the input when modal opens
-        const timer = setTimeout(() => {
-            inputRef.current?.focus();
-        }, 100);
-        return () => clearTimeout(timer);
+        if (Platform.OS === 'web') {
+            return;
+        }
+
+        // Let the modal's opening animation settle before showing the native
+        // keyboard. Focusing on a fixed timer races Android's window resize.
+        let frame: number | undefined;
+        const interaction = InteractionManager.runAfterInteractions(() => {
+            frame = requestAnimationFrame(() => inputRef.current?.focus());
+        });
+
+        return () => {
+            interaction.cancel();
+            if (frame !== undefined) {
+                cancelAnimationFrame(frame);
+            }
+        };
     }, []);
 
-    const handleCancel = () => {
-        onConfirm(null);
-        onClose();
-    };
+    const handleCancel = () => onConfirm(null);
 
-    const handleConfirm = () => {
-        onConfirm(inputValue);
-        onClose();
-    };
+    const handleConfirm = () => onConfirm(inputValue);
 
     const getKeyboardType = (): KeyboardTypeOptions => {
         switch (config.inputType) {
