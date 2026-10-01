@@ -1527,8 +1527,9 @@ type ChatComposerProps = Omit<
 // keystrokes never round-trip through React state, so the parent can stay
 // stable on every keystroke and deletion doesn't batch on a busy main thread.
 // `message` here is a low-priority mirror updated via startTransition; it's
-// only used to feed useDraft's debounced autosave. Reads/clears on send go
-// through the MultiTextInput handle imperatively.
+// used to feed useDraft's debounced autosave. Synced Rig edits are stamped at
+// the input event before that mirror commits. Reads/clears on send go through
+// the MultiTextInput handle imperatively.
 const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) {
     const { sessionId, composerHandleRef, ...rest } = props;
     // Synchronously hydrate the textarea with any saved draft so the user sees
@@ -1544,13 +1545,14 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
         setMessage(text);
     }, []);
 
-    const { clearDraft } = useDraft(sessionId, message, applyDraft);
+    const { clearDraft, recordLocalEdit } = useDraft(sessionId, message, applyDraft);
 
     const handleChangeText = React.useCallback((text: string) => {
+        recordLocalEdit(text);
         // Transition keeps the textarea responsive even when the draft
         // autosave / re-render takes longer than a frame.
         React.startTransition(() => setMessage(text));
-    }, []);
+    }, [recordLocalEdit]);
 
     React.useImperativeHandle(composerHandleRef, () => ({
         appendTranscript: (transcript: string) => {
@@ -1559,6 +1561,7 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             const next = `${current}${separator}${transcript}`;
             inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
             inputHandleRef.current?.focus();
+            recordLocalEdit(next);
             setMessage(next);
         },
         getMessage: () => inputHandleRef.current?.getText() ?? '',
@@ -1573,8 +1576,9 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
             setMessage(next);
             if (!next) clearDraft();
+            else recordLocalEdit(next);
         },
-    }), [clearDraft]);
+    }), [clearDraft, recordLocalEdit]);
 
     return (
         <AgentInput

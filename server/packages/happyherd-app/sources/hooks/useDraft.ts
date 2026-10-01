@@ -46,6 +46,16 @@ export function useDraft(
         }
     }, [sessionId]);
 
+    // An uncontrolled input can be ahead of its low-priority React mirror.
+    // Stamp synced edits at the input event so a send receipt cannot mistake
+    // that newer live text for the snapshot it has just accepted. Ordinary
+    // device-only drafts retain their existing debounced autosave.
+    const recordLocalEdit = useCallback((draft: string) => {
+        if (sessionId && isRigMetadataV1(storage.getState().sessions[sessionId]?.metadata)) {
+            saveDraft(draft);
+        }
+    }, [sessionId, saveDraft]);
+
     // Load draft on mount and when focused
     useEffect(() => {
         if (!sessionId || !isFocused) return;
@@ -155,6 +165,7 @@ export function useDraft(
     }, [sessionId]);
 
     return {
-        clearDraft
+        clearDraft,
+        recordLocalEdit,
     };
 }

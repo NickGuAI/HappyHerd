@@ -378,7 +378,7 @@ vi.mock('@/constants/Typography', () => ({
     },
 }));
 
-vi.mock('@/hooks/useDraft', () => ({ useDraft: () => ({ clearDraft: vi.fn() }) }));
+vi.mock('@/hooks/useDraft', () => ({ useDraft: () => ({ clearDraft: vi.fn(), recordLocalEdit: vi.fn() }) }));
 vi.mock('@/hooks/useImagePicker', () => ({
     useImagePicker: () => ({
         addImages: vi.fn(),

@@ -433,3 +433,62 @@ describe('HappyHerd Agent composer synchronization', () => {
         })]);
     });
 });
+
+
+describe('Rig edits before the React value mirror commits', () => {
+    it('stamps and persists a live edit synchronously without re-applying its own echo', async () => {
+        apply('s', metadata({ draft: { ...lastMode, text: 'sent' }, draftUpdatedAt: 100 }));
+        const sentStamp = session('s').draftUpdatedAt;
+        let controller!: ReturnType<typeof useDraft>;
+        let renderedValue = '';
+        const applyRemote = vi.fn();
+        function DeferredMirror({ value }: { value: string }) {
+            renderedValue = value;
+            controller = useDraft('s', value, applyRemote);
+            return null;
+        }
+        act(() => { composer = create(React.createElement(DeferredMirror, { value: 'sent' })); });
+        // Match ChatComposer's edit ordering: stamp the event before the
+        // low-priority React value render, which deliberately remains old here.
+        act(() => controller.recordLocalEdit('newer'));
+        expect(renderedValue).toBe('sent');
+        expect(session('s')).toMatchObject({ draft: 'newer', draftUpdatedAt: 10_000 });
+        expect(session('s').draftUpdatedAt).toBeGreaterThan(sentStamp!);
+        expect(mocks.persisted.rig.s).toMatchObject({ text: 'newer', draftUpdatedAt: 10_000 });
+        expect(applyRemote).not.toHaveBeenCalled();
+        expect(mocks.emitWithAck).not.toHaveBeenCalled();
+        // The existing sync.send stamp guard now has a newer edit to protect.
+        expect(session('s').draftUpdatedAt === sentStamp).toBe(false);
+        await vi.advanceTimersByTimeAsync(RIG_DRAFT_DEBOUNCE_MS);
+        expect(writes()).toEqual([expect.objectContaining({ metadata: expect.objectContaining({
+            draft: expect.objectContaining({ text: 'newer' }), draftUpdatedAt: 10_000,
+        }) })]);
+        act(() => composer!.update(React.createElement(DeferredMirror, { value: 'newer' })));
+        await vi.advanceTimersByTimeAsync(RIG_DRAFT_DEBOUNCE_MS);
+        expect(writes()).toHaveLength(1);
+        // Neither the eventual render nor cleanup may restore the sent value.
+        act(() => composer!.unmount()); composer = undefined;
+        expect(session('s').draft).toBe('newer');
+        expect(mocks.persisted.rig.s.text).toBe('newer');
+    });
+
+    it('adopts a genuinely newer remote draft without treating it as a local edit', async () => {
+        apply('s', metadata({ draft: { ...lastMode, text: 'old' }, draftUpdatedAt: 100 }));
+        let controller!: ReturnType<typeof useDraft>;
+        const applyRemote = vi.fn();
+        function DeferredMirror({ value }: { value: string }) {
+            controller = useDraft('s', value, applyRemote);
+            return null;
+        }
+        act(() => { composer = create(React.createElement(DeferredMirror, { value: 'old' })); });
+        act(() => controller.recordLocalEdit('phone'));
+        await vi.advanceTimersByTimeAsync(RIG_DRAFT_DEBOUNCE_MS);
+        expect(writes()).toHaveLength(1);
+        act(() => apply('s', metadata({ draft: { ...lastMode, text: 'remote' }, draftUpdatedAt: 20_000 }), 3));
+        expect(applyRemote).toHaveBeenCalledExactlyOnceWith('remote');
+        act(() => composer!.update(React.createElement(DeferredMirror, { value: 'remote' })));
+        await vi.advanceTimersByTimeAsync(RIG_DRAFT_DEBOUNCE_MS);
+        expect(session('s')).toMatchObject({ draft: 'remote', draftUpdatedAt: 20_000 });
+        expect(writes()).toHaveLength(1);
+    });
+});
