@@ -97,8 +97,41 @@ Initial-base checks, which must not be confused with final-head proof:
 
 First failures are retained and diagnosed: stale fixture APIs after shared-hook changes; lost drag/wheel focus release; repeated window growth from stale metrics; cancellation returning instead of throwing; Shift-wheel and normal-line-height ownership; macOS `/var` versus `/private/var` temporary paths; UTC event buckets under a non-UTC host; and browser teardown timeouts during the exploratory full run. A single-fixture teardown probe closed with zero HTTP connections; no timeout was increased. The original full app run had 3,820 passes / 16 failures / 225 existing skips, and the next exploratory run was interrupted for the required main-base rebuild. Neither is final acceptance.
 
-Post-rebuild: Commander context Chromium matrix (eight cases) and the existing wheel interaction case passed. The focused app run passed 121 tests but exposed one newly reached native dependency in the CommanderContextRow unit fixture; the fixture now passes all nine tests after mocking that native boundary. The inherited range-diff preserves all 683 ledger subjects as exact matches. Two shell animation assertions remain under diagnosis.
+Post-rebuild checks:
 
-Still required before review clearance: final clean frozen install and full contract/package runs, final-head range-diff/verifiers, production export/smoke, all required interaction matrices, exact KILV comparison and only four changelog baseline updates, exact-head six required CI jobs, and review resolution. Native iOS/Android device journeys, physical wake and authenticated live journeys remain explicit proof boundaries. Historical production continuation requires a separately authorized runtime effect under the implementation brief; simulated continuity is not described as that continuation.
+| Check | Result |
+| --- | --- |
+| `pnpm --filter @happyherd/cli test` | 195 files, 2,088 tests passed (isolated TMPDIR, UTC). |
+| Wire/server suites | Wire 15 files /84 tests; server 37 files /201 tests passed; server production build passed. |
+| `test:session-continuity` | 8 files /182 tests passed, including newer Commander cases. |
+| App typecheck | Passed after integration and after the final Rig edit fix. |
+| `i18n:check` / inventory | 1,675 keys per locale; zero hardcoded-copy exceptions;45 routes,338 surfaces,84 smoke cases. |
+| Production Web export / smoke / CLI build | Passed; export will be repeated after the final app fix. |
+| Changelog parser | 175 entries; latest “October 1 — Session reliability and shared drafts”. |
+| Range-diff | All683 inherited ledger subjects are exact matches. |
+| Lineage / public boundary / sync provenance | Passed; provenance has1 valid and4 rejected fixtures. |
+| First full contract attempt | Stopped at seven trailing-whitespace lines in EmptyMessages; corrected and standalone lint passed. Full rerun remains required. |
+
+Rendered Chromium interaction fixtures use production components over synthetic data/transport at1440×900 and390×844, light/dark. They do not claim authenticated live behavior:
+
+| Groups | Interaction proof |
+| --- | --- |
+| 4 | 8 new long-collapsed-history/budget/Load more/error/Retry/end cases;4 theme/viewport wheel cases. |
+| 6 | 4 controlled-clock pending cases: no hint/dimming before1,000ms, then hint; queued identity survives agent-idle transition; settlement retains the message node. |
+| 7 | 24 FileView/ToolView image cases: actual image renderer/thumbnail, download/decrypt error, filename/frame, metadata stability, and preview/Close through actual ModalProvider/CustomModal entirely within the viewport. |
+| 11 | 20 real ModalProvider/ModalManager prompt cases: Enter/Save/Cancel/Escape/rapid-confirm, exact resolver count, ignored backdrop, initial and reopened autofocus, and retained geometry/style. |
+| 14 | 4 real installed ExpoRoot/Stack cases: A→B→C keeps one session route; browser Back returns home.4 actual SessionView session-switch cases reset attachments. |
+| 15 | 4 main/side-chat paste/drop cases: exactly one recipient, including target-versus-focus, hidden/outside/ambiguous negatives. |
+| 16 | 4 New Chat cases: unchanged input node, edits during deferred preparation, failure and retry using one spawn, and retention of newer text after acceptance. |
+| 20 | 24 header/header-menu/row-menu cases: immediate hide before acknowledgment, failure rollback, retry, ordinary cleanup/fallback and bot owner-only handling. |
+| Owned #361 / shell | 8 Commander context matrix cases passed. Both focused shell animation/shortcut checks passed with unchanged timing assertions. |
+
+See [selected interaction captures](acceptance/issue-370/README.md). Group2/18 Web ownership is additionally covered by retained header/chip/browser suites; native rendering/gesture proof remains separate. Group23 Web attachment paths are covered above; its native chooser remains a device proof gap. Group1’s visible checklist/help controls remain blocked on the numbered owner decision.
+
+Review found and fixed a real newer-Rig-draft race: uncontrolled text could advance before its deferred React mirror was stamped, allowing acceptance to clear the newer live text. Local edits are now stamped at the input event; remote drafts are not restamped and non-Rig debounce is unchanged. Two real-hook/store/writer regressions plus existing send/side-chat cases pass (123 tests total); independent review confirmed the fix.
+
+Additional first failures were retained and corrected at their actual boundaries: a Linux-only shell shortcut in a macOS fixture; a no-op navigation mock in the first New Chat test; a stale installed-router state probe; Expo Web index resolution; duplicate ToolView filenames; and an offscreen image-preview stand-in. Visual review rejected that preview evidence and replaced the fixture with the production modal host plus viewport bounds. Prompt readiness now waits for the real active dialog; an initially assumed return-focus contract was disproved on the exact base before correcting that new test’s expectation. No production focus behavior or timing threshold was changed.
+
+Still required before review clearance: final full contract/app runs, final-head verifiers, repeated production export/smoke after the app fix, completion of remaining interaction proof, exact KILV comparison and only four changelog baseline updates, exact-head six required CI jobs, and review resolution. Native iOS/Android device journeys, physical wake and authenticated live journeys remain explicit proof boundaries. Historical production continuation requires a separately authorized runtime effect under the implementation brief; simulated continuity is not described as that continuation.
 
 The proposal-automation read-only query returned no listed automations or blocked runs. It did not prove the requested schedule/latest-run state; no production automation was created or changed to fill that evidence gap.

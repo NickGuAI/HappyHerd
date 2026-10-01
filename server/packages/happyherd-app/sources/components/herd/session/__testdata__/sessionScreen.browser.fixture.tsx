@@ -4,6 +4,10 @@ import { View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { SessionView } from '@/-session/SessionView';
 import { FlatSessionRow } from '@/components/FlatSessionRow';
+import { FileView } from '@/components/tools/views/FileView';
+import { ToolView } from '@/components/tools/ToolView';
+import { rgbaToThumbHash } from 'thumbhash';
+import { ModalProvider } from '@/modal/ModalProvider';
 
 /** Fixture tray renders the real Home row; storage projection is covered separately. */
 function ArchiveJourneyRow() {
@@ -28,6 +32,32 @@ function ArchiveJourneyRow() {
     return <View testID="archive-journey-row" style={{ flexShrink: 0 }}><FlatSessionRow row={row as any} /></View>;
 }
 
+/** Optional attachment scene: production FileView + real ToolView specialization. */
+function AttachmentJourney() {
+    const [revision, setRevision] = React.useState(0);
+    const [input] = React.useState(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 24;
+        const context = canvas.getContext('2d')!;
+        context.fillStyle = '#005cbb'; context.fillRect(0, 0, 32, 24);
+        context.fillStyle = '#ffc83d'; context.fillRect(6, 4, 20, 16);
+        (window as any).__ATTACHMENT_PNG__ = canvas.toDataURL('image/png').split(',')[1];
+        const hash = rgbaToThumbHash(32, 24, context.getImageData(0, 0, 32, 24).data);
+        return { ref: 'fixture-attachment', name: 'chart.png', mimeType: 'image/png', image: {
+            width: 640, height: 480, thumbhash: btoa(String.fromCharCode(...hash)),
+        } };
+    });
+    const tool = React.useMemo(() => ({ name: 'file', state: 'completed' as const, input,
+        createdAt: 1, startedAt: 1, completedAt: 1, description: null }), [input]);
+    const metadata = { flavor: 'claude', path: '/fixture', summary: { text: `Revision ${revision}`, updatedAt: revision } } as any;
+    return <View testID="attachment-journey" style={{ padding: 12 }}>
+        {(window as any).__HAPPYHERD_FIXTURE_OPTIONS__.attachmentJourney === 'ToolView'
+            ? <ToolView tool={tool} metadata={metadata} sessionId="parent" messageId="attachment" />
+            : <FileView tool={tool} metadata={metadata} sessionId="parent" messages={[]} />}
+        <button onClick={() => setRevision(value => value + 1)}>Update attachment metadata</button>
+    </View>;
+}
+
 // Review fixture: the production SessionView over synthetic storage/transport.
 // The page background follows the app shell: raised slate on desktop, the
 // grouped background on phones.
@@ -49,4 +79,4 @@ function SessionScreenFixture() {
     );
 }
 
-createRoot(document.getElementById('root')!).render(<SessionScreenFixture />);
+createRoot(document.getElementById('root')!).render((window as any).__HAPPYHERD_FIXTURE_OPTIONS__?.attachmentJourney ? <ModalProvider><AttachmentJourney /></ModalProvider> : <SessionScreenFixture />);
