@@ -681,3 +681,4 @@ COMMANDER_CONTEXT_NATIVE_RESUME_DELIVERY	accepted	fix(codex): apply Commander co
 COMMANDER_CONTEXT_IOS_ACCEPTANCE_ARTIFACT	accepted	ci(acceptance): build the issue 347 iOS simulator artifact	docs/acceptance/issue-347/native-acceptance-workflow.yml
 COMMANDER_CONTEXT_WORKFLOW_RECIPE	accepted	ci(acceptance): keep the issue 347 iOS artifact workflow as a recipe	docs/acceptance/issue-347/native-acceptance-workflow.yml
 COMMANDER_CONTEXT_FIXTURE_REBASE_FIX	accepted	test(app): close the Commander context fixture branch after the rebase	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+COMMANDER_CONTEXT_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the KILV changelog baselines for the Commander context entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
