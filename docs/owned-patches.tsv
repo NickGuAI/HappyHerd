@@ -739,3 +739,4 @@ UPSTREAM_4CF54D18_REAL_WEB_HOSTS	accepted	test(app): prove upstream Web behavior
 UPSTREAM_4CF54D18_BROWSER_SAMPLING	accepted	test(app): sample settled clocks and atomic row geometry	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
 UPSTREAM_4CF54D18_KILV_FIXTURE_EXPORT	accepted	test(sync): align KILV route fixture with the session navigation export	scripts/kilv-capture/routes.mocks.mjs
 UPSTREAM_4CF54D18_LOCALIZED_RELEASE	accepted	feat(app): localize the upstream integration release notes	server/packages/happyherd-app/sources/changelog/localizedEntry.ts
+UPSTREAM_4CF54D18_CHANGELOG_GOLDENS	accepted	test(app): refresh four changelog baselines for upstream integration	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
