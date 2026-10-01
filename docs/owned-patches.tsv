@@ -738,3 +738,4 @@ UPSTREAM_4CF54D18_LIVE_RIG_EDITS	accepted	fix(app): stamp live Rig edits before 
 UPSTREAM_4CF54D18_REAL_WEB_HOSTS	accepted	test(app): prove upstream Web behaviors with production hosts	server/packages/happyherd-app/sources/modal/WebPromptModal.browser.test.ts
 UPSTREAM_4CF54D18_BROWSER_SAMPLING	accepted	test(app): sample settled clocks and atomic row geometry	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
 UPSTREAM_4CF54D18_KILV_FIXTURE_EXPORT	accepted	test(sync): align KILV route fixture with the session navigation export	scripts/kilv-capture/routes.mocks.mjs
+UPSTREAM_4CF54D18_LOCALIZED_RELEASE	accepted	feat(app): localize the upstream integration release notes	server/packages/happyherd-app/sources/changelog/localizedEntry.ts

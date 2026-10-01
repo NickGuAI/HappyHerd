@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "5eee6279764674ad54b291acbab30decb4057bc6cbbea2284cafe6dc39c57e3a",
+  "sourceFingerprint": "789dbcbd5fa20a1ccf95f92e9f66e13d62e18770f974481c4e815abb0ad3a7a7",
   "routeCount": 45,
-  "surfaceCount": 339,
+  "surfaceCount": 340,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2660,6 +2660,20 @@
         "useAuth"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/changelog/localizedEntry.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "getLocalizedChangelogEntry"
+      ],
+      "translationKeys": [
+        "changelog.releases.upstreamSync4cf54d18.markdown",
+        "changelog.releases.upstreamSync4cf54d18.title"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

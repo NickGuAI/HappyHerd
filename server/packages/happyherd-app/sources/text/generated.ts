@@ -99,6 +99,8 @@ export type TranslationKey =
     | "artifacts.titlePlaceholder"
     | "artifacts.updateError"
     | "changelog.noEntriesAvailable"
+    | "changelog.releases.upstreamSync4cf54d18.markdown"
+    | "changelog.releases.upstreamSync4cf54d18.title"
     | "changelog.version"
     | "claude.permissions.noTellClaude"
     | "claude.permissions.yesAllowAllEdits"

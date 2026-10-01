@@ -43,3 +43,5 @@ The first image fixture mounted a preview below the viewport. Visual review reje
 [Archive row restored after failed transport](archive-rollback-header-ordinary-dark-390.png)
 
 [ToolView image preview through the actual ModalProvider and CustomModal host](attachment-preview-ToolView-dark-390.png)
+
+The [localized release-note journeys](changelog-locales/README.md) separately exercise the real exported production page in Chinese and German, including phone scrolling to the final bullet.

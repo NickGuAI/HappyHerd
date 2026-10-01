@@ -1112,7 +1112,13 @@
   },
   "changelog": {
     "version": "Version {version}",
-    "noEntriesAvailable": "Keine Changelog-Einträge verfügbar."
+    "noEntriesAvailable": "Keine Changelog-Einträge verfügbar.",
+    "releases": {
+      "upstreamSync4cf54d18": {
+        "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
+        "markdown": "- Eingabeentwürfe und Auswahlen des HappyHerd-Agenten werden jetzt geräteübergreifend synchronisiert. Neuere Änderungen bleiben beim Senden von Nachrichten und beim erneuten Verbinden anderer Geräte erhalten.\n- Der Chatverlauf lädt auch bei langen Gesprächsrunden und eingeklappten Arbeitsgruppen weiter. Scrollen im Web, Sitzungswechsel sowie Einfügen und Ablegen bleiben auf die jeweilige Unterhaltung beschränkt.\n- Claude-Remotesitzungen berücksichtigen ausdrücklich angegebene Plugin-Verzeichnisse. Bei abgelaufener Anbieteranmeldung zeigen sie Schritte zur erneuten Anmeldung für das Konto an, dem die Sitzung gehört.\n- Unter macOS wartet die erneute Verbindung, bis das System vollständig aufgewacht ist. Sitzungen warten weiterhin auf verspätet eintreffende oder neu erstellte Gesprächsprotokolle.\n- Neue Optionen zum Anhängen von Bildern aus der nativen Zwischenablage und verbesserte Tastaturbehandlung in Android-Eingabedialogen. Das bestehende HappyHerd-Layout, die Modellauswahl und die Identitäten bestehender Sitzungen bleiben erhalten."
+      }
+    }
   },
   "terminal": {
     "webBrowserRequired": "Webbrowser erforderlich",

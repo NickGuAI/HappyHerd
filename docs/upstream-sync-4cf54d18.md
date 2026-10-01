@@ -75,7 +75,7 @@ The CLI and product rename scripts were run dry-run/apply/check, with semantic i
 | 8 | Deployment/public S3 configuration remains the baseline; no pinned upstream host. |
 | 10 | No phone bot publisher, bot-face/name helpers, bot spawn target, DiceBear dependency or publishing blob method. Existing daemon-owned bot visibility/ownership remains. |
 | 19 | No machine-first Home, ProjectHomeList or WorktreeTabStrip. Existing flat default, Projects, Workspace and Commanders remain. |
-| 24 | Own October changelog entry, followed by every retained HappyHerd/upstream historical entry. No imported upstream September replacement notes. |
+| 24 | Own October changelog entry in en/cn/de, followed by every retained historical entry. Display-only localization preserves canonical release/unread identity and exact English bytes. No imported upstream September replacement notes. |
 | 25 | No app version 1.8.0 change; baseline app version derivation retained. |
 | 26 | No upstream App Store / Google Play tooling or marketing screenshot assets. |
 | 28 | Responsive device-class owner remains byte-identical to the frozen baseline; no width-based tablet rule. |
@@ -107,7 +107,7 @@ Post-rebuild checks:
 | App typecheck | Passed after integration, the Rig edit fix and browser-fixture corrections. |
 | Full app suite | 365 files;4,205 passed,10 existing skips. |
 | Full contract suite | Passed on `0cd3425379b2b8c3ddf5f0bb09ef08f6b3aa22ef`: all repository verifiers, app4,205, wire84, control agent260, HappyHerd agent52, CLI2,088 and server201. |
-| `i18n:check` / inventory | 1,675 keys per locale; zero hardcoded-copy exceptions;45 routes,338 surfaces,84 smoke cases. |
+| `i18n:check` / inventory | 1,677 keys per locale after the release-note translations; zero hardcoded-copy exceptions;45 routes,339 surfaces,84 smoke cases. |
 | Production Web export / smoke / CLI build | Passed; export and smoke repeated successfully after the Rig edit fix. |
 | Changelog parser | 175 entries; latest “October 1 — Session reliability and shared drafts”. |
 | Range-diff | All683 inherited ledger subjects are exact matches. |
@@ -128,7 +128,7 @@ Rendered Chromium interaction fixtures use production components over synthetic 
 | 20 | 24 header/header-menu/row-menu cases: immediate hide before acknowledgment, failure rollback, retry, ordinary cleanup/fallback and bot owner-only handling. |
 | Owned #361 / shell | 8 Commander context matrix cases passed. Both focused shell animation/shortcut checks passed with unchanged timing assertions. |
 
-See [selected interaction captures](acceptance/issue-370/README.md). Group2/18 Web ownership is additionally covered by retained header/chip/browser suites; native rendering/gesture proof remains separate. Group23 Web attachment paths are covered above; its native chooser remains a device proof gap. Group1’s visible checklist/help controls remain blocked on the numbered owner decision.
+See [selected interaction captures](acceptance/issue-370/README.md) and [localized release-note captures](acceptance/issue-370/changelog-locales/README.md). Group2/18 Web ownership is additionally covered by retained header/chip/browser suites; native rendering/gesture proof remains separate. Group23 Web attachment paths are covered above; its native chooser remains a device proof gap. Group1’s visible checklist/help controls remain blocked on the numbered owner decision.
 
 Review found and fixed a real newer-Rig-draft race: uncontrolled text could advance before its deferred React mirror was stamped, allowing acceptance to clear the newer live text. Local edits are now stamped at the input event; remote drafts are not restamped and non-Rig debounce is unchanged. Two real-hook/store/writer regressions plus existing send/side-chat cases pass (123 tests total); independent review confirmed the fix.
 
@@ -139,5 +139,9 @@ Still required before review clearance: completion of remaining interaction proo
 The fourth run’s three failures were fixture synchronization races: the unchanged focus timer initially renders against its pre-setup clock before its effect samples the frozen clock, and the phone row test compared moving geometry captured on different frames. The fixtures now wait for the exact expected timer text and measure row/button/text bounds in one evaluation. Exact duration, tick, overlap, containment and timing assertions remain unchanged; no production owner changed. Both original failures and their baseline-source comparisons are retained. Both affected browser files then passed all 56 cases, followed by app typecheck; this focused pass does not substitute for the full rerun.
 
 The first PR Quality run ([36907209569](https://github.com/NickGuAI/HappyHerd/actions/runs/36907209569)) passed Clean install, Lint, Typecheck, production Web export and smoke. KILV stopped before comparison because its static route fixture lacked the newly imported navigation-helper export. The missing fixture export was added without changing navigation proof, comparator, masks or thresholds; all eight local appearance/terminal captures then completed. The partial Linux artifact contains20 production captures:16 non-changelog panels have zero differing pixels and only the four expected changelog panels differ. All four were visually reviewed, but this partial artifact is not complete KILV acceptance and was not used to update baselines.
+
+Group24’s en/cn/de requirement was checked explicitly before finalization. The October1 title and five bullets now come from the catalogs for display only: the parser, canonical English identifier, historical entries, timeline keys and unread storage are unchanged. Seven focused locale/identity tests, typecheck and i18n passed, followed by production export/smoke and eight actual exported-page journeys in Chinese/German at1440×900 and390×844, light/dark. All translated bullets were present and reachable without horizontal overflow or page errors. Independent review confirmed the source hashes match the render manifest.
+
+The complete Linux comparison on `dc87382bea2b5fb3caaea00432d12a43097709ce` ([Quality run36908936569](https://github.com/NickGuAI/HappyHerd/actions/runs/36908936569), [capture artifact](https://github.com/NickGuAI/HappyHerd/actions/runs/36908936569/artifacts/11185738971)) contains all28 variants. All24 non-changelog panels have zero differing pixels; only the four changelog panels differ, with unchanged dimensions. All four are byte-identical to the individually reviewed initial captures. After that workflow completed, the approved `golden:update` command imported its captures. Exactly the four reviewed changelog PNGs changed; the other24 baseline files remained byte-identical. Final-head CI must confirm the new baselines, including unchanged English rendering after catalog localization.
 
 The proposal-automation read-only query returned no listed automations or blocked runs. It did not prove the requested schedule/latest-run state; no production automation was created or changed to fill that evidence gap.
