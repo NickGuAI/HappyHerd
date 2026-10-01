@@ -11,8 +11,8 @@ the new design. Follow it during every upstream merge (see the
 `happyherd-sync-upstream` skill); update it in the same pull request as any UI
 change that touches an inherited file.
 
-- **Upstream base for this record:** `4b7d763ee3afda04985f3210b9cb9acf9359c7d9`
-  (the most recent upstream commit merged into `main` when the overhaul began).
+- **Upstream base for this record:** `4cf54d18488cba4787cc251cc37010f31125af29`
+  (reviewed by issue #370; treatments remain anchored to HappyHerd main `793b05b8`).
 <!-- rename:preserve -->
 - **Path mapping:** upstream `packages/happy-app/sources/<path>` is HappyHerd
   `server/packages/happyherd-app/sources/<path>`.
@@ -20,7 +20,7 @@ change that touches an inherited file.
   upstream):
 
   ```bash
-  U=4b7d763ee3afda04985f3210b9cb9acf9359c7d9
+  U=4cf54d18488cba4787cc251cc37010f31125af29
   f='components/SidebarView.tsx'
   git cat-file -e "$U:packages/happy-app/sources/$f" 2>/dev/null && echo upstream || echo happyherd
   ```
@@ -370,3 +370,16 @@ uses that accent for the hover/selection border and translucent fill. Theme
 changes update the same iframe without re-registering its transport or reloading
 the page. Picking still captures the element then clears the outline as before;
 HTML/CSS/bounds, screenshot, and feedback delivery are unchanged.
+
+## Integration through 4cf54d18 (#370)
+
+The existing Replaced/Restyled/Extended treatments remain in force. See
+[the integration record](upstream-sync-4cf54d18.md) for every accepted/rejected
+group, semantic conflict resolution and the current proof boundary. ChatList
+and EmptyMessages retain the subsequently merged CommanderContextRow and its
+actual-read metadata contract. History loading and pending status are ported
+into those owners; HomeDock/AgentInput keep their current layout while fixing
+shrink/gesture ownership; all archive controls share the existing action owner.
+The first-run visible checklist/help affordance is blocked on the issue's
+explicit presentation decision. No upstream onboarding, tabs, machine-first
+Home, bare-image layout or width-based tablet structure is authorized here.

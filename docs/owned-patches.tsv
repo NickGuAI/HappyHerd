@@ -731,3 +731,4 @@ INSTALLER_STABLE_LAYOUT	accepted	fix(installer): support pre-rename stable relea
 INSTALLER_LEGACY_RENAME_BOUNDARY	accepted	fix(installer): preserve published dependency spelling in rename checks	scripts/test-public-launcher-release-contract.sh
 INSTALLER_STABLE_PIPELINE	accepted	test(installer): fetch the candidate script through the curl pipeline	scripts/test-native-installer-stable.sh
 INSTALLER_PUBLISHED_PROCESS_ASSERTION	accepted	test(installer): retain exact process ownership for stable archive layouts	scripts/test-native-installer-asset.sh
+UPSTREAM_4CF54D18_RECORD	accepted	docs(sync): record the approved 4cf54d18 integration and proof boundaries	docs/upstream-sync-4cf54d18.md
