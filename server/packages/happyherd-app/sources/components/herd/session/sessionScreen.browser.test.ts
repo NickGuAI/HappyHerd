@@ -246,8 +246,23 @@ function sessionScreenModules(): Record<string, string> {
                 : { success: false, message: '' };
         };`, `export const sessionKill = async (sessionId) => {
             window.__SESSION_KILL_CALLS__ = [...(window.__SESSION_KILL_CALLS__ ?? []), sessionId];
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveJourney) {
+                return await new Promise((resolve) => {
+                    window.__ARCHIVE_KILL_PENDING__ = true;
+                    window.__RESOLVE_ARCHIVE_KILL__ = (success) => {
+                        window.__ARCHIVE_KILL_PENDING__ = false;
+                        resolve({ success, message: success ? 'machine accepted' : 'machine unavailable' });
+                    };
+                });
+            }
             return { success: true, message: 'ok' };
         };`, 'sessionKill');
+    ops = replaceOnce(ops, `window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
+            return { success: true };`, `window.__SESSION_ARCHIVE_CALLS__ = [...(window.__SESSION_ARCHIVE_CALLS__ ?? []), sessionId];
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.archiveJourney) {
+                return { success: window.__ARCHIVE_FALLBACK_SUCCESS__ === true, message: 'fixture fallback unavailable' };
+            }
+            return { success: true };`, 'deferred archive fallback');
     modules['@/sync/ops'] = ops;
 
     // Storage: a Claude session with a finished turn, a live turn, a goal, a
@@ -323,7 +338,11 @@ function sessionScreenModules(): Record<string, string> {
         `export const useSessionGitStatus = () => fixtureOptions.sessionScreen ? { branch: 'fix/auth-timeout', unstagedLinesAdded: 18, unstagedLinesRemoved: 3 } : null;`, 'git');
     storage = replaceOnce(storage, 'export const useSessionUsage = () => null;',
         `export const useSessionUsage = () => fixtureOptions.sessionScreen ? { inputTokens: 1200, outputTokens: 800, cacheCreation: 0, cacheRead: 0, contextSize: 36000, contextWindow: 200000 } : null;`, 'usage');
-    storage += `\nexport const useRealtimeMode = () => 'idle';`;
+    storage += `\nexport const useRealtimeMode = () => 'idle';
+        // Test-only subscription: the production row and archive hook are real;
+        // the existing suite's storage and machine/server transport remain synthetic.
+        window.__ARCHIVE_STORE__ = { subscribe, getState };
+    `;
     modules['@/sync/storage'] = storage;
     return modules;
 }
@@ -473,13 +492,13 @@ describe('Session screen overhaul (Web)', () => {
         await new Promise<void>((done) => server ? server.close(() => done()) : done());
     });
 
-    async function openScene(options: { scene: Scene; viewport: Viewport; theme?: 'light' | 'dark' }) {
+    async function openScene(options: { scene: Scene; viewport: Viewport; theme?: 'light' | 'dark'; archiveJourney?: boolean; botLifecycle?: boolean }) {
         const page = await browser.newPage({ viewport: options.viewport, deviceScaleFactor: 1, colorScheme: options.theme ?? 'light' });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
-        await page.addInitScript((scene) => {
-            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { sessionScreen: scene, providerContinuation: true, voiceAvailable: true };
-        }, options.scene);
+        await page.addInitScript(({ scene, archiveJourney, botLifecycle }) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { sessionScreen: scene, providerContinuation: true, voiceAvailable: true, archiveJourney, botLifecycle };
+        }, options);
         await page.goto(`${origin}/?theme=${options.theme ?? 'light'}`);
         await page.getByTestId('foreground-session').waitFor({ state: 'visible', timeout: 5_000 });
         await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 5_000 });
@@ -567,6 +586,74 @@ describe('Session screen overhaul (Web)', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 30_000);
+
+    // Real SessionView/header, SessionActionsPopover, FlatSessionRow and shared
+    // archive hook; transport and storage boundary are this suite's fixtures.
+    // sessionArchiving.test.ts separately covers the real storage list projection.
+    it.each([DESKTOP, MOBILE].flatMap(viewport =>
+        (['light', 'dark'] as const).flatMap(theme =>
+            (['header', 'header-menu', 'row-menu'] as const).flatMap(entry =>
+                [false, true].map(bot => ({ viewport, theme, entry, bot }))))))(
+        'optimistically archives and retries $entry (bot=$bot) in $theme at $viewport.width px',
+        async ({ viewport, theme, entry, bot }) => {
+            const { page, errors } = await openScene({ scene: 'permission', viewport, theme, archiveJourney: true, botLifecycle: bot });
+            const tray = page.getByTestId('archive-journey-row');
+            const pressArchive = async () => {
+                if (entry === 'header') {
+                    await page.getByTestId('foreground-session').getByRole('button', { name: 'Archive', exact: true }).click();
+                } else {
+                    if (entry === 'row-menu') {
+                        await tray.hover();
+                        await tray.getByTestId('session-row-more').click();
+                    } else {
+                        await page.getByTestId('foreground-session').getByRole('button', { name: 'Session', exact: true }).click();
+                    }
+                    await page.getByRole('dialog').getByRole('button', { name: /Archive/ }).click();
+                }
+            };
+            try {
+                await tray.waitFor({ state: 'visible' });
+                await pressArchive();
+                await expect.poll(() => page.evaluate(() => (window as any).__ARCHIVE_KILL_PENDING__)).toBe(true);
+                // The machine promise is deliberately unresolved: disappearance
+                // cannot be explained by successful transport or a synced archive.
+                await expect.poll(() => tray.count()).toBe(0);
+                expect(await page.evaluate(() => (window as any).__SESSION_KILL_CALLS__)).toEqual(['parent']);
+                expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual([]);
+                expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__?.length ?? 0)).toBe(bot ? 0 : 1);
+                await evidence(page, `archive-pending-${entry}-${bot ? 'bot' : 'ordinary'}-${theme}-${viewport.width}`);
+
+                // First failure: ordinary sessions try server fallback, bots do not.
+                await page.evaluate(() => (window as any).__RESOLVE_ARCHIVE_KILL__(false));
+                await tray.waitFor({ state: 'visible' });
+                const alert = page.getByRole('alert');
+                await alert.waitFor({ state: 'visible' });
+                expect(await page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__ ?? [])).toEqual(bot ? [] : ['parent']);
+                await alert.getByRole('button', { name: 'OK', exact: true }).click();
+                await evidence(page, `archive-rollback-${entry}-${bot ? 'bot' : 'ordinary'}-${theme}-${viewport.width}`);
+
+                await page.evaluate(() => { (window as any).__ARCHIVE_FALLBACK_SUCCESS__ = true; });
+                await pressArchive();
+                await expect.poll(() => page.evaluate(() => (window as any).__SESSION_KILL_CALLS__?.length)).toBe(2);
+                await expect.poll(() => tray.count()).toBe(0);
+                expect(await page.evaluate(() => (window as any).__ARCHIVE_KILL_PENDING__)).toBe(true);
+                // Ordinary retry proves successful server fallback; bot retry
+                // succeeds only through its owning machine.
+                await page.evaluate((success) => (window as any).__RESOLVE_ARCHIVE_KILL__(success), bot);
+                await expect.poll(() => page.evaluate(() => (window as any).__SESSION_ARCHIVE_CALLS__?.length ?? 0)).toBe(bot ? 0 : 2);
+                await settle(page);
+                expect(await tray.count()).toBe(0);
+                expect(await page.getByRole('alert').count()).toBe(0);
+                expect(await page.evaluate(() => (window as any).__WORKTREE_CLEANUP_CALLS__?.length ?? 0)).toBe(bot ? 0 : 2);
+                expect(errors).toEqual([]);
+            } finally {
+                // Release any pending fixture promise after an assertion fails;
+                // do not strand transport work or change the existing timeout.
+                await page.evaluate(() => (window as any).__RESOLVE_ARCHIVE_KILL__?.(true)).catch(() => {});
+                await page.close();
+            }
+        }, 30_000,
+    );
 
     it('toggles the Workspace beside the chat from the header without closing it', async () => {
         const { page, errors } = await openScene({ scene: 'permission', viewport: DESKTOP });

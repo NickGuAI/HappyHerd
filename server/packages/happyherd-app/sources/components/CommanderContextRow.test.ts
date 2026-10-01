@@ -20,6 +20,9 @@ vi.mock('expo-image', () => ({ Image: 'Image' }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 vi.mock('@/hooks/useCommanderAvatar', () => ({ useCommanderAvatar: () => null }));
 vi.mock('@/utils/sessionUtils', () => ({ useSessionStatus: () => ({}), formatPathRelativeToHome: (path: string) => path }));
+vi.mock('@/sync/storage', () => ({ useSessionMessages: () => ({ messages: [], isLoaded: true, hasMoreOlder: false, isLoadingOlder: false }) }));
+vi.mock('@/sync/sync', () => ({ sync: { loadOlderMessages: vi.fn() } }));
+vi.mock('./RoundButton', () => ({ RoundButton: 'RoundButton' }));
 vi.mock('./layout', () => ({ layout: { maxWidth: 800 } }));
 vi.mock('@/text', () => ({ t: (key: string, params?: { name?: string; path?: string }) => params?.path ?? params?.name ?? key }));
 

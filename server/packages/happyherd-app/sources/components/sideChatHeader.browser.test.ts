@@ -912,13 +912,32 @@ const virtualModules: Record<string, string> = {
         };
         useNewSessionDraft.getState = () => draft;
     `,
-    '@/hooks/useImagePicker': `export const useImagePicker = () => ({
-        addImages() {}, clearImages() {}, removeImage() {}, selectedImages: [],
-        pickImages() { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; },
-        async pickImagesForUpload() {
-            return [{ id: 'fixture-photo', uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 123, width: 100, height: 80 }];
-        },
-    });`,
+    '@/hooks/useImagePicker': `
+        import React from 'react';
+        export const useImagePicker = () => {
+            const owner = React.useId();
+            const [selectedImages, setImages] = React.useState([]);
+            const addImages = React.useCallback((images) => {
+                window.__COMPOSER_IMAGE_ADDS__ = [...(window.__COMPOSER_IMAGE_ADDS__ ?? []),
+                    { owner, names: images.map((image) => image.name) }];
+                setImages((current) => [...current, ...images]);
+            }, [owner]);
+            const clearImages = React.useCallback(() => setImages([]), []);
+            const removeImage = React.useCallback((id) => setImages((current) => current.filter((image) => image.id !== id)), []);
+            React.useEffect(() => {
+                window.__COMPOSER_IMAGE_STATE__ ??= {};
+                window.__COMPOSER_IMAGE_STATE__[owner] = selectedImages.map((image) => image.name);
+                return () => { delete window.__COMPOSER_IMAGE_STATE__[owner]; };
+            }, [owner, selectedImages]);
+            const pickImages = () => { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; };
+            return {
+                addImages, clearImages, removeImage, selectedImages, pickImages, attachImages: pickImages,
+                async pickImagesForUpload() {
+                    return [{ id: 'fixture-photo', uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 123, width: 100, height: 80 }];
+                },
+            };
+        };
+    `,
     '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = (options) => ({
         canCancel: false, canRetry: false, cancel() {}, reset() {}, retry() {}, state: { phase: 'idle' },
         async uploadAssets(assets) {
@@ -2865,6 +2884,137 @@ describe('Side chats browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).resolves.toEqual([]);
         await page.close();
     }, 10_000);
+
+
+    it.each([
+        ['desktop-light', { width: 1440, height: 900 }, 'light'],
+        ['desktop-dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile-light', { width: 390, height: 844 }, 'light'],
+        ['mobile-dark', { width: 390, height: 844 }, 'dark'],
+    ] as const)('routes image paste and drop to exactly one production composer (%s)', async (_name, viewport, theme) => {
+        const page = await browser.newPage({ viewport });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { imageAttachments: true };
+        });
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            const foreground = page.getByTestId('foreground-session');
+            const main = foreground.locator('textarea').first();
+            await main.waitFor({ state: 'visible', timeout: 3_000 });
+            await main.evaluate((node) => { node.dataset.imageOwner = 'main'; });
+            const dispatch = async (selector: string, kind: 'paste' | 'drop', name: string) => {
+                await page.evaluate(({ selector, kind, name }) => {
+                    const target = document.querySelector(selector);
+                    if (!target) throw new Error(`Missing event target: ${selector}`);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvas.height = 2;
+                    const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (c) => c.charCodeAt(0));
+                    const transfer = new DataTransfer();
+                    transfer.items.add(new File([bytes], name, { type: 'image/png' }));
+                    target.dispatchEvent(kind === 'paste'
+                        ? new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer })
+                        : new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+                }, { selector, kind, name });
+            };
+            const additions = () => page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__ ?? []);
+            await main.focus();
+            await dispatch('[data-image-owner="main"]', 'paste', 'main-paste.png');
+            await expect.poll(async () => (await additions()).length).toBe(1);
+            const mainOwner = (await additions())[0].owner;
+
+            await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+            await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+            const child = foreground.locator('textarea').filter({ visible: true }).last();
+            await child.evaluate((node) => { node.dataset.imageOwner = 'child'; });
+            await child.focus();
+            await dispatch('[data-image-owner="child"]', 'paste', 'child-paste.png');
+            await expect.poll(async () => (await additions()).length).toBe(2);
+            const childOwner = (await additions())[1].owner;
+            expect(childOwner).not.toBe(mainOwner);
+
+            // A target takes precedence over a sibling's focused composer.
+            // evaluate focuses the real field even when the phone sheet covers it.
+            await main.evaluate((node) => (node as HTMLTextAreaElement).focus());
+            await dispatch('[data-image-owner="child"]', 'drop', 'child-drop.png');
+            await expect.poll(async () => (await additions()).length).toBe(3);
+            await child.evaluate((node) => (node as HTMLTextAreaElement).focus());
+            await dispatch('[data-image-owner="main"]', 'drop', 'main-drop.png');
+            await expect.poll(async () => (await additions()).length).toBe(4);
+
+            // Neither a modal-like outside input nor a hidden mounted SessionView
+            // may donate its image to a visible sibling. No picker mock decides
+            // ownership: production AgentInput listeners receive every event.
+            await page.evaluate(() => {
+                const input = document.createElement('input');
+                input.id = 'outside-image-input'; document.body.append(input); input.focus();
+            });
+            await dispatch('#outside-image-input', 'paste', 'outside-paste.png');
+            await dispatch('#outside-image-input', 'drop', 'outside-drop.png');
+            const hiddenSelector = '[aria-hidden="true"] textarea';
+            expect(await page.locator(hiddenSelector).count()).toBeGreaterThan(0);
+            await dispatch(hiddenSelector, 'drop', 'hidden-drop.png');
+            await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+            await dispatch('body', 'drop', 'ambiguous-drop.png');
+            // A following accepted event drains the same asynchronous decoding
+            // path, so all earlier wrongly claimed events would appear as extras.
+            await child.focus();
+            await dispatch('[data-image-owner="child"]', 'paste', 'child-final.png');
+            await expect.poll(async () => (await additions()).some((entry: any) => entry.names.includes('child-final.png'))).toBe(true);
+            expect(await additions()).toEqual([
+                { owner: mainOwner, names: ['main-paste.png'] },
+                { owner: childOwner, names: ['child-paste.png'] },
+                { owner: childOwner, names: ['child-drop.png'] },
+                { owner: mainOwner, names: ['main-drop.png'] },
+                { owner: childOwner, names: ['child-final.png'] },
+            ]);
+            expect(await page.evaluate(({ mainOwner, childOwner }) => ({
+                main: (window as any).__COMPOSER_IMAGE_STATE__[mainOwner],
+                child: (window as any).__COMPOSER_IMAGE_STATE__[childOwner],
+            }), { mainOwner, childOwner })).toEqual({
+                main: ['main-paste.png', 'main-drop.png'],
+                child: ['child-paste.png', 'child-drop.png', 'child-final.png'],
+            });
+            expect(errors).toEqual([]);
+        } finally { await page.close(); }
+    }, 20_000);
+
+    it.each([
+        ['desktop-light', { width: 1440, height: 900 }, 'light'],
+        ['desktop-dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile-light', { width: 390, height: 844 }, 'light'],
+        ['mobile-dark', { width: 390, height: 844 }, 'dark'],
+    ] as const)('resets attachments when an existing SessionView receives another session (%s)', async (_name, viewport, theme) => {
+        const page = await browser.newPage({ viewport });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { imageAttachments: true, composerSessionSwitch: true };
+        });
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            const main = page.getByTestId('foreground-session').locator('textarea').first();
+            await main.waitFor({ state: 'visible', timeout: 3_000 });
+            await main.focus();
+            await main.evaluate((node) => {
+                node.dataset.beforeSessionSwitch = 'true';
+                const canvas = document.createElement('canvas'); canvas.width = canvas.height = 2;
+                const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (c) => c.charCodeAt(0));
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([bytes], 'old-session-only.png', { type: 'image/png' }));
+                node.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer }));
+            });
+            await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__?.length ?? 0)).toBe(1);
+            const oldOwner = await page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__[0].owner);
+            await page.evaluate(() => (window as any).__SWITCH_COMPOSER_SESSION__('background'));
+            await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_SWITCH_ID__)).toBe('background');
+            await expect.poll(() => page.locator('[data-before-session-switch="true"]').count()).toBe(0);
+            await expect.poll(() => page.evaluate((owner) => (window as any).__COMPOSER_IMAGE_STATE__[owner] ?? null, oldOwner)).toBeNull();
+            expect(await page.evaluate(() => Object.values((window as any).__COMPOSER_IMAGE_STATE__).flat())).toEqual([]);
+            expect(errors).toEqual([]);
+        } finally { await page.close(); }
+    }, 20_000);
 
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],

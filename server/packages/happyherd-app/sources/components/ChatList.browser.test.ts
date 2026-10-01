@@ -64,6 +64,13 @@ const virtualModules: Record<string, string> = {
             snapshot = { ...snapshot, messages: [user(0)], hasMoreOlder: params.has('older') };
         }
         window.__finishHistory = () => { snapshot = { ...snapshot, hasMoreOlder: false }; listeners.forEach(fn => fn()); };
+        window.__freshPending = (queued) => {
+            session.thinking = queued;
+            snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
+                ? { ...message, createdAt: Date.now(), pending: true, sendError: undefined, meta: { queuedWhileBusy: queued } } : message) };
+            listeners.forEach(fn => fn());
+        };
+        window.__idleAgent = () => { session.thinking = false; snapshot = { ...snapshot, messages: [...snapshot.messages] }; listeners.forEach(fn => fn()); };
         window.__settle = (rejected) => {
             snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
                 ? { ...message, pending: false, sendError: rejected ? 'provider refused' : undefined } : message) };
@@ -83,7 +90,7 @@ const virtualModules: Record<string, string> = {
             'happyHerd.commander.openCommanders': 'View '+params.name+' in Commanders',
             'happyHerd.commander.loadedContext': 'Loaded Commander context',
             'happyHerd.commander.loadedFile': 'Loaded context file: '+params.path,
-            'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
+            'message.sendsAfterThisTurn': 'Sends after this turn', 'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
         }[key] ?? key);
     `,
     '@/components/tools/knownTools': `export const knownTools = {}; export const getToolCategoryIcon = () => null;`,
@@ -196,9 +203,9 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     });
 
-    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('aligns participants and settles pending status in the real chat at $width px', async viewport => {
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }].flatMap(viewport => ['light', 'dark'].map(theme => ({ ...viewport, theme }))))('aligns participants and settles pending status in the real chat at $width px', async viewport => {
         const page = await browser.newPage({ viewport });
-        await page.goto(origin + '?participants');
+        await page.goto(origin + '?participants&theme=' + viewport.theme);
         const own = page.getByText('My instruction', { exact: false });
         const other = page.getByText('Other participant', { exact: false });
         await other.waitFor();
@@ -215,9 +222,9 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     });
 
-    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }].flatMap(viewport => ['light', 'dark'].map(theme => ({ ...viewport, theme }))))('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
         const page = await browser.newPage({ viewport });
-        await page.goto(origin + '?focus');
+        await page.goto(origin + '?focus&theme=' + viewport.theme);
         const message = page.getByText('Prompt 24', { exact: true });
         // Loading the document does not mean FlashList has mounted this row.
         // Keep mount readiness separate from the unchanged scroll-position assertion.
@@ -240,6 +247,46 @@ describe('ChatList production FlashList browser interactions', () => {
             return bounds !== null && bounds.y >= 0 && bounds.y < viewport.height;
         }, visualStatePollOptions).toBe(true);
         await page.close();
+    }, 20000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('keeps idle sends undimmed for one second and freezes the queued label at $width px in $theme', async ({ width, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        try {
+            await page.goto(origin + '?participants&theme=' + theme);
+            const message = page.getByText('Pending instruction', { exact: true });
+            await message.waitFor();
+            await page.getByText('Sending…', { exact: true }).waitFor();
+            const original = await message.elementHandle();
+            await page.clock.install();
+            await page.clock.pauseAt(new Date(Date.now() + 100));
+            await page.evaluate(() => (window as any).__freshPending(false));
+            await expect.poll(() => page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            const opacity = () => message.evaluate(element => {
+                let value = 1;
+                for (let node: Element | null = element; node; node = node.parentElement) value *= Number(getComputedStyle(node).opacity);
+                return value;
+            });
+            expect(await opacity()).toBe(1);
+            await page.clock.runFor(999);
+            expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            expect(await opacity()).toBe(1);
+            await page.clock.runFor(1);
+            await page.getByText('Sending…', { exact: true }).waitFor();
+            expect(await opacity()).toBeLessThan(1);
+            expect(await original!.evaluate(node => node.isConnected)).toBe(true);
+            await page.evaluate(() => (window as any).__settle(false));
+            await expect.poll(() => page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            expect(await opacity()).toBe(1);
+            await page.evaluate(() => (window as any).__freshPending(true));
+            await page.getByText('Sends after this turn', { exact: true }).waitFor();
+            await page.evaluate(() => (window as any).__idleAgent());
+            expect(await page.getByText('Sends after this turn', { exact: true }).count()).toBe(1);
+            expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            await page.evaluate(() => (window as any).__settle(true));
+            await page.getByText('Message not accepted: provider refused', { exact: true }).waitFor();
+            expect(await page.getByText('Sends after this turn', { exact: true }).count()).toBe(0);
+            expect(await original!.evaluate(node => node.isConnected)).toBe(true);
+        } finally { await page.close(); }
     }, 20000);
 
     it('preserves zoom, horizontal gestures and nested scrolling, and converts wheel units', async () => {

@@ -230,11 +230,24 @@ function ProviderContinuationFixture() {
     );
 }
 
+// Reuse the production SessionView without a fixture key. Its own per-session
+// subtree must reset attachments; the fixture must not manufacture that reset.
+function ComposerSessionSwitchFixture() {
+    const [id, setId] = React.useState('parent');
+    (globalThis as any).__SWITCH_COMPOSER_SESSION__ = setId;
+    (globalThis as any).__COMPOSER_SWITCH_ID__ = id;
+    return <div data-testid="foreground-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <SessionView id={id} />
+    </div>;
+}
+
 const fixtureOptions = (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
 
 createRoot(document.getElementById('root')!).render(
     <>
-        {fixtureOptions.contextWindow ? (
+        {fixtureOptions.composerSessionSwitch ? (
+            <ComposerSessionSwitchFixture />
+        ) : fixtureOptions.contextWindow ? (
             <ContextWindowJourneyFixture />
         ) : fixtureOptions.sessionInfoJourney ? (
             <SessionInfoJourneyFixture />
