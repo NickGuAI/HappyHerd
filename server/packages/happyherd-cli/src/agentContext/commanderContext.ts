@@ -21,8 +21,10 @@ import { StringDecoder } from 'node:string_decoder';
 
 import {
   detectHappyHerdCommanderAvatarMimeType,
+  HappyHerdCommanderContextFilesSchema,
   MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES,
   type HappyHerdCommanderAvatar,
+  type HappyHerdCommanderContextFile,
   type HappyHerdCommanderListResponse,
   type HappyHerdCommanderSummary,
 } from '@happyherd/wire';
@@ -33,6 +35,13 @@ const INSTRUCTION_RECEIPT_VERSION = 1;
 const COMMANDER_MEMORY_MAX_BYTES = 64 * 1024;
 const COMMANDER_AVATAR_FILE_NAME = 'avatar.png';
 const MANAGED_COPY_HEADER = '<!-- Managed by HappyHerd from AGENTS.md. Do not edit this copy. -->\n';
+
+let consumedContextReceipt: {
+  bundlePath: string;
+  contextHash: string;
+  commanderId: string;
+  files: HappyHerdCommanderContextFile[];
+} | undefined;
 
 type CommanderMemorySnapshot = {
   tier: 'L2' | 'L3';
@@ -46,6 +55,7 @@ type CommanderMemorySnapshot = {
 
 export interface CommanderContextBundle {
   commander: HappyHerdCommanderSummary | null;
+  commanderContextFiles: HappyHerdCommanderContextFile[];
   contextHash: string;
   bundlePath: string;
   globalAgentsPath: string | null;
@@ -59,6 +69,7 @@ export interface CommanderContextMetadata {
   commanderPath?: string;
   commanderWorkspace?: string;
   commanderAgentContextPath?: string;
+  commanderContextFiles?: HappyHerdCommanderContextFile[];
   globalAgentsPath?: string;
   globalAgentContextPath?: string;
   projectGuidancePath?: string;
@@ -478,8 +489,19 @@ export async function prepareCommanderContext(
   });
   const contextHash = createHash('sha256').update(bundleText).digest('hex');
   const bundlePath = await writeTransientBundle(bundleText, contextHash);
+  // Record the reads used by this bundle, rather than deriving provenance
+  // later from paths or the machine's current filesystem. Empty files count.
+  const commanderContextFiles: HappyHerdCommanderContextFile[] = commander ? [
+    ...(hasAgents ? [{ kind: 'global-agents' as const, path: agentsPath }] : []),
+    { kind: 'commander', path: commander.commanderPath },
+    ...commanderMemories.map((memory) => ({
+      kind: memory.tier === 'L2' ? 'working-memory' as const : 'long-term-memory' as const,
+      path: memory.filePath,
+    })),
+  ] : [];
   return {
     commander,
+    commanderContextFiles,
     contextHash,
     bundlePath,
     globalAgentsPath: hasAgents ? agentsPath : null,
@@ -492,6 +514,7 @@ export function contextEnvironment(bundle: CommanderContextBundle): Record<strin
   return {
     HAPPYHERD_CONTEXT_BUNDLE_PATH: bundle.bundlePath,
     HAPPYHERD_CONTEXT_HASH: bundle.contextHash,
+    HAPPYHERD_COMMANDER_CONTEXT_FILES: JSON.stringify(bundle.commanderContextFiles),
     HAPPYHERD_GLOBAL_AGENTCONTEXT_PATH: bundle.globalAgentContextPath,
     ...(bundle.globalAgentsPath ? { HAPPYHERD_GLOBAL_AGENTS_PATH: bundle.globalAgentsPath } : {}),
     ...(bundle.projectGuidancePath ? { HAPPYHERD_PROJECT_GUIDANCE_PATH: bundle.projectGuidancePath } : {}),
@@ -521,6 +544,7 @@ export function instructionReceiptMetadata(options: {
 }
 
 export async function readContextPromptFromEnvironment(): Promise<string | undefined> {
+  consumedContextReceipt = undefined;
   const bundlePath = process.env.HAPPYHERD_CONTEXT_BUNDLE_PATH;
   const expectedHash = process.env.HAPPYHERD_CONTEXT_HASH;
   if (!bundlePath || !expectedHash) return undefined;
@@ -529,6 +553,18 @@ export async function readContextPromptFromEnvironment(): Promise<string | undef
     const actualHash = createHash('sha256').update(content).digest('hex');
     if (actualHash !== expectedHash) {
       throw new Error('HappyHerd Commander context bundle failed integrity validation');
+    }
+    const rawFiles = process.env.HAPPYHERD_COMMANDER_CONTEXT_FILES;
+    const commanderId = process.env.HAPPYHERD_COMMANDER_ID;
+    if (rawFiles && commanderId) {
+      try {
+        const parsed = HappyHerdCommanderContextFilesSchema.safeParse(JSON.parse(rawFiles));
+        if (parsed.success) {
+          consumedContextReceipt = { bundlePath, contextHash: actualHash, commanderId, files: parsed.data };
+        }
+      } catch {
+        // A legacy or malformed handoff has no loaded-file receipt.
+      }
     }
     return content;
   } finally {
@@ -540,7 +576,15 @@ export async function readContextPromptFromEnvironment(): Promise<string | undef
 }
 
 export function contextMetadataFromEnvironment(): CommanderContextMetadata {
+  // Assembly owns the list; publication additionally requires this provider
+  // process to have successfully consumed the integrity-checked bundle.
+  const commanderContextFiles = consumedContextReceipt
+    && consumedContextReceipt.bundlePath === process.env.HAPPYHERD_CONTEXT_BUNDLE_PATH
+    && consumedContextReceipt.contextHash === process.env.HAPPYHERD_CONTEXT_HASH
+    && consumedContextReceipt.commanderId === process.env.HAPPYHERD_COMMANDER_ID
+    ? consumedContextReceipt.files : undefined;
   return {
+    ...(commanderContextFiles ? { commanderContextFiles } : {}),
     ...(process.env.HAPPYHERD_COMMANDER_ID ? { commanderId: process.env.HAPPYHERD_COMMANDER_ID } : {}),
     ...(process.env.HAPPYHERD_COMMANDER_NAME ? { commanderName: process.env.HAPPYHERD_COMMANDER_NAME } : {}),
     ...(process.env.HAPPYHERD_COMMANDER_PATH ? { commanderPath: process.env.HAPPYHERD_COMMANDER_PATH } : {}),
@@ -551,6 +595,16 @@ export function contextMetadataFromEnvironment(): CommanderContextMetadata {
     ...(process.env.HAPPYHERD_PROJECT_GUIDANCE_PATH ? { projectGuidancePath: process.env.HAPPYHERD_PROJECT_GUIDANCE_PATH } : {}),
     ...(process.env.HAPPYHERD_CONTEXT_HASH ? { contextHash: process.env.HAPPYHERD_CONTEXT_HASH } : {}),
   };
+}
+
+/** Reapply a launch receipt only while its Commander binding is still current. */
+export function commanderContextReceiptForResume(
+  launchMetadata: CommanderContextMetadata,
+  currentMetadata: CommanderContextMetadata,
+): Pick<CommanderContextMetadata, 'commanderContextFiles'> {
+  return launchMetadata.contextHash && launchMetadata.commanderId === currentMetadata.commanderId
+    ? { commanderContextFiles: launchMetadata.commanderContextFiles }
+    : {};
 }
 
 export function mergeContextPrompt(base: string | undefined, override: string | null | undefined): string | undefined {

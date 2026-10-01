@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { build, type Plugin } from 'esbuild';
+import { build, type BuildOptions, type Plugin } from 'esbuild';
 import { PRODUCT } from '../constants/product';
 import { createServer, type Server } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page, type Locator } from 'playwright-core';
 import { darkTheme, lightTheme } from '@/theme';
@@ -29,6 +29,7 @@ const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
         import { lightTheme, darkTheme } from '@/theme';
         const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
+        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) document.body.style.backgroundColor = theme.colors.groupped.background;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -43,7 +44,7 @@ const virtualModules: Record<string, string> = {
         import octicons from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
@@ -115,6 +116,7 @@ const virtualModules: Record<string, string> = {
         import { View } from 'react-native';
         export const KeyboardAvoidingView = View;
         export const KeyboardStickyView = View;
+        export const useKeyboardState = () => ({ isVisible: false, height: 0 });
         export const useReanimatedKeyboardAnimation = () => ({ height: { value: 0 }, progress: { value: 0 } });
     `,
     'expo-constants': `export default { statusBarHeight: 0 };`,
@@ -211,6 +213,14 @@ const virtualModules: Record<string, string> = {
                 codexThreadId: provider === 'codex' ? 'thread-parent' : undefined,
                 codexHome: provider === 'codex' ? '/work/provider-state/codex' : undefined,
             };
+        }
+        if (fixtureOptions.commanderContext) {
+            sessions.parent.metadata = { ...sessions.parent.metadata, commanderId: 'athena', commanderName: 'Athena', commanderContextFiles: [
+                { kind: 'global-agents', path: '/global/AGENTS.md' },
+                { kind: 'commander', path: '/athena/COMMANDER.md' },
+                { kind: 'working-memory', path: '/athena/memory/1-working-memory.md' },
+                { kind: 'long-term-memory', path: '/athena/memory/2-long-term-memory.md' },
+            ] };
         }
         if (modelPicker) {
             sessions.parent = {
@@ -470,7 +480,7 @@ const virtualModules: Record<string, string> = {
                 hasMoreOlder: false,
                 isLoaded: messagesLoaded,
                 isLoadingOlder: false,
-                messages: fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
+                messages: fixtureOptions.commanderContext ? (fixtureOptions.commanderContextPopulated ? [messages[0]] : []) : fixtureOptions.localhostLinks ? localhostMessages[sessionId] ?? [] : messagesLoaded ? messages : [],
             };
         };
         export const useSessionPendingCommunications = () => [];
@@ -521,7 +531,7 @@ const virtualModules: Record<string, string> = {
             if (typeof value !== 'string') return null;
             return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
         };
-        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) ? productText(key, params) : null) ?? ({
+        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -746,6 +756,7 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/AgentContentView': `
         import React from 'react';
+        import { AgentContentView as ActualAgentContentView } from '${resolve(here, 'AgentContentView.tsx')}';
         import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
         import { MarkdownView } from '@/components/markdown/MarkdownView';
         export const AgentContentView = (props) => {
@@ -753,6 +764,7 @@ const virtualModules: Record<string, string> = {
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow) {
                 return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input);
             }
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) return React.createElement(ActualAgentContentView, props);
             if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceRetention) {
                 return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input,
                     React.createElement(MarkdownView, {
@@ -817,7 +829,7 @@ const virtualModules: Record<string, string> = {
     '@/components/QueuedMessagesPanel': `export const QueuedMessagesPanel = () => null;`,
     '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
     '@/components/Deferred': `export const Deferred = ({ children }) => children;`,
-    '@/components/EmptyMessages': `export const EmptyMessages = () => null;`,
+
     '@/components/SessionStatusBar': `export const SessionStatusBar = () => null;`,
     '@/components/Avatar': `export const Avatar = () => null;`,
     '@/components/VoiceAssistantStatusBar': `
@@ -1345,6 +1357,22 @@ const fixturePlugin: Plugin = {
     },
 };
 
+// These launch-context journeys contain only empty or plain-text transcripts.
+// Keep the real MarkdownView/MermaidRenderer, but avoid eagerly bundling every
+// diagram compiler into their IIFE. Unexpected diagram use must fail visibly.
+const commanderDiagramPlugin: Plugin = {
+    name: 'commander-context-no-diagrams',
+    setup(build) {
+        build.onResolve({ filter: /^mermaid$/ }, (args) => ({
+            path: args.path, namespace: 'commander-diagram-fixture',
+        }));
+        build.onLoad({ filter: /.*/, namespace: 'commander-diagram-fixture' }, () => ({
+            contents: `throw new Error('Commander context fixture does not contain Mermaid diagrams'); export default {};`,
+            loader: 'js',
+        }));
+    },
+};
+
 async function swipeUp(page: Page, x: number, startY: number, endY: number) {
     const session = await page.context().newCDPSession(page);
     await session.send('Input.dispatchTouchEvent', {
@@ -1414,9 +1442,7 @@ describe('Side chats browser interaction', () => {
     let origin: string;
 
     beforeAll(async () => {
-        const bundle = await build({
-            entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
-            outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+        const buildOptions: BuildOptions = {
             bundle: true,
             write: false,
             format: 'iife',
@@ -1430,17 +1456,35 @@ describe('Side chats browser interaction', () => {
             jsx: 'automatic',
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
-        });
+        };
+        // Leave the shared journey bundle unchanged. The launch-context cases
+        // only need the foreground host and a smaller script to parse on load.
+        const bundles = await Promise.all([
+            build({
+                ...buildOptions,
+                entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
+                outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+            }),
+            build({
+                ...buildOptions,
+                entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
+                outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
+                minify: true,
+                keepNames: true,
+                plugins: [commanderDiagramPlugin, fixturePlugin],
+            }),
+        ]);
         // Keep debug maps available without transferring/parsing them as part
         // of every document. Reuse response bytes across the isolated pages.
-        const script = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js'))!.contents);
-        const scriptMap = Buffer.from(bundle.outputFiles.find((file) => file.path.endsWith('.js.map'))!.contents);
-        const cssFile = bundle.outputFiles.find((file) => file.path.endsWith('.css'));
-        const css = cssFile ? Buffer.from(cssFile.contents) : Buffer.alloc(0);
-        const cssMapFile = bundle.outputFiles.find((file) => file.path.endsWith('.css.map'));
-        const cssMap = cssMapFile ? Buffer.from(cssMapFile.contents) : null;
+        const assets = new Map(bundles.flatMap((bundle) => bundle.outputFiles!.map((file) => [
+            '/' + basename(file.path), Buffer.from(file.contents),
+        ] as const)));
+        const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const commanderHtml = Buffer.from(html.toString()
+            .replace('/fixture.css', '/commander-context.css')
+            .replace('/side-chat.js', '/commander-context.js'));
         server = createServer((_request, response) => {
             if (_request.url === '/fonts/Ionicons.ttf' || _request.url === '/fonts/Octicons.ttf') {
                 response.setHeader('content-type', 'font/ttf');
@@ -1452,14 +1496,12 @@ describe('Side chats browser interaction', () => {
                 response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
                 return;
             }
-            if (_request.url === '/side-chat.js') {
-                response.setHeader('content-type', 'text/javascript; charset=utf-8');
-                response.end(script);
-                return;
-            }
-            if (_request.url === '/side-chat.js.map' || (_request.url === '/side-chat.css.map' && cssMap)) {
-                response.setHeader('content-type', 'application/json; charset=utf-8');
-                response.end(_request.url === '/side-chat.js.map' ? scriptMap : cssMap);
+            const asset = assets.get(_request.url ?? '');
+            if (asset) {
+                response.setHeader('content-type', _request.url!.endsWith('.map')
+                    ? 'application/json; charset=utf-8'
+                    : _request.url!.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
+                response.end(asset);
                 return;
             }
             if (_request.url === '/fixture.css') {
@@ -1474,7 +1516,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(html);
+            response.end(_request.url?.split('?')[0] === '/commander-context' ? commanderHtml : html);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1501,6 +1543,39 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].flatMap(theme => [false, true].map(populated => ({ width, theme, populated })))) )('shows Commander context at the top of SessionView (populated: $populated) at $width px in $theme mode', async ({ width, theme, populated }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        page.setDefaultTimeout(5_000);
+        await page.addInitScript((populated) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { commanderContext: true, commanderContextPopulated: populated };
+            (globalThis as any).__HAPPYHERD_ROUTE_PUSH__ = (href: string) => { (window as any).__COMMANDER_ROUTE__ = href; };
+        }, populated);
+        await page.goto(origin + '/commander-context?theme=' + theme);
+        const host = page.getByTestId('foreground-session');
+        const row = host.getByTestId('commander-context-row');
+        await row.waitFor({ state: 'visible' });
+        expect(await row.count()).toBe(1);
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        const rowBox = (await row.boundingBox())!;
+        expect(rowBox.y).toBeGreaterThanOrEqual(64);
+        const nextBox = (await host.getByText(populated ? 'Visible browser context' : 'No messages yet', { exact: true }).boundingBox())!;
+        expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(nextBox.y);
+        for (const chip of await row.getByTestId('commander-context-file').all()) {
+            const box = (await chip.boundingBox())!;
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
+        await page.evaluate(() => document.fonts.ready);
+        const evidence = process.env.HAPPYHERD_COMMANDER_CONTEXT_SCREENSHOT_DIR;
+        if (evidence) { mkdirSync(evidence, { recursive: true }); await page.screenshot({ path: resolve(evidence, `commander-context-${populated ? 'session' : 'empty'}-${width}-${theme}.png`) }); }
+        await row.getByRole('link', { name: 'View Athena in Commanders' }).click();
+        expect(await page.evaluate(() => (window as any).__COMMANDER_ROUTE__)).toBe('/commanders');
+        await page.reload();
+        await row.waitFor({ state: 'visible' });
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        await page.close();
+    });
 
     it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
         (['completed', 'failed', 'cancelled'] as const).map((status) => ({ width, theme, status })),

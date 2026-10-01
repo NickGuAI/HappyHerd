@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright-core';
@@ -14,7 +14,9 @@ const visualStatePollOptions = { timeout: 5_000 };
 const virtualModules: Record<string, string> = {
     'react-native': `export * from 'react-native-web'; export const TurboModuleRegistry = { get: () => null };`,
     'react-native-unistyles': `
-        import { lightTheme as theme } from '@/theme';
+        import { lightTheme, darkTheme } from '@/theme';
+        const theme = new URLSearchParams(location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
+        document.body.style.backgroundColor = theme.colors.groupped.background;
         export const StyleSheet = { create: factory => typeof factory === 'function' ? factory(theme) : factory, hairlineWidth: 1 };
         export const useUnistyles = () => ({ theme });
     `,
@@ -24,6 +26,8 @@ const virtualModules: Record<string, string> = {
         export const Ionicons = Icon; export const Octicons = Icon;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0 });`,
+    '@/hooks/useCommanderAvatar': `export const useCommanderAvatar = () => null;`,
+    'expo-image': `import { View } from 'react-native'; export const Image = View;`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     'expo-router': `export const useRouter = () => ({ push: value => { window.__route = value; } });`,
     '@/utils/responsive': `export const useHeaderHeight = () => 0; export const getDeviceType = () => 'phone'; export const useIsTablet = () => false;`,
@@ -48,6 +52,18 @@ const virtualModules: Record<string, string> = {
                 { ...user(1), text: 'My instruction\\n我的消息', author: { id: 'owner', name: 'Owner', owner: true } },
             ] };
         }
+        const params = new URLSearchParams(location.search);
+        if (params.has('commander')) {
+            session.metadata = { ...session.metadata, commanderId: 'athena', commanderName: 'Athena', commanderPath: '/unread/COMMANDER.md', globalAgentsPath: '/unread/AGENTS.md' };
+            if (!params.has('legacy')) session.metadata.commanderContextFiles = [
+                { kind: 'global-agents', path: '/global/AGENTS.md' },
+                { kind: 'commander', path: '/athena/COMMANDER.md' },
+                { kind: 'working-memory', path: '/athena/memory/1-working-memory.md' },
+                { kind: 'long-term-memory', path: '/athena/memory/2-long-term-memory.md' },
+            ];
+            snapshot = { ...snapshot, messages: [user(0)], hasMoreOlder: params.has('older') };
+        }
+        window.__finishHistory = () => { snapshot = { ...snapshot, hasMoreOlder: false }; listeners.forEach(fn => fn()); };
         window.__settle = (rejected) => {
             snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
                 ? { ...message, pending: false, sendError: rejected ? 'provider refused' : undefined } : message) };
@@ -64,6 +80,9 @@ const virtualModules: Record<string, string> = {
         export const t = (key, params = {}) => ({
             'toolGroup.hide': 'Hide', 'toolGroup.workedFor': 'Worked for '+params.duration,
             'uiCopy.jumpToLatest': 'Jump to latest', 'uiCopy.newMessagesJumpToLatest': params.count+' new messages · Jump to latest',
+            'happyHerd.commander.openCommanders': 'View '+params.name+' in Commanders',
+            'happyHerd.commander.loadedContext': 'Loaded Commander context',
+            'happyHerd.commander.loadedFile': 'Loaded context file: '+params.path,
             'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
         }[key] ?? key);
     `,
@@ -107,7 +126,7 @@ describe('ChatList production FlashList browser interactions', () => {
     beforeAll(async () => {
         const result = await build({
             stdin: {
-                contents: `import { measureFirstChildLayout } from '@shopify/flash-list/dist/recyclerview/utils/measureLayout.web'; window.__measureFirstChildLayout = measureFirstChildLayout; import React from 'react'; import { createRoot } from 'react-dom/client'; import { ChatList } from '@/components/ChatList'; import { session } from '@/sync/storage'; createRoot(document.getElementById('root')).render(React.createElement(ChatList, { session, focusMessageId: new URLSearchParams(location.search).has('focus') ? 'user-24' : new URLSearchParams(location.search).has('focusWork') ? 'first-tool' : undefined }));`,
+                contents: `import { measureFirstChildLayout } from '@shopify/flash-list/dist/recyclerview/utils/measureLayout.web'; window.__measureFirstChildLayout = measureFirstChildLayout; import React from 'react'; import { createRoot } from 'react-dom/client'; import { ChatList } from '@/components/ChatList'; import { session } from '@/sync/storage'; createRoot(document.getElementById('root')).render(React.createElement(ChatList, { session, topContentInset: new URLSearchParams(location.search).has('commander') ? 80 : undefined, focusMessageId: new URLSearchParams(location.search).has('focus') ? 'user-24' : new URLSearchParams(location.search).has('focusWork') ? 'first-tool' : undefined }));`,
                 resolveDir: appRoot, loader: 'tsx',
             },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
@@ -130,6 +149,52 @@ describe('ChatList production FlashList browser interactions', () => {
         await browser?.close();
         if (server) await new Promise<void>(closed => server.close(() => closed()));
     }, 20000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('shows the received files once above the first message and opens Commanders at $width px in $theme mode', async ({ width, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        await page.goto(origin + '?commander&theme=' + theme);
+        const row = page.getByTestId('commander-context-row');
+        await row.waitFor({ state: 'visible' });
+        expect(await row.count()).toBe(1);
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        for (const name of ['AGENTS.md', 'COMMANDER.md', '1-working-memory.md', '2-long-term-memory.md']) {
+            expect(await row.getByText(name, { exact: true }).isVisible()).toBe(true);
+        }
+        const rowBox = (await row.boundingBox())!;
+        const messageBox = (await page.getByText('Prompt 0', { exact: true }).boundingBox())!;
+        expect(rowBox.y).toBeGreaterThanOrEqual(80);
+        expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(messageBox.y);
+        for (const chip of await row.getByTestId('commander-context-file').all()) {
+            const box = (await chip.boundingBox())!;
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
+        const evidence = process.env.HAPPYHERD_COMMANDER_CONTEXT_SCREENSHOT_DIR;
+        if (evidence) { mkdirSync(evidence, { recursive: true }); await page.screenshot({ path: resolve(evidence, `commander-context-chat-${width}-${theme}.png`) }); }
+        await row.getByRole('link', { name: 'View Athena in Commanders' }).click();
+        expect(await page.evaluate(() => (window as any).__route)).toBe('/commanders');
+        await page.reload();
+        await row.waitFor({ state: 'visible' });
+        expect(await row.getByTestId('commander-context-file').count()).toBe(4);
+        await page.close();
+    });
+
+    it('does not infer loaded files from legacy paths and waits for the oldest history page', async () => {
+        const page = await browser.newPage();
+        await page.goto(origin + '?commander&legacy');
+        await page.getByTestId('commander-context-row').waitFor();
+        expect(await page.getByTestId('commander-context-file').count()).toBe(0);
+        await page.goto(origin + '?commander&older');
+        await page.getByText('Prompt 0', { exact: true }).waitFor();
+        expect(await page.getByTestId('commander-context-row').count()).toBe(0);
+        await page.evaluate(() => (window as any).__finishHistory());
+        await page.getByTestId('commander-context-row').waitFor();
+        expect(await page.getByTestId('commander-context-file').count()).toBe(4);
+        await page.goto(origin);
+        await page.getByText('Prompt 0', { exact: true }).waitFor();
+        expect(await page.getByTestId('commander-context-row').count()).toBe(0);
+        await page.close();
+    });
 
     it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('aligns participants and settles pending status in the real chat at $width px', async viewport => {
         const page = await browser.newPage({ viewport });

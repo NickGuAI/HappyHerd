@@ -6,6 +6,7 @@ import { Session } from '@/sync/storageTypes';
 import { useSessionStatus, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
+import { CommanderContextRow } from './CommanderContextRow';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -91,33 +92,36 @@ export function EmptyMessages({ session }: EmptyMessagesProps) {
     const startedTime = formatRelativeTime(session.createdAt);
     
     return (
-        <View style={styles.container}>
-            <Ionicons 
-                name={osIcon}
-                size={72} 
-                color={theme.colors.textSecondary}
-                style={styles.iconContainer}
-            />
+        <View style={{ flex: 1, width: '100%' }}>
+            <CommanderContextRow metadata={session.metadata} />
+            <View style={styles.container}>
+                <Ionicons
+                    name={osIcon}
+                    size={72}
+                    color={theme.colors.textSecondary}
+                    style={styles.iconContainer}
+                />
             
-            {session.metadata?.host && (
-                <Text style={styles.hostText}>
-                    {session.metadata.host}
+                {session.metadata?.host && (
+                    <Text style={styles.hostText}>
+                        {session.metadata.host}
+                    </Text>
+                )}
+            
+                {session.metadata?.path && (
+                    <Text style={styles.pathText}>
+                        {formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
+                    </Text>
+                )}
+            
+                <Text style={styles.noMessagesText}>
+                    {t("uiCopy.noMessagesYet")}
                 </Text>
-            )}
             
-            {session.metadata?.path && (
-                <Text style={styles.pathText}>
-                    {formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
+                <Text style={styles.createdText}>
+                    {t("sessionInfo.created")} {startedTime}
                 </Text>
-            )}
-            
-            <Text style={styles.noMessagesText}>
-                {t("uiCopy.noMessagesYet")}
-            </Text>
-            
-            <Text style={styles.createdText}>
-                {t("sessionInfo.created")} {startedTime}
-            </Text>
+            </View>
         </View>
     );
 }

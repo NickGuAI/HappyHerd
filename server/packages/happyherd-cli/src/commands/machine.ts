@@ -483,6 +483,7 @@ const COMMANDER_METADATA_KEYS = [
   'commanderPath',
   'commanderWorkspace',
   'commanderAgentContextPath',
+  'commanderContextFiles',
 ] as const;
 
 function withCommanderBinding(

@@ -36,6 +36,20 @@ describe('createSessionMetadata', () => {
         vi.unstubAllEnvs();
     });
 
+    it.each(['claude', 'codex', 'gemini', 'grok', 'dsh', 'opencode', 'agy', 'acp'] as const)(
+        'does not publish an unconsumed Commander file receipt for %s metadata',
+        (flavor) => {
+            const files = [
+                { kind: 'commander', path: '/context/COMMANDER.md' },
+                { kind: 'working-memory', path: '/context/memory/1-working-memory.md' },
+            ];
+            vi.stubEnv('HAPPYHERD_COMMANDER_ID', 'athena');
+            vi.stubEnv('HAPPYHERD_COMMANDER_CONTEXT_FILES', JSON.stringify(files));
+            const { metadata } = createSessionMetadata({ flavor, machineId: 'machine-context' });
+            expect(metadata.commanderContextFiles).toBeUndefined();
+        },
+    );
+
     it('records the Codex provider home only for Codex sessions', () => {
         vi.stubEnv('CODEX_HOME', '/tmp/original-codex-home');
 

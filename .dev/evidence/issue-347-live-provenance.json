@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-30T02:08:07.630329+00:00",
+  "sourceSha": "89732b925cf903ce7d64ebbf3d88703ef8ccd3fb",
+  "transcriptTextEmitted": false,
+  "audits": [
+    {
+      "sameSessionAndThread": true,
+      "launchReceiptHashesEqual": true,
+      "launchReceiptHashMatchesNativeDeveloperBundle": true,
+      "resumeReceiptHashesEqual": true,
+      "resumeHashChangedFromLaunch": true,
+      "launchFileKinds": [
+        "global-agents",
+        "commander",
+        "working-memory",
+        "long-term-memory"
+      ],
+      "resumeFileKinds": [
+        "commander",
+        "working-memory"
+      ],
+      "developerInjectionRecordIndex": 17,
+      "developerInjectionAt": "2026-09-30T02:02:51.296Z",
+      "developerInjectionBytes": 2043,
+      "developerInjectionHash": "e4d89ea22589a3ae993d50390e0042fb93d87fdc35094d8c0cf3502ad3e0dc3f",
+      "developerInjectionMatchesSourceHash": true,
+      "developerInjectionMatchesInstructionHash": true,
+      "developerInjectionAfterPriorCompletedTurn": true,
+      "developerInjectionBeforeResumedTask": true,
+      "developerContainsNewMarker": true,
+      "developerContainsOldMarker": false,
+      "developerContainsExcludedGlobalMarker": false,
+      "developerContainsExcludedLongtermMarker": false,
+      "assistantContainsNewMarker": true,
+      "assistantContainsOldMarker": false,
+      "completedTurnObserved": true,
+      "nativeToolCallRecordCount": 0,
+      "nativeEventTypes": [
+        "item_completed",
+        "message",
+        "task_complete",
+        "task_started",
+        "thread_settings_applied",
+        "token_count",
+        "token_usage_record",
+        "turn_context",
+        "world_state"
+      ],
+      "case": "new launch and resume on corrected build"
+    },
+    {
+      "sameSessionAndThread": true,
+      "launchReceiptHashesEqual": true,
+      "launchReceiptHashMatchesNativeDeveloperBundle": true,
+      "resumeReceiptHashesEqual": true,
+      "resumeHashChangedFromLaunch": true,
+      "launchFileKinds": [
+        "global-agents",
+        "commander",
+        "working-memory",
+        "long-term-memory"
+      ],
+      "resumeFileKinds": [
+        "commander",
+        "working-memory"
+      ],
+      "developerInjectionRecordIndex": 31,
+      "developerInjectionAt": "2026-09-30T02:03:31.858Z",
+      "developerInjectionBytes": 2043,
+      "developerInjectionHash": "e4d89ea22589a3ae993d50390e0042fb93d87fdc35094d8c0cf3502ad3e0dc3f",
+      "developerInjectionMatchesSourceHash": true,
+      "developerInjectionMatchesInstructionHash": true,
+      "developerInjectionAfterPriorCompletedTurn": true,
+      "developerInjectionBeforeResumedTask": true,
+      "developerContainsNewMarker": true,
+      "developerContainsOldMarker": false,
+      "developerContainsExcludedGlobalMarker": false,
+      "developerContainsExcludedLongtermMarker": false,
+      "assistantContainsNewMarker": true,
+      "assistantContainsOldMarker": false,
+      "completedTurnObserved": true,
+      "nativeToolCallRecordCount": 0,
+      "nativeEventTypes": [
+        "item_completed",
+        "message",
+        "task_complete",
+        "task_started",
+        "thread_settings_applied",
+        "token_count",
+        "token_usage_record",
+        "turn_context"
+      ],
+      "earlierFailedResumeHashMatchesNativeDeveloperBundle": false,
+      "earlierFailedResumeHashReplaced": true,
+      "case": "original failing session resumed after correction"
+    }
+  ],
+  "environment": {
+    "os": "macOS arm64",
+    "node": "20.19.0",
+    "pnpm": "10.11.0",
+    "provider": "real native Codex app-server",
+    "transport": "existing authorized HTTPS backend, encrypted session metadata",
+    "cliIsolation": "fresh home/machine; existing login referenced without credential copy",
+    "account": "existing authorized account",
+    "sharedProductionRuntimeChanged": false
+  },
+  "uiAcceptance": "Outstanding; this audit is provider and transport proof, not rendered Web/native proof.",
+  "sanitization": "Session/thread identities, private native paths, credentials and transcript text omitted. Only controlled marker, identity continuity, file-kind and hash comparisons are retained.",
+  "noCommanderOnCorrectedBuild": {
+    "commanderIdentityAbsent": true,
+    "fileReceiptAbsent": true,
+    "completedTurnObserved": true,
+    "assistantResponseMatched": true,
+    "observedAt": "2026-09-30T02:11:09.132Z"
+  }
+}

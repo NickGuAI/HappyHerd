@@ -14,6 +14,7 @@ import { hashObject } from '@/utils/deterministicJson';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
 import { createSessionMetadata } from '@/utils/createSessionMetadata';
+import { commanderContextReceiptForResume } from '@/agentContext/commanderContext';
 import { setupOfflineReconnection } from '@/utils/setupOfflineReconnection';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { decodeBase64, encodeBase64 } from '@/api/encryption';
@@ -760,6 +761,7 @@ export async function runAcp(opts: {
     }
     session.updateMetadata((currentMetadata) => ({
       ...currentMetadata,
+      ...commanderContextReceiptForResume(metadata, currentMetadata),
       lifecycleState: 'running',
       lifecycleStateSince: Date.now(),
       archivedBy: undefined,

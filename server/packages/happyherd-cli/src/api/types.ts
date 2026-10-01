@@ -3,6 +3,7 @@ import {
   HappyHerdHeartbeatMessageMarkerSchema,
   type AgentMessageQueueState,
   type HappyHerdAutomationProviderOutcome,
+  type HappyHerdCommanderContextFile,
   type HappyHerdHeartbeatDeliveryReceipt,
   type HappyHerdMachineSessionSettings,
   type Update,
@@ -436,6 +437,7 @@ export type Metadata = {
   commanderPath?: string
   commanderWorkspace?: string
   commanderAgentContextPath?: string
+  commanderContextFiles?: HappyHerdCommanderContextFile[]
   globalAgentsPath?: string
   globalAgentContextPath?: string
   projectGuidancePath?: string

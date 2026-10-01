@@ -67,6 +67,20 @@ Changes to ordering, reconnect, delivery, completion, or visibility require
 inspection at every layer. A transport-presence signal is not a substitute for
 canonical persisted session/message state.
 
+### Loaded Commander context
+
+`agentContext/commanderContext.ts` records file provenance while assembling the
+launch bundle. A provider publishes `commanderContextFiles` only after consuming
+that bundle successfully; current Claude and Codex launchers do so, while ACP
+launchers do not. The child environment is transport, not proof of consumption.
+Reconnect metadata writes reapply the new receipt on version retries, and
+Commander reassignment clears the former receipt until resume loads new context.
+
+Encrypted session metadata carries the receipt through the app schema to the
+shared `CommanderContextRow` in `ChatList` and `EmptyMessages`. The populated
+stream mounts it only at the actual oldest history edge, below its header inset.
+No UI filesystem or registry lookup may infer loaded-file chips.
+
 ### Default Assistant
 
 The server enforces a unique constraint on the existing `(accountId, tag)` to reserve one account entry. A stable prepared session ID and key are stored in the reconnect store before publishing, so retries or lost responses reuse the identity, and another machine reuses the existing entry without decrypting or relaunching it. The initial server list includes the reserved row outside the 150 most recent updates.

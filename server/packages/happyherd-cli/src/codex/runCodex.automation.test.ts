@@ -9,11 +9,15 @@ const mocks = vi.hoisted(() => {
     let approvalHandler: ((params: Record<string, unknown>) => Promise<string>) | null = null;
     let requestInteractiveApproval = false;
     let emitResumeAndTurnUsage = false;
+    let contextMetadata: Record<string, unknown> = {};
+    let failContextInjection = false;
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
     const startThreadCalls: Array<Record<string, unknown>> = [];
     const resumeThreadCalls: Array<Record<string, unknown>> = [];
     const injectDeveloperInstructionsCalls: Array<Record<string, unknown>> = [];
     const sendTurnCalls: Array<Record<string, unknown>> = [];
+    const sessionCreationMetadataCalls: Array<Record<string, unknown>> = [];
+    const contextBeforeInjectionCalls: Array<Record<string, unknown>> = [];
 
     const session = {
         sessionId: 'session-one',
@@ -55,6 +59,10 @@ const mocks = vi.hoisted(() => {
         getMetadata() {
             return metadata;
         },
+        setContextMetadata(value: Record<string, unknown>) { contextMetadata = value; },
+        getContextMetadata() { return contextMetadata; },
+        setFailContextInjection(value: boolean) { failContextInjection = value; },
+        shouldFailContextInjection() { return failContextInjection; },
         setAgentState(value: Record<string, unknown>) {
             agentState = value;
         },
@@ -95,6 +103,8 @@ const mocks = vi.hoisted(() => {
         resetRuntime() {
             requestInteractiveApproval = false;
             emitResumeAndTurnUsage = false;
+            contextMetadata = {};
+            failContextInjection = false;
             agentState = { controlledByUser: false };
             approvalHandler = null;
             permissionHandleToolCall.mockClear();
@@ -102,6 +112,8 @@ const mocks = vi.hoisted(() => {
             resumeThreadCalls.length = 0;
             injectDeveloperInstructionsCalls.length = 0;
             sendTurnCalls.length = 0;
+            sessionCreationMetadataCalls.length = 0;
+            contextBeforeInjectionCalls.length = 0;
             session.sendProviderUsageReport.mockClear();
         },
         permissionHandleToolCall,
@@ -109,6 +121,8 @@ const mocks = vi.hoisted(() => {
         resumeThreadCalls,
         injectDeveloperInstructionsCalls,
         sendTurnCalls,
+        sessionCreationMetadataCalls,
+        contextBeforeInjectionCalls,
     };
 });
 
@@ -124,16 +138,19 @@ vi.mock('@/api/api', () => ({
     ApiClient: {
         create: vi.fn(async () => ({
             getOrCreateMachine: vi.fn(),
-            getOrCreateSession: vi.fn(async ({ metadata, state }) => ({
-                id: 'session-one',
-                seq: 0,
-                encryptionKey: new Uint8Array(32),
-                encryptionVariant: 'dataKey',
-                metadata,
-                metadataVersion: 0,
-                agentState: state,
-                agentStateVersion: 0,
-            })),
+            getOrCreateSession: vi.fn(async ({ metadata, state }) => {
+                mocks.sessionCreationMetadataCalls.push({ ...metadata });
+                return {
+                    id: 'session-one',
+                    seq: 0,
+                    encryptionKey: new Uint8Array(32),
+                    encryptionVariant: 'dataKey',
+                    metadata,
+                    metadataVersion: 0,
+                    agentState: state,
+                    agentStateVersion: 0,
+                };
+            }),
             refreshSessionForReconnect: vi.fn(async (session) => session),
             push: vi.fn(() => ({ sendSessionNotification: vi.fn() })),
         })),
@@ -161,6 +178,7 @@ vi.mock('@/utils/createSessionMetadata', () => ({
             hostPid: 42,
             flavor: 'codex',
             ...(options.spawnSettings ? { spawnSettings: options.spawnSettings } : {}),
+            ...mocks.getContextMetadata(),
         };
         mocks.setMetadata(metadata);
         return {
@@ -183,11 +201,12 @@ vi.mock('@/daemon/controlClient', () => ({
 }));
 
 vi.mock('@/agentContext/commanderContext', () => ({
+    commanderContextReceiptForResume: vi.fn(() => ({})),
     readContextPromptFromEnvironment: vi.fn(async () => 'Commander context only'),
     mergeContextPrompt: vi.fn((base: string | undefined, extra: string | undefined) => (
         base && extra ? `${base}\n\n${extra}` : base ?? extra
     )),
-    instructionReceiptMetadata: vi.fn(() => ({})),
+    instructionReceiptMetadata: vi.fn(() => ({ instructionHash: 'delivered-instruction-hash' })),
 }));
 
 vi.mock('@/automations/sessionBootstrap', () => ({
@@ -286,6 +305,8 @@ vi.mock('./codexAppServerClient', () => ({
         });
         injectDeveloperInstructions = vi.fn(async (options: Record<string, unknown>) => {
             mocks.injectDeveloperInstructionsCalls.push(options);
+            mocks.contextBeforeInjectionCalls.push({ ...mocks.getMetadata() });
+            if (mocks.shouldFailContextInjection()) throw new Error('native context injection failed');
             return {};
         });
         sendTurnAndWait = vi.fn(async (_prompt: unknown, options: Record<string, unknown>) => {
@@ -327,6 +348,39 @@ describe('runCodex automation process lifecycle', () => {
         delete process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT;
         delete process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID;
         delete process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV];
+    });
+
+    it.each([false, true])('withholds a resumed context receipt until native delivery (failure: %s)', async (failInjection) => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        const files = [{ kind: 'commander', path: '/context/COMMANDER.md' }];
+        mocks.setContextMetadata({ commanderId: 'athena', contextHash: 'new-context-hash', commanderContextFiles: files });
+        mocks.setFailContextInjection(failInjection);
+        const run = runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon', resumeThreadId: 'retained-thread',
+        });
+        if (failInjection) await expect(run).rejects.toThrow('native context injection failed');
+        else await run;
+
+        for (const before of [...mocks.sessionCreationMetadataCalls, ...mocks.contextBeforeInjectionCalls]) {
+            expect(before).not.toHaveProperty('commanderContextFiles');
+            expect(before).not.toHaveProperty('contextHash');
+            expect(before).not.toHaveProperty('instructionHash');
+        }
+        expect(mocks.injectDeveloperInstructionsCalls[0]).toEqual({
+            threadId: 'retained-thread', instructions: 'Commander context only',
+        });
+        if (failInjection) {
+            expect(mocks.getMetadata()).not.toHaveProperty('commanderContextFiles');
+            expect(mocks.getMetadata()).not.toHaveProperty('contextHash');
+            expect(mocks.getMetadata()).not.toHaveProperty('instructionHash');
+            expect(mocks.sendTurnCalls).toEqual([]);
+        } else {
+            expect(mocks.getMetadata()).toMatchObject({
+                commanderId: 'athena', commanderContextFiles: files,
+                contextHash: 'new-context-hash', instructionHash: 'delivered-instruction-hash',
+            });
+        }
     });
 
     it('persists completion, finalizes the session, then exits with the terminal status', async () => {

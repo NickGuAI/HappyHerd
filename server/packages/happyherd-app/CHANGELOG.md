@@ -1,3 +1,7 @@
+# September 29 — Commander context in the session stream
+
+- Sessions started with a Commander now show its avatar and name at the top of the stream, with a link to Commanders and a chip for each context file successfully loaded for the session. Missing or unread files are not listed.
+
 # September 29 — Experimental context window
 
 - Enable Context window in Settings → Features → Experimental, then open it from a session’s menu on desktop or mobile to read the full recorded Claude Code or Codex context since its latest compaction, including retained, hidden and injected entries. Codex base instructions are shown when recorded; unavailable provider content is explicitly marked.

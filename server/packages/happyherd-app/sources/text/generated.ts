@@ -515,12 +515,15 @@ export type TranslationKey =
     | "happyHerd.commander.createSubtitle"
     | "happyHerd.commander.createTitle"
     | "happyHerd.commander.emptyTitle"
+    | "happyHerd.commander.loadedContext"
+    | "happyHerd.commander.loadedFile"
     | "happyHerd.commander.machineLoadFailed"
     | "happyHerd.commander.memoryEmpty"
     | "happyHerd.commander.memoryReadFailed"
     | "happyHerd.commander.newSessionWith"
     | "happyHerd.commander.noOnlineMachine"
     | "happyHerd.commander.onboardingPrompt"
+    | "happyHerd.commander.openCommanders"
     | "happyHerd.commander.pageSubtitle"
     | "happyHerd.commanderAvatars.description"
     | "happyHerd.commanderAvatars.empty"
@@ -1746,8 +1749,10 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.nextRunIn": { duration: string };
     "happyHerd.automations.openDetails": { name: string };
     "happyHerd.automations.openSession": { id: string };
+    "happyHerd.commander.loadedFile": { path: string };
     "happyHerd.commander.machineLoadFailed": { message: string; name: string };
     "happyHerd.commander.newSessionWith": { name: string };
+    "happyHerd.commander.openCommanders": { name: string };
     "happyHerd.commanderAvatars.updated": { name: string };
     "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
     "happyHerd.heartbeat.countdownIn": { duration: string };

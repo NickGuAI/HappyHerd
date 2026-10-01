@@ -1,11 +1,13 @@
 import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES } from '@happyherd/wire';
+import { createSessionMetadata } from '@/utils/createSessionMetadata';
 
 import {
   contextEnvironment,
+  contextMetadataFromEnvironment,
   instructionReceiptMetadata,
   listCommanders,
   mergeContextPrompt,
@@ -13,6 +15,11 @@ import {
   prepareCommanderContext,
   readContextPromptFromEnvironment,
 } from './commanderContext';
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, access: vi.fn(actual.access) };
+});
 
 let root: string;
 const originalEnv = { ...process.env };
@@ -45,6 +52,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.mocked(access).mockReset();
+  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+  vi.mocked(access).mockImplementation(actual.access);
   await rm(root, { recursive: true, force: true });
   for (const key of Object.keys(process.env)) {
     if (!(key in originalEnv)) delete process.env[key];
@@ -169,6 +179,12 @@ describe('Commander context', () => {
     expect(content).not.toContain('L1 evidence stays on demand');
     expect(content).toContain('Use project tests.');
     expect(bundle.projectGuidancePath).toBe(path.join(projectDir, 'AGENTS.md'));
+    expect(bundle.commanderContextFiles).toEqual([
+      { kind: 'global-agents', path: path.join(root, '.happyherd', 'AGENTS.md') },
+      { kind: 'commander', path: path.join(root, '.happyherd', 'commanders', 'athena', 'COMMANDER.md') },
+      { kind: 'working-memory', path: path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory', '1-working-memory.md') },
+      { kind: 'long-term-memory', path: path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory', '2-long-term-memory.md') },
+    ]);
     expect(await readFile(path.join(root, '.happyherd', 'CLAUDE.md'), 'utf8')).toContain('Always verify.');
     expect(contextEnvironment(bundle)).toMatchObject({
       HAPPYHERD_COMMANDER_ID: 'athena',
@@ -176,9 +192,85 @@ describe('Commander context', () => {
       HAPPYHERD_CONTEXT_HASH: bundle.contextHash,
     });
     Object.assign(process.env, contextEnvironment(bundle));
+    expect(contextMetadataFromEnvironment()).not.toHaveProperty('commanderContextFiles');
     expect(await readContextPromptFromEnvironment()).toBe(content);
+    expect(contextMetadataFromEnvironment().commanderContextFiles).toEqual(bundle.commanderContextFiles);
+    expect(createSessionMetadata({ flavor: 'codex', machineId: 'context-machine' }).metadata.commanderContextFiles)
+      .toEqual(bundle.commanderContextFiles);
     await expect(access(bundle.bundlePath)).rejects.toThrow();
     await expect(access(path.join(root, '.happyherd', 'agent-context'))).rejects.toThrow();
+  });
+
+  it('records successfully read empty files but never missing files or directory paths', async () => {
+    const globalAgents = path.join(root, '.happyherd', 'AGENTS.md');
+    const memoryDir = path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory');
+    await rm(globalAgents);
+    await writeFile(path.join(memoryDir, '1-working-memory.md'), '');
+    await rm(path.join(memoryDir, '2-long-term-memory.md'));
+
+    const bundle = await prepareCommanderContext('athena');
+
+    expect(bundle.commanderContextFiles).toEqual([
+      { kind: 'commander', path: bundle.commander!.commanderPath },
+      { kind: 'working-memory', path: path.join(memoryDir, '1-working-memory.md') },
+    ]);
+    expect(await readFile(bundle.bundlePath, 'utf8')).toContain('(The memory file was empty.)');
+    // A file created after assembly must not turn into a loaded-file receipt.
+    await writeFile(globalAgents, 'Later global guidance');
+    Object.assign(process.env, contextEnvironment(bundle));
+    await readContextPromptFromEnvironment();
+    expect(contextMetadataFromEnvironment().commanderContextFiles).toEqual(bundle.commanderContextFiles);
+  });
+
+  it('clears a consumed receipt on a later absent or failed bundle read', async () => {
+    const first = await prepareCommanderContext('athena');
+    Object.assign(process.env, contextEnvironment(first));
+    await readContextPromptFromEnvironment();
+    expect(contextMetadataFromEnvironment().commanderContextFiles).toEqual(first.commanderContextFiles);
+
+    delete process.env.HAPPYHERD_CONTEXT_BUNDLE_PATH;
+    await readContextPromptFromEnvironment();
+    Object.assign(process.env, contextEnvironment(first));
+    expect(contextMetadataFromEnvironment()).not.toHaveProperty('commanderContextFiles');
+
+    const next = await prepareCommanderContext('athena');
+    Object.assign(process.env, contextEnvironment(next));
+    await writeFile(next.bundlePath, 'corrupt');
+    await expect(readContextPromptFromEnvironment()).rejects.toThrow('integrity validation');
+    expect(contextMetadataFromEnvironment()).not.toHaveProperty('commanderContextFiles');
+  });
+
+  it('omits unreadable optional files from the assembled receipt', async () => {
+    const globalAgents = path.join(root, '.happyherd', 'AGENTS.md');
+    const memoryPath = path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory', '1-working-memory.md');
+    const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+    vi.mocked(access).mockImplementation(async (filePath, mode) => {
+      if (filePath === globalAgents || filePath === memoryPath) {
+        throw Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+      }
+      return actual.access(filePath, mode);
+    });
+    const bundle = await prepareCommanderContext('athena');
+    expect(bundle.commanderContextFiles.map((file) => file.kind)).toEqual(['commander', 'long-term-memory']);
+  });
+
+  it('does not expose a Commander file receipt without a selected Commander', async () => {
+    delete process.env.HAPPYHERD_COMMANDER_ID;
+    const bundle = await prepareCommanderContext();
+    Object.assign(process.env, contextEnvironment(bundle));
+    expect(bundle.commanderContextFiles).toEqual([]);
+    expect(contextMetadataFromEnvironment()).not.toHaveProperty('commanderContextFiles');
+  });
+
+  it('does not infer loaded files from legacy paths or malformed receipts', async () => {
+    for (const raw of [undefined, '{invalid', '[{"kind":"working-memory","path":null}]']) {
+      const bundle = await prepareCommanderContext('athena');
+      Object.assign(process.env, contextEnvironment(bundle));
+      if (raw === undefined) delete process.env.HAPPYHERD_COMMANDER_CONTEXT_FILES;
+      else process.env.HAPPYHERD_COMMANDER_CONTEXT_FILES = raw;
+      await readContextPromptFromEnvironment();
+      expect(contextMetadataFromEnvironment()).not.toHaveProperty('commanderContextFiles');
+    }
   });
 
   it('bounds each automatically loaded memory file without breaking UTF-8', async () => {

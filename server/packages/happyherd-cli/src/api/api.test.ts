@@ -242,6 +242,29 @@ describe('Api server error handling', () => {
     });
 
     describe('refreshSessionForReconnect', () => {
+        it.each([
+            ['replaces the receipt after new assembly', 'new-context', [{ kind: 'commander', path: '/new/COMMANDER.md' }]],
+            ['clears the receipt when the new assembly has no Commander', 'new-context', undefined],
+            ['preserves a receipt when no new assembly was performed', undefined, undefined],
+        ] as const)('%s', async (_label, contextHash, commanderContextFiles) => {
+            const historicalFiles = [{ kind: 'commander', path: '/old/COMMANDER.md' }];
+            mockPost.mockResolvedValue({ data: { success: true } });
+            mockGet.mockResolvedValue({ data: { sessions: [{
+                id: 'session-context', seq: 3, metadata: 'encrypted-metadata',
+                metadataVersion: 2, agentState: null, agentStateVersion: 1,
+            }], nextCursor: null } });
+            mockDecrypt.mockReturnValueOnce({ ...testMetadata, commanderContextFiles: historicalFiles });
+
+            const result = await api.refreshSessionForReconnect({
+                id: 'session-context', seq: 1, encryptionKey: new Uint8Array(32), encryptionVariant: 'legacy',
+                metadata: { ...testMetadata, ...(contextHash ? { contextHash } : {}),
+                    ...(commanderContextFiles ? { commanderContextFiles: [...commanderContextFiles] } : {}) },
+                metadataVersion: 1, agentState: {}, agentStateVersion: 1,
+            });
+
+            expect(result.metadata.commanderContextFiles).toEqual(contextHash ? commanderContextFiles : historicalFiles);
+        });
+
         it('refreshes queue-owning AgentState beyond the first cursor page and merges current process metadata', async () => {
             const encryptionKey = new Uint8Array(32);
             mockPost.mockResolvedValue({ data: { success: true } });

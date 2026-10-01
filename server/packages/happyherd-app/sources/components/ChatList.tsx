@@ -12,6 +12,7 @@ import { MessageView } from './MessageView';
 import { AgentWorkGroupHeader } from './AgentWorkGroupHeader';
 import { Metadata, Session } from '@/sync/storageTypes';
 import { ChatFooter } from './ChatFooter';
+import { CommanderContextRow } from './CommanderContextRow';
 import { Message } from '@/sync/typesMessage';
 import { AgentWorkGroupItem, TextItem, useGroupedMessages } from '@/hooks/useGroupedMessages';
 import { Octicons } from '@expo/vector-icons';
@@ -199,18 +200,21 @@ export const ChatList = React.memo((props: {
 
 /**
  * Renders past the oldest message: the "loading older messages" spinner
- * directly above it, then a spacer keeping it clear of the header bar.
+ * and header clearance, followed by the launch context at the true start.
  *
  * This is the list's *footer* because the list is inverted — the far end of
- * the data is the top of the screen. The two children are in visual order
- * bottom-to-top for the same reason: each cell is counter-flipped, so within
- * this component layout reads normally, but its position relative to the
- * conversation is mirrored.
+ * the data is the top of the screen. FlashList counter-flips the whole footer,
+ * so its children read top-to-bottom and the row follows the header spacer.
  *
  * The spinner slot is always mounted at a fixed height. It sits beyond every
  * row, so a height change here moves the whole conversation.
  */
-const OlderEnd = React.memo((props: { showOlderSpinner: boolean; topContentInset?: number }) => {
+const OlderEnd = React.memo((props: {
+    showOlderSpinner: boolean;
+    topContentInset?: number;
+    metadata: Metadata | null;
+    reachedStart: boolean;
+}) => {
     const headerHeight = useHeaderHeight();
     const safeArea = useSafeAreaInsets();
     return (
@@ -219,6 +223,7 @@ const OlderEnd = React.memo((props: { showOlderSpinner: boolean; topContentInset
                 {props.showOlderSpinner && <ActivityIndicator size="small" />}
             </View>
             <View style={{ height: props.topContentInset ?? headerHeight + safeArea.top + 32 }} />
+            {props.reachedStart && <CommanderContextRow metadata={props.metadata} />}
         </View>
     );
 });
@@ -1066,6 +1071,8 @@ const ChatListInternal = React.memo((props: {
                     <OlderEnd
                         showOlderSpinner={showOlderSpinner}
                         topContentInset={props.topContentInset}
+                        metadata={props.metadata}
+                        reachedStart={!props.hasMoreOlder && windowedMessages.length === messages.length}
                     />
                 )}
                 onLoad={handleLoad}

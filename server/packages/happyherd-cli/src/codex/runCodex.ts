@@ -79,6 +79,7 @@ import {
     type CodexGoalCommand,
 } from './codexGoalStatus';
 import {
+    commanderContextReceiptForResume,
     instructionReceiptMetadata,
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
@@ -262,6 +263,17 @@ export async function runCodex(opts: {
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
     });
+    const resumedContextMetadata = opts.resumeThreadId ? {
+        commanderId: metadata.commanderId,
+        contextHash: metadata.contextHash,
+        commanderContextFiles: metadata.commanderContextFiles,
+    } : undefined;
+    if (resumedContextMetadata) {
+        // Keep the previous delivered receipt while native history is loading.
+        // resumeExistingThread publishes this bundle only after native injection.
+        delete metadata.contextHash;
+        delete metadata.commanderContextFiles;
+    }
     const effectiveLaunchSettings = metadata.spawnSettings?.provider === 'codex'
         ? metadata.spawnSettings
         : null;
@@ -282,7 +294,7 @@ export async function runCodex(opts: {
     const reconnectSeq = process.env.HAPPYHERD_RECONNECT_SEQ;
     const reconnectMetadataVersion = process.env.HAPPYHERD_RECONNECT_METADATA_VERSION;
     const reconnectAgentStateVersion = process.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION;
-    if (happyHerdContextPrompt) {
+    if (happyHerdContextPrompt && !opts.resumeThreadId) {
         Object.assign(metadata, instructionReceiptMetadata({
             provider: 'codex',
             layer: 'developer',
@@ -347,6 +359,7 @@ export async function runCodex(opts: {
         session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
         session.updateMetadata((meta) => ({
             ...meta,
+            ...commanderContextReceiptForResume(metadata, meta),
             lifecycleState: 'running',
             lifecycleStateSince: undefined,
             archivedBy: undefined,
@@ -1354,6 +1367,7 @@ export async function runCodex(opts: {
                 cwd: process.cwd(),
                 mcpServers,
                 developerInstructions: happyHerdContextPrompt,
+                contextMetadata: resumedContextMetadata,
                 approvalPolicy: resumeExecutionPolicy.approvalPolicy,
                 sandbox: resumeExecutionPolicy.sandbox,
                 // Side chats start empty — keep the resume notice out of the UI.

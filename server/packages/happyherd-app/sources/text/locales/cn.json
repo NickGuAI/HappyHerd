@@ -1364,6 +1364,9 @@
   },
   "happyHerd": {
     "commander": {
+      "loadedContext": "Commander 上下文",
+      "openCommanders": "在 Commanders 中查看 {name}",
+      "loadedFile": "已加载的上下文文件：{path}",
       "category": "Commander",
       "createTitle": "创建 Commander",
       "createSubtitle": "启动引导式入职会话",
