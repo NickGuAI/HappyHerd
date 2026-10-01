@@ -175,7 +175,11 @@ locally; the other issue's retained attempts identify a compiler incompatibility
 with its locked native dependencies. Its independently verified hosted Release
 artifact is not reused or modified for this issue.
 
-The scoped `issue-347-native-acceptance.yml` workflow adapts the successful,
+The `issue-347-native-acceptance.yml` workflow ran on the PR for its final
+head only. It is retained as a recipe at
+`docs/acceptance/issue-347/native-acceptance-workflow.yml` and is no longer an
+active repository workflow, so it adds no job to later pull requests. It
+adapts the successful,
 unmodified Xcode 26.2 recipe from issue #345 to this PR's exact head. It uses a
 fresh macOS runner, Node 20, pnpm 10.11.0, Bun 1.3.11, a private bundle identity,
 and the controlled loopback endpoint. It builds an unsigned arm64 Release
