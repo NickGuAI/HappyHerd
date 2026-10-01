@@ -965,14 +965,23 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             const more = row.getByTestId('session-row-more');
             await expect(more.isVisible()).resolves.toBe(true);
             await expect(more.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('1');
-            const box = (await more.boundingBox())!;
-            const rowBox = (await row.boundingBox())!;
+            // Measure the moving row and every child in one browser frame. The
+            // entrance translates them together; mixing frames invents overlap.
+            const { box, rowBox, overlaps } = await row.evaluate((element) => {
+                const more = element.querySelector('[data-testid="session-row-more"]')!;
+                const rect = more.getBoundingClientRect();
+                const rowRect = element.getBoundingClientRect();
+                return {
+                    box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                    rowBox: { x: rowRect.x, y: rowRect.y, width: rowRect.width, height: rowRect.height },
+                    overlaps: [...element.querySelectorAll('[dir="auto"]')]
+                        .map((node) => node.getBoundingClientRect())
+                        .filter((text) => text.width > 0 && text.left < rect.x + rect.width && text.right > rect.x && text.top < rect.y + rect.height && text.bottom > rect.y).length,
+                };
+            });
             // The phone mock's trailing column: centred on the row, clear of every line of text.
             expect(Math.abs((box.y + box.height / 2) - (rowBox.y + rowBox.height / 2))).toBeLessThanOrEqual(2);
             expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
-            const overlaps = await row.evaluate((element, rect) => [...element.querySelectorAll('[dir="auto"]')]
-                .map((node) => node.getBoundingClientRect())
-                .filter((text) => text.width > 0 && text.left < rect.x + rect.width && text.right > rect.x && text.top < rect.y + rect.height && text.bottom > rect.y).length, box);
             expect(overlaps).toBe(0);
         }
         await evidence(page, `phone-row-more-touch-${theme}-390`);

@@ -736,3 +736,4 @@ UPSTREAM_4CF54D18_BROWSER_PROOF	accepted	test(app): verify integrated composer h
 UPSTREAM_4CF54D18_EMPTY_HISTORY_WHITESPACE	accepted	chore(app): normalize merged empty history whitespace	server/packages/happyherd-app/sources/components/EmptyMessages.tsx
 UPSTREAM_4CF54D18_LIVE_RIG_EDITS	accepted	fix(app): stamp live Rig edits before deferred draft rendering	server/packages/happyherd-app/sources/hooks/useDraft.ts
 UPSTREAM_4CF54D18_REAL_WEB_HOSTS	accepted	test(app): prove upstream Web behaviors with production hosts	server/packages/happyherd-app/sources/modal/WebPromptModal.browser.test.ts
+UPSTREAM_4CF54D18_BROWSER_SAMPLING	accepted	test(app): sample settled clocks and atomic row geometry	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts

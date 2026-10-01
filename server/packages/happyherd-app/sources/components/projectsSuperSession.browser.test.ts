@@ -741,6 +741,10 @@ describe('Projects and Super Session production UI gestures', () => {
         await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
         await page.getByTestId('focus-mode-timer').waitFor();
+        // The first active render still has the pre-setup clock until the
+        // focus effect samples Date.now(). Wait for that existing effect;
+        // every exact duration and subsequent tick assertion stays below.
+        await expect.poll(() => page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);
         // Start plays the amber pixel swap over the page as the setup closes.
         await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'attached' });
         // Flush effects scheduled by Start without advancing the paused countdown.
