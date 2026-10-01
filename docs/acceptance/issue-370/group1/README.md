@@ -57,3 +57,33 @@ Set `HAPPYHERD_GROUP1_SCREENSHOTS` to an evidence directory to emit the selected
 captures. `manifest.json` pins source and PNG SHA-256 values; the parent receipt
 supplies the final committed revision. No merge, deploy, install or service
 restart is part of this evidence.
+
+## Intentional Linux golden delta
+
+The complete comparison at `14c09190c51c85ac69170666e364a796fb228891`
+([CI artifact](https://github.com/NickGuAI/HappyHerd/actions/runs/36929475913/artifacts/11194814146))
+contains all 28 variants. Exactly eight restore panels and four changelog panels
+change; the other 16 remain pixel-identical, with no dimension changes. All 28
+PNGs match the preceding canonical source capture byte-for-byte. Independent
+inspection cleared every expected/actual/diff panel before baseline refresh.
+
+The issue-approved visible additions are Get help below the existing recovery
+action and a sixth localized changelog bullet. The first-run native completion
+marks and Help modal are covered by the interaction captures above. No upstream
+layout, tokens or copy tone was adopted.
+
+Both mobile manual-recovery themes also show fine raster differences on the
+existing Restore Account label/corners. The same-export Linux control removes
+only Help *after* the original golden capture: its hidden screenshot matches the
+entire old expected image exactly in both themes. The button and descendants
+retain identical computed properties and rectangles (button 342×48 at 24,287;
+label 137.265625×22 at 126.359375,299.5). Only three enclosing wrappers grow by
+44px, with corresponding default center origins; their actual transforms are
+unchanged. This attributes the raster difference to Help presence without
+claiming a separate font, layout or browser-engine defect. The diagnostic
+variants are not baselines and no comparison masks or thresholds changed.
+
+Six recovery variants contain only the Help label delta. The four changelog
+variants add the sixth bullet and move later entries down naturally; full
+Chinese/German scroll reachability is separately proved by the exported-page
+journeys. These 12 images are the only intended baseline updates.

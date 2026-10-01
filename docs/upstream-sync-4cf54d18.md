@@ -281,3 +281,52 @@ the preceding actual image, while Help-hidden matches the entire old expected
 image pixel-for-pixel. Thus the light button raster delta is caused by Help
 presence, not a separate control/style change. Dark-theme attribution and the
 complete Linux comparison remain pending the corrected diagnostic run.
+
+### Group 1 Linux attribution and refreshed acceptance
+
+The complete Linux comparison on `14c09190c51c85ac69170666e364a796fb228891`
+([artifact](https://github.com/NickGuAI/HappyHerd/actions/runs/36929475913/artifacts/11194814146))
+contains 28 variants, 12 reviewed differences and 16 exact matches, with no
+dimension changes. All captures are byte-identical to the preceding complete
+canonical run. Independent review cleared eight recovery panels and four
+changelog panels. Both mobile manual-recovery diagnostics reproduce the entire
+old expected image exactly with Help hidden; button/descendant computed styles
+and bounds are identical, while three wrappers grow by 44px. The extra raster
+is attributable to Help presence. See the committed
+[Group 1 visual diagnosis](acceptance/issue-370/group1/README.md).
+
+The unchanged full local app rerun passed **370 files / 4,251 tests / 10 existing
+skips** (309.19s), plus wire **84**, control agent **260** and HappyHerd agent
+**52**. Its preceding app attempt failed one existing value-row geometry
+assertion (5.8115px versus 2px). The relevant production/test sources are
+byte-identical to the frozen baseline; the focused eight tests passed. Separate
+geometry reads during the existing 6px/240ms card animation explain a plausible
+sampling race, but the original failure log does not prove its timing. No
+threshold, timeout, skip, assertion or production animation was changed.
+
+That rerun then encountered four existing Commander context CLI fixture failures
+using macOS `TMPDIR=/tmp`: production canonical paths resolve to `/private/tmp`,
+while expected paths and the unreadable-file mock use the alias. The log is
+retained; final local verification uses canonical `/private/tmp` without editing
+those tests or production code. Final exact-head CI remains required after the
+reviewed baseline-only follow-up.
+
+All 19 Commander context cases passed unchanged with canonical `TMPDIR`,
+confirming the alias/mock diagnosis. Server typecheck, build and all 201 tests
+also passed locally. On exact source head `14c09190`, Linux
+[Unit tests](https://github.com/NickGuAI/HappyHerd/actions/runs/36929475913/job/110595710965)
+and the complete
+[Contract suite](https://github.com/NickGuAI/HappyHerd/actions/runs/36929476086/job/110595719031)
+passed, including app 4,251/10 existing skips, wire 84, control agent 260,
+HappyHerd agent 52 (Contracts), CLI 2,088 and server 201. Clean install, lint and
+typecheck passed too. Production Web export/mount passed; the production job
+failed only the 12 reviewed old-baseline differences.
+
+The approved `golden:update` imported the complete exact-head Linux artifact
+after the workflow completed. Git changes exactly the eight recovery and four
+changelog PNGs; the other 16 baselines remain byte-identical. This baseline and
+evidence follow-up contains no production code changes. All final-head checks
+and the zero-difference comparison must pass on its pushed SHA; results are
+recorded in the PR readback rather than implied by the preceding source run.
+Historical-session continuation remains the concrete runtime prerequisite above,
+so the PR stays draft. No shared runtime effects were performed.
