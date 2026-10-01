@@ -59,7 +59,7 @@ interface EmptyMessagesProps {
 
 function getOSIcon(os?: string): keyof typeof Ionicons.glyphMap {
     if (!os) return 'hardware-chip-outline';
-    
+
     const osLower = os.toLowerCase();
     if (osLower.includes('darwin') || osLower.includes('mac')) {
         return 'laptop-outline';
@@ -77,7 +77,7 @@ function formatRelativeTime(timestamp: number): string {
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffMinutes < 1) {
         return t('time.justNow');
     } else if (diffMinutes < 60) {
@@ -128,7 +128,7 @@ export function EmptyMessages({ session }: EmptyMessagesProps) {
     const osIcon = getOSIcon(session.metadata?.os);
     const sessionStatus = useSessionStatus(session);
     const startedTime = formatRelativeTime(session.createdAt);
-    
+
     return (
         <View style={{ flex: 1, width: '100%' }}>
             {!hasMoreOlder && <CommanderContextRow metadata={session.metadata} />}
@@ -139,19 +139,19 @@ export function EmptyMessages({ session }: EmptyMessagesProps) {
                     color={theme.colors.textSecondary}
                     style={styles.iconContainer}
                 />
-            
+
                 {session.metadata?.host && (
                     <Text style={styles.hostText}>
                         {session.metadata.host}
                     </Text>
                 )}
-            
+
                 {session.metadata?.path && (
                     <Text style={styles.pathText}>
                         {formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir)}
                     </Text>
                 )}
-            
+
             {!hasMoreOlder ? (
                 <Text style={styles.noMessagesText}>{t("uiCopy.noMessagesYet")}</Text>
             ) : blocked === 'error' ? (
@@ -164,7 +164,7 @@ export function EmptyMessages({ session }: EmptyMessagesProps) {
             ) : (
                 <ActivityIndicator size="small" color={theme.colors.textSecondary} style={{ marginBottom: 8 }} />
             )}
-            
+
                 <Text style={styles.createdText}>
                     {t("sessionInfo.created")} {startedTime}
                 </Text>

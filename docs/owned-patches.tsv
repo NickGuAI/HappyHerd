@@ -733,3 +733,4 @@ INSTALLER_STABLE_PIPELINE	accepted	test(installer): fetch the candidate script t
 INSTALLER_PUBLISHED_PROCESS_ASSERTION	accepted	test(installer): retain exact process ownership for stable archive layouts	scripts/test-native-installer-asset.sh
 UPSTREAM_4CF54D18_RECORD	accepted	docs(sync): record the approved 4cf54d18 integration and proof boundaries	docs/upstream-sync-4cf54d18.md
 UPSTREAM_4CF54D18_BROWSER_PROOF	accepted	test(app): verify integrated composer history and archive journeys	server/packages/happyherd-app/sources/components/ChatList.browser.test.ts
+UPSTREAM_4CF54D18_EMPTY_HISTORY_WHITESPACE	accepted	chore(app): normalize merged empty history whitespace	server/packages/happyherd-app/sources/components/EmptyMessages.tsx
