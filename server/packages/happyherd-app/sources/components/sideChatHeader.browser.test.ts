@@ -213,6 +213,7 @@ const virtualModules: Record<string, string> = {
                 codexThreadId: provider === 'codex' ? 'thread-parent' : undefined,
                 codexHome: provider === 'codex' ? '/work/provider-state/codex' : undefined,
             };
+        }
         if (fixtureOptions.commanderContext) {
             sessions.parent.metadata = { ...sessions.parent.metadata, commanderId: 'athena', commanderName: 'Athena', commanderContextFiles: [
                 { kind: 'global-agents', path: '/global/AGENTS.md' },
