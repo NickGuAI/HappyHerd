@@ -66,6 +66,34 @@ try{
   await page.getByText('Restore with Secret Key',{exact:true}).click();
   const input=page.locator('textarea,input').first();await input.waitFor();await input.fill('Synthetic review draft — not a secret key');
   await shot('restore-key','Restore with Secret Key',['app/(app)/restore/manual.tsx'],'draft','Visible Home > Restore with Secret Key');
+  if(process.env.KILV_GOLDEN && viewport.width===390){
+    // Keep diagnostics separate from the 28 golden panels. Linux can rasterize
+    // unchanged controls differently when the surrounding content grows; record
+    // the exact geometry and a same-export control, without masking comparisons.
+    const diagnosticDirectory=resolve(directory,'diagnostics');
+    mkdirSync(diagnosticDirectory,{recursive:true});
+    const restore=page.getByRole('button',{name:'Restore Account',exact:true});
+    const help=page.getByRole('button',{name:'Get help',exact:true});
+    const measure=()=>restore.evaluate(element=>{
+      const nodes=[element,...element.querySelectorAll('*')];
+      let parent=element.parentElement;
+      for(let i=0;parent&&i<6;i++,parent=parent.parentElement)nodes.push(parent);
+      return nodes.map(node=>{
+        const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+        return {tag:node.tagName,text:node.textContent,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},styles:Object.fromEntries(Array.from(style).map(key=>[key,style.getPropertyValue(key)]))};
+      });
+    });
+    const before=await measure();
+    await page.screenshot({path:resolve(diagnosticDirectory,`restore-button-${theme}-present.png`),fullPage:true,animations:'disabled',caret:'hide'});
+    const originalStyle=await help.getAttribute('style');
+    await help.evaluate(element=>{element.style.display='none';});
+    await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
+    const hidden=await measure();
+    await page.screenshot({path:resolve(diagnosticDirectory,`restore-button-${theme}-hidden.png`),fullPage:true,animations:'disabled',caret:'hide'});
+    await help.evaluate((element,style)=>{if(style===null)element.removeAttribute('style');else element.setAttribute('style',style);},originalStyle);
+    writeFileSync(resolve(diagnosticDirectory,`restore-button-${theme}.json`),JSON.stringify({boundary:'Diagnostic DOM-only control after the unmodified golden capture; not an accepted UI variant.',before,hidden},null,2)+'\n');
+  }
+
   await page.goto(origin,{waitUntil:'networkidle'});
   await page.getByText('Login with mobile app',{exact:true}).click();
   await page.getByText('Restore with Secret Key instead',{exact:false}).waitFor();

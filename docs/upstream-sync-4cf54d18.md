@@ -249,3 +249,25 @@ alternate-recovery button label overflow behind the modal: its label,
 RoundButton source, geometry and typography are unchanged from the frozen
 base. This is documented as a retained limitation, not a new regression or a
 claim that every background control is visually perfect.
+
+
+The first Group 1 full run passed 369 app files and failed all 18 cases in the
+remaining signed-out route fixture. Focused diagnosis captured `process is not
+defined`: the new Help import reads product configuration, but this older
+browser harness did not supply `process.env`. Supplying that fixture boundary
+restored all 18 original journeys without changing their assertions or 20-second
+timeouts. The first new commit also failed the canonical commit-identity check;
+its author/committer metadata was corrected without changing its tree, and the
+corrected head passed public-boundary verification. Both first failures remain
+in the issue artifacts.
+
+Two independent complete Linux comparisons of the identical Group 1 source
+produced byte-identical captures: exactly eight restore and four changelog
+panels differed, with 16 exact matches and no dimension changes. Two mobile
+manual-restore variants include minor existing-button text/corner raster
+changes. Same-browser prior/current exports on macOS have identical computed
+button/text styles, bounds and button pixels; only enclosing height grows by
+44px. Linux-only same-export diagnostic captures now record the button with
+Help present/hidden after the original unmodified golden capture. These files
+are separate from the 28 baseline panels and do not change thresholds, masks,
+accepted UI states or baseline selection.
