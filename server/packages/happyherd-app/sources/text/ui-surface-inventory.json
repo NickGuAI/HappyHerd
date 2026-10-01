@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "789dbcbd5fa20a1ccf95f92e9f66e13d62e18770f974481c4e815abb0ad3a7a7",
+  "sourceFingerprint": "fa5aa480b0fdb1a35ec0f0b1520d055dc961632fe8e0559692a04dcbe66161a8",
   "routeCount": 45,
-  "surfaceCount": 340,
+  "surfaceCount": 341,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -5667,6 +5667,23 @@
       "states": [
         "loading"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/OnboardingHelpAction.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "OnboardingHelpAction"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "components.onboardingHelp.action",
+        "components.onboardingHelp.linkMessage",
+        "components.onboardingHelp.restoreMessage",
+        "settings.reportIssue"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

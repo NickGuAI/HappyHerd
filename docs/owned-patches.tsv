@@ -744,3 +744,4 @@ UPSTREAM_4CF54D18_PACKET_LIMIT_PROOF	accepted	test(server): verify oversized pac
 UPSTREAM_4CF54D18_LAYOUT_JOURNEYS	accepted	test(app): verify timestamp and composer layout across Web viewports	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
 UPSTREAM_4CF54D18_FINAL_LOCAL_ACCEPTANCE	accepted	docs(sync): record final local acceptance and remaining owner gates	docs/upstream-sync-4cf54d18.md
 UPSTREAM_4CF54D18_PACKET_SIZE_UNITS	accepted	docs(sync): state the exact polling payload size in acceptance evidence	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_ONBOARDING_DELIVERY	accepted	feat(app): complete persistent onboarding checklist and help	server/packages/happyherd-app/sources/components/OnboardingHelpAction.tsx

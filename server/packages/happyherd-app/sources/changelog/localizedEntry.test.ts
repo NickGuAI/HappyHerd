@@ -33,7 +33,7 @@ describe('localized October 1 release display', () => {
         expect(display.title).toBe(catalogs[locale].changelog.releases.upstreamSync4cf54d18.title);
         expect(display.markdown).toBe(catalogs[locale].changelog.releases.upstreamSync4cf54d18.markdown);
         expect(display.summary).toBe(canonical.summary);
-        expect(display.markdown.split('\n').filter(line => line.startsWith('- '))).toHaveLength(5);
+        expect(display.markdown.split('\n').filter(line => line.startsWith('- '))).toHaveLength(6);
         if (locale !== 'en') {
             expect(display.title).not.toBe(canonical.title);
             expect(display.markdown).not.toBe(canonical.markdown);

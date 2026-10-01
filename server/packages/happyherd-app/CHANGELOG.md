@@ -35,6 +35,7 @@
 - Claude remote sessions honor explicit plugin directories and explain expired provider login with repair steps for the account that owns the session.
 - macOS reconnects wait for a full wake, and sessions keep watching for late or recreated transcripts.
 - Added native clipboard image attachment choices and improved Android prompt keyboard handling. The current HappyHerd layout, model choices, and existing session identities are retained.
+- The first-run checklist remembers completed install and run steps on mobile. Get help is available from first-run and account recovery screens, alongside existing offline troubleshooting.
 
 # September 29 — Mark Inbox updates as read
 

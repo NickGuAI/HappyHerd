@@ -3,6 +3,7 @@ import { Platform, View, Text, TextInput, ScrollView, ActivityIndicator } from '
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/AuthContext';
 import { RoundButton } from '@/components/RoundButton';
+import { OnboardingHelpAction } from '@/components/OnboardingHelpAction';
 import { Typography } from '@/constants/Typography';
 import { normalizeSecretKey } from '@/auth/secretKeyBackup';
 import { authGetToken } from '@/auth/authGetToken';
@@ -141,6 +142,7 @@ export default function Restore() {
                         title={t('connect.restoreAccount')}
                         action={handleRestore}
                     />
+                    <OnboardingHelpAction context="restore" />
                 </View>
             </View>
         </ScrollView>

@@ -380,6 +380,20 @@ and EmptyMessages retain the subsequently merged CommanderContextRow and its
 actual-read metadata contract. History loading and pending status are ported
 into those owners; HomeDock/AgentInput keep their current layout while fixing
 shrink/gesture ownership; all archive controls share the existing action owner.
-The first-run visible checklist/help affordance is blocked on the issue's
-explicit presentation decision. No upstream onboarding, tabs, machine-first
-Home, bare-image layout or width-based tablet structure is authorized here.
+Group 1's existing native install/run rows now own persistent independent
+completion state: unchecked numbered badges keep their current geometry;
+checked badges replace the number with a checkmark inside the same box.
+First-run and QR/manual recovery add a secondary Get help action using the
+existing HappyHerd action typography and theme tokens. The alert uses existing
+modal controls and localized HappyHerd guidance; offline detection and the
+existing Troubleshoot/Copy AI prompt flow remain. The owner's acceptance
+correction confirms this issue-scoped visible behavior and its intentional
+KILV delta; it is not a separate pending product decision.
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/components/EmptyMainScreen.tsx` | Extended | Existing native install/run rows become persistent accessible checkboxes; the same 24×24 numbered badges show a 14px checkmark when checked. First-run adds the shared secondary Get help action before archived sessions. | Artwork, CLI commands, step text/spacing, step 3, QR/manual pairing, empty/online/offline state selection and troubleshooting. Web has no checklist. | Port checklist state and help behavior into these existing owners; do not import upstream onboarding layout or fold the step bodies. |
+| `sources/app/(app)/restore/index.tsx`, `sources/app/(app)/restore/manual.tsx` | Extended | Shared localized Get help action after the existing recovery action; existing alert and Report an Issue destination. | QR/key generation, cancellation, login origin, secret normalization, account-key handling, navigation, existing input/buttons and styling. | Keep account recovery intact; help supplements the existing screen without changing authentication or importing upstream copy tone. |
+
+No upstream onboarding, tabs, machine-first Home, bare-image layout or
+width-based tablet structure is authorized here.

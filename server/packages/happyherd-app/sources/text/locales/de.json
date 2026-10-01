@@ -609,6 +609,11 @@
     "botDeleteUnavailable": "Der Bot führt eine kontinuierliche Konversation; verwenden Sie Archivieren statt Löschen."
   },
   "components": {
+    "onboardingHelp": {
+      "action": "Hilfe erhalten",
+      "linkMessage": "Installiere die HappyHerd CLI und führe `happyherd` auf deinem Computer aus. Scanne auf deinem Handy den QR-Code im Terminal oder gib dessen Verbindungs-URL ein. Wenn du Hilfe brauchst, melde das Problem mit deiner CLI-Version und der Fehlermeldung. Gib keine Kontoschlüssel oder Zugangsdaten an.",
+      "restoreMessage": "Um dieses Gerät zu verknüpfen, scanne den QR-Code mit einem anderen Gerät, auf dem du bereits bei deinem Konto angemeldet bist. Du kannst den Zugang auch mit deinem gespeicherten geheimen Schlüssel wiederherstellen. Wenn du Hilfe brauchst, melde die Fehlermeldung, ohne deinen geheimen Schlüssel oder Zugangsdaten anzugeben."
+    },
     "emptyMainScreen": {
       "readyToCode": "Bereit zum Codieren?",
       "installCli": "Installieren Sie die HappyHerd CLI",
@@ -1116,7 +1121,7 @@
     "releases": {
       "upstreamSync4cf54d18": {
         "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
-        "markdown": "- Eingabeentwürfe und Auswahlen des HappyHerd-Agenten werden jetzt geräteübergreifend synchronisiert. Neuere Änderungen bleiben beim Senden von Nachrichten und beim erneuten Verbinden anderer Geräte erhalten.\n- Der Chatverlauf lädt auch bei langen Gesprächsrunden und eingeklappten Arbeitsgruppen weiter. Scrollen im Web, Sitzungswechsel sowie Einfügen und Ablegen bleiben auf die jeweilige Unterhaltung beschränkt.\n- Claude-Remotesitzungen berücksichtigen ausdrücklich angegebene Plugin-Verzeichnisse. Bei abgelaufener Anbieteranmeldung zeigen sie Schritte zur erneuten Anmeldung für das Konto an, dem die Sitzung gehört.\n- Unter macOS wartet die erneute Verbindung, bis das System vollständig aufgewacht ist. Sitzungen warten weiterhin auf verspätet eintreffende oder neu erstellte Gesprächsprotokolle.\n- Neue Optionen zum Anhängen von Bildern aus der nativen Zwischenablage und verbesserte Tastaturbehandlung in Android-Eingabedialogen. Das bestehende HappyHerd-Layout, die Modellauswahl und die Identitäten bestehender Sitzungen bleiben erhalten."
+        "markdown": "- Eingabeentwürfe und Auswahlen des HappyHerd-Agenten werden jetzt geräteübergreifend synchronisiert. Neuere Änderungen bleiben beim Senden von Nachrichten und beim erneuten Verbinden anderer Geräte erhalten.\n- Der Chatverlauf lädt auch bei langen Gesprächsrunden und eingeklappten Arbeitsgruppen weiter. Scrollen im Web, Sitzungswechsel sowie Einfügen und Ablegen bleiben auf die jeweilige Unterhaltung beschränkt.\n- Claude-Remotesitzungen berücksichtigen ausdrücklich angegebene Plugin-Verzeichnisse. Bei abgelaufener Anbieteranmeldung zeigen sie Schritte zur erneuten Anmeldung für das Konto an, dem die Sitzung gehört.\n- Unter macOS wartet die erneute Verbindung, bis das System vollständig aufgewacht ist. Sitzungen warten weiterhin auf verspätet eintreffende oder neu erstellte Gesprächsprotokolle.\n- Neue Optionen zum Anhängen von Bildern aus der nativen Zwischenablage und verbesserte Tastaturbehandlung in Android-Eingabedialogen. Das bestehende HappyHerd-Layout, die Modellauswahl und die Identitäten bestehender Sitzungen bleiben erhalten.\n- Die Checkliste beim ersten Start merkt sich auf Mobilgeräten abgeschlossene Installations- und Startschritte. Hilfe ist auf den Seiten für den ersten Start und die Kontowiederherstellung verfügbar; die bestehende Hilfe bei Offline-Problemen bleibt erhalten."
       }
     }
   },

@@ -609,6 +609,11 @@
     "botDeleteUnavailable": "A bot keeps one continuous conversation; use Archive instead of Delete."
   },
   "components": {
+    "onboardingHelp": {
+      "action": "Get help",
+      "linkMessage": "Install the HappyHerd CLI and run `happyherd` on your computer. On your phone, scan the terminal QR code or enter its connection URL. If you need help, report the problem with your CLI version and error message. Do not include account keys or credentials.",
+      "restoreMessage": "To link this device, use another device already signed in to your account to scan the QR code. You can also restore access with your saved secret key. If you need help, report the error message without including your secret key or credentials."
+    },
     "emptyMainScreen": {
       "readyToCode": "Ready to code?",
       "installCli": "Install the HappyHerd CLI",
@@ -1116,7 +1121,7 @@
     "releases": {
       "upstreamSync4cf54d18": {
         "title": "October 1 — Session reliability and shared drafts",
-        "markdown": "- HappyHerd agent composer drafts and selections now sync across devices, with edits preserved when messages are sent or another device reconnects.\n- Chat history keeps loading through long turns and folded work groups. Web scrolling, session switching, and paste or drop handling remain scoped to the active conversation.\n- Claude remote sessions honor explicit plugin directories and explain expired provider login with repair steps for the account that owns the session.\n- macOS reconnects wait for a full wake, and sessions keep watching for late or recreated transcripts.\n- Added native clipboard image attachment choices and improved Android prompt keyboard handling. The current HappyHerd layout, model choices, and existing session identities are retained."
+        "markdown": "- HappyHerd agent composer drafts and selections now sync across devices, with edits preserved when messages are sent or another device reconnects.\n- Chat history keeps loading through long turns and folded work groups. Web scrolling, session switching, and paste or drop handling remain scoped to the active conversation.\n- Claude remote sessions honor explicit plugin directories and explain expired provider login with repair steps for the account that owns the session.\n- macOS reconnects wait for a full wake, and sessions keep watching for late or recreated transcripts.\n- Added native clipboard image attachment choices and improved Android prompt keyboard handling. The current HappyHerd layout, model choices, and existing session identities are retained.\n- The first-run checklist remembers completed install and run steps on mobile. Get help is available from first-run and account recovery screens, alongside existing offline troubleshooting."
       }
     }
   },

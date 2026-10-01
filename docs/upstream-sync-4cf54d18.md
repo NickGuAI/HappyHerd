@@ -1,6 +1,6 @@
 # Upstream integration through 4cf54d18 — issue #370
 
-This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Acceptance is in progress. Group 1's visible checklist/help affordance is awaiting the owner's presentation decision; no completed-delivery claim is made for that portion.** [Draft PR #374](https://github.com/NickGuAI/HappyHerd/pull/374) must stay open for Athena. No merge to main, deployment, shared installation, daemon restart, account mutation, or historical production-session continuation is authorized by this report.
+This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Acceptance is in progress. The owner's acceptance correction confirms Group 1 as settled scope: persistent visible checklist behavior and help content must be delivered in the existing screens, with intentional visual-delta proof.** [Draft PR #374](https://github.com/NickGuAI/HappyHerd/pull/374) must stay open for Athena. No merge to main, deployment, shared installation/restart or account mutation is authorized. The latest instruction authorizes one inactive historical-session continuation through a safe issue-owned exact-source runtime; it excludes the active parent session and shared production daemon.
 
 ## Frozen inputs and topology
 
@@ -45,7 +45,7 @@ The CLI and product rename scripts were run dry-run/apply/check, with semantic i
 
 | Group | Disposition and retained boundary |
 | --- | --- |
-| 1 | Partial / owner decision pending. Existing offline detection, restore navigation and pairing success UI retained; existing troubleshooting content extended with the maintained help destination. Persistent setting schema exists, but a hidden setting is not counted as a delivered visible checklist. [Blocked note](https://github.com/NickGuAI/HappyHerd/issues/370#issuecomment-5936506702). |
+| 1 | Ported under the settled issue scope. Existing native install/run rows own independent persistent completion; first-run and QR/manual restore screens use the shared Get help action and existing modal. Offline detection, Troubleshoot/Copy AI prompt, pairing and recovery remain. No Web checklist or upstream layout/copy is imported. Verification is recorded below; the prior extra presentation-decision blocker is withdrawn. |
 | 2 | Ported native header style-boundary and Android overlay fixes; timestamp slot may grow to its text. HappyHerd already keeps the timestamp mounted and shows unread on the avatar. No upstream unread-dot styling imported. |
 | 3 | Ported explicit remote Claude plugin directory forwarding, including resume. Owned permission callbacks and live permission-mode support remain. |
 | 4 | Ported five-page background budget, long-turn/group history progress, explicit retry/load-more and inverted Web patch. Retained deliberate cached-window growth, exact receipt focus, nested/horizontal/zoom wheel ownership, and the 16px normal-line-height fallback. |
@@ -128,13 +128,13 @@ Rendered Chromium interaction fixtures use production components over synthetic 
 | 20 | 24 header/header-menu/row-menu cases: immediate hide before acknowledgment, failure rollback, retry, ordinary cleanup/fallback and bot owner-only handling. |
 | Owned #361 / shell | 8 Commander context matrix cases passed. Both focused shell animation/shortcut checks passed with unchanged timing assertions. |
 
-See [selected interaction captures](acceptance/issue-370/README.md) and [localized release-note captures](acceptance/issue-370/changelog-locales/README.md). Group2/18 Web ownership is additionally covered by retained header/chip/browser suites; native rendering/gesture proof remains separate. Group23 Web attachment paths are covered above; its native chooser remains a device proof gap. Group1’s visible checklist/help controls remain blocked on the numbered owner decision.
+See [selected interaction captures](acceptance/issue-370/README.md) and [localized release-note captures](acceptance/issue-370/changelog-locales/README.md). Group2/18 Web ownership is additionally covered by retained header/chip/browser suites; native rendering/gesture proof remains separate. Group23 Web attachment paths are covered above; its native chooser remains a device proof gap. Group1 is delivered in the existing screens with source-bound production-component evidence below; the previous numbered presentation question is withdrawn.
 
 Review found and fixed a real newer-Rig-draft race: uncontrolled text could advance before its deferred React mirror was stamped, allowing acceptance to clear the newer live text. Local edits are now stamped at the input event; remote drafts are not restamped and non-Rig debounce is unchanged. Two real-hook/store/writer regressions plus existing send/side-chat cases pass (123 tests total); independent review confirmed the fix.
 
 Additional first failures were retained and corrected at their actual boundaries: a Linux-only shell shortcut in a macOS fixture; a no-op navigation mock in the first New Chat test; a stale installed-router state probe; Expo Web index resolution; duplicate ToolView filenames; and an offscreen image-preview stand-in. Visual review rejected that preview evidence and replaced the fixture with the production modal host plus viewport bounds. Prompt readiness now waits for the real active dialog; an initially assumed return-focus contract was disproved on the exact base before correcting that new test’s expectation. No production focus behavior or timing threshold was changed.
 
-Review clearance still requires the group1 owner decision, the authorized historical continuation, the proposal-automation readback, six successful exact-head CI jobs and final review resolution. The complete prior KILV comparison proved24 unchanged panels and the four reviewed changelog baselines were updated; the current head must confirm all28 match. Current CI outcomes and exact-head links are maintained in [PR374](https://github.com/NickGuAI/HappyHerd/pull/374). Native iOS/Android device journeys, physical wake and authenticated live journeys remain explicit proof boundaries. Historical production continuation requires a separately authorized runtime effect under the implementation brief; simulated continuity is not described as that continuation.
+Review clearance requires completed Group 1 delivery, one real historical-session continuation, all six successful checks on the new exact head and independent review. The prior head's 28/28 KILV pass does not prove the pending Group 1 changes; its approved-by-issue delta must be recorded and baselines intentionally refreshed. Current outcomes and exact-head links are maintained in [PR374](https://github.com/NickGuAI/HappyHerd/pull/374). Native iOS/Android device journeys and physical wake remain permitted proof gaps. The zero-automations readback is a bounded external evidence gap, not a GitHub/team review gate under the development lifecycle. No automation is created or changed to fill it. Historical continuation fixtures do not substitute for a real provider turn.
 
 The fourth run’s three failures were fixture synchronization races: the unchanged focus timer initially renders against its pre-setup clock before its effect samples the frozen clock, and the phone row test compared moving geometry captured on different frames. The fixtures now wait for the exact expected timer text and measure row/button/text bounds in one evaluation. Exact duration, tick, overlap, containment and timing assertions remain unchanged; no production owner changed. Both original failures and their baseline-source comparisons are retained. Both affected browser files then passed all 56 cases, followed by app typecheck; this focused pass does not substitute for the full rerun.
 
@@ -154,6 +154,98 @@ The first full attempt on `8e01a25f` passed365 app files and4,221 cases, with10 
 
 Session continuity was separately repeated:8 files/182 cases passed. The local proposal-automation readback was repeated through the existing daemon control endpoint and still returned zero automations. This does not establish the required schedule or latest run; no automation or shared daemon was changed.
 
-These Web journeys use real production components, synthetic data/transport and Chromium clicks at the required sizes/themes, with independent visual inspection. They cover human-facing behavior without claiming authenticated provider effects or a separate human-person signoff. Native iOS/Android rendering and gestures, physical wake, and the blocked group1 presentation remain the explicit boundaries described above.
+These Web journeys use real production components, synthetic data/transport and Chromium clicks at the required sizes/themes, with independent visual inspection. They cover human-facing behavior without claiming authenticated provider effects or a separate human-person signoff. Native iOS/Android rendering and gestures, physical wake, remain the explicit device boundaries described above; Group 1 and real historical continuation are tracked separately as required acceptance.
 
 The frozen install was repeated from a clean tracked tree on `8e01a25f` with Node20.20.2/pnpm10.11.0 and produced no tracked changes. i18n again validated1,677 keys per locale,45 routes,339 surfaces and84 smoke cases. CLI/server production builds, Web export/title check and React-mount smoke all passed. This final report update is a separately ledgered documentation-only follow-up; exact-head CI and review outcomes are linked from PR374.
+
+
+## Acceptance correction: Group 1 and historical continuation
+
+The owner confirmed that issue #370's Group 1 is a settled decision, not a new
+approve/reject question. Its persistent checklist and help content belong in
+HappyHerd's existing screens. The earlier presentation blocker and PR review
+handoff were withdrawn; the PR returned to draft while these acceptance items
+are completed. No upstream onboarding layout, copy tone or visual treatment is
+introduced.
+
+The intended visual delta is limited to completion marks within the existing
+native install/run badges and a secondary Get help action on first-run and
+QR/manual recovery screens. The existing first-run secondary-action geometry
+is reused (40px minimum height plus 4px top margin); its added height can move
+centered content. Checklist bodies remain expanded, step 3 stays static and
+Web has no new checklist. The existing alert shows localized help and links to
+the maintained issue destination. Offline detection and Troubleshoot/Copy AI
+prompt, CLI-first pairing and account recovery keep their existing owners.
+The sixth localized release-note bullet describes this behavior. These are
+issue-scoped expected pixels, not unexplained KILV drift; comparator settings
+and masks remain unchanged.
+
+### Historical continuation: concrete missing prerequisite
+
+The required real continuation has not been performed. Read-only source and
+file-presence investigation found no existing isolated authenticated historical
+runtime in the issue artifact scope. The configured HappyHerd home belongs to
+the shared production daemon. Authentication, machine identity, encrypted
+reconnect state and daemon state derive from the same home. Starting the
+exact-source daemon against it can stop a version-mismatched shared daemon;
+retaining its machine identity also registers the shared remote machine.
+Standalone supported Claude/Codex resume paths invoke authentication setup and
+`ensureDaemonRunning`, so they do not provide an isolated bypass. Even the
+supported session-inspect path persists authoritative reconnect state.
+
+The missing prerequisite is an existing isolated authenticated home/machine
+containing an inactive genuine historical HappyHerd session, with its original
+provider thread/state/path and reconnect material, that can be operated under
+the current issue authority. The parent has been asked for its path and session
+ID, never credentials. No credential or reconnect material was copied, no
+session turn was sent, and no shared daemon/account/automation was mutated.
+A fresh synthetic session or unrelated sidecar restart would not satisfy this
+proof. The 182 continuity fixtures remain supporting evidence only.
+
+The read-only zero-automations result remains a bounded external evidence gap.
+Per `.dev/playbooks/development-lifecycle.md` and `.dev/VERIFY.md`, machine-local
+proposal automation is not a GitHub/team gate and does not hold the PR in draft.
+
+
+### Group 1 verification before the refreshed full run
+
+Node 20 focused checks passed: three files / five tests for actual rendered
+batched toggles, external-link rejection/retry and real local persistence
+load/save/reinitialization. The first implementation review found stale toggle
+snapshots and an unhandled external-link rejection; both were corrected and
+independently cleared. Initial renderer failures were incomplete theme/artwork
+fixture boundaries; their logs remain separate.
+
+Production-component Chromium journeys passed all 24 cases across en/cn/de,
+1440×900 and 390×844, light/dark. Each Help journey visits first-run and both
+recovery routes through the real modal host, including cancellation, failed
+external navigation, error dismissal and retry. The native-branch journey
+proves independent toggles, component remount/page reload retention and the
+existing offline troubleshooting/copy action. Seven existing first-run
+reachability cases also passed after the browser fixture supplied the new
+storage contract and `process.env` import boundary. Existing assertions and
+five-second timeouts were unchanged. Native branch rendering is emulated in
+Chromium and does not claim actual device/MMKV/camera proof.
+
+[Group 1 captures and source hashes](acceptance/issue-370/group1/README.md)
+contain 16 German checkpoints, the longest help-copy case. The eight real
+production-export Chinese/German changelog journeys were repeated with all six
+bullets and final-bullet reachability; their refreshed
+[captures](acceptance/issue-370/changelog-locales/README.md) retain exact source
+hashes. App typecheck, production export and React-mount smoke passed.
+Generated i18n/inventory checks report 1,680 keys per locale, 45 routes,
+340 surfaces and 84 smoke cases with zero hardcoded-copy exceptions. Changelog
+parsing retains 175 entries and the existing October 1 canonical title.
+
+The refreshed full contract run, exact-head CI and intentional Linux KILV
+baseline update are pending this commit; prior head results above are historical
+supporting evidence rather than acceptance of this new source.
+
+
+Independent visual inspection covered all 16 Group 1 captures and four mobile
+localized changelog endings. New help text/buttons and completion marks are
+readable and visible. The German phone QR screen retains a pre-existing long
+alternate-recovery button label overflow behind the modal: its label,
+RoundButton source, geometry and typography are unchanged from the frozen
+base. This is documented as a retained limitation, not a new regression or a
+claim that every background control is visually perfect.

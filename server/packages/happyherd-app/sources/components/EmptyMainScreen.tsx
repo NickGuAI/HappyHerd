@@ -8,7 +8,8 @@ import { useConnectTerminal } from '@/hooks/useConnectTerminal';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import { StyleSheet, useUnistyles, withUnistyles } from 'react-native-unistyles';
-import { useAllMachines } from '@/sync/storage';
+import { storage, useAllMachines, useLocalSetting } from '@/sync/storage';
+import { OnboardingHelpAction } from '@/components/OnboardingHelpAction';
 import { collectMachineChoices } from '@/sync/machineChoices';
 import { useOfflineMachineTroubleshooting } from '@/hooks/useOfflineMachineTroubleshooting';
 import { useRouter } from 'expo-router';
@@ -184,6 +185,12 @@ export function EmptyMainScreen({
     const { connectTerminal, connectWithUrl, isLoading } = useConnectTerminal();
     const { theme } = useUnistyles();
     const styles = stylesheet;
+    const checklist = useLocalSetting('linkComputerChecklist');
+    const toggleStep = React.useCallback((key: 'install' | 'open') => {
+        const state = storage.getState();
+        const latest = state.localSettings.linkComputerChecklist;
+        state.applyLocalSettings({ linkComputerChecklist: { ...latest, [key]: !latest[key] } });
+    }, []);
     const router = useRouter();
     const machines = useAllMachines({ includeOffline: true });
     const machineChoices = React.useMemo(() => collectMachineChoices(machines), [machines]);
@@ -259,10 +266,27 @@ export function EmptyMainScreen({
             <Text style={styles.title}>{t('components.emptyMainScreen.readyToCode')}</Text>
             <View style={styles.stepsContainer}>
                 <View style={styles.step}>
-                    <View style={styles.stepRow}>
-                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
-                        <Text style={styles.stepText}>{t('components.emptyMainScreen.installCli')}</Text>
-                    </View>
+                    {Platform.OS === 'web' ? (
+                        <View style={styles.stepRow}>
+                            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+                            <Text style={styles.stepText}>{t('components.emptyMainScreen.installCli')}</Text>
+                        </View>
+                    ) : (
+                        <Pressable
+                            style={styles.stepRow}
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={t('components.emptyMainScreen.installCli')}
+                            accessibilityState={{ checked: !!checklist.install }}
+                            onPress={() => toggleStep('install')}
+                        >
+                            <View style={styles.stepNumber}>
+                                {checklist.install
+                                    ? <Ionicons name="checkmark" size={14} color={theme.colors.text} />
+                                    : <Text style={styles.stepNumberText}>1</Text>}
+                            </View>
+                            <Text style={styles.stepText}>{t('components.emptyMainScreen.installCli')}</Text>
+                        </Pressable>
+                    )}
                     <Text style={styles.stepDescription}>{t('components.emptyMainScreen.installDescription')}</Text>
                     <View style={styles.terminalBlock}>
                         <Text selectable style={styles.terminalText}>{t('uiCopy.installHappyHerd')}</Text>
@@ -272,10 +296,27 @@ export function EmptyMainScreen({
                     </Text>
                 </View>
                 <View style={styles.step}>
-                    <View style={styles.stepRow}>
-                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
-                        <Text style={styles.stepText}>{t('components.emptyMainScreen.authorizeTerminal')}</Text>
-                    </View>
+                    {Platform.OS === 'web' ? (
+                        <View style={styles.stepRow}>
+                            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+                            <Text style={styles.stepText}>{t('components.emptyMainScreen.authorizeTerminal')}</Text>
+                        </View>
+                    ) : (
+                        <Pressable
+                            style={styles.stepRow}
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={t('components.emptyMainScreen.authorizeTerminal')}
+                            accessibilityState={{ checked: !!checklist.open }}
+                            onPress={() => toggleStep('open')}
+                        >
+                            <View style={styles.stepNumber}>
+                                {checklist.open
+                                    ? <Ionicons name="checkmark" size={14} color={theme.colors.text} />
+                                    : <Text style={styles.stepNumberText}>2</Text>}
+                            </View>
+                            <Text style={styles.stepText}>{t('components.emptyMainScreen.authorizeTerminal')}</Text>
+                        </Pressable>
+                    )}
                     <Text style={styles.stepDescription}>{t('components.emptyMainScreen.authorizeDescription')}</Text>
                     <View style={styles.terminalBlock}>
                         <Text selectable style={styles.terminalText}>{t('uiCopy.authLogin')}</Text>
@@ -314,6 +355,7 @@ export function EmptyMainScreen({
                     <Text style={styles.stepDescription}>{t('components.emptyMainScreen.discoveryDescription', { newSession: t('newSession.title') })}</Text>
                 </View>
             </View>
+            <OnboardingHelpAction context="link" />
             {showArchivedAction}
         </ScrollView>
     );

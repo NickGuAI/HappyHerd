@@ -1,11 +1,11 @@
 {
-  "artifactIndexSha256": "85793f43b113c0df8567145e3dd55416b6dc41925fa71295dd53d0eca9be06da",
+  "artifactIndexSha256": "fd8bcc9123d935cdc18b0ae48465a96f3b094ed15c86a9a01d6d53e1821db47f",
   "sourceHashes": {
     "sources/changelog/localizedEntry.ts": "2eb3b00417a6f49cf931842e1d1416aed420f0d935b934c453302ed0d890eb38",
     "sources/app/(app)/changelog.tsx": "5ddd7937ba385b84b73b01a5c6256edcaed405a6175341bafa22616e95a595c7",
-    "sources/text/locales/en.json": "7a673c256f1f5ff041eddc183388d16ffe65b8da6e625253c224c5f105cbfbbc",
-    "sources/text/locales/cn.json": "a5ca1944c61168f4bb89260a3ef4cc2dd2b0ab437535f8ad4ebc79fe9d8cbafe",
-    "sources/text/locales/de.json": "f837822b5564df941fecce5bde5a5af78585baea3f454f8003a7a983b3bd3219"
+    "sources/text/locales/en.json": "7fa9f17f0d5f7fe95b05810f3cd60e105b16d15ba3ab18b2af479c7ca2eb98ff",
+    "sources/text/locales/cn.json": "893c8b81fdeeed73d046e92b0b4c4d122046612de811452a830592d11d652e9d",
+    "sources/text/locales/de.json": "b63b216f64f40c074ebd4edc6f2ec1cfc1bfa0fd0858ffbf13608e4f6d036d80"
   },
   "results": [
     {
@@ -17,10 +17,11 @@
         "height": 900
       },
       "title": "10月1日 — 会话可靠性与跨设备草稿",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "cn-light-1440-top.png"
+        "cn-light-1440-top.png",
+        "cn-light-1440-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -33,10 +34,11 @@
         "height": 844
       },
       "title": "10月1日 — 会话可靠性与跨设备草稿",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "cn-light-390-top.png"
+        "cn-light-390-top.png",
+        "cn-light-390-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -49,10 +51,11 @@
         "height": 900
       },
       "title": "10月1日 — 会话可靠性与跨设备草稿",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "cn-dark-1440-top.png"
+        "cn-dark-1440-top.png",
+        "cn-dark-1440-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -65,10 +68,11 @@
         "height": 844
       },
       "title": "10月1日 — 会话可靠性与跨设备草稿",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "cn-dark-390-top.png"
+        "cn-dark-390-top.png",
+        "cn-dark-390-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -81,10 +85,11 @@
         "height": 900
       },
       "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "de-light-1440-top.png"
+        "de-light-1440-top.png",
+        "de-light-1440-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -97,7 +102,7 @@
         "height": 844
       },
       "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
         "de-light-390-top.png",
@@ -114,10 +119,11 @@
         "height": 900
       },
       "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
-        "de-dark-1440-top.png"
+        "de-dark-1440-top.png",
+        "de-dark-1440-end.png"
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     },
@@ -130,7 +136,7 @@
         "height": 844
       },
       "title": "1. Oktober — Zuverlässigere Sitzungen und geräteübergreifende Entwürfe",
-      "bullets": 5,
+      "bullets": 6,
       "pageErrors": [],
       "captures": [
         "de-dark-390-top.png",
@@ -138,18 +144,5 @@
       ],
       "boundary": "Real production export on isolated offline loopback host; fresh browser context, no account or authenticated session."
     }
-  ],
-  "captureBoundary": "Production Web export from the issue370 working tree on top of dc87382bea2b5fb3caaea00432d12a43097709ce; sourceHashes bind the localized owners to the committed result. Isolated offline host, no authenticated account.",
-  "selectedCaptures": [
-    "cn-light-1440-top.png",
-    "cn-light-390-top.png",
-    "cn-dark-1440-top.png",
-    "cn-dark-390-top.png",
-    "de-light-1440-top.png",
-    "de-light-390-top.png",
-    "de-dark-1440-top.png",
-    "de-dark-390-top.png",
-    "de-light-390-end.png",
-    "de-dark-390-end.png"
   ]
 }
