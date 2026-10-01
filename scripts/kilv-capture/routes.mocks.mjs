@@ -48,7 +48,7 @@ export const virtualModules = {
  '@/sync/persistence': `export const retrieveTempText=()=> 'KILV interface review\\n\\nSelect and copy this sample text.\\n\\npnpm --filter happyherd-app test\\n\\nTypography stays readable on desktop and mobile.';export const getVoiceLocalCounters=()=>({dictationCount:12,dictationSeconds:245,voiceAssistantCount:4,voiceAssistantSeconds:245});export const resetVoiceLocalCounters=()=>{};export const loadSettings=()=>({settings:{preferredLanguage:'en'}});`,
  '@/hooks/useConnectAccount': `export const useConnectAccount=()=>({connectAccount:async()=>{},isConnecting:false});`,
  '@/hooks/useConnectTerminal': `export const useConnectTerminal=()=>({connectTerminal:async()=>{},isConnecting:false});`,
- '@/hooks/useNavigateToSession': `export const useNavigateToSession=()=>()=>{};`,
+ '@/hooks/useNavigateToSession': `export const useNavigateToSession=()=>()=>{};export const navigateToSession=()=>{};`,
  '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree=async()=>{};`,
  '@/hooks/useSessionQuickActions': `export const useSessionQuickActions=()=>({onArchive:async()=>{},onResume:async()=>{},onDuplicate:async()=>{},isArchiving:false,isResuming:false,isDuplicating:false});`,
  '@/utils/copySessionMetadataToClipboard': `export const copySessionMetadataToClipboard=async()=>{};export const copySessionMetadataAndLogsToClipboard=async()=>{};`,

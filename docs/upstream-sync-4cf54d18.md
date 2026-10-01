@@ -1,6 +1,6 @@
 # Upstream integration through 4cf54d18 — issue #370
 
-This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Acceptance is in progress. Group 1's visible checklist/help affordance is awaiting the owner's presentation decision; no completed-delivery claim is made for that portion.** The PR must stay open for Athena. No merge to main, deployment, shared installation, daemon restart, account mutation, or historical production-session continuation is authorized by this report.
+This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Acceptance is in progress. Group 1's visible checklist/help affordance is awaiting the owner's presentation decision; no completed-delivery claim is made for that portion.** [Draft PR #374](https://github.com/NickGuAI/HappyHerd/pull/374) must stay open for Athena. No merge to main, deployment, shared installation, daemon restart, account mutation, or historical production-session continuation is authorized by this report.
 
 ## Frozen inputs and topology
 
@@ -104,13 +104,15 @@ Post-rebuild checks:
 | `pnpm --filter @happyherd/cli test` | 195 files, 2,088 tests passed (isolated TMPDIR, UTC). |
 | Wire/server suites | Wire 15 files /84 tests; server 37 files /201 tests passed; server production build passed. |
 | `test:session-continuity` | 8 files /182 tests passed, including newer Commander cases. |
-| App typecheck | Passed after integration and after the final Rig edit fix. |
+| App typecheck | Passed after integration, the Rig edit fix and browser-fixture corrections. |
+| Full app suite | 365 files;4,205 passed,10 existing skips. |
+| Full contract suite | Passed on `0cd3425379b2b8c3ddf5f0bb09ef08f6b3aa22ef`: all repository verifiers, app4,205, wire84, control agent260, HappyHerd agent52, CLI2,088 and server201. |
 | `i18n:check` / inventory | 1,675 keys per locale; zero hardcoded-copy exceptions;45 routes,338 surfaces,84 smoke cases. |
 | Production Web export / smoke / CLI build | Passed; export and smoke repeated successfully after the Rig edit fix. |
 | Changelog parser | 175 entries; latest “October 1 — Session reliability and shared drafts”. |
 | Range-diff | All683 inherited ledger subjects are exact matches. |
 | Lineage / public boundary / sync provenance | Passed; provenance has1 valid and4 rejected fixtures. |
-| Full contract attempts | Whitespace and an unsupported commit prefix were corrected. The third attempt exposed an existing GNU `sed -i` assumption; the already-installed GNU sed was selected through PATH, with no source change. The fourth cleared repository contracts and app typecheck, then reported 363 passing /2 failing app files: 4,202 passed,3 failed,10 existing skips. Full rerun remains required. |
+| Full contract attempts | Whitespace and an unsupported commit prefix were corrected. The third attempt exposed an existing GNU `sed -i` assumption; the already-installed GNU sed was selected through PATH, with no source change. The fourth cleared repository contracts and app typecheck, then reported 363 passing /2 failing app files: 4,202 passed,3 failed,10 existing skips. The subsequent fifth full run passed. |
 
 Rendered Chromium interaction fixtures use production components over synthetic data/transport at1440×900 and390×844, light/dark. They do not claim authenticated live behavior:
 
@@ -132,8 +134,10 @@ Review found and fixed a real newer-Rig-draft race: uncontrolled text could adva
 
 Additional first failures were retained and corrected at their actual boundaries: a Linux-only shell shortcut in a macOS fixture; a no-op navigation mock in the first New Chat test; a stale installed-router state probe; Expo Web index resolution; duplicate ToolView filenames; and an offscreen image-preview stand-in. Visual review rejected that preview evidence and replaced the fixture with the production modal host plus viewport bounds. Prompt readiness now waits for the real active dialog; an initially assumed return-focus contract was disproved on the exact base before correcting that new test’s expectation. No production focus behavior or timing threshold was changed.
 
-Still required before review clearance: final full contract/app runs, final-head verifiers, completion of remaining interaction proof, exact KILV comparison and only four changelog baseline updates, exact-head six required CI jobs, and review resolution. Native iOS/Android device journeys, physical wake and authenticated live journeys remain explicit proof boundaries. Historical production continuation requires a separately authorized runtime effect under the implementation brief; simulated continuity is not described as that continuation.
+Still required before review clearance: completion of remaining interaction proof, exact KILV comparison and only four changelog baseline updates, exact-head six required CI jobs/verifiers, and review resolution. Native iOS/Android device journeys, physical wake and authenticated live journeys remain explicit proof boundaries. Historical production continuation requires a separately authorized runtime effect under the implementation brief; simulated continuity is not described as that continuation.
 
 The fourth run’s three failures were fixture synchronization races: the unchanged focus timer initially renders against its pre-setup clock before its effect samples the frozen clock, and the phone row test compared moving geometry captured on different frames. The fixtures now wait for the exact expected timer text and measure row/button/text bounds in one evaluation. Exact duration, tick, overlap, containment and timing assertions remain unchanged; no production owner changed. Both original failures and their baseline-source comparisons are retained. Both affected browser files then passed all 56 cases, followed by app typecheck; this focused pass does not substitute for the full rerun.
+
+The first PR Quality run ([36907209569](https://github.com/NickGuAI/HappyHerd/actions/runs/36907209569)) passed Clean install, Lint, Typecheck, production Web export and smoke. KILV stopped before comparison because its static route fixture lacked the newly imported navigation-helper export. The missing fixture export was added without changing navigation proof, comparator, masks or thresholds; all eight local appearance/terminal captures then completed. The partial Linux artifact contains20 production captures:16 non-changelog panels have zero differing pixels and only the four expected changelog panels differ. All four were visually reviewed, but this partial artifact is not complete KILV acceptance and was not used to update baselines.
 
 The proposal-automation read-only query returned no listed automations or blocked runs. It did not prove the requested schedule/latest-run state; no production automation was created or changed to fill that evidence gap.
