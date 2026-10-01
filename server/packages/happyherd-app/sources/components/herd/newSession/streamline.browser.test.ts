@@ -425,8 +425,8 @@ describe('Streamline New Session in the production style runtime', () => {
     // A chip's label, without its chevron glyph.
     const chipLabel = async (page: Page, key: string) => (await page.getByTestId(`streamline-chip-${key}`).innerText()).split('\n')[0];
 
-    it.each([[1440, 900], [390, 844]])('shows New Chat with one Agent chip and a settings link at %i × %i', async (width, height) => {
-        const { page, errors } = await open({ width, height });
+    it.each([1440, 390].flatMap(width => (['light', 'dark'] as const).map(theme => ({ width, height: width === 390 ? 844 : 900, theme }))))('shows New Chat with one Agent chip and a settings link at $width px in $theme', async surface => {
+        const { page, errors } = await open(surface);
         await page.getByTestId('streamline-sections').waitFor();
         await expect(page.getByText('New Chat', { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).count()).resolves.toBe(0);
@@ -437,6 +437,7 @@ describe('Streamline New Session in the production style runtime', () => {
         }
         await expect(page.getByTestId('streamline-summary').innerText()).resolves.not.toMatch(/Uses |Creates a new git worktree|Runs directly/);
         await expect(page.getByTestId('streamline-summary').locator('[data-icon="sparkles-outline"]').count()).resolves.toBe(0);
+        await evidence(page, `group18-streamline-single-chip-${surface.width}-${surface.theme}`);
         await page.getByTestId('streamline-settings-link').click();
         await expect.poll(() => page.evaluate(() => (window as any).__ROUTES__ ?? [])).toContain('/settings/streamline');
         expect(errors).toEqual([]);

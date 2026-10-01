@@ -5,6 +5,7 @@ import { SidebarNavigator } from '@/components/SidebarNavigator';
 import { CommandPalette } from '@/components/CommandPalette/CommandPalette';
 import { CommandPaletteModal } from '@/components/CommandPalette/CommandPaletteModal';
 import { HerdCommandPaletteContext } from '@/components/herd/shell/commandPaletteBridge';
+import { TimestampLayoutFixture } from './mobileShellFixtureList';
 import { useLocalSetting } from '@/sync/storage';
 
 const record = (id: string) => () => {
@@ -47,4 +48,4 @@ function Fixture() {
     );
 }
 
-createRoot(document.getElementById('root')!).render(<Fixture />);
+createRoot(document.getElementById('root')!).render(new URLSearchParams(window.location.search).has('timestamp') ? <TimestampLayoutFixture /> : <Fixture />);

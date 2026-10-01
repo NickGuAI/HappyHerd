@@ -29,7 +29,7 @@ const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
         import { lightTheme, darkTheme } from '@/theme';
         const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
-        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) document.body.style.backgroundColor = theme.colors.groupped.background;
+        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof) document.body.style.backgroundColor = theme.colors.groupped.background;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -44,11 +44,11 @@ const virtualModules: Record<string, string> = {
         import octicons from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
-        export const Octicons = (props) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow
+        export const Octicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'octicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 octicons[props.name] ? String.fromCodePoint(octicons[props.name]) : '')
             : React.createElement(Icon, props);
@@ -337,7 +337,7 @@ const virtualModules: Record<string, string> = {
                 detectedAt: 1,
                 sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'daemon-defaults' },
                 models: [
-                    { code: 'claude-opus-5-5', value: 'Opus Research Preview', isDefault: true },
+                    { code: 'claude-opus-5-5', value: fixtureOptions.longModelLabel ? 'Opus Research Preview Thinking' : 'Opus Research Preview', isDefault: true },
                     { code: 'claude-sonnet-5', value: 'Sonnet Team Edition' },
                 ],
                 effortLevels: [],
@@ -1523,7 +1523,7 @@ describe('Side chats browser interaction', () => {
         ] as const)));
         const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
         const commanderHtml = Buffer.from(html.toString()
             .replace('/fixture.css', '/commander-context.css')
             .replace('/side-chat.js', '/commander-context.js'));
@@ -2246,6 +2246,52 @@ describe('Side chats browser interaction', () => {
         expect(await page.locator('[aria-disabled="true"]').filter({ visible: true }).count()).toBeGreaterThan(0);
         await page.close();
     });
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, height: width === 390 ? 844 : 900, theme }))))(
+        'opens the chip label edge and keeps Send fixed with a long model name at $width px in $theme', async ({ width, height, theme }) => {
+            const page = await browser.newPage({ viewport: { width, height } });
+            page.setDefaultTimeout(5_000);
+            const errors: string[] = [];
+            page.on('pageerror', error => errors.push(error.message));
+            try {
+                await page.addInitScript(() => { (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { modelPicker: true, customClaudeNames: true, longModelLabel: true, layoutProof: true }; });
+                await page.goto(`${origin}/?theme=${theme}`);
+                await page.evaluate(() => document.fonts.ready);
+                const foreground = page.getByTestId('foreground-session');
+                const input = foreground.locator('textarea').first();
+                await input.fill('Group18 send target proof');
+                const chip = foreground.getByTestId('composer-chip-model');
+                const send = foreground.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last();
+                await expect(chip.innerText()).resolves.toBe('Opus Research Preview Thinking');
+                const sendBox = await send.boundingBox();
+                expect(sendBox).not.toBeNull();
+                expect(sendBox!.x).toBeGreaterThanOrEqual(0);
+                expect(sendBox!.x + sendBox!.width).toBeLessThanOrEqual(width);
+                expect(sendBox!.y + sendBox!.height).toBeLessThanOrEqual(height);
+                // The label's left edge is inside the hit area even when the
+                // phone chip row scrolls horizontally to keep full names.
+                const label = chip.getByText('Opus Research Preview Thinking', { exact: true });
+                await label.click({ position: { x: 2, y: 8 } });
+                const popover = foreground.getByTestId('composer-chip-popover-model');
+                await popover.waitFor({ state: 'visible', timeout: 3_000 });
+                await popover.getByRole('button', { name: 'Sonnet Team Edition', exact: true }).click();
+                await expect.poll(() => chip.innerText()).toBe('Sonnet Team Edition');
+                expect(await send.boundingBox()).toEqual(sendBox);
+                await chip.getByText('Sonnet Team Edition', { exact: true }).click({ position: { x: 2, y: 8 } });
+                await popover.getByRole('button', { name: 'Opus Research Preview Thinking', exact: true }).click();
+                await expect.poll(() => chip.innerText()).toBe('Opus Research Preview Thinking');
+                await popover.waitFor({ state: 'detached', timeout: 3_000 });
+                expect(await send.boundingBox()).toEqual(sendBox);
+                expect(await send.evaluate(node => { const r = node.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && node.contains(hit); })).toBe(true);
+                const directory = process.env.HAPPYHERD_LAYOUT_EVIDENCE_DIR?.trim();
+                if (directory) { mkdirSync(directory, { recursive: true }); await page.screenshot({ path: resolve(directory, `group18-long-model-send-${width}-${theme}.png`), fullPage: true }); }
+                await send.click();
+                await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_SENDS__ ?? [])).toMatchObject([{ sessionId: 'parent', text: 'Group18 send target proof' }]);
+                expect(await page.evaluate(() => (window as any).__COMPOSER_SENDS__.length)).toBe(1);
+                expect(errors).toEqual([]);
+            } finally { await page.close(); }
+        }, 30_000,
+    );
 
     it.each([
         { width: 1440, height: 900, theme: 'light' },

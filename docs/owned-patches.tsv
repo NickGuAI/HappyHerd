@@ -741,3 +741,4 @@ UPSTREAM_4CF54D18_KILV_FIXTURE_EXPORT	accepted	test(sync): align KILV route fixt
 UPSTREAM_4CF54D18_LOCALIZED_RELEASE	accepted	feat(app): localize the upstream integration release notes	server/packages/happyherd-app/sources/changelog/localizedEntry.ts
 UPSTREAM_4CF54D18_CHANGELOG_GOLDENS	accepted	test(app): refresh four changelog baselines for upstream integration	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_4CF54D18_PACKET_LIMIT_PROOF	accepted	test(server): verify oversized packets over the WebSocket transport	server/packages/happyherd-server/sources/app/api/socket.spec.ts
+UPSTREAM_4CF54D18_LAYOUT_JOURNEYS	accepted	test(app): verify timestamp and composer layout across Web viewports	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
