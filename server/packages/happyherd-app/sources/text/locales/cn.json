@@ -532,7 +532,14 @@
       "troubleshootConnection": "排查连接问题",
       "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happyherd`。\n3. 重新打开 HappyHerd。\n\nAI 提示词：\n{aiPrompt}",
       "copyAiPrompt": "复制 AI 提示词",
-      "copyAiPromptFailed": "无法复制 AI 提示词。"
+      "copyAiPromptFailed": "无法复制 AI 提示词。",
+      "installDescription": "在你的 macOS 或 Linux 电脑上，打开终端并运行以下命令。",
+      "serverSelection": "安装程序询问服务器 URL 时，请使用与此应用相同的服务器：{serverUrl}。默认地址 http://127.0.0.1:3005 会在电脑上启动本地服务器；仅当此应用使用该服务器时才选择它。",
+      "authorizeTerminal": "授权终端",
+      "authorizeDescription": "安装程序会启动授权。如果没有，请打开新的终端并运行以下命令。选择“Mobile App”选项，然后在此提交终端的 URL 或用手机扫描其二维码，使用你当前的账号授权此终端。",
+      "startDaemon": "让机器上线",
+      "daemonDescription": "授权后，安装程序会启动守护进程。如果你单独完成了授权，请运行：",
+      "discoveryDescription": "请保持电脑在线。守护进程连接到同一服务器上的此账号后，此页面会显示“{newSession}”。选择它，即可在已连接的机器上开始会话。"
     },
     "agentGoalBar": {
       "currentGoal": "当前目标",
@@ -1746,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} 条新消息 · 跳到最新",
     "commandCompletedWithNoOutput": "[命令已完成但无输出]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "还没有消息",
     "noActiveSessions": "没有活动会话",
@@ -1852,7 +1858,10 @@
     "runningAndQueued": "{value1} 个运行中 · {value2} 个排队中",
     "valueRunning": "{value1} 个运行中",
     "inProgressAndPending": "{value1} 个进行中 · {value2} 个待处理",
-    "thisDevice": "此设备"
+    "thisDevice": "此设备",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "显示另外 {count} 行",

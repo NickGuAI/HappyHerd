@@ -618,7 +618,14 @@
       "troubleshootConnection": "Verbindung prüfen",
       "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happyherd` erneut aus.\n3. Öffnen Sie HappyHerd erneut.\n\nKI-Prompt:\n{aiPrompt}",
       "copyAiPrompt": "KI-Prompt kopieren",
-      "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden."
+      "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden.",
+      "installDescription": "Führen Sie diesen Befehl auf Ihrem macOS- oder Linux-Computer in einem Terminal aus.",
+      "serverSelection": "Wenn das Installationsprogramm nach einer Server-URL fragt, verwenden Sie denselben Server wie diese App: {serverUrl}. Der Standardwert http://127.0.0.1:3005 startet einen lokalen Server auf Ihrem Computer; wählen Sie ihn nur, wenn diese App diesen Server verwendet.",
+      "authorizeTerminal": "Terminal autorisieren",
+      "authorizeDescription": "Das Installationsprogramm startet die Autorisierung. Falls nicht, öffne ein neues Terminal und führe den folgenden Befehl aus. Wähle „Mobile App“ und autorisiere das Terminal mit deinem aktuellen Konto, indem du hier seine URL bestätigst oder seinen QR-Code mit deinem Smartphone scannst.",
+      "startDaemon": "Computer online bringen",
+      "daemonDescription": "Nach der Autorisierung startet das Installationsprogramm den Daemon. Wenn Sie die Autorisierung separat abgeschlossen haben, führen Sie Folgendes aus:",
+      "discoveryDescription": "Lassen Sie Ihren Computer online. Sobald sich sein Daemon mit diesem Konto auf demselben Server verbindet, zeigt dieser Bildschirm „{newSession}“ an. Wählen Sie dies aus, um auf Ihrem verbundenen Computer zu starten."
     },
     "agentGoalBar": {
       "currentGoal": "Aktuelles Ziel",
@@ -1746,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} neu · Zur neuesten Nachricht",
     "commandCompletedWithNoOutput": "[Befehl ohne Ausgabe abgeschlossen]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "Noch keine Nachrichten",
     "noActiveSessions": "Keine aktiven Sitzungen",
@@ -1852,7 +1858,10 @@
     "runningAndQueued": "{value1} aktiv · {value2} in Warteschlange",
     "valueRunning": "{value1} aktiv",
     "inProgressAndPending": "{value1} in Bearbeitung · {value2} ausstehend",
-    "thisDevice": "Dieses Gerät"
+    "thisDevice": "Dieses Gerät",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "{count} weitere Zeilen anzeigen",

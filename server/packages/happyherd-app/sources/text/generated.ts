@@ -147,10 +147,15 @@ export type TranslationKey =
     | "components.agentGoalBar.currentGoal"
     | "components.agentGoalBar.editGoal"
     | "components.agentGoalBar.stopGoal"
+    | "components.emptyMainScreen.authorizeDescription"
+    | "components.emptyMainScreen.authorizeTerminal"
     | "components.emptyMainScreen.bringMachineOnline"
     | "components.emptyMainScreen.copyAiPrompt"
     | "components.emptyMainScreen.copyAiPromptFailed"
+    | "components.emptyMainScreen.daemonDescription"
+    | "components.emptyMainScreen.discoveryDescription"
     | "components.emptyMainScreen.installCli"
+    | "components.emptyMainScreen.installDescription"
     | "components.emptyMainScreen.machineUnreachable"
     | "components.emptyMainScreen.noMachinesReachable"
     | "components.emptyMainScreen.noSessionsYet"
@@ -158,6 +163,8 @@ export type TranslationKey =
     | "components.emptyMainScreen.readyToCode"
     | "components.emptyMainScreen.runIt"
     | "components.emptyMainScreen.scanQrCode"
+    | "components.emptyMainScreen.serverSelection"
+    | "components.emptyMainScreen.startDaemon"
     | "components.emptyMainScreen.startOnConnectedMachine"
     | "components.emptyMainScreen.troubleshoot"
     | "components.emptyMainScreen.troubleshootConnection"
@@ -1327,6 +1334,7 @@ export type TranslationKey =
     | "uiCopy.askValue"
     | "uiCopy.attachFile"
     | "uiCopy.attachValueToNextMessage"
+    | "uiCopy.authLogin"
     | "uiCopy.backgroundProcesses"
     | "uiCopy.browseFilesystemRoot"
     | "uiCopy.browseParentFolder"
@@ -1355,6 +1363,7 @@ export type TranslationKey =
     | "uiCopy.createDirectory"
     | "uiCopy.currentDeviceMetadataComesFromThisPhoneOlderTokensUse"
     | "uiCopy.currentTokenValue"
+    | "uiCopy.daemonStart"
     | "uiCopy.daemonStopped"
     | "uiCopy.dangerouslySkipPermissions"
     | "uiCopy.defaultModelEffortAndPermissions"
@@ -1397,6 +1406,7 @@ export type TranslationKey =
     | "uiCopy.hideActivity"
     | "uiCopy.hostFolders"
     | "uiCopy.inProgressAndPending"
+    | "uiCopy.installHappyHerd"
     | "uiCopy.jumpToLatest"
     | "uiCopy.latestFast"
     | "uiCopy.latestFastest"
@@ -1431,7 +1441,6 @@ export type TranslationKey =
     | "uiCopy.noWorktree"
     | "uiCopy.notInstalledOnThisMachine"
     | "uiCopy.notSupportedByValue"
-    | "uiCopy.npmIGHappyHerd"
     | "uiCopy.onceThisDeviceIsRegisteredItWillAppearHere"
     | "uiCopy.openANewTerminalOnYourComputerToStartSession"
     | "uiCopy.openFolderValue"
@@ -1687,7 +1696,9 @@ export interface TranslationParamsByKey {
     "artifacts.countPlural": { count: number };
     "changelog.version": { version: string | number };
     "components.agentGoalBar.accessibilityLabel": { goal: string };
+    "components.emptyMainScreen.discoveryDescription": { newSession: string };
     "components.emptyMainScreen.machineUnreachable": { machine: string };
+    "components.emptyMainScreen.serverSelection": { serverUrl: string };
     "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string };
     "components.sessionStatusBar.contextUsage": { percent: number; total: string | number; used: string | number };
     "components.sessionStatusBar.limitAsOf": { age: string };

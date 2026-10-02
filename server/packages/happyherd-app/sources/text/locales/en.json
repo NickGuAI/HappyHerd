@@ -618,7 +618,14 @@
       "troubleshootConnection": "Troubleshoot connection",
       "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happyherd` again.\n3. Reopen HappyHerd.\n\nAI prompt:\n{aiPrompt}",
       "copyAiPrompt": "Copy AI prompt",
-      "copyAiPromptFailed": "Could not copy the AI prompt."
+      "copyAiPromptFailed": "Could not copy the AI prompt.",
+      "installDescription": "On your macOS or Linux computer, run this command in a terminal.",
+      "serverSelection": "When the installer asks for a server URL, use the same server as this app: {serverUrl}. The default http://127.0.0.1:3005 starts a local server on your computer; choose it only if this app uses that server.",
+      "authorizeTerminal": "Authorize your terminal",
+      "authorizeDescription": "The installer starts authorization. If it did not, open a new terminal and run the command below. Choose the “Mobile App” option, then authorize this terminal with your current account by submitting its URL here or scanning its QR code on your phone.",
+      "startDaemon": "Bring your machine online",
+      "daemonDescription": "After authorization, the installer starts the daemon. If you completed authorization separately, run:",
+      "discoveryDescription": "Keep your computer online. When its daemon connects to this account on the same server, this screen shows {newSession}. Select it to start on your connected machine."
     },
     "agentGoalBar": {
       "currentGoal": "Current goal",
@@ -1746,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} new · Jump to latest",
     "commandCompletedWithNoOutput": "[Command completed with no output]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "No messages yet",
     "noActiveSessions": "No active sessions",
@@ -1852,7 +1858,10 @@
     "runningAndQueued": "{value1} running · {value2} queued",
     "valueRunning": "{value1} running",
     "inProgressAndPending": "{value1} in progress · {value2} pending",
-    "thisDevice": "This device"
+    "thisDevice": "This device",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "Show {count} more lines",

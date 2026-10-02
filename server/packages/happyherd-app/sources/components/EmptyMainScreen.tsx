@@ -12,6 +12,7 @@ import { useAllMachines } from '@/sync/storage';
 import { collectMachineChoices } from '@/sync/machineChoices';
 import { useOfflineMachineTroubleshooting } from '@/hooks/useOfflineMachineTroubleshooting';
 import { useRouter } from 'expo-router';
+import { getServerUrl } from '@/sync/serverConfig';
 
 const Image = withUnistyles(ExpoImage);
 
@@ -70,9 +71,9 @@ const stylesheet = StyleSheet.create((theme) => ({
     terminalBlock: {
         backgroundColor: theme.colors.kilv.bgSunken,
         borderRadius: 6,
-        padding: 20,
-        marginHorizontal: 24,
-        marginBottom: 20,
+        padding: 16,
+        marginTop: 12,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: theme.colors.kilv.rimLine,
     },
@@ -80,24 +81,21 @@ const stylesheet = StyleSheet.create((theme) => ({
         ...Typography.mono(),
         fontSize: 16,
         color: theme.colors.terminal.prompt,
-    },
-    terminalTextFirst: {
-        marginBottom: 8,
+        ...(Platform.OS === 'web' ? { overflowWrap: 'anywhere' as const } : {}),
     },
     stepsContainer: {
-        marginTop: 12,
-        marginHorizontal: 24,
-        marginBottom: 48,
-        width: 250,
+        width: '100%',
+        maxWidth: 600,
+        paddingHorizontal: 24,
+        marginBottom: 24,
+    },
+    step: {
+        marginBottom: 24,
     },
     stepRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: 8,
-    },
-    stepRowLast: {
-        flexDirection: 'row',
-        alignItems: 'center',
     },
     stepNumber: {
         width: 24,
@@ -117,10 +115,16 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.text,
     },
     stepText: {
-        ...Typography.default(),
+        ...Typography.default('semiBold'),
         flex: 1,
         fontSize: 18,
+        color: theme.colors.text,
+    },
+    stepDescription: {
+        ...Typography.default(),
+        fontSize: 16,
         color: theme.colors.textSecondary,
+        ...(Platform.OS === 'web' ? { overflowWrap: 'anywhere' as const } : {}),
     },
     buttonsContainer: {
         alignItems: 'center',
@@ -252,72 +256,64 @@ export function EmptyMainScreen({
                 contentFit="cover"
                 style={styles.artwork}
             />
-            {/* Terminal-style code block */}
             <Text style={styles.title}>{t('components.emptyMainScreen.readyToCode')}</Text>
-            <View style={styles.terminalBlock}>
-                <Text style={[styles.terminalText, styles.terminalTextFirst]}>
-                    {t("uiCopy.npmIGHappyHerd")}
-                </Text>
-                <Text style={styles.terminalText}>
-                    {t("uiCopy.happyherd")}
-                </Text>
-            </View>
-
-
-            {Platform.OS !== 'web' && (
-                <>
-                    <View style={styles.stepsContainer}>
-                        <View style={styles.stepRow}>
-                            <View style={styles.stepNumber}>
-                                <Text style={styles.stepNumberText}>1</Text>
-                            </View>
-                            <Text style={styles.stepText}>
-                                {t('components.emptyMainScreen.installCli')}
-                            </Text>
-                        </View>
-                        <View style={styles.stepRow}>
-                            <View style={styles.stepNumber}>
-                                <Text style={styles.stepNumberText}>2</Text>
-                            </View>
-                            <Text style={styles.stepText}>
-                                {t('components.emptyMainScreen.runIt')}
-                            </Text>
-                        </View>
-                        <View style={styles.stepRowLast}>
-                            <View style={styles.stepNumber}>
-                                <Text style={styles.stepNumberText}>3</Text>
-                            </View>
-                            <Text style={styles.stepText}>
-                                {t('components.emptyMainScreen.scanQrCode')}
-                            </Text>
-                        </View>
+            <View style={styles.stepsContainer}>
+                <View style={styles.step}>
+                    <View style={styles.stepRow}>
+                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+                        <Text style={styles.stepText}>{t('components.emptyMainScreen.installCli')}</Text>
+                    </View>
+                    <Text style={styles.stepDescription}>{t('components.emptyMainScreen.installDescription')}</Text>
+                    <View style={styles.terminalBlock}>
+                        <Text selectable style={styles.terminalText}>{t('uiCopy.installHappyHerd')}</Text>
+                    </View>
+                    <Text selectable style={styles.stepDescription}>
+                        {t('components.emptyMainScreen.serverSelection', { serverUrl: getServerUrl() })}
+                    </Text>
+                </View>
+                <View style={styles.step}>
+                    <View style={styles.stepRow}>
+                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+                        <Text style={styles.stepText}>{t('components.emptyMainScreen.authorizeTerminal')}</Text>
+                    </View>
+                    <Text style={styles.stepDescription}>{t('components.emptyMainScreen.authorizeDescription')}</Text>
+                    <View style={styles.terminalBlock}>
+                        <Text selectable style={styles.terminalText}>{t('uiCopy.authLogin')}</Text>
                     </View>
                     <View style={styles.buttonsContainer}>
-                        <View style={styles.buttonWrapper}>
-                            <RoundButton
-                                title={t('components.emptyMainScreen.openCamera')}
-                                size="large"
-                                loading={isLoading}
-                                onPress={connectTerminal}
-                            />
-                        </View>
+                        {Platform.OS !== 'web' && (
+                            <View style={styles.buttonWrapper}>
+                                <RoundButton
+                                    title={t('components.emptyMainScreen.openCamera')}
+                                    size="large"
+                                    loading={isLoading}
+                                    onPress={connectTerminal}
+                                />
+                            </View>
+                        )}
                         <Pressable
                             onPress={enterUrlManually}
                             accessibilityRole="button"
                             accessibilityLabel={t('connect.enterUrlManually')}
-                            style={({ pressed }) => [
-                                styles.manualUrlButton,
-                                pressed && styles.manualUrlButtonPressed,
-                            ]}
+                            style={({ pressed }) => [styles.manualUrlButton, pressed && styles.manualUrlButtonPressed]}
                         >
                             <Ionicons name="link-outline" size={17} color={theme.colors.textSecondary} />
-                            <Text style={styles.manualUrlButtonText}>
-                                {t('connect.enterUrlManually')}
-                            </Text>
+                            <Text style={styles.manualUrlButtonText}>{t('connect.enterUrlManually')}</Text>
                         </Pressable>
                     </View>
-                </>
-            )}
+                </View>
+                <View>
+                    <View style={styles.stepRow}>
+                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+                        <Text style={styles.stepText}>{t('components.emptyMainScreen.startDaemon')}</Text>
+                    </View>
+                    <Text style={styles.stepDescription}>{t('components.emptyMainScreen.daemonDescription')}</Text>
+                    <View style={styles.terminalBlock}>
+                        <Text selectable style={styles.terminalText}>{t('uiCopy.daemonStart')}</Text>
+                    </View>
+                    <Text style={styles.stepDescription}>{t('components.emptyMainScreen.discoveryDescription', { newSession: t('newSession.title') })}</Text>
+                </View>
+            </View>
             {showArchivedAction}
         </ScrollView>
     );

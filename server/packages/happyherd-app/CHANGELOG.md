@@ -2,6 +2,10 @@
 
 - If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests.
 
+# October 2 — Connect your first computer
+
+- First-run setup now uses the public macOS/Linux installer and shows the current app server, terminal authorization, and daemon startup steps. Web users can enter the terminal URL directly; native phones retain camera and manual URL pairing.
+
 # October 1 — Codex conversation reliability
 
 - Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.
