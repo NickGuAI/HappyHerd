@@ -9,7 +9,6 @@ import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { childContext, ownedFailure, publicFailure, rememberFailure } from './native-installer-auth-diagnostics.mjs';
 
 const [installRoot, testHome, serverUrl, separator, ...rerun] = process.argv.slice(2);
 assert(installRoot && testHome && serverUrl && separator === '--' && rerun.length,
@@ -44,8 +43,7 @@ let daemonStarted = false;
 const children = new Set();
 const base64 = value => Buffer.from(value).toString('base64');
 
-function start(kind, command, args, options = {}) {
-  const context = childContext(stage, kind);
+function start(command, args, options = {}) {
   const child = spawn(command, args, {
     cwd: testHome, env, stdio: ['pipe', 'pipe', 'pipe'], detached: true, ...options,
   });
@@ -55,20 +53,16 @@ function start(kind, command, args, options = {}) {
   child.stdout.on('data', chunk => { output = (output + chunk).slice(-1024 * 1024); });
   child.stderr.on('data', chunk => { output = (output + chunk).slice(-1024 * 1024); });
   const done = new Promise((resolve, reject) => {
-    child.once('error', error => reject(rememberFailure(error, context, {
-      category: 'spawn-error', errno: error.errno, output,
-    })));
+    child.once('error', reject);
     child.once('close', (code, signal) => {
       children.delete(child);
       if (code === 0) resolve(output);
-      else reject(ownedFailure(context, {
-        category: signal ? 'child-signal' : 'child-exit', exitCode: code, signal, output,
-      }));
+      else reject(new Error(`child failed during ${stage}: exit=${code}, signal=${signal}`));
     });
   });
   // Auth is awaited only after approval; avoid an unhandled early-exit rejection.
   done.catch(() => {});
-  return { child, done, output: () => output, context };
+  return { child, done, output: () => output };
 }
 
 async function finish(process, timeout = 120_000) {
@@ -77,9 +71,7 @@ async function finish(process, timeout = 120_000) {
     return await Promise.race([
       process.done,
       new Promise((_, reject) => {
-        timer = setTimeout(() => reject(ownedFailure(process.context, {
-          category: 'child-timeout', timeoutMs: timeout, output: process.output(),
-        })), timeout);
+        timer = setTimeout(() => reject(new Error(`timed out during ${stage}`)), timeout);
       }),
     ]);
   } finally {
@@ -87,8 +79,8 @@ async function finish(process, timeout = 120_000) {
   }
 }
 
-async function run(kind, command, args, timeout) {
-  const process = start(kind, command, args);
+async function run(command, args, timeout) {
+  const process = start(command, args);
   process.child.stdin.end();
   return finish(process, timeout);
 }
@@ -100,7 +92,7 @@ async function waitFor(check, timeout = 90_000) {
     if (result) return result;
     await delay(250);
   } while (Date.now() < deadline);
-  throw ownedFailure(childContext(stage, 'none'), { category: 'check-timeout', timeoutMs: timeout });
+  throw new Error(`timed out during ${stage}`);
 }
 
 let token;
@@ -199,7 +191,7 @@ try {
   // Node stdio "pipes" are sockets. Apple script's tcgetattr/ioctl rejects
   // socket stdin with EOPNOTSUPP; a shell pipe supplies the real Unix pipe it
   // supports. The pipeline exits with script's status, not the feeder's status.
-  authChild = start('pairing-auth-login', '/bin/sh', ['-c', `cat | script ${scriptArgs.map(quote).join(' ')}`]);
+  authChild = start('/bin/sh', ['-c', `cat | script ${scriptArgs.map(quote).join(' ')}`]);
   await waitFor(() => {
     if (authChild.child.exitCode !== null) throw new Error('auth CLI exited before method selection');
     return authChild.output().includes('How would you like to authenticate?');
@@ -222,7 +214,7 @@ try {
 
   stage = 'initial online daemon';
   daemonStarted = true;
-  await run('initial-daemon-start', cli, ['daemon', 'start']);
+  await run(cli, ['daemon', 'start']);
   await connect();
   const before = await onlineMachine(accountEncryption);
   console.log('native-installer-auth: registered machine online and encrypted RPC usable');
@@ -251,12 +243,12 @@ try {
 
   stage = 'installer rerun';
   socket.disconnect();
-  await run('installer-rerun', rerun[0], rerun.slice(1), 300_000);
+  await run(rerun[0], rerun.slice(1), 300_000);
   await waitFor(async () => {
     try { return (await fetch(`${serverUrl}/health`, { signal: AbortSignal.timeout(2000) })).ok; }
     catch { return false; }
   });
-  assert((await run('post-rerun-auth-login', cli, ['auth', 'login'])).includes('Already authenticated'),
+  assert((await run(cli, ['auth', 'login'])).includes('Already authenticated'),
     'upgrade lost CLI authentication');
   await connect();
   stage = 'post-upgrade online daemon and retained history';
@@ -275,7 +267,7 @@ try {
   assert.deepEqual(decrypt((await readMessage(nextId)).content.c, sessionKey), message);
   console.log('native-installer-auth: rerun retained account, machine key, session and history; next message persisted');
 } catch (error) {
-  console.error(`native-installer-auth: failure ${JSON.stringify(publicFailure(error, stage))}`);
+  console.error(`native-installer-auth: failed during ${stage}: ${error.message}`);
   if (stage === 'pairing' && authChild) {
     const output = authChild.output();
     const reason = /script:.*(?:tcgetattr|ioctl)/.test(output) ? 'PTY stdin rejected'
@@ -289,11 +281,8 @@ try {
   socket?.disconnect();
   if (daemonStarted) {
     stage = 'test daemon cleanup';
-    try { await run('test-daemon-stop', cli, ['daemon', 'stop']); }
-    catch (error) {
-      console.error(`native-installer-auth: cleanup failure ${JSON.stringify(publicFailure(error, stage))}`);
-      process.exitCode = 1;
-    }
+    try { await run(cli, ['daemon', 'stop']); }
+    catch { console.error('native-installer-auth: test daemon cleanup failed'); process.exitCode = 1; }
   }
   for (const child of children) {
     try { process.kill(-child.pid, 'SIGTERM'); } catch { /* Already exited. */ }

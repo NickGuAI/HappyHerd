@@ -1,5 +1,8 @@
 # Issue 345 authenticated acceptance
 
+> **Trimmed for merge (2026-10-02).** The hosted native acceptance harness, its raw receipts, the CI failure records and the Web runner were removed from the tree during review; the summary below and the Web captures in `web/` are retained. The complete artifacts remain in this pull request's history at commit `c1520534be2e8ebb9b34c35c432f2407faaab74a`.
+
+
 Owner: [#345](https://github.com/NickGuAI/HappyHerd/issues/345). PR: [#367](https://github.com/NickGuAI/HappyHerd/pull/367). Durable session: `cmun8rx40083it0o1o82chj4s`.
 
 The full authenticated Desktop, Mobile Web and iOS simulator journey **passed** at
@@ -7,7 +10,7 @@ The full authenticated Desktop, Mobile Web and iOS simulator journey **passed** 
 `0217e4c629415eda601856cd21e535489e5e1f06`. The native app was the independently
 verified normal Xcode build `4933c0c7`, with the identical complete product tree
 `e8a2fb1ad9756a56306354861f3d62b73f5f6eb8`.
-[Durable complete proof](hosted-native/pass-d197a1be/README.md) retains all 35
+Durable complete proof retains all 35
 original captures, receipts and the execution manifest. The earlier standalone
 Web proof at `62eaa155` and every native failure remain below.
 
@@ -31,7 +34,7 @@ Independent friend-request, app-update and changelog indicators keep their estab
 
 ## Real Web deployment and evidence
 
-[Machine-readable receipt](web/web-acceptance.json), [executed acceptance runner](web/run-web-acceptance.mjs).
+Machine-readable receipt, executed acceptance runner.
 
 All **13 stages passed** from `2026-09-30T02:15:10.637Z` to `2026-09-30T02:15:23.530Z`. Thirteen Inbox screenshots and 29 sanitized received feed socket updates were retained. Chrome `154.0.8037.58`, Playwright `1.62.1`, Desktop `1440×900`, Mobile `390×844` with `isMobile` and touch enabled. Web Mobile is a touch/viewport browser run, not a physical-phone claim.
 
@@ -98,7 +101,7 @@ The prior local contract failure and historical CI failures remain disclosed in 
 The exact hosted Release app completed the full authenticated journey on a
 private iPhone 17 / iOS 26.2 simulator in
 [attempt 20](https://github.com/NickGuAI/HappyHerd/actions/runs/36779331859).
-[Durable proof and reproduction recipe](hosted-native/pass-d197a1be/README.md)
+Durable proof and reproduction recipe
 cover all 16 native checkpoints, 18 native captures, normal A → B → A QR linking,
 pending-Done race and durable isolated-server restart/reconnect. XCTest passed
 one test with zero failures or skips. This is simulator evidence, not a physical
@@ -215,7 +218,7 @@ The original archive and custom derivative failures remain preserved. A new
 build must have its own manifest, archive hash, effective-signing metadata and
 sanitized generated-entitlement evidence before selection for native acceptance.
 It cannot inherit the prior derivative's claim of unchanged executable bytes.
-The [normal-signing recipe](native-signed-build-workflow.yml) is an experiment
+The normal-signing recipe is an experiment
 until the installed artifact completes normal authentication and all native
 criteria. It changes no product source, initial activation call, assertion,
 timeout, screenshot requirement or skip.
@@ -233,9 +236,9 @@ at `4933c0c7` passed its Release build in 49m58s, signing verification and archi
 upload. [Artifact 11109961474](https://github.com/NickGuAI/HappyHerd/actions/runs/36733047107/artifacts/11109961474)
 contains 736 manifest-verified files; its archive SHA-256 is
 `0a692dee476bc6fb12a79879a75fb7865c7ace0c2c3ab4960b90b26cc1d762b5`.
-The [build evidence](native-signed-build-evidence.json),
-[complete manifest](native-signed-build-manifest.json) and
-[sanitized signing receipt](native-signed-signing-receipt.json) are retained here.
+The build evidence,
+complete manifest and
+sanitized signing receipt are retained here.
 The durable manifest uses standard JSON Unicode escapes for at-signs in image
 filenames, which the publication checker otherwise misclassifies as emails.
 Parsed filenames/hashes are unchanged, and reversing only those escapes
@@ -265,7 +268,7 @@ preserved. Native acceptance is still unproved until the full journey passes.
 
 The subsequent installed-artifact diagnostic found six permission mismatches
 while all 736 file hashes, file/member sets, types and link targets matched.
-The [retained failure history and preparation](hosted-native/README.md)
+The retained failure history and preparation
 describe conditional restoration of only the six declared framework executable
 permissions on the owned simulator, followed by all original integrity and
 strict signature checks. The archive and app bytes remain unchanged, with no
@@ -279,7 +282,7 @@ Per-item navigation/read, Done/bell/card dots, authenticated relaunch and real
 arrival/remote-Done now have installed iOS simulator proof in that failed run.
 The test then failed during normal logout before account B; the remaining
 account-scope, native Done race and durable restart/reconnect criteria are still
-unproved. The [retained history](hosted-native/README.md) records the source-based
+unproved. The retained history records the source-based
 phone drawer navigation correction and all original failure hashes. Partial
 checkpoint success is not a full native acceptance pass.
 
@@ -287,14 +290,14 @@ The first `a6f1b8b3` macOS x64 installer job failed during the second isolated
 host's installer-rerun stage with child exit 1. Both normal pairings and encrypted
 RPC checks, nine self-host tests and the first host's retained-history upgrade
 had passed. The exact failed child and cause were not retained by that test's
-output. [Sanitized independent review](ci-a6f1b8b3-installer-failure.json)
+output. Sanitized independent review
 preserves the failure, original log hash and comparison to the unchanged,
 fully passing `bba99d30` installer source. The other three current targets passed.
 One independently justified retry of only the failed job was started in
 [run 36748692750, attempt 2](https://github.com/NickGuAI/HappyHerd/actions/runs/36748692750/attempts/2).
 That retry passed: both normal pairings, both encrypted RPC checks and both
 retained-history upgrade checks completed, with the final macOS x64 success
-marker. The [sanitized retry receipt](ci-a6f1b8b3-installer-retry.json) binds its
+marker. The sanitized retry receipt binds its
 private log hash and exact job; the first failure remains separate and unchanged.
 No threshold, assertion or skip was changed. Final delivery still requires all
 four targets on the final head.
@@ -305,7 +308,7 @@ failed during resource monitoring of simulator boot, before app installation or
 native UI. All 13 Web stages passed. Source and receipt timing distinguish a
 ten-second resource-probe timeout from the unexpired 600-second boot deadline;
 the exact probe was not retained. Cleanup succeeded, and completed samples
-remained above the original floors. The [failure ledger and diagnostic recipe](hosted-native/README.md)
+remained above the original floors. The failure ledger and diagnostic recipe
 preserve the failure and add only fixed probe attribution, without changing
 commands, timeouts, sampling or acceptance criteria. The drawer correction and
 remaining native criteria are still unproved.
@@ -315,7 +318,7 @@ remaining native criteria are still unproved.
 passed resource monitoring, normal QR authentication and checkpoints 01–08.
 The drawer correction completed Settings and Account navigation actions. It then failed
 the Logout row visibility query within the unchanged twelve-swipe limit, before
-any logout or B link. The [retained source review and failure history](hosted-native/README.md)
+any logout or B link. The retained source review and failure history
 identify the test's unsupported label-prefix assumption and the targeted row
 query correction. No resource-probe failure occurred, all 13 Web stages passed,
 and cleanup succeeded. Full native account scope, race and restart remain
@@ -328,7 +331,7 @@ and `7d570f36`. [Run 36759521990, job 110038207154](https://github.com/NickGuAI/
 passed both normal pairings, nine self-host tests and the first host's RPC and
 retained-history upgrade. The second host's initial `daemon start` child then
 exited 1 without a reported timeout. This is a different stage from the prior
-`a6f1b8b3` failure. The [sanitized independent diagnosis](ci-ec7567a7-installer-failure.json)
+`a6f1b8b3` failure. The sanitized independent diagnosis
 preserves the exact child boundary, source comparisons and original log hash;
 the captured child output was discarded, so its root cause remains unproved.
 The other three installer targets passed. Narrow command/failure attribution is
@@ -343,7 +346,7 @@ proved the corrected Logout query: one matching row became hittable after two
 swipes, and the normal Logout and confirmation taps completed. The app then
 became not-running before login returned, so no B authentication occurred.
 Native checkpoints 01–08 and all 13 Web stages passed; the full native test still
-failed, with successful cleanup. [Retained evidence and bounded crash diagnostics](hosted-native/README.md)
+failed, with successful cleanup. Retained evidence and bounded crash diagnostics
 preserve the unknown cause and inspect the owned app's reload/process failure
 without changing the journey or automatically reopening the app.
 
@@ -351,7 +354,7 @@ without changing the journey or automatically reopening the app.
 repeated the same post-Logout failure after checkpoints 01–08 and all 13 Web
 stages passed. One recent app-named crash-report candidate failed exact identity
 checks; no crash was classified, so the cause remains unknown. The
-[retained failure and next narrow diagnostic](hosted-native/README.md) distinguish
+retained failure and next narrow diagnostic distinguish
 the rejected identity predicates without relaxing ownership or changing behavior.
 On that exact head, all six required gates passed in
 [Quality](https://github.com/NickGuAI/HappyHerd/actions/runs/36764889054) and
@@ -364,7 +367,7 @@ and [28 zero-difference goldens](https://github.com/NickGuAI/HappyHerd/actions/r
 again failed after Logout confirmation. The rejected report now shows matching
 app identities and exact simulator coalition, with a wildcard-redacted process
 path; it still provides no crash classification. The
-[narrow diagnostic correction and retained failure](hosted-native/README.md)
+narrow diagnostic correction and retained failure
 bind that observed redaction case to the verified installed binary while keeping
 simulator ownership and all journey criteria. At `0534e716`, all six required
 gates passed in [Quality](https://github.com/NickGuAI/HappyHerd/actions/runs/36768957771)
@@ -378,7 +381,7 @@ failed one desktop Workspace test body at its unchanged 10-second limit. The
 other three parameter variants passed; the app suite recorded 3,939 passes,
 one failure and ten existing skips. This differs from the earlier three-suite
 setup timeout. The registration stack does not identify the stalled gesture.
-[Sanitized failure evidence](ci-30ad7634-unit-failure.json) preserves the log hash,
+Sanitized failure evidence preserves the log hash,
 counts and byte-identical product/test/dependency/workflow comparisons against
 the two preceding passing heads. Those comparisons do not establish a transient
 runner cause. Any retry retains the deadline, assertions and skips; this first
@@ -390,7 +393,7 @@ After independent review, one unchanged-head [Unit retry](https://github.com/Nic
 passed with all original assertions, deadlines and skips retained. The previously
 failed variant completed in 3,602 ms; all 48 Workspace cases passed. The app
 suite passed 3,940 tests with ten existing skips, followed by passing wire,
-control-agent, CLI and server suites. [Sanitized retry evidence](ci-30ad7634-unit-retry.json)
+control-agent, CLI and server suites. Sanitized retry evidence
 keeps the log hash and exact-head results separate from the first failure; the
 precise cause of the first timeout remains unproved.
 
@@ -401,8 +404,8 @@ build and simulator: `EXC_BAD_ACCESS`, `SIGSEGV`, `SIGNAL/11`, captured 11.406
 seconds after checkpoint 08 during the later Logout sequence. All ten captures
 passed independent visual/privacy and integrity review; resource floors held and
 cleanup succeeded. Sixteen symbolized frames yielded no existing fixed tags, so
-the failing code remains unknown. The [durable failure and next bounded code
-attribution](hosted-native/README.md) preserve this distinction without changing
+the failing code remains unknown. The durable failure and next bounded code
+attribution preserve this distinction without changing
 the product or any native acceptance criterion. At this head, [all four
 installers](https://github.com/NickGuAI/HappyHerd/actions/runs/36774235855), the
 [server/Web image](https://github.com/NickGuAI/HappyHerd/actions/runs/36774236533)

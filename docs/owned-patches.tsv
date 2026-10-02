@@ -24,7 +24,7 @@ CLI_RENAME_PROVIDER_INTEGRATION	accepted	fix(cli): integrate refreshed provider 
 CLI_RENAME_UPSTREAM_CONTINUITY	accepted	fix(cli): apply canonical names to upstream continuity changes	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 CLI_RENAME_TRACKING	accepted	fix(cli): retain tracked ignored files through repeated renames	scripts/rename-cli.test.mjs
 CLI_RENAME_GOLDENS	accepted	test(cli): refresh changelog goldens from reviewed CI capture	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
-CLI_RENAME_PAIRING	accepted	fix(cli): preserve the shipped app pairing protocol	scripts/test-native-installer-auth.mjs
+CLI_RENAME_PAIRING	accepted	fix(cli): preserve the shipped app pairing protocol	docs/acceptance/issue-345/README.md
 NON_CLI_FULL_RENAME	accepted	refactor(product): complete non-cli naming with identity continuity	docs/non-cli-renaming.md
 CLI_RENAME_CHANGELOG	accepted	docs(cli): preserve historical changelog during renames	scripts/cli-rename-scope.json
 CLI_RENAME_LINT	accepted	chore(cli): normalize relocated source whitespace	server/packages/happyherd-cli/src/commands/connect.ts
@@ -390,11 +390,11 @@ PROJECT_SESSION_DETAIL	accepted	fix(projects): retain inactive pinned assistant 
 PROJECT_SESSION_NAVIGATION	accepted	docs: synchronize project navigation inventory and guide	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): verify navigation grouping and compact sidebar gestures	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
 PROJECT_NAVIGATION_BROWSER	accepted	test(projects): retain bot ordering and avatar assertions	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
-NATIVE_INSTALLER_AUTH	accepted	test(installer): prove paired daemon and retained history across upgrades	scripts/test-native-installer-auth.mjs
-NATIVE_INSTALLER_AUTH	accepted	test(installer): require installer-owned daemon restart	scripts/test-native-installer-auth.mjs
+NATIVE_INSTALLER_AUTH	accepted	test(installer): prove paired daemon and retained history across upgrades	docs/acceptance/issue-345/README.md
+NATIVE_INSTALLER_AUTH	accepted	test(installer): require installer-owned daemon restart	docs/acceptance/issue-345/README.md
 NATIVE_INSTALLER_PRISMA	accepted	fix(server): select the prepared platform Prisma engine	server/packages/happyherd-server-self-host/index.test.cjs
 NATIVE_INSTALLER_PRISMA	accepted	test(installer): run packaged engine contract with native assets	scripts/test-native-installer-asset.sh
-NATIVE_INSTALLER_PTY	accepted	test(installer): supply a real pipe to macOS auth PTY	scripts/test-native-installer-auth.mjs
+NATIVE_INSTALLER_PTY	accepted	test(installer): supply a real pipe to macOS auth PTY	docs/acceptance/issue-345/README.md
 DEFAULT_ASSISTANT_SESSION	accepted	feat(server): retain one default Assistant session per account	server/packages/happyherd-server/sources/app/api/routes/sessionRoutes.defaultAssistant.spec.ts
 DEFAULT_ASSISTANT_BOOTSTRAP	accepted	feat(assistant): initialize the persistent default session through the daemon	server/packages/happyherd-cli/src/daemon/defaultAssistant.test.ts
 DEFAULT_ASSISTANT_BOOTSTRAP	accepted	fix(assistant): require live registration before reusing a provider process	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
@@ -685,28 +685,29 @@ COMMANDER_CONTEXT_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the
 INBOX_READ_STATE_345	accepted	feat(inbox): persist per-update reads and add Done action	server/packages/happyherd-app/sources/components/InboxView.browser.test.ts
 INBOX_READ_ERROR_DIALOG_345	accepted	test(inbox): dismiss failure dialogs while clicks settle	server/packages/happyherd-app/sources/components/InboxView.browser.test.ts
 INBOX_READ_GOLDENS_345	accepted	test(inbox): refresh read-state changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
-INBOX_READ_NATIVE_ARTIFACT_345	accepted	test(inbox): build an unmodified iOS acceptance artifact	docs/acceptance/issue-345/native-build-workflow.yml
-INBOX_READ_NATIVE_POD_CWD_345	accepted	test(inbox): install native pods from the generated project	docs/acceptance/issue-345/native-build-workflow.yml
-INBOX_NATIVE_RELEASE_COMPILATION	accepted	test(inbox): use standard Release compilation for acceptance	docs/acceptance/issue-345/native-build-workflow.yml
-INBOX_NATIVE_HOSTED_JOURNEY_345	accepted	test(inbox): run authenticated native acceptance on an isolated runner	docs/acceptance/issue-345/hosted-native/controller.mjs
-INBOX_NATIVE_RUNTIME_MATCH_345	accepted	test(inbox): match the acceptance simulator to its Xcode SDK	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_PERMISSION_JOURNEY_345	accepted	test(inbox): handle the native notification prompt during acceptance	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
-INBOX_NATIVE_AUTH_DIAGNOSTICS_345	accepted	test(inbox): diagnose native account persistence on the acceptance device	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_SIMULATOR_SIGNING_345	accepted	test(inbox): sign the isolated simulator app for account persistence	docs/acceptance/issue-345/hosted-native/prepare-simulator-signing.py
-INBOX_NATIVE_STARTUP_DIAGNOSTICS_345	accepted	test(inbox): synchronize native startup before the acceptance journey	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
-INBOX_NATIVE_LAUNCH_CLASSIFICATION_345	accepted	test(inbox): classify native launch failures without exposing private logs	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence coverage and narrow launch diagnostics	docs/acceptance/issue-345/hosted-native/controller.mjs
-INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal Xcode simulator signing	docs/acceptance/issue-345/native-signed-build-workflow.yml
-INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/hosted-native/verify-hosted-app.py
-INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native controller artifact pin	docs/acceptance/issue-345/hosted-native/controller.mjs
-INBOX_NATIVE_INSTALL_VERIFICATION_DIAGNOSTICS_345	accepted	test(inbox): classify installed artifact verification failures	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_INSTALLED_FRAMEWORK_MODES_345	accepted	test(inbox): restore verified simulator framework permissions	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_NORMAL_SETTINGS_NAVIGATION_345	accepted	test(inbox): open native account settings through the phone drawer	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
-INBOX_NATIVE_RESOURCE_PROBE_DIAGNOSTICS_345	accepted	test(inbox): attribute native resource probe failures safely	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_LOGOUT_ROW_QUERY_345	accepted	test(inbox): match the native logout row by its visible copy	docs/acceptance/issue-345/hosted-native/xcuitest/Tests/InboxAcceptanceTests.swift
-INBOX_ACCEPTANCE_INSTALLER_CHILD_DIAGNOSTICS_345	accepted	test(installer): preserve sanitized child failure attribution	scripts/test-native-installer-auth.mjs
-INBOX_NATIVE_OWNED_CRASH_DIAGNOSTICS_345	accepted	test(inbox): classify owned simulator crash reports safely	docs/acceptance/issue-345/hosted-native/native-driver.py
-INBOX_NATIVE_CRASH_IDENTITY_DIAGNOSTICS_345	accepted	test(inbox): attribute crash report identity mismatches safely	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
-INBOX_NATIVE_REDACTED_CRASH_IDENTITY_345	accepted	test(inbox): bind redacted crash paths to the verified native build	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
-INBOX_NATIVE_CRASH_CODE_ATTRIBUTION_345	accepted	test(inbox): attribute owned crash frames to verified native code	docs/acceptance/issue-345/hosted-native/launch-diagnostics.py
-INBOX_AUTHENTICATED_NATIVE_ACCEPTANCE_345	accepted	docs(inbox): retain complete authenticated simulator acceptance	docs/acceptance/issue-345/hosted-native/pass-d197a1be/README.md
+INBOX_READ_NATIVE_ARTIFACT_345	accepted	test(inbox): build an unmodified iOS acceptance artifact	docs/acceptance/issue-345/README.md
+INBOX_READ_NATIVE_POD_CWD_345	accepted	test(inbox): install native pods from the generated project	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_RELEASE_COMPILATION	accepted	test(inbox): use standard Release compilation for acceptance	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_HOSTED_JOURNEY_345	accepted	test(inbox): run authenticated native acceptance on an isolated runner	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_RUNTIME_MATCH_345	accepted	test(inbox): match the acceptance simulator to its Xcode SDK	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_PERMISSION_JOURNEY_345	accepted	test(inbox): handle the native notification prompt during acceptance	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_AUTH_DIAGNOSTICS_345	accepted	test(inbox): diagnose native account persistence on the acceptance device	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_SIMULATOR_SIGNING_345	accepted	test(inbox): sign the isolated simulator app for account persistence	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_STARTUP_DIAGNOSTICS_345	accepted	test(inbox): synchronize native startup before the acceptance journey	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_LAUNCH_CLASSIFICATION_345	accepted	test(inbox): classify native launch failures without exposing private logs	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_FULL_JOURNEY_345	accepted	test(inbox): complete native persistence coverage and narrow launch diagnostics	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_XCODE_SIGNING_COMPARISON_345	accepted	test(inbox): compare normal Xcode simulator signing	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_NORMAL_SIGNED_ARTIFACT_345	accepted	test(inbox): select the normally signed simulator artifact	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_CONTROLLER_ARTIFACT_PIN_345	accepted	test(inbox): align the native controller artifact pin	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_INSTALL_VERIFICATION_DIAGNOSTICS_345	accepted	test(inbox): classify installed artifact verification failures	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_INSTALLED_FRAMEWORK_MODES_345	accepted	test(inbox): restore verified simulator framework permissions	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_NORMAL_SETTINGS_NAVIGATION_345	accepted	test(inbox): open native account settings through the phone drawer	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_RESOURCE_PROBE_DIAGNOSTICS_345	accepted	test(inbox): attribute native resource probe failures safely	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_LOGOUT_ROW_QUERY_345	accepted	test(inbox): match the native logout row by its visible copy	docs/acceptance/issue-345/README.md
+INBOX_ACCEPTANCE_INSTALLER_CHILD_DIAGNOSTICS_345	accepted	test(installer): preserve sanitized child failure attribution	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_OWNED_CRASH_DIAGNOSTICS_345	accepted	test(inbox): classify owned simulator crash reports safely	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_CRASH_IDENTITY_DIAGNOSTICS_345	accepted	test(inbox): attribute crash report identity mismatches safely	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_REDACTED_CRASH_IDENTITY_345	accepted	test(inbox): bind redacted crash paths to the verified native build	docs/acceptance/issue-345/README.md
+INBOX_NATIVE_CRASH_CODE_ATTRIBUTION_345	accepted	test(inbox): attribute owned crash frames to verified native code	docs/acceptance/issue-345/README.md
+INBOX_AUTHENTICATED_NATIVE_ACCEPTANCE_345	accepted	docs(inbox): retain complete authenticated simulator acceptance	docs/acceptance/issue-345/README.md
+INBOX_ACCEPTANCE_RECORD_TRIM_345	accepted	docs(acceptance): trim the issue 345 acceptance record to its summary and Web captures	docs/acceptance/issue-345/README.md
