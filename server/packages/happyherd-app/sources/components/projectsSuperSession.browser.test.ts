@@ -661,7 +661,9 @@ describe('Projects and Super Session production UI gestures', () => {
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
-        await page.clock.install({ time: new Date(1_800_000_000_000) });
+        // The installed clock runs between protocol calls. Start before the pause
+        // target so setup cannot race backwards; load the app only once paused.
+        await page.clock.install({ time: new Date(0) });
         await page.clock.pauseAt(new Date(1_800_000_000_000));
         await page.goto(`${origin}/?${surface.query}focus=1&scenario=projects&${query}${account ? `&focus-account=${account}` : ''}`);
         if (account) await page.waitForFunction(() => (window as any).__FOCUS_READY__);

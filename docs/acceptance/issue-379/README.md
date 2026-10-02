@@ -153,6 +153,17 @@ behavior and authenticated app-to-terminal pairing remain unperformed.
   cancelled. The maintained script regenerated all 28 images, and only the
   four changelog images changed.
 
+The first final-head CI unit run (`36994964047`, revision `74e9b227`) passed
+4051 app tests but hit an existing focus fixture setup race: installing a
+running clock and then pausing at its install timestamp can request a time
+already in the past. A blank-page reproduction with a 250 ms protocol delay
+failed with the exact CI error. Starting the clock at epoch zero before the
+existing pause target passed the same reproduction and retained the exact
+`Date.now() === 1800000000000` value before the app loads. This prerequisite
+fixture repair changes no product behavior, assertions, timeouts or skips.
+The separately reproduced macOS focus-render and Linux-only shortcut
+assumptions remain outside this product change.
+
 Final exact-head CI conclusions and independent review are recorded in
 [PR #389](https://github.com/NickGuAI/HappyHerd/pull/389). This patch changes the
 Web/shared-phone frontend only; no server or daemon runtime activation is

@@ -720,3 +720,4 @@ CREATE_ACCOUNT_ERROR_381	accepted	fix(app): show localized account creation fail
 CREATE_ACCOUNT_CHANGELOG_GOLDENS_381	accepted	test(app): refresh account creation changelog visual baselines	docs/acceptance/issue-287/golden
 FIRST_RUN_PUBLIC_INSTALL_379	accepted	fix(app): guide first-run users through public installation and connection	server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx
 FIRST_RUN_EVIDENCE_379	accepted	test(app): retain first-run evidence and refresh visual baselines	docs/acceptance/issue-379/README.md
+FIRST_RUN_CI_CLOCK_SETUP_379	accepted	test(app): initialize the focus fixture clock before its pause target	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
