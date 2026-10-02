@@ -729,3 +729,4 @@ CONTEXT_WINDOW_NATIVE_OWNER_365	code-ready	feat(context): maintain the native ru
 CONTEXT_WINDOW_INTEGRATION_INVENTORY_365	accepted	test(context): refresh integrated native context artifacts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 INSTALLER_STABLE_LAYOUT	accepted	fix(installer): support pre-rename stable release layouts	scripts/test-public-launcher-release-contract.sh
 INSTALLER_LEGACY_RENAME_BOUNDARY	accepted	fix(installer): preserve published dependency spelling in rename checks	scripts/test-public-launcher-release-contract.sh
+INSTALLER_STABLE_PIPELINE	accepted	test(installer): fetch the candidate script through the curl pipeline	scripts/test-native-installer-stable.sh

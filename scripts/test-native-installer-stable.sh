@@ -86,7 +86,7 @@ export PATH="$forbidden_bin:$PATH"
 
 # The README pipe-to-sh invocation uses the exact reviewed installer. Its asset
 # resolution is untouched: no --asset or --version bypasses the live latest URL.
-cat "$repo_root/install.sh" | sh -s -- --server https://remote.example --no-start
+curl -fsSL "file://$repo_root/install.sh" | sh -s -- --server https://remote.example --no-start
 command_path="$HOME/.local/bin/happyherd"
 install_root="$HOME/.local/share/happyherd"
 node_bin="$install_root/node/bin/node"
@@ -110,7 +110,7 @@ cp "$HOME/.happyherd/sessions.json" "$fixture/sessions.before"
 
 # Upgrade from the same unmodified downloaded release, reusing persisted server
 # choice. This also ties a successful invocation to the recorded archive hash.
-cat "$repo_root/install.sh" | sh -s -- --asset "$asset" --no-start
+curl -fsSL "file://$repo_root/install.sh" | sh -s -- --asset "$asset" --no-start
 "$command_path" --version
 "$node_bin" - "$HOME/.happyherd/settings.json" <<'NODE'
 const fs = require('node:fs');
