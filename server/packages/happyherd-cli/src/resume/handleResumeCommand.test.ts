@@ -584,6 +584,26 @@ describe('handleResumeCommand', () => {
         );
     });
 
+    it.each(['claude', 'codex', 'grok', 'dsh'] as const)('prepares a fresh context handoff for terminal %s resume', async (flavor) => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata, flavor, commanderId: 'athena',
+            claudeSessionId: '11111111-1111-4111-8111-111111111111',
+            acpSessionId: 'retained-acp-session',
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+        vi.stubEnv('HAPPYHERD_CONTEXT_BUNDLE_PATH', '/stale/parent-bundle.md');
+        vi.stubEnv('HAPPYHERD_CONTEXT_HASH', 'stale-parent-hash');
+
+        await handleResumeCommand([session.id]);
+
+        expect(mocks.mockPrepareCommanderContext).toHaveBeenCalledExactlyOnceWith('athena', session.metadata.path);
+        const [, { env }] = mocks.mockSpawnHappyHerdCLI.mock.calls[0];
+        expect(env.HAPPYHERD_CONTEXT_BUNDLE_PATH).toBe('/tmp/current-agentcontext.md');
+        expect(env.HAPPYHERD_CONTEXT_HASH).toBe('current-context-hash');
+        expect(env.HAPPYHERD_RECONNECT_SESSION_ID).toBe(session.id);
+    });
+
     it('resumes from local persisted encryption data', async () => {
         const session = createReconnectableSession();
         session.metadata.codexHome = '/tmp';

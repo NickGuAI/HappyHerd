@@ -3,6 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { agentContextRoot, listCommanders, parseCommanderIdentity } from '@/agentContext/commanderContext';
+import { ensureSharedKnowledge } from '@/agentContext/sharedKnowledge';
 
 const LearningSchema = z.object({
   path: z.string().trim().min(1).max(240),
@@ -132,6 +133,11 @@ function optionValue(args: string[], option: string): string | null {
 
 export async function handleCommanderCommand(args: string[]): Promise<void> {
   const action = args[0];
+  if (action === 'guide' && !args.includes('--help') && !args.includes('-h')) {
+    if (args.slice(1).some(arg => arg !== '--json')) throw new Error('Usage: happyherd commander guide [--json]');
+    console.log(JSON.stringify(await ensureSharedKnowledge(agentContextRoot()), null, 2));
+    return;
+  }
   if (action === 'list') {
     console.log(JSON.stringify(await listCommanders(), null, 2));
     return;
@@ -148,5 +154,6 @@ export async function handleCommanderCommand(args: string[]): Promise<void> {
 Usage:
   happyherd commander list
   happyherd commander create --manifest <file>
+  happyherd commander guide [--json]  Seed missing shared guides; preserve existing files
 `);
 }

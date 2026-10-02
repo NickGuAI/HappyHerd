@@ -68,6 +68,19 @@ import { activateCredentialAccount } from './credentialPool/activate'
   }
 
   if (subcommand === 'doctor') {
+    if (args[1] === '--help' || args[1] === '-h' || args[1] === 'help') {
+      console.log(`
+${chalk.bold('happyherd doctor')} - System diagnostics and troubleshooting
+
+${chalk.bold('Usage:')}
+  happyherd doctor             Inspect configuration, authentication, and processes
+  happyherd doctor clean       Kill all HappyHerd-related processes (daemon + sessions)
+  happyherd doctor --help      Show this help without running diagnostics
+
+${chalk.bold('Warning:')} clean interrupts running sessions and in-flight tool calls.
+`)
+      return;
+    }
     // Check for clean subcommand
     if (args[1] === 'clean') {
       if (args.slice(2).some(a => a === '--help' || a === '-h')) {
@@ -628,7 +641,7 @@ ${chalk.bold('Usage:')}
   If you want to kill all HappyHerd-related processes, run
   ${chalk.cyan('happyherd doctor clean')}
 
-${chalk.bold('Note:')} The daemon runs in the background and manages Claude sessions.
+${chalk.bold('Note:')} The daemon runs in the background and manages HappyHerd provider sessions.
 
 ${chalk.bold('To clean up runaway processes:')} Use ${chalk.cyan('happyherd doctor clean')}
 `)
@@ -740,7 +753,7 @@ ${chalk.bold('Usage:')}
   happyherd [options]         Start Claude with mobile control
   happyherd auth              Manage authentication
   happyherd machine           Discover account machines
-  happyherd session           Create a tracked session on an account machine
+  happyherd session           Create, inspect, send to, and manage sessions/side chats
   happyherd resume            Resume a previous HappyHerd session by HappyHerd session ID
   happyherd codex             Start Codex mode
   happyherd gemini            Start Gemini mode (ACP) [deprecated — use agy]
@@ -748,8 +761,11 @@ ${chalk.bold('Usage:')}
   happyherd grok              Start GrokBuild through ACP
   happyherd dsh               Start dsh through ACP
   happyherd acp               Start a generic ACP-compatible agent
-  happyherd connect           Connect AI vendor API keys
-  happyherd accounts      List, select, or remove named provider accounts
+  happyherd commander         List/create Commanders and seed shared knowledge
+  happyherd automation        Manage machine-local schedules and runs
+  happyherd server            Run a local sync server and web app
+  happyherd connect           Connect provider tokens or named local accounts
+  happyherd accounts          List, select, or remove named provider accounts
   happyherd credentials       List saved credentials or run a command with them
   happyherd sandbox           Configure and manage OS-level sandboxing
   happyherd notify            Send push notification
@@ -793,7 +809,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
       // Run the maintained Node launcher directly so Windows never asks the OS
       // to execute an npm .cmd shim through execFileSync.
       try {
-        const claudeHelp = execFileSync(process.execPath, [claudeCliPath, '--help'], { encoding: 'utf8', windowsHide: true })
+        const claudeHelp = execFileSync(process.execPath, [claudeCliPath, '--help'], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
         console.log(claudeHelp)
       } catch (e) {
         console.log(chalk.yellow('Could not retrieve claude help. Make sure claude is installed.'))

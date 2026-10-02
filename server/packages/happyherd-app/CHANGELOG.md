@@ -1,3 +1,8 @@
+# October 2 — Shared guidance from the first Commander session
+
+- Fresh installs include a portable HappyHerd operations guide. Commander startup and resume directions point to shared guidance while keeping private memory in its existing location.
+- Existing global instructions, shared guides and Commander state are preserved. Run `happyherd commander guide --json` to add missing guides and find the files to review when updating older instructions.
+
 # October 2 — Retry account creation
 
 - If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests.

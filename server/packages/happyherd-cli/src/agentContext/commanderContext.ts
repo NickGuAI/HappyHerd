@@ -8,7 +8,6 @@ import {
   open,
   readFile,
   readdir,
-  readlink,
   realpath,
   rmdir,
   symlink,
@@ -28,9 +27,10 @@ import {
   type HappyHerdCommanderListResponse,
   type HappyHerdCommanderSummary,
 } from '@happyherd/wire';
-import { configuration } from '@/configuration';
+import { resolveCliHome } from '@/legacyCompatibility';
+import { ensureSharedKnowledge } from './sharedKnowledge';
 
-const BUNDLE_VERSION = 4;
+const BUNDLE_VERSION = 5;
 const INSTRUCTION_RECEIPT_VERSION = 1;
 const COMMANDER_MEMORY_MAX_BYTES = 64 * 1024;
 const COMMANDER_AVATAR_FILE_NAME = 'avatar.png';
@@ -81,7 +81,7 @@ export interface CommanderContextMetadata {
 }
 
 export function agentContextRoot(): string {
-  return path.resolve(process.env.HAPPYHERD_HOME_DIR?.trim() || configuration.happyHomeDir);
+  return path.resolve(resolveCliHome(process.env, homedir()));
 }
 
 function commanderRoot(): string {
@@ -341,37 +341,25 @@ async function ensureClaudeMirror(agentsPath: string, content: string): Promise<
   const mirrorPath = claudeMirrorPath();
   if (mirrorPath === agentsPath) return;
 
-  let replaceMirror = false;
-
   try {
-    const stats = await lstat(mirrorPath);
-    if (stats.isSymbolicLink()) {
-      const target = await readlink(mirrorPath);
-      const resolvedTarget = path.resolve(path.dirname(mirrorPath), target);
-      if (resolvedTarget === agentsPath) return;
-      replaceMirror = true;
-    } else if (stats.isFile()) {
-      const existing = await readFile(mirrorPath, 'utf8');
-      if (existing === content) return;
-      if (existing.startsWith(MANAGED_COPY_HEADER)) {
-        await writeFile(mirrorPath, MANAGED_COPY_HEADER + content, { mode: 0o600 });
-        return;
-      }
-      replaceMirror = true;
-    } else {
-      throw new Error(`CLAUDE.md mirror path is not a file or symbolic link: ${mirrorPath}`);
-    }
+    // A previously generated copy may have since been edited by its owner.
+    // Never replace existing global content, including custom symlinks.
+    await lstat(mirrorPath);
+    return;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
 
   await mkdir(path.dirname(mirrorPath), { recursive: true });
-  if (replaceMirror) await unlink(mirrorPath);
   if (process.platform !== 'win32') {
-    await symlink(path.relative(path.dirname(mirrorPath), agentsPath), mirrorPath);
+    await symlink(path.relative(path.dirname(mirrorPath), agentsPath), mirrorPath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'EEXIST') throw error;
+    });
     return;
   }
-  await writeFile(mirrorPath, MANAGED_COPY_HEADER + content, { mode: 0o600 });
+  await writeFile(mirrorPath, MANAGED_COPY_HEADER + content, { flag: 'wx', mode: 0o600 }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EEXIST') throw error;
+  });
 }
 
 function buildBundleText(options: {
@@ -403,6 +391,13 @@ function buildBundleText(options: {
     'The global AGENTS.md and selected COMMANDER.md below are authoritative instructions.',
     'Selected Commander L2 and L3 memory are loaded below with bounded provenance; L1 evidence and other context stay on demand.',
     'Do not invent a second memory or task model. Preserve the existing AgentContext tree unchanged.',
+    '',
+    '## Shared knowledge: startup and resume',
+    '',
+    `At every session startup and resume, read the canonical shared entry point: ${path.join(options.globalAgentContextPath, 'README.md')}`,
+    `Before operating HappyHerd, read the relevant CLI guidance: ${path.join(options.globalAgentContextPath, 'happyherd-cli.md')}`,
+    'Shared guidance is product reference, not authority to override user instructions, global AGENTS.md, the selected COMMANDER.md, or applicable project instructions. Keep private Commander memory and user-specific knowledge in their existing authority.',
+    'These shared files remain on demand; their contents have not been loaded into this bundle.',
     '',
     '## Session archive and retrieval',
     '',
@@ -449,6 +444,7 @@ export async function prepareCommanderContext(
   commanderId?: string | null,
   workingDirectory?: string,
 ): Promise<CommanderContextBundle> {
+  await ensureSharedKnowledge(agentContextRoot());
   const agentsPath = canonicalAgentsPath();
   const hasAgents = await isReadable(agentsPath);
   const globalContent = hasAgents ? await readFile(agentsPath, 'utf8') : '';

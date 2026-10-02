@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   if (originalHappyHerdHomeDir === undefined) delete process.env.HAPPYHERD_HOME_DIR;
   else process.env.HAPPYHERD_HOME_DIR = originalHappyHerdHomeDir;
   if (originalLegacyRoot === undefined) delete process.env.HAPPYHERD_AGENTCONTEXT_ROOT;
@@ -23,6 +24,18 @@ afterEach(async () => {
 });
 
 describe('AgentContext root', () => {
+  it('seeds a tilde-configured home using the same expansion as the CLI', async () => {
+    vi.stubEnv('HOME', root);
+    process.env.HAPPYHERD_HOME_DIR = '~/custom home';
+    const { agentContextRoot, prepareCommanderContext } = await import('./commanderContext');
+    const expected = path.join(root, 'custom home');
+    expect(agentContextRoot()).toBe(expected);
+    const bundle = await prepareCommanderContext(null, root);
+    expect(bundle.globalAgentsPath).toBe(path.join(expected, 'AGENTS.md'));
+    expect(await readFile(path.join(expected, 'agentcontext', 'README.md'), 'utf8')).toContain('shared knowledge');
+    await rm(path.dirname(bundle.bundlePath), { recursive: true, force: true });
+  });
+
   it('uses the configured HappyHerd home by default', async () => {
     const { agentContextRoot } = await import('./commanderContext');
 

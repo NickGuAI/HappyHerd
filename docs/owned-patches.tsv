@@ -722,3 +722,4 @@ FIRST_RUN_PUBLIC_INSTALL_379	accepted	fix(app): guide first-run users through pu
 FIRST_RUN_EVIDENCE_379	accepted	test(app): retain first-run evidence and refresh visual baselines	docs/acceptance/issue-379/README.md
 FIRST_RUN_CI_CLOCK_SETUP_379	accepted	test(app): initialize the focus fixture clock before its pause target	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
 FIRST_RUN_UI_INVENTORY_REGENERATED_379	accepted	test(app): regenerate UI surface inventory after onboarding rebase	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+SHARED_COMMANDER_KNOWLEDGE_336	accepted	fix(context): seed portable shared guidance without replacing user instructions	server/packages/happyherd-cli/src/agentContext/sharedKnowledge.ts

@@ -27,8 +27,28 @@ canonical spelling taking precedence. Existing `~/.happyherd` is preferred;
 if only `~/.happy` exists, it is used in place. Neither home is copied or merged.
 <!-- /rename:preserve -->
 Your original machine identity, keys, session IDs, provider homes and history
-stay intact. See the [rename and migration SOP](../../../docs/cli-renaming.md)
-and [upstream-sync SOP](../../../docs/cli-upstream-sync.md).
+stay intact. See the [rename and migration SOP](../../../../docs/cli-renaming.md)
+and [upstream-sync SOP](../../../../docs/cli-upstream-sync.md).
+
+## Shared operations knowledge
+
+Ordinary installation seeds missing files in the configured HappyHerd home:
+`AGENTS.md`, `agentcontext/README.md`, and `agentcontext/happyherd-cli.md`.
+The global entry links to the portable shared guide. Supported Claude/Codex
+Commander startup and resume receipts direct agents there without replacing
+private Commander memory. Gemini Commander launch is disabled; generic ACP
+routes do not consume that context bundle.
+Existing files and private Commander definitions/state are preserved.
+
+For an existing installation, run `happyherd commander guide --json` to seed
+missing guides and inspect the returned paths/statuses. Customized or obsolete
+files are never overwritten: manually correct obsolete references after review,
+retaining all user-authored instructions. Use the effective home from the receipt
+instead of assuming `~/.happyherd`. The standalone guide command does not restart
+the daemon. A live conversation must resume through the supported route to obtain
+fresh context. A native installer upgrade stops its managed daemon; normal
+installation can start services afterward. `--no-start` prevents startup, not
+the upgrade stop.
 
 ## Usage
 
@@ -60,8 +80,8 @@ happyherd acp -- custom-agent --flag
 ```
 
 `happyherd grok` uses the installed official GrokBuild CLI. Authenticate that CLI
-with `grok login` before starting; HappyHerd does not add another login or credential
-store. Model and reasoning-effort choices come from GrokBuild's live ACP
+with `grok login` before starting, or use a named local account with
+`happyherd connect grok --acct <nickname>`. Model and reasoning-effort choices come from GrokBuild's live ACP
 catalog. Launch permission choices come from the installed `grok --help`, and
 New Session offers them in that native order. If help does not advertise its
 choices, HappyHerd exposes only the provider default.
@@ -243,27 +263,12 @@ the owning machine's canonical registry) or use `none` to detach the Commander.
 Changes take effect on the next session resume without altering the live
 conversation context.
 
-### Keeping the daemon running across reboots
+### After reboot
 
-If you want the daemon to come back automatically after a reboot — without opening a `happyherd` session first — start it from your shell profile so it inherits your normal user session context (PATH, keychain access, OAuth credentials):
-
-```bash
-# ~/.zshrc or ~/.bashrc
-if [[ -o interactive ]] && [[ -z "$HAPPYHERD_DAEMON_CHECKED" ]]; then
-    export HAPPYHERD_DAEMON_CHECKED=1
-    () {
-        local state=$HOME/.happyherd/daemon.state.json
-        local pid=$(grep -oE '"pid"[[:space:]]*:[[:space:]]*[0-9]+' "$state" 2>/dev/null | grep -oE '[0-9]+')
-        if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
-            happyherd daemon start >/dev/null 2>&1
-        fi
-    } &!
-fi
-```
-
-The first interactive shell after a reboot triggers the start; subsequent shells short-circuit because the daemon is already running.
-
-> **macOS users:** prefer this shell-init approach over a `launchd` LaunchAgent. A LaunchAgent runs in an agent domain that is **detached from your GUI/Aqua login session**, which means the bundled `claude-agent-sdk` cannot reach the macOS keychain and silently fails authentication ("Failed to authenticate. API Error: 401 terminated", `duration_api_ms: 0`). If you must use launchd, your wrapper has to read the OAuth access token from `~/.claude/.credentials.json` and export it as `CLAUDE_CODE_OAUTH_TOKEN` before exec'ing the daemon — and you'll need to handle token rotation yourself.
+Run `happyherd daemon status` to inspect the service and `happyherd daemon start`
+when starting it is intended. Run it as the same OS account with the same
+configured HappyHerd home and provider environment. Use the supported CLI
+instead of reading or editing daemon registry files or copying provider tokens.
 
 ## Authentication
 
@@ -274,7 +279,9 @@ happyherd auth logout
 
 HappyHerd uses cryptographic key pairs for authentication — your private key stays on your machine. All session data is end-to-end encrypted before leaving your device.
 
-To connect third-party agent APIs:
+To register provider OAuth tokens with the configured HappyHerd server
+(requires ordinary HappyHerd sign-in; provider login can also update local
+credentials):
 
 ```bash
 happyherd connect gemini
@@ -333,6 +340,35 @@ command-line arguments, and exits with the command's exit code. It halts before
 revealing any value if a reference is unknown or ambiguous, a variable name is
 invalid or repeated, the command is missing, or the CLI is not signed in.
 
+### Local task delivery and resume
+
+Use the existing local machine login for local tasks; creation alone sends no
+prompt. Keep the returned HappyHerd session ID and send an actual instructions
+file, reusing the message ID after an uncertain result:
+
+```text
+happyherd session create --local --path ABSOLUTE_PATH --provider PROVIDER --commander ID --json
+happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID --json
+happyherd session inspect SESSION_ID --limit 20 --json
+happyherd resume SESSION_ID
+```
+
+Send and inspect use the owning local daemon. Resume restores the saved path and
+provider state when supported. Preserve original machine/provider state and
+session identity; record age alone never invalidates a reconnect record. Omit
+`--super-session` for ordinary tasks.
+
+Use category help for safe discovery, including `session --help`,
+`session side-chat --help`, `resume --help`, `commander --help`,
+`automation --help`, and `server --help`. Do not use provider launch routes such
+as `acp --help`, `agy --help`, or `gemini --help` as harmless probes; they can
+launch real sessions. Top-level `--help` may invoke `claude --help`.
+
+Automations are machine-local and daemon-owned; even list/history can start the
+daemon. See `automation --help` for schedules, execution rails, and distinct
+pause/stop-run/abandon-run actions. `server --help` describes local self-hosting:
+`--no-persist` avoids default URL settings changes; `--reset` wipes server data.
+
 ## Commands
 
 | Command | Description |
@@ -342,6 +378,7 @@ invalid or repeated, the command is missing, or the CLI is not signed in.
 | `happyherd agy` | Start agy (Antigravity CLI) session |
 | `happyherd gemini` | Start Gemini CLI session (**deprecated** — use `happyherd agy`) |
 | `happyherd grok` | Start GrokBuild through its official ACP interface |
+| `happyherd dsh` | Start dsh through ACP |
 | `happyherd acp` | Start any ACP-compatible agent |
 | `happyherd resume <id>` | Resume a previous session |
 | `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create and manage exact-parent side chats for Claude, Codex, Gemini, Grok, DSH, and Agy on their local owning daemon |
@@ -349,6 +386,17 @@ invalid or repeated, the command is missing, or the CLI is not signed in.
 | `happyherd credentials run --env VAR=<name\|id> -- <command>` | Run commands with credentials injected as environment variables |
 | `happyherd notify` | Send push notification to your devices |
 | `happyherd doctor` | Diagnostics & troubleshooting |
+| `happyherd commander guide --json` | Seed missing global/shared guides without overwriting existing content |
+| `happyherd automation --help` | Discover machine-local schedule and run operations |
+| `happyherd server --help` | Discover local server options |
+| `happyherd auth` | Manage ordinary HappyHerd sign-in |
+| `happyherd connect` | Register provider tokens or connect named local accounts |
+| `happyherd accounts` | List, select, or remove named local provider accounts |
+| `happyherd daemon` | Manage the local background service |
+| `happyherd sandbox` | Configure OS-level sandboxing |
+| `happyherd session inspect SESSION_ID` | Inspect recent private context through the owning local daemon |
+| `happyherd session send SESSION_ID --text-file ABSOLUTE_FILE --message-id ID` | Deliver instructions with a stable retry ID |
+| `happyherd session ensure-assistant --json` | Reuse the persistent Assistant via local machine login |
 | `happyherd commander list` | List Commanders available on this machine |
 | `happyherd commander create --manifest <file>` | Atomically install agent-authored Commander content |
 | `happyherd machine auth <login\|status\|logout>` | Manage the app-approved account-machine control link |
@@ -366,7 +414,7 @@ and waits for explicit confirmation. The agent authors the identity, memory, and
 learning content, then invokes the host-local scaffold command.
 
 The scaffold is intentionally narrow: it validates the manifest and publishes
-the canonical `~/.happyherd/commanders/<id>` tree atomically. It does not invent
+the canonical `commanders/<id>` tree under the configured HappyHerd home atomically. It does not invent
 Commander content, maintain a second registry, restart the daemon, or write
 through the HappyHerd server. See [`docs/commander-onboarding.md`](../../docs/commander-onboarding.md)
 for the manifest contract and failure guarantees.

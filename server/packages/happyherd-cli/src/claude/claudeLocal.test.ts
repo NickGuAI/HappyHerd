@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { access, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { prepareCommanderContext, contextEnvironment, readContextPromptFromEnvironment } from '@/agentContext/commanderContext';
 import { claudeLocal } from './claudeLocal';
 
 // Use vi.hoisted to ensure mock functions are available when vi.mock factory runs
@@ -328,6 +332,42 @@ describe('claudeLocal --continue handling', () => {
             'global + commander + project\n\ntest-system-prompt',
         );
         expect(spawnedArgs[settingSourcesIndex + 1]).toBe('user,local');
+    });
+
+    it.each([null, 'retained-claude-session'])('delivers real shared entry points on local Claude launch (session: %s)', async (sessionId) => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-claude-shared-'));
+        const originalEnv = { ...process.env };
+        try {
+            process.env.HAPPYHERD_HOME_DIR = join(root, 'home');
+            process.env.TMPDIR = join(root, 'tmp');
+            await mkdir(process.env.TMPDIR, { recursive: true });
+            const commanderDir = join(process.env.HAPPYHERD_HOME_DIR, 'commanders', 'athena');
+            await mkdir(commanderDir, { recursive: true });
+            await writeFile(join(commanderDir, 'COMMANDER.md'), [
+                '---', 'identity_and_scope:', '  name: Athena', '  commander_id: athena',
+                `  workspace: ${root}`, '  role: Test commander', '---', '# Private commander',
+            ].join('\n'));
+            const bundle = await prepareCommanderContext('athena', root);
+            Object.assign(process.env, contextEnvironment(bundle));
+            const prompt = await readContextPromptFromEnvironment();
+            expect(prompt).toContain(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'README.md'));
+            expect(prompt).toContain(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'happyherd-cli.md'));
+            await access(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'README.md'));
+            await access(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'happyherd-cli.md'));
+
+            await claudeLocal({
+                abort: new AbortController().signal, sessionId, path: root,
+                onSessionFound, claudeArgs: [], appendSystemPrompt: prompt,
+            });
+
+            const spawnedArgs = mockSpawn.mock.calls[0][1] as string[];
+            expect(spawnedArgs[spawnedArgs.indexOf('--append-system-prompt') + 1]).toBe(`${prompt}\n\ntest-system-prompt`);
+            if (sessionId) expect(spawnedArgs).toEqual(expect.arrayContaining(['--resume', sessionId]));
+        } finally {
+            for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
+            Object.assign(process.env, originalEnv);
+            await rm(root, { recursive: true, force: true });
+        }
     });
 
     it('should continue without sandbox when initialization fails', async () => {

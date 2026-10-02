@@ -81,36 +81,32 @@ export async function handleConnectCommand(
 
 function showConnectHelp(): void {
     console.log(`
-${chalk.bold('happyherd connect')} - Connect AI vendor API keys to HappyHerd cloud
+${chalk.bold('happyherd connect')} - Connect provider tokens or named local accounts
 
 ${chalk.bold('Usage:')}
   happyherd connect claude --acct <nickname>
   happyherd connect codex --acct <nickname>
   happyherd connect grok --acct <nickname>
-  happyherd connect codex        Store your Codex API key in HappyHerd cloud
-  happyherd connect claude       Store your Anthropic API key in HappyHerd cloud
-  happyherd connect gemini       Store your Gemini API key in HappyHerd cloud
-  happyherd connect status       Show connection status for all vendors
+  happyherd connect codex        Register Codex OAuth tokens with the HappyHerd server
+  happyherd connect claude       Register Anthropic OAuth tokens with the HappyHerd server
+  happyherd connect gemini       Register Gemini OAuth tokens and update local Gemini credentials
+  happyherd connect status       Show server vendor connection status
   happyherd connect help         Show this help message
 
-${chalk.bold('Description:')}
-  The connect command allows you to securely store your AI vendor API keys
-  in HappyHerd cloud. This enables you to use these services through HappyHerd
-  without exposing your API keys locally.
+${chalk.bold('Named local accounts:')}
+  --acct runs provider authentication, stores a named local account, and selects it.
+  Supported providers: claude, codex, grok. Manage them with happyherd accounts.
+  This is separate from the server vendor connections shown by connect status.
 
-${chalk.bold('Examples:')}
-  happyherd connect claude --acct work
-  happyherd connect codex --acct personal
-  happyherd connect grok --acct primary
-  happyherd connect codex
-  happyherd connect claude
-  happyherd connect gemini
-  happyherd connect status
+${chalk.bold('Server vendor connections:')}
+  Without --acct, claude/codex/gemini require happyherd auth login first.
+  Provider OAuth tokens are registered with the configured HappyHerd server.
+  Provider login may also update local provider credentials.
 
-${chalk.bold('Notes:')}
-  • You must be authenticated with HappyHerd first (run 'happyherd auth login')
-  • API keys are encrypted and stored securely in HappyHerd cloud
-  • You can manage your stored keys at app.happy.engineering
+${chalk.bold('Other authentication surfaces:')}
+  happyherd auth manages ordinary HappyHerd sign-in.
+  happyherd machine auth manages the separate account-wide machine-control link.
+  happyherd credentials uses Saved Credentials from Settings > Credentials & Accounts.
 `);
 }
 

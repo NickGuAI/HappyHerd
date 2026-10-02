@@ -1,10 +1,10 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { listCommanders } from '@/agentContext/commanderContext';
-import { createCommanderFromManifest } from './commander';
+import { createCommanderFromManifest, handleCommanderCommand } from './commander';
 
 const cleanup: string[] = [];
 
@@ -101,5 +101,31 @@ describe('commander creation scaffold', () => {
       path.join(secondHome, 'commanders', 'athena-test', 'COMMANDER.md'),
       'utf8',
     )).toContain('Deliver work on the second machine.');
+  });
+});
+
+
+describe('shared guide correction command', () => {
+  it('reports non-destructive creation and leaves help side-effect free', async () => {
+    const home = await mkdtemp(path.join(tmpdir(), 'happyherd-guide-command-'));
+    cleanup.push(home);
+    process.env.HAPPYHERD_HOME_DIR = home;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await handleCommanderCommand(['guide', '--help']);
+      expect(await readdir(home)).toEqual([]);
+      await expect(handleCommanderCommand(['guide', '--overwrite'])).rejects.toThrow('Usage:');
+      expect(await readdir(home)).toEqual([]);
+      await handleCommanderCommand(['guide', '--json']);
+      const receipt = JSON.parse(log.mock.calls.at(-1)![0]);
+      expect(receipt.files).toHaveLength(3);
+      expect(receipt.files.every((file: { status: string }) => file.status === 'created')).toBe(true);
+      await writeFile(path.join(home, 'AGENTS.md'), 'Owner guide');
+      await handleCommanderCommand(['guide', '--json']);
+      expect(JSON.parse(log.mock.calls.at(-1)![0]).files.every((file: { status: string }) => file.status === 'preserved')).toBe(true);
+      expect(await readFile(path.join(home, 'AGENTS.md'), 'utf8')).toBe('Owner guide');
+    } finally {
+      log.mockRestore();
+    }
   });
 });

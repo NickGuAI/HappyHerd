@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 2 — Shared guidance from the first Commander session",
+      "summary": "",
+      "markdown": "- Fresh installs include a portable HappyHerd operations guide. Commander startup and resume directions point to shared guidance while keeping private memory in its existing location.\n- Existing global instructions, shared guides and Commander state are preserved. Run `happyherd commander guide --json` to add missing guides and find the files to review when updating older instructions."
+    },
+    {
       "title": "October 2 — Retry account creation",
       "summary": "",
       "markdown": "- If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests."
@@ -891,5 +896,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 2 — Retry account creation"
+  "latestTitle": "October 2 — Shared guidance from the first Commander session"
 }
