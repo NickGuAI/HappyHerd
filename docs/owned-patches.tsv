@@ -717,3 +717,4 @@ CODEX_JSONL_UNICODE	accepted	fix(codex): preserve Unicode separators in JSONL tr
 CODEX_JSONL_ACCEPTANCE	accepted	test(codex): record Unicode transport acceptance and changelog captures	docs/codex-jsonl-unicode.md
 CODEX_JSONL_REBASED_GOLDENS	accepted	test(codex): refresh rebased Unicode fix changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 CREATE_ACCOUNT_ERROR_381	accepted	fix(app): show localized account creation failures with retry	server/packages/happyherd-app/sources/app/(app)/index.tsx
+CREATE_ACCOUNT_CHANGELOG_GOLDENS_381	accepted	test(app): refresh account creation changelog visual baselines	docs/acceptance/issue-287/golden
