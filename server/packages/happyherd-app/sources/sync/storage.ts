@@ -43,7 +43,7 @@ import { sync } from "./sync";
 import { getCurrentRealtimeSessionId, getVoiceSession } from '@/realtime/RealtimeSession';
 import { isMutableTool } from "@/components/tools/knownTools";
 import { DecryptedArtifact } from "./artifactTypes";
-import { FeedItem } from "./feedTypes";
+import { FeedItem, FeedReadReceipt } from "./feedTypes";
 import { getRigActivityIndicators, getRigGitSummary, getRigIdentity, isRigMetadata, rigSendsMessageReceipts } from './rig';
 import { indexSessionsById } from './sessionIdentity';
 import { filterSessionsForTopLevelLists } from './sessionListVisibility';
@@ -324,6 +324,9 @@ interface StorageState {
     artifacts: Record<string, DecryptedArtifact>;  // New artifacts storage
     friends: Record<string, UserProfile>;  // All relationships (friends, pending, requested, etc.)
     users: Record<string, UserProfile | null>;  // Global user cache, null = 404/failed fetch
+    feedAccount: string | null;
+    feedReadThrough: { counter: number; readAt: number } | null;
+    feedReadIds: Record<string, number>;
     feedItems: FeedItem[];  // Simple list of feed items
     feedHead: string | null;  // Newest cursor
     feedTail: string | null;  // Oldest cursor
@@ -387,6 +390,8 @@ interface StorageState {
     getUser: (userId: string) => UserProfile | null | undefined;
     assumeUsers: (userIds: string[]) => Promise<void>;
     // Feed methods
+    setFeedAccount: (account: string) => void;
+    applyFeedRead: (receipt: FeedReadReceipt) => void;
     applyFeedItems: (items: FeedItem[]) => void;
     clearFeed: () => void;
     // Unread session tracking (memory-only)
@@ -570,6 +575,9 @@ export const storage = create<StorageState>()((set, get) => {
         artifacts: {},  // Initialize artifacts
         friends: {},  // Initialize relationships cache
         users: {},  // Initialize global user cache
+        feedAccount: null,
+        feedReadThrough: null,
+        feedReadIds: {},
         feedItems: [],  // Initialize feed items list
         feedHead: null,
         feedTail: null,
@@ -1545,72 +1553,67 @@ export const storage = create<StorageState>()((set, get) => {
             const { sync } = await import('./sync');
             return sync.assumeUsers(userIds);
         },
-        // Feed methods
-        applyFeedItems: (items: FeedItem[]) => set((state) => {
-            // Always mark feed as loaded even if empty
-            if (items.length === 0) {
-                return {
-                    ...state,
-                    feedLoaded: true  // Mark as loaded even when empty
-                };
-            }
-
-            // Create a map of existing items for quick lookup
-            const existingMap = new Map<string, FeedItem>();
-            state.feedItems.forEach(item => {
-                existingMap.set(item.id, item);
-            });
-
-            // Process new items
-            const updatedItems = [...state.feedItems];
-            let head = state.feedHead;
-            let tail = state.feedTail;
-
-            items.forEach(newItem => {
-                // Remove items with same repeatKey if it exists
-                if (newItem.repeatKey) {
-                    const indexToRemove = updatedItems.findIndex(item =>
-                        item.repeatKey === newItem.repeatKey
-                    );
-                    if (indexToRemove !== -1) {
-                        updatedItems.splice(indexToRemove, 1);
-                    }
-                }
-
-                // Add new item if it doesn't exist
-                if (!existingMap.has(newItem.id)) {
-                    updatedItems.push(newItem);
-                }
-
-                // Update head/tail cursors
-                if (!head || newItem.counter > parseInt(head.substring(2), 10)) {
-                    head = newItem.cursor;
-                }
-                if (!tail || newItem.counter < parseInt(tail.substring(2), 10)) {
-                    tail = newItem.cursor;
-                }
-            });
-
-            // Sort by counter (desc - newest first)
-            updatedItems.sort((a, b) => b.counter - a.counter);
-
+        // Feed reads are durable on the server. Keep receipts here as well so
+        // an older fetch or a delayed socket item cannot undo an acknowledgement.
+        setFeedAccount: (account) => {
+            if (get().feedAccount === account) return;
+            get().clearFeed();
+            set({ feedAccount: account });
+        },
+        applyFeedRead: (receipt) => set((state) => {
+            const through = 'through' in receipt ? Number(receipt.through.slice(2)) : null;
+            const feedReadThrough = through !== null && through >= (state.feedReadThrough?.counter ?? -1)
+                ? { counter: through, readAt: receipt.readAt }
+                : state.feedReadThrough;
+            const feedReadIds = 'id' in receipt
+                ? { ...state.feedReadIds, [receipt.id]: receipt.readAt }
+                : state.feedReadIds;
             return {
-                ...state,
-                feedItems: updatedItems,
-                feedHead: head,
-                feedTail: tail,
-                feedLoaded: true  // Mark as loaded after first fetch
+                feedReadThrough,
+                feedReadIds,
+                feedItems: state.feedItems.map(item =>
+                    item.readAt == null && (('id' in receipt && item.id === receipt.id) || (through !== null && item.counter <= through))
+                        ? { ...item, readAt: receipt.readAt }
+                        : item),
             };
         }),
-        clearFeed: () => set((state) => ({
-            ...state,
+        applyFeedItems: (items: FeedItem[]) => set((state) => {
+            const merged = new Map(state.feedItems.map(item => [item.id, item]));
+            let head = state.feedHead;
+            let tail = state.feedTail;
+            for (const item of items) {
+                const existing = merged.get(item.id);
+                if (item.repeatKey) {
+                    // Ignore delayed older versions of a replaced notification.
+                    if ([...merged.values()].some(previous => previous.repeatKey === item.repeatKey && previous.counter > item.counter)) continue;
+                    for (const previous of merged.values()) {
+                        if (previous.repeatKey === item.repeatKey && previous.id !== item.id) merged.delete(previous.id);
+                    }
+                }
+                const readAt = existing?.readAt ?? item.readAt ?? state.feedReadIds[item.id]
+                    ?? (state.feedReadThrough && item.counter <= state.feedReadThrough.counter ? state.feedReadThrough.readAt : null);
+                merged.set(item.id, { ...item, readAt });
+                if (!head || item.counter > Number(head.slice(2))) head = item.cursor;
+                if (!tail || item.counter < Number(tail.slice(2))) tail = item.cursor;
+            }
+            return {
+                feedItems: [...merged.values()].sort((a, b) => b.counter - a.counter),
+                feedHead: head,
+                feedTail: tail,
+                feedLoaded: true,
+            };
+        }),
+        clearFeed: () => set({
+            feedAccount: null,
+            feedReadThrough: null,
+            feedReadIds: {},
             feedItems: [],
             feedHead: null,
             feedTail: null,
             feedHasMore: false,
-            feedLoaded: false,  // Reset loading flag
-            friendsLoaded: false  // Reset loading flag
-        })),
+            feedLoaded: false,
+            friendsLoaded: false,
+        }),
         markSessionRead: (sessionId: string) => set((state) => {
             if (!state.unreadSessionIds.has(sessionId)) return state;
             const next = new Set(state.unreadSessionIds);

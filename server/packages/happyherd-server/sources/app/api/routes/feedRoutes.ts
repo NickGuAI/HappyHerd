@@ -2,11 +2,18 @@ import { z } from "zod";
 import { Fastify } from "../types";
 import { AutomationBlockedFeedSchema, FeedBodySchema } from "@/app/feed/types";
 import { feedGet } from "@/app/feed/feedGet";
+import { feedPost } from "@/app/feed/feedPost";
 import { Context } from "@/context";
 import { db } from "@/storage/db";
-
-import { feedPost } from "@/app/feed/feedPost";
 import { inTx } from "@/storage/inTx";
+import { buildFeedReadUpdate, eventRouter } from "@/app/events/eventRouter";
+import { randomKeyNaked } from "@/utils/randomKeyNaked";
+
+const feedReadId = z.object({ id: z.string().min(1) }).strict();
+const feedReadThrough = z.object({
+    through: z.string().regex(/^0-(0|[1-9]\d*)$/)
+        .refine(value => Number.isSafeInteger(Number(value.slice(2))))
+}).strict();
 
 export function feedRoutes(app: Fastify) {
     app.post('/v1/feed/automation-blocked', {
@@ -59,7 +66,8 @@ export function feedRoutes(app: Fastify) {
                         body: FeedBodySchema,
                         repeatKey: z.string().nullable(),
                         cursor: z.string(),
-                        createdAt: z.number()
+                        createdAt: z.number(),
+                        readAt: z.number().nullable()
                     })),
                     hasMore: z.boolean()
                 })
@@ -74,5 +82,50 @@ export function feedRoutes(app: Fastify) {
             limit: request.query?.limit
         });
         return reply.send({ items: items.items, hasMore: items.hasMore });
+    });
+
+    app.post('/v1/feed/read', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.union([feedReadId, feedReadThrough]),
+            response: {
+                200: z.union([
+                    feedReadId.extend({ readAt: z.number() }),
+                    feedReadThrough.extend({ readAt: z.number() })
+                ])
+            }
+        }
+    }, async (request, reply) => {
+        const criteria = request.body;
+        const readAt = new Date();
+        const seq = await inTx(async (tx) => {
+            // Bound Done to the observed snapshot so newer arrivals stay unread.
+            const changed = await tx.userFeedItem.updateMany({
+                where: {
+                    userId: request.userId,
+                    readAt: null,
+                    ...('id' in criteria
+                        ? { id: criteria.id }
+                        : { counter: { lte: BigInt(criteria.through.slice(2)) } })
+                },
+                data: { readAt }
+            });
+            if (changed.count === 0) return null;
+            const account = await tx.account.update({
+                where: { id: request.userId },
+                data: { seq: { increment: 1 } },
+                select: { seq: true }
+            });
+            return account.seq;
+        });
+        const result = { ...criteria, readAt: readAt.getTime() };
+        if (seq !== null) {
+            eventRouter.emitUpdate({
+                userId: request.userId,
+                payload: buildFeedReadUpdate(result, seq, randomKeyNaked(12)),
+                recipientFilter: { type: 'user-scoped-only' }
+            });
+        }
+        return reply.send(result);
     });
 }

@@ -14,9 +14,11 @@
   "inbox": {
     "emptyTitle": "Empty Inbox",
     "emptyDescription": "Connect with friends to start sharing sessions",
-    "updates": "Updates"
+    "updates": "Updates",
+    "markReadFailed": "Could not mark updates as read. Please try again."
   },
   "common": {
+    "done": "Done",
     "cancel": "Cancel",
     "authenticate": "Authenticate",
     "save": "Save",

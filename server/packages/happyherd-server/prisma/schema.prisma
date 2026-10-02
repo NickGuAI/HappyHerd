@@ -387,6 +387,7 @@ model UserFeedItem {
     body      Json
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+    readAt    DateTime?
 
     @@unique([userId, counter])
     @@unique([userId, repeatKey])

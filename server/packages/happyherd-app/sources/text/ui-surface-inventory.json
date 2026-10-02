@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "263169f194cf64a75c3fb3fb85a33a57e79e6fd1dd08c5aeb993ce978e9fb2ee",
+  "sourceFingerprint": "42934832777f42eed83f7966d5f359967101b5682d66b680128659bf9bb0d7c8",
   "routeCount": 45,
   "surfaceCount": 338,
   "hardcodedCopyCount": 0,
@@ -3808,16 +3808,20 @@
         "FeedItemCard"
       ],
       "translationKeys": [
+        "common.error",
         "feed.automationBlocked",
         "feed.automationBlockedGeneric",
         "feed.friendAccepted",
         "feed.friendRequestFrom",
+        "inbox.markReadFailed",
         "sessionHistory.daysAgo",
         "time.hoursAgo",
         "time.justNow",
         "time.minutesAgo"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -4991,16 +4995,21 @@
         "InboxView"
       ],
       "translationKeys": [
+        "common.done",
+        "common.error",
         "friends.findFriends",
         "friends.myFriends",
         "friends.pendingRequests",
         "friends.requestPending",
         "inbox.emptyDescription",
         "inbox.emptyTitle",
+        "inbox.markReadFailed",
         "inbox.updates",
         "tabs.inbox"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {

@@ -14,9 +14,11 @@
   "inbox": {
     "emptyTitle": "Leerer Posteingang",
     "emptyDescription": "Verbinde dich mit Freunden, um Sitzungen zu teilen",
-    "updates": "Aktualisierungen"
+    "updates": "Aktualisierungen",
+    "markReadFailed": "Updates konnten nicht als gelesen markiert werden. Bitte versuche es erneut."
   },
   "common": {
+    "done": "Fertig",
     "cancel": "Stornieren",
     "authenticate": "Authentifizieren",
     "save": "Speichern",
