@@ -1,3 +1,4 @@
+import type { SessionTransportRecovery } from '@/daemon/sessionTransport';
 import { DevicePairingCheckRequestSchema, DevicePairingConfirmRequestSchema } from '@happyherd/wire';
 import type { DevicePairingService } from '@/daemon/devicePairing';
 /**
@@ -148,6 +149,7 @@ interface DaemonToServerEvents {
 }
 
 type MachineRpcHandlers = {
+    sessionTransport?: SessionTransportRecovery;
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
     resumeSession?: (sessionId: string, options?: {
         model?: string;
@@ -265,6 +267,7 @@ export class ApiMachineClient {
     }
 
     setRPCHandlers({
+        sessionTransport,
         spawnSession,
         resumeSession,
         stopSession,
@@ -276,6 +279,14 @@ export class ApiMachineClient {
         devicePairing,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
+        if (sessionTransport) {
+            this.rpcHandlerManager.registerHandler('session-transport-status', async (params: any) => (
+                sessionTransport.status(requireNonEmptyString(params?.sessionId, 'sessionId'))
+            ));
+            this.rpcHandlerManager.registerHandler('recover-session-transport', async (params: any) => (
+                sessionTransport.recover(requireNonEmptyString(params?.sessionId, 'sessionId'))
+            ));
+        }
 
         if (devicePairing) {
             this.rpcHandlerManager.registerHandler('happyherd-device-pairing-check', async (params: unknown) => (

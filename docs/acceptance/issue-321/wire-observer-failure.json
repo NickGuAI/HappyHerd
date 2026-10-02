@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "baseline": true,
+  "startedAt": "2026-10-02T14:40:47.155Z",
+  "stages": [
+    {
+      "name": "isolated-server-ready",
+      "at": "2026-10-02T14:40:49.885Z"
+    }
+  ],
+  "revision": {
+    "head": "2ad0a066559c18de86383cbc2d70201486b1d485",
+    "trackedDiffSha256": "35197d232a303caa8673effe62736858cb1aa6da7101ff79311d39235c54cc12",
+    "cliEntrySha256": "8ac85f2b80e7d7ec376b4cbf68648a00ffdd1c4a0b2a5e98184873054a69d9ca",
+    "runnerSha256": "268b2ddda5da12d727d2cae455b159e7ba3fc9999cc33c8b5ceea759f77feb69"
+  },
+  "success": false,
+  "failure": {
+    "stage": "initial real Codex reply",
+    "message": "Timed out during initial real Codex reply"
+  },
+  "finishedAt": "2026-10-02T14:45:02.344Z"
+}

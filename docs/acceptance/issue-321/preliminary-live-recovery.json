@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "baseline": false,
+  "startedAt": "2026-10-02T15:00:00.378Z",
+  "stages": [
+    {
+      "name": "isolated-server-ready",
+      "at": "2026-10-02T15:00:02.989Z"
+    },
+    {
+      "name": "initial-real-codex-reply",
+      "at": "2026-10-02T15:00:20.968Z",
+      "sessionId": "cmur3aurw0006t0hyy739vabc",
+      "threadId": "01a0fd21-4da2-7be1-ac0f-b67c0dc808d8",
+      "commander": "issue-321-proof",
+      "wrapperPid": 78725,
+      "nativePids": [
+        78802
+      ]
+    },
+    {
+      "name": "stale-endpoint-live-process",
+      "at": "2026-10-02T15:00:24.692Z",
+      "wrapperPid": 78725,
+      "oldEndpoint": "http://127.0.0.1:60179",
+      "currentEndpoint": "http://127.0.0.1:60180",
+      "sessionActive": true,
+      "staleHttpStatus": 503
+    },
+    {
+      "name": "supported-status",
+      "at": "2026-10-02T15:00:27.432Z",
+      "status": {
+        "sessionId": "cmur3aurw0006t0hyy739vabc",
+        "providerRunning": true,
+        "state": "disconnected",
+        "endpoint": "http://127.0.0.1:60179",
+        "currentEndpoint": "http://127.0.0.1:60180",
+        "pendingMessages": "replay-on-reconnect",
+        "canRecover": true,
+        "errorCode": "stale-endpoint"
+      }
+    },
+    {
+      "name": "input-persisted",
+      "at": "2026-10-02T15:00:28.433Z",
+      "messageId": "issue-321-queued",
+      "seq": 7
+    },
+    {
+      "name": "desktop-visible-recovery",
+      "at": "2026-10-02T15:00:41.879Z"
+    },
+    {
+      "name": "mobile-visible-recovery",
+      "at": "2026-10-02T15:00:42.167Z"
+    },
+    {
+      "name": "continuity-and-single-execution-confirmed",
+      "at": "2026-10-02T15:00:43.282Z",
+      "sessionId": "cmur3aurw0006t0hyy739vabc",
+      "threadId": "01a0fd21-4da2-7be1-ac0f-b67c0dc808d8",
+      "commander": "issue-321-proof",
+      "workspaceUnchanged": true,
+      "authenticationUnchanged": true,
+      "wrapperPid": 78725,
+      "nativePids": [
+        78802
+      ],
+      "recoveredStatus": {
+        "sessionId": "cmur3aurw0006t0hyy739vabc",
+        "providerRunning": true,
+        "state": "connected",
+        "endpoint": "http://127.0.0.1:60180",
+        "currentEndpoint": "http://127.0.0.1:60180",
+        "pendingMessages": "replay-on-reconnect",
+        "canRecover": false,
+        "recoveryId": "a977fdcc-baee-4869-94e2-b6c5968edbf0"
+      }
+    }
+  ],
+  "revision": {
+    "head": "2ad0a066559c18de86383cbc2d70201486b1d485",
+    "trackedDiffSha256": "e848e9f401439d6a1be55506fcc1324c3a08e3ab7e55ca5128214be07785405f",
+    "cliEntrySha256": "f518e239494202ae54271778476f0e908aa783cbdab8fb1ddcf059f4e19312cf",
+    "runnerSha256": "ad4bced0f5eec130459de634297d0d630d9830c03903b6ab2dd6cba1b6a7dc29"
+  },
+  "success": true,
+  "finishedAt": "2026-10-02T15:00:44.570Z"
+}

@@ -8,6 +8,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { configuration } from '@/configuration';
+import { exchangeSessionTransport } from './sessionTransport';
 import { configureHappyHerdSessionReconnect } from '@/utils/sessionReconnect';
 
 const {
@@ -85,7 +86,19 @@ vi.mock('@/utils/lidState', () => ({
     shouldReconnect: mockShouldReconnect
 }));
 
+
+vi.mock('./sessionTransport', async (importOriginal) => ({
+    ...await importOriginal<typeof import('./sessionTransport')>(),
+    exchangeSessionTransport: vi.fn(async () => ({})),
+}));
+
 type SocketHandler = (...args: any[]) => void;
+
+vi.mock('./sessionTransport', async (importOriginal) => ({
+    ...await importOriginal<typeof import('./sessionTransport')>(),
+    exchangeSessionTransport: vi.fn(async () => ({})),
+}));
+
 type SocketHandlers = Record<string, SocketHandler[]>;
 
 function makeSession() {
@@ -197,6 +210,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             volatile: {
                 emit: vi.fn()
             },
+            removeAllListeners: vi.fn(() => { socketHandlers = {}; }),
             close: vi.fn()
         };
 
@@ -207,6 +221,148 @@ describe('ApiSessionClient v3 messages API migration', () => {
         vi.useRealTimers();
         vi.restoreAllMocks();
         rmSync(testHappyHerdHomeDir, { recursive: true, force: true });
+    });
+
+    it('recovers the same client on the daemon endpoint and delivers waiting input once', async () => {
+        const client = new ApiSessionClient('same-token', { ...session, metadata: { ...session.metadata, isSuperSession: true, hostPid: process.pid } });
+        const incoming = vi.fn();
+        client.onUserMessage(incoming);
+        (client as any).lastReceivedSeq = 4;
+        await Promise.resolve();
+        vi.mocked(exchangeSessionTransport).mockResolvedValue({ recovery: { id: 'recover-1', endpoint: 'https://current.test' } });
+        await (client as any).reportTransport();
+        expect(mockIo).toHaveBeenLastCalledWith('https://current.test', expect.objectContaining({ auth: expect.objectContaining({ token: 'same-token', sessionId: session.id }) }));
+        expect((client as any).lastReceivedSeq).toBe(4);
+        expect(mockSocket.close).toHaveBeenCalledTimes(1);
+        const body = { role: 'user', content: { type: 'text', text: 'waiting input' } };
+        mockAxiosGet.mockResolvedValueOnce({ data: { messages: [{ seq: 5, localId: 'waiting', content: { t: 'encrypted', c: encryptContent(session, body) } }], hasMore: false } });
+        emitSocketEvent('connect');
+        await waitForCheck(() => expect(incoming).toHaveBeenCalledTimes(1));
+        expect(mockAxiosGet).toHaveBeenCalledWith('https://current.test/v3/sessions/test-session-id/messages', expect.objectContaining({ params: { after_seq: 4, limit: 100 } }));
+        await (client as any).reportTransport();
+        await (client as any).reportTransport();
+        expect(mockIo).toHaveBeenCalledTimes(2);
+        expect((client as any).recoveryResult).toEqual({ id: 'recover-1', state: 'succeeded' });
+        emitSocketEvent('update', createNewMessageUpdate(5, encryptContent(session, body), 'waiting'));
+        await Promise.resolve();
+        expect(incoming).toHaveBeenCalledTimes(1);
+        await client.close();
+        vi.mocked(exchangeSessionTransport).mockResolvedValue({});
+    });
+
+    it('reports failed recovery and permits a distinct retry without respawning', async () => {
+        const client = new ApiSessionClient('token', session);
+        (client as any).recoverTransport({ id: 'first', endpoint: 'https://current.test' });
+        emitSocketEvent('connect_error', { code: 'ENOTFOUND' });
+        expect((client as any).recoveryResult).toEqual({ id: 'first', state: 'failed', errorCode: 'dns' });
+        expect((client as any).transportState).toMatchObject({ state: 'error', errorCode: 'dns' });
+        (client as any).recoverTransport({ id: 'retry', endpoint: 'https://current.test' });
+        emitSocketEvent('connect');
+        await waitForCheck(() => expect((client as any).recoveryResult).toEqual({ id: 'retry', state: 'succeeded' }));
+        expect(mockIo).toHaveBeenCalledTimes(3);
+        expect(client.sessionId).toBe(session.id);
+        await client.close();
+    });
+
+    it('reports a bounded recovery timeout and cancels it on close', async () => {
+        vi.useFakeTimers();
+        const client = new ApiSessionClient('token', session);
+        (client as any).recoverTransport({ id: 'timeout', endpoint: 'https://current.test' });
+        await vi.advanceTimersByTimeAsync(20000);
+        expect((client as any).recoveryResult).toEqual({ id: 'timeout', state: 'failed', errorCode: 'recovery-timeout' });
+        (client as any).recoverTransport({ id: 'closed', endpoint: 'https://current.test' });
+        await client.close();
+        await vi.advanceTimersByTimeAsync(20000);
+        expect((client as any).recoveryResult).toBeUndefined();
+    });
+
+    it('retries buffered state acknowledgements on the replacement socket', async () => {
+        const client = new ApiSessionClient('token', { ...session, metadata: { ...session.metadata, isSuperSession: true, hostPid: process.pid } });
+        mockSocket.emitWithAck.mockImplementationOnce(() => new Promise(() => {}));
+        const updating = client.updateAgentState((state) => ({ ...state, controlledByUser: true }));
+        await Promise.resolve();
+        (client as any).recoverTransport({ id: 'state-retry', endpoint: 'https://current.test' });
+        await updating;
+        expect(mockSocket.emitWithAck.mock.calls.filter(([event]: [string]) => event === 'update-state')).toHaveLength(2);
+        await client.close();
+    });
+
+    it('does not poll from a daemon auxiliary client for a Super Session', async () => {
+        const client = new ApiSessionClient('token', { ...session, metadata: { ...session.metadata, isSuperSession: true, hostPid: process.pid + 1 } });
+        await (client as any).reportTransport();
+        expect(exchangeSessionTransport).not.toHaveBeenCalled();
+        await client.close();
+    });
+
+    it('reports HTTP catchup failure with a safe status and recovers on retry', async () => {
+        const client = new ApiSessionClient('token', session);
+        const status = vi.spyOn(client as any, 'setTransportState');
+        (client as any).recoverTransport({ id: 'http-failure', endpoint: 'https://current.test' });
+        mockAxiosGet.mockRejectedValueOnce({ response: { status: 503 }, message: 'private-token' });
+        emitSocketEvent('connect');
+        await waitForCheck(() => expect((client as any).recoveryResult).toEqual({ id: 'http-failure', state: 'failed', errorCode: 'http' }));
+        expect(status).toHaveBeenCalledWith('error', 'http', 503);
+        expect(JSON.stringify((client as any).recoveryResult)).not.toContain('private-token');
+        // The existing receive retry may already restore a healthy connection;
+        // either outcome retains the first failed command receipt.
+        await client.close();
+    });
+
+    it('does not poll transport for ordinary sessions', async () => {
+        const client = new ApiSessionClient('token', session);
+        await (client as any).reportTransport();
+        expect(exchangeSessionTransport).not.toHaveBeenCalled();
+        await client.close();
+    });
+
+    it('does not route stale endpoint responses after recovery', async () => {
+        const client = new ApiSessionClient('token', session);
+        const incoming = vi.fn();
+        client.onUserMessage(incoming);
+        let resolve!: (value: unknown) => void;
+        mockAxiosGet.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+        const pending = (client as any).fetchMessages();
+        (client as any).recoverTransport({ id: 'r', endpoint: 'https://current.test' });
+        resolve({ data: { messages: [{ seq: 1, content: { t: 'encrypted', c: encryptContent(session, { role: 'user', content: { type: 'text', text: 'old endpoint' } }) } }], hasMore: false } });
+        await pending;
+        expect(incoming).not.toHaveBeenCalled();
+        expect((client as any).lastReceivedSeq).toBe(0);
+        await client.close();
+    });
+
+    it('deduplicates a live socket message racing the same HTTP catchup response', async () => {
+        const client = new ApiSessionClient('token', session);
+        const incoming = vi.fn();
+        client.onUserMessage(incoming);
+        let resolve!: (value: unknown) => void;
+        mockAxiosGet.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+        const pending = (client as any).fetchMessages();
+        const content = encryptContent(session, { role: 'user', content: { type: 'text', text: 'once' } });
+        emitSocketEvent('update', createNewMessageUpdate(1, content));
+        resolve({ data: { messages: [{ seq: 1, content: { t: 'encrypted', c: content } }], hasMore: false } });
+        await pending;
+        expect(incoming).toHaveBeenCalledTimes(1);
+        await client.close();
+    });
+
+    it('continues paginated catchup when socket delivery consumed the entire first HTTP page', async () => {
+        const client = new ApiSessionClient('token', session);
+        const incoming = vi.fn();
+        client.onUserMessage(incoming);
+        let resolve!: (value: unknown) => void;
+        const first = encryptContent(session, { role: 'user', content: { type: 'text', text: 'socket first' } });
+        const second = encryptContent(session, { role: 'user', content: { type: 'text', text: 'HTTP second page' } });
+        mockAxiosGet.mockReturnValueOnce(new Promise((r) => { resolve = r; }))
+            .mockResolvedValueOnce({ data: { messages: [{ seq: 2, content: { t: 'encrypted', c: second } }], hasMore: false } });
+        const pending = (client as any).fetchMessages();
+        emitSocketEvent('update', createNewMessageUpdate(1, first));
+        resolve({ data: { messages: [{ seq: 1, content: { t: 'encrypted', c: first } }], hasMore: true } });
+        await pending;
+        expect(mockAxiosGet).toHaveBeenCalledTimes(2);
+        expect(mockAxiosGet.mock.calls[1][1].params.after_seq).toBe(1);
+        expect(incoming.mock.calls.map(([message]) => message.content.text)).toEqual(['socket first', 'HTTP second page']);
+        expect((client as any).lastReceivedSeq).toBe(2);
+        await client.close();
     });
 
     it('registers core socket handlers and connects', () => {

@@ -1980,7 +1980,18 @@
     "keySaved": "Ihre Zugangsdaten wurden im Konto gespeichert. Sie sind nur gespeichert und nicht für Codex aktiv."
   },
   "superSession": {
-    "pinned": "Super Session (Angeheftet)"
+    "pinned": "Super Session (Angeheftet)",
+    "disconnected": "Super Session getrennt",
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "reconnect": "Mit aktuellem Server verbinden",
+    "pendingReplay": "Nach der Wiederverbindung werden Nachrichten in der Warteschlange automatisch zugestellt. Bitte nicht erneut senden.",
+    "causeDns": "Der Servername konnte nicht aufgelöst werden. Netzwerk oder DNS prüfen und erneut verbinden.",
+    "causeHttp": "Der Server hat die Verbindung abgelehnt. Server prüfen und erneut verbinden.",
+    "causeConnect": "Der Server ist nicht erreichbar. Netzwerk und Serververfügbarkeit prüfen und erneut verbinden.",
+    "causeClosed": "Die Serververbindung wurde geschlossen. Zum Fortfahren erneut verbinden.",
+    "causeStaleEndpoint": "Dieser Prozess verwendet eine alte Serveradresse. Mit dem aktuellen Server verbinden.",
+    "causeTimeout": "Die Wiederverbindung wurde nicht abgeschlossen. Serververfügbarkeit prüfen und erneut versuchen.",
+    "causeUnavailable": "Der Verbindungsstatus ist nicht verfügbar. Prüfen, ob der zuständige Rechner und Daemon online sind; die Statusabfrage wird automatisch wiederholt."
   },
   "sessions": {
     "bots": "Bots"

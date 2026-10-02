@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { logger } from '@/ui/logger';
 import { Metadata } from '@/api/types';
+import { SessionTransportReportSchema } from '@/api/sessionTransport';
+import type { SessionTransportRecovery } from './sessionTransport';
 import { decodeBase64 } from '@/api/encryption';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
@@ -61,6 +63,7 @@ export type LocalSessionCreationReceipt = z.infer<typeof LocalSessionCreationRec
 
 export function startDaemonControlServer({
   getChildren,
+  sessionTransport,
   stopSession,
   spawnSession,
   sideChat,
@@ -75,6 +78,7 @@ export function startDaemonControlServer({
   assertCredentialAccountMutationAllowed,
   devicePairing,
 }: {
+  sessionTransport?: SessionTransportRecovery;
   devicePairing?: () => DevicePairingService | undefined;
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
@@ -99,6 +103,19 @@ export function startDaemonControlServer({
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     const typed = app.withTypeProvider<ZodTypeProvider>();
+
+    typed.post('/session-transport', { schema: { body: SessionTransportReportSchema } }, async (request, reply) => {
+      if (!sessionTransport) return reply.code(503).send({ error: 'Session transport recovery is unavailable' });
+      return sessionTransport.exchange(request.body);
+    });
+    for (const action of ['status', 'recover'] as const) {
+      typed.post(`/session-transport/${action}`, {
+        schema: { body: z.object({ sessionId: z.string().min(1) }).strict() },
+      }, async (request, reply) => {
+        if (!sessionTransport) return reply.code(503).send({ error: 'Session transport recovery is unavailable' });
+        return sessionTransport[action](request.body.sessionId);
+      });
+    }
 
     typed.post('/device-pairing/create', { schema: { body: z.object({}).strict() } }, async (_request, reply) => {
       const pairing = devicePairing?.();

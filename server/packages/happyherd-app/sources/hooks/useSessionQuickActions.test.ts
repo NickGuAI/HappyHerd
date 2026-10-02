@@ -7,6 +7,7 @@ import type { Machine, Session } from '@/sync/storageTypes';
 
 const mocks = vi.hoisted(() => ({
     machine: null as Machine | null,
+    transport: undefined as { providerRunning: boolean; errorCode?: string } | undefined,
     settings: {},
     machineResumeSession: vi.fn(),
     sessionSetAgentModes: vi.fn(),
@@ -61,7 +62,7 @@ vi.mock('@/utils/copySessionMetadataToClipboard', () => ({
     copySessionMetadataAndLogsToClipboard: vi.fn(),
 }));
 vi.mock('@/utils/sessionUtils', () => ({
-    useSessionStatus: () => ({ isConnected: false }),
+    useSessionStatus: () => ({ isConnected: false, transport: mocks.transport }),
 }));
 vi.mock('@/components/DuplicateSheet', () => ({ DuplicateSheet: () => null }));
 vi.mock('@/components/ProviderContinuationSheet', () => ({ ProviderContinuationSheet: () => null }));
@@ -185,6 +186,7 @@ describe('useSessionQuickActions resume permission continuity', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.transport = undefined;
         mocks.settings = {};
         mocks.sessions = {};
         mocks.pendingActions = [];
@@ -199,6 +201,28 @@ describe('useSessionQuickActions resume permission continuity', () => {
             await Promise.all(mocks.pendingActions.splice(0));
         });
     }
+
+    it.each([
+        { active: true, providerRunning: true, errorCode: 'stale-endpoint', expected: false },
+        { active: true, providerRunning: false, errorCode: 'unavailable', expected: false },
+        { active: false, providerRunning: true, errorCode: 'closed', expected: false },
+        { active: false, providerRunning: false, errorCode: 'unavailable', expected: true },
+        { active: false, providerRunning: false, errorCode: 'process-exited', expected: true },
+    ])('keeps Super Session resume truthful for $active/$providerRunning/$errorCode', async ({ active, providerRunning, errorCode, expected }) => {
+        const session = sessionFor('codex');
+        session.active = active;
+        session.metadata!.isSuperSession = true;
+        mocks.machine = machineFor('codex');
+        mocks.transport = { providerRunning, errorCode };
+        function Harness() { current = useSessionQuickActions(session); return null; }
+        act(() => { renderer = create(React.createElement(Harness)); });
+        expect(current.canResume).toBe(expected);
+        if (!expected) {
+            await expect(current.resumeSessionWithQueuedTurn('pending-1')).rejects.toThrow();
+            expect(mocks.machineResumeSession).not.toHaveBeenCalled();
+        }
+        act(() => renderer.unmount());
+    });
 
     it.each(['claude', 'codex'] as const)(
         'sends and mirrors the complete daemon-confirmed %s tuple',

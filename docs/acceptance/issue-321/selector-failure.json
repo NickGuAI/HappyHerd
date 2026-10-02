@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "baseline": false,
+  "startedAt": "2026-10-02T14:50:49.461Z",
+  "stages": [
+    {
+      "name": "isolated-server-ready",
+      "at": "2026-10-02T14:50:52.221Z"
+    },
+    {
+      "name": "initial-real-codex-reply",
+      "at": "2026-10-02T14:51:10.822Z",
+      "sessionId": "cmur2z2b80006t0pe5e8vrano",
+      "threadId": "01a0fd18-e8b7-7f53-baaa-a33d28ea4e12",
+      "commander": "issue-321-proof",
+      "wrapperPid": 72463,
+      "nativePids": [
+        72550
+      ]
+    },
+    {
+      "name": "stale-endpoint-live-process",
+      "at": "2026-10-02T14:51:14.489Z",
+      "wrapperPid": 72463,
+      "oldEndpoint": "http://127.0.0.1:57166",
+      "currentEndpoint": "http://127.0.0.1:57167",
+      "sessionActive": true,
+      "staleHttpStatus": 503
+    },
+    {
+      "name": "supported-status",
+      "at": "2026-10-02T14:51:17.285Z",
+      "status": {
+        "sessionId": "cmur2z2b80006t0pe5e8vrano",
+        "providerRunning": true,
+        "state": "disconnected",
+        "endpoint": "http://127.0.0.1:57166",
+        "currentEndpoint": "http://127.0.0.1:57167",
+        "pendingMessages": "replay-on-reconnect",
+        "canRecover": true,
+        "errorCode": "stale-endpoint"
+      }
+    },
+    {
+      "name": "input-persisted",
+      "at": "2026-10-02T14:51:18.256Z",
+      "messageId": "issue-321-queued",
+      "seq": 7
+    }
+  ],
+  "revision": {
+    "head": "2ad0a066559c18de86383cbc2d70201486b1d485",
+    "trackedDiffSha256": "6ef9d6d3ce8e640ffdeb9e7ba9184443632265b59a6aac8e927bd17126468835",
+    "cliEntrySha256": "f518e239494202ae54271778476f0e908aa783cbdab8fb1ddcf059f4e19312cf",
+    "runnerSha256": "b4a9695e2fef8506dabad357adbddd7027a2c461fac00142768c0b909fe9031e"
+  },
+  "success": false,
+  "failure": {
+    "stage": "desktop browser recovery",
+    "message": "locator.waitFor: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Reconnect', { exact: true }) to be visible\u001b[22m\n"
+  },
+  "finishedAt": "2026-10-02T14:52:08.338Z"
+}

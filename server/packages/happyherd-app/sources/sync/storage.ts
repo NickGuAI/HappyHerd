@@ -146,6 +146,8 @@ export interface SessionRowData {
     gitDeletions: number | null;
     gitInsertions: number | null;
     state: SessionState;
+    isSuperSession?: boolean;
+    connectedState?: SessionState;
     // Only present on inactive sessions — active sessions never show "last seen"
     // and activeAt updates on every heartbeat, causing needless deep-equal diffs
     activeAt?: number;
@@ -255,6 +257,9 @@ function buildSessionRowData(
         gitDeletions: rigGit?.deletions ?? null,
         gitInsertions: rigGit?.insertions ?? null,
         state,
+        ...(session.metadata?.isSuperSession ? { isSuperSession: true, connectedState: resolveSessionState({
+            agentState: session.agentState, thinking: session.thinking, isOnline: true,
+        }) } : {}),
         createdAt: session.createdAt,
         lastActivityAt: getSessionActivityAt(session),
         updateSequence: session.seq,

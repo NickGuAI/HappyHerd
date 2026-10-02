@@ -1,3 +1,7 @@
+# October 2 — Reconnect Super Sessions
+
+- Super Sessions show disconnected transport and known connection causes even while the provider process is alive. Reconnect to current server restores that process in the same conversation; queued messages replay automatically without resubmission.
+
 # October 2 — Shared guidance from the first Commander session
 
 - Fresh installs include a portable HappyHerd operations guide. Commander startup and resume directions point to shared guidance while keeping private memory in its existing location.

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { readDaemonState } from '@/persistence';
+import { SessionTransportStatusSchema } from '@/api/sessionTransport';
 
 const SessionIdSchema = z.string().trim().min(1).max(256);
 export const LocalSessionSendRequestSchema = z.object({
@@ -28,6 +29,7 @@ export const LocalSessionInspectReceiptSchema = z.object({
     id: SessionIdSchema,
     active: z.boolean(),
     providerRunning: z.boolean(),
+    transport: SessionTransportStatusSchema.optional(),
     seq: z.number(),
     metadata: z.object({
       path: z.string(),

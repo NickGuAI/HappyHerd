@@ -97,6 +97,15 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/storage': `
         import React from 'react';
+        import { configureSessionTransportRpc, refreshSessionTransport } from '@/sync/sessionTransport';
+        let transportState = new URLSearchParams(window.location.search).has('transport-disconnected')
+            || new URLSearchParams(window.location.search).has('super-state') ? 'disconnected' : 'connected';
+        configureSessionTransportRpc(async (_machineId, _method, { sessionId }) => ({
+            sessionId, providerRunning: true, state: transportState, endpoint: 'http://old.invalid', currentEndpoint: 'http://current.test',
+            pendingMessages: 'replay-on-reconnect', canRecover: true,
+        }));
+        window.__SET_TRANSPORT_STATE__ = async (state) => { transportState = state; await refreshSessionTransport('machine-1', 'super-session'); };
+
         const row = (id, name, lastActivityAt, projectName, overrides = {}) => ({
             id, name, subtitle: '', avatarId: id, flavor: 'codex', clientId: null,
             identityLine: 'Codex', providerKind: 'codex', modelName: null, activitySummary: null,
@@ -113,7 +122,7 @@ const virtualModules: Record<string, string> = {
             projectName, workspaceId: null, workspaceName: null, ...overrides,
         });
         const superRow = row('super-session', 'Persistent assistant source title', 1, 'Assistant', {
-            botId: 'assistant-bot', botUsername: 'assistant', machineName: 'Main machine',
+            botId: 'assistant-bot', botUsername: 'assistant', machineName: 'Main machine', isSuperSession: true, connectedState: 'waiting',
         });
         const ordinaryRow = row('ordinary-session', 'Newest ordinary session', 999, 'Project Alpha');
         const botAlpha = row('bot-alpha', 'Build assistant', 800, null, {
@@ -733,6 +742,8 @@ describe('Projects and Super Session production UI gestures', () => {
         await page.getByTestId('focus-mode-timer').waitFor();
         // Start plays the amber pixel swap over the page as the setup closes.
         await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'attached' });
+        // Flush effects scheduled by Start without advancing the paused countdown.
+        await page.clock.runFor(0);
     }
 
     for (const surface of surfaces) {
@@ -916,6 +927,26 @@ describe('Projects and Super Session production UI gestures', () => {
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    for (const surface of surfaces) {
+        it(`updates the real pinned row from owning-machine transport despite stale online presence on ${surface.name}`, async () => {
+            const { page, errors } = await openPage(surface, 'transport-disconnected=1');
+            const row = page.locator('[data-herd-row="super-session"]');
+            const avatar = row.getByRole('img');
+            await avatar.waitFor();
+            await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Disconnected');
+            const ordinary = page.locator('[data-herd-row="ordinary-session"]').getByRole('img');
+            expect(await ordinary.getAttribute('aria-label')).toContain('Waiting');
+            await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('reconnecting'));
+            expect(await avatar.getAttribute('aria-label')).toContain('Disconnected');
+            await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('connected'));
+            await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Waiting');
+            await page.evaluate(() => (window as any).__SET_TRANSPORT_STATE__('error'));
+            await expect.poll(() => avatar.getAttribute('aria-label')).toContain('Disconnected');
+            expect(errors).toEqual([]);
+            await page.close();
+        });
+    }
 
     for (const surface of surfaces) {
         it(`keeps one pinned session first and opens the same stable ID repeatedly on ${surface.name}`, async () => {

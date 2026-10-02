@@ -62,6 +62,11 @@ export function useSessionQuickActions(
     const resumeAvailability = React.useMemo(
         () => {
             const availability = getResumeAvailability(session, machine, sessionStatus.isConnected);
+            // Retain ordinary resume for inactive sessions. A live provider or active
+            // Super Session with unknown transport must never spawn another process.
+            if (session.metadata?.isSuperSession && (session.active || sessionStatus.transport?.providerRunning) && sessionStatus.transport?.errorCode !== 'process-exited') {
+                return { ...availability, canResume: false, canShowResume: false, subtitle: '', message: '' };
+            }
             // Older daemons do not publish resumeSupport and do not implement
             // the RPC. Keep resume capability-driven instead of showing an
             // action that can only fail.
@@ -71,7 +76,7 @@ export function useSessionQuickActions(
             const message = availability.messageKey ? t(availability.messageKey) : '';
             return { ...availability, subtitle: message, message };
         },
-        [machine, session, sessionStatus.isConnected],
+        [machine, session, sessionStatus.isConnected, sessionStatus.transport],
     );
 
     // Fork eligibility — separate from resume because fork works on both

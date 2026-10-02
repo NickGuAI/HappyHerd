@@ -1,3 +1,4 @@
+import { useSessionRowState } from '@/hooks/useSessionTransport';
 import React from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -219,7 +220,8 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
 // Compact session row with the same status-avatar contract as the flat inbox.
 export const CompactSessionRow = React.memo(({ session, selected, showBorder }: { session: SessionRowData; selected?: boolean; showBorder?: boolean }) => {
     const styles = stylesheet;
-    const connected = !session.machineOffline && session.state !== 'disconnected';
+    const state = useSessionRowState(session);
+    const connected = !session.machineOffline && state !== 'disconnected';
     const sessionPressHandlers = useSessionPressHandlers(session.id);
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';
@@ -274,7 +276,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     providerKind={session.providerKind}
                     providerLabel={session.identityLine}
                     size={28}
-                    state={session.state}
+                    state={state}
                 />
             </View>
         );

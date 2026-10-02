@@ -133,7 +133,8 @@ describe('bot sessions in the production session projection', () => {
         expect(data.map((item) => item.type)).toEqual(['super-session']);
         expect(data[0]).toMatchObject({
             type: 'super-session',
-            session: { id: 'assistant', botId: 'bot-assistant', commanderId: 'commander-one' },
+            session: { id: 'assistant', botId: 'bot-assistant', commanderId: 'commander-one',
+                isSuperSession: true, connectedState: 'waiting', machineId: 'machine-a' },
         });
     });
 

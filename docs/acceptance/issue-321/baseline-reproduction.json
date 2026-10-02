@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "baseline": true,
+  "startedAt": "2026-10-02T14:45:20.170Z",
+  "stages": [
+    {
+      "name": "isolated-server-ready",
+      "at": "2026-10-02T14:45:22.868Z"
+    },
+    {
+      "name": "initial-real-codex-reply",
+      "at": "2026-10-02T14:45:37.904Z",
+      "sessionId": "cmur2rytm0006t0umtwjucj0g",
+      "threadId": "01a0fd13-dae8-7891-8ca7-6a163a2c28f4",
+      "commander": "issue-321-proof",
+      "wrapperPid": 27262
+    },
+    {
+      "name": "stale-endpoint-live-process",
+      "at": "2026-10-02T14:45:41.295Z",
+      "wrapperPid": 27262,
+      "oldEndpoint": "http://127.0.0.1:54700",
+      "currentEndpoint": "http://127.0.0.1:54701",
+      "sessionActive": true,
+      "staleHttpStatus": 503
+    },
+    {
+      "name": "baseline-reproduced",
+      "at": "2026-10-02T14:45:41.295Z"
+    }
+  ],
+  "revision": {
+    "head": "2ad0a066559c18de86383cbc2d70201486b1d485",
+    "trackedDiffSha256": "af9548c3c9a3e0dc0c7f9bf885428df757f68c9abd6d2e860762c083ed0b5796",
+    "cliEntrySha256": "8ac85f2b80e7d7ec376b4cbf68648a00ffdd1c4a0b2a5e98184873054a69d9ca",
+    "runnerSha256": "9de49fc555b32f0b03e60b40a7290e86ffc56420b61e62a6a82ac2f5e0e381c6"
+  },
+  "success": true,
+  "finishedAt": "2026-10-02T14:45:42.437Z"
+}

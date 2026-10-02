@@ -203,6 +203,7 @@ const virtualModules: Record<string, string> = {
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
+        if (fixtureOptions.transportRecovery) sessions.parent.metadata.isSuperSession = true;
         if (fixtureOptions.subagentLifecycle) {
             sessions['child-newest'].metadata.flavor = 'claude';
         }
@@ -531,7 +532,7 @@ const virtualModules: Record<string, string> = {
             if (typeof value !== 'string') return null;
             return Object.entries(params ?? {}).reduce((text, [name, replacement]) => text.replaceAll('{' + name + '}', String(replacement)), value);
         };
-        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) ? productText(key, params) : null) ?? ({
+        export const t = (key, params) => ((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.subagentLifecycle || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.transportRecovery) ? productText(key, params) : null) ?? ({
             'message.safeguard.revise': en.message.safeguard.revise,
             'message.safeguard.ready': en.message.safeguard.ready,
             'newSession.showHidden': 'Show hidden',
@@ -1238,10 +1239,14 @@ const virtualModules: Record<string, string> = {
         export const visibleRigGitLineChanges = () => null;
     `,
     '@/utils/sessionUtils': `
+        import { useSessionStatus as realStatus } from '${resolve(appRoot, 'sources/utils/sessionUtils.ts')}';
+        import { configureSessionTransportRpc } from '@/sync/sessionTransport';
+        import { apiSocket } from '@/sync/apiSocket';
+        configureSessionTransportRpc((machineId, method, request) => apiSocket.machineRPC(machineId, method, request));
         export const formatOSPlatform = (value) => value; export const formatPathRelativeToHome = (path) => path; export const formatLastSeen = () => '';
         export const getResumeCommand = () => null; export const getResumeCommandBlock = () => null;
         export const getSessionAvatarId = (session) => session.id; export const getSessionName = (session) => session.metadata?.summary?.text ?? session.id;
-        export const useSessionStatus = (session) => ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
+        export const useSessionStatus = (session) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.transportRecovery ? realStatus(session) : ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
     `,
     '@/utils/versionUtils': `export { compareVersionsWithPrerelease, isWellFormedVersion } from '${resolve(appRoot, 'sources/utils/versionUtils.ts')}'; export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
     '@/utils/heartbeatCommand': `
@@ -1271,6 +1276,17 @@ const virtualModules: Record<string, string> = {
     '@/sync/apiSocket': `
         export const apiSocket = {
             machineRPC: async (machineId, method, request) => {
+                if (method === 'session-transport-status' || method === 'recover-session-transport') {
+                    const state = globalThis.__TRANSPORT_STATUS__ ??= { sessionId: 'parent', providerRunning: true, state: 'disconnected', endpoint: 'http://old.invalid', currentEndpoint: 'http://current.test', errorCode: 'stale-endpoint', pendingMessages: 'replay-on-reconnect', canRecover: true };
+                    if (method === 'recover-session-transport') {
+                        globalThis.__RECOVERY_CALLS__ = (globalThis.__RECOVERY_CALLS__ ?? 0) + 1;
+                        return new Promise(resolve => { globalThis.__FINISH_RECOVERY__ = (success) => {
+                            Object.assign(state, { state: success ? 'connected' : 'error', errorCode: success ? undefined : 'recovery-timeout' });
+                            resolve({ ...state });
+                        }; });
+                    }
+                    return { ...state };
+                }
                 if (method === 'session-context-window') {
                     globalThis.__CONTEXT_WINDOW_RPCS__ = [...(globalThis.__CONTEXT_WINDOW_RPCS__ ?? []), { machineId, method, request }];
                     return fetch('/fixture-context-window', { method: 'POST', body: JSON.stringify(request) }).then((response) => response.json());
@@ -1357,7 +1373,7 @@ const fixturePlugin: Plugin = {
     },
 };
 
-// These launch-context journeys contain only empty or plain-text transcripts.
+// These foreground session journeys contain only empty or plain-text transcripts.
 // Keep the real MarkdownView/MermaidRenderer, but avoid eagerly bundling every
 // diagram compiler into their IIFE. Unexpected diagram use must fail visibly.
 const commanderDiagramPlugin: Plugin = {
@@ -1367,7 +1383,7 @@ const commanderDiagramPlugin: Plugin = {
             path: args.path, namespace: 'commander-diagram-fixture',
         }));
         build.onLoad({ filter: /.*/, namespace: 'commander-diagram-fixture' }, () => ({
-            contents: `throw new Error('Commander context fixture does not contain Mermaid diagrams'); export default {};`,
+            contents: `throw new Error('Foreground session fixture does not contain Mermaid diagrams'); export default {};`,
             loader: 'js',
         }));
     },
@@ -1457,8 +1473,8 @@ describe('Side chats browser interaction', () => {
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
         };
-        // Leave the shared journey bundle unchanged. The launch-context cases
-        // only need the foreground host and a smaller script to parse on load.
+        // Leave the shared journey bundle unchanged. Launch-context and transport
+        // recovery need only the foreground host and a smaller script to parse on load.
         const bundles = await Promise.all([
             build({
                 ...buildOptions,
@@ -1516,7 +1532,7 @@ describe('Side chats browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(_request.url?.split('?')[0] === '/commander-context' ? commanderHtml : html);
+            response.end(['/commander-context', '/transport-recovery'].includes(_request.url?.split('?')[0] ?? '') ? commanderHtml : html);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1529,6 +1545,16 @@ describe('Side chats browser interaction', () => {
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
             });
+            // Start Chromium's first renderer inside the existing setup budget.
+            // This blank page performs no product journey or recovery behavior.
+            const warmupStartedAt = performance.now();
+            const warmup = await browser.newPage();
+            try {
+                await warmup.goto('about:blank');
+            } finally {
+                await warmup.close();
+            }
+            console.info('[browser fixture timing]', { stage: 'blank-page-warmup', elapsedMs: Math.round(performance.now() - warmupStartedAt) });
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             throw new Error(
@@ -1543,6 +1569,46 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([1440, 390])('recovers the live Super Session transport through SessionView at $0 px', async (width) => {
+        const startedAt = performance.now();
+        // Test-only stage receipts keep a whole-test deadline failure diagnosable.
+        const markStage = (stage: string) => console.info('[transport recovery timing]', { width, stage, elapsedMs: Math.round(performance.now() - startedAt) });
+        markStage('started');
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        markStage('page-created');
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { transportRecovery: true }; });
+        await page.goto(origin + '/transport-recovery');
+        markStage('navigated');
+        const host = page.getByTestId('foreground-session');
+        await host.getByText('This process is using an old server address. Reconnect to the current server.').waitFor();
+        await host.getByText('Queued messages will replay automatically after reconnecting. Do not resubmit them.').waitFor();
+        markStage('banner-visible');
+        const button = host.getByRole('button', { name: 'Reconnect to current server' });
+        const bounds = (await button.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        await button.click();
+        markStage('recovery-clicked');
+        expect(await button.isDisabled()).toBe(true);
+        expect(await page.evaluate(() => (globalThis as any).__RECOVERY_CALLS__)).toBe(1);
+        await page.evaluate(() => (globalThis as any).__FINISH_RECOVERY__(false));
+        await host.getByText('Reconnection did not finish. Check server availability and retry.').waitFor();
+        markStage('failure-visible');
+        await button.click();
+        markStage('retry-clicked');
+        expect(await page.evaluate(() => (globalThis as any).__RECOVERY_CALLS__)).toBe(2);
+        await page.evaluate(() => (globalThis as any).__FINISH_RECOVERY__(true));
+        await button.waitFor({ state: 'hidden' });
+        markStage('recovered');
+        expect(errors).toEqual([]);
+        await page.close();
+        markStage('closed');
+    });
 
     it.each([1440, 390].flatMap(width => ['light', 'dark'].flatMap(theme => [false, true].map(populated => ({ width, theme, populated })))) )('shows Commander context at the top of SessionView (populated: $populated) at $width px in $theme mode', async ({ width, theme, populated }) => {
         const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });

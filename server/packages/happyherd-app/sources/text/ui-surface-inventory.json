@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "21475fae98a80094bb8ed1b9d600aea3357b6e953b890cd881e4b5fe950b9160",
+  "sourceFingerprint": "1cce1c3f7ec7674bd76b04c96570a61a54a4ecf3074c5a0dc516f76d6bbffdc3",
   "routeCount": 45,
-  "surfaceCount": 338,
+  "surfaceCount": 339,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -6017,6 +6017,30 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SessionTransportBanner.tsx",
+      "kind": "banner",
+      "route": null,
+      "exports": [
+        "SessionTransportBanner",
+        "transportCause"
+      ],
+      "translationKeys": [
+        "superSession.causeClosed",
+        "superSession.causeConnect",
+        "superSession.causeDns",
+        "superSession.causeHttp",
+        "superSession.causeStaleEndpoint",
+        "superSession.causeTimeout",
+        "superSession.causeUnavailable",
+        "superSession.disconnected",
+        "superSession.pendingReplay",
+        "superSession.reconnect",
+        "superSession.reconnecting"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SettingsAboutView.tsx",
       "kind": "component",
       "route": null,
@@ -7505,6 +7529,8 @@
         "status.online",
         "status.permissionRequired",
         "status.unknown",
+        "superSession.disconnected",
+        "superSession.reconnecting",
         "time.hoursAgo",
         "time.justNow",
         "time.minutesAgo"

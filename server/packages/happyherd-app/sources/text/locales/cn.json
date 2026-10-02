@@ -1980,7 +1980,18 @@
     "keySaved": "您的凭据已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
   },
   "superSession": {
-    "pinned": "Super Session（已置顶）"
+    "pinned": "Super Session（已置顶）",
+    "disconnected": "超级会话已断开",
+    "reconnecting": "正在重新连接…",
+    "reconnect": "重新连接到当前服务器",
+    "pendingReplay": "重新连接后，排队的消息将自动重放。请勿重复提交。",
+    "causeDns": "无法解析服务器名称。请检查网络或 DNS，然后重新连接。",
+    "causeHttp": "服务器拒绝了连接。请检查服务器，然后重新连接。",
+    "causeConnect": "无法访问服务器。请检查网络和服务器可用性，然后重新连接。",
+    "causeClosed": "服务器连接已关闭。请重新连接以继续。",
+    "causeStaleEndpoint": "此进程仍在使用旧服务器地址。请重新连接到当前服务器。",
+    "causeTimeout": "重新连接未完成。请检查服务器可用性后重试。",
+    "causeUnavailable": "无法获取传输状态。请检查所属机器和守护进程是否在线；状态查询将自动重试。"
   },
   "sessions": {
     "bots": "机器人"

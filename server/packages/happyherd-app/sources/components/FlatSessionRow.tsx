@@ -1,3 +1,4 @@
+import { useSessionRowState } from '@/hooks/useSessionTransport';
 import React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -62,6 +63,7 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
     entranceIndex?: number;
 }) => {
     const { session, projectName, workspaceName } = row;
+    const state = useSessionRowState(session);
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const phone = useHerdPhoneLayout();
@@ -74,8 +76,8 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
     // idle since yesterday on a machine that is still up is ordinary work you
     // can pick back up, and drawing it as dead makes a healthy list look like a
     // graveyard. Only a disconnected session or dead owning daemon fades.
-    const faded = session.machineOffline || session.state === 'disconnected';
-    const attention = resolveHerdRowAttention(session.state);
+    const faded = session.machineOffline || state === 'disconnected';
+    const attention = resolveHerdRowAttention(state);
     const agentLabel = resolveHerdRowAgentLabel(session);
     // A session waiting on the user takes the worktree line when that line has
     // nothing to say, so the row keeps its three-line rhythm.
@@ -164,7 +166,7 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
                     providerKind={session.providerKind}
                     providerLabel={session.identityLine}
                     size={AVATAR_SIZE}
-                    state={session.state}
+                    state={state}
                 />
             </View>
 

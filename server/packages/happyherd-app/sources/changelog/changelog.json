@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 2 — Reconnect Super Sessions",
+      "summary": "",
+      "markdown": "- Super Sessions show disconnected transport and known connection causes even while the provider process is alive. Reconnect to current server restores that process in the same conversation; queued messages replay automatically without resubmission."
+    },
+    {
       "title": "October 2 — Shared guidance from the first Commander session",
       "summary": "",
       "markdown": "- Fresh installs include a portable HappyHerd operations guide. Commander startup and resume directions point to shared guidance while keeping private memory in its existing location.\n- Existing global instructions, shared guides and Commander state are preserved. Run `happyherd commander guide --json` to add missing guides and find the files to review when updating older instructions."
@@ -896,5 +901,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 2 — Shared guidance from the first Commander session"
+  "latestTitle": "October 2 — Reconnect Super Sessions"
 }
