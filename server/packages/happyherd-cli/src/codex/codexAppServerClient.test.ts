@@ -161,6 +161,178 @@ describe('CodexAppServerClient sandbox integration', () => {
         };
     }
 
+    describe('stdout JSONL transport', () => {
+        const output = 'before\u2028middle\u2029after';
+        const commandEvent = (id: string, aggregatedOutput = output) => ({
+            method: 'item/completed',
+            params: {
+                threadId: 'root-thread', turnId: 'turn-1',
+                item: { type: 'commandExecution', id, command: 'printf', aggregatedOutput, exitCode: 0, status: 'completed' },
+            },
+        });
+
+        it.each(['line', 'split-utf8', 'exit-tail'] as const)('resolves a pending thread/fork with literal Unicode separators (%s)', async framing => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const writes: MockRpcMessage[] = [];
+            const proc = createMockProcess({ onWrite: msg => writes.push(msg) });
+            mockSpawn.mockReturnValue(proc);
+            const client = new CodexAppServerClient();
+            await client.connect();
+            let result: Awaited<ReturnType<typeof client.forkThread>> | undefined;
+            let failure: unknown;
+            const pending = client.forkThread({ threadId: 'original-thread', cwd: '/tmp/original-project' })
+                .then(value => { result = value; }, error => { failure = error; });
+            try {
+                const request = writes.find(msg => msg.method === 'thread/fork')!;
+                expect(request.params).toMatchObject({ threadId: 'original-thread', cwd: '/tmp/original-project' });
+                const thread = { id: 'fork-thread', cwd: '/tmp/original-project', turns: [{ id: 'turn-1', items: [{ type: 'agentMessage', id: 'history-1', text: output }] }] };
+                const line = JSON.stringify({ id: request.id, result: { thread, model: 'gpt-test' } });
+                expect(line).toContain(output); // literal characters, not escaped JSON Unicode sequences
+                if (framing === 'split-utf8') {
+                    const bytes = Buffer.from(line + '\n');
+                    for (const byte of bytes) proc.stdout.push(Buffer.from([byte]));
+                } else if (framing === 'exit-tail') {
+                    proc.emit('exit', 0, null);
+                    proc.stdout.push(line);
+                    proc.stdout.push(null);
+                    await new Promise<void>(resolve => proc.stdout.once('end', resolve));
+                    proc.emit('close', 0, null);
+                } else {
+                    proc.stdout.push(line + '\n');
+                }
+                await waitFor(() => result !== undefined || failure !== undefined);
+                expect(failure).toBeUndefined();
+                expect(result).toEqual({ threadId: 'fork-thread', model: 'gpt-test', thread });
+            } finally {
+                await client.disconnect();
+                await pending;
+            }
+        });
+
+        it('delivers live command output and its session envelope exactly once across chunks, CRLF, and final partial data', async () => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const proc = createMockProcess();
+            mockSpawn.mockReturnValue(proc);
+            const client = new CodexAppServerClient();
+            const events: Record<string, unknown>[] = [];
+            client.setEventHandler(event => events.push(event));
+            await client.connect();
+            try {
+                const first = JSON.stringify(commandEvent('tool-1'));
+                proc.stdout.push(first.slice(0, 17));
+                proc.stdout.push(first.slice(17) + '\r');
+                proc.stdout.push('\n' + JSON.stringify(commandEvent('tool-2', 'ordinary\ntext')) + '\n\n' + JSON.stringify(commandEvent('tool-3')));
+                proc.stdout.push(null);
+                await new Promise<void>(resolve => proc.stdout.once('end', resolve));
+                expect(events).toHaveLength(3);
+                expect(events.map(event => event.output)).toEqual([output, 'ordinary\ntext', output]);
+                const envelopes = events.flatMap(event => mapCodexMcpMessageToSessionEnvelopes(event, { currentTurnId: 'turn-1' }).envelopes);
+                expect(envelopes.map(envelope => envelope.ev)).toEqual([
+                    { t: 'tool-call-end', call: 'root-thread:tool-1' },
+                    { t: 'tool-call-end', call: 'root-thread:tool-2' },
+                    { t: 'tool-call-end', call: 'root-thread:tool-3' },
+                ]);
+                await client.disconnect();
+                expect(events).toHaveLength(3);
+            } finally {
+                await client.disconnect();
+            }
+        });
+
+        it('preserves a live agent notification body in the session envelope', async () => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const proc = createMockProcess();
+            mockSpawn.mockReturnValue(proc);
+            const client = new CodexAppServerClient();
+            const sendSessionProtocolMessage = vi.fn();
+            client.setEventHandler(event => {
+                const mapped = mapCodexMcpMessageToSessionEnvelopes(event, { currentTurnId: 'turn-1' });
+                mapped.envelopes.forEach(envelope => sendSessionProtocolMessage(envelope));
+            });
+            await client.connect();
+            try {
+                pushJsonLine(proc.stdout, {
+                    method: 'item/completed',
+                    params: { threadId: 'root-thread', turnId: 'turn-1', item: { type: 'agentMessage', id: 'message-1', text: output } },
+                });
+                await waitFor(() => sendSessionProtocolMessage.mock.calls.length === 1);
+                expect(sendSessionProtocolMessage).toHaveBeenCalledWith(expect.objectContaining({ turn: 'turn-1', ev: { t: 'text', text: output } }));
+            } finally {
+                await client.disconnect();
+            }
+        });
+
+        it('discards an unfinished record on disconnect and ignores old streams after reconnect', async () => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const first = createMockProcess();
+            mockSpawn.mockReturnValue(first);
+            const client = new CodexAppServerClient();
+            const events: Record<string, unknown>[] = [];
+            client.setEventHandler(event => events.push(event));
+            await client.connect();
+            const line = JSON.stringify(commandEvent('discarded'));
+            first.stdout.push(line.slice(0, -1));
+            await client.disconnect();
+            const second = createMockProcess();
+            mockSpawn.mockReturnValue(second);
+            await client.connect();
+            try {
+                first.stdout.push(line.slice(-1) + '\n');
+                first.stdout.push(null);
+                first.emit('close', 0, null);
+                pushJsonLine(second.stdout, commandEvent('current'));
+                await waitFor(() => events.length === 1);
+                expect(events[0]).toMatchObject({ callId: 'root-thread:current', output });
+            } finally {
+                await client.disconnect();
+            }
+        });
+
+        it('keeps bare CR inside a record and logs malformed records once before recovering', async () => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const { logger } = await import('@/ui/logger');
+            const proc = createMockProcess();
+            mockSpawn.mockReturnValue(proc);
+            const client = new CodexAppServerClient();
+            const events: Record<string, unknown>[] = [];
+            client.setEventHandler(event => events.push(event));
+            await client.connect();
+            try {
+                const malformed = 'not-json\rstill-the-same-record';
+                proc.stdout.push(malformed + '\n' + JSON.stringify(commandEvent('recovered', 'valid')) + '\n');
+                await waitFor(() => events.length === 1);
+                expect(events[0]).toMatchObject({ callId: 'root-thread:recovered', output: 'valid' });
+                const failures = vi.mocked(logger.debug).mock.calls.filter(call => call[0] === '[CodexAppServer] Non-JSON line:');
+                expect(failures).toEqual([['[CodexAppServer] Non-JSON line:', malformed]]);
+            } finally {
+                await client.disconnect();
+            }
+        });
+
+        it('rejects a pending request on stdout error without emitting a buffered incomplete record', async () => {
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const proc = createMockProcess();
+            mockSpawn.mockReturnValue(proc);
+            const client = new CodexAppServerClient();
+            const events: Record<string, unknown>[] = [];
+            client.setEventHandler(event => events.push(event));
+            await client.connect();
+            let failure: unknown;
+            const pending = client.forkThread({ threadId: 'original-thread' }).catch(error => { failure = error; });
+            try {
+                proc.stdout.push(JSON.stringify(commandEvent('incomplete')).slice(0, -1));
+                proc.stdout.emit('error', new Error('stdout failed'));
+                await waitFor(() => failure !== undefined);
+                expect(failure).toBeInstanceOf(Error);
+                expect(String(failure)).toContain('stdout failed');
+                expect(events).toEqual([]);
+            } finally {
+                await client.disconnect();
+                await pending;
+            }
+        });
+    });
+
     it('routes native string and numeric root requests once, retaining selected/custom answers and cancellation', async () => {
         const { CodexAppServerClient } = await import('./codexAppServerClient');
         const writes: MockRpcMessage[] = [];

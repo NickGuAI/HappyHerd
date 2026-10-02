@@ -16,7 +16,6 @@
 import { execSync, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { spawn as crossSpawn } from 'cross-spawn';
-import { createInterface, type Interface as ReadlineInterface } from 'node:readline';
 import { logger } from '@/ui/logger';
 import type {
     InitializeParams,
@@ -267,7 +266,7 @@ function normalizeRawFileChangeList(changes: unknown): LegacyPatchChanges | unde
 
 export class CodexAppServerClient {
     private process: ChildProcess | null = null;
-    private readline: ReadlineInterface | null = null;
+    private stopReadingStdout: (() => void) | null = null;
     private nextId = 1;
     private pending = new Map<number, PendingRequest>();
     private processEpoch = 0;
@@ -964,6 +963,12 @@ export class CodexAppServerClient {
             }
             this.connected = false;
             this.retireUserInputs();
+        });
+
+        // Exit can precede the last stdout data/end events. Settle requests only
+        // after stdio closes so a final reply still wins over process shutdown.
+        proc.on('close', (code) => {
+            if (this.process !== proc || this.processEpoch !== epoch) return;
             // Reject all pending requests
             for (const [id, req] of this.pending) {
                 if (req.epoch !== epoch) continue;
@@ -981,12 +986,52 @@ export class CodexAppServerClient {
             if (text) logger.debug(`[CodexAppServer:stderr] ${text}`);
         });
 
-        // Parse newline-delimited JSON from stdout
-        this.readline = createInterface({ input: proc.stdout! });
-        this.readline.on('line', (line) => {
+        // JSONL is delimited only by LF. readline also splits at Unicode line
+        // separators, which are valid unescaped characters inside JSON strings.
+        // Readable's decoder preserves UTF-8 characters split across chunks.
+        const stdout = proc.stdout!;
+        stdout.setEncoding('utf8');
+        let fragments: string[] = [];
+        const onData = (chunk: string) => {
             if (this.process !== proc || this.processEpoch !== epoch) return;
-            this.handleLine(line, epoch);
+            let start = 0;
+            let end: number;
+            while ((end = chunk.indexOf('\n', start)) !== -1) {
+                fragments.push(chunk.slice(start, end));
+                const line = fragments.join('');
+                fragments = [];
+                this.handleLine(line, epoch);
+                start = end + 1;
+            }
+            if (start < chunk.length) fragments.push(chunk.slice(start));
+        };
+        const onEnd = () => {
+            const line = fragments.join('');
+            fragments = [];
+            if (this.process === proc && this.processEpoch === epoch && line) {
+                this.handleLine(line, epoch);
+            }
+        };
+        stdout.on('data', onData);
+        stdout.once('end', onEnd);
+        stdout.on('error', (err) => {
+            if (this.process !== proc || this.processEpoch !== epoch) return;
+            logger.debug('[CodexAppServer] Stdout error:', err);
+            fragments = [];
+            this.connected = false;
+            this.retireUserInputs();
+            for (const [id, req] of this.pending) {
+                if (req.epoch !== epoch) continue;
+                req.reject(new Error(`Codex stdout error while waiting for ${req.method}: ${err.message}`));
+                this.pending.delete(id);
+            }
+            this.resolvePendingTurn(true);
         });
+        this.stopReadingStdout = () => {
+            stdout.off('data', onData);
+            stdout.off('end', onEnd);
+            fragments = [];
+        };
 
         // Perform initialize handshake
         const initParams: InitializeParams = {
@@ -1043,8 +1088,8 @@ export class CodexAppServerClient {
         const epoch = this.processEpoch;
         logger.debug(`[CodexAppServer] Disconnecting; pid=${pid ?? 'none'}`);
 
-        this.readline?.close();
-        this.readline = null;
+        this.stopReadingStdout?.();
+        this.stopReadingStdout = null;
 
         try {
             proc?.stdin?.end();

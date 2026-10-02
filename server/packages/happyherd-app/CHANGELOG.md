@@ -1,3 +1,7 @@
+# October 1 — Codex conversation reliability
+
+- Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.
+
 # September 29 — Mark Inbox updates as read
 
 - Use Done on the Inbox title row to mark all current updates as read, or open an update to read just that item. Unread dots clear and read state is saved to your account across devices; later updates stay unread. Pending friend requests and app-update notifications remain available.

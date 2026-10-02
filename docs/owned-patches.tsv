@@ -713,3 +713,4 @@ INBOX_AUTHENTICATED_NATIVE_ACCEPTANCE_345	accepted	docs(inbox): retain complete 
 INBOX_ACCEPTANCE_RECORD_TRIM_345	accepted	docs(acceptance): trim the issue 345 acceptance record to its summary and Web captures	docs/acceptance/issue-345/README.md
 INBOX_READ_STATE_DERIVED_REGEN_345	accepted	test(app): regenerate the Inbox read-state changelog data and inventory after the rebase	server/packages/happyherd-app/sources/changelog/changelog.json
 INBOX_READ_STATE_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the KILV changelog baselines for the Inbox read-state entry	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+CODEX_JSONL_UNICODE	accepted	fix(codex): preserve Unicode separators in JSONL transport	server/packages/happyherd-cli/src/codex/codexAppServerClient.test.ts
