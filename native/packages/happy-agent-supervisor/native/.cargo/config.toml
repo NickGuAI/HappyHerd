@@ -1,0 +1,10 @@
+# The musl targets are cross-compiled from macOS during development, where the system `cc` wraps
+# Apple's ld and rejects every GNU linker flag rustc emits. rust-lld ships with the toolchain
+# itself, so it is available on every host that can build this crate at all.
+[target.x86_64-unknown-linux-musl]
+linker = "rust-lld"
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
+rustflags = ["-C", "target-feature=+crt-static"]

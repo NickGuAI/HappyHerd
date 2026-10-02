@@ -1,0 +1,44 @@
+# Runtime learnings
+
+## Upstream pooling owns database connection reuse
+
+libSQL client 0.18 returns completed transaction connections to its pool, replacing our
+per-transaction close patch. Idle pooled connections are expected while the client is open;
+only final client shutdown must release every database handle. Statement finalization remains
+necessary for immediate Windows file release before garbage collection.
+
+The process-owner lock must hold an explicit write transaction for its lifetime. A raw
+`BEGIN IMMEDIATE` through root `execute` is rolled back when the pooled connection is returned,
+silently dropping ownership. Retaining the transaction until release preserves the kernel lock.
+
+## Windows shutdown controls survive graceful cleanup
+
+Closing the tray with the first shutdown handlers removed the user's only Force stop control
+while other handlers could still be stuck. Windows now retains its tray through graceful
+shutdown and closes it during finalization. Its parent-exit observer also handles abrupt death.
+
+## Module loading belongs in distributed traces
+
+Module timing logs alone did not reveal startup and restoration in the trace viewer. The shared
+module wrapper now creates spans for initialization and ordinary hooks, including after-start and
+agent restoration, passing the span context into module work so child spans nest correctly. It
+preserves synchronous returns, asynchronous completion, and original failures. Raw provider events
+remain uninstrumented so streaming deltas cannot flood telemetry.
+
+## Probe startup is not the database responsiveness deadline
+
+The isolated database deadlock test previously allowed four seconds for cold TypeScript imports,
+database setup, and its gated tool batch. Under CI CPU contention, startup took over six seconds
+even though the database check completed in under 110 milliseconds. The probe now has a separate,
+bounded fifteen-second startup allowance. Its one-second deadline after `READY` and every
+concurrency assertion remain unchanged, so slow process startup cannot masquerade as a deadlock.
+
+## Shared event streams do not reserve the next frame for one feature
+
+The team mobile-connection test assumed its next event frame was a connection update. An
+asynchronous slash-command catalog update legitimately arrived first and failed release checks.
+The test now waits for the next integration event while skipping only unrelated event types,
+with explicit time and frame-count bounds. It must not filter by the expected member, version,
+or payload: the first integration event is still compared exactly, so another member's leaked
+connection state cannot be skipped. Real profile updates force unrelated events ahead of both
+replayed and live connection updates, making the ordering regression deterministic.

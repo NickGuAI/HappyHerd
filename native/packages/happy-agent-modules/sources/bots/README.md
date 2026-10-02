@@ -1,0 +1,57 @@
+# Bots
+
+Bots are persistent single-conversation assistants. This module owns each bot's immutable
+username, dedicated folder and workspace identity, one root-agent identity, catalog order,
+lifecycle, administrator status, and avatar. The dedicated workspace uses the username as its immutable name; changing
+the bot's human display name therefore does not version or rename the workspace.
+
+Every bot is non-admin unless its authenticated API creator explicitly sets `isAdmin`. The
+`create_bot` tool remains visible to every direct bot, but rejects calls from non-admin bots with
+an explanation that names the admin bots on the installation when any exist. The tool does not
+expose `isAdmin` in its input, so an admin bot can create only non-admin bots. Human-owned root
+agents remain unrestricted.
+
+`set_bot_avatar` defaults to the acting bot's picture. Active admin bots may pass `botId` to set
+any bot's picture, including an archived bot; other bots may target only themselves. Images must
+always come from the acting bot's own folder. Authorization is rechecked in the avatar write
+transaction. `list_bots` shows whether each bot has an avatar and accepts optional `hasAvatar`
+to filter the roster (`false` finds bots without pictures).
+
+On first startup, the module creates one admin bot named `Chief of Staff` with an ordinary generated
+ID, the bundled Chief of Staff avatar, and the internal system key `chief_of_staff`. The bot row,
+normalized avatar asset, agent, workspace, folder, and creation event are one initial creation, so
+clients never observe a newly seeded Chief of Staff without its picture. A separate seed ledger
+records that this system bot was created and deliberately survives deletion, so neither archival
+nor deletion causes startup to replace it or backfill a picture. No instruction is stored in the
+database. The bots module uses the system key to inject the current source guidance on every
+inference, so an upgrade updates its built-in instructions while preserving its identity and
+conversation. Future built-in bots receive their own system keys and seed-ledger entries through
+the same path.
+
+A bot's one agent is born with its conversation title set to the bot's display name, and renaming
+the bot renames the conversation with it: a bot is one continuous chat, so its session is called
+whatever the bot is called rather than waiting for a generated title. A titled agent is never
+renamed by automatic naming, so bots keep that name. The title change advances the agent's own
+version and arrives as an `agent.updated` event, separately from the bot's version.
+
+A client may create a bot without supplying a name. The daemon supplies `New Bot` internally;
+there is no public naming flag. That bot is usable immediately; its first
+accepted user message starts detached naming work while its real turn continues. The naming prompt
+asks for a one-to-three-word person, role, or character identity based on the likely ongoing
+function, rather than a task title. The result renames both the bot and its conversation. Explicitly
+named bots, built-ins, and bots renamed while inference is running are never overwritten.
+
+Creation also accepts optional bot, workspace, and agent IDs. All three are reserved together and
+checked against the bot, project, workspace, and agent catalogs, including archived records.
+Repeating the bot ID returns its current state; supplied child IDs must match the stored ones.
+`createWithResult` reports whether the transaction created the bot so an API retry does not repeat
+discovery or publish creation again. Folder failure rolls the entire creation back.
+
+On every inference, the module adds the owning bot's current display name, immutable username,
+and stable bot ID to that bot agent's system instructions. It contributes nothing to ordinary
+agents, and a rename reaches the bot on its next turn without changing its agent identity.
+
+Bot routes are available regardless of `features.workspaces`. That flag continues to gate the
+shared `/v0/workspaces` HTTP and model-tool surfaces, while bot creation, listing, lifecycle, and
+agent messaging remain usable. When workspace routes are enabled, a bot's unlisted dedicated
+workspace is addressable by ID for files, terminals, and the workspace proxy.

@@ -1,0 +1,271 @@
+import { homedir, hostname, platform, release } from "node:os";
+
+import type { MessageMode } from "@slopus/happy-agent-client";
+import type { HappyComposerDraft } from "./HappyComposerDraft.js";
+
+import { describeHappyProvider, type HappyProviderDescriptor } from "./describeHappyProvider.js";
+import { HAPPY_PERMISSION_MODES, type HappyPermissionModeKind } from "./happyPermissionModes.js";
+import { HAPPY_SESSION_RPC_METHODS } from "./handleHappySessionRpc.js";
+import type { HappyConnectionConfiguration } from "./HappyCredentials.js";
+import type { HappyModel, HappySessionSnapshot } from "./HappySession.js";
+
+/** How large an attachment Happy may send. */
+export const MAX_HAPPY_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+/** One model as Happy publishes it. */
+export interface HappyPublishedModel {
+    code: string;
+    contextWindow?: number;
+    defaultThinkingLevel: string;
+    id: string;
+    name: string;
+    provider: HappyProviderDescriptor;
+    providerId: string;
+    providerKind: string;
+    providerName: string;
+    serviceTiers: readonly string[];
+    thinkingLevels: readonly string[];
+    value: string;
+}
+
+/** Everything the phone needs to draw a session before a single message arrives. */
+export interface HappySessionMetadata {
+    capabilities: {
+        abort: boolean;
+        attachments: { enabled: boolean; maxBytes: number; mediaTypes: readonly string[] };
+        files: { browse: boolean; read: boolean; search: boolean; write: boolean };
+        /**
+         * This daemon answers every accepted phone message with a `user-message-accepted`
+         * receipt, so the phone may hold a sent message at the bottom until one arrives.
+         */
+        messageReceipts: boolean;
+        modelSelection: boolean;
+        permissionModeSelection: boolean;
+        reasoningSelection: boolean;
+        resume: boolean;
+        rpcMethods: readonly string[];
+        shell: boolean;
+        steering: boolean;
+    };
+    client: { id: "rig"; name: "Happy Agent"; version: string };
+    /** The same composer fields Happy Agent stores locally; clears retain their timestamp. */
+    draft: HappyComposerDraft | null;
+    draftUpdatedAt: number | null;
+    /** Written by Happy Agent after accepting a message, never by a picker change. */
+    lastMode: MessageMode | null;
+    /**
+     * @deprecated Read-only mirrors of the effective selection for phone builds that predate
+     * `draft` and `lastMode`. Never read back. Remove once the phone reads the composer fields.
+     */
+    currentModelCode: string;
+    /** @deprecated See `currentModelCode`. */
+    currentModelProviderId: string;
+    /** @deprecated See `currentModelCode`. */
+    currentOperatingModeCode: string;
+    /** @deprecated See `currentModelCode`. */
+    currentThoughtLevelCode?: string;
+    /** @deprecated See `currentModelCode`. */
+    permissionMode: string;
+    /**
+     * @deprecated Selected-provider descriptor for phone builds that read
+     * `metadata.provider.kind` for the session-list icon. See `currentModelCode`.
+     */
+    provider: HappyProviderDescriptor;
+    flavor: string;
+    happyHomeDir: string;
+    homeDir: string;
+    host: string;
+    hostPid: number;
+    /** Rig's branch/worktree line delta against the merge base with origin/main. */
+    git?: {
+        changedFiles: number;
+        countsExact: boolean;
+        deletions: number;
+        insertions: number;
+    };
+    /**
+     * The newest visible human text, final model response, or user-facing question, in epoch
+     * milliseconds.
+     */
+    lastMeaningfulMessageAt?: number;
+    machineId?: string;
+    models: readonly HappyPublishedModel[];
+    name?: string;
+    operatingModes: readonly {
+        code: string;
+        description: string;
+        kind: HappyPermissionModeKind;
+        value: string;
+    }[];
+    os: string;
+    path: string;
+    /**
+     * What the phone groups this session under.
+     *
+     * Every workspace of one project carries the same `project.id`, so their sessions gather in a
+     * single card, and `workspace` names the checkout within it.
+     */
+    project?: { id: string; kind: "home" | "regular"; name: string };
+    bot?: HappySessionSnapshot["bot"];
+    providers: readonly HappyProviderDescriptor[];
+    rigMetadataVersion: 1;
+    session: {
+        modelLocked: false;
+        /** @deprecated Required by older phone schemas; see `currentModelCode`. */
+        permissionMode: string;
+        /** @deprecated See `currentModelCode`. */
+        serviceTier?: string;
+        status: string;
+    };
+    startedBy: "daemon";
+    startedFromDaemon: true;
+    summary?: { text: string; updatedAt: number };
+    tools: readonly string[];
+    /** The branch this checkout is on, which legacy sessions report too. */
+    gitBranch?: string;
+    /**
+     * The workspace this session runs in, absent in the project's own checkout.
+     *
+     * Named by its current title rather than its branch, so renaming a workspace renames it
+     * everywhere the phone shows it.
+     */
+    workspace?: { id: string; kind: "worktree"; name: string };
+}
+
+/**
+ * Describes one Happy Agent session in Happy's own terms.
+ *
+ * This is what makes the phone useful before anything is said: which model is
+ * running, what else it could run, what the session may touch, and what Happy Agent can
+ * be asked to do for it. It is republished whenever any of that changes.
+ */
+export function createHappySessionMetadata(options: {
+    configuration: HappyConnectionConfiguration;
+    models: readonly HappyModel[];
+    session: HappySessionSnapshot;
+    summaryUpdatedAt: number;
+    version: string;
+}): HappySessionMetadata {
+    const { configuration, models, session } = options;
+    const selected = models.find(
+        (model) => model.id === session.modelId && model.providerId === session.providerId,
+    );
+    const providerIds = [...new Set(models.map((model) => model.providerId))];
+    const providers = (providerIds.length === 0 ? [session.providerId] : providerIds).map(
+        describeHappyProvider,
+    );
+    const efforts = selected?.effortLevels ?? [];
+    const title = session.bot?.name ?? session.title;
+    return {
+        capabilities: {
+            abort: true,
+            attachments: {
+                enabled: true,
+                maxBytes: MAX_HAPPY_ATTACHMENT_BYTES,
+                mediaTypes: ["image/*"],
+            },
+            files: {
+                browse: false,
+                read: true,
+                search: false,
+                write: false,
+            },
+            messageReceipts: true,
+            modelSelection: true,
+            permissionModeSelection: true,
+            reasoningSelection: efforts.length > 0,
+            resume: false,
+            rpcMethods: [...HAPPY_SESSION_RPC_METHODS],
+            shell: false,
+            steering: true,
+        },
+        client: { id: "rig", name: "Happy Agent", version: options.version },
+        draft: session.draft.value === null ? null : { ...session.draft.value },
+        draftUpdatedAt: session.draft.updatedAt,
+        lastMode: session.lastMode === null ? null : { ...session.lastMode },
+        // Deprecated mirrors for phone builds that predate the composer fields.
+        currentModelCode: session.modelId,
+        currentModelProviderId: session.providerId,
+        currentOperatingModeCode: session.permissionMode,
+        ...(session.effort === undefined ? {} : { currentThoughtLevelCode: session.effort }),
+        permissionMode: session.permissionMode,
+        provider: describeHappyProvider(session.providerId),
+        flavor: session.providerId,
+        happyHomeDir: configuration.happyHome,
+        homeDir: homedir(),
+        host: hostname(),
+        hostPid: process.pid,
+        ...(session.git === undefined ? {} : { git: { ...session.git } }),
+        ...(session.lastMeaningfulMessageAt === undefined
+            ? {}
+            : { lastMeaningfulMessageAt: session.lastMeaningfulMessageAt }),
+        ...(configuration.machineId === undefined ? {} : { machineId: configuration.machineId }),
+        models: models.map(publishModel),
+        ...(title === undefined ? {} : { name: title }),
+        operatingModes: HAPPY_PERMISSION_MODES.map((mode) => ({ ...mode })),
+        os: `${platform()} ${release()}`,
+        path: session.cwd,
+        // Falls back to the session's own identity only when this daemon keeps no project for it.
+        // A per-session id groups nothing, which is the right answer for a session that belongs
+        // to nothing, and the wrong one for every session that does.
+        ...(session.bot === undefined
+            ? {
+                  project:
+                      session.project === undefined
+                          ? {
+                                id: `rig:${session.sessionId}`,
+                                kind: "regular",
+                                name: session.projectName,
+                            }
+                          : {
+                                id: session.project.id,
+                                kind: session.project.kind,
+                                name: session.project.name,
+                            },
+              }
+            : {}),
+        ...(session.bot === undefined ? {} : { bot: { ...session.bot } }),
+        providers,
+        rigMetadataVersion: 1,
+        session: {
+            modelLocked: false,
+            permissionMode: session.permissionMode,
+            ...(session.serviceTier === undefined ? {} : { serviceTier: session.serviceTier }),
+            status: session.status,
+        },
+        startedBy: "daemon",
+        startedFromDaemon: true,
+        ...(title === undefined
+            ? {}
+            : { summary: { text: title, updatedAt: options.summaryUpdatedAt } }),
+        tools: [...session.tools],
+        ...(session.gitBranch === undefined ? {} : { gitBranch: session.gitBranch }),
+        ...(session.workspace === undefined || session.bot !== undefined
+            ? {}
+            : {
+                  workspace: {
+                      id: session.workspace.id,
+                      kind: "worktree" as const,
+                      name: session.workspace.name,
+                  },
+              }),
+    };
+}
+
+function publishModel(model: HappyModel): HappyPublishedModel {
+    const provider = describeHappyProvider(model.providerId);
+    return {
+        code: model.id,
+        ...(model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow }),
+        defaultThinkingLevel: model.defaultEffort,
+        id: model.id,
+        name: model.name,
+        provider,
+        providerId: model.providerId,
+        providerKind: provider.kind,
+        providerName: provider.name,
+        serviceTiers: [...model.serviceTiers],
+        thinkingLevels: [...model.effortLevels],
+        value: model.name,
+    };
+}

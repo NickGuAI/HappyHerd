@@ -1,0 +1,1608 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+    createHappySyncDatabase,
+    encryptHappyBlob,
+    encryptHappyPayload,
+    decryptHappyPayload,
+    happySessionTag,
+    HappyMessageRefused,
+    HappySessionClient,
+    happySyncMigrations,
+} from "../../sources/happy/index.js";
+import type {
+    HappyConnectionConfiguration,
+    HappySessionOperations,
+    HappyInboundMessage,
+    HappyModel,
+    HappySessionSnapshot,
+    HappySocket,
+    HappySyncDatabase,
+} from "../../sources/happy/index.js";
+import type { UserInputRequest } from "../../sources/userInput/index.js";
+import { moduleDatabase, type ModuleDatabase } from "../support/moduleDatabase.js";
+
+const AGENT_ID = "agent-1";
+const SESSION_ID = "session-1";
+const SERVER = "https://api.happy.example";
+const KEY = Buffer.alloc(32, 7).toString("base64");
+
+const CONFIGURATION: HappyConnectionConfiguration = {
+    credentialFingerprint: "credential-fingerprint",
+    credentials: { encryption: { secret: new Uint8Array(32), type: "legacy" }, token: "token" },
+    credentialsPath: "/tmp/happy/access.key",
+    happyHome: "/tmp/happy",
+    imported: false,
+    machineId: "machine-1",
+    serverUrl: SERVER,
+};
+
+const MODELS: readonly HappyModel[] = [
+    {
+        defaultEffort: "medium",
+        effortLevels: ["low", "medium", "high"],
+        id: "gpt-5.6-sol",
+        name: "GPT-5.6 Sol",
+        providerId: "codex",
+        serviceTiers: [],
+    },
+    {
+        defaultEffort: "high",
+        effortLevels: ["high"],
+        id: "anthropic/opus-5",
+        name: "Opus 5",
+        providerId: "claude",
+        serviceTiers: [],
+    },
+];
+
+/** The mode a composer edit made on the phone carries. */
+const PHONE_MODE = {
+    effort: "high",
+    modelId: "anthropic/opus-5",
+    permissionMode: "read_only" as const,
+    providerId: "claude",
+    serviceTier: null,
+};
+
+function encode(value: unknown): string {
+    return Buffer.from(
+        encryptHappyPayload(new Uint8Array(Buffer.from(KEY, "base64")), "legacy", value),
+    ).toString("base64");
+}
+
+function decode(value: string): unknown {
+    return decryptHappyPayload(
+        new Uint8Array(Buffer.from(KEY, "base64")),
+        "legacy",
+        new Uint8Array(Buffer.from(value, "base64")),
+    );
+}
+
+/** The same value with every object's keys in reverse order, as another client would write it. */
+function inAnotherKeyOrder(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(inAnotherKeyOrder);
+    if (value === null || typeof value !== "object") return value;
+    return Object.fromEntries(
+        Object.entries(value)
+            .reverse()
+            .map(([key, entry]) => [key, inAnotherKeyOrder(entry)]),
+    );
+}
+
+/** A socket that records what was emitted and lets a test play the server's part. */
+class FakeSocket implements HappySocket {
+    connected = true;
+    readonly emitted: { event: string; value: unknown }[] = [];
+    readonly #listeners = new Map<string, (...values: any[]) => void>();
+    /** What the next acknowledged emit answers with, in the order they are asked for. */
+    acknowledgements: unknown[] = [];
+
+    connect(): void {
+        this.#listeners.get("connect")?.();
+    }
+
+    disconnect(): void {
+        this.connected = false;
+    }
+
+    reconnect(): void {
+        this.connected = true;
+        this.#listeners.get("connect")?.();
+    }
+
+    emit(event: string, ...values: unknown[]): void {
+        this.emitted.push({ event, value: values[0] });
+        const callback = values[1];
+        if (typeof callback === "function") {
+            (callback as (answer: unknown) => void)(
+                this.acknowledgements.shift() ?? { result: "success", version: 1 },
+            );
+        }
+    }
+
+    on(event: string, listener: (...values: any[]) => void): void {
+        this.#listeners.set(event, listener);
+    }
+
+    /** Plays the server asking this session to do something. */
+    async rpc(method: string, params: unknown): Promise<unknown> {
+        const listener = this.#listeners.get("rpc-request");
+        if (listener === undefined) throw new Error("The client registered no RPC listener.");
+        return await new Promise((resolve) => {
+            listener({ method, params: encode(params) }, (answer: string) => {
+                resolve(answer === "" ? undefined : decode(answer));
+            });
+        });
+    }
+
+    /** Plays the server saying there is something new. */
+    update(value?: unknown): void {
+        this.#listeners.get("update")?.(value);
+    }
+
+    emittedValues(event: string): unknown[] {
+        return this.emitted.filter((one) => one.event === event).map((one) => one.value);
+    }
+}
+
+interface Call {
+    readonly kind: string;
+    readonly detail: unknown;
+}
+
+function fakeOperations(overrides: Partial<HappySessionOperations> = {}): {
+    calls: Call[];
+    operations: HappySessionOperations;
+    pending: UserInputRequest[];
+    snapshot: HappySessionSnapshot;
+} {
+    const calls: Call[] = [];
+    const pending: UserInputRequest[] = [];
+    const snapshot: HappySessionSnapshot = {
+        agentId: AGENT_ID,
+        archived: false,
+        cwd: "/home/user/projects/rig",
+        draft: { updatedAt: null, value: null },
+        lastMode: null,
+        modelId: "gpt-5.6-sol",
+        permissionMode: "auto",
+        projectName: "rig",
+        providerId: "codex",
+        sessionId: SESSION_ID,
+        status: "running",
+        title: "A session",
+        tools: [],
+        working: false,
+    };
+    const operations: HappySessionOperations = {
+        gitState: async () => ({
+            success: false,
+            code: "unavailable",
+            error: "Git is unavailable.",
+        }),
+        readFile: async (_ctx, agentId, request) => {
+            calls.push({ kind: "readFile", detail: { agentId, ...request } });
+            return { success: true, content: "", hash: "0".repeat(64) };
+        },
+        readFileAtRevision: async (_ctx, agentId, request) => {
+            calls.push({ kind: "readFileAtRevision", detail: { agentId, ...request } });
+            return { success: true, content: "" };
+        },
+        abort: async () => {
+            calls.push({ detail: undefined, kind: "abort" });
+        },
+        answerQuestion: async (_ctx, _agentId, requestId, answers) => {
+            calls.push({ detail: { answers, requestId }, kind: "answer" });
+        },
+        archiveSession: async (_ctx, sessionId) => {
+            calls.push({ detail: sessionId, kind: "archive" });
+        },
+        cancelQuestion: async (_ctx, _agentId, requestId) => {
+            calls.push({ detail: requestId, kind: "cancel" });
+        },
+        models: () => MODELS,
+        pendingQuestions: async () => pending,
+        providerUsage: () => null,
+        saveDraft: async (_ctx, _agentId, draft) => {
+            calls.push({ detail: draft, kind: "saveDraft" });
+            if (draft.updatedAt !== null && draft.updatedAt >= (snapshot.draft.updatedAt ?? -1)) {
+                Object.assign(snapshot, { draft });
+            }
+        },
+        session: async () => snapshot,
+        submit: async (_ctx, _agentId, message) => {
+            calls.push({ detail: message, kind: "submit" });
+        },
+        ...overrides,
+    };
+    return { calls, operations, pending, snapshot };
+}
+
+/** A stand-in for Happy's HTTP API that answers exactly what a test tells it to. */
+function fakeServer(options: { avatars?: boolean } = {}) {
+    const requests: { body: unknown; method: string; url: string }[] = [];
+    let remoteMessages: unknown[] = [];
+    /** Encrypted attachments the phone has put in the session's store, by ref. */
+    const attachments = new Map<string, Uint8Array>();
+    const handler = async (input: string | URL, init: RequestInit = {}): Promise<Response> => {
+        const url = typeof input === "string" ? input : input.toString();
+        const method = init.method ?? "GET";
+        const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
+        requests.push({ body, method, url });
+        if (url.endsWith("/attachments/request-download") && method === "POST") {
+            // Happy hands out a download address for any ref; the store answers for whether the
+            // bytes are there.
+            const ref = (body as { ref: string }).ref;
+            return Response.json({ downloadUrl: `${SERVER}/download/${encodeURIComponent(ref)}` });
+        }
+        if (url.includes("/download/")) {
+            const ref = decodeURIComponent(
+                url.slice(url.indexOf("/download/") + "/download/".length),
+            );
+            const bytes = attachments.get(ref);
+            if (bytes === undefined) return new Response(null, { status: 404 });
+            return new Response(bytes);
+        }
+        if (url.endsWith("/v1/sessions") && method === "POST") {
+            return Response.json({
+                session: {
+                    id: "remote-1",
+                    metadataVersion: 4,
+                    ...(options.avatars ? { avatar: null } : {}),
+                },
+            });
+        }
+        if (url.endsWith("/avatar/request-upload"))
+            return Response.json({
+                ref: "sessions/remote-1/avatar/a.enc",
+                method: "PUT",
+                uploadUrl: `${SERVER}/upload-avatar`,
+            });
+        if (url.endsWith("/avatar"))
+            return Response.json({ avatar: method === "DELETE" ? null : { ...body, version: 1 } });
+        if (url.includes("/messages") && method === "POST") {
+            return Response.json({ ok: true });
+        }
+        if (url.includes("/messages")) {
+            const page = { hasMore: false, messages: remoteMessages };
+            remoteMessages = [];
+            return Response.json(page);
+        }
+        if (url.endsWith("/archive")) return Response.json({ ok: true });
+        return Response.json({});
+    };
+    return {
+        fetch: handler as unknown as typeof fetch,
+        requests,
+        /** Plays the phone having uploaded one attachment, encrypted with the session's key. */
+        attach: (ref: string, bytes: Uint8Array) => {
+            attachments.set(
+                ref,
+                encryptHappyBlob({
+                    bytes,
+                    encryptionKey: new Uint8Array(Buffer.from(KEY, "base64")),
+                    encryptionVariant: "legacy",
+                }),
+            );
+        },
+        deliver: (messages: unknown[]) => {
+            remoteMessages = messages;
+        },
+        posted: (fragment: string) =>
+            requests.filter((one) => one.method === "POST" && one.url.includes(fragment)),
+    };
+}
+
+function remoteMessage(seq: number, id: string, payload: unknown): Record<string, unknown> {
+    return {
+        content: { c: encode(payload), t: "encrypted" },
+        createdAt: 1_000,
+        id,
+        localId: null,
+        seq,
+        updatedAt: 1_000,
+    };
+}
+
+let store: ModuleDatabase;
+let sync: HappySyncDatabase;
+
+beforeEach(async () => {
+    store = moduleDatabase(happySyncMigrations, "happy-session-client");
+    await store.ready;
+    sync = createHappySyncDatabase();
+    await sync.ensureSession(
+        store.context,
+        {
+            agentId: AGENT_ID,
+            credentialFingerprint: "fingerprint",
+            encryptionKeyBase64: KEY,
+            encryptionVariant: "legacy",
+            sessionId: SESSION_ID,
+        },
+        1_000,
+    );
+});
+
+afterEach(() => {
+    store.close();
+});
+
+function client(options: {
+    operations: HappySessionOperations;
+    projectId?: () => Promise<string | undefined>;
+    server: ReturnType<typeof fakeServer>;
+    socket: FakeSocket;
+}): HappySessionClient {
+    return new HappySessionClient({
+        agentId: AGENT_ID,
+        configuration: CONFIGURATION,
+        context: store.context,
+        fetch: options.server.fetch,
+        operations: options.operations,
+        ...(options.projectId === undefined ? {} : { projectId: options.projectId }),
+        sessionId: SESSION_ID,
+        socketFactory: () => options.socket,
+        sync,
+        version: "1.2.3",
+    });
+}
+
+describe("keeping one session in step with Happy", () => {
+    it("caps artwork backoff without polling chat and resets it for a new bot revision", async () => {
+        const server = fakeServer({ avatars: true });
+        const { operations, snapshot } = fakeOperations();
+        const read = vi.fn(async () => {
+            throw new Error("Picture unavailable");
+        });
+        let version = 1;
+        const session = client({
+            server,
+            socket: new FakeSocket(),
+            operations: {
+                ...operations,
+                sessionAvatarAsset: read,
+                session: async () => ({
+                    ...snapshot,
+                    avatarVersion: version,
+                    bot: {
+                        id: "b",
+                        name: "Assistant",
+                        username: "assistant",
+                        workspaceId: "w",
+                        orderKey: "1",
+                    },
+                }),
+            },
+        });
+        vi.useFakeTimers();
+        try {
+            await session.settle();
+            const chatRequests = server.requests.length;
+            for (const [index, delay] of [2_000, 4_000, 8_000, 16_000, 32_000].entries()) {
+                await vi.advanceTimersByTimeAsync(delay - 1);
+                expect(read).toHaveBeenCalledTimes(index + 1);
+                await vi.advanceTimersByTimeAsync(1);
+                expect(read).toHaveBeenCalledTimes(index + 2);
+            }
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(read).toHaveBeenCalledTimes(6);
+            expect(server.requests).toHaveLength(chatRequests);
+            version++;
+            await session.settle();
+            expect(read).toHaveBeenCalledTimes(7);
+        } finally {
+            await session.close();
+            vi.useRealTimers();
+        }
+    });
+
+    it("does not retry failing optional artwork whenever chat synchronizes", async () => {
+        const server = fakeServer({ avatars: true });
+        const { operations, snapshot } = fakeOperations();
+        const read = vi.fn(async () => {
+            throw new Error("Missing stored picture");
+        });
+        const session = client({
+            server,
+            socket: new FakeSocket(),
+            operations: {
+                ...operations,
+                sessionAvatarAsset: read,
+                session: async () => ({
+                    ...snapshot,
+                    avatarVersion: 1,
+                    bot: {
+                        id: "b",
+                        name: "Assistant",
+                        username: "assistant",
+                        workspaceId: "w",
+                        orderKey: "1",
+                    },
+                }),
+            },
+        });
+        try {
+            await session.settle();
+            await session.settle();
+            await session.settle();
+            expect(read).toHaveBeenCalledOnce();
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("continues publishing session changes while a picture upload is pending", async () => {
+        const server = fakeServer({ avatars: true });
+        const request = server.fetch;
+        let finishUpload!: () => void;
+        const uploading = vi.fn();
+        server.fetch = (async (url, init) => {
+            if (String(url).endsWith("/upload-avatar")) {
+                await new Promise<void>((resolve) => {
+                    finishUpload = resolve;
+                    uploading();
+                });
+            }
+            return await request(url, init);
+        }) as typeof fetch;
+        const { operations, snapshot } = fakeOperations();
+        let name = "Assistant";
+        const socket = new FakeSocket();
+        const session = client({
+            server,
+            socket,
+            operations: {
+                ...operations,
+                sessionAvatarAsset: async () => ({
+                    bytes: new Uint8Array([1]),
+                    contentHash: "a".repeat(64),
+                    etag: '"a"',
+                    thumbhash: "hash",
+                    width: 1,
+                    height: 1,
+                }),
+                session: async () => ({
+                    ...snapshot,
+                    avatarVersion: 1,
+                    bot: { id: "b", name, username: "assistant", workspaceId: "w", orderKey: "1" },
+                }),
+            },
+        });
+        try {
+            session.kick();
+            await vi.waitFor(() => expect(uploading).toHaveBeenCalledOnce());
+            name = "Renamed Assistant";
+            session.kick();
+            await vi.waitFor(() => {
+                const values = socket.emittedValues("update-metadata") as { metadata: string }[];
+                expect(values.map((value) => decode(value.metadata))).toContainEqual(
+                    expect.objectContaining({ name }),
+                );
+            });
+        } finally {
+            finishUpload?.();
+            await session.close();
+        }
+    });
+
+    it("syncs bot artwork without adding a project or placing artwork in session metadata", async () => {
+        const server = fakeServer({ avatars: true });
+        const { operations, snapshot } = fakeOperations();
+        let version = 1;
+        let picture = {
+            bytes: new Uint8Array([1]),
+            contentHash: "a".repeat(64),
+            etag: '"a"',
+            thumbhash: "hash",
+            width: 1,
+            height: 1,
+        };
+        const read = vi.fn(async () => (version === 3 ? null : picture));
+        const bot = {
+            id: "b",
+            name: "Assistant",
+            username: "assistant",
+            workspaceId: "w",
+            orderKey: "1",
+        };
+        const socket = new FakeSocket();
+        const session = client({
+            server,
+            socket,
+            operations: {
+                ...operations,
+                sessionAvatarAsset: read,
+                session: async () => ({ ...snapshot, bot, avatarVersion: version }),
+            },
+        });
+        try {
+            await session.settle();
+            await session.settle();
+            expect(read).toHaveBeenCalledTimes(1);
+            expect(
+                server.requests.filter(
+                    (request) => request.url.endsWith("/avatar") && request.method === "PATCH",
+                ),
+            ).toHaveLength(1);
+            const metadata = decode(
+                (server.posted("/v1/sessions")[0]!.body as { metadata: string }).metadata,
+            );
+            expect(metadata).toMatchObject({ bot });
+            expect(metadata).not.toHaveProperty("project");
+            expect(metadata).not.toHaveProperty("avatarVersion");
+            version = 2;
+            picture = { ...picture, contentHash: "b".repeat(64) };
+            await session.settle();
+            version = 3;
+            await session.settle();
+            expect(
+                server.requests.filter(
+                    (request) => request.url.endsWith("/avatar") && request.method === "DELETE",
+                ),
+            ).toHaveLength(1);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("leaves project sessions and older relays untouched", async () => {
+        for (const avatars of [false, true]) {
+            const server = fakeServer({ avatars });
+            const { operations, snapshot } = fakeOperations();
+            const read = vi.fn(async () => null);
+            const session = client({
+                server,
+                socket: new FakeSocket(),
+                operations: {
+                    ...operations,
+                    sessionAvatarAsset: read,
+                    session: async () => ({
+                        ...snapshot,
+                        avatarVersion: 1,
+                        ...(avatars
+                            ? {}
+                            : {
+                                  bot: {
+                                      id: "b",
+                                      name: "Bot",
+                                      username: "bot",
+                                      workspaceId: "w",
+                                      orderKey: "1",
+                                  },
+                              }),
+                    }),
+                },
+            });
+            try {
+                await session.settle();
+                expect(read).not.toHaveBeenCalled();
+                expect(server.requests.some((request) => request.url.includes("/avatar"))).toBe(
+                    false,
+                );
+            } finally {
+                await session.close();
+            }
+        }
+    });
+
+    it("creates the remote session under the tag that identifies it", async () => {
+        const server = fakeServer();
+        const socket = new FakeSocket();
+        const session = client({ operations: fakeOperations().operations, server, socket });
+        await session.settle();
+
+        const created = server.posted("/v1/sessions")[0];
+        expect(created?.body).toMatchObject({ agentState: null, tag: happySessionTag(SESSION_ID) });
+        expect(await sync.readSession(store.context, AGENT_ID)).toMatchObject({
+            remoteSessionId: "remote-1",
+        });
+        await session.close();
+    });
+
+    it("links the idempotent session create to its reconciled project", async () => {
+        const server = fakeServer();
+        const session = client({
+            operations: fakeOperations().operations,
+            projectId: async () => "remote-project-1",
+            server,
+            socket: new FakeSocket(),
+        });
+        await session.settle();
+        expect(server.posted("/v1/sessions")[0]?.body).toMatchObject({
+            projectId: "remote-project-1",
+        });
+        await session.close();
+    });
+
+    it("creates it once and reuses it afterwards", async () => {
+        const server = fakeServer();
+        const session = client({
+            operations: fakeOperations().operations,
+            server,
+            socket: new FakeSocket(),
+        });
+        await session.settle();
+        await session.settle();
+        expect(server.posted("/v1/sessions")).toHaveLength(1);
+        await session.close();
+    });
+
+    it("registers everything the phone may ask of it", async () => {
+        const socket = new FakeSocket();
+        const session = client({
+            operations: fakeOperations().operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        expect(socket.emittedValues("rpc-register")).toEqual([
+            { method: "remote-1:abort" },
+            { method: "remote-1:communication" },
+            { method: "remote-1:killSession" },
+            { method: "remote-1:gitState" },
+            { method: "remote-1:readFile" },
+            { method: "remote-1:readFileAtRevision" },
+            { method: "remote-1:setAvatar" },
+        ]);
+        await session.close();
+    });
+
+    it("puts a picture the phone uploaded onto the bot behind this session", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer({ avatars: true });
+        const worn: { agentId: string; bytes: Uint8Array; contentType: string }[] = [];
+        const { operations } = fakeOperations({
+            setSessionAvatar: async (_ctx, agentId, bytes, contentType) => {
+                worn.push({ agentId, bytes, contentType });
+            },
+        });
+        const face = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+        server.attach("sessions/remote-1/attachments/face.png", face);
+        const session = client({ operations, server, socket });
+        try {
+            await session.settle();
+            expect(
+                await socket.rpc("remote-1:setAvatar", {
+                    mimeType: "image/png",
+                    ref: "sessions/remote-1/attachments/face.png",
+                    size: face.length,
+                }),
+            ).toEqual({ success: true });
+            expect(worn).toEqual([{ agentId: AGENT_ID, bytes: face, contentType: "image/png" }]);
+            // The download goes through the same request an attachment for a message uses.
+            expect(server.posted("/attachments/request-download")).toHaveLength(1);
+        } finally {
+            await session.close();
+        }
+    });
+
+    // The operations object in production is the connection itself, so every
+    // operation is a method that reaches the connection's own private fields.
+    // Lifting one off the object drops the receiver, and the phone was handed
+    // the resulting TypeError verbatim: "undefined is not an object
+    // (evaluating 'this.#i')". A plain function stands in for the method
+    // everywhere else in this file, which is why nothing here ever noticed.
+    it("calls the avatar operation on its owner rather than lifting it off", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer({ avatars: true });
+        class ConnectionShaped {
+            #worn: { agentId: string; contentType: string }[] = [];
+            async setSessionAvatar(
+                _ctx: unknown,
+                agentId: string,
+                _bytes: Uint8Array,
+                contentType: "image/jpeg" | "image/png" | "image/webp",
+            ): Promise<void> {
+                this.#worn.push({ agentId, contentType });
+            }
+            seen(): { agentId: string; contentType: string }[] {
+                return this.#worn;
+            }
+        }
+        const owner = new ConnectionShaped();
+        const { operations: base } = fakeOperations({});
+        for (const [key, value] of Object.entries(base)) {
+            if (key !== "setSessionAvatar") {
+                (owner as unknown as Record<string, unknown>)[key] = value;
+            }
+        }
+        const face = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 5, 6, 7, 8]);
+        server.attach("sessions/remote-1/attachments/face.png", face);
+        const session = client({
+            operations: owner as unknown as typeof base,
+            server,
+            socket,
+        });
+        try {
+            await session.settle();
+            expect(
+                await socket.rpc("remote-1:setAvatar", {
+                    mimeType: "image/png",
+                    ref: "sessions/remote-1/attachments/face.png",
+                    size: face.length,
+                }),
+            ).toEqual({ success: true });
+            expect(owner.seen()).toEqual([{ agentId: AGENT_ID, contentType: "image/png" }]);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("says so when the picture the phone named is not there", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer({ avatars: true });
+        const worn: unknown[] = [];
+        const { operations } = fakeOperations({
+            setSessionAvatar: async (...call) => {
+                worn.push(call);
+            },
+        });
+        const session = client({ operations, server, socket });
+        try {
+            await session.settle();
+            expect(
+                await socket.rpc("remote-1:setAvatar", {
+                    mimeType: "image/png",
+                    ref: "sessions/remote-1/attachments/missing.png",
+                    size: 8,
+                }),
+            ).toEqual({ error: "Happy Agent could not read that picture." });
+            expect(worn).toEqual([]);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("refuses a picture for a session that has no bot to wear it", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer();
+        server.attach("sessions/remote-1/attachments/face.png", new Uint8Array([1, 2, 3]));
+        const session = client({ operations: fakeOperations().operations, server, socket });
+        try {
+            await session.settle();
+            expect(
+                await socket.rpc("remote-1:setAvatar", {
+                    mimeType: "image/png",
+                    ref: "sessions/remote-1/attachments/face.png",
+                    size: 3,
+                }),
+            ).toEqual({ error: "This session cannot be given a picture." });
+            expect(server.posted("/attachments/request-download")).toHaveLength(0);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("binds encrypted reads to the attached agent and ignores caller-supplied authority", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        try {
+            await session.settle();
+            expect(
+                await socket.rpc("remote-1:readFile", {
+                    path: "a.txt",
+                    cwd: "/outside",
+                    agentId: "other",
+                }),
+            ).toEqual({ success: true, content: "", hash: "0".repeat(64) });
+            expect(
+                await socket.rpc("remote-1:readFileAtRevision", {
+                    path: "old.txt",
+                    revision: "a".repeat(40),
+                    workspaceId: "other",
+                }),
+            ).toEqual({ success: true, content: "" });
+            expect(calls).toEqual([
+                { kind: "readFile", detail: { agentId: AGENT_ID, path: "a.txt" } },
+                {
+                    kind: "readFileAtRevision",
+                    detail: { agentId: AGENT_ID, path: "old.txt", revision: "a".repeat(40) },
+                },
+            ]);
+            expect(await socket.rpc("remote-2:readFile", { path: "a.txt" })).toEqual({
+                error: "Invalid request",
+            });
+            expect(calls).toHaveLength(2);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("rejects malformed reads and moving revision selectors before invoking an operation", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        try {
+            await session.settle();
+            for (const revision of [
+                "HEAD",
+                "main",
+                "origin/main",
+                "abc",
+                "A".repeat(40),
+                "a".repeat(40) + ":outside",
+            ]) {
+                expect(
+                    await socket.rpc("remote-1:readFileAtRevision", { path: "a.txt", revision }),
+                ).toMatchObject({ success: false, code: "invalid" });
+            }
+            for (const params of [
+                null,
+                [],
+                { path: "" },
+                { path: 1 },
+                { path: "a".repeat(16_385) },
+            ]) {
+                expect(await socket.rpc("remote-1:readFile", params)).toMatchObject({
+                    success: false,
+                    code: "invalid",
+                });
+            }
+            expect(await socket.rpc("remote-1:gitState", null)).toMatchObject({
+                success: false,
+                code: "invalid",
+            });
+            expect(calls).toEqual([]);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("keeps a maximum-sized file inside the encrypted relay budget and sanitizes failures", async () => {
+        const socket = new FakeSocket();
+        const content = Buffer.alloc(512 * 1024, 255).toString("base64");
+        const { operations } = fakeOperations({
+            readFile: async () => ({ success: true, content, hash: "a".repeat(64) }),
+        });
+        const session = client({ operations, server: fakeServer(), socket });
+        try {
+            await session.settle();
+            const answer = await socket.rpc("remote-1:readFile", { path: "big.bin" });
+            expect(answer).toEqual({ success: true, content, hash: "a".repeat(64) });
+            expect(Buffer.byteLength(encode(answer))).toBeLessThan(950_000);
+            operations.readFile = async () => {
+                throw new Error("private /secret/path and credentials");
+            };
+            const failure = await socket.rpc("remote-1:readFile", { path: "a.txt" });
+            expect(failure).toMatchObject({ success: false, code: "unavailable" });
+            expect(JSON.stringify(failure)).not.toContain("secret");
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("refuses an oversized UTF-8 Git preview through the shared pre-encryption limit", async () => {
+        const socket = new FakeSocket();
+        const { operations } = fakeOperations({
+            gitState: async () => ({
+                success: true,
+                git: {
+                    facts: {
+                        ahead: 0,
+                        behind: 0,
+                        branch: null,
+                        detached: false,
+                        head: null,
+                        upstream: null,
+                    },
+                    comparison: "ready",
+                    base: "a".repeat(40),
+                    changedFiles: 300,
+                    countsExact: true,
+                    conflicted: false,
+                    deletions: 0,
+                    insertions: 0,
+                    filesTruncated: false,
+                    scannedAt: 1,
+                    files: Array.from({ length: 300 }, (_, index) => ({
+                        path: `${index}/${"界".repeat(1024)}`,
+                        status: "untracked" as const,
+                        staged: false,
+                        unstaged: true,
+                        binary: false,
+                    })),
+                },
+            }),
+        });
+        const session = client({ operations, server: fakeServer(), socket });
+        try {
+            await session.settle();
+            const answer = await socket.rpc("remote-1:gitState", {});
+            expect(answer).toMatchObject({ success: false, code: "too_large" });
+            expect(Buffer.byteLength(encode(answer))).toBeLessThan(1000);
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("sends what the outbox owes, encrypted, and forgets it once accepted", async () => {
+        await sync.projectEvent(store.context, {
+            agentId: AGENT_ID,
+            eventId: "01900000-0000-7000-8000-000000000001",
+            messages: [
+                { localId: "rig:m1", payload: { content: { ev: { t: "text", text: "hi" } } } },
+            ],
+            now: 1_000,
+        });
+        const server = fakeServer();
+        const session = client({
+            operations: fakeOperations().operations,
+            server,
+            socket: new FakeSocket(),
+        });
+        await session.settle();
+
+        const sent = server.posted("/v3/sessions/remote-1/messages")[0]?.body as {
+            messages: { content: string; localId: string }[];
+        };
+        expect(sent.messages).toHaveLength(1);
+        expect(sent.messages[0]?.localId).toBe("rig:m1");
+        expect(decode(sent.messages[0]?.content ?? "")).toEqual({
+            content: { ev: { t: "text", text: "hi" } },
+        });
+        expect(await sync.pending(store.context, AGENT_ID, 10)).toEqual([]);
+        await session.close();
+    });
+
+    it("delivers what the person said on the phone", async () => {
+        const server = fakeServer();
+        const { calls, operations } = fakeOperations();
+        server.deliver([
+            remoteMessage(7, "remote-message-1", {
+                content: { text: "carry on", type: "text" },
+                meta: { model: "gpt-5.6-sol", modelProviderId: "codex", thinkingLevel: "high" },
+                role: "user",
+            }),
+        ]);
+        const session = client({ operations, server, socket: new FakeSocket() });
+        await session.settle();
+
+        const submitted = calls.find((call) => call.kind === "submit")
+            ?.detail as HappyInboundMessage;
+        expect(submitted.text).toBe("carry on");
+        expect(submitted.remoteMessageId).toBe("happy:remote-message-1");
+        expect(submitted.selection).toEqual({
+            effort: "high",
+            modelId: "gpt-5.6-sol",
+            providerId: "codex",
+        });
+        expect(await sync.readSession(store.context, AGENT_ID)).toMatchObject({ lastRemoteSeq: 7 });
+        await session.close();
+    });
+
+    it("republishes the composer mode the session reports once a message is delivered", async () => {
+        const server = fakeServer();
+        const socket = new FakeSocket();
+        const base = fakeOperations();
+        server.deliver([
+            remoteMessage(7, "remote-message-1", {
+                content: { text: "use Opus", type: "text" },
+                meta: { model: "anthropic/opus-5", modelProviderId: "claude" },
+                role: "user",
+            }),
+        ]);
+        const session = client({
+            operations: {
+                ...base.operations,
+                submit: async (_ctx, _agentId, message) => {
+                    Object.assign(base.snapshot, {
+                        lastMode: { ...PHONE_MODE, ...message.selection },
+                    });
+                },
+            },
+            server,
+            socket,
+        });
+        await session.settle();
+
+        const published = socket.emittedValues("update-metadata").at(-1) as { metadata: string };
+        expect(decode(published.metadata)).toMatchObject({
+            lastMode: { modelId: "anthropic/opus-5", providerId: "claude" },
+        });
+        await session.close();
+    });
+
+    it("adopts a newer remote draft, republishes only real changes, and reconciles on reconnect", async () => {
+        const server = fakeServer();
+        const socket = new FakeSocket();
+        socket.acknowledgements = [{ result: "success", version: 5 }];
+        const base = fakeOperations();
+        const session = client({ operations: base.operations, server, socket });
+        await session.settle();
+        const latest = () =>
+            decode(
+                (socket.emittedValues("update-metadata").at(-1) as { metadata: string }).metadata,
+            ) as Record<string, unknown>;
+        const phoneDraft = {
+            updatedAt: 12_345,
+            value: { ...PHONE_MODE, text: "Typed on the phone" },
+        };
+
+        // The phone re-serializes the whole metadata through its own schema, which writes keys in
+        // its order rather than Happy Agent's, at every nesting level.
+        const adopted = { ...latest(), draft: phoneDraft.value, draftUpdatedAt: 12_345 };
+        socket.update({
+            body: {
+                id: "remote-1",
+                metadata: { value: encode(inAnotherKeyOrder(adopted)), version: 6 },
+                t: "update-session",
+            },
+        });
+        await session.settle();
+        expect(base.calls.find((call) => call.kind === "saveDraft")?.detail).toEqual(phoneDraft);
+        expect(base.snapshot.draft).toEqual(phoneDraft);
+        expect(socket.emittedValues("update-metadata")).toHaveLength(1);
+
+        // Something that really changed is still published, on top of the phone's version.
+        socket.acknowledgements = [{ result: "success", version: 7 }];
+        await base.operations.saveDraft(store.context, AGENT_ID, {
+            value: { ...PHONE_MODE, text: "Finished on desktop" },
+            updatedAt: 12_346,
+        });
+        await session.settle();
+        const published = socket.emittedValues("update-metadata") as {
+            expectedVersion: number;
+            metadata: string;
+        }[];
+        expect(published).toHaveLength(2);
+        expect(published[1]?.expectedVersion).toBe(6);
+        expect(decode(published[1]!.metadata)).toMatchObject({
+            draft: { ...PHONE_MODE, text: "Finished on desktop" },
+            draftUpdatedAt: 12_346,
+        });
+
+        // A reconnect forces one compare-and-swap, which is what retrieves an edit made while the
+        // socket was down: the mismatch carries it, and it is adopted and republished.
+        const offlineDraft = {
+            updatedAt: 20_000,
+            value: { ...PHONE_MODE, text: "Written while offline" },
+        };
+        socket.acknowledgements = [
+            {
+                metadata: encode({
+                    ...latest(),
+                    draft: offlineDraft.value,
+                    draftUpdatedAt: offlineDraft.updatedAt,
+                }),
+                result: "version-mismatch",
+                version: 8,
+            },
+            { result: "success", version: 9 },
+        ];
+        socket.disconnect();
+        socket.reconnect();
+        await session.settle();
+
+        expect(base.calls.filter((call) => call.kind === "saveDraft").at(-1)?.detail).toEqual(
+            offlineDraft,
+        );
+        expect(socket.emittedValues("update-metadata")).toHaveLength(4);
+        expect(latest()).toMatchObject({
+            draft: offlineDraft.value,
+            draftUpdatedAt: offlineDraft.updatedAt,
+        });
+        await session.close();
+    });
+
+    it("reconciles edits between HTTP hydration and the first socket connection", async () => {
+        const server = fakeServer();
+        const socket = new FakeSocket();
+        const base = fakeOperations();
+        const fetch = server.fetch;
+        server.fetch = (async (input, init) => {
+            if (String(input).endsWith("/v1/sessions")) {
+                const { metadata } = JSON.parse(String(init?.body));
+                const latest = { ...(decode(metadata) as object), draft: null, draftUpdatedAt: 42 };
+                socket.acknowledgements = [
+                    { metadata: encode(latest), result: "version-mismatch", version: 5 },
+                    { result: "success", version: 6 },
+                ];
+                return Response.json({ session: { id: "remote-1", metadata, metadataVersion: 4 } });
+            }
+            return fetch(input, init);
+        }) as typeof fetch;
+        const session = client({ operations: base.operations, server, socket });
+        await session.settle();
+        expect(base.snapshot.draft).toEqual({ value: null, updatedAt: 42 });
+        await session.close();
+    });
+
+    it("says nothing to the agent about Happy Agent's own message coming back", async () => {
+        const server = fakeServer();
+        const { calls, operations } = fakeOperations();
+        server.deliver([
+            remoteMessage(3, "remote-message-1", {
+                content: { text: "mine", type: "text" },
+                meta: { sentFrom: "rig" },
+                role: "user",
+            }),
+        ]);
+        const session = client({ operations, server, socket: new FakeSocket() });
+        await session.settle();
+        expect(calls.filter((call) => call.kind === "submit")).toEqual([]);
+        expect(await sync.readSession(store.context, AGENT_ID)).toMatchObject({ lastRemoteSeq: 3 });
+        await session.close();
+    });
+
+    it("answers a message it can never take, and keeps reading the ones behind it", async () => {
+        const server = fakeServer();
+        const calls: Call[] = [];
+        const { operations } = fakeOperations({
+            submit: async (_ctx, _agentId, message) => {
+                calls.push({ detail: message, kind: "submit" });
+                if (message.text === "use a model that is gone") {
+                    throw new HappyMessageRefused("That model is not available.");
+                }
+            },
+        });
+        server.deliver([
+            remoteMessage(4, "remote-message-1", {
+                content: { text: "use a model that is gone", type: "text" },
+                role: "user",
+            }),
+            remoteMessage(5, "remote-message-2", {
+                content: { text: "and now this one", type: "text" },
+                role: "user",
+            }),
+        ]);
+        const session = client({ operations, server, socket: new FakeSocket() });
+        await session.settle();
+
+        const said = server
+            .posted("/messages")
+            .flatMap(
+                (request) =>
+                    (request.body as { messages: { localId: string; content: string }[] }).messages,
+            );
+        expect(said.map((one) => one.localId)).toContain("rig:refused:remote-message-1");
+        const refusal = said.find((one) => one.localId === "rig:refused:remote-message-1");
+        expect(decode(refusal!.content)).toMatchObject({
+            role: "session",
+            content: {
+                id: "refused:remote-message-1",
+                role: "agent",
+                ev: {
+                    t: "user-message-rejected",
+                    ref: "remote-message-1",
+                    reason: "That model is not available.",
+                },
+            },
+        });
+        // The message behind it still ran, and Happy was told to send neither again.
+        expect(calls).toHaveLength(2);
+        expect(await sync.readSession(store.context, AGENT_ID)).toMatchObject({ lastRemoteSeq: 5 });
+        await session.close();
+    });
+
+    it("drops a selection naming a permission mode Happy Agent does not have", async () => {
+        const server = fakeServer();
+        const { calls, operations } = fakeOperations();
+        server.deliver([
+            remoteMessage(1, "remote-message-1", {
+                content: { text: "go", type: "text" },
+                meta: { permissionMode: "anything_goes" },
+                role: "user",
+            }),
+        ]);
+        const session = client({ operations, server, socket: new FakeSocket() });
+        await session.settle();
+        const submitted = calls.find((call) => call.kind === "submit")
+            ?.detail as HappyInboundMessage;
+        expect(submitted.selection.permissionMode).toBeUndefined();
+        await session.close();
+    });
+
+    it("tells Happy whether the agent is working", async () => {
+        const socket = new FakeSocket();
+        const { operations, snapshot } = fakeOperations();
+        const working = { ...snapshot, working: true };
+        const session = client({
+            operations: { ...operations, session: async () => working },
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        expect(socket.emittedValues("session-alive")[0]).toMatchObject({
+            sid: "remote-1",
+            thinking: true,
+        });
+        await session.close();
+    });
+
+    it("publishes the session's own facts, encrypted", async () => {
+        const socket = new FakeSocket();
+        const session = client({
+            operations: fakeOperations().operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        const published = socket.emittedValues("update-metadata")[0] as {
+            expectedVersion: number;
+            metadata: string;
+        };
+        expect(published.expectedVersion).toBe(4);
+        expect(decode(published.metadata)).toMatchObject({
+            client: { id: "rig", name: "Happy Agent", version: "1.2.3" },
+            draft: null,
+            draftUpdatedAt: null,
+            lastMode: null,
+        });
+        await session.close();
+    });
+
+    it("does not republish facts that have not changed", async () => {
+        const socket = new FakeSocket();
+        const session = client({
+            operations: fakeOperations().operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        await session.settle();
+        expect(socket.emittedValues("update-metadata")).toHaveLength(1);
+        await session.close();
+    });
+
+    it("republishes metadata only when the latest meaningful-message timestamp changes", async () => {
+        const socket = new FakeSocket();
+        const { operations, snapshot } = fakeOperations();
+        let lastMeaningfulMessageAt = 1_000;
+        const session = client({
+            operations: {
+                ...operations,
+                session: async () => ({ ...snapshot, lastMeaningfulMessageAt }),
+            },
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        await session.settle();
+        expect(socket.emittedValues("update-metadata")).toHaveLength(1);
+
+        lastMeaningfulMessageAt = 2_000;
+        await session.settle();
+        const updates = socket.emittedValues("update-metadata") as { metadata: string }[];
+        expect(updates).toHaveLength(2);
+        expect(decode(updates[1]!.metadata)).toMatchObject({
+            lastMeaningfulMessageAt: 2_000,
+        });
+        await session.close();
+    });
+
+    it("republishes Git line counts and clears them when comparison becomes unavailable", async () => {
+        const socket = new FakeSocket();
+        const { operations, snapshot } = fakeOperations();
+        let git: HappySessionSnapshot["git"] = {
+            changedFiles: 2,
+            countsExact: true,
+            deletions: 4,
+            insertions: 12,
+        };
+        const session = client({
+            operations: {
+                ...operations,
+                session: async () => ({ ...snapshot, ...(git === undefined ? {} : { git }) }),
+            },
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        expect(
+            decode((socket.emittedValues("update-metadata")[0] as { metadata: string }).metadata),
+        ).toMatchObject({ git });
+
+        git = undefined;
+        await session.settle();
+        const updates = socket.emittedValues("update-metadata") as { metadata: string }[];
+        expect(updates).toHaveLength(2);
+        expect(decode(updates[1]!.metadata)).not.toHaveProperty("git");
+        await session.close();
+    });
+
+    it("puts Happy Agent's facts back on top of whatever was written first", async () => {
+        const socket = new FakeSocket();
+        socket.acknowledgements = [
+            { metadata: encode({ theirs: "kept" }), result: "version-mismatch", version: 9 },
+            { result: "success", version: 10 },
+        ];
+        const session = client({
+            operations: fakeOperations().operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        const attempts = socket.emittedValues("update-metadata") as { metadata: string }[];
+        expect(attempts).toHaveLength(2);
+        expect(decode(attempts[1]?.metadata ?? "")).toMatchObject({
+            draft: null,
+            draftUpdatedAt: null,
+            lastMode: null,
+            theirs: "kept",
+        });
+        await session.close();
+    });
+
+    it("clears stale archive and project metadata when restoring the same bot session", async () => {
+        const socket = new FakeSocket();
+        socket.acknowledgements = [
+            {
+                metadata: encode({
+                    lifecycleState: "archived",
+                    archivedBy: "rig",
+                    archiveReason: "old",
+                    lifecycleStateSince: 1,
+                    project: { id: "synthetic", name: "old", kind: "regular" },
+                    workspace: { id: "bot-workspace", name: "old", kind: "worktree" },
+                    theirs: "kept",
+                }),
+                result: "version-mismatch",
+                version: 9,
+            },
+        ];
+        const { operations, snapshot } = fakeOperations();
+        const bot = {
+            id: "bot-1",
+            name: "Assistant",
+            username: "assistant",
+            workspaceId: "bot-workspace",
+            orderKey: "1",
+        };
+        const session = client({
+            operations: { ...operations, session: async () => ({ ...snapshot, bot }) },
+            server: fakeServer(),
+            socket,
+        });
+        try {
+            await session.settle();
+            const attempts = socket.emittedValues("update-metadata") as { metadata: string }[];
+            const restored = decode(attempts.at(-1)!.metadata);
+            expect(restored).toMatchObject({ bot, lifecycleState: "active", theirs: "kept" });
+            for (const field of [
+                "archivedBy",
+                "archiveReason",
+                "lifecycleStateSince",
+                "project",
+                "workspace",
+            ]) {
+                expect(restored).not.toHaveProperty(field);
+            }
+        } finally {
+            await session.close();
+        }
+    });
+
+    it("publishes a question the session is waiting on", async () => {
+        const socket = new FakeSocket();
+        const { operations, pending } = fakeOperations();
+        pending.push({
+            askingAgentId: AGENT_ID,
+            context: "Deciding.",
+            createdAt: 1_000,
+            id: "req-1",
+            question: "Which way?",
+            status: "pending",
+            updatedAt: 1_000,
+        } as UserInputRequest);
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        const published = socket.emittedValues("update-state")[0] as { agentState: string };
+        expect(decode(published.agentState)).toMatchObject({
+            communications: { "req-1": { kind: "form", toolUseId: "req-1" } },
+        });
+        await session.close();
+    });
+
+    it("publishes Fable account quota where the native app reads session limits", async () => {
+        const socket = new FakeSocket();
+        const session = client({
+            operations: fakeOperations({
+                providerUsage: () =>
+                    ({
+                        capturedAt: 2_000,
+                        credits: null,
+                        exhausted: false,
+                        planName: "Max",
+                        providerId: "codex",
+                        vendor: "claude",
+                        windows: {
+                            fableWeekly: {
+                                durationMs: 604_800_000,
+                                resetsAt: 3_000,
+                                startsAt: 1_000,
+                                usedPercent: 64,
+                            },
+                            fiveHour: null,
+                            monthly: null,
+                            weekly: null,
+                        },
+                    }) as never,
+            }).operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        const published = socket.emittedValues("update-state")[0] as { agentState: string };
+        expect(decode(published.agentState)).toMatchObject({
+            usageLimits: {
+                capturedAt: 2_000,
+                windows: [{ id: "seven_day_fable", label: "Fable 7-day", utilization: 64 }],
+            },
+        });
+        await session.close();
+    });
+
+    it("says nothing about questions when there are none", async () => {
+        const socket = new FakeSocket();
+        const session = client({
+            operations: fakeOperations().operations,
+            server: fakeServer(),
+            socket,
+        });
+        await session.settle();
+        expect(socket.emittedValues("update-state")).toEqual([]);
+        await session.close();
+    });
+});
+
+describe("answering what the phone asks of a session", () => {
+    it("stops the agent", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        expect(await socket.rpc("remote-1:abort", {})).toEqual({ success: true });
+        expect(calls.some((call) => call.kind === "abort")).toBe(true);
+        await session.close();
+    });
+
+    it("ends the session for the kill switch", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        expect(await socket.rpc("remote-1:killSession", {})).toEqual({ success: true });
+        expect(calls.find((call) => call.kind === "archive")?.detail).toBe(SESSION_ID);
+        await session.close();
+    });
+
+    it("records an answer to a question it is actually waiting on", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations, pending } = fakeOperations();
+        pending.push({
+            askingAgentId: AGENT_ID,
+            context: "Deciding.",
+            createdAt: 1_000,
+            id: "req-1",
+            question: "Which way?",
+            status: "pending",
+            updatedAt: 1_000,
+        } as UserInputRequest);
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        await socket.rpc("remote-1:communication", {
+            answers: { "req-1": { custom: "left" } },
+            id: "req-1",
+            status: "answered",
+        });
+        expect(calls.find((call) => call.kind === "answer")?.detail).toEqual({
+            answers: { "req-1": { custom: "left" } },
+            requestId: "req-1",
+        });
+        await session.close();
+    });
+
+    it("ignores an answer to a question nobody is asking", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        await socket.rpc("remote-1:communication", {
+            answers: {},
+            id: "req-gone",
+            status: "answered",
+        });
+        expect(calls.filter((call) => call.kind === "answer")).toEqual([]);
+        await session.close();
+    });
+
+    it("refuses a request addressed to another session", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        expect(await socket.rpc("remote-2:abort", {})).toEqual({ error: "Invalid request" });
+        expect(calls.filter((call) => call.kind === "abort")).toEqual([]);
+        await session.close();
+    });
+});
+
+describe("ending a session", () => {
+    it("unsubscribes without ending the turn, archiving, or changing its durable cursor", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer();
+        const session = client({ operations: fakeOperations().operations, server, socket });
+        await session.settle();
+        const before = await sync.readSession(store.context, AGENT_ID);
+        await session.unsubscribe();
+        expect(socket.connected).toBe(false);
+        expect(socket.emittedValues("session-end")).toEqual([]);
+        expect(server.posted("/v1/sessions/remote-1/archive")).toEqual([]);
+        expect(await sync.readSession(store.context, AGENT_ID)).toEqual(before);
+        // Ordinary cleanup cannot turn an earlier unsubscribe into a session end.
+        await session.close();
+        expect(socket.emittedValues("session-end")).toEqual([]);
+    });
+
+    it("settles archive metadata after the relay echoes its own update", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer();
+        const session = client({ operations: fakeOperations().operations, server, socket });
+        await session.settle();
+        let now = 1_800_000_000_000;
+        const clock = vi.spyOn(Date, "now").mockImplementation(() => ++now);
+        const emit = socket.emit.bind(socket);
+        let metadataWrites = 0;
+        const echo = vi.spyOn(socket, "emit").mockImplementation((event, ...values) => {
+            emit(event, ...values);
+            // A real relay broadcasts metadata writes back to the session socket.
+            // Bound the broken case so the regression fails without an infinite loop.
+            if (event === "update-metadata" && ++metadataWrites < 4) socket.update();
+        });
+        try {
+            await session.archive();
+            expect(metadataWrites).toBe(1);
+            expect(server.posted("/v1/sessions/remote-1/archive")).toHaveLength(1);
+            expect(socket.connected).toBe(false);
+        } finally {
+            await session.close();
+            echo.mockRestore();
+            clock.mockRestore();
+        }
+    });
+
+    it("tells Happy the session is over and archives it", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer();
+        const session = client({ operations: fakeOperations().operations, server, socket });
+        await session.settle();
+        await session.archive();
+        expect(socket.emittedValues("session-end")[0]).toMatchObject({ sid: "remote-1" });
+        expect(server.posted("/v1/sessions/remote-1/archive")).toHaveLength(1);
+    });
+
+    it("ends in Happy Agent even when Happy refuses the archive", async () => {
+        const socket = new FakeSocket();
+        const server = fakeServer();
+        const failing = {
+            ...server,
+            fetch: (async (input: string | URL, init: RequestInit = {}) => {
+                const url = typeof input === "string" ? input : input.toString();
+                if (url.endsWith("/archive")) return new Response("no", { status: 500 });
+                return await (server.fetch as unknown as typeof fetch)(input, init);
+            }) as unknown as typeof fetch,
+        };
+        const session = client({
+            operations: fakeOperations().operations,
+            server: failing,
+            socket,
+        });
+        await session.settle();
+        await expect(session.archive()).resolves.toBeUndefined();
+    });
+
+    it("stops answering the phone once the session has ended", async () => {
+        const socket = new FakeSocket();
+        const { calls, operations } = fakeOperations();
+        const session = client({ operations, server: fakeServer(), socket });
+        await session.settle();
+        const archiving = session.archive();
+        const answer = await socket.rpc("remote-1:abort", {});
+        await archiving;
+        expect(answer).toEqual({ error: "This session has ended." });
+        expect(calls.filter((call) => call.kind === "abort")).toEqual([]);
+    });
+});

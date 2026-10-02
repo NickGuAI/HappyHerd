@@ -1,0 +1,690 @@
+import {
+    cloudEnvironmentSchema,
+    cloudOrganizationSchema,
+    createCloudOrganizationRequestSchema,
+    type CloudEnvironment,
+    type CloudOrganization,
+} from "@slopus/happy-agent-client";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
+import {
+    AuthenticationException,
+    BadRequestException,
+    ConflictException,
+    GenericServerException,
+    NotFoundException,
+    OauthException,
+    UnauthorizedException,
+    UnprocessableEntityException,
+    WorkOS,
+    type PublicWorkOS,
+    type WorkOSOptions,
+} from "@workos-inc/node";
+
+import {
+    happyTeamEndpointInputSchema,
+    happyTeamEndpointSchema,
+    happyTeamSchema,
+    normalizeHappyTeamEndpoint,
+    type HappyTeam,
+} from "./HappyTeam.js";
+import {
+    happyTeamInvitationOrganizationIdSchema,
+    happyTeamInvitationSchema,
+    normalizeHappyTeamInvitationEmail,
+    type HappyTeamInvitation,
+} from "./HappyTeamInvitation.js";
+
+const WORKOS_TIMEOUT_MS = 15_000;
+const MAX_WORKOS_RESPONSE_BYTES = 1024 * 1_024;
+const CLOUD_REQUEST_TIMEOUT_MS = 15_000;
+const MAX_CLOUD_RESPONSE_BYTES = 8 * 1_024;
+const MAX_CLOUD_ORGANIZATIONS_RESPONSE_BYTES = 1 * 1_024 * 1_024;
+const MAX_CLOUD_ORGANIZATIONS = 10_000;
+const exact = { additionalProperties: false } as const;
+
+const deployments: Readonly<
+    Record<CloudEnvironment, { readonly cloudUrl: string; readonly workosClientId: string }>
+> = {
+    production: {
+        cloudUrl: "https://cloud.cluster-fluster.com",
+        workosClientId: "client_01KZD3XE9YAFAMT0P8TD4HP73E",
+    },
+    staging: {
+        cloudUrl: "https://happy-cloud-staging.bulka-llc.workers.dev",
+        workosClientId: "client_01KZD3XE4EW1AF1P6WTFHBPR4J",
+    },
+};
+
+const workosAuthenticationSchema = Type.Object(
+    {
+        accessToken: Type.String({ minLength: 1, maxLength: 32_768 }),
+        refreshToken: Type.String({ minLength: 1, maxLength: 32_768 }),
+        user: Type.Object(
+            {
+                email: Type.String({ minLength: 1, maxLength: 320 }),
+                firstName: Type.Union([Type.Null(), Type.String({ maxLength: 512 })]),
+                id: Type.String({ minLength: 1, maxLength: 256 }),
+                lastName: Type.Union([Type.Null(), Type.String({ maxLength: 512 })]),
+            },
+            { additionalProperties: true },
+        ),
+    },
+    { additionalProperties: true },
+);
+
+const authorizationSchema = Type.Object(
+    {
+        codeVerifier: Type.String({ minLength: 43, maxLength: 256 }),
+        state: Type.String({ minLength: 16, maxLength: 512 }),
+        url: Type.String({ minLength: 1, maxLength: 16_384 }),
+    },
+    { additionalProperties: false },
+);
+
+const helloSchema = Type.Object(
+    {
+        message: Type.Literal("hello"),
+        userId: Type.String({ minLength: 1, maxLength: 256 }),
+    },
+    { additionalProperties: true },
+);
+
+const cloudOrganizationsResponseSchema = Type.Object(
+    {
+        organizations: Type.Array(cloudOrganizationSchema, {
+            maxItems: MAX_CLOUD_ORGANIZATIONS,
+        }),
+    },
+    exact,
+);
+const remoteHappyTeamSchema = Type.Object(
+    {
+        endpoint: happyTeamSchema.properties.endpoint,
+        id: happyTeamSchema.properties.id,
+        name: happyTeamSchema.properties.name,
+    },
+    { additionalProperties: true },
+);
+const happyTeamsResponseSchema = Type.Object(
+    {
+        organizations: Type.Array(remoteHappyTeamSchema, {
+            maxItems: MAX_CLOUD_ORGANIZATIONS,
+        }),
+    },
+    exact,
+);
+const invalidOrganizationSchema = Type.Object(
+    { error: Type.Literal("invalid_organization") },
+    exact,
+);
+const organizationForbiddenSchema = Type.Object({ error: Type.Literal("forbidden") }, exact);
+const invalidOrganizationEndpointSchema = Type.Object(
+    { error: Type.Literal("invalid_endpoint") },
+    exact,
+);
+const organizationEndpointResponseSchema = Type.Object(
+    { endpoint: happyTeamEndpointSchema },
+    exact,
+);
+const organizationNotFoundSchema = Type.Object({ error: Type.Literal("not_found") }, exact);
+const organizationDeletedSchema = Type.Object({ status: Type.Literal("deleted") }, exact);
+const invitationResponseSchema = Type.Object({ invitation: happyTeamInvitationSchema }, exact);
+const invitationConflictSchema = Type.Object(
+    { error: Type.Union([Type.Literal("already_member"), Type.Literal("pending_invitation")]) },
+    exact,
+);
+
+export class CloudInvitationConflictError extends Error {
+    constructor(readonly reason: Static<typeof invitationConflictSchema>["error"]) {
+        super("The recipient already has membership or a pending invitation.");
+        this.name = "CloudInvitationConflictError";
+    }
+}
+
+const workOSParseErrorSchema = Type.Object(
+    {
+        name: Type.Literal("ParseError"),
+        rawStatus: Type.Integer({ minimum: 100, maximum: 599 }),
+    },
+    { additionalProperties: true },
+);
+
+export type CloudAuthorizationSecret = Static<typeof authorizationSchema>;
+export type CloudAuthentication = Static<typeof workosAuthenticationSchema>;
+
+export class CloudCredentialsRejectedError extends Error {
+    constructor() {
+        super("WorkOS rejected the Cloud credentials.");
+        this.name = "CloudCredentialsRejectedError";
+    }
+}
+
+/** Happy Cloud accepted the token but associated it with a different WorkOS user. */
+export class CloudIdentityMismatchError extends Error {
+    constructor() {
+        super("Happy Cloud returned a different authenticated user.");
+        this.name = "CloudIdentityMismatchError";
+    }
+}
+
+export class CloudOrganizationInvalidRequestError extends Error {
+    constructor() {
+        super("Happy Cloud rejected the organization request.");
+        this.name = "CloudOrganizationInvalidRequestError";
+    }
+}
+
+export class CloudOrganizationInvalidEndpointError extends Error {
+    constructor() {
+        super("Happy Cloud rejected the organization endpoint.");
+        this.name = "CloudOrganizationInvalidEndpointError";
+    }
+}
+
+export class CloudOrganizationForbiddenError extends Error {
+    constructor() {
+        super("Happy Cloud rejected the organization operation.");
+        this.name = "CloudOrganizationForbiddenError";
+    }
+}
+
+export type CloudServiceUnavailableReason =
+    | "request-failed"
+    | "request-timed-out"
+    | "response-invalid"
+    | "response-rejected";
+
+export class CloudServiceUnavailableError extends Error {
+    readonly reason: CloudServiceUnavailableReason;
+    readonly status: number | undefined;
+
+    constructor(reason: CloudServiceUnavailableReason = "response-invalid", status?: number) {
+        super("Cloud authentication is temporarily unavailable.");
+        this.name = "CloudServiceUnavailableError";
+        this.reason = reason;
+        this.status = status;
+    }
+}
+
+/**
+ * WorkOS's public-client factory currently constructs its environment-aware base class directly,
+ * which both ignores `fetchFn` and may inherit `WORKOS_API_KEY`. The Node subclass has the bounded
+ * fetch seam we need; clear the base constructor's ambient key before it builds that transport so
+ * authentication remains PKCE-only even in a process that happens to export server credentials.
+ */
+class PublicCloudWorkOSClient extends WorkOS {
+    override createHttpClient(options: WorkOSOptions, userAgent: string) {
+        Object.defineProperty(this, "key", { configurable: true, value: undefined });
+        return super.createHttpClient(options, userAgent);
+    }
+}
+
+/** The bounded WorkOS public client and Happy Cloud verification boundary. */
+export class CloudWorkOS {
+    readonly #cloudUrl: string;
+    readonly #workos: Pick<PublicWorkOS, "userManagement">;
+    readonly workosClientId: string;
+
+    constructor(environment: CloudEnvironment) {
+        if (!Value.Check(cloudEnvironmentSchema, environment)) {
+            throw new Error("The Cloud environment is invalid.");
+        }
+        const deployment = deployments[environment];
+        this.#cloudUrl = deployment.cloudUrl;
+        this.workosClientId = deployment.workosClientId;
+        this.#workos = new PublicCloudWorkOSClient({
+            clientId: this.workosClientId,
+            fetchFn: boundedWorkOSFetch,
+            maxRetries: 0,
+            timeout: WORKOS_TIMEOUT_MS,
+        });
+    }
+
+    async authorization(redirectUri: string): Promise<CloudAuthorizationSecret> {
+        try {
+            const authorization = await this.#workos.userManagement.getAuthorizationUrlWithPKCE({
+                provider: "authkit",
+                redirectUri,
+            });
+            if (!Value.Check(authorizationSchema, authorization)) {
+                throw new CloudServiceUnavailableError();
+            }
+            return structuredClone(authorization) as CloudAuthorizationSecret;
+        } catch (error: unknown) {
+            if (error instanceof CloudServiceUnavailableError) throw error;
+            throw workOSUnavailable(error);
+        }
+    }
+
+    async exchange(code: string, codeVerifier: string): Promise<CloudAuthentication> {
+        try {
+            return authentication(
+                await this.#workos.userManagement.authenticateWithCode({ code, codeVerifier }),
+            );
+        } catch (error: unknown) {
+            if (isTerminalCodeRejection(error)) throw new CloudCredentialsRejectedError();
+            if (error instanceof CloudCredentialsRejectedError) throw error;
+            if (error instanceof CloudServiceUnavailableError) throw error;
+            throw workOSUnavailable(error);
+        }
+    }
+
+    async refresh(refreshToken: string, organizationId?: string): Promise<CloudAuthentication> {
+        try {
+            return authentication(
+                await this.#workos.userManagement.authenticateWithRefreshToken({
+                    refreshToken,
+                    ...(organizationId === undefined ? {} : { organizationId }),
+                }),
+            );
+        } catch (error: unknown) {
+            if (error instanceof OauthException && error.error === "invalid_grant") {
+                throw new CloudCredentialsRejectedError();
+            }
+            if (error instanceof CloudCredentialsRejectedError) throw error;
+            if (error instanceof CloudServiceUnavailableError) throw error;
+            throw workOSUnavailable(error);
+        }
+    }
+
+    /** Verifies the minted token against Happy Cloud without treating its 401 as revocation. */
+    async verify(accessToken: string, expectedUserId: string): Promise<void> {
+        const result = await this.#request("/v0/hello", accessToken, "GET");
+        if (result.status < 200 || result.status >= 300) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        if (!Value.Check(helloSchema, result.body)) throw new CloudServiceUnavailableError();
+        if (result.body.userId !== expectedUserId) throw new CloudIdentityMismatchError();
+    }
+
+    async listOrganizations(accessToken: string): Promise<CloudOrganization[]> {
+        const result = await this.#request(
+            "/v0/organizations",
+            accessToken,
+            "GET",
+            undefined,
+            [],
+            MAX_CLOUD_ORGANIZATIONS_RESPONSE_BYTES,
+        );
+        if (!result.ok) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        if (!Value.Check(cloudOrganizationsResponseSchema, result.body)) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+        return result.body.organizations.map(cloudOrganization);
+    }
+
+    async listTeams(accessToken: string): Promise<HappyTeam[]> {
+        const result = await this.#request(
+            "/v0/organizations",
+            accessToken,
+            "GET",
+            undefined,
+            [],
+            MAX_CLOUD_ORGANIZATIONS_RESPONSE_BYTES,
+        );
+        if (!result.ok) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        if (!Value.Check(happyTeamsResponseSchema, result.body)) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+        return result.body.organizations.map(projectHappyTeam);
+    }
+
+    async createOrganization(accessToken: string, name: string): Promise<CloudOrganization> {
+        if (!Value.Check(createCloudOrganizationRequestSchema.properties.name, name)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        const result = await this.#request(
+            "/v0/organizations",
+            accessToken,
+            "POST",
+            { name },
+            [400],
+        );
+        if (result.status === 400 && Value.Check(invalidOrganizationSchema, result.body)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        if (!result.ok) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        return cloudOrganization(result.body);
+    }
+
+    async createTeam(accessToken: string, name: string): Promise<HappyTeam> {
+        if (!Value.Check(createCloudOrganizationRequestSchema.properties.name, name)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        const result = await this.#request(
+            "/v0/organizations",
+            accessToken,
+            "POST",
+            { name },
+            [400],
+        );
+        if (result.status === 400 && Value.Check(invalidOrganizationSchema, result.body)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        if (!result.ok || !Value.Check(remoteHappyTeamSchema, result.body)) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        return projectHappyTeam(result.body);
+    }
+
+    async setTeamEndpoint(
+        accessToken: string,
+        organizationId: string,
+        endpoint: string,
+    ): Promise<string> {
+        const normalizedEndpoint = normalizeHappyTeamEndpoint(endpoint);
+        if (
+            !Value.Check(cloudOrganizationSchema.properties.id, organizationId) ||
+            !Value.Check(happyTeamEndpointInputSchema, endpoint) ||
+            normalizedEndpoint === undefined
+        ) {
+            throw new CloudOrganizationInvalidEndpointError();
+        }
+        const result = await this.#request(
+            `/v0/organizations/${encodeURIComponent(organizationId)}/endpoint`,
+            accessToken,
+            "PUT",
+            { endpoint: normalizedEndpoint },
+            [400, 403],
+        );
+        if (result.status === 400 && Value.Check(invalidOrganizationEndpointSchema, result.body)) {
+            throw new CloudOrganizationInvalidEndpointError();
+        }
+        if (result.status === 403 && Value.Check(organizationForbiddenSchema, result.body)) {
+            throw new CloudOrganizationForbiddenError();
+        }
+        if (!result.ok || !Value.Check(organizationEndpointResponseSchema, result.body)) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+        const returnedEndpoint = normalizeHappyTeamEndpoint(result.body.endpoint);
+        if (returnedEndpoint === undefined || returnedEndpoint !== normalizedEndpoint) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+        return returnedEndpoint;
+    }
+
+    async deleteOrganization(accessToken: string, organizationId: string): Promise<void> {
+        if (!Value.Check(cloudOrganizationSchema.properties.id, organizationId)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        const result = await this.#request(
+            `/v0/organizations/${encodeURIComponent(organizationId)}`,
+            accessToken,
+            "DELETE",
+            undefined,
+            [403, 404],
+        );
+        if (result.status === 403 && Value.Check(organizationForbiddenSchema, result.body)) {
+            throw new CloudOrganizationForbiddenError();
+        }
+        if (result.status === 404 && Value.Check(organizationNotFoundSchema, result.body)) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        if (!result.ok) {
+            throw new CloudServiceUnavailableError("response-rejected", result.status);
+        }
+        if (!Value.Check(organizationDeletedSchema, result.body)) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+    }
+
+    async inviteTeamMember(
+        accessToken: string,
+        organizationId: string,
+        email: string,
+    ): Promise<HappyTeamInvitation> {
+        const normalizedEmail = normalizeHappyTeamInvitationEmail(email);
+        if (
+            !Value.Check(happyTeamInvitationOrganizationIdSchema, organizationId) ||
+            normalizedEmail === undefined
+        ) {
+            throw new CloudOrganizationInvalidRequestError();
+        }
+        const result = await this.#request(
+            `/v0/organizations/${encodeURIComponent(organizationId)}/invitations`,
+            accessToken,
+            "POST",
+            { email: normalizedEmail },
+            [400, 403, 409],
+        );
+        if (result.status === 400) throw new CloudOrganizationInvalidRequestError();
+        if (result.status === 403) throw new CloudOrganizationForbiddenError();
+        if (result.status === 409 && Value.Check(invitationConflictSchema, result.body)) {
+            throw new CloudInvitationConflictError(result.body.error);
+        }
+        if (
+            result.status !== 201 ||
+            !Value.Check(invitationResponseSchema, result.body) ||
+            result.body.invitation.email !== normalizedEmail
+        ) {
+            throw new CloudServiceUnavailableError("response-invalid", result.status);
+        }
+        return structuredClone(result.body.invitation);
+    }
+
+    async #request(
+        path: string,
+        accessToken: string,
+        method: "DELETE" | "GET" | "POST" | "PUT",
+        body?: Readonly<Record<string, string>>,
+        parsedErrorStatuses: readonly number[] = [],
+        maximum = MAX_CLOUD_RESPONSE_BYTES,
+    ): Promise<{ readonly body: unknown; readonly ok: boolean; readonly status: number }> {
+        const { response, signal } = await this.#fetchResponse(
+            path,
+            accessToken,
+            method,
+            body === undefined ? undefined : JSON.stringify(body),
+            body === undefined ? undefined : { "content-type": "application/json" },
+        );
+        if (!response.ok && !parsedErrorStatuses.includes(response.status)) {
+            await response.body?.cancel().catch(() => undefined);
+            return { body: undefined, ok: response.ok, status: response.status };
+        }
+        if (response.status === 204) {
+            await response.body?.cancel().catch(() => undefined);
+            return { body: undefined, ok: response.ok, status: response.status };
+        }
+        try {
+            const bytes = await readBounded(response, maximum, signal);
+            return {
+                body: JSON.parse(new TextDecoder().decode(bytes)) as unknown,
+                ok: response.ok,
+                status: response.status,
+            };
+        } catch (error: unknown) {
+            if (signal.aborted) throw new CloudServiceUnavailableError("request-timed-out");
+            if (error instanceof CloudServiceUnavailableError) throw error;
+            throw new CloudServiceUnavailableError("response-invalid", response.status);
+        }
+    }
+
+    async #fetchResponse(
+        path: string,
+        accessToken: string,
+        method: "DELETE" | "GET" | "POST" | "PUT",
+        body?: RequestInit["body"],
+        extraHeaders?: RequestInit["headers"],
+    ): Promise<{ readonly response: Response; readonly signal: AbortSignal }> {
+        const signal = AbortSignal.timeout(CLOUD_REQUEST_TIMEOUT_MS);
+        const headers = new Headers(extraHeaders);
+        headers.set("authorization", `Bearer ${accessToken}`);
+        try {
+            const response = await fetch(`${this.#cloudUrl}${path}`, {
+                ...(body === undefined ? {} : { body }),
+                headers,
+                method,
+                signal,
+            });
+            return { response, signal };
+        } catch {
+            throw new CloudServiceUnavailableError(
+                signal.aborted ? "request-timed-out" : "request-failed",
+            );
+        }
+    }
+}
+
+function cloudOrganization(value: unknown): CloudOrganization {
+    if (!Value.Check(cloudOrganizationSchema, value)) {
+        throw new CloudServiceUnavailableError();
+    }
+    return { id: value.id, name: value.name };
+}
+
+function projectHappyTeam(value: Static<typeof remoteHappyTeamSchema>): HappyTeam {
+    const endpoint = value.endpoint === null ? null : normalizeHappyTeamEndpoint(value.endpoint);
+    if (endpoint === undefined || endpoint !== value.endpoint) {
+        throw new CloudServiceUnavailableError();
+    }
+    return { endpoint, id: value.id, name: value.name };
+}
+
+function authentication(value: unknown): CloudAuthentication {
+    if (!Value.Check(workosAuthenticationSchema, value)) {
+        throw new CloudServiceUnavailableError();
+    }
+    return {
+        accessToken: value.accessToken,
+        refreshToken: value.refreshToken,
+        user: {
+            email: value.user.email,
+            firstName: value.user.firstName,
+            id: value.user.id,
+            lastName: value.user.lastName,
+        },
+    };
+}
+
+function isTerminalCodeRejection(error: unknown): boolean {
+    return (
+        error instanceof OauthException &&
+        error.status < 500 &&
+        error.status !== 408 &&
+        error.status !== 429 &&
+        (error.error === "access_denied" || error.error === "invalid_grant")
+    );
+}
+
+function workOSUnavailable(error: unknown): CloudServiceUnavailableError {
+    const preserved = cloudUnavailableCause(error);
+    if (preserved !== undefined) return preserved;
+    const status = workOSResponseStatus(error);
+    if (status === 408) return new CloudServiceUnavailableError("request-timed-out");
+    if (status !== undefined) {
+        return new CloudServiceUnavailableError("response-rejected", status);
+    }
+    return new CloudServiceUnavailableError("request-failed");
+}
+
+function cloudUnavailableCause(error: unknown): CloudServiceUnavailableError | undefined {
+    let current = error;
+    for (let depth = 0; depth < 4; depth += 1) {
+        if (current instanceof CloudServiceUnavailableError) return current;
+        if (!(current instanceof Error)) return undefined;
+        if (Value.Check(workOSParseErrorSchema, current)) {
+            const parsed = current as Static<typeof workOSParseErrorSchema>;
+            return new CloudServiceUnavailableError("response-invalid", parsed.rawStatus);
+        }
+        current = current.cause;
+    }
+    return undefined;
+}
+
+function workOSResponseStatus(error: unknown): number | undefined {
+    const status =
+        error instanceof AuthenticationException ||
+        error instanceof BadRequestException ||
+        error instanceof ConflictException ||
+        error instanceof GenericServerException ||
+        error instanceof NotFoundException ||
+        error instanceof OauthException ||
+        error instanceof UnauthorizedException ||
+        error instanceof UnprocessableEntityException
+            ? error.status
+            : undefined;
+    return status !== undefined && Number.isInteger(status) && status >= 100 && status <= 599
+        ? status
+        : undefined;
+}
+
+/** Internal WorkOS transport exported only for direct boundary tests. */
+export const boundedWorkOSFetch: typeof fetch = async (input, init) => {
+    const deadline = AbortSignal.timeout(WORKOS_TIMEOUT_MS);
+    const signal =
+        init?.signal === null || init?.signal === undefined
+            ? deadline
+            : AbortSignal.any([deadline, init.signal]);
+    try {
+        const response = await fetch(input, { ...init, signal });
+        const body =
+            response.body === null
+                ? null
+                : await readBounded(response, MAX_WORKOS_RESPONSE_BYTES, signal);
+        return new Response(body, {
+            headers: response.headers,
+            status: response.status,
+            statusText: response.statusText,
+        });
+    } catch (error: unknown) {
+        if (signal.aborted) {
+            throw new CloudServiceUnavailableError("request-timed-out");
+        }
+        throw error;
+    }
+};
+
+async function readBounded(
+    response: Response,
+    maximum: number,
+    signal?: AbortSignal,
+): Promise<Uint8Array> {
+    const declared = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > maximum) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new CloudServiceUnavailableError();
+    }
+    if (response.body === null) throw new CloudServiceUnavailableError();
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    const cancelOnAbort = () => {
+        void reader.cancel().catch(() => undefined);
+    };
+    signal?.addEventListener("abort", cancelOnAbort, { once: true });
+    try {
+        while (true) {
+            if (isAborted(signal)) throw new CloudServiceUnavailableError();
+            const result = await reader.read();
+            if (isAborted(signal)) throw new CloudServiceUnavailableError();
+            if (result.done) break;
+            total += result.value.byteLength;
+            if (total > maximum) throw new CloudServiceUnavailableError();
+            chunks.push(result.value);
+        }
+    } catch (error: unknown) {
+        await reader.cancel().catch(() => undefined);
+        throw error;
+    } finally {
+        signal?.removeEventListener("abort", cancelOnAbort);
+        reader.releaseLock();
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
+function isAborted(signal: AbortSignal | undefined): boolean {
+    return signal?.aborted === true;
+}

@@ -725,3 +725,4 @@ FIRST_RUN_UI_INVENTORY_REGENERATED_379	accepted	test(app): regenerate UI surface
 SHARED_COMMANDER_KNOWLEDGE_336	accepted	fix(context): seed portable shared guidance without replacing user instructions	server/packages/happyherd-cli/src/agentContext/sharedKnowledge.ts
 SUPER_SESSION_TRANSPORT_RECOVERY_321	accepted	fix(session): recover live Super Session transport on the owning machine	docs/super-session-recovery.md
 CONTEXT_WINDOW_HAPPYHERD_365	code-ready	feat(context): read native HappyHerd context through the existing machine RPC	docs/acceptance/issue-365.md
+CONTEXT_WINDOW_NATIVE_OWNER_365	code-ready	feat(context): maintain the native runtime inside HappyHerd	native/README.md

@@ -1,0 +1,131 @@
+import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
+import {
+    happyGitStateRequestSchema,
+    happyReadFileRequestSchema,
+    happyReadFileAtRevisionRequestSchema,
+    type HappyReadFailure,
+    type HappyGitStateResponse,
+    type HappyReadFileRequest,
+    type HappyReadFileAtRevisionRequest,
+    type HappyReadFileResponse,
+    type HappyReadFileAtRevisionResponse,
+} from "./HappyWorkspaceRead.js";
+
+/** What Happy may ask this session to do. */
+export const HAPPY_SESSION_RPC_METHODS = [
+    "abort",
+    "communication",
+    "killSession",
+    "gitState",
+    "readFile",
+    "readFileAtRevision",
+    "setAvatar",
+] as const;
+
+const communicationSchema = Type.Object(
+    {
+        answers: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+        id: Type.String({ minLength: 1 }),
+        status: Type.Optional(Type.String()),
+    },
+    { additionalProperties: true },
+);
+
+/**
+ * A picture the phone has already put in this session's attachment store, named the way an
+ * attachment travelling with a message is named, so the same download reads both.
+ */
+export const happySetAvatarRequestSchema = Type.Object(
+    {
+        mimeType: Type.Union([
+            Type.Literal("image/jpeg"),
+            Type.Literal("image/png"),
+            Type.Literal("image/webp"),
+        ]),
+        ref: Type.String({ minLength: 1, maxLength: 4_096 }),
+        size: Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
+    },
+    { additionalProperties: true },
+);
+
+export type HappySetAvatarRequest = typeof happySetAvatarRequestSchema.static;
+
+/**
+ * Carries out one thing the phone asked of this session.
+ *
+ * Everything here is something a person did with their thumb: stop this, answer
+ * that, end the session. The answer goes back encrypted, so a failure is
+ * reported as a message rather than thrown away.
+ */
+export async function handleHappySessionRpc(options: {
+    abort: () => Promise<void>;
+    answerQuestion: (requestId: string, answers: Record<string, unknown>) => Promise<void>;
+    archive: () => Promise<void>;
+    cancelQuestion: (requestId: string) => Promise<void>;
+    gitState: () => Promise<HappyGitStateResponse>;
+    readFile: (request: HappyReadFileRequest) => Promise<HappyReadFileResponse>;
+    readFileAtRevision: (
+        request: HappyReadFileAtRevisionRequest,
+    ) => Promise<HappyReadFileAtRevisionResponse>;
+    /** Puts an uploaded picture on this session's bot; throws when it cannot. */
+    setAvatar: (request: HappySetAvatarRequest) => Promise<void>;
+    method: string;
+    params: unknown;
+}): Promise<unknown> {
+    if (options.method === "setAvatar") {
+        const request = options.params;
+        if (!Value.Check(happySetAvatarRequestSchema, request)) {
+            return { error: "Happy sent a picture Happy Agent could not read." };
+        }
+        await options.setAvatar({
+            mimeType: request.mimeType,
+            ref: request.ref,
+            size: request.size,
+        });
+        return { success: true };
+    }
+    if (options.method === "gitState") {
+        if (!Value.Check(happyGitStateRequestSchema, options.params)) return invalidRead();
+        return await options.gitState();
+    }
+    if (options.method === "readFile") {
+        const request = options.params;
+        if (!Value.Check(happyReadFileRequestSchema, request)) return invalidRead();
+        return await options.readFile({ path: request.path });
+    }
+    if (options.method === "readFileAtRevision") {
+        const request = options.params;
+        if (!Value.Check(happyReadFileAtRevisionRequestSchema, request)) return invalidRead();
+        return await options.readFileAtRevision({ path: request.path, revision: request.revision });
+    }
+    if (options.method === "abort") {
+        await options.abort();
+        return { success: true };
+    }
+    if (options.method === "killSession") {
+        await options.archive();
+        return { success: true };
+    }
+    if (options.method === "communication") {
+        if (!Value.Check(communicationSchema, options.params)) {
+            return { error: "Happy sent an answer Happy Agent could not read." };
+        }
+        // A dismissal, including one from a phone that could not draw the form,
+        // takes the question away rather than answering it with nothing.
+        if (options.params.status !== "answered") {
+            await options.cancelQuestion(options.params.id);
+            return { success: true };
+        }
+        if (options.params.answers === undefined) {
+            return { error: "Happy answered a question without any answers." };
+        }
+        await options.answerQuestion(options.params.id, options.params.answers);
+        return { success: true };
+    }
+    return { error: "Method not found" };
+}
+
+function invalidRead(): HappyReadFailure {
+    return { success: false, code: "invalid", error: "The workspace read request is invalid." };
+}

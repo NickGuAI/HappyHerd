@@ -3,23 +3,23 @@
 Owner: [#365](https://github.com/NickGuAI/HappyHerd/issues/365).
 
 This record separates source/fixture evidence from authenticated runtime acceptance.
-The latest 2026-10-02 user instruction authorizes coordinated upstream and
-HappyHerd non-draft PRs, exact-head CI, and one disposable isolated test
-account/machine pairing. It does not authorize merge, release, deployment,
-shared-service restart, or access to unrelated account/profile/session state.
+The current user instruction requires all runtime components to be maintained
+and built inside HappyHerd, with one disposable isolated account/machine/browser
+for acceptance. It authorizes no merge, release, deployment, shared-service
+restart or unrelated account access.
 
-Coordinated PRs: [HappyHerd #393](https://github.com/NickGuAI/HappyHerd/pull/393)
-and [native PR #28](https://github.com/slopus/happy-agent/pull/28).
+Delivery: [HappyHerd #393](https://github.com/NickGuAI/HappyHerd/pull/393).
+The earlier external proposal is withdrawn and is not a dependency. Its local
+investigation remains historical evidence, not the delivered runtime.
 
 ## Sources and identity
 
-The native source pin is `slopus/happy-agent` revision
-`115be1c248985b823491f852dbde47ea7e6a76fd`. The original reviewed native patch
-was `ed1e53a622f81ed666352768e8d6b048251c8e1c`. It rebased unchanged onto
-`b2baf1586b9b4e7ed03bad91541ccad0a969c3ef` as
-`37886c58dbf9fff0d4c2f6922c52dbbbf69f2a74` for upstream PR #28. Its existing account-owned encrypted
-machine RPC is the only transport. The local native patch extends that owner's
-`session-context-window` handler; a CLI-daemon reader on another machine cannot
+The maintained [native runtime](../../native/README.md) contains the required
+native source packages and the context implementation. Its source baseline is
+`b2baf1586b9b4e7ed03bad91541ccad0a969c3ef`; initial investigation used
+`115be1c248985b823491f852dbde47ea7e6a76fd`. Both native producer and app consumer
+are built from this repository. Existing account-owned encrypted machine RPC
+remains the only transport. A CLI-daemon reader on another machine cannot
 supply native Rig state.
 
 <!-- Native database identifiers and path variable are upstream provenance. -->
@@ -69,7 +69,7 @@ inspection is required here. Separately, #354's isolated terminal pairing was
 blocked because opening its link could grant machine access. That earlier
 terminal-account grant is neither completed nor authorization to pair #365.
 
-## Concrete outstanding authenticated prerequisite
+## Disposable authenticated runtime
 
 A new task-owned loopback relay and production app at `127.0.0.1:4365`
 use a fresh database. A fresh browser context created one disposable account
@@ -77,11 +77,13 @@ through Create account and accepted the isolated native terminal connection
 through the normal Connect terminal screen. The app confirmed success and the
 native integration reports configured. No existing account or credential was
 imported. The authenticated Context read now matches the native database at both viewports.
-Successful compaction remains unproved without a task-owned provider credential. The old #354
+Successful compaction remains unproved. The authorized installed Codex login
+cannot be used under a no-refresh/no-modification constraint by the unchanged
+native resolver, which automatically refreshes and rewrites its selected login. The old #354
 endpoint and account state were not reused.
 
-The user now authorizes a disposable task-owned runtime containing both reviewed
-patches and the normal supported pairing flow for its one isolated account and
+The user now authorizes a disposable task-owned runtime built from the maintained
+HappyHerd source and the normal supported pairing flow for its one isolated account and
 native machine. Activation of shared resources remains forbidden. The receipt
 below will record only verified task-owned identities; account keys remain
 private to the isolated runtime. This authority supersedes the earlier local-only
@@ -116,7 +118,7 @@ The following procedure owns the live rows recorded below. Execution uses the is
 runtime/surface authority above; no new provider turn is needed merely to read
 existing retained state.
 
-1. Record both exact patch identities and the nonsecret identity receipt. Verify
+1. Record the exact HappyHerd revision and native build identity and the nonsecret identity receipt. Verify
    that the app session's machine and cwd match the native mapped session and
    configured state home. An unavailable mapping stays unavailable with Retry;
    do not substitute another session, database or machine.
@@ -153,12 +155,13 @@ existing retained state.
 | Switch on → same session entry → open via existing encrypted RPC | Pass | Pass |
 | Native-ordered full retained content, injected system record and honest limits | Pass; two native records | Pass; identical full bytes |
 | Refresh preserves identity and read-only records | Pass; native record hash unchanged | Pass; native record hash unchanged |
-| Unavailable and Retry | Live missing and offline pass; unreadable/unsupported fixtures only | Live offline pass; other unavailable cases fixtures only |
+| Unavailable and Retry | Live missing and offline pass; unreadable/unsupported fixtures only | Live missing/recovery and offline pass; unreadable/unsupported fixtures only |
 
 Local source tests, browser fixtures, builds and independent patch review can be
 completed without granting account access. They do not complete these live rows.
-The coordinated PRs are now published. Upstream fork CI currently awaits maintainer
-approval; HappyHerd exact-head CI and isolated acceptance are in progress.
+The earlier independent-source live receipts below are historical. Final
+HappyHerd-only build, authenticated journeys and CI are recorded separately in
+the final handoff; historical passes do not establish the new runtime artifact.
 
 ## Local verification receipts
 
@@ -218,11 +221,8 @@ The focused workspace canvas case passes unchanged in isolation. Remaining
 focus/teardown evidence and the exact-head contract result are retained in the
 local handoff. These failures are not waived and no tests are weakened.
 
-The native upstream direct push was denied with HTTP 403 for the task identity
-`siminyou-agent`; the ordinary fork route succeeded without changing repository
-permissions. Native PR #28 workflow run `37067683032` is `action_required` and
-needs an upstream maintainer to approve its first-contributor fork workflow.
-This is an external check prerequisite, not a successful check.
+The earlier external-repository attempt is withdrawn under the current scope.
+No external PR, publication or workflow approval remains a delivery prerequisite.
 
 First hosted CI preserved two failures: stale UI inventory (regenerated from
 final source) and the four changed changelog captures. Linux regeneration run
@@ -233,13 +233,13 @@ Native rebased-head local checks pass: 364 tests across 32 files, module
 typecheck, root build/lint and changed-file format. Independent exact-head
 source review reports no actionable implementation findings.
 
-Successful native message admission and compaction require a configured model
-provider. The disposable runtime has no provider credentials and explicitly
-isolates credential discovery. A task-owned credential or authorized isolated
-endpoint is required; shared credentials and scripted inference cannot supply
-real live compaction evidence.
+Successful model compaction requires native model inference. The selected normal
+Codex login is authorized only without refresh or modification; the current
+native resolver performs those effects automatically. Preserve retained-state
+read acceptance without touching that login; scripted inference remains fixture
+proof only. No credential transfer or additional secret is requested.
 
-## Authenticated live read receipt
+## Historical authenticated live read receipt (before owned runtime import)
 
 The production app originally exported at `65afe794` has identical executable
 sources to the publication head `db6940af`; the latter changes documentation,
@@ -272,12 +272,8 @@ menu entry; other initial selectors hit hidden route duplicates or the composer
 menu. Scope-specific visible/header selectors exercised the unchanged product.
 No product assertion, timeout, mask or skip was relaxed.
 
-Upstream PR #28 was temporarily closed by a separate `siminyou-agent` action
-requesting HappyHerd-only scope. With no revised instruction in this session,
-it was reopened under the user's explicit coordinated-PR authorization. The
-closure and first no-job workflow failure remain preserved as evidence, not
-a passing native CI result. Fork workflow execution requires upstream authority.
-Both coordinated proposals remain unmerged.
+The current scope supersedes the earlier coordinated-publication attempt. Only
+HappyHerd PR #393 owns this delivery; no external repository action is required.
 
 The two ordered native records were byte-identical before and after both viewport
 journeys and Refresh: snapshot SHA256
@@ -291,3 +287,70 @@ A later hosted contract/lint failure identified noncanonical committer metadata
 on `db6940af`; it was corrected to the repository's canonical maintainer identity.
 The verifier passes unchanged after correction. Original failure logs remain
 retained with the stale-inventory and changelog-baseline failures.
+
+## HappyHerd-owned runtime continuation
+
+The current delivery vendors the seven runtime source packages under `native/`,
+with a separate frozen workspace and source-built native supervisor. Internal
+runtime dependencies resolve locally. The native README and source provenance
+record licenses, the imported revision, scoped example sanitization and omitted
+unrelated live-provider recordings/terminal surfaces. The normal source build
+fetches only declared registry/toolchain dependencies, not another repository.
+The dedicated **Native runtime** Quality job runs the build, typechecks and
+retained tests. The repository contract hook checks source ownership separately;
+it does not claim that a source check proves execution.
+
+The original paired disposable runtime was switched to this repository's built
+native artifact. Account, machine, remote/native session, cwd and configured
+state home were retained. The two original native records had the same ordered
+snapshot hash before and after that switch. Both viewport switch/menu/full-read
+journeys succeeded again. A new ordinary empty native session supplies real
+missing-state/Retry evidence without a model call or database seeding. Final
+exact-head screenshots and receipts are retained in the task handoff.
+
+The installed Codex account was not accessed: its supported native resolver
+performs an immediate background OAuth refresh, periodic refresh and possible
+unauthorized-response refresh. Those actions can rewrite the selected login
+and conflict with the user's explicit no-refresh/no-modification boundary.
+The user-authorized no-turn retained-state alternative is used; no new credential
+policy or secret transfer is introduced. Successful live model compaction is
+still unproved. Real native compaction with scripted inference, inherited fork
+boundaries and unreadable/unsupported source recovery remain fixture proof.
+
+The import's first broad tests exposed macOS temporary-path aliases in five
+existing cases. Re-running unchanged assertions with `TMPDIR=/private/tmp`
+resolved those failures. A separate test kept an API-error constructor across
+`vi.resetModules`; local workspace linking exposed the two class identities.
+The test now imports that constructor after reset, preserving the same expected
+404 compatibility behavior and all assertions. All first logs are retained.
+
+Public-source scanning remains enabled. Synthetic examples were changed to
+reserved example identities. Exact-byte exceptions cover only fixed native
+service-home/Windows patch-context literals and protocol URLs misclassified as
+personal email addresses; changed or moved copies and secret patterns remain
+rejected by regression tests. No blanket public-data exception applies to the
+native subtree. Compatibility names are preserved by the source rename tool,
+as documented in the non-CLI naming policy.
+
+Owned-runtime local verification completed: all seven package typechecks,
+JavaScript builds, source-built Rust supervisor, frozen install and native lint
+passed. The retained suite passed 4,443 tests across 481 test files; its existing
+22 test skips and six skipped files were unchanged. Provider Bun checks passed.
+The Context/bridge subset separately passed 364 tests. The exact-head Linux job
+and independent final review own the final merge-readiness receipt.
+
+The first Linux native CI run built and typechecked the source successfully but
+failed 18 subprocess tests when Ubuntu AppArmor denied user-namespace setup.
+The hosted-runner setup now installs only the just-built supervisor into a
+root-owned immutable location and applies its exact-executable `userns` profile,
+following the native sandbox prerequisite. Global AppArmor restrictions remain
+enabled; no test, sandbox assertion or permission mode is relaxed. This setup
+runs only on the disposable GitHub-hosted Linux runner, never on a customer host
+or shared daemon. A later run proved the exact source-built sandbox probe succeeds,
+but the protected-path checks correctly rejected the CI build-target symlink.
+The local-build resolver now returns its canonical binary path, so both execution
+and write protection refer to the actual executable; arbitrary protected symlink
+paths remain rejected. Optional registry supervisor binaries were removed from
+the owned workspace. CI asserts the resolved source-build identity and exercises
+its real sandbox before the unchanged suite. The final exact-head check owns
+proof of the complete remedy; earlier failures remain in the local handoff.

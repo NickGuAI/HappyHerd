@@ -1,0 +1,25 @@
+export {
+    ConfigModule,
+    happyAgentConfigSourceSchema,
+    happyAgentConfigValuesSchema,
+    happyAgentConfigurationInputSchema,
+    happyAgentConfigurationPathsSchema,
+    happyAgentConfigurationSchema,
+    loadHappyAgentConfiguration,
+    parseHappyAgentConfigToml,
+    type ConfigInferenceFactory,
+    type ConfigInferenceOverride,
+    type ConfigModuleLoadOptions,
+    type HappyAgentConfigSource,
+    type HappyAgentConfigValues,
+    type HappyAgentConfiguration,
+    type HappyAgentConfigurationInput,
+    type HappyAgentConfigurationPaths,
+} from "./ConfigModule.js";
+export {
+    remoteConnectionConfigSchema,
+    remoteConnectionEntrySchema,
+    apiTokenSchema,
+    type RemoteConnectionConfig,
+    type RemoteConnectionEntry,
+} from "./RemoteConnectionConfig.js";

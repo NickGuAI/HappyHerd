@@ -43,33 +43,33 @@ advertised class.
 <!-- rename:preserve -->
 ## Context window investigation (#365, 2026-10-02)
 
-**Local implementation spans two source owners.** These are pinned source
-findings, not installed-version or authenticated runtime proof. The issue #365
-continuation authorized a local native patch; the subsequent user instruction
-authorizes coordinated PR publication and one isolated test account/machine pairing. `slopus/rig`
-now redirects to `slopus/happy-agent`; the inspected revision is
-[`115be1c248985b823491f852dbde47ea7e6a76fd`](https://github.com/slopus/happy-agent/tree/115be1c248985b823491f852dbde47ea7e6a76fd).
-Do not apply this revision's storage layout to an older Rig installation
-without checking its native sources.
+**The runtime and consumer are both maintained in HappyHerd.** The native
+source is vendored in [native/](../../../../native/README.md), with its original
+MIT attribution and compatibility identifiers. The initial investigation used
+revision `115be1c248985b823491f852dbde47ea7e6a76fd`; the maintained source baseline
+is `b2baf1586b9b4e7ed03bad91541ccad0a969c3ef`. The context reader and encrypted
+handler are owned changes in this repository. No external checkout, external
+PR or external workflow approval is required to build or test them. Older Rig
+installations must not be assumed to share this layout.
 
 ### State and identity
 
 At that revision, native configuration derives
 `<resolved happyHome>/agent/agent.sqlite`; see
-[ConfigModule.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/config/ConfigModule.ts#L3002).
+[ConfigModule.ts](../../../../native/packages/happy-agent-modules/sources/config/ConfigModule.ts).
 The native agent's context records are `happy_agent_records.record_json`,
 selected by `owner_id = agentId` in `position` order; see
-[AgentPersistenceDrizzle.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentPersistenceDrizzle.ts#L46).
+[AgentPersistenceDrizzle.ts](../../../../native/packages/happy-agent-base/sources/AgentPersistenceDrizzle.ts).
 The bridge separately retains `remote_session_id`, `session_id`, and `agent_id`
 in `happy_agent_happy_sessions`; see
-[HappySyncDatabase.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/happy/HappySyncDatabase.ts#L38).
+[HappySyncDatabase.ts](../../../../native/packages/happy-agent-modules/sources/happy/HappySyncDatabase.ts).
 Resolve the remote session through that native owner; the app session ID is
 not a Claude session ID, Codex thread ID, or native agent ID.
 
 The bridge publishes `machineId`, `path = session.cwd`, and `happyHomeDir` in
-[createHappySessionMetadata.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/happy/createHappySessionMetadata.ts#L194).
+[createHappySessionMetadata.ts](../../../../native/packages/happy-agent-modules/sources/happy/createHappySessionMetadata.ts).
 `happyHomeDir` comes from the bridge credential directory; see
-[importHappyCredentials.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/happy/credentials/importHappyCredentials.ts#L107). It must not be
+[importHappyCredentials.ts](../../../../native/packages/happy-agent-modules/sources/happy/credentials/importHappyCredentials.ts). It must not be
 used as an assumed native database root. The `rig:<sessionId>` project fallback
 is absent for other project/bot cases and is not a native identity contract.
 Keep the original machine, cwd, native configured state home, and bridge
@@ -77,14 +77,14 @@ identity mapping together. Never substitute the CLI daemon's home or machine.
 
 ### Window and retained content
 
-[AgentPersistence.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentPersistence.ts#L13)
+[AgentPersistence.ts](../../../../native/packages/happy-agent-base/sources/AgentPersistence.ts)
 defines `user`, `block`, `tool`, `system`, and `compaction` records. User records
 can carry queued non-user roles, including injected notices and inter-agent
 input; chat visibility is not a context filter. A compaction stores replacement
 `messages` plus `contextToolIds`.
-[AgentBase.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentBase.ts#L3271)
+[AgentBase.ts](../../../../native/packages/happy-agent-base/sources/AgentBase.ts)
 atomically deletes superseded main-context records and appends the replacement.
-[AgentProviderContext.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentProviderContext.ts#L171)
+[AgentProviderContext.ts](../../../../native/packages/happy-agent-base/sources/AgentProviderContext.ts)
 reconstructs that replacement and subsequent records, joins consecutive
 assistant blocks, and restores tool-ID mappings. Physical chat append order
 is not an oracle for the current model window.
@@ -92,8 +92,8 @@ is not an oracle for the current model window.
 Child creation persists its native `initialContext` (nonempty inherited context
 is itself written as a `compaction` record, so that kind alone does not prove
 a model compaction event); see
-[AgentSystemLocal.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentSystemLocal.ts#L435).
-[AgentTaskContext.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentTaskContext.ts#L30)
+[AgentSystemLocal.ts](../../../../native/packages/happy-agent-base/sources/AgentSystemLocal.ts).
+[AgentTaskContext.ts](../../../../native/packages/happy-agent-base/sources/AgentTaskContext.ts)
 excludes the response issuing the fork tool and strips opaque vendor replay
 state. A model reset can clear context and append system input. No supported
 conversation rollback contract was established by this investigation; SQL
@@ -103,13 +103,13 @@ The context table alone cannot recover deleted pre-compaction records or
 stripped opaque replay state. Recorded internal context is not proof of the
 complete runtime-assembled model request. System instructions, tool definitions,
 and other assembled input must be classified from their actual persistence
-owners before claiming that they are recorded or unrecorded. [AgentBase.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-base/sources/AgentBase.ts#L1686)
+owners before claiming that they are recorded or unrecorded. [AgentBase.ts](../../../../native/packages/happy-agent-base/sources/AgentBase.ts)
 assembles instructions and tools dynamically, including hooks and overrides.
 The optional readable history JSONL dump is a separate committed-history
 archive, off by default and bounded/rotated; see
-[HistoryDump.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/observation/impl/HistoryDump.ts).
+[HistoryDump.ts](../../../../native/packages/happy-agent-modules/sources/observation/impl/HistoryDump.ts).
 The off-by-default setting is defined in
-[ObservationSettings.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/observation/ObservationSettings.ts#L60).
+[ObservationSettings.ts](../../../../native/packages/happy-agent-modules/sources/observation/ObservationSettings.ts).
 It is not an authoritative current-context replacement. The main context store
 contains accepted messages, not unconsumed queue entries. The separate native
 History module is a presentation archive, with sender conversion and tool-output
@@ -126,13 +126,13 @@ full raw content, identity isolation, unavailable state, and Retry. The exact
 sanitized native response is copied into the app's rendered fixture; it is not
 a live provider recording. See the acceptance receipt for command results.
 
-### Existing transport and local integration
+### Existing transport and repository-owned integration
 
-The native [HappyMachineClient.ts](https://github.com/slopus/happy-agent/blob/115be1c248985b823491f852dbde47ea7e6a76fd/packages/happy-agent-modules/sources/happy/HappyMachineClient.ts#L308)
+The native [HappyMachineClient.ts](../../../../native/packages/happy-agent-modules/sources/happy/HappyMachineClient.ts)
 at the pinned baseline registers only `spawn-happy-session` and rejects other methods in its request
 handler. It does not serve `session-context-window`. Updating this repository's
 CLI `ApiMachineClient` cannot install a handler in that separate native owner.
-The local native patch registers that same encrypted method and reads its own
+The maintained native implementation registers that same encrypted method and reads its own
 database through the retained remote-session mapping, scoped to the active
 connection owner and credential fingerprint. It verifies the mapped agent cwd
 against the requested directory, then reads retained raw JSON in native position
@@ -146,16 +146,15 @@ Missing mappings, state or cwd mismatch return `missing`; unsupported request or
 record envelopes return `unsupported`; read/JSON failures return `unreadable`.
 Every read retries the source; nothing is cached as a substitute current window.
 
-The native patch is separately reviewable in
-[Happy Agent #28](https://github.com/slopus/happy-agent/pull/28), rebased onto
-`b2baf1586b9b4e7ed03bad91541ccad0a969c3ef` as
-`37886c58dbf9fff0d4c2f6922c52dbbbf69f2a74`. Publication does not establish
-installation or authenticated runtime acceptance. Older native owners remain unavailable
-with Retry. Live acceptance needs an explicitly authorized isolated runtime with
-both reviewed patches and an already authorized same-account native machine.
-Do not introduce a second HTTP/session transport, redirect to another machine,
-install/restart a provider, or infer identity from a project label. See the
-[acceptance receipt](../../../../docs/acceptance/issue-365.md) for the proof planes
-and remaining authenticated prerequisite.
+Build and exercise this runtime from [native/](../../../../native/README.md).
+The original native transport owns pairing, machine identity and session
+lifecycle; this feature adds no second HTTP/session transport. Old native
+owners remain unavailable with Retry. Runtime activation is explicit: building
+HappyHerd does not restart or migrate a running machine. Live acceptance uses
+only the disposable task runtime and the same original machine/cwd/state home.
+See the [acceptance receipt](../../../../docs/acceptance/issue-365.md) for proof
+planes. The native runtime's normal Codex credential resolver refreshes its
+selected login automatically; a no-refresh authorization cannot safely be
+implemented by simply pointing that runtime at an existing login.
 
 <!-- /rename:preserve -->

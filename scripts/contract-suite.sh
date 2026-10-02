@@ -54,6 +54,7 @@ node "$repo_root/scripts/verify-community-contract.mjs"
 "$repo_root/scripts/test-component-deployment-contract.sh"
 "$repo_root/scripts/test-happyherd-agent-runtime.sh"
 "$repo_root/scripts/test-happyherd-agent-sandbox.sh" source
+"$repo_root/scripts/test-native-context-runtime.sh" source
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
 "$repo_root/scripts/test-upstream-proposal-ownership.sh"
 "$repo_root/scripts/test-owned-merge-provenance.sh"

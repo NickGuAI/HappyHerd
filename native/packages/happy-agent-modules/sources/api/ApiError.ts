@@ -1,0 +1,70 @@
+import { Type, type Static } from "@sinclair/typebox";
+
+export const apiErrorCodeSchema = Type.Union([
+    Type.Literal("cloud_not_authenticated"),
+    Type.Literal("cloud_unauthorized"),
+    Type.Literal("cloud_unavailable"),
+    Type.Literal("conflict"),
+    Type.Literal("cursor_unavailable"),
+    Type.Literal("draining"),
+    Type.Literal("forbidden"),
+    Type.Literal("hash_mismatch"),
+    Type.Literal("happy_unavailable"),
+    Type.Literal("live_unavailable"),
+    Type.Literal("internal"),
+    Type.Literal("invalid_request"),
+    Type.Literal("not_found"),
+    Type.Literal("not_initialized"),
+    Type.Literal("remote_unavailable"),
+    Type.Literal("remote_timeout"),
+    Type.Literal("remote_busy"),
+    Type.Literal("invalid_invitation"),
+    Type.Literal("sharing_full"),
+    Type.Literal("sharing_not_enrolled"),
+    Type.Literal("sharing_unavailable"),
+    Type.Literal("too_large"),
+    Type.Literal("unauthorized"),
+    Type.Literal("unsupported"),
+    Type.Literal("service_not_running"),
+    Type.Literal("service_unavailable"),
+    Type.Literal("output_unavailable"),
+    Type.Literal("reader_limit"),
+]);
+
+export type ApiErrorCode = Static<typeof apiErrorCodeSchema>;
+
+/** A failure that is safe to return across the local HTTP boundary. */
+export class ApiError extends Error {
+    readonly status: number;
+    readonly code: ApiErrorCode;
+    readonly details: Readonly<Record<string, unknown>>;
+
+    constructor(
+        status: number,
+        code: ApiErrorCode,
+        message: string,
+        details: Readonly<Record<string, unknown>> = {},
+    ) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+        this.code = code;
+        this.details = details;
+    }
+
+    body(): Readonly<Record<string, unknown>> {
+        return { error: this.message, code: this.code, ...this.details };
+    }
+}
+
+export function invalidRequest(message: string): ApiError {
+    return new ApiError(400, "invalid_request", message);
+}
+
+export function notFound(message: string): ApiError {
+    return new ApiError(404, "not_found", message);
+}
+
+export function unsupported(message: string): ApiError {
+    return new ApiError(501, "unsupported", message);
+}

@@ -1,0 +1,39 @@
+export {
+    createTerminalInputSchema,
+    resizeTerminalInputSchema,
+    terminalColorSchemeSchema,
+    terminalChangesSchema,
+    terminalEventListenerSchema,
+    terminalEventSchema,
+    terminalSchema,
+    terminalScopeSchema,
+    terminalStatusSchema,
+    TerminalError,
+    DEFAULT_TERMINAL_COLOR_SCHEME,
+    DEFAULT_TERMINAL_COLS,
+    DEFAULT_TERMINAL_ROWS,
+    DEFAULT_TERMINAL_SCROLLBACK,
+    MAX_TERMINALS_PER_SCOPE,
+    MAX_TERMINAL_COLS,
+    MAX_TERMINAL_ROWS,
+    MAX_TERMINAL_SCROLLBACK,
+    type CreateTerminalInput,
+    type ResizeTerminalInput,
+    type Terminal,
+    type TerminalColorScheme,
+    type TerminalChanges,
+    type TerminalErrorCode,
+    type TerminalEvent,
+    type TerminalEventListener,
+    type TerminalScope,
+    type TerminalStatus,
+    type TerminalUnsubscribe,
+} from "./Terminal.js";
+export {
+    type TerminalProcess,
+    type TerminalProcessFactory,
+    type TerminalProcessOptions,
+} from "./TerminalProcess.js";
+export { TerminalsModule } from "./TerminalsModule.js";
+export { createHostTerminalProcessFactory } from "./impl/createHostTerminalProcessFactory.js";
+export { TerminalSession } from "./impl/TerminalSession.js";

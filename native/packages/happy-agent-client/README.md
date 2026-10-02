@@ -1,0 +1,254 @@
+# `@slopus/happy-agent-client`
+
+A typed client for the Happy agent HTTP API, specified endpoint by endpoint in
+`packages/happy-agent/API.md`.
+
+`HappyAgentClient` is built from an endpoint and a bearer token. The token may be a function called
+for every request, so refreshed credentials apply without a new client; it may be omitted only to
+call `getAuthentication()` before signing in.
+
+`getAuthentication()` reports whether the client is signed in and lists sign-in methods. An `oauth`
+method uses the authorization code flow with PKCE, talking to the deployer's authorization server
+directly; the daemon never sees the code, the PKCE verifier, or a refresh token.
+`beginOAuthSignIn(method, { redirectUri })` returns the URL to open in the system browser, the
+server's `host` to show the person, and the state and verifier to keep in memory.
+`completeOAuthSignIn(signIn, callbackUrl)` checks `state` and exchanges the code at that method's
+token URL. `refreshOAuthCredential(credential)` refreshes only at the refresh URL recorded at
+sign-in, never at one a daemon advertises later. Failures throw `HappyAgentOAuthError` with an OAuth
+or client `code`. In JWT team mode, a `401` `HappyAgentApiError` carries the same methods in
+`authentication`. Unknown method types are skipped. Older daemons return `404` for discovery.
+
+Remote connection rosters are read with `listConnections()`. The typed `connections.updated`
+event carries the complete `{ connections, version }` snapshot: keep the greater UUIDv7 version
+across list responses and events, ignoring duplicate or older snapshots. An empty array clears
+the roster. Capture a cursor before the initial roster read and follow updates after it to avoid
+missing a concurrent change. Refetch on state loss or daemon replacement. The list's `version`
+is optional for older daemons. `authentication: "workos"` identifies team remotes
+and includes `organizationId`; `"bearer"` identifies standalone remotes. Older daemons may support
+roster reads without emitting this additive event. `connection(id)` creates a separate client
+for the selected remote, without merging its events or state into the parent.
+
+Ordering-capable daemons return a required fractional `orderKey` on every connection, backfill
+existing connections in their previous order, and append new ones at the end. The roster is
+already sorted by key. Use `reorderConnection(id, { afterId, mutationId }, { ifMatch: version })`
+to move one after another, or pass `afterId: null` to move it first. The response and the existing
+`connections.updated` event carry the complete ordered roster; neighbours retain their keys.
+Older daemons may omit keys and return `404` for reordering; leave the feature unavailable there.
+
+Installation display information is `config.node`, read through `getConfig()` and already included
+in desktop bootstrap's config. Its `avatar` is either `{ thumbhash }` or `null` when no image is set.
+Use `patchConfig({ node: { name } })` to rename the installation independently of `p2p.name`;
+avatar mutations belong to admin-bot tools. `getNodeAvatar()` fetches authenticated image bytes,
+accepts `ifNoneMatch`, and returns `null` for `304`. An absent image rejects with `404`.
+The existing `config.updated` invalidation covers name and avatar changes: refetch config and
+conditionally refetch image bytes even if the ThumbHash is unchanged. Serialize config refreshes
+and refresh again if an invalidation arrives during a read. Follow the bootstrap cursor and refetch
+on state loss or daemon replacement. Older compatible daemons may omit `config.node` and return
+`404` for the avatar route; absence means this feature is unavailable, not that the node has no image.
+
+`HappyReducer` is the stateful layer over that feed. Construct it with a client, register update
+listeners, and start it when the application wants live synchronization. `getState()` and
+`subscribe()` expose a read-only Zustand-style external store suitable for `useSyncExternalStore`:
+the snapshot reference changes only when state changes, and unchanged agent children retain their
+references. Every listener registered with `subscribeUpdates()` receives every original ordered
+SSE item—connection changes, state loss, and ordinary events—after reduction, together with the
+current snapshot. Connection state includes `draining` while the daemon remains connected for
+reads but no longer admits mutations.
+
+State contains `connection` and an `agents` record keyed by Agent ID. Calling `agentVisible(id)`
+registers visible interest and returns an idempotent cleanup that lowers the agent to background
+priority. One agent bootstrap supplies its draft, last-used provider/model, context occupancy,
+pending input, current activity phase, processes, and direct subagents. The reducer also reads the
+focused question endpoint, and calls the separate activity endpoint only when an older compatible
+daemon omits the additive activity fields. Pending messages leave state when a run accepts them;
+the question becomes `null` when it is answered or canceled. At most three agents sync at once;
+visible agents are selected before tracked background agents. The reducer opens SSE first, retains
+a bounded 60-second event window, and reconciles each field against its private cursor before
+reapplying events received during snapshot loading. A stream gap or broken resource-version chain
+marks affected agents dirty and queues an authoritative refresh. Failed reads retry with
+exponential backoff.
+
+Stopping is synchronous: it immediately makes the reducer disconnected, aborts snapshot reads,
+and ignores late results. A later start resumes the SSE cursor and refreshes every tracked agent.
+
+Happy integration state is available in the desktop bootstrap and through focused read, start,
+cancel, disconnect, and re-pair methods. Its `status` is a discriminated union: pairing always has
+renderable opaque QR data, failure always has a display-safe error, and connected states always
+carry configured credentials. A desktop client installs the bootstrap snapshot, follows complete
+`happy.integration.updated` replacements from the bootstrap cursor, and keeps the greater version.
+In team mode, these same methods, bootstrap, and events transparently address the authenticated
+user's personal mobile connection. Ownership is resolved inside the daemon, not exposed as a new
+snapshot field or request argument. Routes, wire shapes, and the protocol version remain unchanged;
+no SDK update or capability negotiation is needed. Discard the old snapshot and restart bootstrap
+and event subscriptions when switching authenticated users. The daemon filters private mobile
+events in both pulls and SSE; a pull page may contain no visible events while advancing its cursor
+past another user's events.
+The integration remains separate from required onboarding, so a product may present pairing as an
+optional onboarding screen or later in settings without changing onboarding completion.
+
+The global secrets surface exposes only safe metadata: descriptions, environment-variable names,
+availability, attachments, versions, and timestamps. Raw values appear only in typed create and
+update request bodies. Project, workspace, and exact-agent attachment targets are discriminated by
+`type`; attach results preserve the meaningful `200` versus `201` status. The event union includes
+versioned secret changes and immutable attachment creation/removal without introducing a value-
+bearing response or event type.
+
+```ts
+const reducer = new HappyReducer(client);
+const hideAgent = reducer.agentVisible(agentId);
+const removeUpdateSubscription = reducer.subscribeUpdates((update, state) => {
+    console.log(update.kind, state.connection);
+});
+const removeStateSubscription = reducer.subscribe((state, previousState) => {
+    console.log(previousState.connection, "→", state.connection);
+});
+
+reducer.start();
+console.log(reducer.getState());
+reducer.stop();
+hideAgent();
+removeUpdateSubscription();
+removeStateSubscription();
+```
+
+It is built on plain Web APIs — `fetch`, streams, `AbortController`, standard timers — so the
+same build runs unchanged in Node and in a browser. The daemon listens on a Unix domain
+socket; a caller reaching one supplies its own runtime's socket-capable `fetch`, and the
+client never dials a socket itself or reads credentials from disk.
+
+`applyMessageDelta` implements the protocol's offset-aware text reduction without adding client
+state: exact and overlapping replays converge idempotently, while a gap or conflicting overlap
+returns `reconcile` so the caller can replace the message from authoritative history.
+
+Protocol shapes live in `sources/protocol/`, one file per API chapter, with shared wire
+values declared as TypeBox schemas and their TypeScript types derived with `Static`.
+
+## Live voice sessions
+
+`createLiveSession({ id, windowId, sdp, credential, contextRevision, context })` binds GPT-Live
+to the initiating desktop window and returns its resource and WebRTC SDP answer. Select the
+server-held credential explicitly as `{ providerId, type: "codex_subscription" }` or
+`{ providerId, type: "openai_api_key" }`. The former is experimental and does not promise
+subscription entitlement; the latter opts into API billing. There is no automatic fallback.
+The client never receives a provider token or API key.
+
+```text
+Client microphone/speaker <— WebRTC —> GPT-Live
+Client — authenticated SDP —> Happy daemon — sideband —> GPT-Live
+                                   └— typed UI actions/context <—> initiating window
+```
+
+Use a stable caller-chosen `id`: creation is never automatically retried, and a repeated ID
+returns a conflict with the current session rather than starting another billable call. After
+an uncertain outcome, use `getLiveSession(id)` and close before deliberately replacing it.
+Follow owner-private `live.session.created` and version-chained `live.session.updated` events
+through `updates()`. Refetch on gaps; `HappyReducer` does not maintain a second voice store.
+
+`closeLiveSession(id)` may return `closing`. `closed` means a deliberate end completed, not
+that usage was finalized; only `usage.final` confirms the final provider duration. A failed
+connection may have `usage.seconds: null`, which is unknown, not zero. Voice closure never
+aborts coding sessions or their tasks. The desktop explicitly selects at most five watched sessions.
+These additions do not change existing protocol compatibility. Older daemons may return `404`
+or `501`; leave voice unavailable rather than changing authentication or silently enabling billing.
+
+Require `getHealth().capabilities?.desktopLiveControl === true` before offering voice startup.
+`liveSessionControlUrl(id, windowId)` builds the authenticated WebSocket upgrade address; the
+trusted desktop host supplies bearer headers, never URL credentials. The exported
+`LiveControlClientMessage` and `LiveControlServerMessage` schemas define both directions.
+After verifying `hello` identifies the expected call/window, wait for `status: active`.
+
+The fixed `LiveDesktopAction` union contains state/open, workspace/session/bot creation,
+public session read/watch, exact-text message staging, and non-overwriting draft append.
+The desktop validates target namespaces, context revisions, permissions, and action identities.
+It never exposes generic shell/API/JavaScript execution or permission answers. Transcripts are
+provider-derived fragments, not authoritative user confirmations. Both interval fields are present
+only when the provider supplies real timing; native untimed fragments omit both. A `sessionSend`
+result with output `{ type: "staged" }` means the text awaits an independent human Send, never that
+it was submitted. Context
+contains only bounded visible names, IDs, public user/assistant text, structured status, and draft
+presence. A control disconnect ends voice; already-running coding work continues. There is no
+automatic controller reconnect or mutation replay, and no older Realtime fallback.
+
+## Sandboxed workspace services
+
+Services are started by an agent's separate `service_start` tool. This client manages and observes
+the same execution; it does not expose another command-launch route or a global services catalog.
+
+```text
+Workspace client → list/get service → shared process input/output
+                                  → stop and observe confirmed teardown
+                                  → scoped credential + fixed-endpoint CONNECT
+```
+
+Use `listWorkspaceServices(workspaceId)` and `getWorkspaceService(workspaceId, serviceId)` for
+discovery. Follow the list's journal `cursor` through `updates()` and reconcile `service.created`
+and version-chained `service.updated` events. Refetch on gaps or daemon replacement. Services are
+an on-demand surface; `HappyReducer` does not materialize a second service store automatically.
+For a known workspace, `404` or `501` means the feature is unavailable, not an empty catalog.
+
+`inputWorkspaceService(workspaceId, serviceId, { readerId, chars, waitMs })` reads when `chars` is
+empty and otherwise writes stdin then reads. Give every UI reader its own stable `readerId` so
+views do not consume each other's output. This ID grants no permission. Neither reads nor writes
+are retried automatically: a lost write response may already have delivered input. The response
+includes bounded output, an explicit truncation flag, and the current service snapshot.
+
+`stopWorkspaceService()` records a stop decision. A response with `status: "stopping"` does not
+prove the process tree is gone. Workspace `serviceCleanup` progress reports the mandatory barrier
+before deleting files; a blocked cleanup keeps the files intact.
+
+Trusted desktop hosts use `issueWorkspaceServiceAccessToken()` and `workspaceServiceProxyUrl()`.
+The latter returns an address only: supply normal API authorization and the separately scoped
+`WORKSPACE_SERVICE_AUTHORIZATION_HEADER` on CONNECT. Keep these credentials out of URLs, page
+JavaScript, ordinary application requests, and unrelated origins. The same methods work through
+`client.connection(id)`, preserving that connection's authenticated route. No public sharing or
+invitation is created by issuing a token.
+
+`HAPPY_AGENT_PROTOCOL_VERSION` is 25; `HAPPY_AGENT_MIN_PROTOCOL_VERSION` is 22. The range
+is additive, so clients should not require exact protocol equality for existing features.
+Creating a bot without `name` requires a daemon advertising protocol 24 or newer. With
+an older compatible daemon, supply a deliberate name or leave unnamed creation unavailable.
+An application that requires unnamed creation may require protocol 24 throughout its UI.
+
+`createBot({ id, workspaceId, agentId })` supports optimistic creation on protocol 25+. The caller
+checks the daemon's protocol and may open the conversation locally, queuing sends until creation
+succeeds. Keep `id` for retries; conflicting child IDs return `409`. Omitted IDs are daemon-generated.
+
+Global skill management is additive without a protocol bump. Detect support through
+`listGlobalSkills()`: `404` or `501` means unavailable; protocol 25 alone does not guarantee support.
+`listGlobalSkills()` includes disabled and broken
+skills; `getGlobalSkill(id)` returns parsed metadata, the original document, and its Markdown body.
+`updateGlobalSkill(id, { enabled, mutationId }, { ifMatch: skill.version })` changes availability
+without deleting files. `listGlobalSkillFiles()` pages through supporting files, and
+`readGlobalSkillFile()` reads their original bytes, including while disabled.
+
+Follow `skills.updated` from the first catalog page's event `cursor`. Its bounded `skillIds` and
+root-relative `paths` invalidate affected catalog pages, details, and open files; `null` means
+refresh broadly. An enablement-only change has `paths: []`. Page cursors are separate from journal
+cursors, and a `409` during pagination requires restarting the list. Refresh again if an event
+arrives during a read, keep the newer summary version, and resync on state loss or daemon replacement.
+The client exposes the feed without automatically caching skills in `HappyReducer`. Older daemons'
+missing endpoints mean this feature is unavailable, not that no skills are installed.
+
+Tool calls expose the complete `ToolPresentation` discriminated union — exploration, command,
+background-terminal interaction, file diff, web/X search, and sub-agent creation — together with
+an exported TypeBox schema for each variant and `toolPresentationSchema` for the whole set.
+
+`AgentSpawnPresentation` carries an optional complete `model: { modelId, providerId, name }`
+identity resolved before child creation, and an optional `agentId` after creation and initial-task
+delivery succeed. The enclosing tool status owns the spawning/completed/failed lifecycle, not the
+child's later work. Use the catalog `model.name` for the inline label, or a generic sub-agent label
+when absent; never infer model identity from task titles or raw tool data. The daemon retains the
+resolved identity across history loads and restart. Older daemons may omit this additive
+presentation; older clients can use raw tool data, which remains present for `agent_spawn` even
+with `omitToolData: true`. No protocol-version bump is required.
+
+Cloud exposes WorkOS authentication and organization management. Use `getCloud()` for local
+status, `startCloudAuthorization()` and `completeCloudAuthorization()` for PKCE sign-in,
+`mintCloudAccessToken()` for a verified access token, and `disconnectCloud()` for local sign-out.
+`listCloudOrganizations()`, `createCloudOrganization()`, and `deleteCloudOrganization()` manage
+the connected user's organizations. Desktop bootstrap includes the Cloud snapshot; follow
+`cloud.updated` replacements and keep the greater version.
+
+Focused agent responses and agent bootstrap include the current module-contributed slash-command
+catalog. `invokeSlashCommand` executes one through its owning module, while
+`agent.slash_commands.updated` carries complete catalog replacements discovered at turn time.

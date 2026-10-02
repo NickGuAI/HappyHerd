@@ -301,10 +301,12 @@ outside the first slice; Gemini is retired and is not a follow-up provider.
 For HappyHerd #365, the [native-source investigation](../skills/happyherd-update-provider/references/happyherd.md#context-window-investigation-365-2026-10-02)
 identifies a separate native machine owner and a concrete missing RPC contract
 at the pinned inspected baseline. Its SQLite context is not a Claude/Codex
-trace. The authorized local native patch extends that original machine owner
+trace. The maintained native runtime in `native/` extends that original machine owner
 with `session-context-window`, resolving the remote session ID through its own
 account-scoped bridge mapping and reading native retained records in one
 snapshot. The app sends the original machine/cwd and remote ID; it never infers
 native state from model flavor or a CLI home. Preserve unavailable/Retry on
 older native versions. Local fixture acceptance is separate from activation
-and an authenticated Desktop/Mobile pass.
+and an authenticated Desktop/Mobile pass. Build and test the repository-owned
+runtime with `scripts/test-native-context-runtime.sh`; no external PR or checkout
+is an implementation dependency.

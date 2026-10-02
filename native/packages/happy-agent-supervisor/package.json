@@ -1,0 +1,57 @@
+{
+    "name": "@slopus/happy-agent-supervisor",
+    "version": "0.0.13",
+    "description": "Trusted native sandbox boundary for Happy agent workloads.",
+    "keywords": [
+        "sandbox",
+        "seatbelt",
+        "seccomp",
+        "supervisor"
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/slopus/happy-agent.git",
+        "directory": "packages/happy-agent-supervisor"
+    },
+    "files": [
+        "dist",
+        "LICENSE",
+        "README.md"
+    ],
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+        "build:native": "cargo +1.96.0 build --manifest-path native/Cargo.toml --locked --release --bin happy-agent-supervisor",
+        "check": "tsc --noEmit",
+        "package:platform": "node scripts/package.mjs platform",
+        "package:root": "node scripts/package.mjs root",
+        "prepack": "pnpm build",
+        "release:placeholder": "node scripts/publish-placeholder.mjs",
+        "test": "vitest run",
+        "test:native": "cargo +1.96.0 test --manifest-path native/Cargo.toml --locked",
+        "build:native:windows": "node scripts/build-native-windows.mjs",
+        "test:native:windows": "node scripts/verify-native-windows-network.mjs && node scripts/verify-native-windows-placeholders.mjs && node scripts/verify-native-windows-output.mjs && node scripts/verify-native-windows-stability.mjs"
+    },
+    "dependencies": {
+        "@sinclair/typebox": "^0.34.49"
+    },
+    "devDependencies": {
+        "@types/node": "^24.0.10",
+        "typescript": "^7.0.2",
+        "vitest": "^3.2.4"
+    },
+    "engines": {
+        "node": ">=22.19.0"
+    }
+}
