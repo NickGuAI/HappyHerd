@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "42934832777f42eed83f7966d5f359967101b5682d66b680128659bf9bb0d7c8",
+  "sourceFingerprint": "2e15edf89b6d018a321c61515421d1209b42aab567be1ee1a5f7bc4f18fefa86",
   "routeCount": 45,
   "surfaceCount": 338,
   "hardcodedCopyCount": 0,
@@ -213,13 +213,19 @@
       "path": "/",
       "owner": "sources/app/(app)/index.tsx",
       "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.retry",
         "navigation.restoreWithSecretKey",
+        "welcome.accountCreationFailed",
         "welcome.createAccount",
         "welcome.loginWithMobileApp",
         "welcome.subtitle",
         "welcome.title"
       ],
-      "states": []
+      "states": [
+        "error"
+      ]
     },
     {
       "path": "/machine/[id]",
@@ -1542,13 +1548,19 @@
         "Home"
       ],
       "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.retry",
         "navigation.restoreWithSecretKey",
+        "welcome.accountCreationFailed",
         "welcome.createAccount",
         "welcome.loginWithMobileApp",
         "welcome.subtitle",
         "welcome.title"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {

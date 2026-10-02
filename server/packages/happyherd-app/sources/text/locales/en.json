@@ -1155,6 +1155,7 @@
     "title": "Codex and Claude Code mobile client",
     "subtitle": "End-to-end encrypted and your account is stored only on your device.",
     "createAccount": "Create account",
+    "accountCreationFailed": "Account creation did not finish. Check your connection and try again.",
     "linkOrRestoreAccount": "Link or restore account",
     "loginWithMobileApp": "Login with mobile app"
   },

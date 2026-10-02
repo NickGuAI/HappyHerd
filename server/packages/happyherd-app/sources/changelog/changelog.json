@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 2 — Retry account creation",
+      "summary": "",
+      "markdown": "- If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests."
+    },
+    {
       "title": "October 1 — Codex conversation reliability",
       "summary": "",
       "markdown": "- Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped."
@@ -881,5 +886,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 1 — Codex conversation reliability"
+  "latestTitle": "October 2 — Retry account creation"
 }

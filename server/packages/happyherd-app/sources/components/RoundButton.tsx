@@ -114,6 +114,7 @@ export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?
             disabled={doLoading || props.disabled}
             accessibilityRole="button"
             accessibilityState={{ disabled: doLoading || !!props.disabled, busy: doLoading }}
+            aria-busy={doLoading}
             hitSlop={size.hitSlop}
             onHoverIn={() => setHovered(true)}
             onHoverOut={() => setHovered(false)}

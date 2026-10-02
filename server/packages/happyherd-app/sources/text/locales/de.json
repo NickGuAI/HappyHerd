@@ -1155,6 +1155,7 @@
     "title": "Mobiler Codex- und Claude Code-Client",
     "subtitle": "Ende-zu-Ende-verschlüsselt und Ihr Konto wird nur auf Ihrem Gerät gespeichert.",
     "createAccount": "Benutzerkonto erstellen",
+    "accountCreationFailed": "Die Kontoerstellung wurde nicht abgeschlossen. Prüfe deine Verbindung und versuche es erneut.",
     "linkOrRestoreAccount": "Konto verknüpfen oder wiederherstellen",
     "loginWithMobileApp": "Melden Sie sich mit der mobilen App an"
   },

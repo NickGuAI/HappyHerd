@@ -1602,6 +1602,7 @@ export type TranslationKey =
     | "voiceStatusBar.connecting"
     | "voiceStatusBar.error"
     | "voiceStatusBar.tapToEnd"
+    | "welcome.accountCreationFailed"
     | "welcome.createAccount"
     | "welcome.linkOrRestoreAccount"
     | "welcome.loginWithMobileApp"

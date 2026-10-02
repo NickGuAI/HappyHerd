@@ -1069,6 +1069,7 @@
     "title": "Codex 和 Claude Code 移动客户端",
     "subtitle": "端到端加密，您的账户仅存储在您的设备上。",
     "createAccount": "创建账户",
+    "accountCreationFailed": "账号创建未完成。请检查网络连接后重试。",
     "linkOrRestoreAccount": "链接或恢复账户",
     "loginWithMobileApp": "使用移动应用登录"
   },

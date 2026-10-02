@@ -42,6 +42,7 @@ vi.mock('@/components/herd/mobile/PhoneHome', async () => {
 });
 vi.mock('@/components/herd/mobile/useHerdPhone', () => ({ useHerdPhoneLayout: () => state.phoneLayout }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/modal', () => ({ Modal: { alert: vi.fn() } }));
 
 import Home from './index';
 

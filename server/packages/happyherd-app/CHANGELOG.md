@@ -1,3 +1,7 @@
+# October 2 — Retry account creation
+
+- If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests.
+
 # October 1 — Codex conversation reliability
 
 - Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.

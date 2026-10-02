@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser } from 'playwright-core';
+import { chromium, type Browser, type Route } from 'playwright-core';
 import en from '@/text/locales/en.json';
 import cn from '@/text/locales/cn.json';
 import de from '@/text/locales/de.json';
@@ -43,21 +43,31 @@ const virtualModules: Record<string, string> = {
             back() { history.back(); },
         });
     `,
-    '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: false, login: async (_token, _secret, method) => { globalThis.__LOGIN_METHOD__ = method; } });`,
-    '@/auth/authGetToken': `export const authGetToken = () => new Promise(resolve => { globalThis.__FINISH_CREATE__ = () => resolve('fixture-token'); });`,
+    '@/auth/AuthContext': `
+        import React from 'react';
+        let authenticated = false;
+        const listeners = new Set();
+        export const useAuth = () => ({
+            isAuthenticated: React.useSyncExternalStore(listener => { listeners.add(listener); return () => listeners.delete(listener); }, () => authenticated),
+            login: async (_token, _secret, method) => { globalThis.__LOGIN_METHOD__ = method; authenticated = true; listeners.forEach(listener => listener()); },
+        });
+    `,
+    '@/auth/authChallenge': `export const authChallenge = () => ({ challenge: new Uint8Array(32), signature: new Uint8Array(64), publicKey: new Uint8Array(32) });`,
+    '@/sync/apiSocket': `export const getHappyHerdClientId = () => 'fixture-client';`,
     '@/auth/authQRStart': `export const generateAuthKeyPair = () => ({ publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) }); export const authQRStart = () => new Promise(() => {});`,
     '@/auth/authQRWait': `export const authQRWait = () => new Promise(() => {});`,
     '@/encryption/base64': `export const encodeBase64 = () => 'fixture-key'; export const decodeBase64 = () => new Uint8Array(32);`,
-    '@/components/herd/pages/HerdLanding': `export const HerdLanding = () => null;`,
-    '@/components/herd/mobile/PhoneHome': `export const PhoneHome = () => null;`,
+    '@/components/herd/pages/HerdLanding': `import React from 'react'; export const HerdLanding = () => React.createElement('div', { 'data-testid': 'authenticated-destination' }, 'Authenticated destination fixture');`,
+    '@/components/herd/mobile/PhoneHome': `export { HerdLanding as PhoneHome } from '@/components/herd/pages/HerdLanding';`,
     '@/components/qr/QRCode': `export const QRCode = () => null;`,
     '@/components/MobileGlass': `import { View } from 'react-native'; export const MobileGlassSurface = View;`,
     '@/components/navigation/MobileHeaderScrim': `export const MobileHeaderScrim = () => null; export const MOBILE_HOME_SCRIM_OVERLAY_OPACITY = 1; export const MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY = .96; export const MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY = .8;`,
     '@/components/ShortcutHints': `export const ShortcutHintBadge = () => null; export const useShortcutHints = () => ({ visible: false });`,
     '@/components/StatusDot': `export const StatusDot = () => null;`,
     '@/sync/storage': `export const useSocketStatus = () => ({ status: 'connected' });`,
-    '@/sync/serverConfig': `export const getServerInfo = () => ({ isCustom: false });`,
-    '@/modal': `export const Modal = { alert() {} };`,
+    '@/sync/serverConfig': `export const getServerInfo = () => ({ isCustom: false }); export const getServerUrl = () => location.origin;`,
+    '@/components/AnimatedOverlay': `export const AnimatedBlurBackdrop = () => null;`,
+    '@/modal/components/CustomModal': `export const CustomModal = () => null;`,
     '@/track': `export const trackAccountCreated = () => { globalThis.__ACCOUNT_CREATED__ = true; }; export const trackAccountRestored = () => {};`,
     '@/text': `
         import en from '@/text/locales/en.json'; import cn from '@/text/locales/cn.json'; import de from '@/text/locales/de.json';
@@ -75,7 +85,7 @@ const fixturePlugin: Plugin = {
             if (normalized in virtualModules) return { path: normalized, namespace: 'fixture-stub' };
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
-                const path = [sourcePath, `${sourcePath}.ts`, `${sourcePath}.tsx`].find(existsSync);
+                const path = [`${sourcePath}.ts`, `${sourcePath}.tsx`, resolve(sourcePath, 'index.ts'), resolve(sourcePath, 'index.tsx'), sourcePath].find(existsSync);
                 if (!path) throw new Error(`missing fixture source: ${args.path}`);
                 return { path };
             }
@@ -85,9 +95,10 @@ const fixturePlugin: Plugin = {
     },
 };
 
-// These are production signed-out and restore routes with network/auth state
-// replaced at the service boundary. This does not prove live account creation,
-// native safe areas, actual iPhone zoom, or hardware keyboard behavior.
+// Production signed-out/restore routes, RoundButton, modal host and authGetToken
+// run in Chromium. Signing, auth storage and authenticated destinations are doubles;
+// Playwright controls HTTP responses. This proves the welcome action and login
+// handoff, not a live authenticated app, native safe areas or actual iPhone zoom.
 describe('KILV signed-out routes browser journeys', () => {
     let browser: Browser;
     let server: Server;
@@ -101,11 +112,12 @@ describe('KILV signed-out routes browser journeys', () => {
                     import Home from '@/app/(app)/index';
                     import RestoreKey from '@/app/(app)/restore/manual';
                     import RestoreDevice from '@/app/(app)/restore/index';
+                    import { ModalProvider } from '@/modal';
                     function App() {
                         const route = React.useSyncExternalStore(callback => { addEventListener('popstate', callback); return () => removeEventListener('popstate', callback); }, () => location.pathname);
                         return route === '/restore/manual' ? <RestoreKey /> : route === '/restore' ? <RestoreDevice /> : <Home />;
                     }
-                    createRoot(document.getElementById('root')).render(<App />);
+                    createRoot(document.getElementById('root')).render(<ModalProvider><App /></ModalProvider>);
                 `,
                 loader: 'tsx', resolveDir: appRoot,
             },
@@ -180,13 +192,99 @@ describe('KILV signed-out routes browser journeys', () => {
         await page.getByRole('button', { name: labels.uiCopy.restoreWithSecretKeyInstead, exact: true }).click();
         await page.getByRole('textbox').waitFor();
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
+        let pending: Route | undefined;
+        await page.route('**/v1/auth', route => { pending = route; });
         await create.click();
-        await page.waitForFunction(() => typeof (window as any).__FINISH_CREATE__ === 'function');
+        await expect.poll(() => pending !== undefined).toBe(true);
         expect(await create.getAttribute('aria-disabled')).toBe('true');
-        await page.evaluate(() => (window as any).__FINISH_CREATE__());
+        await pending!.fulfill({ json: { token: 'fixture-token' } });
         await page.waitForFunction(() => (window as any).__ACCOUNT_CREATED__ === true);
         expect(await page.evaluate(() => (window as any).__LOGIN_METHOD__)).toBe('new-account');
         expect(errors).toEqual([]);
         await page.close();
     }, 20_000);
+
+    const recoveryMatrix = (['en', 'cn', 'de'] as const).flatMap(locale => [
+        { surface: 'Web Desktop', viewport: { width: 1440, height: 900 }, locale },
+        { surface: 'Web Mobile', viewport: { width: 390, height: 844 }, locale },
+    ]);
+    it.each(recoveryMatrix)('shows account creation failures and recovers through the welcome action: $surface/$locale', async ({ viewport, locale }) => {
+        const labels = catalogs[locale];
+        const page = await browser.newPage({ viewport });
+        const errors: string[] = [];
+        page.on('pageerror', error => errors.push(error.message));
+        const requests: Route[] = [];
+        await page.route('**/v1/auth', route => { requests.push(route); });
+        await page.goto(`${origin}/?locale=${locale}`);
+        const create = page.getByRole('button', { name: labels.welcome.createAccount, exact: true });
+        await create.waitFor();
+
+        // Real DOM clicks in the same turn exercise the pre-render duplicate window.
+        await create.evaluate(element => { for (let i = 0; i < 8; i++) (element as HTMLElement).click(); });
+        await expect.poll(() => requests.length).toBe(1);
+        expect(await create.getAttribute('aria-disabled')).toBe('true');
+        expect(await create.getAttribute('aria-busy')).toBe('true');
+        expect(await page.getByRole('progressbar').count()).toBe(1);
+        await create.evaluate(element => { for (let i = 0; i < 8; i++) (element as HTMLElement).click(); });
+        expect(requests).toHaveLength(1);
+        await requests[0].abort('internetdisconnected');
+        const message = page.getByText(labels.welcome.accountCreationFailed, { exact: true });
+        await message.waitFor();
+        await page.getByText(labels.common.error, { exact: true }).waitFor();
+        const retry = page.getByRole('button', { name: labels.common.retry, exact: true });
+        const cancel = page.getByRole('button', { name: labels.common.cancel, exact: true });
+        await retry.waitFor();
+        // Wait for the production modal fade, so evidence captures the visible error.
+        await expect.poll(() => message.evaluate(element => {
+            let opacity = 1;
+            for (let current: Element | null = element; current; current = current.parentElement) {
+                opacity *= Number(getComputedStyle(current).opacity);
+            }
+            return opacity;
+        })).toBe(1);
+        expect(await page.getByRole('progressbar').count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__LOGIN_METHOD__)).toBeUndefined();
+        for (const action of [retry, cancel]) {
+            const bounds = await action.boundingBox();
+            expect(bounds?.height).toBeGreaterThanOrEqual(44);
+            expect(bounds!.x).toBeGreaterThanOrEqual(0);
+            expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+        }
+        const screenshotDir = process.env.HAPPYHERD_KILV_SCREENSHOTS;
+        if (screenshotDir) {
+            mkdirSync(screenshotDir, { recursive: true });
+            await page.screenshot({ path: resolve(screenshotDir, `create-account-error-${locale}-${viewport.width}.png`), fullPage: true });
+        }
+
+        // Cancel resets the action, and keyboard activation reaches the same button.
+        await cancel.click();
+        await message.waitFor({ state: 'hidden' });
+        expect(await create.getAttribute('aria-disabled')).not.toBe('true');
+        expect(await create.getAttribute('aria-busy')).not.toBe('true');
+        await create.focus();
+        await page.keyboard.press('Enter');
+        await expect.poll(() => requests.length).toBe(2);
+        await requests[1].fulfill({ status: 503, json: { error: 'private-server-diagnostic', token: 'private-token-do-not-display' } });
+        await message.waitFor();
+        expect(await page.getByText('private-server-diagnostic', { exact: false }).count()).toBe(0);
+        expect(await page.getByText('private-token-do-not-display', { exact: false }).count()).toBe(0);
+        expect(await page.evaluate(() => (window as any).__ACCOUNT_CREATED__)).toBeUndefined();
+
+        await retry.click();
+        await message.waitFor({ state: 'hidden' });
+        await expect.poll(() => requests.length).toBe(3);
+        expect(await create.getAttribute('aria-disabled')).toBe('true');
+        expect(await create.getAttribute('aria-busy')).toBe('true');
+        await create.evaluate(element => { for (let i = 0; i < 8; i++) (element as HTMLElement).click(); });
+        expect(requests).toHaveLength(3);
+        await requests[2].fulfill({ json: { token: 'fixture-token' } });
+        await page.getByTestId('authenticated-destination').waitFor();
+        await expect.poll(() => page.evaluate(() => (window as any).__ACCOUNT_CREATED__)).toBe(true);
+        expect(await page.evaluate(() => (window as any).__LOGIN_METHOD__)).toBe('new-account');
+        expect(await create.count()).toBe(0);
+        expect(await message.count()).toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
 });
