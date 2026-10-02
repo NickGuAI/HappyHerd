@@ -133,8 +133,13 @@ describe('EmptyMainScreen onboarding reachability', () => {
     }, 30_000);
 
     afterAll(async () => {
-        await browser?.close();
-        if (server) await new Promise<void>(closed => server.close(() => closed()));
+        // All pages have finished: drain fixture sockets as well as the browser.
+        // Neither shutdown should wait for the other to release its connection.
+        const serverClosed = server ? new Promise<void>((closed, reject) => {
+            server.close(error => error ? reject(error) : closed());
+            server.closeAllConnections();
+        }) : Promise.resolve();
+        await Promise.all([serverClosed, browser?.close()]);
     });
 
     it.each(['light', 'dark'])('scrolls German native onboarding to camera, manual URL and archive actions on a short screen: %s', async theme => {

@@ -719,3 +719,4 @@ CODEX_JSONL_REBASED_GOLDENS	accepted	test(codex): refresh rebased Unicode fix ch
 CREATE_ACCOUNT_ERROR_381	accepted	fix(app): show localized account creation failures with retry	server/packages/happyherd-app/sources/app/(app)/index.tsx
 CREATE_ACCOUNT_CHANGELOG_GOLDENS_381	accepted	test(app): refresh account creation changelog visual baselines	docs/acceptance/issue-287/golden
 FIRST_RUN_PUBLIC_INSTALL_379	accepted	fix(app): guide first-run users through public installation and connection	server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx
+FIRST_RUN_EVIDENCE_379	accepted	test(app): retain first-run evidence and refresh visual baselines	docs/acceptance/issue-379/README.md

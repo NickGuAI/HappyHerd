@@ -95,3 +95,65 @@ state. The daemon and server were stopped, uninstall succeeded, health became
 unreachable, and runtime credentials/state were removed. This verifies only
 Darwin arm64 terminal/API behavior, not other installer targets or a provider
 turn. No shared service or account was changed.
+
+## Rendered acceptance matrix
+
+The 61-case suite includes the 54 combinations of en/cn/de, Web/iOS/Android
+branches, light/dark, and 320/360/390 × 400, plus the existing seven
+scroll/archive/online/offline cases. It checks selectable, byte-faithful
+commands against README, the displayed server, keyboard Tab/Enter,
+cancel-without-authorization, URL submission, the Web input's 16 px font,
+no horizontal overflow, and final discovery text above the native dock.
+Screenshots below were captured from implementation revision
+`3859bb6cb23d85141c41f2f9bbedc21bb6de3e31`; subsequent fixture teardown and
+baseline updates do not change the rendered production component.
+
+| Surface and representative viewport | Install | Manual entry / next action | Final daemon/discovery step |
+| --- | --- | --- | --- |
+| Web Mobile, English, light, 320 × 400 | [Command](first-run-en-web-light-320x400-install.png) | [Real prompt](first-run-en-web-light-320x400-prompt.png) | [Discovery](first-run-en-web-light-320x400-daemon.png) |
+| Shared iOS phone branch, German, dark, 360 × 400 | [Command](first-run-de-ios-dark-360x400-install.png) | [Native actions](first-run-de-ios-dark-360x400-action.png) | [Dock clearance](first-run-de-ios-dark-360x400-daemon.png) |
+| Web Mobile, Chinese, light, 320 × 400 | [Command](first-run-cn-web-light-320x400-install.png) | [Real prompt](first-run-cn-web-light-320x400-prompt.png) | Covered in the same automated matrix |
+
+These are source-owned rendered fixtures with synthetic account state, icon
+adapters and a dock footprint, not screenshots of a deployed/authenticated
+account. Physical iPhone Safari zoom, native safe-area/camera/OS prompt
+behavior and authenticated app-to-terminal pairing remain unperformed.
+
+## Verification receipts and first failures
+
+- Pinned pnpm 10.11.0 frozen installation completed without a lockfile change.
+  Node 20.19.0 and Bun 1.3.11 were used locally.
+- App typecheck, i18n/copy/inventory checks, source lint, production Web export
+  and Web smoke passed. Production iOS export also assembled successfully.
+- CLI build passed after building its control-agent dependency; server build
+  passed. The initial CLI build's missing control-agent declarations were
+  retained, not patched around.
+- Locale generation reports 1680 keys; UI generation reports 45 routes,
+  338 surfaces, 84 smoke cases. Changelog parsing reports 176 entries with
+  newest title “October 2 — Connect your first computer”.
+- Early fixture failures exposed directory alias resolution, missing locale
+  selection and grouped viewport cases exceeding the existing per-test
+  timeout. The fixture was corrected and viewports became individual cases;
+  timeouts and assertions were not relaxed. A native 14 dp prompt was checked
+  against its existing native contract while Web retains the 16 px assertion.
+- Full capture and repeat runs on `3859bb6c` passed all 61 assertions but
+  exceeded the unchanged 10-second teardown timeout. Fixture teardown now
+  stops accepting connections, drains its own sockets and closes the browser
+  concurrently. The corrected full 61-case run passed, including teardown.
+  No product behavior, assertion, skip or timeout changed.
+- Initial contract runs retained a historical-name prose failure (corrected
+  in this acceptance note) and a macOS BSD `sed` incompatibility. The complete
+  suite was rerun with GNU `sed`, without editing the contract scripts.
+- The first CI visual comparison retained exactly four expected changelog
+  mismatches out of 28 variants; the other 24 were pixel-identical. Baselines
+  are refreshed using `pnpm --filter happyherd-app golden:update` from the
+  completed exact-revision CI comparison, never by loosening the pixel test.
+  The retained comparison is run `36993580991`, source `3859bb6c`; its
+  production job completed the comparison before the superseded workflow was
+  cancelled. The maintained script regenerated all 28 images, and only the
+  four changelog images changed.
+
+Final exact-head CI conclusions and independent review are recorded in
+[PR #389](https://github.com/NickGuAI/HappyHerd/pull/389). This patch changes the
+Web/shared-phone frontend only; no server or daemon runtime activation is
+required to review it. Merge and deployment remain outside the authorization.
