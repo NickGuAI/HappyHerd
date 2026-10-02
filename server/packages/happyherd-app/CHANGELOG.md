@@ -20,6 +20,10 @@
 
 - First-run setup now uses the public macOS/Linux installer and shows the current app server, terminal authorization, and daemon startup steps. Web users can enter the terminal URL directly; native phones retain camera and manual URL pairing.
 
+# October 1 — Stable release installation
+
+- The one-line installer now supports the current stable release and newer HappyHerd archive layouts. Incomplete or mixed archives are rejected before replacing an existing installation, while server settings and session state are preserved.
+
 # October 1 — Codex conversation reliability
 
 - Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.

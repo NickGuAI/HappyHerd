@@ -147,6 +147,7 @@ cat > "$asset_root/runtime/bin/happyherd.mjs" <<'JS'
 import fs from 'node:fs';
 const args = process.argv.slice(2);
 if (process.env.HAPPYHERD_TEST_LOG) fs.appendFileSync(process.env.HAPPYHERD_TEST_LOG, `${args.join(' ')}\n`);
+if (args[0] === '--version') console.log('HappyHerd fixture');
 if (args[0] === 'server') setInterval(() => {}, 1000);
 JS
 chmod 755 "$asset_root/runtime/bin/happyherd.mjs"
@@ -155,6 +156,19 @@ cp "$legacy_cleanup" "$asset_root/cleanup-legacy.sh"
 chmod 755 "$asset_root/uninstall.sh" "$asset_root/cleanup-legacy.sh"
 asset="$fixture/happyherd-$host_target.tar.gz"
 tar -czf "$asset" -C "$fixture/asset-root" happyherd
+
+# Published pre-rename bundles keep their internal CLI and server names. The
+# public command remains happyherd for both complete, matching layouts.
+legacy_root="$fixture/legacy-root/happyherd"
+mkdir -p "$(dirname "$legacy_root")"
+cp -R "$asset_root" "$legacy_root"
+mv "$legacy_root/runtime/bin/happyherd.mjs" "$legacy_root/runtime/bin/happy.mjs"
+mv "$legacy_root/runtime/node_modules/happyherd-server-self-host" \
+  "$legacy_root/runtime/node_modules/happy-server-self-host"
+printf '{"name":"happy-server-self-host"}\n' \
+  > "$legacy_root/runtime/node_modules/happy-server-self-host/package.json"
+legacy_asset="$fixture/legacy.tar.gz"
+tar -czf "$legacy_asset" -C "$fixture/legacy-root" happyherd
 
 home="$fixture/home"
 fake_bin="$fixture/bin"
@@ -214,7 +228,7 @@ curl_log="$fixture/curl.log"
 
 # Default download selects the stable release asset for this platform.
 HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
-  HAPPYHERD_FIXTURE_ASSET="$asset" HAPPYHERD_CURL_LOG="$curl_log" \
+  HAPPYHERD_FIXTURE_ASSET="$legacy_asset" HAPPYHERD_CURL_LOG="$curl_log" \
   PATH="$fake_bin:/usr/bin:/bin" \
   "$installer" --server https://remote.example --no-start >/dev/null
 grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/latest/download/happyherd-$host_target.tar.gz" "$curl_log"
@@ -223,7 +237,10 @@ grep -Fxq "commander guide --json" "$test_log" || fail 'no-start install did not
 [[ -x "$home/.local/bin/happyherd" ]] || fail 'installer did not expose happyherd'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] || fail 'installer replaced an existing Happy command'
 [[ -x "$home/.local/share/happyherd/node/bin/node" ]]
-[[ -f "$home/.local/share/happyherd/runtime/node_modules/happyherd-server-self-host/package.json" ]]
+[[ -f "$home/.local/share/happyherd/runtime/node_modules/happy-server-self-host/package.json" ]]
+grep -Fq "$home/.local/share/happyherd/runtime/bin/happy.mjs" "$home/.local/bin/happyherd"
+[[ "$(HOME="$home" "$home/.local/bin/happyherd" --version)" == 'HappyHerd fixture' ]]
+cmp "$legacy_root/runtime/bin/happy.mjs" "$home/.local/share/happyherd/runtime/bin/happy.mjs"
 [[ ! -e "$home/.local/share/happyherd/source" && ! -e "$home/.local/share/happyherd/tooling" ]]
 "$home/.local/share/happyherd/node/bin/node" -e '
   const s = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
@@ -236,6 +253,11 @@ HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
   PATH="$fake_bin:/usr/bin:/bin" \
   "$installer" --version 1.2.3 --no-start </dev/null >/dev/null
 grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/download/happyherd-v1.2.3/happyherd-$host_target.tar.gz" "$curl_log"
+[[ -f "$home/.local/share/happyherd/runtime/node_modules/happyherd-server-self-host/package.json" ]]
+[[ ! -e "$home/.local/share/happyherd/runtime/bin/happy.mjs" ]]
+[[ ! -e "$home/.local/share/happyherd/runtime/node_modules/happy-server-self-host" ]]
+grep -Fq "$home/.local/share/happyherd/runtime/bin/happyherd.mjs" "$home/.local/bin/happyherd"
+[[ "$(HOME="$home" "$home/.local/bin/happyherd" --version)" == 'HappyHerd fixture' ]]
 
 HAPPYHERD_TEST_LOG="$test_log" \
   "$home/.local/share/happyherd/node/bin/node" \
@@ -245,6 +267,53 @@ managed_test_pid=$!
 printf '%s\n' "$managed_test_pid" > "$home/.happyherd/server.pid"
 sleep 0.1
 kill -0 "$managed_test_pid"
+
+# Reject malformed or mixed archives while everything still lives in staging.
+# Compare every installed file and user setting, and ensure validation never
+# stops the working daemon/server during an unsuccessful upgrade.
+cp -R "$home" "$fixture/home-before-rejected-upgrades"
+cp "$test_log" "$fixture/log-before-rejected-upgrades"
+for broken_case in missing-command mixed-commands legacy-cli-current-server current-cli-legacy-server \
+  partial-legacy-server partial-current-server missing-server missing-webapp legacy-missing-webapp broken-command; do
+  broken_root="$fixture/broken-root/happyherd"
+  rm -rf "$fixture/broken-root"
+  mkdir -p "$fixture/broken-root"
+  cp -R "$asset_root" "$broken_root"
+  case "$broken_case" in
+    missing-command) rm "$broken_root/runtime/bin/happyherd.mjs" ;;
+    mixed-commands) cp "$broken_root/runtime/bin/happyherd.mjs" "$broken_root/runtime/bin/happy.mjs" ;;
+    legacy-cli-current-server) mv "$broken_root/runtime/bin/happyherd.mjs" "$broken_root/runtime/bin/happy.mjs" ;;
+    current-cli-legacy-server)
+      mv "$broken_root/runtime/node_modules/happyherd-server-self-host" \
+        "$broken_root/runtime/node_modules/happy-server-self-host"
+      ;;
+    partial-legacy-server) mkdir "$broken_root/runtime/node_modules/happy-server-self-host" ;;
+    partial-current-server)
+      rm -rf "$broken_root"
+      cp -R "$legacy_root" "$broken_root"
+      mkdir "$broken_root/runtime/node_modules/happyherd-server-self-host"
+      ;;
+    legacy-missing-webapp)
+      rm -rf "$broken_root"
+      cp -R "$legacy_root" "$broken_root"
+      rm "$broken_root/runtime/node_modules/happy-server-self-host/webapp/index.html"
+      ;;
+    missing-server) rm "$broken_root/runtime/node_modules/happyherd-server-self-host/package.json" ;;
+    missing-webapp) rm "$broken_root/runtime/node_modules/happyherd-server-self-host/webapp/index.html" ;;
+    broken-command) printf 'process.exit(42);\n' > "$broken_root/runtime/bin/happyherd.mjs" ;;
+  esac
+  tar -czf "$fixture/broken.tar.gz" -C "$fixture/broken-root" happyherd
+  if HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" PATH="$fake_bin:/usr/bin:/bin" \
+    "$installer" --asset "$fixture/broken.tar.gz" --server https://must-not-persist.example --no-start \
+    >"$fixture/$broken_case.out" 2>&1; then
+    fail "installer accepted $broken_case archive"
+  fi
+  diff -r "$fixture/home-before-rejected-upgrades" "$home" \
+    || fail "$broken_case failure changed the installed runtime or user state"
+  cmp "$fixture/log-before-rejected-upgrades" "$test_log" \
+    || fail "$broken_case failure invoked the installed daemon"
+  kill -0 "$managed_test_pid" || fail "$broken_case failure stopped the installed server"
+done
 
 # A rerun is an upgrade and keeps the existing server and user state.
 HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" PATH="$fake_bin:/usr/bin:/bin" \
@@ -282,6 +351,20 @@ grep -Fxq 'daemon stop' "$test_log"
 [[ "$(cat "$home/.happyherd/sessions.json")" == "$settings_before_sessions" ]]
 [[ "$(cat "$home/.codex/config.toml")" == "$provider_before" ]]
 [[ "$(cat "$home/.claude/skills/user-skill/SKILL.md")" == "$skill_before" ]]
+
+# Legacy installs expose only the public command, and the archive's uninstaller
+# must still recognize and remove its selected internal entrypoint.
+legacy_home="$fixture/legacy-home"
+mkdir -p "$legacy_home/.happyherd"
+printf 'preserved session\n' > "$legacy_home/.happyherd/session.json"
+HOME="$legacy_home" SHELL=/bin/bash PATH="$fake_bin:/usr/bin:/bin" \
+  "$installer" --asset "$legacy_asset" --server https://legacy.example --no-start >/dev/null
+[[ -x "$legacy_home/.local/bin/happyherd" ]]
+[[ ! -e "$legacy_home/.local/bin/happy" ]]
+[[ "$(HOME="$legacy_home" "$legacy_home/.local/bin/happyherd" --version)" == 'HappyHerd fixture' ]]
+HOME="$legacy_home" "$legacy_home/.local/share/happyherd/uninstall.sh" >/dev/null
+[[ ! -e "$legacy_home/.local/share/happyherd" && ! -e "$legacy_home/.local/bin/happyherd" ]]
+[[ "$(cat "$legacy_home/.happyherd/session.json")" == 'preserved session' ]]
 
 # A wrapper written by the previous source-building installer is a managed
 # upgrade target even when its old runtime is no longer available.

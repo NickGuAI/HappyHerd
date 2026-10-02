@@ -17,7 +17,7 @@ Usage:
   install.sh [--server URL] [--version VERSION] [--asset FILE_OR_URL] [--no-start]
 
 Options:
-  --server URL         Persist this Happy server URL (default: http://127.0.0.1:3005).
+  --server URL         Persist this HappyHerd server URL (default: http://127.0.0.1:3005).
   --version VERSION    Install a tagged release instead of the latest stable release.
   --asset FILE_OR_URL  Install a prepared platform asset directly.
   --no-start           Install and configure without starting the local server or daemon.
@@ -226,19 +226,40 @@ staged_node="$asset_root/node/bin/node"
 staged_runtime="$asset_root/runtime"
 [ -x "$staged_node" ] || { echo 'error: prepared release has no Node runtime' >&2; exit 1; }
 [ -f "$asset_root/node/LICENSE" ] || { echo 'error: prepared release has no Node license' >&2; exit 1; }
-[ -f "$staged_runtime/bin/happyherd.mjs" ] || { echo 'error: prepared release has no HappyHerd command' >&2; exit 1; }
+# Published releases before the source rename retain their internal paths.
+# Select a complete pair; never combine entrypoints and servers across layouts.
+if [ -f "$staged_runtime/bin/happyherd.mjs" ]; then
+  command_entry='bin/happyherd.mjs'
+  server_package='happyherd-server-self-host'
+  other_entry='bin/happy.mjs'
+  other_server='happy-server-self-host'
+elif [ -f "$staged_runtime/bin/happy.mjs" ]; then
+  command_entry='bin/happy.mjs'
+  server_package='happy-server-self-host'
+  other_entry='bin/happyherd.mjs'
+  other_server='happyherd-server-self-host'
+else
+  echo 'error: prepared release has no HappyHerd command' >&2
+  exit 1
+fi
+if [ -e "$staged_runtime/$other_entry" ] || [ -L "$staged_runtime/$other_entry" ] \
+  || [ -e "$staged_runtime/node_modules/$other_server" ] \
+  || [ -L "$staged_runtime/node_modules/$other_server" ]; then
+  echo 'error: prepared release mixes incompatible runtime layouts' >&2
+  exit 1
+fi
 [ -x "$staged_runtime/tools/unpacked/rg" ] || { echo 'error: prepared release has no platform tools' >&2; exit 1; }
-[ -f "$staged_runtime/node_modules/happyherd-server-self-host/package.json" ] || {
+[ -f "$staged_runtime/node_modules/$server_package/package.json" ] || {
   echo 'error: prepared release has no self-host server' >&2
   exit 1
 }
-[ -f "$staged_runtime/node_modules/happyherd-server-self-host/webapp/index.html" ] || {
+[ -f "$staged_runtime/node_modules/$server_package/webapp/index.html" ] || {
   echo 'error: prepared release has no Web app' >&2
   exit 1
 }
 [ -f "$asset_root/uninstall.sh" ] || { echo 'error: prepared release has no uninstaller' >&2; exit 1; }
 [ -f "$asset_root/cleanup-legacy.sh" ] || { echo 'error: prepared release has no legacy cleanup' >&2; exit 1; }
-"$staged_node" "$staged_runtime/bin/happyherd.mjs" --version >/dev/null
+"$staged_node" "$staged_runtime/$command_entry" --version >/dev/null
 
 if is_managed_command "$bin_root/happyherd"; then
   "$bin_root/happyherd" daemon stop >/dev/null 2>&1 || true
@@ -254,7 +275,7 @@ mv "$asset_root/node" "$node_root"
 PATH="$node_root/bin:$PATH"
 export PATH
 
-happyherd_entry="$runtime_root/bin/happyherd.mjs"
+happyherd_entry="$runtime_root/$command_entry"
 node_bin="$node_root/bin/node"
 install_command() {
   command_path="$1"
@@ -299,7 +320,7 @@ NODE
   server_default=${saved_server_url:-$DEFAULT_SERVER}
   response=""
   if has_terminal; then
-    printf 'Happy server URL [%s]: ' "$server_default" > /dev/tty
+    printf 'HappyHerd server URL [%s]: ' "$server_default" > /dev/tty
     IFS= read -r response < /dev/tty || true
   fi
   server_url=${response:-$server_default}
@@ -339,7 +360,7 @@ if [ "$start_host" -eq 1 ]; then
       health_attempt=$((health_attempt + 1))
       if [ "$health_attempt" -ge 60 ]; then
         stop_managed_server || true
-        echo 'error: the local Happy server did not become ready' >&2
+        echo 'error: the local HappyHerd server did not become ready' >&2
         exit 1
       fi
       sleep 1
@@ -370,4 +391,4 @@ printf 'Command: %s/happyherd\n' "$bin_root"
 printf 'Open a new terminal, then run: happyherd --help\n'
 [ "$auth_deferred" -eq 0 ] || printf 'Next: happyherd auth login && happyherd daemon start\n'
 printf 'Uninstall code only: %s/uninstall.sh\n' "$install_root"
-printf 'Normal Happy state in %s/.happyherd is preserved.\n' "$HOME"
+printf 'Normal HappyHerd state in %s/.happyherd is preserved.\n' "$HOME"
