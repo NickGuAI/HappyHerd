@@ -134,11 +134,28 @@ change. This branch was rebased without a merge-main commit. Both changelog
 entries and every incoming ledger row were preserved; the JSON was regenerated.
 The Codex production and regression-test files are byte-identical to the original
 reviewed source. The four old captures above are historical evidence: main's
-current baselines were retained during rebase, and replacement images must come
-from the new exact-source CI capture. The PR owns final-head receipts.
+current baselines were retained during rebase, and replacement images come
+from the new exact-source CI capture described below. The PR owns final-head receipts.
 
 The independent serialized seven-file app rerun before this rebase finished with
 174 passes, five failures and nine existing skips. Remaining failures were two
 Focus timers, two panel overlays and one shell transition. Desktop Workspace,
 Markdown and the three earlier teardown failures passed. No local full app or
 contract pass is claimed, and no test assertion or runtime bound was changed.
+
+## Rebased capture and verification
+
+The maintained golden updater consumed comparison run `36949371856`, source
+`86547575993f796e429e231de3887fb97a931560`. Only the four changelog images differ;
+24 variants remain pixel-identical. Independent visual review confirms the
+Codex entry, retained Inbox entry and ordinary content reflow at both widths
+and themes. This follow-up changes no product code or test assertions.
+
+Rebased local checks pass: CLI 2,030 tests; Node26 transport 55 tests; server
+216 tests; i18n 1,671 keys per locale; frozen installation, typecheck/build,
+lineage, public-boundary and patch-discipline checks. The rebased Unit run's
+first attempt passed 3,997 app tests with ten existing skips but timed out one
+unchanged five-second Commander-context browser case. Main `2ad0a066` passed
+both Quality (`36948267958`) and Contract (`36948267944`) with those same
+browser sources/configuration. The specific delayed substep is unproved.
+The first failure remains in CI; final-head completion is required in the PR.
