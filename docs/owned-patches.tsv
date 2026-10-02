@@ -724,3 +724,4 @@ FIRST_RUN_CI_CLOCK_SETUP_379	accepted	test(app): initialize the focus fixture cl
 FIRST_RUN_UI_INVENTORY_REGENERATED_379	accepted	test(app): regenerate UI surface inventory after onboarding rebase	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
 SHARED_COMMANDER_KNOWLEDGE_336	accepted	fix(context): seed portable shared guidance without replacing user instructions	server/packages/happyherd-cli/src/agentContext/sharedKnowledge.ts
 SUPER_SESSION_TRANSPORT_RECOVERY_321	accepted	fix(session): recover live Super Session transport on the owning machine	docs/super-session-recovery.md
+CONTEXT_WINDOW_HAPPYHERD_365	code-ready	feat(context): read native HappyHerd context through the existing machine RPC	docs/acceptance/issue-365.md

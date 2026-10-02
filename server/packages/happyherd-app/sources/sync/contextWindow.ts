@@ -9,18 +9,22 @@ export type ContextWindowResult = ContextWindowResponse | { type: 'error'; reaso
 /** Uses the same account-owned encrypted machine RPC as the rewind reader. */
 export async function readSessionContextWindow(session: Session, machine: Machine | null | undefined): Promise<ContextWindowResult> {
     const metadata = session.metadata;
-    const provider = metadata?.flavor || 'claude';
-    if (isRigMetadata(metadata) || !['claude', 'codex'].includes(provider)) {
+    const provider = isRigMetadata(metadata) ? 'rig' : metadata?.flavor || 'claude';
+    if (!['claude', 'codex', 'rig'].includes(provider)) {
         return { type: 'error', reason: 'unsupported' };
     }
     if (!metadata?.machineId || !machine || !isMachineOnline(machine)) {
         return { type: 'error', reason: 'offline' };
     }
-    if (!metadata.path || !(provider === 'claude' ? metadata.claudeSessionId : metadata.codexThreadId)) {
+    if (!metadata.path || !(provider === 'rig' ? session.id : provider === 'claude' ? metadata.claudeSessionId : metadata.codexThreadId)) {
         return { type: 'error', reason: 'missing' };
     }
     try {
-        const request: ContextWindowRequest = {
+        // Native Rig resolves the remote session ID in its own persisted
+        // bridge mapping. Model flavor and CLI state homes are not native identity.
+        const request: ContextWindowRequest = provider === 'rig' ? {
+            provider, directory: metadata.path, sessionId: session.id,
+        } : {
             provider,
             directory: metadata.path,
             claudeSessionId: metadata.claudeSessionId,

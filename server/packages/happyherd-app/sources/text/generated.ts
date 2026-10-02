@@ -196,6 +196,7 @@ export type TranslationKey =
     | "contextWindow.limitations.codex_base_instructions_unrecorded"
     | "contextWindow.limitations.codex_compacted_history_unrecorded"
     | "contextWindow.limitations.provider_input_not_fully_recorded"
+    | "contextWindow.limitations.rig_runtime_input_not_recorded"
     | "contextWindow.refresh"
     | "contextWindow.title"
     | "devicePairing.account"

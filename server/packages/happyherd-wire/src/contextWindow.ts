@@ -4,6 +4,8 @@ import { z } from 'zod';
 export const ContextWindowRequestSchema = z.object({
     provider: z.string().min(1),
     directory: z.string().min(1),
+    // Remote session identity. Rig resolves it inside its original native owner.
+    sessionId: z.string().min(1).optional(),
     claudeSessionId: z.string().optional(),
     codexThreadId: z.string().optional(),
     codexHome: z.string().optional(),
@@ -22,12 +24,13 @@ export const ContextWindowLimitationSchema = z.enum([
     'codex_base_instructions_unrecorded',
     'codex_compacted_history_unrecorded',
     'provider_input_not_fully_recorded',
+    'rig_runtime_input_not_recorded',
 ]);
 
 export const ContextWindowResponseSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('success'),
-        provider: z.enum(['claude', 'codex']),
+        provider: z.enum(['claude', 'codex', 'rig']),
         entries: z.array(ContextWindowEntrySchema),
         limitations: z.array(ContextWindowLimitationSchema),
     }),

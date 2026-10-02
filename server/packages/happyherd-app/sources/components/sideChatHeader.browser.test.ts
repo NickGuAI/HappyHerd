@@ -209,7 +209,8 @@ const virtualModules: Record<string, string> = {
         }
         if (fixtureOptions.contextWindow) {
             const provider = fixtureOptions.contextWindow.provider;
-            sessions.parent.metadata = { ...sessions.parent.metadata, flavor: provider,
+            sessions.parent.metadata = { ...sessions.parent.metadata, flavor: provider === 'rig' ? 'claude' : provider,
+                client: provider === 'rig' ? { id: 'rig' } : undefined,
                 claudeSessionId: provider === 'claude' ? 'claude-parent' : undefined,
                 codexThreadId: provider === 'codex' ? 'thread-parent' : undefined,
                 codexHome: provider === 'codex' ? '/work/provider-state/codex' : undefined,
@@ -1170,10 +1171,11 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/rig': `
         export { qualifyRigModelKey } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
+        import { isRigMetadata as nativeIsRigMetadata } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
         export const getRigIdentity = () => null;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
-        export const isRigMetadata = (metadata) => Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        export const isRigMetadata = (metadata) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow ? nativeIsRigMetadata(metadata) : Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
         export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;
         export const getRigModels = () => []; export const getRigReasoningLevels = () => []; export const getRigSelectedModelKey = () => null;
         export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => false;
@@ -1713,7 +1715,7 @@ describe('Side chats browser interaction', () => {
     }, 25_000);
 
     it.each([1440, 390].flatMap((width) => ['light', 'dark'].flatMap((theme) =>
-        (['claude', 'codex'] as const).map((provider) => ({ width, theme, provider })),
+        (['claude', 'codex', 'rig'] as const).map((provider) => ({ width, theme, provider })),
     )))('Context window switch → header menu → full $provider trace at $width px in $theme mode', async ({ width, theme, provider }) => {
         const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
         page.setDefaultTimeout(5_000);
@@ -1758,6 +1760,9 @@ describe('Side chats browser interaction', () => {
                 await page.getByText('Claude Code’s built-in tool definitions are not recorded in this transcript.', { exact: true }).waitFor();
             } else {
                 await page.getByText(reply.entries[0].content, { exact: true }).waitFor();
+                if (provider === 'rig') {
+                    await page.getByText('HappyHerd records native context, not the complete model request. Runtime system instructions, assembled tool definitions, deleted history and stripped opaque content cannot be reconstructed from these records.', { exact: true }).waitFor();
+                }
             }
             await capture('open');
             for (const entry of reply.entries) {
@@ -1766,12 +1771,24 @@ describe('Side chats browser interaction', () => {
                 expect(await content.textContent()).toBe(entry.content);
                 await expectUntruncatedText(content);
             }
+            if (provider === 'rig') {
+                // The native fixture includes a record taller than the viewport.
+                // Reach its final line with an actual scroll gesture, not only a
+                // DOM full-content assertion or scroll-to-element alignment.
+                await page.mouse.move(width / 2, (width === 1440 ? 900 : 844) - 80);
+                await page.mouse.wheel(0, 100_000);
+                const finalContent = page.getByText(reply.entries.at(-1)!.content, { exact: true });
+                await expect.poll(() => finalContent.evaluate((element) => {
+                    const bounds = element.getBoundingClientRect();
+                    return bounds.bottom > 0 && bounds.bottom <= window.innerHeight;
+                })).toBe(true);
+            }
             await capture('read-final');
             expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
             expect(await page.evaluate(() => (globalThis as any).__CONTEXT_WINDOW_RPCS__)).toEqual([{
                 machineId: 'machine-1', method: 'session-context-window', request: {
                     provider, directory: '/work/project',
-                    ...(provider === 'claude' ? { claudeSessionId: 'claude-parent' } : { codexThreadId: 'thread-parent', codexHome: '/work/provider-state/codex' }),
+                    ...(provider === 'rig' ? { sessionId: 'parent' } : provider === 'claude' ? { claudeSessionId: 'claude-parent' } : { codexThreadId: 'thread-parent', codexHome: '/work/provider-state/codex' }),
                 },
             }]);
             await page.goBack();
@@ -1823,6 +1840,43 @@ describe('Side chats browser interaction', () => {
                 } else {
                     await page.getByRole('alert').getByText(message, { exact: true }).waitFor();
                     expect(attempts).toBe(0);
+                }
+            } finally { await page.close(); }
+        }, 20_000,
+    );
+
+    it.each([1440, 390].flatMap((width) => ['offline', 'missing', 'unreadable', 'unsupported'].map((failure) => ({ width, failure }))))(
+        'native Context window $failure offers Retry at $width px (rendered fixture)', async ({ width, failure }) => {
+            const page = await browser.newPage({ viewport: { width, height: width === 1440 ? 900 : 844 } });
+            page.setDefaultTimeout(5_000);
+            await page.addInitScript((failure) => {
+                (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { contextWindow: { provider: 'rig', failure } };
+                localStorage.setItem('context-window-enabled', 'true');
+            }, failure);
+            let attempts = 0;
+            const reply = contextWindowReply('rig');
+            await page.route('**/fixture-context-window', (route) => {
+                attempts++;
+                return route.fulfill({ json: attempts === 1 ? { type: 'error', reason: failure } : reply });
+            });
+            try {
+                await page.goto(`${origin}/session/parent`);
+                await page.getByTestId('session-header-menu').click();
+                await page.getByTestId('session-actions-menu').getByRole('button', { name: /Context window/ }).click();
+                const messages: Record<string, string> = {
+                    offline: 'The session’s machine is offline or unavailable. Reconnect it and retry.',
+                    missing: 'The provider transcript or session identity is missing on this machine.',
+                    unsupported: 'This provider’s context window is not supported yet.',
+                    unreadable: 'The context window could not be read. Check the machine connection and provider version, then retry.',
+                };
+                await page.getByRole('alert').getByText(messages[failure], { exact: true }).waitFor();
+                await page.getByRole('button', { name: 'Retry', exact: true }).click();
+                if (failure === 'offline') {
+                    await page.getByRole('alert').getByText(messages[failure], { exact: true }).waitFor();
+                    expect(attempts).toBe(0);
+                } else {
+                    await page.getByText(`${reply.entries.length} recorded entries`, { exact: true }).waitFor();
+                    expect(attempts).toBe(2);
                 }
             } finally { await page.close(); }
         }, 20_000,

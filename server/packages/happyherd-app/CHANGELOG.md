@@ -1,3 +1,8 @@
+# October 2 — Native HappyHerd context window
+
+- The experimental Context window can read recorded HappyHerd provider context from its original machine when that native provider supports the context-window request. It shows full retained, compacted and injected records, while explaining that runtime-assembled instructions and tools are not a complete recorded model request.
+- Older providers and unavailable native state remain retryable. The experiment stays off by default and does not change the conversation or run the provider.
+
 # October 2 — Reconnect Super Sessions
 
 - Super Sessions show disconnected transport and known connection causes even while the provider process is alive. Reconnect to current server restores that process in the same conversation; queued messages replay automatically without resubmission.

@@ -8,6 +8,18 @@ describe('context window wire contract', () => {
         expect(ContextWindowResponseSchema.parse({ type: 'error', reason: 'unsupported' })).toEqual({ type: 'error', reason: 'unsupported' });
     });
 
+    it('carries the remote Rig session identity without assuming a native ID or provider home', () => {
+        const request = { provider: 'rig', directory: '/original/project', sessionId: 'remote-session' };
+        expect(ContextWindowRequestSchema.parse(request)).toEqual(request);
+        expect(ContextWindowRequestSchema.safeParse({ ...request, sessionId: '' }).success).toBe(false);
+        const response = {
+            type: 'success', provider: 'rig',
+            entries: [{ kind: 'system', content: JSON.stringify({ type: 'system', message: 'Recorded injection\\n原文' }) }],
+            limitations: ['rig_runtime_input_not_recorded'],
+        };
+        expect(ContextWindowResponseSchema.parse(response)).toEqual(response);
+    });
+
     it('retains full arbitrary native content and explicit unrecorded limitations', () => {
         const response = {
             type: 'success', provider: 'claude',

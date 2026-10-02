@@ -2071,7 +2071,7 @@
   },
   "contextWindow": {
     "title": "Context window",
-    "featureSubtitle": "Inspect recorded Claude Code and Codex context, including hidden and injected entries.",
+    "featureSubtitle": "Inspect recorded Claude Code, Codex and HappyHerd context, including hidden and injected entries.",
     "description": "A read-only snapshot of the provider trace since its latest compaction, including recorded retained context. Entries show their full recorded content in order.",
     "disabled": "Enable Context window in Settings → Features → Experimental to read this session’s recorded context.",
     "entryCount": "{count} recorded entries",
@@ -2080,13 +2080,14 @@
       "unsupported": "This provider’s context window is not supported yet.",
       "offline": "The session’s machine is offline or unavailable. Reconnect it and retry.",
       "missing": "The provider transcript or session identity is missing on this machine.",
-      "unreadable": "The context window could not be read. Check the machine connection and CLI version, then retry."
+      "unreadable": "The context window could not be read. Check the machine connection and provider version, then retry."
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "Claude Code’s built-in system prompt is not recorded in this transcript.",
       "claude_tool_definitions_unrecorded": "Claude Code’s built-in tool definitions are not recorded in this transcript.",
       "codex_base_instructions_unrecorded": "Codex base instructions are not recorded in this rollout.",
       "codex_compacted_history_unrecorded": "Codex did not record the replacement history for this compaction. Earlier model input cannot be recovered.",
+      "rig_runtime_input_not_recorded": "HappyHerd records native context, not the complete model request. Runtime system instructions, assembled tool definitions, deleted history and stripped opaque content cannot be reconstructed from these records.",
       "provider_input_not_fully_recorded": "This is the provider’s recorded context. Runtime prompt construction and content the provider does not record cannot be recovered."
     },
     "refresh": "Refresh"
