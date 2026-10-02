@@ -226,16 +226,21 @@ staged_node="$asset_root/node/bin/node"
 staged_runtime="$asset_root/runtime"
 [ -x "$staged_node" ] || { echo 'error: prepared release has no Node runtime' >&2; exit 1; }
 [ -f "$asset_root/node/LICENSE" ] || { echo 'error: prepared release has no Node license' >&2; exit 1; }
+# Historical dependency spelling is part of the published bundle contract.
+# rename:preserve
+legacy_server_package='happy-server-self-host'
+# /rename:preserve
+
 # Published releases before the source rename retain their internal paths.
 # Select a complete pair; never combine entrypoints and servers across layouts.
 if [ -f "$staged_runtime/bin/happyherd.mjs" ]; then
   command_entry='bin/happyherd.mjs'
   server_package='happyherd-server-self-host'
   other_entry='bin/happy.mjs'
-  other_server='happy-server-self-host'
+  other_server="$legacy_server_package"
 elif [ -f "$staged_runtime/bin/happy.mjs" ]; then
   command_entry='bin/happy.mjs'
-  server_package='happy-server-self-host'
+  server_package="$legacy_server_package"
   other_entry='bin/happyherd.mjs'
   other_server='happyherd-server-self-host'
 else

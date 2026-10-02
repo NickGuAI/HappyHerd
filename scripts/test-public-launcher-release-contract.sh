@@ -9,6 +9,11 @@ asset_builder="$root/scripts/build-native-installer-asset.sh"
 deployment_helper="$root/scripts/prepare-native-installer-deployment.mjs"
 release_workflow="$root/.github/workflows/native-installer-release.yml"
 
+# This is a published dependency name, not current product copy.
+# rename:preserve
+legacy_server_package='happy-server-self-host'
+# /rename:preserve
+
 fail() {
   echo "native-installer-contract: $*" >&2
   exit 1
@@ -164,9 +169,9 @@ mkdir -p "$(dirname "$legacy_root")"
 cp -R "$asset_root" "$legacy_root"
 mv "$legacy_root/runtime/bin/happyherd.mjs" "$legacy_root/runtime/bin/happy.mjs"
 mv "$legacy_root/runtime/node_modules/happyherd-server-self-host" \
-  "$legacy_root/runtime/node_modules/happy-server-self-host"
-printf '{"name":"happy-server-self-host"}\n' \
-  > "$legacy_root/runtime/node_modules/happy-server-self-host/package.json"
+  "$legacy_root/runtime/node_modules/$legacy_server_package"
+printf '{"name":"%s"}\n' "$legacy_server_package" \
+  > "$legacy_root/runtime/node_modules/$legacy_server_package/package.json"
 legacy_asset="$fixture/legacy.tar.gz"
 tar -czf "$legacy_asset" -C "$fixture/legacy-root" happyherd
 
@@ -237,7 +242,7 @@ grep -Fxq "commander guide --json" "$test_log" || fail 'no-start install did not
 [[ -x "$home/.local/bin/happyherd" ]] || fail 'installer did not expose happyherd'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] || fail 'installer replaced an existing Happy command'
 [[ -x "$home/.local/share/happyherd/node/bin/node" ]]
-[[ -f "$home/.local/share/happyherd/runtime/node_modules/happy-server-self-host/package.json" ]]
+[[ -f "$home/.local/share/happyherd/runtime/node_modules/$legacy_server_package/package.json" ]]
 grep -Fq "$home/.local/share/happyherd/runtime/bin/happy.mjs" "$home/.local/bin/happyherd"
 [[ "$(HOME="$home" "$home/.local/bin/happyherd" --version)" == 'HappyHerd fixture' ]]
 cmp "$legacy_root/runtime/bin/happy.mjs" "$home/.local/share/happyherd/runtime/bin/happy.mjs"
@@ -255,7 +260,7 @@ HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
 grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/download/happyherd-v1.2.3/happyherd-$host_target.tar.gz" "$curl_log"
 [[ -f "$home/.local/share/happyherd/runtime/node_modules/happyherd-server-self-host/package.json" ]]
 [[ ! -e "$home/.local/share/happyherd/runtime/bin/happy.mjs" ]]
-[[ ! -e "$home/.local/share/happyherd/runtime/node_modules/happy-server-self-host" ]]
+[[ ! -e "$home/.local/share/happyherd/runtime/node_modules/$legacy_server_package" ]]
 grep -Fq "$home/.local/share/happyherd/runtime/bin/happyherd.mjs" "$home/.local/bin/happyherd"
 [[ "$(HOME="$home" "$home/.local/bin/happyherd" --version)" == 'HappyHerd fixture' ]]
 
@@ -285,9 +290,9 @@ for broken_case in missing-command mixed-commands legacy-cli-current-server curr
     legacy-cli-current-server) mv "$broken_root/runtime/bin/happyherd.mjs" "$broken_root/runtime/bin/happy.mjs" ;;
     current-cli-legacy-server)
       mv "$broken_root/runtime/node_modules/happyherd-server-self-host" \
-        "$broken_root/runtime/node_modules/happy-server-self-host"
+        "$broken_root/runtime/node_modules/$legacy_server_package"
       ;;
-    partial-legacy-server) mkdir "$broken_root/runtime/node_modules/happy-server-self-host" ;;
+    partial-legacy-server) mkdir "$broken_root/runtime/node_modules/$legacy_server_package" ;;
     partial-current-server)
       rm -rf "$broken_root"
       cp -R "$legacy_root" "$broken_root"
@@ -296,7 +301,7 @@ for broken_case in missing-command mixed-commands legacy-cli-current-server curr
     legacy-missing-webapp)
       rm -rf "$broken_root"
       cp -R "$legacy_root" "$broken_root"
-      rm "$broken_root/runtime/node_modules/happy-server-self-host/webapp/index.html"
+      rm "$broken_root/runtime/node_modules/$legacy_server_package/webapp/index.html"
       ;;
     missing-server) rm "$broken_root/runtime/node_modules/happyherd-server-self-host/package.json" ;;
     missing-webapp) rm "$broken_root/runtime/node_modules/happyherd-server-self-host/webapp/index.html" ;;
