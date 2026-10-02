@@ -30,9 +30,9 @@ export async function authApprove(token: string, publicKey: Uint8Array, answerV1
     
     // Handle different status cases
     if (status === 'not_found') {
-        // Already authorized, no need to approve again
-        console.log('Auth request already authorized or not found');
-        return;
+        // An absent request can be expired or belong to another server. It is
+        // not proof that this account authorized the terminal.
+        throw new Error('Terminal authorization request not found');
     }
     
     if (status === 'authorized') {

@@ -2108,5 +2108,11 @@
       "provider_input_not_fully_recorded": "此处显示提供方记录的上下文。无法恢复运行时提示词构建过程以及提供方未记录的内容。"
     },
     "refresh": "刷新"
+  },
+  "firstMachineSetup": {
+    "recovery": "授权已取消、过期或失败？重新运行 happyherd auth login 并使用新的终端链接。授权后运行 happyherd daemon start。守护进程连接后，本页会显示你的机器；你可以随时关闭并重新打开“连接”。",
+    "accountHelp": "如果没有出现机器，请检查终端是否使用此处显示的服务器和账户，并使用当前登录的账户批准终端。授权成功并不代表守护进程已在线。 如果终端已登录其他账户，可运行 happyherd auth status 查看状态。要切换账户，运行 happyherd auth login --force；它会在重新授权前清除凭据和机器 ID，并停止守护进程。",
+    "startOnMachine": "在 {machine} 上新建聊天",
+    "offline": "机器离线？在该机器上运行 happyherd daemon start，然后刷新设备。如果仍然离线，请检查网络以及上方显示的服务器和账户。"
   }
 }

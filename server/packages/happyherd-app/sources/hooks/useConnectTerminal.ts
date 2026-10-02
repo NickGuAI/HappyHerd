@@ -19,15 +19,19 @@ interface UseConnectTerminalOptions {
 export function useConnectTerminal(options?: UseConnectTerminalOptions) {
     const auth = useAuth();
     const [isLoading, setIsLoading] = React.useState(false);
+    const authorizationPending = React.useRef(false);
     const checkScannerPermissions = useCheckScannerPermissions();
 
     const processAuthUrl = React.useCallback(async (url: string) => {
+        // Manual submissions can arrive before the loading state rerenders.
+        if (authorizationPending.current) return false;
         url = normalizeProductLink(url);
         if (!url.startsWith('happyherd://terminal?')) {
             Modal.alert(t('common.error'), t('modals.invalidAuthUrl'), [{ text: t('common.ok') }]);
             return false;
         }
         
+        authorizationPending.current = true;
         setIsLoading(true);
         try {
             const tail = url.slice('happyherd://terminal?'.length);
@@ -52,6 +56,7 @@ export function useConnectTerminal(options?: UseConnectTerminalOptions) {
             options?.onError?.(e);
             return false;
         } finally {
+            authorizationPending.current = false;
             setIsLoading(false);
         }
     }, [auth.credentials, options]);

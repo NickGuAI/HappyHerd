@@ -5,6 +5,15 @@ account and server open in the controller. They do not log a machine into a new
 account, transfer ownership, or replace its credentials. Authenticate a new
 machine through the existing terminal authentication flow first.
 
+## Add the first machine on Web
+
+With no machines, open **No machine → Add a machine**. Connections uses the
+shared first-run installation and terminal-authorization instructions. Use the
+same server and account, then start the daemon. When the account's actual
+machine appears online, choose **New Chat on …**; no device code is required
+for this first connection. Connections also explains cancellation, fresh-URL
+retry and offline-daemon recovery. Returning to it retains the account devices.
+
 ## Connect from Web or Mac
 
 1. Leave the installed daemons running on the controller and target machines.

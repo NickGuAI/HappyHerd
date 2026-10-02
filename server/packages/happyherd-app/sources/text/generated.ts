@@ -369,6 +369,10 @@ export type TranslationKey =
     | "files.summary"
     | "files.tryDifferentTerm"
     | "files.unstagedChanges"
+    | "firstMachineSetup.accountHelp"
+    | "firstMachineSetup.offline"
+    | "firstMachineSetup.recovery"
+    | "firstMachineSetup.startOnMachine"
     | "focusMode.cancel"
     | "focusMode.duration"
     | "focusMode.durationOption"
@@ -1763,6 +1767,7 @@ export interface TranslationParamsByKey {
     "files.stagedChanges": { count: number };
     "files.summary": { staged: number; unstaged: number };
     "files.unstagedChanges": { count: number };
+    "firstMachineSetup.startOnMachine": { machine: string };
     "focusMode.durationOption": { minutes: string };
     "focusMode.remaining": { time: string };
     "friends.cancelRequestConfirm": { name: string };
