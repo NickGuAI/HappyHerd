@@ -64,6 +64,13 @@ else
 fi
 
 tar -tzf "$asset" > "$archive_listing"
+# The published stable bundle may retain the pre-rename internal entry. Keep
+# the process-ownership assertion exact for the archive that was installed.
+entry_name='happyherd.mjs'
+if grep -Fxq 'happyherd/runtime/bin/happy.mjs' "$archive_listing" \
+  && ! grep -Fxq 'happyherd/runtime/bin/happyherd.mjs' "$archive_listing"; then
+  entry_name='happy.mjs'
+fi
 if grep -Eq '^happyherd/runtime/tools/archives/|/node_modules/\.pnpm/|/pnpm-(lock|workspace)\.yaml$' \
   "$archive_listing"; then
   echo 'error: asset still contains build-time packaging files' >&2
@@ -190,7 +197,7 @@ IFS= read -r server_pid < "$test_home/.happyherd/server.pid"
 [[ "$server_pid" =~ ^[0-9]+$ ]]
 kill -0 "$server_pid"
 process_command="$(ps -p "$server_pid" -o command=)"
-[[ "$process_command" == *"--no-warnings --no-deprecation $test_home/.local/share/happyherd/runtime/bin/happyherd.mjs server "* ]]
+[[ "$process_command" == *"--no-warnings --no-deprecation $test_home/.local/share/happyherd/runtime/bin/$entry_name server "* ]]
 curl -fsS http://127.0.0.1:3005/health >/dev/null
 curl -fsS http://127.0.0.1:3005/ >/dev/null
 [[ -f "$test_home/.happyherd/server.pid" ]]

@@ -34,8 +34,13 @@ platform tools, and a bundled Node runtime. The installer puts program files in
 `$HOME/.local/bin`, and preserves any unrelated `happyherd` command.
 
 The default command needs a stable GitHub Release that contains these four
-assets. The first new stable tagged release must be published before that
-latest-release download can succeed.
+assets. The current installer accepts both the pre-rename stable archive (including
+`happyherd-v1.2.4`) and the current archive layout. It selects the matching
+internal CLI entry and self-host package together, rejecting mixed or incomplete
+layouts before stopping the installed runtime. The public command remains
+`happyherd`; release payloads and their internal dependency names stay unchanged.
+A failed staged validation leaves the prior installation in place; this is not
+a transaction that rolls back failures after replacement begins.
 
 ## Choose a local or remote server
 
@@ -135,3 +140,13 @@ public assets exist; source, local tests, and an untagged workflow run do not
 prove publication.
 
 The HappyHerd native installer workflow now verifies real CLI authentication over PTY, daemon connectivity, and encrypted read-only machine RPC operations. It registers disposable account keys in memory to establish and verify an encrypted, server-persisted session history that persists across installer reruns. Setting the manual `verify_published` input to `true` on `workflow_dispatch` skips local compilation entirely to fetch and run the latest live public script (`curl ... | sh`) on macOS/Linux arm64/x64 runners to check the published install path.
+
+Pull requests also exercise the candidate installer against the actual latest
+stable download on all four native targets, in disposable homes without
+starting services. This checks the README shell pipeline with the candidate
+script, installed version, repeat installation, server selection, and uninstall.
+It records the downloaded archive digest and source revision separately from
+the newly built archive matrix. The public `main/install.sh` URL cannot serve
+the candidate until merge: `verify_published` intentionally downloads that live
+URL and remains post-merge proof. No release publication is needed to repair
+the existing stable download; publishing replacement assets is a separate act.

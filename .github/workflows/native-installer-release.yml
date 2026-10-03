@@ -81,6 +81,41 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  stable:
+    if: ${{ !inputs.verify_published }}
+    name: Latest stable install ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-14
+          - target: darwin-x64
+            runner: macos-15-intel
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: linux-x64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out reviewed installer
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exercise latest stable with the reviewed installer
+        shell: bash
+        env:
+          HAPPYHERD_INSTALLER_EVIDENCE_DIR: ${{ runner.temp }}/stable-evidence
+        run: scripts/test-native-installer-stable.sh "${{ matrix.target }}"
+      - name: Retain latest stable acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-installer-evidence-${{ matrix.target }}
+          path: ${{ runner.temp }}/stable-evidence
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
     name: Publish tagged release assets
     if: startsWith(github.ref, 'refs/tags/happyherd-v')
