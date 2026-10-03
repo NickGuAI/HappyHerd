@@ -41,6 +41,7 @@ const virtualModules: Record<string, string> = {
             hairlineWidth: 1,
         };
         export const useUnistyles = () => ({ theme });
+        export const withUnistyles = Component => Component;
     `,
     'react-native-reanimated': `
         import React from 'react';
@@ -150,12 +151,15 @@ const virtualModules: Record<string, string> = {
         const listen = (callback) => { addEventListener('fixture-state', callback); return () => removeEventListener('fixture-state', callback); };
         const read = (key) => React.useSyncExternalStore(listen, () => globalThis.__STATE__[key]);
         export const useAllMachines = () => read('machines');
+        export const useSessions = () => [];
         export const useProfile = () => read('profile');
         export const useSocketStatus = () => ({ status: read('socketStatus') });
         export const useEntitlement = () => false;
         export const useSetting = (key) => key === 'experiments' ? read('experiments') : false;
         export const useSettingMutable = () => [false, () => {}];
         export const useLocalSettingMutable = (key) => [read(key), (value) => globalThis.__UPDATE__({ [key]: value })];
+        export const useLocalSetting = read;
+        export const storage = { getState: () => ({ localSettings: globalThis.__STATE__, applyLocalSettings: globalThis.__UPDATE__ }) };
     `,
     '@/sync/sync': `
         export const sync = {
@@ -223,6 +227,7 @@ const entry = `
         ],
         profile: { id: 'profile-test', firstName: 'Ada', avatar: null, connectedServices: [], github: null },
         socketStatus: 'connected',
+        linkComputerChecklist: { install: false, open: false },
         experiments: false,
         devModeEnabled: false,
         customServer: false,
@@ -274,7 +279,7 @@ describe('Settings as one panel, rendered from its real routes', { timeout: 20_0
             stdin: { contents: entry, loader: 'tsx', resolveDir: appRoot },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
             define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"test"' },
-            loader: { '.png': 'dataurl' }, plugins: [fixturePlugin],
+            loader: { '.png': 'dataurl', '.webp': 'dataurl' }, plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
         server = createServer((request, response) => {

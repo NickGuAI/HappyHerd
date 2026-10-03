@@ -6,12 +6,16 @@ import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import en from '@/text/locales/en.json';
+import cn from '@/text/locales/cn.json';
+import de from '@/text/locales/de.json';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 const evidenceDir = process.env.HAPPYHERD_PAIRING_EVIDENCE_DIR?.trim() || resolve(appRoot, '../../../.artifacts/issue-288');
 
 const virtualModules: Record<string, string> = {
+    'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
     'react-native': `
         import * as ReactNativeWeb from 'react-native-web';
         export * from 'react-native-web';
@@ -29,6 +33,7 @@ const virtualModules: Record<string, string> = {
             hairlineWidth: 1,
         };
         export const useUnistyles = () => ({ theme });
+        export const withUnistyles = Component => Component;
     `,
     'react-native-reanimated': `
         import React from 'react';
@@ -159,9 +164,13 @@ Object.assign(virtualModules, {
     '@/sync/storage': `
         import React from 'react';
         const listen = (callback) => { addEventListener('fixture-state', callback); return () => removeEventListener('fixture-state', callback); };
+        export const useSessions = () => [];
+        export const useSessionListViewData = () => [];
         export const useAllMachines = () => React.useSyncExternalStore(listen, () => globalThis.__STATE__.machines);
         export const useProfile = () => React.useSyncExternalStore(listen, () => globalThis.__STATE__.profile);
         export const useSocketStatus = () => ({ status: React.useSyncExternalStore(listen, () => globalThis.__STATE__.socketStatus) });
+        export const useLocalSetting = (key) => React.useSyncExternalStore(listen, () => globalThis.__STATE__[key]);
+        export const storage = { getState: () => ({ localSettings: globalThis.__STATE__, applyLocalSettings: globalThis.__UPDATE__ }) };
         export const useEntitlement = () => false;
         export const useLocalSettingMutable = () => [false, () => {}];
         export const useSetting = () => false;
@@ -175,7 +184,10 @@ Object.assign(virtualModules, {
         export const saveNewSessionDraft = (draft) => localStorage.setItem('new-session-draft', JSON.stringify(draft));
     `,
     '@/text': `
-        import catalog from '@/text/locales/en.json';
+        import en from '@/text/locales/en.json';
+        import cn from '@/text/locales/cn.json';
+        import de from '@/text/locales/de.json';
+        const catalog = ({ en, cn, de })[globalThis.__LOCALE__ ?? 'en'];
         export const t = (key, params = {}) => {
             let text = key.split('.').reduce((value, part) => value?.[part], catalog) ?? key;
             // Plural entries select their case by count, as the production catalog does.
@@ -251,15 +263,18 @@ describe('Settings → Connections → Add device production component journeys'
                     import { createRoot } from 'react-dom/client';
                     import SettingsScreen from '@/app/(app)/settings/index';
                     import ConnectionsScreen from '@/app/(app)/settings/connections';
+                    import { HerdMachineMenu } from '@/components/herd/shell/HerdMachineMenu';
+                    import { HerdTopBarLayoutContext } from '@/components/herd/shell/topBarLayout';
                     import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
                     import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
                     globalThis.__ROUTES__ = [];
                     globalThis.__DRAFT__ = useNewSessionDraft;
                     globalThis.__STATE__ = {
-                        machines: [{ id: 'target-machine', active: true, metadata: { host: 'Target Mac', homeDir: '/target-home', devicePairingProtocolVersion: 1 } }],
+                        machines: globalThis.__ZERO_MACHINES__ ? [] : [{ id: 'target-machine', active: true, metadata: { host: 'Target Mac', homeDir: '/target-home', devicePairingProtocolVersion: 1 } }],
                         profile: { id: 'account-one', firstName: 'Test', avatar: null, connectedServices: [] },
                         configuredServer: 'https://server.example', activeServer: 'https://server.example',
                         socketStatus: 'connected', calls: [],
+                        linkComputerChecklist: { install: false, open: false },
                     };
                     globalThis.__UPDATE__ = (patch) => { Object.assign(globalThis.__STATE__, patch); dispatchEvent(new Event('fixture-state')); };
                     const subscribe = (fn) => { addEventListener('popstate', fn); return () => removeEventListener('popstate', fn); };
@@ -267,7 +282,10 @@ describe('Settings → Connections → Add device production component journeys'
                     const AccountScreen = withSettingsFrame('account', () => <div>Account page</div>);
                     function Host() {
                         const path = React.useSyncExternalStore(subscribe, () => location.pathname);
-                        return path === '/settings/connections' ? <ConnectionsScreen />
+                        return path === '/' ? <HerdTopBarLayoutContext.Provider value={innerWidth < 700 ? 'phone' : 'desktop'}><HerdMachineMenu /></HerdTopBarLayoutContext.Provider>
+                            : path === '/new' ? <div data-testid="new-chat-route">New chat route fixture</div>
+                            : path === '/server' ? <div data-testid="server-route">Server route fixture</div>
+                            : path === '/settings/connections' ? <ConnectionsScreen />
                             : path === '/settings/account' ? <AccountScreen /> : <SettingsScreen />;
                     }
                     createRoot(document.getElementById('root')).render(<Host />);
@@ -275,13 +293,15 @@ describe('Settings → Connections → Add device production component journeys'
                 loader: 'tsx', resolveDir: appRoot,
             },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+            resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
             define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"test"' },
-            loader: { '.png': 'dataurl' }, plugins: [fixturePlugin],
+            loader: { '.png': 'dataurl', '.webp': 'dataurl' }, plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
-        server = createServer((_request, response) => {
+        server = createServer((request, response) => {
+            const params = new URL(request.url ?? '/', 'http://fixture').searchParams;
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}*{box-sizing:border-box}</style><main id="root"></main><script>globalThis.global=globalThis;${script}</script>`);
+            response.end(`<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{height:100%;margin:0}*{box-sizing:border-box}</style><main id="root"></main><script>globalThis.global=globalThis;globalThis.__LOCALE__=${JSON.stringify(params.get('locale') ?? 'en')};globalThis.__ZERO_MACHINES__=${params.has('zero')};${script}</script>`);
         });
         await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
         const address = server.address();
@@ -366,6 +386,99 @@ describe('Settings → Connections → Add device production component journeys'
         });
     }
 
+    // Real production components and catalogs; machine discovery/RPC are explicit store fixtures,
+    // not evidence of a live installer, terminal authorization, daemon or authenticated transport.
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+        for (const [locale, catalog] of Object.entries({ en, cn, de })) {
+            it(`opens first-machine setup from Add a machine and resumes on discovered machine: ${locale} ${viewport.width}px (component fixture)`, async () => {
+                const page = await browser.newPage({ viewport, hasTouch: viewport.width === 390 });
+                const errors: string[] = [];
+                page.on('pageerror', error => errors.push(error.message));
+                page.setDefaultTimeout(2500);
+                await page.goto(`${origin}/?zero&locale=${locale}`);
+                const trigger = page.getByRole('button', { name: `${catalog.settings.machines}: ${catalog.topBar.noMachine}`, exact: true });
+                await trigger.waitFor();
+                if (viewport.width === 1440) {
+                    await trigger.focus();
+                    await page.keyboard.press('Enter');
+                } else {
+                    expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+                    await trigger.tap();
+                }
+                await page.getByText(catalog.topBar.addMachine, { exact: true }).click();
+                const onboarding = page.getByTestId('empty-main-onboarding');
+                await onboarding.waitFor();
+                await page.getByText(catalog.components.emptyMainScreen.readyToCode, { exact: true }).waitFor();
+                await page.screenshot({ path: resolve(evidenceDir, `issue-380-fixture-${locale}-${viewport.width}-setup-entry.png`) });
+                expect(await page.getByRole('textbox', { name: catalog.devicePairing.codeLabel, exact: true }).count()).toBe(0);
+                await page.getByText(catalog.firstMachineSetup.recovery, { exact: true }).scrollIntoViewIfNeeded();
+                await page.getByText(catalog.firstMachineSetup.accountHelp, { exact: true }).waitFor();
+                await page.getByText(catalog.devicePairing.server.replace('{server}', 'https://server.example'), { exact: true }).waitFor();
+                await page.getByText(catalog.devicePairing.account.replace('{account}', 'account-one'), { exact: true }).waitFor();
+                await page.screenshot({ path: resolve(evidenceDir, `issue-380-fixture-${locale}-${viewport.width}-setup.png`) });
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+                expect(await calls(page)).toEqual([]);
+                const cancel = page.getByRole('button', { name: catalog.common.cancel, exact: true });
+                await cancel.click();
+                await trigger.click();
+                await page.getByText(catalog.topBar.addMachine, { exact: true }).click();
+                await onboarding.waitFor();
+                await patch(page, { configuredServer: 'https://wrong.example' });
+                await cancel.click();
+                await trigger.click();
+                await page.getByText(catalog.topBar.addMachine, { exact: true }).click();
+                await page.getByRole('alert').filter({ hasText: catalog.devicePairing.serverChanged }).waitFor();
+                await page.getByRole('button', { name: catalog.settingsAccount.server, exact: true }).click();
+                await page.getByTestId('server-route').waitFor();
+                await patch(page, { configuredServer: 'https://server.example' });
+                await page.goBack();
+                await onboarding.waitFor();
+                expect(await page.getByRole('alert').count()).toBe(0);
+                const discovered = { id: 'new-machine', active: true, metadata: { host: 'My laptop', homeDir: '/fixture-home' } };
+                await patch(page, { machines: [discovered] });
+                const newChat = page.getByRole('button', { name: catalog.firstMachineSetup.startOnMachine.replace('{machine}', 'My laptop'), exact: true });
+                await newChat.waitFor();
+                await page.getByText(catalog.status.online, { exact: true }).waitFor();
+                expect(await onboarding.count()).toBe(0);
+                await patch(page, { machines: [{ ...discovered, active: false }] });
+                expect(await newChat.count()).toBe(0);
+                await patch(page, { machines: [discovered] });
+                await newChat.waitFor();
+                await page.screenshot({ path: resolve(evidenceDir, `issue-380-fixture-${locale}-${viewport.width}-discovered.png`) });
+                const longHost = 'My extremely long workstation name for a narrow mobile screen';
+                await patch(page, { machines: [{ ...discovered, metadata: { ...discovered.metadata, host: longHost } }] });
+                const longChat = page.getByRole('button', { name: catalog.firstMachineSetup.startOnMachine.replace('{machine}', longHost), exact: true });
+                await longChat.waitFor();
+                await longChat.scrollIntoViewIfNeeded();
+                const actionBox = (await longChat.boundingBox())!;
+                expect(actionBox.x).toBeGreaterThanOrEqual(0);
+                expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(viewport.width);
+                if (viewport.width === 390) expect(actionBox.height).toBeGreaterThanOrEqual(44);
+                expect(await longChat.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
+                await longChat.click();
+                await page.getByTestId('new-chat-route').waitFor();
+                expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBe('new-machine');
+                expect(await page.evaluate(() => JSON.parse(localStorage.getItem('new-session-draft')!).selectedMachineId)).toBe('new-machine');
+                expect((await calls(page)).filter(call => call.method.endsWith('-confirm'))).toHaveLength(0);
+                expect(errors).toEqual([]);
+                await page.close();
+            });
+        }
+    }
+
+    it('sends one pairing check while a duplicate action is pending (component fixture)', async () => {
+        const page = await browser.newPage();
+        await open(page);
+        await patch(page, { checkDeferred: true });
+        await page.getByRole('textbox', { name: 'Pairing code', exact: true }).fill('12345678');
+        const check = page.getByRole('button', { name: 'Check code', exact: true });
+        await check.dblclick();
+        expect((await calls(page)).filter(call => call.method.endsWith('-check'))).toHaveLength(1);
+        await page.evaluate(() => (globalThis as any).__RELEASE_CHECK__());
+        await page.getByRole('button', { name: 'Connect', exact: true }).waitFor();
+        await page.close();
+    });
+
     it('shows recoverable failures and accepts pasted grouped codes without stripping letters', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await open(page);
@@ -408,6 +521,20 @@ describe('Settings → Connections → Add device production component journeys'
     it('hides stale online and connected states on daemon or transport loss and rechecks reconnect', async () => {
         const page = await browser.newPage();
         await open(page);
+        const startOnMachine = page.getByRole('button', { name: 'New Chat on Target Mac', exact: true });
+        await startOnMachine.waitFor();
+        // A stopped daemon can retain its active heartbeat until the server ages it out.
+        // A failed reachability check must immediately show the command needed to recover.
+        await patch(page, { identityFailure: true });
+        await page.getByText('Refresh devices', { exact: true }).click();
+        await page.getByText('offline', { exact: true }).waitFor();
+        expect(await page.evaluate(() => (globalThis as any).__STATE__.machines[0].active)).toBe(true);
+        await page.getByText(en.firstMachineSetup.offline, { exact: true }).waitFor();
+        expect(await startOnMachine.count()).toBe(0);
+        await patch(page, { identityFailure: false });
+        await page.getByText('Refresh devices', { exact: true }).click();
+        await startOnMachine.waitFor();
+        expect(await page.getByText(en.firstMachineSetup.offline, { exact: true }).count()).toBe(0);
         await enter(page);
         await page.getByRole('button', { name: 'Connect', exact: true }).click();
         await page.getByRole('button', { name: 'New Chat', exact: true }).waitFor();
@@ -420,6 +547,7 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByText('online', { exact: true }).waitFor();
         await patch(page, { socketStatus: 'disconnected' });
         await page.getByText('offline', { exact: true }).waitFor();
+        await page.getByText(en.firstMachineSetup.offline, { exact: true }).waitFor();
         await patch(page, { socketStatus: 'connected' });
         await page.getByText('online', { exact: true }).waitFor();
         expect((await calls(page)).filter((call) => call.method.endsWith('-identity')).length).toBeGreaterThanOrEqual(3);

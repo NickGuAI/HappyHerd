@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 2 — Set up your first machine from Connections",
+      "summary": "",
+      "markdown": "- With no machines connected, Add a machine now opens the shared first-run instructions on Web Desktop and Mobile, with account/server checks and guidance for retrying authorization and starting the daemon. Connected machines offer New Chat directly. Existing-device code selection and native QR/manual entry remain available.\n- Missing terminal authorization requests now report a connection failure, and repeated manual submissions share one in-flight attempt."
+    },
+    {
       "title": "October 2 — Native HappyHerd context window",
       "summary": "",
       "markdown": "- The experimental Context window can read recorded HappyHerd provider context from its original machine when that native provider supports the context-window request. It shows full retained, compacted and injected records, while explaining that runtime-assembled instructions and tools are not a complete recorded model request.\n- Older providers and unavailable native state remain retryable. The experiment stays off by default and does not change the conversation or run the provider."
@@ -916,5 +921,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 2 — Native HappyHerd context window"
+  "latestTitle": "October 2 — Set up your first machine from Connections"
 }

@@ -177,10 +177,12 @@ export function EmptyMainScreen({
     hasArchivedSessions = false,
     onShowArchived,
     bottomContentInset = 0,
+    footer,
 }: {
     hasArchivedSessions?: boolean;
     onShowArchived?: () => void;
     bottomContentInset?: number;
+    footer?: React.ReactNode;
 }) {
     const { connectTerminal, connectWithUrl, isLoading } = useConnectTerminal();
     const { theme } = useUnistyles();
@@ -356,6 +358,7 @@ export function EmptyMainScreen({
                 </View>
             </View>
             <OnboardingHelpAction context="link" />
+            {footer}
             {showArchivedAction}
         </ScrollView>
     );

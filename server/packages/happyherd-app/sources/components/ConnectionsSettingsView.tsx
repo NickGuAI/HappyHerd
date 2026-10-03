@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Item } from '@/components/Item';
+import { EmptyMainScreen } from '@/components/EmptyMainScreen';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Text } from '@/components/StyledText';
@@ -36,7 +37,7 @@ function Action({ label, onPress, disabled = false, primary = false }: { label: 
     return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} aria-disabled={disabled} disabled={disabled} onPress={onPress}
         style={({ pressed, hovered }: any) => [styles.button, touch && styles.buttonTouch, primary && styles.buttonPrimary,
             (pressed || hovered) && (primary ? styles.buttonPrimaryHover : styles.buttonHover), disabled && styles.buttonDisabled]}>
-        <Text numberOfLines={1} style={[styles.buttonText, primary && styles.buttonTextPrimary]}>{label}</Text>
+        <Text style={[styles.buttonText, primary && styles.buttonTextPrimary]}>{label}</Text>
     </Pressable>;
 }
 
@@ -81,6 +82,34 @@ function pairingError(failure: PairingFailure): string {
 }
 
 export function ConnectionsSettingsView() {
+    const machines = useAllMachines({ includeOffline: true });
+    // The first machine needs terminal authorization, not a code from an existing daemon.
+    // Reuse the first-run installation owner so both visible entries stay in sync.
+    return Platform.OS === 'web' && machines.length === 0
+        ? <FirstMachineConnections />
+        : <ExistingMachineConnections />;
+}
+
+function FirstMachineConnections() {
+    const profile = useProfile();
+    const router = useRouter();
+    const server = getServerUrl();
+    const activeServer = apiSocket.getActiveEndpoint();
+    const changed = activeServer !== null && server.replace(/\/$/, '') !== activeServer.replace(/\/$/, '');
+    return <EmptyMainScreen footer={<View style={styles.setupHelp}>
+        <Text selectable style={styles.setupText}>{t('devicePairing.server', { server })}</Text>
+        <Text selectable style={styles.setupText}>{t('devicePairing.account', { account: profile.id })}</Text>
+        {changed && <Text accessibilityRole="alert" style={styles.setupText}>{t('devicePairing.serverChanged')}</Text>}
+        <Text style={styles.setupText}>{t('firstMachineSetup.recovery')}</Text>
+        <Text style={styles.setupText}>{t('firstMachineSetup.accountHelp')}</Text>
+        <View style={styles.actions}>
+            <Action label={t('settingsAccount.server')} onPress={() => router.push('/server')} />
+            <Action label={t('common.cancel')} onPress={() => router.push('/')} />
+        </View>
+    </View>} />;
+}
+
+function ExistingMachineConnections() {
     const { theme } = useUnistyles();
     const touch = useHerdPhoneLayout();
     const router = useRouter();
@@ -256,19 +285,26 @@ export function ConnectionsSettingsView() {
                 </View>
             </View>
         </ItemGroup>}
+        {(offlineMachineCount > 0 || socketStatus !== 'connected' || Object.values(checks).some((reachable) => !reachable)) && <View style={styles.introWrap}><View style={styles.setupHelp}><Text style={styles.setupText}>{t('firstMachineSetup.offline')}</Text></View></View>}
         <ItemGroup title={<GroupHeader title={t('devicePairing.devices')} description={t('devicePairing.devicesFooter')} />}>
             {machines.length === 0 && <Item title={t('devicePairing.noDevices')} showChevron={false} />}
             {listedMachines.map((machine) => {
                 const supported = machine.metadata?.devicePairingProtocolVersion === 1;
-                const status = !supported ? t('devicePairing.needsUpdate')
-                    : !machine.active ? (machine.activeAt ? t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }) : t('status.offline'))
+                const status = !machine.active ? (machine.activeAt ? t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }) : t('status.offline'))
                         : socketStatus !== 'connected' || serverChanged || checks[machine.id] === false ? t('status.offline')
-                            : checks[machine.id] === true ? t('status.online') : t('devicePairing.checking');
+                            : !supported || checks[machine.id] === true ? t('status.online') : t('devicePairing.checking');
                 const selected = selectedMachineId === machine.id;
-                return <Item key={machine.id} title={getMachineName(machine)} titleStyle={styles.deviceName}
+                return <View key={machine.id}><Item title={getMachineName(machine)} titleStyle={styles.deviceName}
                     subtitle={status} icon={<DeviceIcon platform={machine.metadata?.platform} />}
                     rightElement={selected ? <SelectedTag /> : undefined}
-                    onPress={() => router.push(`/machine/${machine.id}`)} />;
+                    onPress={() => router.push(`/machine/${machine.id}`)} />
+                    {isMachineOnline(machine) && socketStatus === 'connected' && !serverChanged && (!supported || checks[machine.id] === true) && connected?.machineId !== machine.id && <View style={styles.machineAction}>
+                        <Action primary label={t('firstMachineSetup.startOnMachine', { machine: getMachineName(machine) })} onPress={() => {
+                            if (useNewSessionDraft.getState().selectedMachineId !== machine.id) useNewSessionDraft.getState().setMachineId(machine.id);
+                            router.push('/new');
+                        }} />
+                    </View>}
+                </View>;
             })}
             {offlineMachineCount > 0 && <Item
                 title={showOfflineMachines
@@ -284,6 +320,21 @@ export function ConnectionsSettingsView() {
 }
 
 const styles = StyleSheet.create((theme) => ({
+    setupHelp: {
+        width: '100%',
+        maxWidth: 600,
+        paddingHorizontal: 24,
+        paddingBottom: 24,
+        gap: 12,
+    },
+    setupText: {
+        ...Typography.default(),
+        fontSize: 16,
+        lineHeight: 24,
+        color: theme.colors.textSecondary,
+        _web: { overflowWrap: 'anywhere' },
+    },
+    machineAction: { paddingHorizontal: 16, paddingBottom: 12, alignItems: 'flex-start' },
     // The intro sits on the cards' left edge, under the page title.
     introWrap: {
         alignItems: 'center',
@@ -423,7 +474,9 @@ const styles = StyleSheet.create((theme) => ({
         gap: 8,
     },
     button: {
-        height: 40,
+        minHeight: 40,
+        maxWidth: '100%',
+        paddingVertical: 8,
         paddingHorizontal: 14,
         flexDirection: 'row',
         alignItems: 'center',
@@ -435,7 +488,7 @@ const styles = StyleSheet.create((theme) => ({
         _web: { _classNames: herdWebClasses('herd-transition', 'herd-press'), cursor: 'pointer' },
     },
     buttonTouch: {
-        height: 44,
+        minHeight: 44,
     },
     buttonHover: {
         borderColor: theme.colors.kilv.rimLine,
@@ -453,6 +506,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     buttonText: {
         ...Typography.default('semiBold'),
+        flexShrink: 1,
         fontSize: 14,
         color: theme.colors.kilv.inkDim,
     },
