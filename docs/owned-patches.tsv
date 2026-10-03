@@ -749,3 +749,4 @@ UPSTREAM_4CF54D18_ONBOARDING_FIXTURE_BOUNDARIES	accepted	test(app): retain signe
 UPSTREAM_4CF54D18_ONBOARDING_DIAGNOSTIC_HANDLE	accepted	test(visual): retain the hidden help diagnostic element	scripts/kilv-capture/production.mjs
 UPSTREAM_4CF54D18_ONBOARDING_GOLDENS	accepted	test(visual): accept approved onboarding and changelog baselines	docs/acceptance/issue-370/group1/README.md
 UPSTREAM_4CF54D18_PR_REFRESH	accepted	docs(sync): record PR 374 conflict refresh	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_REFRESHED_ONBOARDING	accepted	fix(app): preserve refreshed native onboarding checklist	server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx

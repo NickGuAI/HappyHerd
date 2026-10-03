@@ -305,7 +305,7 @@ export function EmptyMainScreen({
                         <Pressable
                             style={styles.stepRow}
                             accessibilityRole="checkbox"
-                            accessibilityLabel={t('components.emptyMainScreen.authorizeTerminal')}
+                            accessibilityLabel={t('components.emptyMainScreen.runIt')}
                             accessibilityState={{ checked: !!checklist.open }}
                             onPress={() => toggleStep('open')}
                         >
@@ -314,7 +314,7 @@ export function EmptyMainScreen({
                                     ? <Ionicons name="checkmark" size={14} color={theme.colors.text} />
                                     : <Text style={styles.stepNumberText}>2</Text>}
                             </View>
-                            <Text style={styles.stepText}>{t('components.emptyMainScreen.authorizeTerminal')}</Text>
+                            <Text style={styles.stepText}>{t('components.emptyMainScreen.runIt')}</Text>
                         </Pressable>
                     )}
                     <Text style={styles.stepDescription}>{t('components.emptyMainScreen.authorizeDescription')}</Text>

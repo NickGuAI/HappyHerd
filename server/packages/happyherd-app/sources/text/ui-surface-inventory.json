@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "fa5aa480b0fdb1a35ec0f0b1520d055dc961632fe8e0559692a04dcbe66161a8",
+  "sourceFingerprint": "968492d590688174c13a8f9a1b7fb3dc679f59255af1c91267eda49e4979701a",
   "routeCount": 45,
   "surfaceCount": 341,
   "hardcodedCopyCount": 0,
@@ -3743,6 +3743,7 @@
         "components.emptyMainScreen.noSessionsYet",
         "components.emptyMainScreen.openCamera",
         "components.emptyMainScreen.readyToCode",
+        "components.emptyMainScreen.runIt",
         "components.emptyMainScreen.serverSelection",
         "components.emptyMainScreen.startDaemon",
         "components.emptyMainScreen.startOnConnectedMachine",

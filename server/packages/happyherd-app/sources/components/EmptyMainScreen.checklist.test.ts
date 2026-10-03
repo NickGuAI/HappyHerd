@@ -13,6 +13,7 @@ vi.mock('@/components/RoundButton', () => ({ RoundButton: 'RoundButton' }));
 vi.mock('@/components/OnboardingHelpAction', () => ({ OnboardingHelpAction: 'OnboardingHelpAction' }));
 vi.mock('@/hooks/useConnectTerminal', () => ({ useConnectTerminal: () => ({}) }));
 vi.mock('@/hooks/useOfflineMachineTroubleshooting', () => ({ useOfflineMachineTroubleshooting: () => vi.fn() }));
+vi.mock('@/sync/serverConfig', () => ({ getServerUrl: () => 'https://review.example.test' }));
 vi.mock('@/modal', () => ({ Modal: {} }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('expo-router', () => ({ useRouter: () => ({}) }));
