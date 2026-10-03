@@ -17,6 +17,7 @@ import {
     type ForkSource,
 } from '@/sync/ops';
 import { getSessionForkSource } from '@/utils/sessionFork';
+import { replaceToSession } from '@/hooks/useNavigateToSession';
 import { MobileGlassSurface } from './MobileGlass';
 
 export interface DuplicateSheetProps {
@@ -159,7 +160,7 @@ export const DuplicateSheet = React.memo(function DuplicateSheet(props: Duplicat
 
         if (result.type === 'success') {
             onClose?.();
-            router.replace(`/session/${result.sessionId}`);
+            replaceToSession(router, result.sessionId);
             return;
         }
 

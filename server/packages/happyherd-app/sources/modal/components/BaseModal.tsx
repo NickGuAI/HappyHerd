@@ -112,7 +112,7 @@ export function BaseModal({
                         paddingRight: sidePadding + windowInsets.right,
                     },
                 ]}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 {...webEventHandlers}
             >
                 {Platform.OS === 'web' ? (

@@ -60,6 +60,11 @@ function newScreenBoundary() {
         resolveChoiceAgent: () => 'claude', selectedAgent: 'claude', resolveAgentMachine: () => machine,
         isMachineOnline: () => true, getSupportsWorktree: () => true, resolveWorktreeCreationMachine: () => machine,
         canPickWorktree: false, worktreeKey: null, setIsSpawning: vi.fn(), selectedPath: '/original',
+        // The catalog destination, which only HappyHerd Agent has. A CLI start names a
+        // directory, so these stand at the values that mean "no project was picked".
+        draftProjectId: null, selectedProjectId: null, agentWorkspaces: [], picksWorkspaces: false,
+        projectPlaceKey: (projectId: string) => `project:${projectId}`,
+        getRigMachineSessionCreation: () => null, resolveHappyHerdAgentSpawnTarget: () => null,
         trimPathInput: (path: string) => path, resolveAbsolutePath: (path: string) => path,
         currentPermission: { key: 'default' }, currentModelKey: 'default', currentEffort: null,
         machineSpawnNewSession: vi.fn().mockResolvedValue({ type: 'success', sessionId: 'created' }),
@@ -158,10 +163,13 @@ describe('chat composer callback boundary', () => {
         composer.clearSentMessage.mockImplementation((sent: string) => {
             if (composer.getMessage() === sent) composer.clearMessage();
         });
+        const session = { draft: 'original', draftUpdatedAt: 5, metadata: { client: { id: 'rig' }, rigMetadataVersion: 1 } };
         const scope = {
+            storage: { getState: () => ({ sessions: { 'original-session': session } }) },
+            isRigMetadataV1: () => true,
             dshUploadBusy: false, expImageUpload: true, canUseAttachments: true, selectedContextEntries: [],
             HEARTBEAT_COMMAND: { dispatch: async () => ({ handled: false }) },
-            machineId: 'machine', session: { metadata: {} }, flavor: 'claude',
+            machineId: 'machine', session, flavor: 'claude',
             buildWorkspaceContextMessage: async (_: string, text: string) => ({ promptText: text, displayText: text }),
             clearWorkspaceContextFiles: vi.fn(), deliverSessionTurn, isDisconnected: false, canResume: true,
             resumeSessionWithQueuedTurn: vi.fn(), Modal: { alert: vi.fn() }, t: (key: string) => key,
@@ -170,19 +178,20 @@ describe('chat composer callback boundary', () => {
             selectedImages: [{ id: 'image' }], removeImage: vi.fn(), pendingCommunications: [{ id: 'question', kind: 'question' }],
             sessionCancelCommunication: vi.fn(), sync: { sendMessage: vi.fn() },
         };
-        return { scope, composer, send: callbackAt(chatScreen, node => ts.isVariableDeclaration(node)
+        return { scope, composer, session, send: callbackAt(chatScreen, node => ts.isVariableDeclaration(node)
             && node.name.getText() === 'sendComposerMessage' && node.initializer && ts.isCallExpression(node.initializer)
             ? node.initializer.arguments[0] : undefined, scope) as () => Promise<void> };
     }
 
-    it.each(['failure', 'new-text', 'navigation'])('preserves the correct draft and question on %s', async (change) => {
-        const { scope, composer, send } = chatBoundary();
+    it.each(['failure', 'new-text', 'new-picker', 'navigation'])('preserves the correct draft and question on %s', async (change) => {
+        const { scope, composer, session, send } = chatBoundary();
         let finish!: (accepted: boolean) => void;
         scope.sync.sendMessage.mockReturnValue(new Promise(resolve => { finish = resolve; }));
         send();
         send();
         await vi.waitFor(() => expect(scope.sync.sendMessage).toHaveBeenCalledOnce());
         if (change === 'new-text') composer.getMessage.mockReturnValue('new text');
+        if (change === 'new-picker') session.draftUpdatedAt++;
         if (change === 'navigation') scope.currentSessionIdRef.current = 'new-session';
         if (change !== 'failure') scope.sync.sendMessage.mock.calls[0][2].onAccepted();
         finish(change !== 'failure');

@@ -48,3 +48,19 @@ export function FixtureSessionsListWrapper({ bottomContentInset = 0 }: { bottomC
         </ScrollView>
     );
 }
+
+
+/** Stress the real timestamp slot while synthetic unread updates arrive. */
+export function TimestampLayoutFixture() {
+    const { theme } = useUnistyles();
+    const [unread, setUnread] = React.useState(false);
+    const item = row('auth', 'A long conversation title beside a localized timestamp', {
+        hasUnread: unread, lastActivityAt: Date.now() - 60_000,
+    }, 'web-app');
+    return <div style={{ minHeight: '100vh', background: theme.colors.groupped.background, padding: 16 }}>
+        <button onClick={() => setUnread(value => !value)}>Toggle synthetic unread</button>
+        <div data-testid="timestamp-row" data-unread={String(unread)} style={{ maxWidth: 430 }}>
+            <FlatSessionRow row={item as any} />
+        </div>
+    </div>;
+}

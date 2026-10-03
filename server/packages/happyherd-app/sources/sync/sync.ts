@@ -8,6 +8,7 @@ import { storage } from './storage';
 // Circular at module level (ops.ts imports sync) but safe: both sides only
 // touch each other's exports at runtime, never during module initialization.
 import { sessionSetAgentModes } from './ops';
+import { rigComposerClear } from './rigComposer';
 import { getImageAttachmentSendPlan, isAttachmentAllowedByPolicy } from './attachmentSupport';
 import {
     errorMessageFromUnknown,
@@ -61,7 +62,7 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveControlHandoffDirection } from './controlHandoff';
-import { resolveMessageModeMeta, UnsupportedPermissionModeError } from './messageMeta';
+import { resolveMessageDeliveryMeta, resolveMessageModeMeta, UnsupportedPermissionModeError } from './messageMeta';
 import {
     normalizeAgentKey,
     resolveAgentDefaultConfig,
@@ -73,7 +74,7 @@ import { encryptBlob } from '@/encryption/blob';
 import { readFileBytes } from '@/utils/readFileBytes';
 import { Modal } from '@/modal';
 import { t } from '@/text';
-import { isRigMetadataV1, rigCanUseAttachments, rigSendsMessageReceipts, usesControlledSessionUi } from './rig';
+import { isRigMetadataV1, rigCanUseAttachments, usesControlledSessionUi } from './rig';
 import {
     requestVisibleSessionReconciliation,
     type VisibleSessionReconciliationTrigger,
@@ -223,6 +224,7 @@ class Sync {
     private messagePreloader = new SessionMessagePreloader((sessionId, signal) => this.preloadLatestPage(sessionId, signal));
     private historyPrefetchSessions = new Set<string>();
     private olderMessagesPrefetching = new Set<string>();
+    private olderMessagesPrefetchAttempts = new Map<string, number>();
     private preloadedPlanModes = new Map<string, Session['permissionMode']>();
     private sendSync = new Map<string, InvalidateSync>();
     private sendAbortControllers = new Map<string, AbortController>();
@@ -1119,6 +1121,15 @@ class Sync {
             sentFrom = 'web'; // fallback
         }
 
+        // Capture after attachment uploads: the previous turn may have finished
+        // while uploading. Persist this so echoes and remounts keep the same UI.
+        const sendingSession = storage.getState().sessions[sessionId];
+        if (!canSend() || !sendingSession) throw new Error(t('happyHerd.composer.sendFailedBody'));
+        const hasPendingUserMessage = this.pendingOutbox.get(sessionId)?.some(message => message.kind === 'user') === true
+            || storage.getState().sessionMessages[sessionId]?.messages.some(
+                message => message.kind === 'user-text' && message.pending === true,
+            ) === true;
+
         // Create user message content with metadata
         const content: RawRecord = {
             role: 'user',
@@ -1128,7 +1139,7 @@ class Sync {
             },
             meta: {
                 sentFrom,
-                ...(rigSendsMessageReceipts(session.metadata) ? { expectsAcceptance: true } : {}),
+                ...resolveMessageDeliveryMeta(sendingSession, source === 'new_session', hasPendingUserMessage),
                 appendSystemPrompt: systemPrompt,
                 ...userSafeguardMessageMeta(flavor, settings.userSafeguardEnabled),
                 ...(modeMeta.permissionMode !== undefined ? { permissionMode: modeMeta.permissionMode } : {}),
@@ -1139,6 +1150,7 @@ class Sync {
                 ...(providerContinuationHandoff ? { providerContinuationHandoff: true } : {}),
                 ...(deliveryMode ? { deliveryMode } : {}),
                 ...(deliveryMode === 'queue' ? { queueMessageId: localId } : {}),
+                ...(modeMeta.serviceTier !== undefined ? { serviceTier: modeMeta.serviceTier } : {}),
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
@@ -1280,6 +1292,15 @@ class Sync {
             await this.getSendSync(sessionId).invalidateAndAwait();
         } else {
             this.getSendSync(sessionId).invalidate();
+        }
+        // The synced HappyHerd Agent draft is spent once its text is accepted. The
+        // mode was captured above, before the clear. Text typed since (a newer
+        // local edit) stays; the composer clears itself only when unchanged.
+        const latestSession = storage.getState().sessions[sessionId];
+        if (isRigMetadataV1(latestSession?.metadata) && source !== 'voice'
+            && latestSession.draftUpdatedAt === session.draftUpdatedAt
+            && (!latestSession.draft || latestSession.draft === text)) {
+            rigComposerClear(sessionId);
         }
         return { localId };
     }
@@ -2736,16 +2757,19 @@ class Sync {
 
     private fetchOlderMessagesInBackground = async (sessionId: string) => {
         const SLEEP_BETWEEN_PAGES_MS = 250;
+        // Budget background work across visits/reconnects, not just this run.
+        // Scroll-back can still load older pages on demand without this cap.
+        const MAX_PREFETCH_ATTEMPTS = 5;
         // While loadOlderMessages handles the actual work, this loop is what
         // keeps it going without user input. We keep stepping until either:
+        //   - we hit the prefetch attempt budget (see above), or
         //   - the server says there is no more older history, or
-        //   - the session is no longer present in the store (user navigated
-        //     away and the session was unloaded), or
+        //   - the session's messages are no longer present in the store, or
         //   - we hit seq = 1 (the very first message), or
-        //   - the encryption key is gone (logged out).
+        //   - the encryption key is gone.
         // The loop yields between pages to keep the UI thread responsive
         // and to spread out server load.
-        while (true) {
+        while ((this.olderMessagesPrefetchAttempts.get(sessionId) ?? 0) < MAX_PREFETCH_ATTEMPTS) {
             // Page history only while the Human is viewing this chat; scrolling
             // up still loads older pages on demand.
             if (storage.getState().currentViewingSessionId !== sessionId) {
@@ -2764,6 +2788,9 @@ class Sync {
             }
 
             try {
+                // Reserve attempts even on failure so repeated invalidations
+                // cannot restart unlimited speculative work.
+                this.olderMessagesPrefetchAttempts.set(sessionId, (this.olderMessagesPrefetchAttempts.get(sessionId) ?? 0) + 1);
                 await this.loadOlderMessages(sessionId);
             } catch (error) {
                 log.log(`💬 prefetchOlderMessagesInBackground: error for ${sessionId}, stopping: ${String(error)}`);
@@ -2803,6 +2830,8 @@ class Sync {
         if (messages.length > 0) {
             this.sessionOldestSeq.set(sessionId, minSeq);
         }
+        // Even a valid page can contain only non-rendering protocol records.
+        storage.getState().applyMessagesLoaded(sessionId);
         storage.getState().applyOlderMessagesPagination(sessionId, {
             hasMore: !!data.hasMore && messages.length > 0
         });
@@ -2884,31 +2913,36 @@ class Sync {
      * the currently loaded history. No-op when we have already fetched the
      * earliest message, when no initial fetch has happened yet, or when an
      * older-fetch is already in flight for this session.
+     * Resolves true only when the cursor moved back: callers that page
+     * automatically continue on true and rest on false.
      */
-    loadOlderMessages = async (sessionId: string) => {
+    loadOlderMessages = async (sessionId: string): Promise<boolean> => {
         const oldestSeq = this.sessionOldestSeq.get(sessionId);
         if (oldestSeq === undefined || oldestSeq <= 1) {
-            return;
+            return false;
         }
         const sessionMessages = storage.getState().sessionMessages[sessionId];
         if (!sessionMessages || sessionMessages.isLoadingOlder || !sessionMessages.hasMoreOlder) {
-            return;
+            return false;
         }
 
         storage.getState().applyOlderMessagesLoading(sessionId, true);
         const lock = this.getSessionMessageLock(sessionId);
         try {
-            await lock.inLock(async () => {
+            return await lock.inLock(async () => {
                 const encryption = this.encryption.getSessionEncryption(sessionId);
                 if (!encryption) {
+                    // Thrown, as fetchMessages does: a silent no-op leaves
+                    // hasMoreOlder set with nothing changed, and automatic
+                    // paging would ask again at once.
                     log.log(`💬 loadOlderMessages: encryption not ready for ${sessionId}`);
-                    return;
+                    throw new Error(`Session encryption not ready for ${sessionId}`);
                 }
                 // Re-read the cursor inside the lock. A concurrent
                 // socket-pushed update or reload could have changed it.
                 const beforeSeq = this.sessionOldestSeq.get(sessionId);
                 if (beforeSeq === undefined || beforeSeq <= 1) {
-                    return;
+                    return false;
                 }
                 const response = await apiSocket.request(
                     `/v3/sessions/${sessionId}/messages?before_seq=${beforeSeq}&limit=100`
@@ -2925,12 +2959,16 @@ class Sync {
                 for (const message of messages) {
                     if (message.seq < minSeq) minSeq = message.seq;
                 }
-                if (messages.length > 0) {
+                // A page that does not move the cursor back would be refetched
+                // forever; treat it as the end of history.
+                const advanced = minSeq < beforeSeq;
+                if (advanced) {
                     this.sessionOldestSeq.set(sessionId, minSeq);
                 }
                 storage.getState().applyOlderMessagesPagination(sessionId, {
-                    hasMore: !!data.hasMore && messages.length > 0
+                    hasMore: !!data.hasMore && advanced
                 });
+                return advanced;
             });
         } finally {
             storage.getState().applyOlderMessagesLoading(sessionId, false);
@@ -3123,6 +3161,7 @@ class Sync {
             gitStatusSync.clearForSession(sessionId);
             this.messagePreloader.cancel(sessionId);
             this.historyPrefetchSessions.delete(sessionId);
+            this.olderMessagesPrefetchAttempts.delete(sessionId);
             this.preloadedPlanModes.delete(sessionId);
             this.messagesSync.delete(sessionId);
             const pending = this.pendingOutbox.get(sessionId);

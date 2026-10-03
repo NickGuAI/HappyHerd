@@ -1,0 +1,158 @@
+[
+  {
+    "file": "group16-preparation-retry-1440-light.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "light",
+    "journey": "New Chat draft retained after failed send and retry",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/streamline-web",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "archive-rollback-header-ordinary-light-1440.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "light",
+    "journey": "Archive row restored after failed transport",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/archive-browser-proposal/rendered",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "group16-preparation-retry-1440-dark.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "dark",
+    "journey": "New Chat draft retained after failed send and retry",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/streamline-web",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "archive-rollback-header-ordinary-dark-1440.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "dark",
+    "journey": "Archive row restored after failed transport",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/archive-browser-proposal/rendered",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "group16-preparation-retry-390-light.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "light",
+    "journey": "New Chat draft retained after failed send and retry",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/streamline-web",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "archive-rollback-header-ordinary-light-390.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "light",
+    "journey": "Archive row restored after failed transport",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/archive-browser-proposal/rendered",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "group16-preparation-retry-390-dark.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "dark",
+    "journey": "New Chat draft retained after failed send and retry",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/streamline-web",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "archive-rollback-header-ordinary-dark-390.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "dark",
+    "journey": "Archive row restored after failed transport",
+    "evidence": "Production-component browser fixture over synthetic transport/data; not live authenticated evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/archive-browser-proposal/rendered",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence."
+  },
+  {
+    "file": "attachment-preview-ToolView-light-1440.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "light",
+    "journey": "ToolView image preview through the actual ModalProvider and CustomModal host",
+    "evidence": "Production-component browser fixture; synthetic attachment bytes and transport, actual image rendering/modal host. Not live authenticated evidence.",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/image-browser-proposal/rendered-real-modal"
+  },
+  {
+    "file": "attachment-preview-ToolView-dark-1440.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "theme": "dark",
+    "journey": "ToolView image preview through the actual ModalProvider and CustomModal host",
+    "evidence": "Production-component browser fixture; synthetic attachment bytes and transport, actual image rendering/modal host. Not live authenticated evidence.",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/image-browser-proposal/rendered-real-modal"
+  },
+  {
+    "file": "attachment-preview-ToolView-light-390.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "light",
+    "journey": "ToolView image preview through the actual ModalProvider and CustomModal host",
+    "evidence": "Production-component browser fixture; synthetic attachment bytes and transport, actual image rendering/modal host. Not live authenticated evidence.",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/image-browser-proposal/rendered-real-modal"
+  },
+  {
+    "file": "attachment-preview-ToolView-dark-390.png",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "theme": "dark",
+    "journey": "ToolView image preview through the actual ModalProvider and CustomModal host",
+    "evidence": "Production-component browser fixture; synthetic attachment bytes and transport, actual image rendering/modal host. Not live authenticated evidence.",
+    "productionCodeMatchesRevision": "c730a93cf9712989e0c568a4642b242b2031dc7d",
+    "captureBoundary": "Captured during integration verification; fixture-only changes remained in progress. Not exact-head CI or KILV evidence.",
+    "fullLocalEvidenceDirectory": ".artifacts/issue-370/image-browser-proposal/rendered-real-modal"
+  }
+]

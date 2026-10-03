@@ -4,6 +4,7 @@ import type { MachineChoice } from '@/sync/machineChoices';
 import { useSessions } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { t } from '@/text';
+import { PRODUCT } from '@/constants/product';
 import { buildOfflineMachineTroubleshooting } from '@/utils/offlineMachineTroubleshooting';
 
 export function useOfflineMachineTroubleshooting(choices: readonly MachineChoice[]): () => void {
@@ -16,6 +17,7 @@ export function useOfflineMachineTroubleshooting(choices: readonly MachineChoice
     return React.useCallback(() => {
         const message = t('components.emptyMainScreen.troubleshootMessage', {
             aiPrompt: guide.aiPrompt,
+            helpUrl: PRODUCT.issueUrl,
         });
         Modal.alert(t('components.emptyMainScreen.troubleshootConnection'), message, [
             { text: t('common.cancel'), style: 'cancel' },

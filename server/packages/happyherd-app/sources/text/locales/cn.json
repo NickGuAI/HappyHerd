@@ -48,7 +48,8 @@
     "loading": "加载中...",
     "retry": "重试",
     "delete": "删除",
-    "optional": "可选的"
+    "optional": "可选的",
+    "loadMore": "加载更多"
   },
   "profile": {
     "userProfile": "用户资料",
@@ -517,6 +518,11 @@
     "botDeleteUnavailable": "机器人保留单个连续对话；请使用归档代替删除。"
   },
   "components": {
+    "onboardingHelp": {
+      "action": "获取帮助",
+      "linkMessage": "在电脑上安装 HappyHerd CLI 并运行 `happyherd`。在手机上扫描终端中的二维码，或输入其连接 URL。如需帮助，请报告问题并附上 CLI 版本和错误信息。请勿包含账户密钥或凭据。",
+      "restoreMessage": "要关联此设备，请使用已登录您账户的另一台设备扫描二维码。您也可以使用已保存的密钥恢复访问。如需帮助，请报告错误信息，但不要包含密钥或凭据。"
+    },
     "emptyMainScreen": {
       "readyToCode": "准备开始编程？",
       "installCli": "安装 HappyHerd CLI",
@@ -530,7 +536,7 @@
       "bringMachineOnline": "请先让一台机器上线，然后再启动会话。",
       "troubleshoot": "排查问题",
       "troubleshootConnection": "排查连接问题",
-      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happyherd`。\n3. 重新打开 HappyHerd。\n\nAI 提示词：\n{aiPrompt}",
+      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happyherd`。\n3. 重新打开 HappyHerd。\n\nAI 提示词：\n{aiPrompt}\n\n如需帮助，请在 {helpUrl} 报告连接问题。请提供 CLI 版本和错误信息；不要包含账户密钥或凭据。",
       "copyAiPrompt": "复制 AI 提示词",
       "copyAiPromptFailed": "无法复制 AI 提示词。",
       "installDescription": "在你的 macOS 或 Linux 电脑上，打开终端并运行以下命令。",
@@ -1020,7 +1026,13 @@
   },
   "changelog": {
     "version": "版本 {version}",
-    "noEntriesAvailable": "没有可用的更新日志条目。"
+    "noEntriesAvailable": "没有可用的更新日志条目。",
+    "releases": {
+      "upstreamSync4cf54d18": {
+        "title": "10月1日 — 会话可靠性与跨设备草稿",
+        "markdown": "- HappyHerd 智能体的输入草稿和选项现可跨设备同步；发送消息或其他设备重新连接时，会保留后续编辑。\n- 聊天记录可继续加载较长的对话轮次和折叠的工作组。网页滚动、会话切换以及粘贴或拖放操作均限定在当前对话中。\n- Claude 远程会话会使用明确指定的插件目录，并在提供商登录过期时说明如何修复该会话所属账户的登录。\n- macOS 重新连接会等待系统完全唤醒，会话也会继续等待延迟出现或重新创建的会话记录。\n- 新增原生剪贴板图片附件选项，并改进 Android 提示框的键盘处理。保留现有 HappyHerd 布局、模型选项和会话身份。\n- 移动端首次使用清单会记住已完成的安装和运行步骤。首次使用和账号恢复页面新增“获取帮助”，并保留现有的离线问题排查。"
+      }
+    }
   },
   "terminal": {
     "webBrowserRequired": "需要 Web 浏览器",
@@ -1362,7 +1374,12 @@
       }
     },
     "notSupportedTitle": "不支持图片",
-    "notSupportedMessage": "此代理不支持图片附件。图片未发送。"
+    "notSupportedMessage": "此代理不支持图片附件。图片未发送。",
+    "attachTitle": "附加图片",
+    "pasteFromClipboard": "粘贴图片",
+    "chooseFromLibrary": "从照片库选择",
+    "nothingToPasteTitle": "没有可粘贴的图片",
+    "nothingToPasteMessage": "请先将图片复制到剪贴板，然后重试。"
   },
   "feed": {
     "friendRequestFrom": "{name} 向您发送了好友请求",

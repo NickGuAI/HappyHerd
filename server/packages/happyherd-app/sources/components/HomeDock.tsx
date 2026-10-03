@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Keyboard, LayoutChangeEvent, Modal as RNModal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { type StyleProp, type ViewStyle, ActivityIndicator, Keyboard, LayoutChangeEvent, Modal as RNModal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,6 +110,7 @@ import {
     MOBILE_COMPOSER_METRICS,
     resolveMobileComposerActionGeometry,
     resolveMobileComposerActionRowGeometry,
+    resolveMobileComposerMiddleGeometry,
     resolveMobileCollapsedComposerGeometry,
     resolveMobileComposerHeight,
     resolveMobileComposerMenuGeometry,
@@ -126,6 +127,7 @@ const CUSTOM_PROJECT_PATH_KEY = '__custom_project_path__';
 const MOBILE_MODEL_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('model');
 const MOBILE_EFFORT_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('effort');
 const MOBILE_PERMISSION_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('permission');
+const MOBILE_MIDDLE_GEOMETRY = resolveMobileComposerMiddleGeometry();
 const MOBILE_ACTION_ROW_GEOMETRY = resolveMobileComposerActionRowGeometry();
 const MOBILE_ICON_ACTION_GEOMETRY = resolveMobileComposerActionGeometry('icon');
 const MOBILE_PRIMARY_ACTION_GEOMETRY = resolveMobileComposerActionGeometry('primary');
@@ -310,6 +312,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingBottom: MOBILE_COMPOSER_METRICS.inputPaddingBottom,
     },
     focusedComposerActions: MOBILE_ACTION_ROW_GEOMETRY,
+    focusedComposerMiddle: MOBILE_MIDDLE_GEOMETRY,
     nativeModeMenu: MOBILE_MODEL_MENU_GEOMETRY.frame,
     focusedModeButton: MOBILE_MODEL_MENU_GEOMETRY.content,
     nativeEffortMenu: MOBILE_EFFORT_MENU_GEOMETRY.frame,
@@ -586,17 +589,19 @@ function RefusableControl({
     refusing,
     onRefuse,
     children,
+    style,
 }: {
     refusing: boolean;
     onRefuse: () => void;
     children: React.ReactNode;
+    style?: StyleProp<ViewStyle>;
 }) {
     const shake = useSharedValue(0);
     const shakeStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: shake.value }],
     }));
     return (
-        <Animated.View style={shakeStyle}>
+        <Animated.View style={[style, shakeStyle]}>
             {children}
             {refusing && (
                 <Pressable
@@ -702,7 +707,7 @@ export const HomeDock = React.memo(({
     const [sheetPage, setSheetPage] = React.useState<PickerPage | null>(null);
     const expImageUpload = useSetting('expImageUpload');
     const experiments = useSetting('experiments');
-    const { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages } = useImagePicker();
+    const { selectedImages, attachImages, pickImagesForUpload, removeImage, clearImages } = useImagePicker();
     const [workspaceEntries, setWorkspaceEntries] = React.useState<WorkspaceContextEntry[]>([]);
     const agentType = useNewSessionDraft((state) => state.agentType);
     const selectedMachineId = useNewSessionDraft((state) => state.selectedMachineId);
@@ -1683,7 +1688,7 @@ export const HomeDock = React.memo(({
         triggerAlignment?: NativeSettingsMenuProps['triggerAlignment'];
         children: React.ReactNode;
     }) => (
-        <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
+        <RefusableControl refusing={isSubmitting} onRefuse={refuse} style={style}>
             {!useNativeMenus ? (
                 <Pressable
                     onPress={() => setSheetPage(page)}
@@ -1993,7 +1998,7 @@ export const HomeDock = React.memo(({
                         ) : canUseImageAttachments ? (
                             <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
                                 <BubblePressable
-                                    onPress={() => void pickImages()}
+                                    onPress={() => void attachImages()}
                                     style={styles.sideButton}
                                     accessibilityRole="button"
                                     accessibilityLabel={t("uiCopy.addImage")}
@@ -2006,6 +2011,7 @@ export const HomeDock = React.memo(({
                                 </BubblePressable>
                             </RefusableControl>
                         ) : null}
+                        <View style={styles.focusedComposerMiddle}>
                         {/* The permission mode reads out in words instead of
                             hiding behind a gear: it is the one setting here that
                             changes what the agent is allowed to do to your
@@ -2080,6 +2086,7 @@ export const HomeDock = React.memo(({
                                 </View>
                             ),
                         })}
+                        </View>
                         {/* Nothing covers this row as a whole: each control
                             beside Stop refuses its own presses, which leaves
                             Stop itself reachable without having to be painted

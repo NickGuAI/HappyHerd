@@ -3,6 +3,7 @@ import { Platform, View, Text, TextInput, ScrollView, ActivityIndicator } from '
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/AuthContext';
 import { RoundButton } from '@/components/RoundButton';
+import { OnboardingHelpAction } from '@/components/OnboardingHelpAction';
 import { Typography } from '@/constants/Typography';
 import { encodeBase64 } from '@/encryption/base64';
 import { generateAuthKeyPair, authQRStart } from '@/auth/authQRStart';
@@ -105,7 +106,7 @@ export default function Restore() {
                     const secretString = encodeBase64(credentials.secret, 'base64url');
                     await auth.login(credentials.token, secretString, 'linked-device');
                     if (!isCancelledRef.current) {
-                        router.back();
+                        router.dismissTo('/');
                     }
                 } else if (!isCancelledRef.current) {
                     Modal.alert(t('common.error'), t('errors.authenticationFailed'));
@@ -161,6 +162,7 @@ export default function Restore() {
                     <RoundButton title={t("uiCopy.restoreWithSecretKeyInstead")} display='inverted' onPress={() => {
                         router.push('/restore/manual');
                     }} />
+                    <OnboardingHelpAction context="restore" />
                 </View>
             </View>
         </ScrollView>

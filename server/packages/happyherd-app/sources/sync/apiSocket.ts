@@ -52,6 +52,24 @@ export interface SyncSocketState {
 
 export type SyncSocketListener = (state: SyncSocketState) => void;
 
+/**
+ * Runs one step of an RPC and, if it throws, says which step that was.
+ *
+ * A TypeError raised inside a minified dependency reads like
+ * "undefined is not an object (evaluating 'this.#i')" — true, and useless,
+ * because nothing in it says where. The step's name and the throw site's top
+ * frame are carried out with the message so the report places itself.
+ */
+async function labelRpcStep<T>(step: string, run: () => Promise<T> | T): Promise<T> {
+    try {
+        return await run();
+    } catch (error) {
+        if (!(error instanceof Error)) throw new Error(`${step}: ${String(error)}`);
+        const frame = error.stack?.split('\n')[1]?.trim();
+        throw new Error(frame ? `${step}: ${error.message} (at ${frame})` : `${step}: ${error.message}`);
+    }
+}
+
 //
 // Main Class
 //
@@ -175,13 +193,21 @@ class ApiSocket {
      * so past that the call is not slow — it is gone, and the caller deserves
      * to hear so.
      */
-    private async rpcCall(method: string, params: unknown): Promise<any> {
+    private async rpcCall(method: string, params: unknown, sessionDiagnostics = false): Promise<any> {
         // disconnect() nulls the socket, so this is a state a caller can really
         // reach. Read it once and say what happened, rather than letting a
         // property access on null surface as a TypeError.
         const socket = this.socket;
         if (!socket) {
             throw new Error('Not connected to the server');
+        }
+        if (sessionDiagnostics) {
+            // Keep the native ack timeout; distinguish synchronous emit failure
+            // from a failure while awaiting its acknowledgment.
+            const { pending } = await labelRpcStep('sending the request', () => ({
+                pending: socket.timeout(rpcAckTimeoutMs(method)).emitWithAck('rpc-call', { method, params }),
+            }));
+            return await labelRpcStep('waiting for the answer', () => pending);
         }
         return await socket
             .timeout(rpcAckTimeoutMs(method))
@@ -200,13 +226,21 @@ class ApiSocket {
             throw new Error(`Session encryption not found for ${sessionId}`);
         }
 
-        const result = await this.rpcCall(
-            `${sessionId}:${method}`,
-            await sessionEncryption.encryptRaw(params),
+        // Four unrelated things happen here — encrypt, emit, wait, decrypt —
+        // and a raw TypeError out of any of them arrives at the caller saying
+        // only what it could not read, never which one was running. Naming the
+        // step costs nothing on the way through and turns an unplaceable
+        // message into an address.
+        const encrypted = await labelRpcStep(
+            'encrypting the request',
+            () => sessionEncryption.encryptRaw(params),
         );
-
+        const result = await this.rpcCall(`${sessionId}:${method}`, encrypted, true);
         if (result.ok) {
-            return await sessionEncryption.decryptRaw(result.result) as R;
+            return await labelRpcStep(
+                'reading the answer',
+                () => sessionEncryption.decryptRaw(result.result),
+            ) as R;
         }
         throw new Error(result.error || 'RPC call failed');
     }

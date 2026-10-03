@@ -97,7 +97,7 @@ export function CommandPaletteModal({
                         paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
                     },
                 ]}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <TouchableWithoutFeedback onPress={handleBackdropPress}>
                     <Animated.View

@@ -384,7 +384,8 @@ const virtualModules: Record<string, string> = {
         export const StatusDot = () => null;
         export const StatusPulse = ({ isPulsing }) => React.createElement('span', { 'data-status-pulse': isPulsing ? 'true' : 'false', 'aria-hidden': true });
     `,
-    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};`,
+    '@/hooks/useSessionQuickActions': `export const useSessionActionAlert = () => () => {};
+        export const useSessionArchiveAction = () => ({ archiveSession() {}, archivingSession: false });`,
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = (action) => [false, action];`,
     '@/sync/ops': `export const sessionKill = async () => ({ success: true }); export const machineBash = async () => ({ exitCode: 0 });`,
     '@/utils/errors': `export class HappyHerdError extends Error {}`,
@@ -740,6 +741,10 @@ describe('Projects and Super Session production UI gestures', () => {
         await screenshot(page, `focus-setup-${page.viewportSize()!.width}-${german ? 'dark' : 'light'}`);
         await start.click();
         await page.getByTestId('focus-mode-timer').waitFor();
+        // The first active render still has the pre-setup clock until the
+        // focus effect samples Date.now(). Wait for that existing effect;
+        // every exact duration and subsequent tick assertion stays below.
+        await expect.poll(() => page.getByTestId('focus-mode-timer').innerText()).toBe(`${minutes}:00`);
         // Start plays the amber pixel swap over the page as the setup closes.
         await page.getByTestId('focus-mode-pixel-swap').waitFor({ state: 'attached' });
         // Flush effects scheduled by Start without advancing the paused countdown.

@@ -8,7 +8,7 @@ require('../patches/force-preact-cjs.cjs');
 require('../patches/fix-pierre-trees-preact-hooks.cjs');
 require('../patches/fix-react-native-audio-api-size-t.cjs');
 require('../patches/deterministic-expo-hermes-temp.cjs');
-require('../patches/fix-flash-list-inverted-web-layout.cjs');
+require('../patches/fix-flash-list-web-inversion.cjs').patchFlashListWeb();
 
 if (process.env.SKIP_HAPPYHERD_WIRE_BUILD === '1') {
   console.log('[postinstall] SKIP_HAPPYHERD_WIRE_BUILD=1, skipping @happyherd/wire build');

@@ -99,6 +99,8 @@ export type TranslationKey =
     | "artifacts.titlePlaceholder"
     | "artifacts.updateError"
     | "changelog.noEntriesAvailable"
+    | "changelog.releases.upstreamSync4cf54d18.markdown"
+    | "changelog.releases.upstreamSync4cf54d18.title"
     | "changelog.version"
     | "claude.permissions.noTellClaude"
     | "claude.permissions.yesAllowAllEdits"
@@ -125,6 +127,7 @@ export type TranslationKey =
     | "common.fileViewer"
     | "common.files"
     | "common.home"
+    | "common.loadMore"
     | "common.loading"
     | "common.logout"
     | "common.message"
@@ -169,6 +172,9 @@ export type TranslationKey =
     | "components.emptyMainScreen.troubleshoot"
     | "components.emptyMainScreen.troubleshootConnection"
     | "components.emptyMainScreen.troubleshootMessage"
+    | "components.onboardingHelp.action"
+    | "components.onboardingHelp.linkMessage"
+    | "components.onboardingHelp.restoreMessage"
     | "components.sessionStatusBar.contextUsage"
     | "components.sessionStatusBar.limitAsOf"
     | "components.sessionStatusBar.limitFiveHour"
@@ -629,12 +635,17 @@ export type TranslationKey =
     | "happyHerd.voice.signIn"
     | "happyHerd.voice.startFailed"
     | "happyHerd.voice.transcriptionFailed"
+    | "imageUpload.attachTitle"
+    | "imageUpload.chooseFromLibrary"
     | "imageUpload.fileTooLargeMessage"
     | "imageUpload.fileTooLargeTitle"
     | "imageUpload.limitMessage"
     | "imageUpload.limitTitle"
     | "imageUpload.notSupportedMessage"
     | "imageUpload.notSupportedTitle"
+    | "imageUpload.nothingToPasteMessage"
+    | "imageUpload.nothingToPasteTitle"
+    | "imageUpload.pasteFromClipboard"
     | "imageUpload.permissionMessage"
     | "imageUpload.permissionTitle"
     | "imageUpload.uploadFailedMessage"
@@ -1711,7 +1722,7 @@ export interface TranslationParamsByKey {
     "components.emptyMainScreen.discoveryDescription": { newSession: string };
     "components.emptyMainScreen.machineUnreachable": { machine: string };
     "components.emptyMainScreen.serverSelection": { serverUrl: string };
-    "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string };
+    "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string; helpUrl: string };
     "components.sessionStatusBar.contextUsage": { percent: number; total: string | number; used: string | number };
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };

@@ -9,6 +9,7 @@ import { HerdTimelineGroup } from '@/components/herd/pages/HerdTimeline';
 import { ChangelogPageFrame } from '@/components/herd/pages/ChangelogPageFrame';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { getChangelogEntries, getLatestTitle, setLastViewedTitle } from '@/changelog';
+import { getLocalizedChangelogEntry } from '@/changelog/localizedEntry';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { openExternalUrl } from '@/utils/openExternalUrl';
@@ -109,25 +110,26 @@ export default function ChangelogScreen() {
         >
             <ChangelogPageFrame />
             {entries.map((entry, index) => {
+                const displayEntry = getLocalizedChangelogEntry(entry);
                 const titleImage = entry.titleImage ? CHANGELOG_IMAGES[entry.titleImage] : undefined;
                 const title = titleImage ? (
                     <View style={styles.titleRow}>
-                        <Text style={styles.titleText}>{entry.title}</Text>
+                        <Text style={styles.titleText}>{displayEntry.title}</Text>
                         <Image
                             source={titleImage}
                             style={{ width: 28, height: 28 }}
                             contentFit="contain"
                         />
                     </View>
-                ) : entry.title;
+                ) : displayEntry.title;
                 return (
                 <HerdTimelineGroup key={entry.title} index={index} title={title} titleStyle={styles.titleText}>
                     <View style={styles.cardContent}>
-                        {entry.summary ? (
-                            <SummaryLine summary={entry.summary} />
+                        {displayEntry.summary ? (
+                            <SummaryLine summary={displayEntry.summary} />
                         ) : null}
-                        {entry.markdown ? (
-                            <MarkdownView markdown={entry.markdown} />
+                        {displayEntry.markdown ? (
+                            <MarkdownView markdown={displayEntry.markdown} />
                         ) : null}
                     </View>
                 </HerdTimelineGroup>

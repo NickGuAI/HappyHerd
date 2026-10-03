@@ -26,7 +26,7 @@ const homeEntries = [
  */
 const virtualModules: Record<string, string> = {
     // Settings' What's New entries report through @/track (SettingsFrame).
-    '@/track': `export const trackWhatsNewClicked = () => {};`,
+    '@/track': `export const trackWhatsNewClicked = () => {}; export const trackSessionSwitched = () => {};`,
     'react-native': `
         import * as ReactNativeWeb from 'react-native-web';
         export * from 'react-native-web';
@@ -161,17 +161,17 @@ const virtualModules: Record<string, string> = {
         export const useMachine = (id) => machineMap[id] ?? null;
         export const useProjects = () => projects;
         export const useSessions = () => [];
-        export const storage = { getState: () => ({ machines: machineMap, projects, settings, localSettings: {} }) };
+        export const storage = { getState: () => ({ machines: machineMap, projects, settings, sessions: {}, sessionsData: [], localSettings: {} }) };
     `,
     '@/hooks/useNewSessionDraft': `
         import React from 'react';
         const listeners = new Set();
-        const state = {
+        let state = {
             input: '', attachments: [], selectedMachineId: 'studio-mac', selectedPath: '/Users/example-user/code/happyherd',
             selectedAccountProjectId: undefined, selectedCommanderId: null, agentType: 'claude',
             permissionMode: null, modelMode: null, effortLevel: null, sessionType: 'simple', worktreeKey: null,
         };
-        const set = (patch) => { Object.assign(state, patch); window.__DRAFT__ = { ...state }; listeners.forEach((listener) => listener()); };
+        const set = (patch) => { state = { ...state, ...patch }; window.__DRAFT__ = { ...state }; listeners.forEach((listener) => listener()); };
         Object.assign(state, {
             setInput: (input) => set({ input }), setAttachments: (attachments) => set({ attachments }),
             setMachineId: (id) => set({ selectedMachineId: id, selectedPath: null, selectedCommanderId: null, permissionMode: null, modelMode: null, effortLevel: null, sessionType: 'simple', worktreeKey: null }),
@@ -217,20 +217,52 @@ const virtualModules: Record<string, string> = {
             { id: 'hermes', name: 'Hermes', role: 'Writing and research', workspace: '/Users/example-user/notes', commanderPath: '/c/hermes', agentContextPath: '/c/hermes/ctx' },
         ], globalAgentsPath: null });`
         : name === 'machineSpawnNewSession'
-            ? `export const machineSpawnNewSession = async (options) => { window.__SPAWNS__ = [...(window.__SPAWNS__ ?? []), options]; return { type: 'error', errorMessage: 'fixture stops after the payload' }; };`
+            ? `import { gate, enabled } from 'group16-transport'; export const machineSpawnNewSession = async (options) => { window.__SPAWNS__ = [...(window.__SPAWNS__ ?? []), options]; return enabled ? gate('spawn', options) : { type: 'error', errorMessage: 'fixture stops after the payload' }; };`
             : name === 'machineGetDirectoryTree'
                 ? `export const machineGetDirectoryTree = async (_machineId, path) => ({ success: true, tree: { name: path, path, type: 'directory',
                     children: ${JSON.stringify(homeEntries)}.map((entry) => ({ ...entry, path: (path === '/' ? '' : path) + '/' + entry.name })) } });`
                 : `export const ${name} = async () => ({ success: true });`).join('\n'),
-    '@/sync/sync': `export const sync = { refreshSessions: async () => {}, ensureSessionReady: async () => {}, sendMessage: async () => ({}), assignSessionProject: async () => {} };`,
+    'group16-transport': `
+        export const enabled = new URLSearchParams(location.search).has('proof16');
+        const pending = new Map();
+        const calls = { spawn: [], hydrate: [], send: [] };
+        export const gate = (stage, payload) => {
+            calls[stage].push(payload);
+            return new Promise((resolve, reject) => {
+                if (pending.has(stage)) throw new Error('Duplicate in-flight stage: ' + stage);
+                pending.set(stage, { resolve, reject });
+            });
+        };
+        window.__GROUP16__ = {
+            calls,
+            release(stage, reject = false) {
+                const waiter = pending.get(stage);
+                if (!waiter) throw new Error('No pending stage: ' + stage);
+                pending.delete(stage);
+                if (reject) waiter.reject(new Error('fixture-first-send-rejected'));
+                else waiter.resolve(stage === 'spawn'
+                    ? { type: 'success', sessionId: 'group16-session' }
+                    : stage === 'send' ? { sessionId: 'group16-session', localId: 'group16-accepted' } : undefined);
+            },
+        };
+    `,
+    '@/sync/sync': `
+        import { gate, enabled } from 'group16-transport';
+        export const sync = {
+            refreshSessions: async () => {},
+            ensureSessionReady: async (id) => enabled ? gate('hydrate', id) : undefined,
+            sendMessage: async (id, text, options) => enabled
+                ? gate('send', { id, text, attachments: options.attachments, current: options.isCurrent() }) : ({}),
+            assignSessionProject: async () => {},
+        };
+    `,
     '@/utils/worktree': `
         export * from '${resolve(sourcesRoot, 'utils/worktreePaths.ts')}';
         export const createWorktree = async () => { window.__WORKTREES__ = (window.__WORKTREES__ ?? 0) + 1; return { success: true, worktreePath: '/Users/example-user/code/happyherd/.dev/worktree/fixture', branchName: 'fixture' }; };
         export const listWorktrees = async () => [];
     `,
     '@/hooks/useWorktrees': `export const useWorktrees = () => ({ worktrees: [] });`,
-    '@/modal': `export const Modal = { alert: () => {}, confirm: async () => false, show: () => {} }; export const useModal = () => ({ dismissTopModal: () => false });`,
-    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => () => {}; export const useSessionPressHandlers = () => ({});`,
+    '@/modal': `export const Modal = { alert: (title, message) => { window.__GROUP16_ALERTS__ = [...(window.__GROUP16_ALERTS__ ?? []), { title, message }]; }, confirm: async () => false, show: () => {} }; export const useModal = () => ({ dismissTopModal: () => false });`,
     '@/hooks/useImagePicker': `export const useImagePicker = () => ({ selectedImages: [], clearImages() {}, removeImage() {}, pickImages: async () => {}, pickImagesForUpload: async () => [] });`,
     '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ state: { phase: 'idle' }, canCancel: false, canRetry: false, reset() {}, cancel() {}, retry() {}, pickAndUpload: async () => {}, uploadAssets: async () => [] });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ phase: 'idle', error: null, canRetry: false, toggle() {}, cancel() {}, retry() {} });`,
@@ -372,12 +404,12 @@ describe('Streamline New Session in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' | 'alpha'; duplicateFolders?: boolean; modelNames?: 'custom' } = {}) {
+    async function open(options: { theme?: 'light' | 'dark'; width?: number; height?: number; mode?: 'streamline' | 'advanced'; screen?: 'settings' | 'alpha'; duplicateFolders?: boolean; modelNames?: 'custom'; proof16?: boolean } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(5_000);
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
-        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}&mode=${options.mode ?? 'streamline'}${options.screen ? `&screen=${options.screen}` : ''}${options.duplicateFolders ? '&duplicateFolders=1' : ''}${options.modelNames ? `&modelNames=${options.modelNames}` : ''}`);
+        await page.goto(`${origin}/?theme=${options.theme ?? 'light'}&mode=${options.mode ?? 'streamline'}${options.screen ? `&screen=${options.screen}` : ''}${options.duplicateFolders ? '&duplicateFolders=1' : ''}${options.modelNames ? `&modelNames=${options.modelNames}` : ''}${options.proof16 ? '&proof16=1' : ''}`);
         await page.evaluate(() => document.fonts.ready);
         return { page, errors };
     }
@@ -393,8 +425,8 @@ describe('Streamline New Session in the production style runtime', () => {
     // A chip's label, without its chevron glyph.
     const chipLabel = async (page: Page, key: string) => (await page.getByTestId(`streamline-chip-${key}`).innerText()).split('\n')[0];
 
-    it.each([[1440, 900], [390, 844]])('shows New Chat with one Agent chip and a settings link at %i × %i', async (width, height) => {
-        const { page, errors } = await open({ width, height });
+    it.each([1440, 390].flatMap(width => (['light', 'dark'] as const).map(theme => ({ width, height: width === 390 ? 844 : 900, theme }))))('shows New Chat with one Agent chip and a settings link at $width px in $theme', async surface => {
+        const { page, errors } = await open(surface);
         await page.getByTestId('streamline-sections').waitFor();
         await expect(page.getByText('New Chat', { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Start a session quickly using your preconfigured agent defaults.', { exact: true }).count()).resolves.toBe(0);
@@ -405,10 +437,76 @@ describe('Streamline New Session in the production style runtime', () => {
         }
         await expect(page.getByTestId('streamline-summary').innerText()).resolves.not.toMatch(/Uses |Creates a new git worktree|Runs directly/);
         await expect(page.getByTestId('streamline-summary').locator('[data-icon="sparkles-outline"]').count()).resolves.toBe(0);
+        await evidence(page, `group18-streamline-single-chip-${surface.width}-${surface.theme}`);
         await page.getByTestId('streamline-settings-link').click();
         await expect.poll(() => page.evaluate(() => (window as any).__ROUTES__ ?? [])).toContain('/settings/streamline');
         expect(errors).toEqual([]);
         await page.close();
+    }, 30_000);
+
+    it.each([
+        { width: 1440, height: 900, theme: 'light' },
+        { width: 1440, height: 900, theme: 'dark' },
+        { width: 390, height: 844, theme: 'light' },
+        { width: 390, height: 844, theme: 'dark' },
+    ] as const)('keeps the New Chat input and newer draft through deferred preparation and a failed first-send retry at $width px in $theme', async surface => {
+        const { page, errors } = await open({ ...surface, proof16: true });
+        try {
+            await page.getByTestId('streamline-sections').waitFor();
+            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__?.modelMode)).toBe('claude-opus-5-5');
+            const input = page.locator('textarea').first();
+            await input.fill('First instruction');
+            const original = await input.elementHandle();
+            expect(original).not.toBeNull();
+            const sameInput = async () => {
+                expect(await original!.evaluate(element => element.isConnected && element === document.querySelector('textarea'))).toBe(true);
+            };
+            const count = (stage: 'spawn' | 'hydrate' | 'send') => page.evaluate(stage => (window as any).__GROUP16__.calls[stage].length, stage);
+            const release = (stage: 'spawn' | 'hydrate' | 'send', reject = false) => page.evaluate(({ stage, reject }) => (window as any).__GROUP16__.release(stage, reject), { stage, reject });
+            const send = page.getByRole('button', { name: 'Send', exact: true });
+
+            await send.click();
+            await expect.poll(() => count('spawn')).toBe(1);
+            await sameInput();
+            // Edits stay on the live input while the captured initial prompt is preparing.
+            await input.fill('Edited while preparing');
+            await expect.poll(() => page.evaluate(() => (window as any).__DRAFT__.input)).toBe('Edited while preparing');
+            await release('spawn');
+            await expect.poll(() => count('hydrate')).toBe(1);
+            await sameInput();
+            expect(await input.inputValue()).toBe('Edited while preparing');
+            await release('hydrate');
+            await expect.poll(() => count('send')).toBe(1);
+            expect(await page.evaluate(() => (window as any).__GROUP16__.calls.send[0])).toMatchObject({ id: 'group16-session', text: 'First instruction', current: true });
+            await sameInput();
+            expect(await page.evaluate(() => (window as any).__ROUTES__ ?? [])).toEqual([]);
+
+            await release('send', true);
+            await expect.poll(() => page.evaluate(() => (window as any).__GROUP16_ALERTS__?.length ?? 0)).toBe(1);
+            await expect.poll(() => send.isEnabled()).toBe(true);
+            await sameInput();
+            expect(await input.inputValue()).toBe('Edited while preparing');
+            expect(await page.evaluate(() => (window as any).__ROUTES__ ?? [])).toEqual([]);
+
+            await send.click();
+            await expect.poll(() => count('hydrate')).toBe(2);
+            expect(await count('spawn')).toBe(1);
+            await sameInput();
+            // The retry captures the retained draft, and still must not clear later edits.
+            await input.fill('Keep this newer draft after retry');
+            await release('hydrate');
+            await expect.poll(() => count('send')).toBe(2);
+            expect(await page.evaluate(() => (window as any).__GROUP16__.calls.send[1])).toMatchObject({ id: 'group16-session', text: 'Edited while preparing', current: true });
+            await sameInput();
+            await release('send');
+            await expect.poll(() => page.evaluate(() => (window as any).__ROUTES__ ?? [])).toEqual(['/session/group16-session']);
+            expect(await count('spawn')).toBe(1);
+            expect(await page.evaluate(() => (window as any).__DRAFT__.input)).toBe('Keep this newer draft after retry');
+            await evidence(page, `group16-preparation-retry-${surface.width}-${surface.theme}`);
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
     }, 30_000);
 
     it('starts in Streamline with the Claude defaults and a worktree for the GitHub folder', async () => {

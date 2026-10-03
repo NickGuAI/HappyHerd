@@ -1460,7 +1460,7 @@ function NewSessionScreen() {
         && !dshUploadBusy;
     const handlePickPhotos = React.useCallback(async () => {
         if (canUseImageAttachments) {
-            await imagePicker.pickImages();
+            await imagePicker.attachImages();
             return;
         }
         if (!canUploadDshPhotos) return;
@@ -1471,7 +1471,7 @@ function NewSessionScreen() {
     }, [
         canUploadDshPhotos,
         canUseImageAttachments,
-        imagePicker.pickImages,
+        imagePicker.attachImages,
         imagePicker.pickImagesForUpload,
         workspaceEntries.length,
         workspaceUploader.uploadAssets,

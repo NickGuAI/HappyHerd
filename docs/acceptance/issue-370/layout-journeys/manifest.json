@@ -1,0 +1,40 @@
+{
+  "base": "793b05b8394cf1495834a6d2d0e24cb812b7a5c6",
+  "precedingCommit": "e1ac7e041d9765f9d2dffe444745f3baaa77fbc3",
+  "sourceSha256": {
+    "server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts": "64a6b902ddb01db1dff170415bbddea96a1f0a7004a3bba0f7b38934292cc5ea",
+    "server/packages/happyherd-app/sources/components/herd/mobile/__testdata__/mobileShell.browser.fixture.tsx": "a308cb50f12cad3ef33d1be7e950680e1490e019273e76a2f4948b37ade7c36e",
+    "server/packages/happyherd-app/sources/components/herd/mobile/__testdata__/mobileShellFixtureList.tsx": "17b213205f426e9ff4c2be9c6bb518b8e741a3aeccab0cb3314c02cd91731760",
+    "server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts": "70efceab07b8e6c3f6d559335dfd42321521325853cdc696aeecb0682d1f5a5d",
+    "server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts": "9677ec24c4ee311d614f303968b378ca6882c2efddcb97d6fa2f8ac1afa59e5f"
+  },
+  "images": {
+    "group18-long-model-send-1440-dark.png": "3494c65588ae1ca42d1fe27a1031e6993143973514bc5307f4d2e5a5fae5f335",
+    "group18-long-model-send-1440-light.png": "4901c893a6a2bacfb3284bebcdbd6620de3b5fe9b1931aff754702ec3ae2ba61",
+    "group18-long-model-send-390-dark.png": "e80faf7186e86f5b06eb1e0d802aa7cab30cc31475e798187a51d940bdb46311",
+    "group18-long-model-send-390-light.png": "458c132c2ec6210fa00c354164fca5dee98d96ccc1416c47171c2a43f44058c8",
+    "group18-streamline-single-chip-1440-dark.png": "b833eafb27dae054929976ce0b4f8f940c9f76474f119d946c31408c78b0bceb",
+    "group18-streamline-single-chip-1440-light.png": "8cdf55b0e9dae897606847df0d2797a8364cab82eff122211c83fb584ea53907",
+    "group18-streamline-single-chip-390-dark.png": "0897ad59572b0212e4db10c03117189f0a7199f9c97bb9cd0dcc83916c80bccf",
+    "group18-streamline-single-chip-390-light.png": "17f5d3a9e8d95cdb921278e760aef8334bdbc7ce74d54eda374d0be128c187d4",
+    "group2-timestamp-1440-dark.png": "07828616eb3c3fd9d1bd3e80446641372f60dff3bc4032234ea9f7c1d906d492",
+    "group2-timestamp-1440-light.png": "456dfe747601047928e6f582a8d8e5f58627290edf9d93bd30922b4867010289",
+    "group2-timestamp-390-dark.png": "e3e7ef4a189cb17c067e78ce56f6ba4a6d3fd9bed91bc48d3a37040c4c3475a2",
+    "group2-timestamp-390-light.png": "996734e90f40962688159a389819354707c3f9e7dfa1bcf14751d95b33245607"
+  },
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "transport": "synthetic; no account or session mutation"
+}

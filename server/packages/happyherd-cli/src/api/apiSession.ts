@@ -19,7 +19,7 @@ import { AsyncLock } from '@/utils/lock';
 import { deriveKey } from '@/utils/deriveKey';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers';
-import { shouldReconnect } from '@/utils/lidState';
+import { releaseReconnectCapabilityMonitor, retainReconnectCapabilityMonitor, shouldReconnect } from '@/utils/lidState';
 import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope, type SessionTurnEndStatus } from '@happyherd/wire';
 import {
     closeClaudeTurnWithStatus,
@@ -316,6 +316,7 @@ export class ApiSessionClient extends EventEmitter {
     private readonly sendSync: InvalidateSync;
     private readonly usageSync: InvalidateSync;
     private readonly receiveSync: InvalidateSync;
+    private reconnectCapabilityHeld = false;
 
     constructor(token: string, session: Session) {
         super()
@@ -492,6 +493,8 @@ export class ApiSessionClient extends EventEmitter {
         // Connect (after short delay to give a time to add handlers)
         //
 
+        retainReconnectCapabilityMonitor();
+        this.reconnectCapabilityHeld = true;
         this.socket.connect();
     }
 
@@ -1568,6 +1571,10 @@ export class ApiSessionClient extends EventEmitter {
         this.receiveSync.stop();
         this.clearReconnectTimers();
         this.socket.close();
+        if (this.reconnectCapabilityHeld) {
+            releaseReconnectCapabilityMonitor();
+            this.reconnectCapabilityHeld = false;
+        }
     }
 
     private startSmartReconnect() {
@@ -1588,10 +1595,10 @@ export class ApiSessionClient extends EventEmitter {
         }, 3000);
 
         if (shouldReconnect()) {
-            logger.debug('[API] Network up + lid open — reconnecting in 1s');
+            logger.debug('[API] Network available — reconnecting in 1s');
             this.reconnectTimeout = setTimeout(() => {
                 this.reconnectTimeout = null;
-                if (!this.closed && !this.socket.connected) this.socket.connect();
+                if (!this.closed && !this.socket.connected && shouldReconnect()) this.socket.connect();
             }, 1000);
         }
     }

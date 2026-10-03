@@ -1,4 +1,5 @@
 import { MMKV } from 'react-native-mmkv';
+import { z } from 'zod';
 import { Settings, settingsDefaults, settingsParse, settingsToSyncPayload, SettingsSchema } from './settings';
 import { LocalSettings, localSettingsDefaults, localSettingsParse } from './localSettings';
 import { Purchases, purchasesDefaults, purchasesParse } from './purchases';
@@ -149,6 +150,36 @@ export function loadSessionDrafts(): Record<string, string> {
 
 export function saveSessionDrafts(drafts: Record<string, string>) {
     mmkv.set('session-drafts', JSON.stringify(drafts));
+}
+
+const RIG_COMPOSER_DRAFT_KEY = 'session-rig-composer-draft:';
+
+/** Pending HappyHerd Agent composer, persisted so an offline edit survives restart. Never includes lastMode. */
+const RigComposerDraftSnapshotSchema = z.object({
+    text: z.string().nullable(),
+    draftUpdatedAt: z.number().int().nonnegative(),
+    permissionMode: z.string().nullable(),
+    modelMode: z.string().nullable(),
+    effortLevel: z.string().nullable(),
+    serviceTier: z.string().nullable(),
+});
+export type RigComposerDraftSnapshot = z.infer<typeof RigComposerDraftSnapshotSchema>;
+
+export function loadRigComposerDraft(sessionId: string): RigComposerDraftSnapshot | null {
+    const raw = mmkv.getString(RIG_COMPOSER_DRAFT_KEY + sessionId);
+    if (!raw) return null;
+    try {
+        return RigComposerDraftSnapshotSchema.parse(JSON.parse(raw));
+    } catch (error) {
+        console.error('Failed to parse HappyHerd Agent composer draft', error);
+        return null;
+    }
+}
+
+export function saveRigComposerDraft(sessionId: string, draft: RigComposerDraftSnapshot | null) {
+    const key = RIG_COMPOSER_DRAFT_KEY + sessionId;
+    if (draft === null) mmkv.delete(key);
+    else mmkv.set(key, JSON.stringify(draft));
 }
 
 export function loadNewSessionDraft(): NewSessionDraft | null {

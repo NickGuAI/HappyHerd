@@ -34,7 +34,7 @@ const virtualModules: Record<string, string> = {
     '@/utils/harnessCatalog': `export const getHarnessName = () => 'Agent';`,
     '@/sync/rig': `export const usesControlledSessionUi = () => false;`,
     '@/sync/controlHandoff': `export const resolveControlMode = () => 'agent';`,
-    '@/sync/sync': `export const sync = { loadOlderMessages: async () => {}, sendMessage: async () => {} };`,
+    '@/sync/sync': `export const sync = { loadOlderMessages: () => window.__historyRequest?.() ?? Promise.resolve(false), sendMessage: async () => {} };`,
     '@/sync/storage': `
         import React from 'react';
         const listeners = new Set();
@@ -63,7 +63,47 @@ const virtualModules: Record<string, string> = {
             ];
             snapshot = { ...snapshot, messages: [user(0)], hasMoreOlder: params.has('older') };
         }
+        if (params.has('history')) {
+            const mode = params.get('history');
+            const longTurn = count => Array.from({ length: count }, (_, index) => {
+                const seq = 1300 - index;
+                return [1, 1299].includes(seq) ? { ...user(seq), text: 'History prompt '+seq }
+                    : agent('turn-'+seq, 'History work '+seq, seq);
+            });
+            const thinking = count => Array.from({ length: count }, (_, index) => ({ ...agent('hidden-'+index, 'Hidden thought '+index, 1300-index), isThinking: true }));
+            let count = 600;
+            snapshot = { messages: mode === 'progress' ? longTurn(count) : thinking(count), hasMoreOlder: true, isLoadingOlder: false };
+            const emit = () => listeners.forEach(fn => fn());
+            let pending;
+            window.__historyCalls = 0;
+            window.__historyRequest = () => {
+                if (snapshot.isLoadingOlder || !snapshot.hasMoreOlder) return Promise.resolve(false);
+                window.__historyCalls++;
+                snapshot = { ...snapshot, isLoadingOlder: true }; emit();
+                return new Promise((resolve, reject) => { pending = { resolve, reject }; });
+            };
+            window.__historySettle = (end = false, fail = false) => {
+                if (!pending) throw new Error('No deferred history request');
+                const request = pending; pending = undefined;
+                if (fail) {
+                    snapshot = { ...snapshot, isLoadingOlder: false }; emit();
+                    request.reject(new Error('fixture history unavailable')); return;
+                }
+                count += 100;
+                snapshot = { messages: mode === 'progress' ? longTurn(end ? 1300 : count)
+                    : [...thinking(count), ...(end ? [{ ...user(1), text: 'History recovered opener' }] : [])],
+                    hasMoreOlder: !end, isLoadingOlder: false };
+                emit(); request.resolve(true);
+            };
+        }
         window.__finishHistory = () => { snapshot = { ...snapshot, hasMoreOlder: false }; listeners.forEach(fn => fn()); };
+        window.__freshPending = (queued) => {
+            session.thinking = queued;
+            snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
+                ? { ...message, createdAt: Date.now(), pending: true, sendError: undefined, meta: { queuedWhileBusy: queued } } : message) };
+            listeners.forEach(fn => fn());
+        };
+        window.__idleAgent = () => { session.thinking = false; snapshot = { ...snapshot, messages: [...snapshot.messages] }; listeners.forEach(fn => fn()); };
         window.__settle = (rejected) => {
             snapshot = { ...snapshot, messages: snapshot.messages.map(message => message.id === 'user-3'
                 ? { ...message, pending: false, sendError: rejected ? 'provider refused' : undefined } : message) };
@@ -78,12 +118,13 @@ const virtualModules: Record<string, string> = {
     `,
     '@/text': `
         export const t = (key, params = {}) => ({
+            'common.retry': 'Retry', 'common.loadMore': 'Load more',
             'toolGroup.hide': 'Hide', 'toolGroup.workedFor': 'Worked for '+params.duration,
             'uiCopy.jumpToLatest': 'Jump to latest', 'uiCopy.newMessagesJumpToLatest': params.count+' new messages · Jump to latest',
             'happyHerd.commander.openCommanders': 'View '+params.name+' in Commanders',
             'happyHerd.commander.loadedContext': 'Loaded Commander context',
             'happyHerd.commander.loadedFile': 'Loaded context file: '+params.path,
-            'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
+            'message.sendsAfterThisTurn': 'Sends after this turn', 'message.sending': 'Sending…', 'message.sendFailed': 'Message not accepted: '+params.reason,
         }[key] ?? key);
     `,
     '@/components/tools/knownTools': `export const knownTools = {}; export const getToolCategoryIcon = () => null;`,
@@ -179,6 +220,66 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     });
 
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('pages beyond five progressing collapsed work pages to the opener at $width px in $theme', async ({ width, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        const errors: string[] = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.goto(origin + '?history=progress&theme=' + theme);
+        const calls = () => page.evaluate(() => (window as any).__historyCalls);
+        await expect.poll(calls, visualStatePollOptions).toBe(1);
+        // Requests stay deferred: no duplicate fetch until the current page settles.
+        expect(await page.getByText('History prompt 1', { exact: true }).count()).toBe(0);
+        for (let pageNumber = 1; pageNumber <= 6; pageNumber++) {
+            expect(await calls()).toBe(pageNumber);
+            await page.evaluate(() => (window as any).__historySettle());
+            await expect.poll(calls, visualStatePollOptions).toBe(pageNumber + 1);
+            expect(await page.getByRole('button', { name: 'Load more', exact: true }).count()).toBe(0);
+            // Work remains folded as its oldest boundary advances through each page.
+            expect(await page.getByText('History work 700', { exact: true }).count()).toBe(0);
+        }
+        await page.evaluate(() => (window as any).__historySettle(true));
+        await page.getByText('History prompt 1', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+        expect(await calls()).toBe(7);
+        expect(await page.getByRole('progressbar').count()).toBe(0);
+        expect(await page.getByRole('button', { name: 'Load more', exact: true }).count()).toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('bounds invisible history, loads more, retries an error and reaches the end at $width px in $theme', async ({ width, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        const errors: string[] = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.goto(origin + '?history=invisible&theme=' + theme);
+        const calls = () => page.evaluate(() => (window as any).__historyCalls);
+        for (let pageNumber = 1; pageNumber <= 5; pageNumber++) {
+            await expect.poll(calls, visualStatePollOptions).toBe(pageNumber);
+            await page.evaluate(() => (window as any).__historySettle());
+        }
+        const loadMore = page.getByRole('button', { name: 'Load more', exact: true });
+        await loadMore.waitFor({ state: 'visible', timeout: 5000 });
+        expect(await calls()).toBe(5);
+        const box = (await loadMore.boundingBox())!;
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(width === 390 ? 844 : 900);
+        await loadMore.click();
+        await expect.poll(calls, visualStatePollOptions).toBe(6);
+        await page.evaluate(() => (window as any).__historySettle(false, true));
+        const retry = page.getByRole('button', { name: 'Retry', exact: true });
+        await retry.waitFor({ state: 'visible', timeout: 5000 });
+        expect(await calls()).toBe(6);
+        await retry.click();
+        await expect.poll(calls, visualStatePollOptions).toBe(7);
+        await page.evaluate(() => (window as any).__historySettle(true));
+        await page.getByText('History recovered opener', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+        expect(await calls()).toBe(7);
+        expect(await retry.count()).toBe(0);
+        expect(await loadMore.count()).toBe(0);
+        expect(await page.getByRole('progressbar').count()).toBe(0);
+        expect(errors).toEqual([]);
+        await page.close();
+    }, 30000);
+
     it('does not infer loaded files from legacy paths and waits for the oldest history page', async () => {
         const page = await browser.newPage();
         await page.goto(origin + '?commander&legacy');
@@ -196,9 +297,9 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     });
 
-    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('aligns participants and settles pending status in the real chat at $width px', async viewport => {
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }].flatMap(viewport => ['light', 'dark'].map(theme => ({ ...viewport, theme }))))('aligns participants and settles pending status in the real chat at $width px', async viewport => {
         const page = await browser.newPage({ viewport });
-        await page.goto(origin + '?participants');
+        await page.goto(origin + '?participants&theme=' + viewport.theme);
         const own = page.getByText('My instruction', { exact: false });
         const other = page.getByText('Other participant', { exact: false });
         await other.waitFor();
@@ -215,9 +316,9 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     });
 
-    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }])('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
+    it.each([{ width: 1440, height: 900 }, { width: 390, height: 844 }].flatMap(viewport => ['light', 'dark'].map(theme => ({ ...viewport, theme }))))('scrolls messages in the system wheel direction and keeps Jump to latest working at $width px', async viewport => {
         const page = await browser.newPage({ viewport });
-        await page.goto(origin + '?focus');
+        await page.goto(origin + '?focus&theme=' + viewport.theme);
         const message = page.getByText('Prompt 24', { exact: true });
         // Loading the document does not mean FlashList has mounted this row.
         // Keep mount readiness separate from the unchanged scroll-position assertion.
@@ -240,6 +341,46 @@ describe('ChatList production FlashList browser interactions', () => {
             return bounds !== null && bounds.y >= 0 && bounds.y < viewport.height;
         }, visualStatePollOptions).toBe(true);
         await page.close();
+    }, 20000);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('keeps idle sends undimmed for one second and freezes the queued label at $width px in $theme', async ({ width, theme }) => {
+        const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        try {
+            await page.goto(origin + '?participants&theme=' + theme);
+            const message = page.getByText('Pending instruction', { exact: true });
+            await message.waitFor();
+            await page.getByText('Sending…', { exact: true }).waitFor();
+            const original = await message.elementHandle();
+            await page.clock.install();
+            await page.clock.pauseAt(new Date(Date.now() + 100));
+            await page.evaluate(() => (window as any).__freshPending(false));
+            await expect.poll(() => page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            const opacity = () => message.evaluate(element => {
+                let value = 1;
+                for (let node: Element | null = element; node; node = node.parentElement) value *= Number(getComputedStyle(node).opacity);
+                return value;
+            });
+            expect(await opacity()).toBe(1);
+            await page.clock.runFor(999);
+            expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            expect(await opacity()).toBe(1);
+            await page.clock.runFor(1);
+            await page.getByText('Sending…', { exact: true }).waitFor();
+            expect(await opacity()).toBeLessThan(1);
+            expect(await original!.evaluate(node => node.isConnected)).toBe(true);
+            await page.evaluate(() => (window as any).__settle(false));
+            await expect.poll(() => page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            expect(await opacity()).toBe(1);
+            await page.evaluate(() => (window as any).__freshPending(true));
+            await page.getByText('Sends after this turn', { exact: true }).waitFor();
+            await page.evaluate(() => (window as any).__idleAgent());
+            expect(await page.getByText('Sends after this turn', { exact: true }).count()).toBe(1);
+            expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
+            await page.evaluate(() => (window as any).__settle(true));
+            await page.getByText('Message not accepted: provider refused', { exact: true }).waitFor();
+            expect(await page.getByText('Sends after this turn', { exact: true }).count()).toBe(0);
+            expect(await original!.evaluate(node => node.isConnected)).toBe(true);
+        } finally { await page.close(); }
     }, 20000);
 
     it('preserves zoom, horizontal gestures and nested scrolling, and converts wheel units', async () => {

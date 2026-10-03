@@ -4,6 +4,7 @@ import { MessageBuffer } from "@/ui/ink/messageBuffer";
 import { RemoteModeDisplay } from "@/ui/ink/RemoteModeDisplay";
 import React from "react";
 import { claudeRemote } from "./claudeRemote";
+import { claudeProviderAuthErrorMessage } from './utils/providerAuth';
 import { PermissionHandler } from "./utils/permissionHandler";
 import { mergeUsageLimits } from "./utils/usageLimits";
 import { Future } from "@/utils/future";
@@ -571,15 +572,16 @@ export async function claudeRemoteLauncher(
                         logger.debug('[remote]: Session reset');
                         session.clearSessionId();
                     },
-                    onReady: async () => {
+                    onReady: async (status) => {
                         const result = heartbeatProviderResult ?? {
                             status: 'failed' as const,
                             message: 'Claude heartbeat turn ended without a classified result.',
                         };
-                        await finishHeartbeat(result.status, result.message);
-                        session.client.closeClaudeSessionTurn('completed');
+                        await finishHeartbeat(status ?? result.status, result.message);
+                        if (status === 'failed') await messageQueue.flush();
+                        session.client.closeClaudeSessionTurn(status ?? 'completed');
                         session.queue.completeCurrentBatch();
-                        if (!pending && session.queue.size() === 0) {
+                        if (status !== 'failed' && !pending && session.queue.size() === 0) {
                             session.api.push().sendSessionNotification({
                                 kind: 'done',
                                 metadata: session.client.getMetadata(),
@@ -614,10 +616,12 @@ export async function claudeRemoteLauncher(
             } catch (e) {
                 logger.debug('[remote]: launch error', e);
                 if (!exitReason) {
+                    const authMessage = claudeProviderAuthErrorMessage(e, process.env.HAPPYHERD_PROVIDER_ACCOUNT_ID || process.env.HAPPYHERD_PROVIDER_ACCOUNT);
+                    if (authMessage) await messageQueue.flush();
                     await finishHeartbeat('failed', e instanceof Error ? e.message : String(e));
                     session.client.closeClaudeSessionTurn('failed');
                     session.queue.completeCurrentBatch();
-                    session.client.sendSessionEvent({ type: 'message', message: launchFailureMessage(e) });
+                    session.client.sendSessionEvent({ type: 'message', message: authMessage ?? launchFailureMessage(e) });
                     if (session.queue.isClosed()) {
                         opts.onProviderResult?.({
                             status: 'failed',

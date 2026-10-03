@@ -9,7 +9,7 @@ import { Typography } from '@/constants/Typography';
 import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPopover';
 import { SessionShortcutHintBadge } from './ShortcutHints';
 import { useSessionPressHandlers } from '@/hooks/useNavigateToSession';
-import { useSessionActionAlert } from '@/hooks/useSessionQuickActions';
+import { useSessionActionAlert, useSessionArchiveAction } from '@/hooks/useSessionQuickActions';
 import { useHappyHerdAction } from '@/hooks/useHappyHerdAction';
 import { HappyHerdError } from '@/utils/errors';
 import { sessionKill } from '@/sync/ops';
@@ -105,17 +105,14 @@ export const FlatSessionRow = React.memo(({ row, selected, pinned, entranceIndex
         [session.lastActivityAt],
     );
 
-    const [archiving, performArchive] = useHappyHerdAction(async () => {
-        const result = await sessionKill(session.id);
-        if (!result.success) {
-            throw new HappyHerdError(result.message || t('sessionInfo.failedToArchiveSession'), false);
-        }
-    });
+    // The same archive the row's own menu runs, so a swipe drops the row from
+    // the list on the release exactly as pressing Archive does.
+    const { archiveSession, archivingSession: archiving } = useSessionArchiveAction(session.id);
 
     const handleArchive = React.useCallback(() => {
         swipeableRef.current?.close();
-        performArchive();
-    }, [performArchive]);
+        archiveSession();
+    }, [archiveSession]);
 
     const handleContextMenu = React.useCallback((event: any) => {
         event.preventDefault?.();
@@ -367,12 +364,10 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexShrink: 0,
         marginLeft: 8,
     },
-    // The dot and time share a Telegram-like right column, so changing status
-    // never makes the title jump horizontally. It is only as wide as the
-    // longest timestamp; the dot occupies that same slot instead of reserving
-    // a second lane.
+    // Keep the timestamp mounted; the owned unread ring lives on the avatar.
+    // Let longer localized times grow beyond the usual slot without clipping.
     topRightStatus: {
-        width: TOP_RIGHT_SLOT_WIDTH,
+        minWidth: TOP_RIGHT_SLOT_WIDTH,
         height: 22,
         flexShrink: 0,
         marginLeft: 8,

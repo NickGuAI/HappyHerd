@@ -51,6 +51,7 @@ vi.mock('@/sync/storage', () => ({
     useSetting: (key: string) => key === 'experiments' ? mocks.experiments : mocks.defaultOverrides,
     storage: {
         getState: () => ({
+            sessionsData: mocks.sessions,
             machines: Object.fromEntries(mocks.machines.map((machine) => [machine.id, machine])),
             settings: { focusMode: mocks.focusMode },
             projects: mocks.projects,

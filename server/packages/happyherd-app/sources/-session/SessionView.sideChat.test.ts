@@ -378,7 +378,7 @@ vi.mock('@/constants/Typography', () => ({
     },
 }));
 
-vi.mock('@/hooks/useDraft', () => ({ useDraft: () => ({ clearDraft: vi.fn() }) }));
+vi.mock('@/hooks/useDraft', () => ({ useDraft: () => ({ clearDraft: vi.fn(), recordLocalEdit: vi.fn() }) }));
 vi.mock('@/hooks/useImagePicker', () => ({
     useImagePicker: () => ({
         addImages: vi.fn(),
@@ -573,6 +573,7 @@ vi.mock('@/sync/rig', () => ({
     getRigGitSummary: () => null,
     getRigReasoningSelection: () => undefined,
     isRigMetadata: () => mocks.isRig,
+    isRigMetadataV1: () => mocks.isRig,
     isRigModelSelectionEnabled: () => false,
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,

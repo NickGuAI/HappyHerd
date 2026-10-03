@@ -151,6 +151,7 @@ vi.mock('@/sync/ops', () => ({ sessionArchive: vi.fn(), sessionKill: vi.fn(), se
 vi.mock('@/hooks/useWorktreeCleanup', () => ({ maybeCleanupWorktree: vi.fn() }));
 vi.mock('@/hooks/useHappyHerdAction', () => ({ useHappyHerdAction: (action: unknown) => [false, action] }));
 vi.mock('@/hooks/useSessionQuickActions', () => ({ useSessionQuickActions: () => ({}) }));
+vi.mock('@/hooks/useNavigateToSession', () => ({ navigateToSession: (router: any, id: string) => router.push(`/session/${encodeURIComponent(id)}`) }));
 vi.mock('@/utils/copySessionMetadataToClipboard', () => ({
     copySessionMetadataToClipboard: vi.fn(), copySessionMetadataAndLogsToClipboard: vi.fn(),
 }));
@@ -353,6 +354,22 @@ describe('session details', () => {
         const title = renderer.root.findByType('Text');
         expect(flattenStyle(title.props.style).textAlign).toBe('center');
         expect(title.props.numberOfLines).toBe(1);
+    });
+
+    it('keeps the stack back action on an Android tablet while the onboarding shell is hidden', () => {
+        state.platform = 'android';
+        state.tablet = true;
+        const renderer = render(createHeader({
+            options: { headerTitle: 'Settings', headerTitleAlign: 'center' },
+            route: { name: 'onboarding/settings' }, back: { title: 'Back' },
+            navigation: { goBack: state.back },
+        } as any)!);
+        const header = renderer.root.findByType((Header as any).type);
+        expect(header.props.headerLeft).toBeTypeOf('function');
+
+        const left = render(header.props.headerLeft());
+        act(() => left.root.findByType('Pressable').props.onPress());
+        expect(state.back).toHaveBeenCalledOnce();
     });
 
     it('keeps Web Workspace Changes available for a legacy session without cached statistics', () => {

@@ -28,6 +28,15 @@
 
 - Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.
 
+# October 1 — Session reliability and shared drafts
+
+- HappyHerd agent composer drafts and selections now sync across devices, with edits preserved when messages are sent or another device reconnects.
+- Chat history keeps loading through long turns and folded work groups. Web scrolling, session switching, and paste or drop handling remain scoped to the active conversation.
+- Claude remote sessions honor explicit plugin directories and explain expired provider login with repair steps for the account that owns the session.
+- macOS reconnects wait for a full wake, and sessions keep watching for late or recreated transcripts.
+- Added native clipboard image attachment choices and improved Android prompt keyboard handling. The current HappyHerd layout, model choices, and existing session identities are retained.
+- The first-run checklist remembers completed install and run steps on mobile. Get help is available from first-run and account recovery screens, alongside existing offline troubleshooting.
+
 # September 29 — Mark Inbox updates as read
 
 - Use Done on the Inbox title row to mark all current updates as read, or open an update to read just that item. Unread dots clear and read state is saved to your account across devices; later updates stay unread. Pending friend requests and app-update notifications remain available.

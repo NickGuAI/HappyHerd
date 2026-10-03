@@ -1,3 +1,4 @@
+vi.mock('./apiSocket', () => ({ apiSocket: { sessionRPC: vi.fn() } }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-native-mmkv', () => ({

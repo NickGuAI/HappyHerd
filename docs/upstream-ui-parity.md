@@ -11,8 +11,8 @@ the new design. Follow it during every upstream merge (see the
 `happyherd-sync-upstream` skill); update it in the same pull request as any UI
 change that touches an inherited file.
 
-- **Upstream base for this record:** `4b7d763ee3afda04985f3210b9cb9acf9359c7d9`
-  (the most recent upstream commit merged into `main` when the overhaul began).
+- **Upstream base for this record:** `4cf54d18488cba4787cc251cc37010f31125af29`
+  (reviewed by issue #370; treatments remain anchored to HappyHerd main `793b05b8`).
 <!-- rename:preserve -->
 - **Path mapping:** upstream `packages/happy-app/sources/<path>` is HappyHerd
   `server/packages/happyherd-app/sources/<path>`.
@@ -20,7 +20,7 @@ change that touches an inherited file.
   upstream):
 
   ```bash
-  U=4b7d763ee3afda04985f3210b9cb9acf9359c7d9
+  U=4cf54d18488cba4787cc251cc37010f31125af29
   f='components/SidebarView.tsx'
   git cat-file -e "$U:packages/happy-app/sources/$f" 2>/dev/null && echo upstream || echo happyherd
   ```
@@ -209,7 +209,7 @@ tokens; a future theme token can replace each.
 | `sources/app/(app)/settings/{index,account,appearance,agents,language,usage,voice,voice/language,connect/claude}.tsx` | Extended | Default export wrapped in `withSettingsFrame('<section>', Screen)`, so from 1,000 px on web the section list appears beside the page. On web the page keeps the same parent Views at every width, so a resize never remounts it, and a nested page's highlighted section still returns to that section's page. While the section list shows (web, 1,000 px and wider), `SettingsFrame` hides the Stack header and draws the page's 28 px title in the page, on the cards' left edge: the section's name, or a nested page's `title` passed to `withSettingsFrame` (`settings/voice/language.tsx` and `settings/connect/claude.tsx` pass `settingsVoice.preferredLanguage` and `settings.connectClaudeTitle`). `useSettingsFrameAction(Component)` shows a page's header control beside that title. Account opens with `SettingsProfileCard`, and its Connected Accounts add Connect rows for Claude Code and GitHub when they aren't connected; `connect/claude.tsx` is framed under Account. | Bodies, props, routes, and phone and native rendering. | Merge body edits normally and keep the wrapper. A new settings page gets a `SETTINGS_SECTIONS` entry. |
 | `sources/components/InboxView.tsx`, `FeedItemCard.tsx`, `app/(app)/session/[id]/info.tsx`, `app/(app)/machine/[id].tsx` | Restyled | `HerdItemGroup` / `HerdItem` drop-in imports (`herd/pages/HerdList.tsx`). On wide web the Inbox draws its title with Find Friends through `HerdPageHeader`, over an 820 px column. Updates use `FeedItemCard variant="card"` inside a borderless `ItemGroup`; the bell's menu keeps the default row. The machine page draws an in-page header (icon tile, name, a status dot with "online · platform · host", and a Rename Machine button that calls the existing `handleRenameMachine`), replacing the header-bar pencil; recent paths show as chips with Show all / Show less, and the daemon and CLI availability are one-line `HerdValueItem` rows from `daemonState` and `metadata.cliAvailability`. Session details draw an in-page header (a back arrow on wide layouts, the status-ring avatar, the title and "path · provider · machine"); its value rows are `HerdValueItem`, IDs and the resume command copy with a check confirmation, and Archive and Delete use the destructive text tone. Both pages hide the Stack header on wide web and keep every action. | All JSX, data, actions and states. | Keep the import lines; new rows inherit the look. |
 | `sources/app/(app)/projects/index.tsx`, `projects/[id].tsx` | Restyled | A card grid with session counts and recent avatars that ends in a dashed Create Project tile, calling the same `createProject` as the header. On web at 900 px and wider, both pages hide the Stack header and draw the title in `HerdPageHeader`. The project page adds an in-page Back to Projects, the session count, Rename, and a primary Focus mode button that opens the Focus setup preset to the project through `openFocusSetup`. On phones the header row stays and the two buttons sit on their own row under the count. | Data, actions, archive toggle, focus project. | Take behavior; keep the card layout. Keep the `headerShown: !wide` Stack.Screen and the phone button row. |
-| `sources/app/(app)/changelog.tsx` | Restyled | Entries render through `HerdTimelineGroup`, centred at 760 px. It renders `herd/pages/ChangelogPageFrame`: on wide web, the page title and subtitle, with the header bar hidden. Entry titles are 16.5 px, and `HerdTimeline` draws 10 px rings, filled only for the newest entry. | Parsing, links, images, Markdown, last-viewed state. | Keep `HerdTimelineGroup` and the timeline style. |
+| `sources/app/(app)/changelog.tsx` | Restyled | Entries render through `HerdTimelineGroup`, centred at 760 px. It renders `herd/pages/ChangelogPageFrame`: on wide web, the page title and subtitle, with the header bar hidden. Entry titles are 16.5 px, and `HerdTimeline` draws 10 px rings, filled only for the newest entry. | Parsing, links, images, Markdown and canonical last-viewed identity. The approved October 1 release uses en/cn/de catalog copy through `changelog/localizedEntry`; historical entries retain their source text. | Keep `HerdTimelineGroup` and the timeline style; localize display copy without changing canonical entry keys or unread markers. |
 | `sources/components/FocusModeControl.tsx` | Restyled | The setup card uses `HerdSegmentedControl` for duration and chips for the project. The active state is a pill with a progress ring. Timers also store `startedAt` in the synced focus setting (unknown fields pass through older clients). The tomato is replaced by the mock's Focus mode pill and live countdown pill; on phones, an icon button, and the countdown opens a menu with the project, time left and Exit. Setup, durations, project, exit and expiry are unchanged. The setup is the mock's centered sheet over a blurred scrim (the glyph in a ring, the title inside the card, centered labels); phones rest it on the bottom edge with equal actions. Start plays React Bits' diagonal pixel swap (`FocusPixelSwap.tsx`, timing in `focusPixelSwapTiming.ts`): amber tiles grow in from the top-left on `(x + y) / 2 × 950 ms`, then clear the same way onto the countdown; reduced motion skips it. Licence: `docs/licenses/react-bits-pixel-swap.txt`. The control hosts the one setup, opened through `openFocusSetup`. | The amber transition, heading, testIDs and the focus data flow. | Take behavior; keep the ring maths in `herd/pages/focusProgress.ts`. |
 | `sources/components/CommandPalette/{CommandPalette,CommandPaletteInput,CommandPaletteItem,CommandPaletteResults,CommandPaletteModal}.tsx` | Restyled | Sheet radius token, 640 px wide, amber section labels, an accent bar on the highlighted row, key caps, a hint footer, `aria-selected`. Under 700 px (`useHerdPhoneWeb`) the palette spans the window less 8 px a side, 8 px below the notch, up to 78% of the height or 640 px. It drops the key caps and the hint footer, a 44 px close button (`command-palette-close`) ends the input row, and rows are 48 px with their content on the 16 px gutter. | Commands, keyboard handling (Escape still closes), grouping, animations. | Take upstream logic; keep the style blocks, the footer and the phone branches. |
 | `sources/components/CommandPalette/CommandPaletteProvider.tsx` | Extended | Adds a Commanders command (and publishes the opener, see *Desktop shell*). The Navigation group adds `buildNavigationCommands` (`CommandPalette/navigationCommands.ts`): Workspace behind `machineWorkspace`, Automations, Projects and, on web while focus is off, Focus mode, which presses the top bar's `focus-mode-enter` control. Commands may carry a shell glyph (`HerdShellIcon`) in place of an Ionicons name. Focus mode opens the setup through `openFocusSetup` and is no longer web-only. | All existing commands and shortcuts. | Keep the command after Create Commander. |
@@ -370,3 +370,30 @@ uses that accent for the hover/selection border and translucent fill. Theme
 changes update the same iframe without re-registering its transport or reloading
 the page. Picking still captures the element then clears the outline as before;
 HTML/CSS/bounds, screenshot, and feedback delivery are unchanged.
+
+## Integration through 4cf54d18 (#370)
+
+The existing Replaced/Restyled/Extended treatments remain in force. See
+[the integration record](upstream-sync-4cf54d18.md) for every accepted/rejected
+group, semantic conflict resolution and the current proof boundary. ChatList
+and EmptyMessages retain the subsequently merged CommanderContextRow and its
+actual-read metadata contract. History loading and pending status are ported
+into those owners; HomeDock/AgentInput keep their current layout while fixing
+shrink/gesture ownership; all archive controls share the existing action owner.
+Group 1's existing native install/run rows now own persistent independent
+completion state: unchecked numbered badges keep their current geometry;
+checked badges replace the number with a checkmark inside the same box.
+First-run and QR/manual recovery add a secondary Get help action using the
+existing HappyHerd action typography and theme tokens. The alert uses existing
+modal controls and localized HappyHerd guidance; offline detection and the
+existing Troubleshoot/Copy AI prompt flow remain. The owner's acceptance
+correction confirms this issue-scoped visible behavior and its intentional
+KILV delta; it is not a separate pending product decision.
+
+| Inherited file | Status | HappyHerd change | Kept compatible | Porting future upstream changes |
+|---|---|---|---|---|
+| `sources/components/EmptyMainScreen.tsx` | Extended | Existing native install/run rows become persistent accessible checkboxes; the same 24×24 numbered badges show a 14px checkmark when checked. First-run adds the shared secondary Get help action before archived sessions. | Artwork, CLI commands, step text/spacing, step 3, QR/manual pairing, empty/online/offline state selection and troubleshooting. Web has no checklist. | Port checklist state and help behavior into these existing owners; do not import upstream onboarding layout or fold the step bodies. |
+| `sources/app/(app)/restore/index.tsx`, `sources/app/(app)/restore/manual.tsx` | Extended | Shared localized Get help action after the existing recovery action; existing alert and Report an Issue destination. | QR/key generation, cancellation, login origin, secret normalization, account-key handling, navigation, existing input/buttons and styling. | Keep account recovery intact; help supplements the existing screen without changing authentication or importing upstream copy tone. |
+
+No upstream onboarding, tabs, machine-first Home, bare-image layout or
+width-based tablet structure is authorized here.

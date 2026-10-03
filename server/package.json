@@ -7,6 +7,7 @@
         "web": "pnpm --filter happyherd-app web",
         "codium": "pnpm --filter codium dev",
         "app-logs": "pnpm --filter happyherd-app-logs start",
+        "mobile-gym": "pnpm --filter happyherd-mobile-gym cli",
         "postinstall": "node ./scripts/postinstall.cjs",
         "env:new": "tsx environments/environments.ts new",
         "env:list": "tsx environments/environments.ts list",
@@ -35,6 +36,7 @@
             "packages/happyherd-app-logs",
             "packages/happyherd-agent",
             "packages/codium",
+            "packages/happyherd-mobile-gym",
             "packages/expo-tailcat"
         ]
     },
@@ -57,6 +59,11 @@
             "prisma",
             "sharp"
         ]
+    },
+    "devDependencies": {
+        "playwright": "1.61.1",
+        "sharp": "^0.35.3",
+        "tsx": "^4.20.6"
     },
     "packageManager": "pnpm@10.11.0"
 }

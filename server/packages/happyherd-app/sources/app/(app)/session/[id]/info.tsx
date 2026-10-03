@@ -1,3 +1,4 @@
+import { navigateToSession } from '@/hooks/useNavigateToSession';
 import { Text } from '@/components/StyledText';
 import React, { useCallback } from 'react';
 import { View, Platform, Pressable, TextInput, ActivityIndicator } from 'react-native';
@@ -413,7 +414,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             title={t('session.forkedFromLabel')}
                             subtitle={t('session.forkedFromSubtitle')}
                             icon={<Ionicons name="return-up-back-outline" size={29} color={theme.colors.textLink} />}
-                            onPress={() => router.push(`/session/${session.metadata!.parentSessionId}`)}
+                            onPress={() => navigateToSession(router, session.metadata!.parentSessionId!)}
                         />
                     )}
                     <Item

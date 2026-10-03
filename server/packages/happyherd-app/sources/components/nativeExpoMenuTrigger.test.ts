@@ -7,6 +7,7 @@ vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
+        Platform: { OS: 'ios', select: (options: any) => options.ios ?? options.default },
         StyleSheet: {
             absoluteFillObject: { position: 'absolute', inset: 0 },
             create: (styles: unknown) => styles,
@@ -33,6 +34,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
         Section: component('ExpoSection'),
         Spacer: component('ExpoSpacer'),
         Text: component('ExpoText'),
+        Toggle: component('ExpoToggle'),
     };
 });
 

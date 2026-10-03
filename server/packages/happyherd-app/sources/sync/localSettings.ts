@@ -25,8 +25,11 @@ export const LocalSettingsSchema = z.object({
     sidebarSideChatSessionId: z.string().nullable().describe('Parent session that owns the open Side chat panel'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
-    // Collapsed Rig projects in the session list - keyed by project id
     collapsedProjects: z.record(z.string(), z.boolean()).describe('Collapsed state per sidebar project'),
+    // Projects showing every workspace rather than the first few - keyed by project id
+    expandedProjects: z.record(z.string(), z.boolean()).describe('Projects showing all workspaces instead of the first few'),
+    // Boxes ticked on the "Link your computer" checklist - keyed by step id
+    linkComputerChecklist: z.record(z.string(), z.boolean()).describe('Ticked steps on the link-your-computer checklist'),
 });
 
 //
@@ -60,6 +63,8 @@ export const localSettingsDefaults: LocalSettings = {
     sidebarSideChatSessionId: null,
     acknowledgedCliVersions: {},
     collapsedProjects: {},
+    expandedProjects: {},
+    linkComputerChecklist: {},
 };
 Object.freeze(localSettingsDefaults);
 

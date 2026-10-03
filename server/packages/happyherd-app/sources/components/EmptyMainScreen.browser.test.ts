@@ -32,7 +32,7 @@ const virtualModules: Record<string, string> = {
     '@expo/vector-icons': `import React from 'react'; export const Ionicons = ({ name, size, color }) => React.createElement('span', { 'data-icon': name, style: { width: size, height: size, color } });`,
     'expo-image': `import React from 'react'; import { Image as NativeImage } from 'react-native-web'; export const Image = ({contentFit, ...props}) => React.createElement(NativeImage, {...props, resizeMode:contentFit});`,
     'expo-router': `export const usePathname = () => '/'; export const useRouter = () => ({navigate: path => { globalThis.__NAVIGATION__ = path; }, push: path => { globalThis.__NAVIGATION__ = path; }});`,
-    '@/sync/storage': `export const useRealtimeStatus = () => 'disconnected'; export const useSetting = () => true; export const useSocketStatus = () => ({status:'connected'}); export const useAllMachines = () => globalThis.__MACHINES__; export const useSettingMutable = () => [true, () => { globalThis.__ARCHIVED__ = true; }];`,
+    '@/sync/storage': `export const useRealtimeStatus = () => 'disconnected'; export const useSetting = () => true; export const useSocketStatus = () => ({status:'connected'}); export const useAllMachines = () => globalThis.__MACHINES__; export const useSettingMutable = () => [true, () => { globalThis.__ARCHIVED__ = true; }]; export const useLocalSetting = () => ({install:false,open:false}); export const storage={getState:()=>({localSettings:{linkComputerChecklist:{install:false,open:false}},applyLocalSettings:()=>{}})};`,
     '@/sync/serverConfig': `export const getServerUrl = () => 'https://review.example.test';`,
     '@/sync/machineChoices': `export const collectMachineChoices = machines => machines;`,
     '@/hooks/useVisibleSessionListViewData': `export const useVisibleSessionListViewData = () => []; export const useHasArchivedSessions = () => globalThis.__HAS_ARCHIVED__;`,
@@ -109,7 +109,7 @@ describe('EmptyMainScreen onboarding reachability', () => {
                 loader: 'tsx', resolveDir: appRoot,
             },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
-            define: { __DEV__: 'false', 'process.env.NODE_ENV': '"test"' },
+            define: { __DEV__: 'false', 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
             loader: { '.webp': 'dataurl' }, plugins: [fixturePlugin],
         });
         const fontCss = ['SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular'].map(font => `@font-face{font-family:'${font}';src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, 'sources/assets/fonts', font + '.ttf')).toString('base64')})}`).join('');

@@ -14,8 +14,14 @@ import {
     shapes,
     tint,
 } from '@expo/ui/swift-ui/modifiers';
-import type { NativeSettingsMenuProps } from './NativeSettingsMenu';
+import type {
+    NativeSettingsMenuGroup,
+    NativeSettingsMenuOption,
+    NativeSettingsMenuProps,
+} from './NativeSettingsMenu';
 import { orderNativeMenuItems } from './nativeMenuOrder';
+import { isNativeMenuChoice } from './nativeMenuSelection';
+import { getDefaultFont } from '@/constants/Typography';
 
 const systemImage = (name: string) => (
     name as React.ComponentProps<typeof Button>['systemImage']
@@ -25,8 +31,18 @@ const sectionSystemImage = (name: string) => (
     name as React.ComponentProps<typeof Image>['systemName']
 );
 
-/** Matches the React Native chip the native trigger stands in for. */
+/**
+ * Matches the React Native chip the native trigger stands in for.
+ *
+ * The family matters as much as the size. The hidden chip underneath is what
+ * gives this host its width, and it is drawn in the app's own face; left on the
+ * system font, SwiftUI measured the same word wider than the frame it was given
+ * and truncated a chip that had room to spare — "Auto" came out as "A…".
+ */
 const TRIGGER_FONT_SIZE = 14;
+const TRIGGER_FONT_FAMILY = getDefaultFont();
+/** Between an icon and its label, and nowhere else — see the trigger's stacks. */
+const TRIGGER_ICON_GAP = 7;
 
 const styles = StyleSheet.create({
     container: {
@@ -61,6 +77,17 @@ export function NativeSettingsMenu({
     // only the upward, bottom-up case needs the pre-reversal.
     const orderItems = <T,>(items: readonly T[]): T[] => (
         anchor === 'bottom' ? orderNativeMenuItems(items, 'ios') : [...items]
+    );
+    const renderOption = (group: NativeSettingsMenuGroup, option: NativeSettingsMenuOption) => (
+        <Button
+            key={`${group.key}:${option.key}`}
+            label={option.label}
+            systemImage={isNativeMenuChoice(group) && option.key === group.selectedKey
+                ? systemImage('checkmark')
+                : option.systemImage ? systemImage(option.systemImage) : undefined}
+            modifiers={[disabled(option.disabled === true)]}
+            onPress={() => group.onSelect(option.key)}
+        />
     );
     return (
         <View
@@ -109,8 +136,14 @@ export function NativeSettingsMenu({
                         // content paints white on top of the chip and reads as a
                         // duplicate. opacity hides the whole subtree regardless.
                         // VoiceOver still announces it via accessibilityLabel.
+                        // The spacers that align the label are charged the
+                        // stack's spacing just like a sibling would be, so a
+                        // centred trigger paid the icon gap twice over for
+                        // nothing between. That came straight off the label's
+                        // width and truncated it. The gap belongs to the icon
+                        // and its label, so it lives on their own stack now.
                         <HStack
-                            spacing={7}
+                            spacing={0}
                             modifiers={[
                                 frame({ maxWidth: 10000, maxHeight: 10000, minHeight: 40 }),
                                 contentShape(shapes.rectangle()),
@@ -121,23 +154,25 @@ export function NativeSettingsMenu({
                             {nativeTrigger ? (
                                 <>
                                     {triggerAlignment === 'leading' ? null : <Spacer minLength={0} />}
-                                    {triggerSystemImage ? (
-                                        <Image systemName={sectionSystemImage(triggerSystemImage)} size={20} />
-                                    ) : null}
-                                    {triggerLabel ? (
-                                        // Without the line limit the label wraps
-                                        // inside a narrow trigger and the chip
-                                        // renders as two stacked lines. Letting
-                                        // SwiftUI truncate is what keeps an
-                                        // over-long model name from being clipped
-                                        // mid-glyph by the React Native frame.
-                                        <Text modifiers={[
-                                            font({ size: TRIGGER_FONT_SIZE }),
-                                            lineLimit(1),
-                                        ]}>
-                                            {triggerLabel}
-                                        </Text>
-                                    ) : null}
+                                    <HStack spacing={TRIGGER_ICON_GAP}>
+                                        {triggerSystemImage ? (
+                                            <Image systemName={sectionSystemImage(triggerSystemImage)} size={20} />
+                                        ) : null}
+                                        {triggerLabel ? (
+                                            // Without the line limit the label wraps
+                                            // inside a narrow trigger and the chip
+                                            // renders as two stacked lines. Letting
+                                            // SwiftUI truncate is what keeps an
+                                            // over-long model name from being clipped
+                                            // mid-glyph by the React Native frame.
+                                            <Text modifiers={[
+                                                font({ family: TRIGGER_FONT_FAMILY, size: TRIGGER_FONT_SIZE }),
+                                                lineLimit(1),
+                                            ]}>
+                                                {triggerLabel}
+                                            </Text>
+                                        ) : null}
+                                    </HStack>
                                     {triggerAlignment === 'trailing' ? null : <Spacer minLength={0} />}
                                 </>
                             ) : (
@@ -148,43 +183,24 @@ export function NativeSettingsMenu({
                 >
                     {flat ? orderItems(groups.flatMap((group) => (
                         group.options.map((option) => ({ group, option }))
-                    ))).map(({ group, option }) => (
-                        <Button
-                            key={`${group.key}:${option.key}`}
-                            label={option.label}
-                            systemImage={option.key === group.selectedKey
-                                ? systemImage('checkmark')
-                                : option.systemImage ? systemImage(option.systemImage) : undefined}
-                            modifiers={[disabled(option.disabled === true)]}
-                            onPress={() => group.onSelect(option.key)}
-                        />
-                    )) : orderItems(groups).map((group) => (
-                        <Section
-                            key={group.key}
-                            header={(group.title ?? group.label) ? (
-                                <HStack spacing={6}>
-                                    {group.systemImage ? (
-                                        <Image systemName={sectionSystemImage(group.systemImage)} size={14} />
-                                    ) : null}
-                                    {/* The heading names what is being chosen, not
-                                        the current value, which the chip already shows. */}
-                                    <Text>{group.title ?? group.label}</Text>
-                                </HStack>
-                            ) : undefined}
-                        >
-                            {orderItems(group.options).map((option) => (
-                                <Button
-                                    key={option.key}
-                                    label={option.label}
-                                    systemImage={option.key === group.selectedKey
-                                        ? systemImage('checkmark')
-                                        : option.systemImage ? systemImage(option.systemImage) : undefined}
-                                    modifiers={[disabled(option.disabled === true)]}
-                                    onPress={() => group.onSelect(option.key)}
-                                />
-                            ))}
-                        </Section>
-                    ))}
+                    ))).map(({ group, option }) => renderOption(group, option))
+                        : orderItems(groups).map((group) => (
+                            <Section
+                                key={group.key}
+                                header={(group.title ?? group.label) ? (
+                                    <HStack spacing={6}>
+                                        {group.systemImage ? (
+                                            <Image systemName={sectionSystemImage(group.systemImage)} size={14} />
+                                        ) : null}
+                                        {/* The heading names what is being chosen, not
+                                            the current value, which the chip already shows. */}
+                                        <Text>{group.title ?? group.label}</Text>
+                                    </HStack>
+                                ) : undefined}
+                            >
+                                {orderItems(group.options).map((option) => renderOption(group, option))}
+                            </Section>
+                        ))}
                 </Menu>
             </Host>
         </View>

@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
     launchImageLibraryAsync: vi.fn(),
     manipulateAsync: vi.fn(),
     getInfoAsync: vi.fn(),
+    writeAsStringAsync: vi.fn(),
+    hasImageAsync: vi.fn(),
+    getImageAsync: vi.fn(),
     generateThumbhash: vi.fn(),
     alert: vi.fn(),
 }));
@@ -27,6 +30,7 @@ vi.mock('expo-image-manipulator', () => ({
     manipulateAsync: mocks.manipulateAsync,
 }));
 vi.mock('expo-file-system/legacy', () => ({ getInfoAsync: mocks.getInfoAsync }));
+vi.mock('expo-clipboard', () => ({ hasImageAsync: mocks.hasImageAsync, getImageAsync: mocks.getImageAsync }));
 
 vi.mock('@/modal', () => ({
     Modal: { alert: mocks.alert },

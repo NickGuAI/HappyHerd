@@ -731,3 +731,23 @@ INSTALLER_STABLE_LAYOUT	accepted	fix(installer): support pre-rename stable relea
 INSTALLER_LEGACY_RENAME_BOUNDARY	accepted	fix(installer): preserve published dependency spelling in rename checks	scripts/test-public-launcher-release-contract.sh
 INSTALLER_STABLE_PIPELINE	accepted	test(installer): fetch the candidate script through the curl pipeline	scripts/test-native-installer-stable.sh
 INSTALLER_PUBLISHED_PROCESS_ASSERTION	accepted	test(installer): retain exact process ownership for stable archive layouts	scripts/test-native-installer-asset.sh
+UPSTREAM_4CF54D18_RECORD	accepted	docs(sync): record the approved 4cf54d18 integration and proof boundaries	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_BROWSER_PROOF	accepted	test(app): verify integrated composer history and archive journeys	server/packages/happyherd-app/sources/components/ChatList.browser.test.ts
+UPSTREAM_4CF54D18_EMPTY_HISTORY_WHITESPACE	accepted	chore(app): normalize merged empty history whitespace	server/packages/happyherd-app/sources/components/EmptyMessages.tsx
+UPSTREAM_4CF54D18_LIVE_RIG_EDITS	accepted	fix(app): stamp live Rig edits before deferred draft rendering	server/packages/happyherd-app/sources/hooks/useDraft.ts
+UPSTREAM_4CF54D18_REAL_WEB_HOSTS	accepted	test(app): prove upstream Web behaviors with production hosts	server/packages/happyherd-app/sources/modal/WebPromptModal.browser.test.ts
+UPSTREAM_4CF54D18_BROWSER_SAMPLING	accepted	test(app): sample settled clocks and atomic row geometry	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+UPSTREAM_4CF54D18_KILV_FIXTURE_EXPORT	accepted	test(sync): align KILV route fixture with the session navigation export	scripts/kilv-capture/routes.mocks.mjs
+UPSTREAM_4CF54D18_LOCALIZED_RELEASE	accepted	feat(app): localize the upstream integration release notes	server/packages/happyherd-app/sources/changelog/localizedEntry.ts
+UPSTREAM_4CF54D18_CHANGELOG_GOLDENS	accepted	test(app): refresh four changelog baselines for upstream integration	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UPSTREAM_4CF54D18_PACKET_LIMIT_PROOF	accepted	test(server): verify oversized packets over the WebSocket transport	server/packages/happyherd-server/sources/app/api/socket.spec.ts
+UPSTREAM_4CF54D18_LAYOUT_JOURNEYS	accepted	test(app): verify timestamp and composer layout across Web viewports	server/packages/happyherd-app/sources/components/herd/mobile/mobileShell.browser.test.ts
+UPSTREAM_4CF54D18_FINAL_LOCAL_ACCEPTANCE	accepted	docs(sync): record final local acceptance and remaining owner gates	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_PACKET_SIZE_UNITS	accepted	docs(sync): state the exact polling payload size in acceptance evidence	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_ONBOARDING_DELIVERY	accepted	feat(app): complete persistent onboarding checklist and help	server/packages/happyherd-app/sources/components/OnboardingHelpAction.tsx
+UPSTREAM_4CF54D18_ONBOARDING_FIXTURE_BOUNDARIES	accepted	test(app): retain signed-out journeys and diagnose onboarding golden deltas	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
+UPSTREAM_4CF54D18_ONBOARDING_DIAGNOSTIC_HANDLE	accepted	test(visual): retain the hidden help diagnostic element	scripts/kilv-capture/production.mjs
+UPSTREAM_4CF54D18_ONBOARDING_GOLDENS	accepted	test(visual): accept approved onboarding and changelog baselines	docs/acceptance/issue-370/group1/README.md
+UPSTREAM_4CF54D18_PR_REFRESH	accepted	docs(sync): record PR 374 conflict refresh	docs/upstream-sync-4cf54d18.md
+UPSTREAM_4CF54D18_REFRESHED_ONBOARDING	accepted	fix(app): preserve refreshed native onboarding checklist	server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx
+UPSTREAM_4CF54D18_REFRESHED_TEST_BOUNDARIES	accepted	test(app): restore refreshed onboarding fixture boundaries	server/packages/happyherd-app/sources/components/EmptyMainScreen.browser.test.ts

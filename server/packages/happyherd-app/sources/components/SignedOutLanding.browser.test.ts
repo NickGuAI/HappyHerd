@@ -122,7 +122,7 @@ describe('KILV signed-out routes browser journeys', () => {
                 loader: 'tsx', resolveDir: appRoot,
             },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
-            define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"test"' },
+            define: { __DEV__: 'false', 'process.env.EXPO_OS': '"web"', 'process.env.NODE_ENV': '"test"', 'process.env': '{}' },
             loader: { '.png': 'dataurl', '.webp': 'dataurl' }, plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
@@ -153,7 +153,7 @@ describe('KILV signed-out routes browser journeys', () => {
         const labels = catalogs[locale];
         const page = await browser.newPage({ viewport });
         const errors: string[] = [];
-        page.on('pageerror', error => errors.push(error.message));
+        page.on('pageerror', error => { errors.push(error.message); console.error('Signed-out fixture page error:', error.message); });
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
         await page.getByText(labels.welcome.title, { exact: true }).waitFor();
         await page.evaluate(() => document.fonts.ready);

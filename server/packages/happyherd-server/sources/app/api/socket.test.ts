@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { socketServerOptions } from './socketConfig';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startSocket } from './socket';
 import { getMetricsLabelsFromSocket } from '@/app/monitoring/metrics2';
@@ -64,7 +63,6 @@ describe('socket handshake compatibility', () => {
 
 describe('Socket.IO payload limit', () => {
     it('can carry the encoded 16 MiB Workspace live response envelope', () => {
-        const source = readFileSync(join(__dirname, 'socket.ts'), 'utf8');
-        expect(source).toContain('maxHttpBufferSize: 40 * 1024 * 1024');
+        expect(socketServerOptions.maxHttpBufferSize).toBe(40 * 1024 * 1024);
     });
 });

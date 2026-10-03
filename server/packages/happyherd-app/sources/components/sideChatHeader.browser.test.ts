@@ -29,7 +29,7 @@ const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
         import { lightTheme, darkTheme } from '@/theme';
         const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? darkTheme : lightTheme;
-        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext) document.body.style.backgroundColor = theme.colors.groupped.background;
+        if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof) document.body.style.backgroundColor = theme.colors.groupped.background;
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -44,11 +44,11 @@ const virtualModules: Record<string, string> = {
         import octicons from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json';
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name });
         Icon.glyphMap = {};
-        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)
+        export const Ionicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.safeguard || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'ionicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 glyphs[props.name] ? String.fromCodePoint(glyphs[props.name]) : '')
             : React.createElement(Icon, props);
-        export const Octicons = (props) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow
+        export const Octicons = (props) => (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)
             ? React.createElement(Text, { ...props, style: [props.style, { fontFamily: 'octicons', fontSize: props.size, color: props.color }], 'data-icon': props.name },
                 octicons[props.name] ? String.fromCodePoint(octicons[props.name]) : '')
             : React.createElement(Icon, props);
@@ -337,7 +337,7 @@ const virtualModules: Record<string, string> = {
                 detectedAt: 1,
                 sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'daemon-defaults' },
                 models: [
-                    { code: 'claude-opus-5-5', value: 'Opus Research Preview', isDefault: true },
+                    { code: 'claude-opus-5-5', value: fixtureOptions.longModelLabel ? 'Opus Research Preview Thinking' : 'Opus Research Preview', isDefault: true },
                     { code: 'claude-sonnet-5', value: 'Sonnet Team Edition' },
                 ],
                 effortLevels: [],
@@ -363,7 +363,11 @@ const virtualModules: Record<string, string> = {
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
+        const archivingSessionIds = new Set();
         const getState = () => ({
+            archivingSessionIds,
+            markArchiving(id) { archivingSessionIds.add(id); emit(); },
+            unmarkArchiving(id) { archivingSessionIds.delete(id); emit(); },
             localSettings,
             settings,
             projects,
@@ -751,6 +755,7 @@ const virtualModules: Record<string, string> = {
                 });
                 root.render(React.createElement(request.component, {
                     ...(request.props ?? {}),
+                    onConfirm: (value) => { request.props?.onConfirm?.(value); close(); },
                     onClose: close,
                 }));
             },
@@ -907,13 +912,32 @@ const virtualModules: Record<string, string> = {
         };
         useNewSessionDraft.getState = () => draft;
     `,
-    '@/hooks/useImagePicker': `export const useImagePicker = () => ({
-        addImages() {}, clearImages() {}, removeImage() {}, selectedImages: [],
-        pickImages() { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; },
-        async pickImagesForUpload() {
-            return [{ id: 'fixture-photo', uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 123, width: 100, height: 80 }];
-        },
-    });`,
+    '@/hooks/useImagePicker': `
+        import React from 'react';
+        export const useImagePicker = () => {
+            const owner = React.useId();
+            const [selectedImages, setImages] = React.useState([]);
+            const addImages = React.useCallback((images) => {
+                window.__COMPOSER_IMAGE_ADDS__ = [...(window.__COMPOSER_IMAGE_ADDS__ ?? []),
+                    { owner, names: images.map((image) => image.name) }];
+                setImages((current) => [...current, ...images]);
+            }, [owner]);
+            const clearImages = React.useCallback(() => setImages([]), []);
+            const removeImage = React.useCallback((id) => setImages((current) => current.filter((image) => image.id !== id)), []);
+            React.useEffect(() => {
+                window.__COMPOSER_IMAGE_STATE__ ??= {};
+                window.__COMPOSER_IMAGE_STATE__[owner] = selectedImages.map((image) => image.name);
+                return () => { delete window.__COMPOSER_IMAGE_STATE__[owner]; };
+            }, [owner, selectedImages]);
+            const pickImages = () => { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; };
+            return {
+                addImages, clearImages, removeImage, selectedImages, pickImages, attachImages: pickImages,
+                async pickImagesForUpload() {
+                    return [{ id: 'fixture-photo', uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 123, width: 100, height: 80 }];
+                },
+            };
+        };
+    `,
     '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = (options) => ({
         canCancel: false, canRetry: false, cancel() {}, reset() {}, retry() {}, state: { phase: 'idle' },
         async uploadAssets(assets) {
@@ -951,7 +975,7 @@ const virtualModules: Record<string, string> = {
             window.__WORKTREE_CLEANUP_CALLS__ = [...(window.__WORKTREE_CLEANUP_CALLS__ ?? []), args];
         };
     `,
-    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; }; export const useSessionPressHandlers = (id) => ({onPress: () => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = id; }, onPressIn() {}});`,
+    '@/hooks/useNavigateToSession': `export const navigateToSession = (router,id) => router.push('/session/' + encodeURIComponent(id)); export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; }; export const useSessionPressHandlers = (id) => ({onPress: () => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = id; }, onPressIn() {}});`,
     '@/sync/agentSessionPlaces': `
         import * as actual from '${resolve(appRoot, 'sources/sync/agentSessionPlaces.ts')}';
         export const collectSessionPlaces = (options) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.newSessionLayout
@@ -1173,7 +1197,7 @@ const virtualModules: Record<string, string> = {
         export { qualifyRigModelKey } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         import { isRigMetadata as nativeIsRigMetadata } from '${resolve(appRoot, 'sources/sync/rig.ts')}';
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
-        export const getRigIdentity = () => null;
+        export const getRigIdentity = () => null; export const getRigComposerMode = () => null;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
         export const isRigMetadata = (metadata) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow ? nativeIsRigMetadata(metadata) : Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
         export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;
@@ -1499,7 +1523,7 @@ describe('Side chats browser interaction', () => {
         ] as const)));
         const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
         const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
         const commanderHtml = Buffer.from(html.toString()
             .replace('/fixture.css', '/commander-context.css')
             .replace('/side-chat.js', '/commander-context.js'));
@@ -2223,6 +2247,52 @@ describe('Side chats browser interaction', () => {
         await page.close();
     });
 
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, height: width === 390 ? 844 : 900, theme }))))(
+        'opens the chip label edge and keeps Send fixed with a long model name at $width px in $theme', async ({ width, height, theme }) => {
+            const page = await browser.newPage({ viewport: { width, height } });
+            page.setDefaultTimeout(5_000);
+            const errors: string[] = [];
+            page.on('pageerror', error => errors.push(error.message));
+            try {
+                await page.addInitScript(() => { (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { modelPicker: true, customClaudeNames: true, longModelLabel: true, layoutProof: true }; });
+                await page.goto(`${origin}/?theme=${theme}`);
+                await page.evaluate(() => document.fonts.ready);
+                const foreground = page.getByTestId('foreground-session');
+                const input = foreground.locator('textarea').first();
+                await input.fill('Group18 send target proof');
+                const chip = foreground.getByTestId('composer-chip-model');
+                const send = foreground.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).last();
+                await expect(chip.innerText()).resolves.toBe('Opus Research Preview Thinking');
+                const sendBox = await send.boundingBox();
+                expect(sendBox).not.toBeNull();
+                expect(sendBox!.x).toBeGreaterThanOrEqual(0);
+                expect(sendBox!.x + sendBox!.width).toBeLessThanOrEqual(width);
+                expect(sendBox!.y + sendBox!.height).toBeLessThanOrEqual(height);
+                // The label's left edge is inside the hit area even when the
+                // phone chip row scrolls horizontally to keep full names.
+                const label = chip.getByText('Opus Research Preview Thinking', { exact: true });
+                await label.click({ position: { x: 2, y: 8 } });
+                const popover = foreground.getByTestId('composer-chip-popover-model');
+                await popover.waitFor({ state: 'visible', timeout: 3_000 });
+                await popover.getByRole('button', { name: 'Sonnet Team Edition', exact: true }).click();
+                await expect.poll(() => chip.innerText()).toBe('Sonnet Team Edition');
+                expect(await send.boundingBox()).toEqual(sendBox);
+                await chip.getByText('Sonnet Team Edition', { exact: true }).click({ position: { x: 2, y: 8 } });
+                await popover.getByRole('button', { name: 'Opus Research Preview Thinking', exact: true }).click();
+                await expect.poll(() => chip.innerText()).toBe('Opus Research Preview Thinking');
+                await popover.waitFor({ state: 'detached', timeout: 3_000 });
+                expect(await send.boundingBox()).toEqual(sendBox);
+                expect(await send.evaluate(node => { const r = node.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!hit && node.contains(hit); })).toBe(true);
+                const directory = process.env.HAPPYHERD_LAYOUT_EVIDENCE_DIR?.trim();
+                if (directory) { mkdirSync(directory, { recursive: true }); await page.screenshot({ path: resolve(directory, `group18-long-model-send-${width}-${theme}.png`), fullPage: true }); }
+                await send.click();
+                await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_SENDS__ ?? [])).toMatchObject([{ sessionId: 'parent', text: 'Group18 send target proof' }]);
+                expect(await page.evaluate(() => (window as any).__COMPOSER_SENDS__.length)).toBe(1);
+                expect(errors).toEqual([]);
+            } finally { await page.close(); }
+        }, 30_000,
+    );
+
     it.each([
         { width: 1440, height: 900, theme: 'light' },
         { width: 1440, height: 900, theme: 'dark' },
@@ -2860,6 +2930,137 @@ describe('Side chats browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).resolves.toEqual([]);
         await page.close();
     }, 10_000);
+
+
+    it.each([
+        ['desktop-light', { width: 1440, height: 900 }, 'light'],
+        ['desktop-dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile-light', { width: 390, height: 844 }, 'light'],
+        ['mobile-dark', { width: 390, height: 844 }, 'dark'],
+    ] as const)('routes image paste and drop to exactly one production composer (%s)', async (_name, viewport, theme) => {
+        const page = await browser.newPage({ viewport });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { imageAttachments: true };
+        });
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            const foreground = page.getByTestId('foreground-session');
+            const main = foreground.locator('textarea').first();
+            await main.waitFor({ state: 'visible', timeout: 3_000 });
+            await main.evaluate((node) => { node.dataset.imageOwner = 'main'; });
+            const dispatch = async (selector: string, kind: 'paste' | 'drop', name: string) => {
+                await page.evaluate(({ selector, kind, name }) => {
+                    const target = document.querySelector(selector);
+                    if (!target) throw new Error(`Missing event target: ${selector}`);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvas.height = 2;
+                    const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (c) => c.charCodeAt(0));
+                    const transfer = new DataTransfer();
+                    transfer.items.add(new File([bytes], name, { type: 'image/png' }));
+                    target.dispatchEvent(kind === 'paste'
+                        ? new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer })
+                        : new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+                }, { selector, kind, name });
+            };
+            const additions = () => page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__ ?? []);
+            await main.focus();
+            await dispatch('[data-image-owner="main"]', 'paste', 'main-paste.png');
+            await expect.poll(async () => (await additions()).length).toBe(1);
+            const mainOwner = (await additions())[0].owner;
+
+            await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+            await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+            const child = foreground.locator('textarea').filter({ visible: true }).last();
+            await child.evaluate((node) => { node.dataset.imageOwner = 'child'; });
+            await child.focus();
+            await dispatch('[data-image-owner="child"]', 'paste', 'child-paste.png');
+            await expect.poll(async () => (await additions()).length).toBe(2);
+            const childOwner = (await additions())[1].owner;
+            expect(childOwner).not.toBe(mainOwner);
+
+            // A target takes precedence over a sibling's focused composer.
+            // evaluate focuses the real field even when the phone sheet covers it.
+            await main.evaluate((node) => (node as HTMLTextAreaElement).focus());
+            await dispatch('[data-image-owner="child"]', 'drop', 'child-drop.png');
+            await expect.poll(async () => (await additions()).length).toBe(3);
+            await child.evaluate((node) => (node as HTMLTextAreaElement).focus());
+            await dispatch('[data-image-owner="main"]', 'drop', 'main-drop.png');
+            await expect.poll(async () => (await additions()).length).toBe(4);
+
+            // Neither a modal-like outside input nor a hidden mounted SessionView
+            // may donate its image to a visible sibling. No picker mock decides
+            // ownership: production AgentInput listeners receive every event.
+            await page.evaluate(() => {
+                const input = document.createElement('input');
+                input.id = 'outside-image-input'; document.body.append(input); input.focus();
+            });
+            await dispatch('#outside-image-input', 'paste', 'outside-paste.png');
+            await dispatch('#outside-image-input', 'drop', 'outside-drop.png');
+            const hiddenSelector = '[aria-hidden="true"] textarea';
+            expect(await page.locator(hiddenSelector).count()).toBeGreaterThan(0);
+            await dispatch(hiddenSelector, 'drop', 'hidden-drop.png');
+            await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+            await dispatch('body', 'drop', 'ambiguous-drop.png');
+            // A following accepted event drains the same asynchronous decoding
+            // path, so all earlier wrongly claimed events would appear as extras.
+            await child.focus();
+            await dispatch('[data-image-owner="child"]', 'paste', 'child-final.png');
+            await expect.poll(async () => (await additions()).some((entry: any) => entry.names.includes('child-final.png'))).toBe(true);
+            expect(await additions()).toEqual([
+                { owner: mainOwner, names: ['main-paste.png'] },
+                { owner: childOwner, names: ['child-paste.png'] },
+                { owner: childOwner, names: ['child-drop.png'] },
+                { owner: mainOwner, names: ['main-drop.png'] },
+                { owner: childOwner, names: ['child-final.png'] },
+            ]);
+            expect(await page.evaluate(({ mainOwner, childOwner }) => ({
+                main: (window as any).__COMPOSER_IMAGE_STATE__[mainOwner],
+                child: (window as any).__COMPOSER_IMAGE_STATE__[childOwner],
+            }), { mainOwner, childOwner })).toEqual({
+                main: ['main-paste.png', 'main-drop.png'],
+                child: ['child-paste.png', 'child-drop.png', 'child-final.png'],
+            });
+            expect(errors).toEqual([]);
+        } finally { await page.close(); }
+    }, 20_000);
+
+    it.each([
+        ['desktop-light', { width: 1440, height: 900 }, 'light'],
+        ['desktop-dark', { width: 1440, height: 900 }, 'dark'],
+        ['mobile-light', { width: 390, height: 844 }, 'light'],
+        ['mobile-dark', { width: 390, height: 844 }, 'dark'],
+    ] as const)('resets attachments when an existing SessionView receives another session (%s)', async (_name, viewport, theme) => {
+        const page = await browser.newPage({ viewport });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { imageAttachments: true, composerSessionSwitch: true };
+        });
+        try {
+            await page.goto(`${origin}/?theme=${theme}`);
+            const main = page.getByTestId('foreground-session').locator('textarea').first();
+            await main.waitFor({ state: 'visible', timeout: 3_000 });
+            await main.focus();
+            await main.evaluate((node) => {
+                node.dataset.beforeSessionSwitch = 'true';
+                const canvas = document.createElement('canvas'); canvas.width = canvas.height = 2;
+                const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (c) => c.charCodeAt(0));
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([bytes], 'old-session-only.png', { type: 'image/png' }));
+                node.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer }));
+            });
+            await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__?.length ?? 0)).toBe(1);
+            const oldOwner = await page.evaluate(() => (window as any).__COMPOSER_IMAGE_ADDS__[0].owner);
+            await page.evaluate(() => (window as any).__SWITCH_COMPOSER_SESSION__('background'));
+            await expect.poll(() => page.evaluate(() => (window as any).__COMPOSER_SWITCH_ID__)).toBe('background');
+            await expect.poll(() => page.locator('[data-before-session-switch="true"]').count()).toBe(0);
+            await expect.poll(() => page.evaluate((owner) => (window as any).__COMPOSER_IMAGE_STATE__[owner] ?? null, oldOwner)).toBeNull();
+            expect(await page.evaluate(() => Object.values((window as any).__COMPOSER_IMAGE_STATE__).flat())).toEqual([]);
+            expect(errors).toEqual([]);
+        } finally { await page.close(); }
+    }, 20_000);
 
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],

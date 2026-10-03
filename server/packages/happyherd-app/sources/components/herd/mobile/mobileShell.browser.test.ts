@@ -263,9 +263,13 @@ const virtualModules: Record<string, string> = {
             { id: 'archive', icon: 'archive-outline', label: t('uiCopy.archive'), onPress: record('archive'), destructive: true },
         ] });
         export const useSessionActionAlert = () => () => {};
+        export const useSessionArchiveAction = () => ({ archiveSession: record('archive'), archivingSession: false });
     `,
     '@/hooks/useHappyHerdAction': `export const useHappyHerdAction = () => [false, () => {}];`,
-    '@/utils/sessionListTimestamp': `export const formatSessionListTimestamp = () => '2m';`,
+    '@/utils/sessionListTimestamp': `
+        import { formatSessionListTimestamp as productionTimestamp } from '${resolve(sourcesRoot, 'utils/sessionListTimestamp.ts')}';
+        export const formatSessionListTimestamp = (...args) => new URLSearchParams(location.search).has('timestamp') ? productionTimestamp(...args) : '2m';
+    `,
     '@/components/SessionsListWrapper': `export { FixtureSessionsListWrapper as SessionsListWrapper } from '${testData('mobileShellFixtureList.tsx')}';`,
     // The drawer's panel lists the same fixture rows.
     '@/components/MainView': `export { FixtureSessionsListWrapper as MainView } from '${testData('mobileShellFixtureList.tsx')}';`,
@@ -499,6 +503,62 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
         .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity))
         .map((animation) => animation.finished.catch(() => undefined))));
     const noHorizontalOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, height: width === 390 ? 844 : 900, theme }))))(
+        'keeps a long localized timestamp within its slot across unread updates at $width px in $theme', async ({ width, height, theme }) => {
+            const page = await browser.newPage({ viewport: { width, height }, ...(width === 390 ? { hasTouch: true, isMobile: true } : {}), locale: 'en-US', timezoneId: 'UTC' });
+            page.setDefaultTimeout(5_000);
+            const errors: string[] = [];
+            page.on('pageerror', error => errors.push(error.message));
+            try {
+                await page.clock.setFixedTime(new Date('2026-10-01T12:00:00Z'));
+                await page.goto(`${origin}/?theme=${theme}&timestamp=1`);
+                await page.evaluate(() => document.fonts.ready);
+                const row = page.getByTestId('timestamp-row');
+                const timestamp = row.getByText('11:59 AM', { exact: true });
+                await timestamp.waitFor({ state: 'visible', timeout: 3_000 });
+                const original = await timestamp.elementHandle();
+                const measure = () => timestamp.evaluate(node => {
+                    const text = node.getBoundingClientRect();
+                    const slot = node.parentElement!.getBoundingClientRect();
+                    return { x: text.x, y: text.y, width: text.width, height: text.height, slotWidth: slot.width,
+                        withinSlot: text.left >= slot.left && text.right <= slot.right,
+                        unclipped: Math.ceil(text.width) >= node.scrollWidth,
+                        unobscured: [text.left + 1, text.right - 1].every(x => {
+                            // The production hover menu stays in the hit-test
+                            // tree at opacity0; it cannot visually obscure text.
+                            const hit = document.elementsFromPoint(x, text.y + text.height / 2).find(candidate => {
+                                for (let ancestor: Element | null = candidate; ancestor; ancestor = ancestor.parentElement) {
+                                    if (getComputedStyle(ancestor).opacity === '0') return false;
+                                }
+                                return true;
+                            });
+                            return hit === node || (!!hit && node.contains(hit));
+                        }),
+                        withinViewport: slot.left >= 0 && slot.right <= innerWidth };
+                });
+                const initial = await measure();
+                expect(await row.getByTestId('session-row-more').count()).toBe(1);
+                expect(initial.slotWidth).toBeGreaterThan(56);
+                expect(initial.withinSlot).toBe(true);
+                expect(initial.unclipped).toBe(true);
+                expect(initial.unobscured).toBe(true);
+                expect(initial.withinViewport).toBe(true);
+                for (const unread of ['true', 'false']) {
+                    await page.getByRole('button', { name: 'Toggle synthetic unread', exact: true }).click();
+                    await expect.poll(() => row.getAttribute('data-unread')).toBe(unread);
+                    expect(await timestamp.evaluate((node, old) => node === old, original)).toBe(true);
+                    expect(await measure()).toEqual(initial);
+                }
+                const directory = process.env.HAPPYHERD_LAYOUT_EVIDENCE_DIR?.trim();
+                if (directory) { mkdirSync(directory, { recursive: true }); await page.screenshot({ path: resolve(directory, `group2-timestamp-${width}-${theme}.png`), fullPage: true }); }
+                expect(errors).toEqual([]);
+            } catch (error) {
+                console.error('Timestamp fixture first failure', { errors, text: await page.locator('body').innerText() });
+                throw error;
+            } finally { await page.close(); }
+        }, 30_000,
+    );
 
     it('lays out the phone home: the top bar over the docked panel, with no tab bar or floating button', async () => {
         for (const theme of ['light', 'dark'] as const) {
@@ -964,14 +1024,23 @@ describe('HappyHerd Web Mobile shell in the production style runtime', () => {
             const more = row.getByTestId('session-row-more');
             await expect(more.isVisible()).resolves.toBe(true);
             await expect(more.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('1');
-            const box = (await more.boundingBox())!;
-            const rowBox = (await row.boundingBox())!;
+            // Measure the moving row and every child in one browser frame. The
+            // entrance translates them together; mixing frames invents overlap.
+            const { box, rowBox, overlaps } = await row.evaluate((element) => {
+                const more = element.querySelector('[data-testid="session-row-more"]')!;
+                const rect = more.getBoundingClientRect();
+                const rowRect = element.getBoundingClientRect();
+                return {
+                    box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                    rowBox: { x: rowRect.x, y: rowRect.y, width: rowRect.width, height: rowRect.height },
+                    overlaps: [...element.querySelectorAll('[dir="auto"]')]
+                        .map((node) => node.getBoundingClientRect())
+                        .filter((text) => text.width > 0 && text.left < rect.x + rect.width && text.right > rect.x && text.top < rect.y + rect.height && text.bottom > rect.y).length,
+                };
+            });
             // The phone mock's trailing column: centred on the row, clear of every line of text.
             expect(Math.abs((box.y + box.height / 2) - (rowBox.y + rowBox.height / 2))).toBeLessThanOrEqual(2);
             expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
-            const overlaps = await row.evaluate((element, rect) => [...element.querySelectorAll('[dir="auto"]')]
-                .map((node) => node.getBoundingClientRect())
-                .filter((text) => text.width > 0 && text.left < rect.x + rect.width && text.right > rect.x && text.top < rect.y + rect.height && text.bottom > rect.y).length, box);
             expect(overlaps).toBe(0);
         }
         await evidence(page, `phone-row-more-touch-${theme}-390`);
