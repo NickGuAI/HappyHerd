@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "1cce1c3f7ec7674bd76b04c96570a61a54a4ecf3074c5a0dc516f76d6bbffdc3",
+  "sourceFingerprint": "e64397071d4c3fac6d560a0791992aa21ec164f801dc64659a32a2c06adcef7d",
   "routeCount": 45,
   "surfaceCount": 339,
   "hardcodedCopyCount": 0,
