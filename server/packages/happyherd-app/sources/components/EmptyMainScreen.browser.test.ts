@@ -109,7 +109,7 @@ describe('EmptyMainScreen onboarding reachability', () => {
                 loader: 'tsx', resolveDir: appRoot,
             },
             bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
-            define: { __DEV__: 'false', 'process.env.NODE_ENV': '"test"' },
+            define: { __DEV__: 'false', 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
             loader: { '.webp': 'dataurl' }, plugins: [fixturePlugin],
         });
         const fontCss = ['SpaceGrotesk-Regular', 'SpaceGrotesk-Medium', 'SpaceGrotesk-SemiBold', 'JetBrainsMono-Regular'].map(font => `@font-face{font-family:'${font}';src:url(data:font/ttf;base64,${readFileSync(resolve(appRoot, 'sources/assets/fonts', font + '.ttf')).toString('base64')})}`).join('');
