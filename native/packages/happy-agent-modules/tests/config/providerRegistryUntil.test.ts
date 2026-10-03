@@ -1,0 +1,188 @@
+import { AgentProviders } from "@slopus/happy-agent-base";
+import {
+    BaseProvider,
+    BaseSession,
+    type SessionCompaction,
+    type SessionCompactionOptions,
+    type SessionOptions,
+    type SessionRunRequest,
+    type SessionStream,
+} from "@slopus/happy-providers";
+import { createRootContext, type Context } from "@steve.kite/stdlib";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+    ProviderEnablement,
+    providerRegistryUntil,
+} from "../../sources/config/impl/providerRegistryUntil.js";
+
+describe("providerRegistryUntil", () => {
+    it("checks restored Ultrafast on every cached-session run before inference starts", async () => {
+        const session = new BlockingSession("saved-agent");
+        const run = vi.spyOn(session, "run");
+        const source = new AgentProviders();
+        source.add("account", new BlockingProvider(session), "codex");
+        const validate = vi.fn(async (): Promise<void> => {
+            throw new Error("Ultrafast is unavailable.");
+        });
+        const shutdown = new AbortController();
+        const providers = providerRegistryUntil(
+            source,
+            shutdown.signal,
+            undefined,
+            undefined,
+            validate,
+        );
+        const provider = await providers.resolve("account", "openai/gpt-6-astra");
+        const cached = await provider!.session("saved-agent", { instructions: "", tools: [] });
+        const request: SessionRunRequest = {
+            context: { instructions: "", messages: [] },
+            model: "openai/gpt-6-astra",
+            serviceTier: "ultrafast",
+        };
+        await expect(
+            cached.run(createRootContext(), request)[Symbol.asyncIterator]().next(),
+        ).rejects.toThrow("Ultrafast");
+        expect(validate).toHaveBeenCalledWith("account", request, provider);
+        expect(run).not.toHaveBeenCalled();
+        validate.mockResolvedValueOnce(undefined);
+        const next = cached.run(createRootContext(), request)[Symbol.asyncIterator]().next();
+        await session.started;
+        expect(validate).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenCalledOnce();
+        shutdown.abort();
+        await expect(next).resolves.toMatchObject({ value: { state: "cancelled" } });
+    });
+
+    it("cancels provider work when the daemon lifetime ends", async () => {
+        const session = new BlockingSession("agent-1");
+        const source = new AgentProviders();
+        const originalProvider = new BlockingProvider(session);
+        source.add("test", originalProvider, "codex");
+        const shutdown = new AbortController();
+        const providers = providerRegistryUntil(source, shutdown.signal);
+        const provider = await providers.resolve("test", "test/model");
+        if (provider === null) throw new Error("The wrapped provider was not found.");
+        const wrappedSession = await provider.session("agent-1", {
+            instructions: "",
+            tools: [],
+        });
+        const iterator = wrappedSession
+            .run(createRootContext(), {
+                context: { instructions: "", messages: [] },
+                model: "test/model",
+            })
+            [Symbol.asyncIterator]();
+        const next = iterator.next();
+
+        await session.started;
+        expect(provider).toBe(originalProvider);
+        expect(wrappedSession).toBe(session);
+        expect(session.lifetime?.aborted).toBe(false);
+        expect(provider.name).toBe("blocking");
+        expect(provider.inputTypes).toEqual(["text"]);
+        expect(provider.outputTypes).toEqual(["text"]);
+
+        shutdown.abort(new Error("test shutdown"));
+
+        await expect(next).resolves.toEqual({
+            done: false,
+            value: { state: "cancelled", type: "done" },
+        });
+        expect(session.lifetime?.aborted).toBe(true);
+    });
+
+    it("cancels active work when disabled and lets cached sessions use a fresh gate after re-enable", async () => {
+        const session = new BlockingSession("agent-1");
+        const source = new AgentProviders();
+        source.add("test", new BlockingProvider(session), "codex");
+        const shutdown = new AbortController();
+        const enablement = new ProviderEnablement(source.ids, () => true);
+        const providers = providerRegistryUntil(source, shutdown.signal, enablement);
+        const provider = await providers.resolve("test", "test/model");
+        if (provider === null) throw new Error("The wrapped provider was not found.");
+        const cached = await provider.session("agent-1", { instructions: "", tools: [] });
+
+        const first = cached
+            .run(createRootContext(), {
+                context: { instructions: "", messages: [] },
+                model: "test/model",
+            })
+            [Symbol.asyncIterator]()
+            .next();
+        await session.started;
+        enablement.setEnabled("test", false);
+        await expect(first).resolves.toMatchObject({ value: { state: "cancelled" } });
+
+        enablement.setEnabled("test", true);
+        const second = cached
+            .run(createRootContext(), {
+                context: { instructions: "", messages: [] },
+                model: "test/model",
+            })
+            [Symbol.asyncIterator]()
+            .next();
+        await Promise.resolve();
+        expect(session.lifetime?.aborted).toBe(false);
+
+        shutdown.abort(new Error("test shutdown"));
+        await expect(second).resolves.toMatchObject({ value: { state: "cancelled" } });
+    });
+});
+
+class BlockingProvider extends BaseProvider {
+    static override readonly name = "blocking";
+    static override readonly inputTypes = ["text"] as const;
+    static override readonly outputTypes = ["text"] as const;
+
+    readonly #session: BlockingSession;
+
+    constructor(session: BlockingSession) {
+        super();
+        this.#session = session;
+    }
+
+    async session(_id: string, _options: SessionOptions): Promise<BaseSession> {
+        return this.#session;
+    }
+}
+
+class BlockingSession extends BaseSession {
+    lifetime: AbortSignal | undefined;
+    readonly started: Promise<void>;
+    readonly #markStarted: () => void;
+
+    constructor(id: string) {
+        super(id);
+        let markStarted!: () => void;
+        this.started = new Promise<void>((resolve) => {
+            markStarted = resolve;
+        });
+        this.#markStarted = markStarted;
+    }
+
+    run(ctx: Context, _request: SessionRunRequest): SessionStream {
+        this.lifetime = ctx.lifetime;
+        const markStarted = this.#markStarted;
+        const lifetime = ctx.lifetime;
+        return (async function* () {
+            markStarted();
+            await aborted(lifetime);
+            yield { state: "cancelled" as const, type: "done" as const };
+        })();
+    }
+
+    async compact(_ctx: Context, options: SessionCompactionOptions): Promise<SessionCompaction> {
+        return { context: options.context, status: "cancelled" };
+    }
+
+    destroy(): void {}
+}
+
+async function aborted(signal: AbortSignal | undefined): Promise<void> {
+    if (signal === undefined) throw new Error("The provider call has no lifetime.");
+    if (signal?.aborted === true) return;
+    await new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+    );
+}

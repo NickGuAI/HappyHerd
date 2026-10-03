@@ -1,0 +1,10 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "paths": {
+            "@/*": ["./sources/*"]
+        },
+        "types": ["node", "vitest/import-meta"]
+    },
+    "include": ["sources/**/*.ts", "tests/**/*.ts"]
+}

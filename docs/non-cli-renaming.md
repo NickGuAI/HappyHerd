@@ -126,3 +126,18 @@ never silently resolve an upstream conflict by global substitution. Keep the CLI
 directory/version and self-host Web bundling coupling intact. Regenerate derived
 artifacts, rerun the complete validation above, and record the exact sync/rename
 commits in the owned patch ledger. Git history is never rewritten for branding.
+
+## Native runtime source compatibility (#365)
+
+The maintained `native/packages/` source subtree preserves its original package,
+class, persistence, protocol and configuration identifiers. This is an explicit
+vendored-source compatibility boundary, like retained external dependencies,
+not a product UI rename. `native/package.json`, its frozen lock and dependency
+patches preserve those same package names. Bundled native documentation, scripts,
+workspace/format configuration and the source-provenance manifest retain their
+matching paths and original source identifiers. Both CLI and product source
+rename tools exclude these native compatibility paths; public-boundary scanning,
+source lint, native typecheck/tests/build and
+license attribution still apply. HappyHerd owns the subtree and its changes;
+no external repository or PR is needed at build time. New user-facing app copy
+remains in the existing en/cn/de catalogs.

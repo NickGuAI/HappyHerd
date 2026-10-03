@@ -17,6 +17,7 @@ import { PhoneHomeRoute } from "@/components/herd/mobile/PhoneHomeRoute";
 import { useHerdPhoneLayout } from "@/components/herd/mobile/useHerdPhone";
 import { t } from '@/text';
 import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
+import { Modal } from '@/modal';
 
 // Expo Image needs the Unistyles adapter to receive compiled styles on Web.
 const Image = withUnistyles(ExpoImage);
@@ -45,17 +46,27 @@ function NotAuthenticated() {
     const { width } = useWindowDimensions();
     const wide = width >= 800;
     const insets = useSafeAreaInsets();
+    const creatingAccount = React.useRef(false);
+    const [isCreatingAccount, setIsCreatingAccount] = React.useState(false);
 
     const createAccount = async () => {
+        if (creatingAccount.current) return;
+        creatingAccount.current = true;
+        setIsCreatingAccount(true);
         try {
             const secret = await getRandomBytesAsync(32);
             const token = await authGetToken(secret);
-            if (token && secret) {
-                await auth.login(token, encodeBase64(secret, 'base64url'), 'new-account');
-                trackAccountCreated();
-            }
-        } catch (error) {
-            console.error('Error creating account', error);
+            if (!token) throw new Error('Missing authentication token');
+            await auth.login(token, encodeBase64(secret, 'base64url'), 'new-account');
+            trackAccountCreated();
+        } catch {
+            Modal.alert(t('common.error'), t('welcome.accountCreationFailed'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.retry'), onPress: () => { void createAccount(); } },
+            ]);
+        } finally {
+            creatingAccount.current = false;
+            setIsCreatingAccount(false);
         }
     }
 
@@ -92,7 +103,7 @@ function NotAuthenticated() {
                         </Text>
                         <View style={styles.seam} />
                         <View style={styles.actions}>
-                            <RoundButton title={t('welcome.createAccount')} action={createAccount} />
+                            <RoundButton title={t('welcome.createAccount')} loading={isCreatingAccount} onPress={() => { void createAccount(); }} />
                             <RoundButton
                                 size="normal"
                                 numberOfLines={2}

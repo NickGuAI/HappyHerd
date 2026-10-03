@@ -101,9 +101,30 @@ FORBIDDEN_TOOL
 done
 customer_path="$forbidden_bin:$PATH"
 
+# A genuinely blank HOME needs no prior authentication or Commander registry.
+blank_home="$fixture/blank-home"
+mkdir -p "$blank_home"
+HOME="$blank_home" HAPPY_HOME_DIR="$blank_home/.happyherd" HAPPYHERD_HOME_DIR="$blank_home/.happyherd" \
+  SHELL=/bin/sh PATH="$customer_path" "${installer[@]}" \
+  --server https://remote.example --no-start >/dev/null
+for guide_path in AGENTS.md agentcontext/README.md agentcontext/happyherd-cli.md; do
+  [[ -s "$blank_home/.happyherd/$guide_path" ]]
+done
+[[ ! -e "$blank_home/.happyherd/access.key" ]]
+[[ ! -e "$blank_home/.happyherd/server.pid" ]]
+
 HOME="$test_home" SHELL=/bin/sh PATH="$customer_path" "${installer[@]}" \
   --server https://remote.example --no-start >/dev/null
 "$test_home/.local/bin/happyherd" --version >/dev/null
+# The real packaged CLI seeds guidance on an ordinary unauthenticated install.
+for guide_path in AGENTS.md agentcontext/README.md agentcontext/happyherd-cli.md; do
+  [[ -s "$test_home/.happyherd/$guide_path" ]]
+  mkdir -p "$fixture/guides.before/$(dirname "$guide_path")"
+  cp "$test_home/.happyherd/$guide_path" "$fixture/guides.before/$guide_path"
+done
+grep -Fq 'agentcontext' "$test_home/.happyherd/AGENTS.md"
+grep -Fq 'happyherd-cli.md' "$test_home/.happyherd/agentcontext/README.md"
+[[ ! -e "$test_home/.happyherd/access.key" ]]
 "$test_home/.local/share/happyherd/node/bin/node" --test \
   "$repo_root/server/packages/happyherd-server-self-host/index.test.cjs"
 "$test_home/.local/share/happyherd/node/bin/node" -e '
@@ -121,6 +142,43 @@ cmp "$fixture/sessions.before" "$test_home/.happyherd/sessions.json"
   const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
   if (settings.serverUrl !== "https://remote.example") process.exit(1);
 ' "$test_home/.happyherd/settings.json"
+
+# Reinstall preserves the original seeded guides byte for byte.
+for guide_path in AGENTS.md agentcontext/README.md agentcontext/happyherd-cli.md; do
+  cmp "$fixture/guides.before/$guide_path" "$test_home/.happyherd/$guide_path"
+done
+
+# A configured home may already contain personal instructions and private
+# Commander data. Installation must leave those files untouched while filling
+# only the missing portable guide, even when no host processes are started.
+custom_home="$fixture/custom happyherd home"
+mkdir -p "$custom_home/agentcontext" "$custom_home/commanders/private/agentcontext/memory"
+printf 'User-authored global instructions: preserve exactly.\n' > "$custom_home/AGENTS.md"
+printf 'User-authored shared index: preserve exactly.\n' > "$custom_home/agentcontext/README.md"
+printf 'Private Commander definition fixture\n' > "$custom_home/commanders/private/COMMANDER.md"
+printf 'Private Commander memory fixture\n' > "$custom_home/commanders/private/agentcontext/memory/2-long-term-memory.md"
+cp -R "$custom_home" "$fixture/custom.before"
+HOME="$test_home" HAPPYHERD_HOME_DIR="$custom_home" SHELL=/bin/sh PATH="$customer_path" \
+  "${installer[@]}" --no-start </dev/null >/dev/null
+cmp "$fixture/custom.before/AGENTS.md" "$custom_home/AGENTS.md"
+cmp "$fixture/custom.before/agentcontext/README.md" "$custom_home/agentcontext/README.md"
+diff -r "$fixture/custom.before/commanders" "$custom_home/commanders"
+[[ -s "$custom_home/agentcontext/happyherd-cli.md" ]]
+[[ ! -e "$custom_home/access.key" ]]
+# Customized operations guidance is also retained on later upgrades.
+printf 'User-authored CLI operations: preserve exactly.\n' > "$custom_home/agentcontext/happyherd-cli.md"
+cp "$custom_home/agentcontext/happyherd-cli.md" "$fixture/custom-cli.before"
+HOME="$test_home" HAPPYHERD_HOME_DIR="$custom_home" SHELL=/bin/sh PATH="$customer_path" \
+  "${installer[@]}" --no-start </dev/null >/dev/null
+cmp "$fixture/custom-cli.before" "$custom_home/agentcontext/happyherd-cli.md"
+cmp "$fixture/custom.before/AGENTS.md" "$custom_home/AGENTS.md"
+cmp "$fixture/custom.before/agentcontext/README.md" "$custom_home/agentcontext/README.md"
+diff -r "$fixture/custom.before/commanders" "$custom_home/commanders"
+for guide_path in AGENTS.md agentcontext/README.md agentcontext/happyherd-cli.md; do
+  cmp "$fixture/guides.before/$guide_path" "$test_home/.happyherd/$guide_path"
+done
+
+echo 'native-installer-guidance: blank-home seeding and upgrade/custom-home preservation passed'
 
 if curl --max-time 2 -fsS http://127.0.0.1:3005/health >/dev/null 2>&1; then
   echo 'error: native installer smoke requires an unused localhost port 3005' >&2

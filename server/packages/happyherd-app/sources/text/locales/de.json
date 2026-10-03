@@ -618,7 +618,14 @@
       "troubleshootConnection": "Verbindung prüfen",
       "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happyherd` erneut aus.\n3. Öffnen Sie HappyHerd erneut.\n\nKI-Prompt:\n{aiPrompt}",
       "copyAiPrompt": "KI-Prompt kopieren",
-      "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden."
+      "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden.",
+      "installDescription": "Führen Sie diesen Befehl auf Ihrem macOS- oder Linux-Computer in einem Terminal aus.",
+      "serverSelection": "Wenn das Installationsprogramm nach einer Server-URL fragt, verwenden Sie denselben Server wie diese App: {serverUrl}. Der Standardwert http://127.0.0.1:3005 startet einen lokalen Server auf Ihrem Computer; wählen Sie ihn nur, wenn diese App diesen Server verwendet.",
+      "authorizeTerminal": "Terminal autorisieren",
+      "authorizeDescription": "Das Installationsprogramm startet die Autorisierung. Falls nicht, öffne ein neues Terminal und führe den folgenden Befehl aus. Wähle „Mobile App“ und autorisiere das Terminal mit deinem aktuellen Konto, indem du hier seine URL bestätigst oder seinen QR-Code mit deinem Smartphone scannst.",
+      "startDaemon": "Computer online bringen",
+      "daemonDescription": "Nach der Autorisierung startet das Installationsprogramm den Daemon. Wenn Sie die Autorisierung separat abgeschlossen haben, führen Sie Folgendes aus:",
+      "discoveryDescription": "Lassen Sie Ihren Computer online. Sobald sich sein Daemon mit diesem Konto auf demselben Server verbindet, zeigt dieser Bildschirm „{newSession}“ an. Wählen Sie dies aus, um auf Ihrem verbundenen Computer zu starten."
     },
     "agentGoalBar": {
       "currentGoal": "Aktuelles Ziel",
@@ -1155,6 +1162,7 @@
     "title": "Mobiler Codex- und Claude Code-Client",
     "subtitle": "Ende-zu-Ende-verschlüsselt und Ihr Konto wird nur auf Ihrem Gerät gespeichert.",
     "createAccount": "Benutzerkonto erstellen",
+    "accountCreationFailed": "Die Kontoerstellung wurde nicht abgeschlossen. Prüfe deine Verbindung und versuche es erneut.",
     "linkOrRestoreAccount": "Konto verknüpfen oder wiederherstellen",
     "loginWithMobileApp": "Melden Sie sich mit der mobilen App an"
   },
@@ -1745,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} neu · Zur neuesten Nachricht",
     "commandCompletedWithNoOutput": "[Befehl ohne Ausgabe abgeschlossen]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "Noch keine Nachrichten",
     "noActiveSessions": "Keine aktiven Sitzungen",
@@ -1851,7 +1858,10 @@
     "runningAndQueued": "{value1} aktiv · {value2} in Warteschlange",
     "valueRunning": "{value1} aktiv",
     "inProgressAndPending": "{value1} in Bearbeitung · {value2} ausstehend",
-    "thisDevice": "Dieses Gerät"
+    "thisDevice": "Dieses Gerät",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "{count} weitere Zeilen anzeigen",
@@ -1970,7 +1980,18 @@
     "keySaved": "Ihre Zugangsdaten wurden im Konto gespeichert. Sie sind nur gespeichert und nicht für Codex aktiv."
   },
   "superSession": {
-    "pinned": "Super Session (Angeheftet)"
+    "pinned": "Super Session (Angeheftet)",
+    "disconnected": "Super Session getrennt",
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "reconnect": "Mit aktuellem Server verbinden",
+    "pendingReplay": "Nach der Wiederverbindung werden Nachrichten in der Warteschlange automatisch zugestellt. Bitte nicht erneut senden.",
+    "causeDns": "Der Servername konnte nicht aufgelöst werden. Netzwerk oder DNS prüfen und erneut verbinden.",
+    "causeHttp": "Der Server hat die Verbindung abgelehnt. Server prüfen und erneut verbinden.",
+    "causeConnect": "Der Server ist nicht erreichbar. Netzwerk und Serververfügbarkeit prüfen und erneut verbinden.",
+    "causeClosed": "Die Serververbindung wurde geschlossen. Zum Fortfahren erneut verbinden.",
+    "causeStaleEndpoint": "Dieser Prozess verwendet eine alte Serveradresse. Mit dem aktuellen Server verbinden.",
+    "causeTimeout": "Die Wiederverbindung wurde nicht abgeschlossen. Serververfügbarkeit prüfen und erneut versuchen.",
+    "causeUnavailable": "Der Verbindungsstatus ist nicht verfügbar. Prüfen, ob der zuständige Rechner und Daemon online sind; die Statusabfrage wird automatisch wiederholt."
   },
   "sessions": {
     "bots": "Bots"
@@ -2050,7 +2071,7 @@
   },
   "contextWindow": {
     "title": "Kontextfenster",
-    "featureSubtitle": "Aufgezeichneten Kontext von Claude Code und Codex einschließlich verborgener und eingefügter Einträge anzeigen.",
+    "featureSubtitle": "Aufgezeichneten Kontext von Claude Code, Codex und HappyHerd einschließlich verborgener und eingefügter Einträge anzeigen.",
     "description": "Schreibgeschützte Momentaufnahme der Anbieteraufzeichnung seit der letzten Komprimierung, einschließlich aufgezeichnetem beibehaltenem Kontext. Einträge erscheinen vollständig und in Reihenfolge.",
     "disabled": "Aktiviere das Kontextfenster unter Einstellungen → Funktionen → Experimentell, um den aufgezeichneten Sitzungskontext zu lesen.",
     "entryCount": "{count} aufgezeichnete Einträge",
@@ -2059,13 +2080,14 @@
       "unsupported": "Das Kontextfenster dieses Anbieters wird noch nicht unterstützt.",
       "offline": "Der Rechner der Sitzung ist offline oder nicht verfügbar. Verbinde ihn erneut und versuche es noch einmal.",
       "missing": "Das Anbieterprotokoll oder die Sitzungskennung fehlt auf diesem Rechner.",
-      "unreadable": "Das Kontextfenster konnte nicht gelesen werden. Prüfe die Rechnerverbindung und CLI-Version und versuche es erneut."
+      "unreadable": "Das Kontextfenster konnte nicht gelesen werden. Prüfe die Maschinenverbindung und die Anbieterversion und versuche es erneut."
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "Der integrierte Systemprompt von Claude Code ist in diesem Protokoll nicht aufgezeichnet.",
       "claude_tool_definitions_unrecorded": "Die integrierten Werkzeugdefinitionen von Claude Code sind in diesem Protokoll nicht aufgezeichnet.",
       "codex_base_instructions_unrecorded": "Die Codex-Basisanweisungen sind in dieser Aufzeichnung nicht enthalten.",
       "codex_compacted_history_unrecorded": "Codex hat den Ersatzverlauf dieser Komprimierung nicht aufgezeichnet. Frühere Modelleingaben können nicht wiederhergestellt werden.",
+      "rig_runtime_input_not_recorded": "HappyHerd zeichnet nativen Kontext auf, jedoch nicht die vollständige Modellanfrage. Laufzeit-Systemanweisungen, zusammengestellte Werkzeugdefinitionen, gelöschter Verlauf und entfernte undurchsichtige Inhalte lassen sich aus diesen Datensätzen nicht rekonstruieren.",
       "provider_input_not_fully_recorded": "Dies ist der aufgezeichnete Kontext des Anbieters. Die Prompt-Erstellung zur Laufzeit und nicht aufgezeichnete Inhalte können nicht wiederhergestellt werden."
     },
     "refresh": "Aktualisieren"

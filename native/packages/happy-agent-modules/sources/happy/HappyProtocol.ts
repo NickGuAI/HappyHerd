@@ -1,0 +1,167 @@
+import { Type, type Static } from "@sinclair/typebox";
+import { toolCallRequestBlockSchema } from "@slopus/happy-agent-client";
+import type { TeamUser } from "../team/index.js";
+
+/** Rich user input travels atomically with the text fallback older phones understand. */
+export const happyInputContentSchema = Type.Array(
+    Type.Union([
+        Type.Object(
+            { type: Type.Literal("text"), text: Type.String() },
+            { additionalProperties: false },
+        ),
+        Type.Object(
+            { type: Type.Literal("image"), mimeType: Type.String(), data: Type.String() },
+            { additionalProperties: false },
+        ),
+        toolCallRequestBlockSchema,
+    ]),
+    // Send allows 64 rich blocks plus its required leading text block.
+    { maxItems: 65, contains: toolCallRequestBlockSchema, minContains: 0, maxContains: 1 },
+);
+export type HappyInputContent = Static<typeof happyInputContentSchema>;
+
+/**
+ * The shapes Happy speaks on the wire.
+ *
+ * Outbound envelopes are plain interfaces: Happy Agent builds them, so there is nothing
+ * to validate. Anything arriving from the server or the phone carries a schema,
+ * because it arrives as JSON that Happy Agent did not write.
+ */
+
+/** Token counts as Happy names them. */
+export interface HappyUsage {
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+    context_window?: number;
+    input_tokens: number;
+    output_tokens: number;
+    service_tier?: string;
+}
+
+/** One thing that happened, as the phone renders it. */
+export type HappySessionEvent =
+    | { t: "file"; ref: string; name: string; size: number; mimeType?: string }
+    // A failure travels as a `service` line. The phone's vocabulary has no failure of its own and
+    // silently drops any event it cannot name, so plain words about what went wrong reach a person
+    // and a truer-looking event does not.
+    | { t: "service"; text: string }
+    | { t: "text"; text: string; thinking?: boolean; content?: HappyInputContent }
+    | { t: "tool-call-end"; call: string; result?: string; isError?: boolean }
+    | {
+          t: "tool-call-start";
+          args: Record<string, unknown>;
+          call: string;
+          description: string;
+          name: string;
+          title: string;
+      }
+    | {
+          t: "turn-end";
+          status: "cancelled" | "completed" | "failed";
+          elapsedMs: number;
+          reason?: "abort" | "completed" | "error" | "steering";
+          turnElapsedMs: number;
+      }
+    | { t: "turn-start" }
+    // A content-free receipt for a message the phone itself sent: `ref` is the server message ID
+    // the phone already holds, and the receipt's own position in the stream is where acceptance
+    // landed, so a client can align its copy with the run order instead of arrival order.
+    | { t: "user-message-accepted"; id: string; ref: string; runId: string }
+    | { t: "user-message-rejected"; ref: string; reason: string };
+
+/**
+ * Who wrote a user-role envelope. Travels inside the encrypted session payload like everything
+ * else here, so the relay never learns who is in the room. `owner` says whether the author is the
+ * team user whose Happy account this session is published through — the person reading it on the
+ * phone — which lets a client tell its own messages from a teammate's without reconciling user-id
+ * spaces. Absent when the daemon does not know the author, which a client renders as its own.
+ */
+export interface HappyAuthor {
+    id: string;
+    name: string;
+    owner: boolean;
+}
+
+/** The author a team user appears as, seen from the connection `owner` publishes through. */
+export function happyAuthorOf(user: TeamUser, owner: TeamUser | undefined): HappyAuthor {
+    return {
+        id: user.id,
+        name: user.lastName === null ? user.firstName : `${user.firstName} ${user.lastName}`,
+        owner: owner !== undefined && owner.id === user.id,
+    };
+}
+
+/** One rendered moment, with the identity and the turn it belongs to. */
+export interface HappySessionEnvelope {
+    author?: HappyAuthor;
+    ev: HappySessionEvent;
+    id: string;
+    role: "agent" | "user";
+    time: number;
+    turn?: string;
+    usage?: HappyUsage;
+}
+
+/** An envelope wrapped for delivery, before encryption. */
+export interface HappySessionProtocolMessage {
+    content: HappySessionEnvelope;
+    localId: string;
+    meta: { sentFrom: "rig" };
+    role: "session";
+}
+
+/** A message read back from Happy's own stream. */
+export const happyRemoteMessageSchema = Type.Object(
+    {
+        content: Type.Object(
+            { c: Type.String(), t: Type.Literal("encrypted") },
+            { additionalProperties: true },
+        ),
+        createdAt: Type.Number(),
+        id: Type.String({ minLength: 1 }),
+        localId: Type.Union([Type.String(), Type.Null()]),
+        seq: Type.Integer({ minimum: 0 }),
+        updatedAt: Type.Number(),
+    },
+    { additionalProperties: true },
+);
+export type HappyRemoteMessage = Static<typeof happyRemoteMessageSchema>;
+
+/** What the phone chose alongside the text it sent. */
+export const happyRemoteSelectionSchema = Type.Object(
+    {
+        effort: Type.Optional(Type.String({ maxLength: 64 })),
+        modelId: Type.Optional(Type.String({ maxLength: 512 })),
+        permissionMode: Type.Optional(Type.String({ maxLength: 64 })),
+        providerId: Type.Optional(Type.String({ maxLength: 128 })),
+        serviceTier: Type.Optional(
+            Type.Union([Type.Null(), Type.String({ minLength: 1, maxLength: 64 })]),
+        ),
+    },
+    { additionalProperties: false },
+);
+export type HappyRemoteSelection = Static<typeof happyRemoteSelectionSchema>;
+
+/**
+ * What one decrypted remote message turned out to be.
+ *
+ * `echo` is Happy Agent's own message coming back; it carries nothing new and must not
+ * be replayed into the conversation.
+ */
+export type HappyRemoteInput =
+    | { kind: "echo" }
+    | { kind: "attachment"; mimeType?: string; name: string; ref: string; size: number }
+    | { kind: "text"; selection: HappyRemoteSelection; text: string; content?: HappyInputContent };
+
+/** Marks a message Happy Agent itself produced, so its echo can be recognized. */
+export const HAPPY_SENT_FROM_RIG = "rig";
+
+/** Namespaces the identity of a message that came from Happy. */
+export function happyRemoteMessageId(remoteId: string): string {
+    return `happy:${remoteId}`;
+}
+
+/** Recovers the Happy server's own message ID from a namespaced remote identity. */
+export function happyServerMessageId(namespacedId: string): string {
+    return namespacedId.startsWith("happy:") ? namespacedId.slice("happy:".length) : namespacedId;
+}

@@ -1,0 +1,12 @@
+packages:
+  - "packages/happy-agent"
+  - "packages/happy-agent-modules"
+  - "packages/happy-agent-base"
+  - "packages/happy-agent-client"
+  - "packages/happy-agent-compute"
+  - "packages/happy-providers"
+  - "packages/happy-agent-supervisor"
+
+ignoredOptionalDependencies:
+  - "@mongodb-js/zstd"
+  - "node-liblzma"

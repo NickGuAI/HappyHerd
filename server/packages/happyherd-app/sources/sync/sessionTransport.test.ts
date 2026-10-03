@@ -1,0 +1,61 @@
+import { describe, expect, it, vi } from 'vitest';
+const machineRPC = vi.hoisted(() => vi.fn());
+import { configureSessionTransportRpc, getSessionTransport, recoverSessionTransport, refreshSessionTransport, subscribeSessionTransport } from './sessionTransport';
+configureSessionTransportRpc(machineRPC);
+const status = { sessionId: 'session', providerRunning: true, state: 'disconnected', endpoint: 'http://old.invalid', currentEndpoint: 'http://current.test', pendingMessages: 'replay-on-reconnect', canRecover: true };
+describe('owning machine transport recovery', () => {
+    it.each(['dns', 'http', 'connect', 'closed', 'stale-endpoint', 'recovery-timeout'])('retains known %s cause and queued replay policy', async errorCode => {
+        machineRPC.mockResolvedValueOnce({ ...status, errorCode });
+        await refreshSessionTransport(errorCode, 'session');
+        expect(getSessionTransport(errorCode, 'session')).toEqual({ ...status, errorCode });
+        expect(machineRPC).toHaveBeenLastCalledWith(errorCode, 'session-transport-status', { sessionId: 'session' });
+    });
+    it('deduplicates repeated gestures and ignores a stale in-flight poll after recovery starts', async () => {
+        machineRPC.mockResolvedValueOnce(status);
+        await refreshSessionTransport('race', 'session');
+        let finishPoll!: (value: unknown) => void;
+        machineRPC.mockImplementationOnce(() => new Promise(resolve => { finishPoll = resolve; }));
+        const poll = refreshSessionTransport('race', 'session');
+        let finishRecovery!: (value: unknown) => void;
+        machineRPC.mockImplementationOnce(() => new Promise(resolve => { finishRecovery = resolve; }));
+        const first = recoverSessionTransport('race', 'session');
+        expect(recoverSessionTransport('race', 'session')).toBe(first);
+        expect(getSessionTransport('race', 'session')?.state).toBe('reconnecting');
+        finishPoll(status);
+        await poll;
+        expect(getSessionTransport('race', 'session')?.state).toBe('reconnecting');
+        finishRecovery({ ...status, state: 'error', errorCode: 'recovery-timeout' });
+        await first;
+        machineRPC.mockResolvedValueOnce({ ...status, state: 'connected' });
+        await recoverSessionTransport('race', 'session');
+        expect(getSessionTransport('race', 'session')?.state).toBe('connected');
+    });
+    it('has one poll across subscribers and rapid unmount/remount', async () => {
+        vi.useFakeTimers();
+        const before = machineRPC.mock.calls.length;
+        let finish!: (value: unknown) => void;
+        machineRPC.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        const unsubscribe = subscribeSessionTransport('subscriptions', 'session', () => {});
+        const second = subscribeSessionTransport('subscriptions', 'session', () => {});
+        unsubscribe();
+        second();
+        const remounted = subscribeSessionTransport('subscriptions', 'session', () => {});
+        finish(status);
+        await refreshSessionTransport('subscriptions', 'session');
+        machineRPC.mockResolvedValueOnce(status);
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(machineRPC.mock.calls.length - before).toBe(2);
+        remounted();
+        await vi.advanceTimersByTimeAsync(9000);
+        expect(machineRPC.mock.calls.length - before).toBe(2);
+        vi.useRealTimers();
+    });
+    it('shows unavailable on machine failure and permits subsequent status retry', async () => {
+        machineRPC.mockRejectedValueOnce(new Error('offline'));
+        await refreshSessionTransport('offline', 'session');
+        expect(getSessionTransport('offline', 'session')).toMatchObject({ state: 'error', errorCode: 'unavailable', canRecover: false });
+        machineRPC.mockResolvedValueOnce(status);
+        await refreshSessionTransport('offline', 'session');
+        expect(getSessionTransport('offline', 'session')?.canRecover).toBe(true);
+    });
+});

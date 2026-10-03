@@ -322,6 +322,10 @@ cp "$asset_root/uninstall.sh" "$install_root/uninstall.sh"
 cp "$asset_root/cleanup-legacy.sh" "$install_root/cleanup-legacy.sh"
 chmod 755 "$install_root/uninstall.sh" "$install_root/cleanup-legacy.sh"
 
+# Seed shared operations guidance without authentication, including --no-start.
+# The CLI resolves HAPPYHERD_HOME_DIR and preserves all existing user files.
+"$node_bin" "$happyherd_entry" commander guide --json >/dev/null
+
 auth_deferred=0
 if [ "$start_host" -eq 1 ]; then
   if [ "$server_url" = "$DEFAULT_SERVER" ]; then

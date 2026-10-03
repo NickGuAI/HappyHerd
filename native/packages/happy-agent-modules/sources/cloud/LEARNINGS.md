@@ -1,0 +1,117 @@
+# Cloud module learnings
+
+## Scope and ownership
+
+- Cloud's former account-feature bundle obscured its authentication boundary. Cloud now owns only
+  WorkOS authorization, verified token minting, organizations, and team endpoints. It is independent
+  from the local human profile and from the Happy mobile integration. The public snapshot contains
+  only status, environment, user, authorization, error, version, and update time.
+- Existing migration keys, ordering, and SQL are immutable. Scope reduction appends one migration
+  that removes retired account data without discarding a connected WorkOS session or its durable
+  version high-water mark. Do not reinterpret old state through runtime repair.
+
+## Authorization lifecycle
+
+- PKCE verifiers and callback URLs are process-local secrets. A durable pending marker exists only
+  so restart can settle the public attempt as expired. Authorization expiry is a Durable
+  Function, committed with the pending state and cancelled transactionally when the attempt settles.
+  It waits again after clock rollback and retries failed expiry persistence with a bounded delay.
+- Redirect URIs are application-owned. Bind the exact URI to the attempt and require the callback's
+  scheme, authority, and path to match. Permit HTTPS, loopback HTTP, and application-specific schemes;
+  reject remote plain HTTP and built-in schemes that execute or expose local content.
+- Serialize authorization, expiry, sign-out, and credential use through one lock. Invalid callbacks
+  leave the valid attempt active. Consume a valid callback process-locally before exchanging its
+  one-time code so a persistence failure cannot replay it. Only explicit `access_denied` means user
+  rejection; OAuth service or client failures mean temporary unavailability.
+- Activate snapshots, attempts, and notifications only after commit. Sign-out is entirely local:
+  it composes with the caller's transaction, cancels authorization expiry, clears the stored session,
+  and publishes after commit. Rollback preserves both credentials and the public snapshot. No remote
+  action or background cleanup can delay the next authorization.
+
+## Rotation and verification
+
+- On-demand refresh alone allowed an otherwise connected installation to reach WorkOS's inactivity
+  timeout. Cloud now owns one durable hourly refresh for the main session, never organization-scoped
+  token warming. It uses the same credential lock, saves rotated credentials before verification,
+  and discards the access token. The next deadline is checkpointed before the external attempt so
+  restart cannot repeatedly run an overdue refresh. Sign-out and credential rejection cancel the
+  schedule in their transaction; rollback preserves it. This only prevents inactivity while the
+  daemon can run and reach WorkOS, not absolute session expiry or revocation.
+
+- Admin-bot direct access uses a separate short-lived organization mint operation. WorkOS, not
+  the refresh call, configures access-token duration. After the ordinary serialized rotation and
+  Cloud verification, require matching user, client, issuer, and organization claims, a valid
+  current lifetime, and both total and remaining lifetime at most five minutes. Return the real
+  expiry; never relabel a longer token. A withheld token still leaves its replacement refresh
+  token durably saved. Public minting remains fresh on every call; internal connection minting
+  uses the verified organization-token cache described below.
+
+- Refresh tokens rotate. Persist the replacement immediately after refresh and before `/v0/hello`.
+  Clear credentials only on WorkOS `invalid_grant`; hello failures are unavailable, because even its
+  `401` may indicate verifier infrastructure trouble rather than revoked credentials.
+- Hello projects only its required message and user ID and tolerates additive metadata. A different
+  verified user rejects a new login before storage. During refresh, an identity mismatch preserves
+  the rotated token and connected snapshot but never releases the access token.
+- WorkOS requests have a short timeout, a body-size limit, and no automatic retries. The body shares
+  the total deadline after headers arrive. Replaying an ambiguous exchange or refresh can consume a
+  one-time credential twice.
+- WorkOS Node 10.10's public factory ignores the fetch override and may inherit `WORKOS_API_KEY`.
+  Use the small SDK subclass that clears the ambient key before HTTP construction and preserves the
+  override; test the actual refresh path with a synthetic ambient key.
+- Exchanges and rotations are independently owned Cloud workflows on the module's named database
+  context. Preflight that database before contacting WorkOS and immediately commit credential
+  changes; a caller transaction cannot safely roll back a consumed external credential.
+
+## Non-blocking organization credentials
+
+- A missing Cloud login is not an invalidated cache entry. Organization-cache guards and ordinary
+  minting share the same login-recovery messages: sign in when disconnected, sign in again after
+  credential rejection, or finish an active sign-in. Only a changed cache entry while still
+  connected asks for another team token. Preserve the existing error code and authoritative Cloud
+  snapshot; reporting the error must not refresh credentials or replace the login state.
+- Refreshing WorkOS on every proxied team request serialized parallel agent state reads into
+  successive network round trips. Internal organization minting now keeps at most 100 verified
+  access tokens in memory, keyed by organization, and shares one in-flight refresh and its outcome
+  among concurrent callers. Rotation of the shared refresh credential remains globally serialized.
+- A valid cached token never waits for the credential lock, even while another organization is
+  refreshing. A request near expiry starts a background refresh and immediately uses the existing
+  token. Only a missing or expired token waits. Background failure preserves the still-valid token
+  and briefly backs off further background attempts; expiry never permits serving a stale token.
+- Cache only after durable refresh rotation, Cloud verification, and matching user, organization,
+  client, issuer, and current JWT lifetime checks. Keep access tokens out of durable storage and
+  public snapshots. Sign-out, account changes, and credential rejection invalidate the cache only
+  after commit; rolled-back sign-out preserves it. Shutdown clears it too. Queued work cannot
+  repopulate a cleared cache, and one cancelled caller cannot cancel another caller's shared mint.
+
+## Secret boundaries
+
+- Refresh tokens stay in the owner-only database. Access tokens appear only in successful mint
+  responses or internal credential consumers. Neither token, verifier, callback URL, raw WorkOS
+  error, nor hello body belongs in status, events, bootstrap, or logs.
+- Log only the operation, deployment, phase, bounded reason, and safe HTTP status. Database adapters
+  can copy SQL parameters into errors, so replace persistence failures at the database boundary.
+  Durable state uses an exact private TypeBox schema, not permissive public API schemas.
+
+## Organizations and teams
+
+- Email invitations use Happy Cloud's organization invitation endpoint with the same serialized
+  refresh-and-verify boundary. Validate and normalize the email and organization ID before minting;
+  send only the email, leaving the member role and delivery policy to the worker. Never retry the
+  mutation. Preserve forbidden, existing-member, and pending-invitation outcomes without exposing
+  raw upstream errors. A returned pending invitation must match the recipient and contain a bounded
+  HTTPS acceptance link without credentials. Keep that link out of Cloud snapshots and logs.
+- Organization operations use the connected human identity and the same serialized refresh and
+  verification boundary. Project only bounded IDs and names publicly. Remote mutations have no
+  local mirror or organization event; never retry an ambiguous create, delete, or endpoint write.
+  Preserve upstream administrator rejection as a display-safe forbidden result.
+- Internal team projections additionally validate nullable endpoints. Team creation validates its
+  required endpoint before writing and uses one credential for both writes. Those writes are not
+  atomic: a partial failure must name the created team and direct the caller to update it.
+- Organization-scoped minting preserves the connected human identity. Cancelled checks waiting for
+  the credential lock stop before consuming a token; an exchange already in flight completes its
+  credential-persistence boundary. Roster and health tools never return credentials.
+- WorkOS state lookup returns the verified user ID and actual connected deployment's client ID,
+  never tokens. Agent-facing authorization belongs to the consuming module. Do not invent a team
+  quota when Happy Cloud provides only the team list.
+- Reject every organization route in team mode before parsing bodies, refreshing credentials, or
+  contacting Happy Cloud. Keep this deployment policy at the API seam, outside CloudModule.

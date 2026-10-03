@@ -201,7 +201,7 @@ describe('Commander context', () => {
     await expect(access(path.join(root, '.happyherd', 'agent-context'))).rejects.toThrow();
   });
 
-  it('records successfully read empty files but never missing files or directory paths', async () => {
+  it('records seeded global and empty memory files but never missing memory or directory paths', async () => {
     const globalAgents = path.join(root, '.happyherd', 'AGENTS.md');
     const memoryDir = path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory');
     await rm(globalAgents);
@@ -211,11 +211,12 @@ describe('Commander context', () => {
     const bundle = await prepareCommanderContext('athena');
 
     expect(bundle.commanderContextFiles).toEqual([
+      { kind: 'global-agents', path: globalAgents },
       { kind: 'commander', path: bundle.commander!.commanderPath },
       { kind: 'working-memory', path: path.join(memoryDir, '1-working-memory.md') },
     ]);
     expect(await readFile(bundle.bundlePath, 'utf8')).toContain('(The memory file was empty.)');
-    // A file created after assembly must not turn into a loaded-file receipt.
+    // A file changed after assembly must not change the consumed receipt.
     await writeFile(globalAgents, 'Later global guidance');
     Object.assign(process.env, contextEnvironment(bundle));
     await readContextPromptFromEnvironment();
@@ -295,15 +296,23 @@ describe('Commander context', () => {
     expect(content).not.toContain('\uFFFD');
   });
 
-  it('repairs a divergent CLAUDE mirror without blocking Commander session preparation', async () => {
+  it('preserves a custom CLAUDE guide without blocking Commander session preparation', async () => {
     const mirrorPath = path.join(root, '.happyherd', 'CLAUDE.md');
     await writeFile(mirrorPath, '# Stale instructions\nDo not use this copy.\n');
 
     await expect(prepareCommanderContext('athena')).resolves.toBeDefined();
-    expect(await readFile(mirrorPath, 'utf8')).toBe('# Global\nAlways verify.\n');
+    expect(await readFile(mirrorPath, 'utf8')).toBe('# Stale instructions\nDo not use this copy.\n');
   });
 
-  it('repairs a CLAUDE symlink that points away from canonical AGENTS.md', async () => {
+  it('preserves owner edits to a formerly managed CLAUDE copy', async () => {
+    const mirrorPath = path.join(root, '.happyherd', 'CLAUDE.md');
+    const edited = '<!-- Managed by HappyHerd from AGENTS.md. Do not edit this copy. -->\nOwner amendment\n';
+    await writeFile(mirrorPath, edited);
+    await prepareCommanderContext('athena');
+    expect(await readFile(mirrorPath, 'utf8')).toBe(edited);
+  });
+
+  it('preserves a custom CLAUDE symlink that points away from canonical AGENTS.md', async () => {
     if (process.platform === 'win32') return;
     const wrongTarget = path.join(root, 'wrong-claude.md');
     const mirrorPath = path.join(root, '.happyherd', 'CLAUDE.md');
@@ -311,7 +320,7 @@ describe('Commander context', () => {
     await symlink(wrongTarget, mirrorPath);
 
     await expect(prepareCommanderContext('athena')).resolves.toBeDefined();
-    expect(await readFile(mirrorPath, 'utf8')).toBe('# Global\nAlways verify.\n');
+    expect(await readFile(mirrorPath, 'utf8')).toBe('# Wrong target\n');
   });
 
   it('uses the actual session directory and never reloads the retired home guide', async () => {

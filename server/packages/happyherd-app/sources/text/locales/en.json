@@ -618,7 +618,14 @@
       "troubleshootConnection": "Troubleshoot connection",
       "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happyherd` again.\n3. Reopen HappyHerd.\n\nAI prompt:\n{aiPrompt}",
       "copyAiPrompt": "Copy AI prompt",
-      "copyAiPromptFailed": "Could not copy the AI prompt."
+      "copyAiPromptFailed": "Could not copy the AI prompt.",
+      "installDescription": "On your macOS or Linux computer, run this command in a terminal.",
+      "serverSelection": "When the installer asks for a server URL, use the same server as this app: {serverUrl}. The default http://127.0.0.1:3005 starts a local server on your computer; choose it only if this app uses that server.",
+      "authorizeTerminal": "Authorize your terminal",
+      "authorizeDescription": "The installer starts authorization. If it did not, open a new terminal and run the command below. Choose the “Mobile App” option, then authorize this terminal with your current account by submitting its URL here or scanning its QR code on your phone.",
+      "startDaemon": "Bring your machine online",
+      "daemonDescription": "After authorization, the installer starts the daemon. If you completed authorization separately, run:",
+      "discoveryDescription": "Keep your computer online. When its daemon connects to this account on the same server, this screen shows {newSession}. Select it to start on your connected machine."
     },
     "agentGoalBar": {
       "currentGoal": "Current goal",
@@ -1155,6 +1162,7 @@
     "title": "Codex and Claude Code mobile client",
     "subtitle": "End-to-end encrypted and your account is stored only on your device.",
     "createAccount": "Create account",
+    "accountCreationFailed": "Account creation did not finish. Check your connection and try again.",
     "linkOrRestoreAccount": "Link or restore account",
     "loginWithMobileApp": "Login with mobile app"
   },
@@ -1745,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} new · Jump to latest",
     "commandCompletedWithNoOutput": "[Command completed with no output]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "No messages yet",
     "noActiveSessions": "No active sessions",
@@ -1851,7 +1858,10 @@
     "runningAndQueued": "{value1} running · {value2} queued",
     "valueRunning": "{value1} running",
     "inProgressAndPending": "{value1} in progress · {value2} pending",
-    "thisDevice": "This device"
+    "thisDevice": "This device",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "Show {count} more lines",
@@ -1970,7 +1980,18 @@
     "keySaved": "Your credential has been saved to your account. It is stored only and is not active for Codex."
   },
   "superSession": {
-    "pinned": "Super Session (Pinned)"
+    "pinned": "Super Session (Pinned)",
+    "disconnected": "Super Session disconnected",
+    "reconnecting": "Reconnecting…",
+    "reconnect": "Reconnect to current server",
+    "pendingReplay": "Queued messages will replay automatically after reconnecting. Do not resubmit them.",
+    "causeDns": "The server name could not be resolved. Check network or DNS, then reconnect.",
+    "causeHttp": "The server rejected the connection. Check the server, then reconnect.",
+    "causeConnect": "The server could not be reached. Check network and server availability, then reconnect.",
+    "causeClosed": "The server connection closed. Reconnect to continue.",
+    "causeStaleEndpoint": "This process is using an old server address. Reconnect to the current server.",
+    "causeTimeout": "Reconnection did not finish. Check server availability and retry.",
+    "causeUnavailable": "Transport status is unavailable. Check that the owning machine and daemon are online; status will retry automatically."
   },
   "sessions": {
     "bots": "Bots"
@@ -2050,7 +2071,7 @@
   },
   "contextWindow": {
     "title": "Context window",
-    "featureSubtitle": "Inspect recorded Claude Code and Codex context, including hidden and injected entries.",
+    "featureSubtitle": "Inspect recorded Claude Code, Codex and HappyHerd context, including hidden and injected entries.",
     "description": "A read-only snapshot of the provider trace since its latest compaction, including recorded retained context. Entries show their full recorded content in order.",
     "disabled": "Enable Context window in Settings → Features → Experimental to read this session’s recorded context.",
     "entryCount": "{count} recorded entries",
@@ -2059,13 +2080,14 @@
       "unsupported": "This provider’s context window is not supported yet.",
       "offline": "The session’s machine is offline or unavailable. Reconnect it and retry.",
       "missing": "The provider transcript or session identity is missing on this machine.",
-      "unreadable": "The context window could not be read. Check the machine connection and CLI version, then retry."
+      "unreadable": "The context window could not be read. Check the machine connection and provider version, then retry."
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "Claude Code’s built-in system prompt is not recorded in this transcript.",
       "claude_tool_definitions_unrecorded": "Claude Code’s built-in tool definitions are not recorded in this transcript.",
       "codex_base_instructions_unrecorded": "Codex base instructions are not recorded in this rollout.",
       "codex_compacted_history_unrecorded": "Codex did not record the replacement history for this compaction. Earlier model input cannot be recovered.",
+      "rig_runtime_input_not_recorded": "HappyHerd records native context, not the complete model request. Runtime system instructions, assembled tool definitions, deleted history and stripped opaque content cannot be reconstructed from these records.",
       "provider_input_not_fully_recorded": "This is the provider’s recorded context. Runtime prompt construction and content the provider does not record cannot be recovered."
     },
     "refresh": "Refresh"

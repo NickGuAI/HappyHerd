@@ -1,0 +1,39 @@
+export {
+    PROFILE_MIGRATION_KEY,
+    PROFILE_PHOTO_MIGRATION_KEY,
+    ProfileModule,
+} from "./ProfileModule.js";
+export { ProfileVersionConflictError } from "./ProfileVersionConflictError.js";
+export { type LocalProfile } from "./LocalProfile.js";
+export { MAX_PROFILE_PHOTO_BYTES, type NormalizedProfilePhoto } from "./normalizeProfilePhoto.js";
+export {
+    createProfileInputSchema,
+    instanceIdSchema,
+    profileChangedEventSchema,
+    profileContextSchema,
+    profileEmailSchema,
+    profileEmailValueSchema,
+    profileEventListenerSchema,
+    profileIdSchema,
+    profileMutationOptionsSchema,
+    profileNameSchema,
+    profileNameValueSchema,
+    profilePhotoAssetSchema,
+    profilePhotoContentTypeSchema,
+    profilePhotoMetadataSchema,
+    profileSchema,
+    profileVersionSchema,
+    updateProfileInputSchema,
+    type CreateProfileInput,
+    type Profile,
+    type ProfileChangedEvent,
+    type ProfileEventListener,
+    type ProfileId,
+    type ProfileMutationOptions,
+    type ProfilePhotoAsset,
+    type ProfilePhotoContentType,
+    type ProfilePhotoMetadata,
+    type ProfileUnsubscribe,
+    type ProfileVersion,
+    type UpdateProfileInput,
+} from "./ProfileTypes.js";

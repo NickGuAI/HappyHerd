@@ -389,9 +389,13 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         if (server) await new Promise<void>((closed) => server.close(() => closed()));
     });
 
-    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean; socket?: string; machines?: 'none' | 'loading' } = {}) {
+    async function openShell(options: { theme?: 'light' | 'dark'; width?: number; height?: number; reducedMotion?: boolean; socket?: string; machines?: 'none' | 'loading'; shortcutPlatform?: 'Linux' | 'macOS' } = {}) {
         const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
         page.setDefaultTimeout(4_000);
+        if (options.shortcutPlatform) await page.addInitScript((platform) => {
+            Object.defineProperty(navigator, 'platform', { configurable: true, value: platform === 'macOS' ? 'MacIntel' : 'Linux x86_64' });
+            Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: { platform } });
+        }, options.shortcutPlatform);
         await page.emulateMedia({ reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference' });
         const errors: string[] = [];
         page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
@@ -743,8 +747,8 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await reduced.page.close();
     }, 15_000);
 
-    it('collapses with ⌥⌘B or the top bar toggle: content leaves, then the width snaps', async () => {
-        const { page, errors } = await openShell();
+    it.each(['Linux', 'macOS'] as const)('collapses with the %s shortcut or the top bar toggle: content leaves, then the width snaps', async (shortcutPlatform) => {
+        const { page, errors } = await openShell({ shortcutPlatform });
         const drawer = page.getByTestId('navigation-drawer');
         const openWidth = (await drawer.boundingBox())!.width;
         expect(openWidth).toBeGreaterThan(300);
@@ -755,8 +759,8 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
             const content = panel?.firstElementChild;
             return content?.classList.contains('herd-exit-left') ? panel!.getBoundingClientRect().width : null;
         }, undefined, { polling: 'raf', timeout: 1_000 });
-        // Headless Linux Chromium reports a non-Mac platform: Ctrl+Alt+B.
-        await page.keyboard.press('Control+Alt+KeyB');
+        // Test both supported platform chords independently of the browser host OS.
+        await page.keyboard.press(shortcutPlatform === 'macOS' ? 'Meta+Alt+KeyB' : 'Control+Alt+KeyB');
         expect(await (await exitingWidth).jsonValue()).toBe(openWidth);
         await expect.poll(async () => (await drawer.boundingBox())!.width).toBe(0);
         expect(await page.evaluate(() => (window as any).__SETTINGS__.navigationSidebarCollapsed)).toBe(true);
@@ -767,7 +771,7 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         await toggle.hover();
         const tooltip = page.getByRole('tooltip');
         await expect(tooltip.innerText()).resolves.toContain('Expand navigation sidebar');
-        await expect(tooltip.getByTestId('herd-tooltip-hint').innerText()).resolves.toBe('Ctrl+Alt+B');
+        await expect(tooltip.getByTestId('herd-tooltip-hint').innerText()).resolves.toBe(shortcutPlatform === 'macOS' ? '⌥⌘B' : 'Ctrl+Alt+B');
         const [toggleBox, tipBox] = [(await toggle.boundingBox())!, (await tooltip.boundingBox())!];
         expect(Math.round(tipBox.y - (toggleBox.y + toggleBox.height))).toBe(8);
         expect(Math.round(tipBox.x)).toBe(Math.round(toggleBox.x));

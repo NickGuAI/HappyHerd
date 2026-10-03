@@ -17,6 +17,36 @@ assert.deepEqual(inspect(relocatedAttributionPath, relocatedAttribution), []);
 assert(inspect(relocatedAttributionPath, relocatedAttribution + '\n// changed\n').includes('non-example email address'));
 assert(inspect('other.ts', relocatedAttribution).includes('non-example email address'));
 
+// Imported native contracts qualify only at the reviewed path and exact bytes.
+// A moved/edited copy still fails, and no wider native subtree is exempted.
+/* rename:preserve */
+for (const [file, rule] of [
+  ['native/packages/happy-agent-supervisor/native/supervisor/src/exec.rs', 'operator-specific POSIX home path'],
+  ['native/packages/happy-agent-supervisor/native/supervisor/tests/services.rs', 'operator-specific POSIX home path'],
+  ['native/packages/happy-agent-supervisor/native/windows/happy.patch', 'operator-specific Windows home path'],
+]) {
+  const text = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+  assert.deepEqual(inspect(file, text), []);
+  assert(inspect(file, text + '\n// changed\n').includes(rule));
+  assert(inspect('other.txt', text).includes(rule));
+  assert(inspect(file, text + ['sk-', 'proj-', 'a'.repeat(32)].join('')).includes('OpenAI-style secret'));
+}
+/* /rename:preserve */
+
+/* rename:preserve */
+for (const file of [
+  'native/packages/happy-agent-modules/tests/git/repositoryFacts.test.ts',
+  'native/packages/happy-agent-modules/tests/projects/ProjectModule.test.ts',
+  'native/packages/happy-agent-modules/tests/projects/ProjectCreationTools.test.ts',
+  'native/packages/happy-agent-modules/tests/config/liveConfiguration.test.ts',
+]) {
+  const text = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+  assert.deepEqual(inspect(file, text), []);
+  assert(inspect(file, text + '\n// changed\n').includes('non-example email address'));
+  assert(inspect('other.ts', text).includes('non-example email address'));
+}
+/* /rename:preserve */
+
 assert.deepEqual(inspect('README.md', 'Generic public documentation.'), []);
 assert.deepEqual(
   inspect('docs/example.md', 'See examples/' + ['pm', 'ai-happyherd-agent/'].join('') + ' for an organization example.'),

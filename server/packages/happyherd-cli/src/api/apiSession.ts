@@ -29,6 +29,7 @@ import {
 } from '@/claude/utils/sessionProtocolMapper';
 import { InvalidateSync } from '@/utils/sync';
 import axios from 'axios';
+import { exchangeSessionTransport, sessionTransportEndpoint, sessionTransportErrorCode, sessionTransportHttpStatus, type SessionTransportState, type SessionTransportRecoveryResult, type SessionTransportRecoveryCommand } from './sessionTransport';
 import { extractClaudeAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import type { CredentialProvider } from '@/credentialPool/types';
 import {
@@ -243,7 +244,16 @@ export class ApiSessionClient extends EventEmitter {
     private metadataVersion: number;
     private agentState: AgentState | null;
     private agentStateVersion: number;
-    private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+    private socket!: Socket<ServerToClientEvents, ClientToServerEvents>;
+    private serverUrl = configuration.serverUrl;
+    private transportGeneration = 0;
+    private transportState: SessionTransportState = { state: 'reconnecting', endpoint: sessionTransportEndpoint(configuration.serverUrl), updatedAt: Date.now() };
+    private transportPoll: NodeJS.Timeout | null = null;
+    private transportPollRunning = false;
+    private recoveryResult?: SessionTransportRecoveryResult;
+    private recoveryCommand?: SessionTransportRecoveryCommand;
+    private recoveryTimeout: NodeJS.Timeout | null = null;
+    private receiveAbort = new AbortController();
     private pendingMessages: UserMessage[] = [];
     private pendingMessageCallback: ((message: UserMessage) => void) | null = null;
     private pendingFileEvents: FileEventMessage[] = [];
@@ -322,7 +332,17 @@ export class ApiSessionClient extends EventEmitter {
         this.encryptionVariant = session.encryptionVariant;
         this.sendSync = new InvalidateSync(() => this.flushOutbox());
         this.usageSync = new InvalidateSync(() => this.flushProviderUsageReports());
-        this.receiveSync = new InvalidateSync(() => this.fetchMessages());
+        this.receiveSync = new InvalidateSync(async () => {
+            const generation = this.transportGeneration;
+            try { await this.fetchMessages(); }
+            catch (error) {
+                if (generation === this.transportGeneration && !axios.isCancel?.(error) && !this.closed) {
+                    this.setTransportState('error', sessionTransportErrorCode(error), sessionTransportHttpStatus(error));
+                    this.finishTransportRecovery('failed', sessionTransportErrorCode(error));
+                }
+                if (generation === this.transportGeneration) throw error;
+            }
+        });
 
         // Initialize RPC handler manager
         this.rpcHandlerManager = new RpcHandlerManager({
@@ -337,7 +357,16 @@ export class ApiSessionClient extends EventEmitter {
         // Create socket
         //
 
-        this.socket = io(configuration.serverUrl, {
+        this.createTransportSocket();
+        if (this.isTransportOwner()) {
+            this.transportPoll = setInterval(() => void this.reportTransport(), 1000);
+            this.transportPoll.unref?.();
+            void this.reportTransport();
+        }
+    }
+
+    private createTransportSocket() {
+        const socket = this.socket = io(this.serverUrl, {
             auth: {
                 token: this.token,
                 clientType: 'session-scoped' as const,
@@ -355,31 +384,39 @@ export class ApiSessionClient extends EventEmitter {
         // Handlers
         //
 
-        this.socket.on('connect', () => {
+        socket.on('connect', () => {
             if (this.closed) {
                 this.socket.close();
                 return;
             }
+            if (socket !== this.socket) return;
+            this.setTransportState(this.isTransportOwner() ? 'reconnecting' : 'connected');
             logger.debug('Socket connected successfully');
             this.clearReconnectTimers();
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.receiveSync.invalidate();
+            this.sendSync.invalidate();
             this.usageSync.invalidate();
         })
 
         // Set up global RPC request handler
-        this.socket.on('rpc-request', async (data: { method: string, params: string }, callback: (response: string) => void) => {
+        socket.on('rpc-request', async (data: { method: string, params: string }, callback: (response: string) => void) => {
             callback(await this.rpcHandlerManager.handleRequest(data));
         })
 
-        this.socket.on('disconnect', (reason) => {
+        socket.on('disconnect', (reason) => {
+            if (socket !== this.socket) return;
+            this.setTransportState('disconnected', sessionTransportErrorCode({ message: reason }));
             logger.debug(`[API] Socket disconnected: ${reason}`);
             this.rpcHandlerManager.onSocketDisconnect();
             if (this.closed) return;
             this.startSmartReconnect();
         })
 
-        this.socket.on('connect_error', (error) => {
+        socket.on('connect_error', (error) => {
+            if (socket !== this.socket) return;
+            this.setTransportState('error', sessionTransportErrorCode(error), sessionTransportHttpStatus(error));
+            this.finishTransportRecovery('failed', sessionTransportErrorCode(error));
             logger.debug('[API] Socket connection error:', error);
             this.rpcHandlerManager.onSocketDisconnect();
             if (this.closed) return;
@@ -387,7 +424,8 @@ export class ApiSessionClient extends EventEmitter {
         })
 
         // Server events
-        this.socket.on('update', (data: Update) => {
+        socket.on('update', (data: Update) => {
+            if (socket !== this.socket) return;
             try {
                 logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', data);
 
@@ -446,7 +484,7 @@ export class ApiSessionClient extends EventEmitter {
         });
 
         // DEATH
-        this.socket.on('error', (error) => {
+        socket.on('error', (error) => {
             logger.debug('[API] Socket error:', error);
         });
 
@@ -455,6 +493,72 @@ export class ApiSessionClient extends EventEmitter {
         //
 
         this.socket.connect();
+    }
+
+    private isTransportOwner(): boolean {
+        return this.metadata?.isSuperSession === true && this.metadata.hostPid === process.pid;
+    }
+
+    private setTransportState(state: SessionTransportState['state'], errorCode?: SessionTransportState['errorCode'], httpStatus?: number) {
+        this.transportState = { state, endpoint: sessionTransportEndpoint(this.serverUrl), updatedAt: Date.now(), ...(errorCode ? { errorCode } : {}), ...(httpStatus ? { httpStatus } : {}) };
+        if (this.isTransportOwner()) void this.reportTransport();
+    }
+
+    private async reportTransport() {
+        if (this.closed || this.transportPollRunning || !this.isTransportOwner()) return;
+        this.transportPollRunning = true;
+        try {
+            const response = await exchangeSessionTransport({ sessionId: this.sessionId, pid: process.pid,
+                transport: { ...this.transportState, updatedAt: Date.now() }, ...(this.recoveryResult ? { recovery: this.recoveryResult } : {}) });
+            if (!this.closed && response.recovery && response.recovery.id !== this.recoveryCommand?.id
+                && response.recovery.id !== this.recoveryResult?.id) this.recoverTransport(response.recovery);
+        } catch { /* The owning daemon may be restarting; the provider stays alive. */ }
+        finally { this.transportPollRunning = false; }
+    }
+
+    private recoverTransport(command: SessionTransportRecoveryCommand) {
+        if (this.closed || this.recoveryCommand) return;
+        this.recoveryCommand = command;
+        this.recoveryResult = undefined;
+        this.clearReconnectTimers();
+        this.transportGeneration++;
+        this.receiveAbort.abort();
+        this.receiveAbort = new AbortController();
+        this.socket.removeAllListeners();
+        this.socket.close();
+        this.rpcHandlerManager.onSocketDisconnect();
+        this.serverUrl = command.endpoint.replace(/\/$/, '');
+        this.setTransportState('reconnecting');
+        this.recoveryTimeout = setTimeout(() => {
+            this.setTransportState('error', 'recovery-timeout');
+            this.finishTransportRecovery('failed', 'recovery-timeout');
+        }, 20000);
+        this.createTransportSocket();
+        this.sendSync.invalidate();
+    }
+
+    /** Buffered Socket.IO acknowledgements belong to the replaced socket too. */
+    private async transportAck<T>(pending: Promise<T>): Promise<T> {
+        if (!this.isTransportOwner()) return pending;
+        const signal = this.receiveAbort.signal;
+        let interrupted!: () => void;
+        const replacement = new Promise<never>((_, reject) => {
+            interrupted = () => reject(new Error('Session transport replaced'));
+            signal.addEventListener('abort', interrupted, { once: true });
+            if (signal.aborted) interrupted();
+        });
+        try { return await Promise.race([pending, replacement]); }
+        finally { signal.removeEventListener('abort', interrupted); }
+    }
+
+    private finishTransportRecovery(state: SessionTransportRecoveryResult['state'], errorCode?: SessionTransportState['errorCode']) {
+        if (!this.recoveryCommand) return;
+        this.recoveryResult = { id: this.recoveryCommand.id, state, ...(errorCode ? { errorCode } : {}) };
+        this.recoveryCommand = undefined;
+        if (this.recoveryTimeout) clearTimeout(this.recoveryTimeout);
+        this.recoveryTimeout = null;
+        if (state === 'succeeded') this.setTransportState('connected');
+        void this.reportTransport();
     }
 
     onUserMessage(callback: (data: UserMessage) => void) {
@@ -486,7 +590,7 @@ export class ApiSessionClient extends EventEmitter {
 
     private async requestAttachmentUpload(filename: string, size: number): Promise<AttachmentUploadResult> {
         const response = await axios.post<AttachmentUploadResult>(
-            `${configuration.serverUrl}/v1/sessions/${encodeURIComponent(this.sessionId)}/attachments/request-upload`,
+            `${this.serverUrl}/v1/sessions/${encodeURIComponent(this.sessionId)}/attachments/request-upload`,
             { filename, size },
             {
                 headers: this.authHeaders(),
@@ -526,7 +630,7 @@ export class ApiSessionClient extends EventEmitter {
         const headers: Record<string, string> = {
             'Content-Type': 'application/octet-stream',
         };
-        if (upload.uploadUrl.startsWith(configuration.serverUrl)) {
+        if (upload.uploadUrl.startsWith(this.serverUrl)) {
             headers.Authorization = `Bearer ${this.token}`;
         }
 
@@ -570,7 +674,7 @@ export class ApiSessionClient extends EventEmitter {
      * presigned URL that does not accept extra headers.
      */
     async downloadAttachment(ref: string): Promise<Uint8Array> {
-        const requestUrl = `${configuration.serverUrl}/v1/sessions/${this.sessionId}/attachments/request-download`;
+        const requestUrl = `${this.serverUrl}/v1/sessions/${this.sessionId}/attachments/request-download`;
         const requestRes = await axios.post(
             requestUrl,
             { ref },
@@ -584,7 +688,7 @@ export class ApiSessionClient extends EventEmitter {
             throw new Error('request-download returned no downloadUrl');
         }
 
-        const isServerUrl = downloadUrl.startsWith(configuration.serverUrl);
+        const isServerUrl = downloadUrl.startsWith(this.serverUrl);
         const headers: Record<string, string> = {};
         if (isServerUrl) {
             headers['Authorization'] = `Bearer ${this.token}`;
@@ -689,6 +793,8 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private async fetchMessages() {
+        const generation = this.transportGeneration;
+        const signal = this.receiveAbort.signal;
         // On reconnect, skip processing existing messages — just advance the cursor
         const skipRouting = this.skipInitialMessages;
         const deferredInitialMessages: Array<{ body: unknown; localId: string | null }> = [];
@@ -699,8 +805,9 @@ export class ApiSessionClient extends EventEmitter {
         let afterSeq = this.lastReceivedSeq;
         while (true) {
             const response = await axios.get<V3GetSessionMessagesResponse>(
-                `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
+                `${this.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
                 {
+                    signal,
                     params: {
                         after_seq: afterSeq,
                         limit: 100
@@ -710,13 +817,17 @@ export class ApiSessionClient extends EventEmitter {
                 }
             );
 
+            if (generation !== this.transportGeneration || this.closed) return;
             const messages = Array.isArray(response.data.messages) ? response.data.messages : [];
             let maxSeq = afterSeq;
 
             for (const message of messages) {
+                // Pagination advances over the HTTP page even when the socket
+                // has already routed all of it while this request was pending.
                 if (message.seq > maxSeq) {
                     maxSeq = message.seq;
                 }
+                if (!skipRouting && message.seq <= this.lastReceivedSeq) continue;
 
                 if (message.content?.t !== 'encrypted') {
                     continue;
@@ -733,6 +844,7 @@ export class ApiSessionClient extends EventEmitter {
                         deferredInitialMessages.push({ body, localId: message.localId });
                     } else {
                         this.routeIncomingMessage(body, message.localId);
+                        this.lastReceivedSeq = Math.max(this.lastReceivedSeq, message.seq);
                     }
                 } catch (error) {
                     logger.debug('[API] Failed to decrypt fetched message', {
@@ -758,6 +870,11 @@ export class ApiSessionClient extends EventEmitter {
             if (!hasMore) {
                 break;
             }
+        }
+        if (generation !== this.transportGeneration || this.closed) return;
+        if (this.socket.connected) {
+            this.setTransportState('connected');
+            this.finishTransportRecovery('succeeded');
         }
         if (skipRouting) {
             const priorityIndex = deferredInitialMessages.findIndex(({ body, localId }) => (
@@ -815,6 +932,7 @@ export class ApiSessionClient extends EventEmitter {
     private static readonly MAX_OUTBOX_BATCH_SIZE = 50;
 
     private async flushOutbox() {
+        const generation = this.transportGeneration;
         // Send latest messages first so the user sees recent activity immediately,
         // then backfill older messages in subsequent batches.
         while (this.pendingOutbox.length > 0) {
@@ -823,11 +941,12 @@ export class ApiSessionClient extends EventEmitter {
             const batch = this.pendingOutbox.slice(batchStart);
 
             const response = await axios.post<V3PostSessionMessagesResponse>(
-                `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
+                `${this.serverUrl}/v3/sessions/${encodeURIComponent(this.sessionId)}/messages`,
                 {
                     messages: batch
                 },
                 {
+                    signal: this.receiveAbort.signal,
                     headers: this.authHeaders(),
                     timeout: 60000
                 }
@@ -839,6 +958,7 @@ export class ApiSessionClient extends EventEmitter {
             // how a new session lost the first prompt. Our own messages come
             // back over the socket like everyone else's and move the cursor
             // then, once they have actually been seen.
+            if (generation !== this.transportGeneration) return;
             this.pendingOutbox.splice(batchStart, batch.length);
         }
     }
@@ -1044,7 +1164,7 @@ export class ApiSessionClient extends EventEmitter {
     /**
      * Send a generic agent message to the session using ACP (Agent Communication Protocol) format.
      * Works for any agent type (Gemini, Codex, Claude, etc.) - CLI normalizes to unified ACP format.
-     * 
+     *
      * @param provider - The agent provider sending the message (e.g., 'gemini', 'codex', 'claude')
      * @param body - The message payload (type: 'message' | 'reasoning' | 'tool-call' | 'tool-result')
      */
@@ -1164,7 +1284,7 @@ export class ApiSessionClient extends EventEmitter {
                     persistedReport,
                 ) && this.includesUsageCursors(currentState.usageCursors, localRecord?.usageCursors),
             );
-            const response = await this.socket.timeout(10000).emitWithAck('usage-report', report);
+            const response = await this.transportAck(this.socket.timeout(10000).emitWithAck('usage-report', report));
             if (!response.success) {
                 throw new Error(response.error ?? 'Provider usage report was rejected');
             }
@@ -1353,8 +1473,8 @@ export class ApiSessionClient extends EventEmitter {
                 let updated = handler(this.metadata!); // Weird state if metadata is null - should never happen but here we are
                 const payload = { sid: this.sessionId, expectedVersion: this.metadataVersion, metadata: encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) };
                 const answer = ackTimeoutMs === undefined
-                    ? await this.socket.emitWithAck('update-metadata', payload)
-                    : await this.socket.timeout(ackTimeoutMs).emitWithAck('update-metadata', payload);
+                    ? await this.transportAck(this.socket.emitWithAck('update-metadata', payload))
+                    : await this.transportAck(this.socket.timeout(ackTimeoutMs).emitWithAck('update-metadata', payload));
                 if (answer.result === 'success') {
                     this.metadata = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.metadata));
                     this.metadataVersion = answer.version;
@@ -1392,7 +1512,7 @@ export class ApiSessionClient extends EventEmitter {
         return this.agentStateLock.inLock(async () => {
             await backoff(async () => {
                 let updated = handler(this.agentState || {});
-                const answer = await this.socket.emitWithAck('update-state', { sid: this.sessionId, expectedVersion: this.agentStateVersion, agentState: updated ? encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) : null });
+                const answer = await this.transportAck(this.socket.emitWithAck('update-state', { sid: this.sessionId, expectedVersion: this.agentStateVersion, agentState: updated ? encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) : null }));
                 if (answer.result === 'success') {
                     this.agentState = answer.agentState ? decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.agentState)) : null;
                     this.agentStateVersion = answer.version;
@@ -1439,6 +1559,9 @@ export class ApiSessionClient extends EventEmitter {
     async close() {
         if (this.closed) return;
         this.closed = true;
+        if (this.transportPoll) clearInterval(this.transportPoll);
+        if (this.recoveryTimeout) clearTimeout(this.recoveryTimeout);
+        this.receiveAbort.abort();
         logger.debug('[API] socket.close() called');
         this.sendSync.stop();
         this.usageSync.stop();
@@ -1459,6 +1582,7 @@ export class ApiSessionClient extends EventEmitter {
                 logger.debug('[API] Still not ready to reconnect');
                 return;
             }
+            this.setTransportState('reconnecting', this.transportState.errorCode, this.transportState.httpStatus);
             logger.debug('[API] Attempting reconnect');
             this.socket.connect();
         }, 3000);

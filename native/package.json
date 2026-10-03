@@ -1,0 +1,79 @@
+{
+    "name": "@happyherd/native-runtime",
+    "private": true,
+    "description": "HappyHerd-owned native runtime source distribution",
+    "type": "module",
+    "scripts": {
+        "build": "pnpm --filter @slopus/happy-providers build && pnpm --filter @slopus/happy-agent-base build && pnpm --filter @slopus/happy-agent-supervisor build && pnpm --filter @slopus/happy-agent-client build && pnpm --filter @slopus/happy-agent-compute build && pnpm --filter @slopus/happy-agent-modules build && pnpm --filter @slopus/happy-agent build",
+        "build:supervisor": "pnpm --filter @slopus/happy-agent-supervisor build:native",
+        "check": "pnpm --recursive --workspace-concurrency=1 run check",
+        "test": "pnpm --recursive --workspace-concurrency=1 run test",
+        "test:context": "pnpm --filter @slopus/happy-agent-modules exec vitest run tests/happy",
+        "lint": "oxlint .",
+        "format:check": "oxfmt --check .",
+        "start": "node packages/happy-agent/dist/cli.js"
+    },
+    "devDependencies": {
+        "@types/node": "^24.0.10",
+        "drizzle-orm": "^0.45.2",
+        "oxfmt": "^0.57.0",
+        "oxlint": "^1.72.0",
+        "tsx": "^4.23.0",
+        "typescript": "^5.8.3"
+    },
+    "packageManager": "pnpm@10.28.1",
+    "pnpm": {
+        "overrides": {
+            "@slopus/happy-providers": "workspace:*",
+            "@steve.kite/stdlib": "0.0.12",
+            "@slopus/happy-agent": "workspace:*",
+            "@slopus/happy-agent-modules": "workspace:*",
+            "@slopus/happy-agent-base": "workspace:*",
+            "@slopus/happy-agent-client": "workspace:*",
+            "@slopus/happy-agent-compute": "workspace:*",
+            "@slopus/happy-agent-supervisor": "workspace:*"
+        },
+        "supportedArchitectures": {
+            "cpu": [
+                "arm64",
+                "x64"
+            ],
+            "os": [
+                "darwin",
+                "linux",
+                "win32"
+            ]
+        },
+        "onlyBuiltDependencies": [
+            "@ffmpeg-installer/darwin-arm64",
+            "@ffmpeg-installer/darwin-x64",
+            "@ffmpeg-installer/linux-arm",
+            "@ffmpeg-installer/linux-arm64",
+            "@ffmpeg-installer/linux-ia32",
+            "@ffmpeg-installer/linux-x64",
+            "@ffmpeg-installer/win32-ia32",
+            "@ffmpeg-installer/win32-x64",
+            "@ffprobe-installer/darwin-arm64",
+            "@ffprobe-installer/darwin-x64",
+            "@ffprobe-installer/linux-arm",
+            "@ffprobe-installer/linux-arm64",
+            "@ffprobe-installer/linux-ia32",
+            "@ffprobe-installer/linux-x64",
+            "@ffprobe-installer/win32-ia32",
+            "@ffprobe-installer/win32-x64",
+            "@parcel/watcher"
+        ],
+        "patchedDependencies": {
+            "libsql@0.5.29": "patches/libsql-0.5.29.patch",
+            "@libsql/client@0.18.0": "patches/-libsql__client-0.18.0.patch",
+            "@parcel/watcher@2.6.0": "patches/-parcel__watcher-2.6.0.patch"
+        },
+        "packageExtensions": {
+            "@parcel/watcher@2.6.0": {
+                "dependencies": {
+                    "node-gyp": "12.4.0"
+                }
+            }
+        }
+    }
+}

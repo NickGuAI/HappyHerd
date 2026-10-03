@@ -532,7 +532,14 @@
       "troubleshootConnection": "排查连接问题",
       "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happyherd`。\n3. 重新打开 HappyHerd。\n\nAI 提示词：\n{aiPrompt}",
       "copyAiPrompt": "复制 AI 提示词",
-      "copyAiPromptFailed": "无法复制 AI 提示词。"
+      "copyAiPromptFailed": "无法复制 AI 提示词。",
+      "installDescription": "在你的 macOS 或 Linux 电脑上，打开终端并运行以下命令。",
+      "serverSelection": "安装程序询问服务器 URL 时，请使用与此应用相同的服务器：{serverUrl}。默认地址 http://127.0.0.1:3005 会在电脑上启动本地服务器；仅当此应用使用该服务器时才选择它。",
+      "authorizeTerminal": "授权终端",
+      "authorizeDescription": "安装程序会启动授权。如果没有，请打开新的终端并运行以下命令。选择“Mobile App”选项，然后在此提交终端的 URL 或用手机扫描其二维码，使用你当前的账号授权此终端。",
+      "startDaemon": "让机器上线",
+      "daemonDescription": "授权后，安装程序会启动守护进程。如果你单独完成了授权，请运行：",
+      "discoveryDescription": "请保持电脑在线。守护进程连接到同一服务器上的此账号后，此页面会显示“{newSession}”。选择它，即可在已连接的机器上开始会话。"
     },
     "agentGoalBar": {
       "currentGoal": "当前目标",
@@ -1069,6 +1076,7 @@
     "title": "Codex 和 Claude Code 移动客户端",
     "subtitle": "端到端加密，您的账户仅存储在您的设备上。",
     "createAccount": "创建账户",
+    "accountCreationFailed": "账号创建未完成。请检查网络连接后重试。",
     "linkOrRestoreAccount": "链接或恢复账户",
     "loginWithMobileApp": "使用移动应用登录"
   },
@@ -1745,7 +1753,6 @@
     "newMessagesJumpToLatest": "{count} 条新消息 · 跳到最新",
     "commandCompletedWithNoOutput": "[命令已完成但无输出]",
     "happyherdTerminal": "happyherd://terminal?...",
-    "npmIGHappyHerd": "$ npm i -g @happyherd/cli",
     "happyherd": "$ happyherd",
     "noMessagesYet": "还没有消息",
     "noActiveSessions": "没有活动会话",
@@ -1851,7 +1858,10 @@
     "runningAndQueued": "{value1} 个运行中 · {value2} 个排队中",
     "valueRunning": "{value1} 个运行中",
     "inProgressAndPending": "{value1} 个进行中 · {value2} 个待处理",
-    "thisDevice": "此设备"
+    "thisDevice": "此设备",
+    "installHappyHerd": "curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh | sh",
+    "authLogin": "happyherd auth login",
+    "daemonStart": "happyherd daemon start"
   },
   "diff": {
     "showMoreLines": "显示另外 {count} 行",
@@ -1970,7 +1980,18 @@
     "keySaved": "您的凭据已保存到账号中。它仅作为存储，目前未对 Codex 激活。"
   },
   "superSession": {
-    "pinned": "Super Session（已置顶）"
+    "pinned": "Super Session（已置顶）",
+    "disconnected": "超级会话已断开",
+    "reconnecting": "正在重新连接…",
+    "reconnect": "重新连接到当前服务器",
+    "pendingReplay": "重新连接后，排队的消息将自动重放。请勿重复提交。",
+    "causeDns": "无法解析服务器名称。请检查网络或 DNS，然后重新连接。",
+    "causeHttp": "服务器拒绝了连接。请检查服务器，然后重新连接。",
+    "causeConnect": "无法访问服务器。请检查网络和服务器可用性，然后重新连接。",
+    "causeClosed": "服务器连接已关闭。请重新连接以继续。",
+    "causeStaleEndpoint": "此进程仍在使用旧服务器地址。请重新连接到当前服务器。",
+    "causeTimeout": "重新连接未完成。请检查服务器可用性后重试。",
+    "causeUnavailable": "无法获取传输状态。请检查所属机器和守护进程是否在线；状态查询将自动重试。"
   },
   "sessions": {
     "bots": "机器人"
@@ -2050,7 +2071,7 @@
   },
   "contextWindow": {
     "title": "上下文窗口",
-    "featureSubtitle": "查看 Claude Code 和 Codex 记录的上下文，包括隐藏和注入的条目。",
+    "featureSubtitle": "查看 Claude Code、Codex 和 HappyHerd 记录的上下文，包括隐藏和注入的条目。",
     "description": "提供方最近一次压缩后轨迹的只读快照，包括记录的保留上下文。按顺序显示每个条目的完整记录内容。",
     "disabled": "在设置 → 功能 → 实验性功能中启用上下文窗口，以查看此会话记录的上下文。",
     "entryCount": "{count} 个记录条目",
@@ -2059,13 +2080,14 @@
       "unsupported": "尚不支持此提供方的上下文窗口。",
       "offline": "会话所在机器离线或不可用。请重新连接后重试。",
       "missing": "此机器上缺少提供方的会话记录或会话标识。",
-      "unreadable": "无法读取上下文窗口。请检查机器连接和 CLI 版本后重试。"
+      "unreadable": "无法读取上下文窗口。请检查机器连接和提供方版本，然后重试。"
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "此会话记录不包含 Claude Code 的内置系统提示词。",
       "claude_tool_definitions_unrecorded": "此会话记录不包含 Claude Code 的内置工具定义。",
       "codex_base_instructions_unrecorded": "此轨迹不包含 Codex 基础指令。",
       "codex_compacted_history_unrecorded": "Codex 未记录此次压缩的替代历史。无法恢复更早的模型输入。",
+      "rig_runtime_input_not_recorded": "HappyHerd 记录原生上下文，而非完整的模型请求。无法从这些记录重建运行时系统指令、动态组装的工具定义、已删除的历史记录或已移除的不透明内容。",
       "provider_input_not_fully_recorded": "此处显示提供方记录的上下文。无法恢复运行时提示词构建过程以及提供方未记录的内容。"
     },
     "refresh": "刷新"

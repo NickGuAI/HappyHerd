@@ -1,0 +1,25 @@
+[package]
+name = "happy-agent-supervisor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "happy-agent-supervisor"
+path = "src/main.rs"
+
+[lib]
+name = "happy_agent_supervisor"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+libc.workspace = true
+regex-lite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

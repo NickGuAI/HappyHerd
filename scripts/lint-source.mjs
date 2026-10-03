@@ -8,8 +8,10 @@ const repoRoot = resolve(import.meta.dirname, '..');
 const requestedBase = process.env.HAPPYHERD_LINT_BASE?.trim();
 const ownedBaseline = 'happyherd-owned-baseline-2026-08-02';
 
+// Large source imports must not make Git misclassify retained upstream renames
+// as newly added files. Keep complete rename detection for every lint diff.
 function git(args) {
-  return execFileSync('git', ['-C', repoRoot, ...args], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-C', repoRoot, '-c', 'diff.renameLimit=0', ...args], { encoding: 'utf8' }).trim();
 }
 
 function lines(value) {
@@ -79,9 +81,9 @@ for (const relativePath of [...changed].sort()) {
 
 try {
   if (base) {
-    execFileSync('git', ['-C', repoRoot, 'diff', '--check', `${base}...HEAD`], { stdio: 'inherit' });
+    execFileSync('git', ['-C', repoRoot, '-c', 'diff.renameLimit=0', 'diff', '--check', `${base}...HEAD`], { stdio: 'inherit' });
   }
-  execFileSync('git', ['-C', repoRoot, 'diff', '--check', 'HEAD'], { stdio: 'inherit' });
+  execFileSync('git', ['-C', repoRoot, '-c', 'diff.renameLimit=0', 'diff', '--check', 'HEAD'], { stdio: 'inherit' });
 } catch {
   failures.push('git diff --check failed');
 }

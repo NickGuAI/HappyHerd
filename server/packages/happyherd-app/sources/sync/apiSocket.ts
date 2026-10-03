@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { configureSessionTransportRpc } from './sessionTransport';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { TokenStorage } from '@/auth/tokenStorage';
@@ -370,3 +371,5 @@ class ApiSocket {
 //
 
 export const apiSocket = new ApiSocket();
+
+configureSessionTransportRpc((machineId, method, request) => apiSocket.machineRPC(machineId, method, request));

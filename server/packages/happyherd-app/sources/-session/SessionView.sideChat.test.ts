@@ -1,3 +1,4 @@
+import { configureSessionTransportRpc, refreshSessionTransport, type SessionTransportStatus } from '@/sync/sessionTransport';
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -1008,6 +1009,24 @@ async function openAndCloseSideChatFileWorkspace(renderer: ReactTestRenderer) {
 }
 
 describe('SessionView header actions', () => {
+    it('uses owning-machine transport for a Super Session header with stale online presence', async () => {
+        mocks.sessions.parent.metadata!.isSuperSession = true;
+        let state: SessionTransportStatus['state'] = 'disconnected';
+        configureSessionTransportRpc(async (_machineId, _method, { sessionId }) => ({
+            sessionId, state, providerRunning: true, endpoint: 'http://old.invalid', currentEndpoint: 'http://current.test',
+            pendingMessages: 'replay-on-reconnect', canRecover: true,
+        }));
+        const renderer = renderParent();
+        await act(async () => { await refreshSessionTransport(mocks.sessions.parent.metadata!.machineId!, 'parent'); });
+        expect(chatHeader(renderer).props.isConnected).toBe(false);
+        for (const next of ['reconnecting', 'connected', 'error'] as const) {
+            state = next;
+            await act(async () => { await refreshSessionTransport(mocks.sessions.parent.metadata!.machineId!, 'parent'); });
+            expect(chatHeader(renderer).props.isConnected).toBe(next === 'connected');
+        }
+        act(() => renderer.unmount());
+    });
+
     it.each([1280, 390])('puts Archive first and keeps the machine-icon Workspace toggle at %i px', (width) => {
         mocks.width = width;
         const renderer = renderParent();

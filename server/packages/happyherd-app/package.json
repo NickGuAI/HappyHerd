@@ -9,7 +9,7 @@
     "ios:connected-device": "pnpm ios -d",
     "submit": "eas submit --platform ios",
     "web": "expo start --web",
-    "web:smoke": "node scripts/smoke-production-web.mjs",
+    "web:smoke": "node scripts/smoke-production-web.mjs && node scripts/smoke-welcome-recovery.mjs",
     "golden:test": "node ../../../scripts/kilv-golden.mjs",
     "golden:update": "node ../../../scripts/kilv-golden-update.mjs",
     "test": "vitest",

@@ -1,0 +1,496 @@
+import { createHash } from "node:crypto";
+
+import type {
+    Options as ClaudeSdkOptions,
+    SDKUserMessage,
+    SessionStore,
+    SessionStoreEntry,
+} from "@anthropic-ai/claude-agent-sdk";
+
+import type {
+    SessionAgentMessage,
+    SessionAssistantBlock,
+    SessionAssistantMessage,
+    SessionContext,
+    SessionImageBlock,
+    SessionInputBlock,
+    SessionMessage,
+    SessionReasoningBlock,
+    SessionSystemMessage,
+    SessionTextBlock,
+    SessionToolResultMessage,
+    SessionToolResultBlock,
+    SessionUserMessage,
+} from "@/core/SessionContext.js";
+import { toSessionAgentNotificationMessage } from "@/core/toSessionAgentNotificationMessage.js";
+import { toSessionReminderMessage } from "@/core/toSessionReminderMessage.js";
+import { claudeSessionAttachments } from "@/vendors/claude/impl/claudeSessionAttachments.js";
+
+/** A message Claude can replay, once system notices have been projected onto the user role. */
+type ReplayMessage = Exclude<SessionMessage, SessionSystemMessage | SessionAgentMessage>;
+
+export interface ClaudeSessionReplay {
+    compactionSummary(): string | undefined;
+    entries(): readonly SessionStoreEntry[];
+    message: SDKUserMessage;
+    options: Pick<ClaudeSdkOptions, "persistSession" | "resume" | "sessionStore">;
+    prompt: AsyncIterable<SDKUserMessage>;
+}
+
+export function createClaudeSessionReplay(options: {
+    context: SessionContext;
+    env?: NodeJS.ProcessEnv;
+    model: string;
+    sessionId: string;
+}): ClaudeSessionReplay {
+    const messages = toReplayMessages(options.context.messages);
+    const splitIndex = findPromptStart(messages);
+    const history = messages.slice(0, splitIndex);
+    const promptMessages = messages.slice(splitIndex);
+    const entries = toSessionStoreEntries(history, {
+        env: options.env ?? process.env,
+        model: options.model,
+        sessionId: options.sessionId,
+    });
+    let compactionSummary: string | undefined;
+    const sessionStore: SessionStore = {
+        append: (key, appendedEntries) => {
+            // Rig owns the conversation. Ignore Claude's transcript mirror instead of making a
+            // second history authoritative. Native compaction is the one exception in what we
+            // observe: its replacement summary is a result, not resumable session state.
+            if (key.sessionId === options.sessionId) {
+                compactionSummary = findCompactionSummary(appendedEntries) ?? compactionSummary;
+            }
+            return Promise.resolve();
+        },
+        load: (key) =>
+            Promise.resolve(
+                key.sessionId === options.sessionId && key.subpath === undefined ? entries : null,
+            ),
+    };
+    const message = toPromptMessage(promptMessages);
+    return {
+        compactionSummary: () => compactionSummary,
+        entries: () => entries,
+        message,
+        options: { persistSession: true, resume: options.sessionId, sessionStore },
+        prompt: singleMessagePrompt(message),
+    };
+}
+
+export function createClaudeLivePromptMessage(
+    sessionMessages: readonly SessionMessage[],
+): SDKUserMessage {
+    const messages = toReplayMessages(sessionMessages);
+    let firstTrailingToolIndex = messages.length;
+    while (firstTrailingToolIndex > 0 && messages[firstTrailingToolIndex - 1]?.role === "tool") {
+        firstTrailingToolIndex -= 1;
+    }
+    return toPromptMessage(
+        firstTrailingToolIndex === messages.length
+            ? messages.slice(-1)
+            : messages.slice(firstTrailingToolIndex),
+    );
+}
+
+/**
+ * Anthropic has no system role inside a conversation, so a session system message becomes a
+ * `<system-reminder>` user turn in the position the caller placed it. A message from another
+ * agent takes the same route, as the notification that names who sent it.
+ */
+function toReplayMessages(messages: readonly SessionMessage[]): ReplayMessage[] {
+    return messages.map((message) => {
+        if (message.role === "agent") {
+            return toSessionReminderMessage(toSessionAgentNotificationMessage(message));
+        }
+        return message.role === "system" ? toSessionReminderMessage(message) : message;
+    });
+}
+
+function findPromptStart(messages: readonly ReplayMessage[]): number {
+    const lastIndex = Math.max(0, messages.length - 1);
+    if (messages[lastIndex]?.role !== "tool") return lastIndex;
+    return messages.length;
+}
+
+function toPromptMessage(messages: readonly ReplayMessage[]): SDKUserMessage {
+    const first = messages[0];
+    if (first === undefined) {
+        return toSdkUserMessage({
+            role: "user",
+            content: [{ type: "text", text: "Continue from the supplied tool result." }],
+        });
+    }
+    if (first.role === "user") return toSdkUserMessage(first);
+    if (first.role !== "tool") {
+        throw new Error("Claude inference must start from a user or tool-result message.");
+    }
+    return {
+        type: "user",
+        parent_tool_use_id: null,
+        message: {
+            role: "user",
+            content: messages.map((message) => {
+                if (message.role !== "tool") {
+                    throw new Error("A Claude tool-result prompt may contain only tool results.");
+                }
+                return toToolResultBlock(message);
+            }),
+        },
+    };
+}
+
+function toSessionStoreEntries(
+    messages: readonly ReplayMessage[],
+    options: { env: NodeJS.ProcessEnv; model: string; sessionId: string },
+): SessionStoreEntry[] {
+    let parentUuid: string | null = null;
+    const assistantUuidByToolCallId = new Map<string, string>();
+    const entries: SessionStoreEntry[] = [];
+    // Claude Code records its environment, model, session-context, and date attachments right
+    // after the first prompt and renders them as the system message that follows the first user
+    // turn. A replay must carry the same attachments, in the same place, for a rebuilt session to
+    // send the same bytes as the live one; without them the CLI appends its own copy at the end.
+    let firstPromptAttachmentsPending = true;
+    for (let index = 0; index < messages.length; index += 1) {
+        const message = messages[index];
+        if (message === undefined) continue;
+        const uuid = stableMessageUuid(options.sessionId, message, index);
+        const base = {
+            // Rig runs every tool itself, so Claude Code never works from a caller-owned
+            // directory. The transcript still needs the field expected by its resume path.
+            cwd: process.cwd(),
+            entrypoint: "sdk-ts",
+            isSidechain: false,
+            parentUuid,
+            sessionId: options.sessionId,
+            timestamp: new Date(index).toISOString(),
+            userType: "external",
+            uuid,
+            version: "happy-providers",
+        };
+        if (message.role === "assistant") {
+            let contentIndex = 0;
+            let entryIndex = 0;
+            const nextEntryUuid = (): string => {
+                const entryUuid =
+                    entryIndex === 0
+                        ? uuid
+                        : stableContentBlockUuid(options.sessionId, index, entryIndex);
+                entryIndex += 1;
+                return entryUuid;
+            };
+            while (contentIndex < message.content.length) {
+                const assistantBlocks: SessionAssistantBlock[] = [];
+                while (
+                    contentIndex < message.content.length &&
+                    message.content[contentIndex]?.type !== "tool_result"
+                ) {
+                    const block = message.content[contentIndex];
+                    if (block !== undefined) assistantBlocks.push(block);
+                    contentIndex += 1;
+                }
+                if (assistantBlocks.length > 0) {
+                    const segmentUuid = nextEntryUuid();
+                    const sdkMessage = toSdkAssistantMessage(
+                        { role: "assistant", content: assistantBlocks },
+                        options.model,
+                        segmentUuid,
+                    );
+                    // Streaming persists one assistant entry per block. Siblings within one
+                    // segment share the API message ID so Claude merges them on resume; an inline
+                    // provider result ends that segment and becomes the intervening user entry.
+                    for (const [blockIndex, block] of sdkMessage.content.entries()) {
+                        const blockUuid = blockIndex === 0 ? segmentUuid : nextEntryUuid();
+                        entries.push({
+                            ...base,
+                            parentUuid,
+                            uuid: blockUuid,
+                            message: { ...sdkMessage, content: [block] },
+                            type: "assistant",
+                        });
+                        parentUuid = blockUuid;
+                        if (
+                            typeof block === "object" &&
+                            block !== null &&
+                            block.type === "tool_use"
+                        ) {
+                            assistantUuidByToolCallId.set(block.id, blockUuid);
+                        }
+                    }
+                }
+
+                const toolResults: SessionToolResultBlock[] = [];
+                while (message.content[contentIndex]?.type === "tool_result") {
+                    toolResults.push(message.content[contentIndex] as SessionToolResultBlock);
+                    contentIndex += 1;
+                }
+                if (toolResults.length > 0) {
+                    const resultUuid = nextEntryUuid();
+                    const sourceToolAssistantUUID = assistantUuidByToolCallId.get(
+                        toolResults[0]!.callId,
+                    );
+                    entries.push({
+                        ...base,
+                        isMeta: true,
+                        parentUuid,
+                        uuid: resultUuid,
+                        message: {
+                            role: "user",
+                            content: toolResults.map(toInlineToolResultBlock),
+                        },
+                        ...(sourceToolAssistantUUID === undefined
+                            ? {}
+                            : { sourceToolAssistantUUID }),
+                        type: "user",
+                    });
+                    parentUuid = resultUuid;
+                }
+            }
+            continue;
+        }
+        if (message.role === "tool") {
+            const toolResults = [message];
+            while (messages[index + 1]?.role === "tool") {
+                toolResults.push(messages[index + 1] as SessionToolResultMessage);
+                index += 1;
+            }
+            const sourceToolAssistantUUID = assistantUuidByToolCallId.get(message.callId);
+            entries.push({
+                ...base,
+                isMeta: true,
+                message: { role: "user", content: toolResults.map(toToolResultBlock) },
+                ...(sourceToolAssistantUUID === undefined ? {} : { sourceToolAssistantUUID }),
+                type: "user",
+            });
+            parentUuid = uuid;
+            continue;
+        }
+        if (message.role === "compaction" && message.content === null) continue;
+        const content: readonly SessionInputBlock[] =
+            message.role === "compaction"
+                ? [{ type: "text", text: message.content! }]
+                : message.content;
+        entries.push({
+            ...base,
+            message: {
+                role: "user",
+                content: toSdkContent(content),
+            },
+            type: "user",
+        });
+        parentUuid = uuid;
+        if (firstPromptAttachmentsPending) {
+            firstPromptAttachmentsPending = false;
+            const attachments = claudeSessionAttachments({
+                cwd: base.cwd,
+                env: options.env,
+                model: options.model,
+            });
+            for (const [attachmentIndex, attachment] of attachments.entries()) {
+                const attachmentUuid = stableUuid(
+                    options.sessionId,
+                    `${index}:attachment:${attachmentIndex}`,
+                );
+                entries.push({
+                    ...base,
+                    attachment,
+                    parentUuid,
+                    type: "attachment",
+                    uuid: attachmentUuid,
+                });
+                parentUuid = attachmentUuid;
+            }
+        }
+    }
+    return entries;
+}
+
+function toSdkUserMessage(message: SessionUserMessage): SDKUserMessage {
+    return {
+        type: "user",
+        parent_tool_use_id: null,
+        message: { role: "user", content: toSdkContent(message.content) },
+    };
+}
+
+function toSdkAssistantMessage(message: SessionAssistantMessage, model: string, uuid: string) {
+    return {
+        id: `msg_rig_${uuid.replaceAll("-", "")}`,
+        container: null,
+        content: message.content.flatMap((block): any[] => {
+            if (block.type === "reasoning") return toThinkingBlock(block);
+            if (block.type === "text") return [{ type: "text" as const, text: block.text }];
+            if (block.type === "tool_result") return [];
+            return [
+                {
+                    type: "tool_use" as const,
+                    id: block.callId,
+                    name: claudeToolWireName(block),
+                    input: parseArguments(block.arguments),
+                },
+            ];
+        }),
+        model,
+        role: "assistant" as const,
+        stop_details: null,
+        stop_reason: message.content.some((block) => block.type === "tool_call")
+            ? ("tool_use" as const)
+            : ("end_turn" as const),
+        stop_sequence: null,
+        type: "message" as const,
+        usage: {
+            input_tokens: 0,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            output_tokens: 0,
+            server_tool_use: null,
+            service_tier: null,
+            cache_creation: null,
+        },
+    };
+}
+
+function claudeToolWireName(block: { name: string; vendor?: unknown }): string {
+    const vendor = block.vendor;
+    return typeof vendor === "object" &&
+        vendor !== null &&
+        "type" in vendor &&
+        vendor.type === "claude_tool_use" &&
+        "wireName" in vendor &&
+        typeof vendor.wireName === "string"
+        ? vendor.wireName
+        : block.name;
+}
+
+function toThinkingBlock(
+    reasoning: SessionReasoningBlock,
+): (
+    | { type: "thinking"; thinking: string; signature: string }
+    | { type: "redacted_thinking"; data: string }
+)[] {
+    if (reasoning.reasoning === undefined) return [];
+    if (reasoning.text === undefined) {
+        return [{ type: "redacted_thinking" as const, data: reasoning.reasoning }];
+    }
+    return [
+        {
+            type: "thinking" as const,
+            thinking: reasoning.text,
+            signature: reasoning.reasoning,
+        },
+    ];
+}
+
+function toToolResultBlock(message: SessionToolResultMessage) {
+    return {
+        type: "tool_result" as const,
+        tool_use_id: message.callId,
+        content: toSdkContent(message.content),
+        ...(message.isError === undefined ? {} : { is_error: message.isError }),
+    };
+}
+
+function toInlineToolResultBlock(block: SessionToolResultBlock) {
+    const native = nativeClaudeToolResult(block.vendor);
+    return native === undefined
+        ? {
+              type: "tool_result" as const,
+              tool_use_id: block.callId,
+              content: toSdkContent(block.content),
+              ...(block.isError === undefined ? {} : { is_error: block.isError }),
+          }
+        : { ...native, tool_use_id: block.callId };
+}
+
+function nativeClaudeToolResult(vendor: unknown): Record<string, unknown> | undefined {
+    if (
+        typeof vendor !== "object" ||
+        vendor === null ||
+        !("outputBlock" in vendor) ||
+        typeof vendor.outputBlock !== "string"
+    ) {
+        return undefined;
+    }
+    try {
+        const block: unknown = JSON.parse(vendor.outputBlock);
+        return typeof block === "object" &&
+            block !== null &&
+            "type" in block &&
+            block.type === "tool_result"
+            ? (block as Record<string, unknown>)
+            : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function toSdkContent(content: readonly SessionInputBlock[]) {
+    if (content.length === 1 && content[0]?.type === "text") return content[0].text;
+    return content.map(toContentBlock);
+}
+
+function toContentBlock(block: SessionInputBlock) {
+    if (block.type === "tool_call_request") {
+        throw new Error("Tool requests must be executed by the agent before inference.");
+    }
+    if (block.type === "text") return { type: "text" as const, text: block.text };
+    return {
+        type: "image" as const,
+        source: {
+            type: "base64" as const,
+            media_type: block.mimeType as ClaudeImageMediaType,
+            data: block.data,
+        },
+    };
+}
+
+type ClaudeImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+function parseArguments(argumentsJson: string): Record<string, unknown> {
+    try {
+        const value: unknown = JSON.parse(argumentsJson);
+        return value !== null && typeof value === "object" && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
+    } catch {
+        return {};
+    }
+}
+
+function stableMessageUuid(sessionId: string, message: SessionMessage, index: number): string {
+    return stableUuid(sessionId, `${index}:${message.role}`);
+}
+
+function stableContentBlockUuid(
+    sessionId: string,
+    messageIndex: number,
+    blockIndex: number,
+): string {
+    return stableUuid(sessionId, `${messageIndex}:assistant:${blockIndex}`);
+}
+
+function stableUuid(sessionId: string, identity: string): string {
+    const digest = createHash("sha256").update(sessionId).update(identity).digest();
+    const bytes = Buffer.from(digest.subarray(0, 16));
+    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x50;
+    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+    const hex = bytes.toString("hex");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function findCompactionSummary(entries: readonly SessionStoreEntry[]): string | undefined {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+        const entry = entries[index];
+        if (entry?.isCompactSummary !== true) continue;
+        const message = entry.message as { content?: unknown } | undefined;
+        if (typeof message?.content === "string" && message.content.trim().length > 0) {
+            return message.content;
+        }
+    }
+    return undefined;
+}
+
+async function* singleMessagePrompt(message: SDKUserMessage): AsyncIterable<SDKUserMessage> {
+    yield message;
+}

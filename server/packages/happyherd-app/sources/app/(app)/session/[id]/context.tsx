@@ -36,7 +36,7 @@ export default function SessionContextWindowScreen() {
         return () => { generation.current++; };
         // A snapshot refreshes explicitly, or when its source/reachability changes.
     }, [enabled, id, session?.metadata?.machineId, session?.metadata?.path,
-        session?.metadata?.flavor, session?.metadata?.claudeSessionId,
+        session?.metadata?.flavor, session?.metadata?.client?.id, session?.metadata?.claudeSessionId,
         session?.metadata?.codexThreadId, session?.metadata?.codexHome, session?.metadata?.homeDir, machine?.active, attempt]);
 
     const header = (

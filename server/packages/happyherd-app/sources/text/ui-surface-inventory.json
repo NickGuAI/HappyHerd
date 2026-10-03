@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "42934832777f42eed83f7966d5f359967101b5682d66b680128659bf9bb0d7c8",
+  "sourceFingerprint": "e64397071d4c3fac6d560a0791992aa21ec164f801dc64659a32a2c06adcef7d",
   "routeCount": 45,
-  "surfaceCount": 338,
+  "surfaceCount": 339,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -213,13 +213,19 @@
       "path": "/",
       "owner": "sources/app/(app)/index.tsx",
       "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.retry",
         "navigation.restoreWithSecretKey",
+        "welcome.accountCreationFailed",
         "welcome.createAccount",
         "welcome.loginWithMobileApp",
         "welcome.subtitle",
         "welcome.title"
       ],
-      "states": []
+      "states": [
+        "error"
+      ]
     },
     {
       "path": "/machine/[id]",
@@ -1542,13 +1548,19 @@
         "Home"
       ],
       "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.retry",
         "navigation.restoreWithSecretKey",
+        "welcome.accountCreationFailed",
         "welcome.createAccount",
         "welcome.loginWithMobileApp",
         "welcome.subtitle",
         "welcome.title"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -3704,15 +3716,20 @@
       "translationKeys": [
         "common.authenticate",
         "common.cancel",
+        "components.emptyMainScreen.authorizeDescription",
+        "components.emptyMainScreen.authorizeTerminal",
         "components.emptyMainScreen.bringMachineOnline",
+        "components.emptyMainScreen.daemonDescription",
+        "components.emptyMainScreen.discoveryDescription",
         "components.emptyMainScreen.installCli",
+        "components.emptyMainScreen.installDescription",
         "components.emptyMainScreen.machineUnreachable",
         "components.emptyMainScreen.noMachinesReachable",
         "components.emptyMainScreen.noSessionsYet",
         "components.emptyMainScreen.openCamera",
         "components.emptyMainScreen.readyToCode",
-        "components.emptyMainScreen.runIt",
-        "components.emptyMainScreen.scanQrCode",
+        "components.emptyMainScreen.serverSelection",
+        "components.emptyMainScreen.startDaemon",
         "components.emptyMainScreen.startOnConnectedMachine",
         "components.emptyMainScreen.troubleshoot",
         "connect.enterUrlManually",
@@ -3720,9 +3737,10 @@
         "modals.pasteUrlFromTerminal",
         "newSession.title",
         "sidebar.showArchived",
-        "uiCopy.happyherd",
+        "uiCopy.authLogin",
+        "uiCopy.daemonStart",
         "uiCopy.happyherdTerminal",
-        "uiCopy.npmIGHappyHerd"
+        "uiCopy.installHappyHerd"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5999,6 +6017,30 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/SessionTransportBanner.tsx",
+      "kind": "banner",
+      "route": null,
+      "exports": [
+        "SessionTransportBanner",
+        "transportCause"
+      ],
+      "translationKeys": [
+        "superSession.causeClosed",
+        "superSession.causeConnect",
+        "superSession.causeDns",
+        "superSession.causeHttp",
+        "superSession.causeStaleEndpoint",
+        "superSession.causeTimeout",
+        "superSession.causeUnavailable",
+        "superSession.disconnected",
+        "superSession.pendingReplay",
+        "superSession.reconnect",
+        "superSession.reconnecting"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/SettingsAboutView.tsx",
       "kind": "component",
       "route": null,
@@ -7487,6 +7529,8 @@
         "status.online",
         "status.permissionRequired",
         "status.unknown",
+        "superSession.disconnected",
+        "superSession.reconnecting",
         "time.hoursAgo",
         "time.justNow",
         "time.minutesAgo"

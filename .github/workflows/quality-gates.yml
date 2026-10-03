@@ -172,6 +172,43 @@ jobs:
           pnpm --filter @happyherd/cli --fail-if-no-match test
           pnpm --filter ./packages/happyherd-server --fail-if-no-match test
 
+  native-runtime:
+    name: Native runtime
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.run_suites == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install pinned native supervisor toolchain
+        run: rustup toolchain install 1.96.0 --profile minimal
+      - name: Verify owned native runtime
+        run: |
+          set -o pipefail
+          mkdir -p .artifacts/native-runtime
+          scripts/test-native-context-runtime.sh 2>&1 | tee .artifacts/native-runtime/verification.log
+      - name: Verify native install is reproducible
+        run: git diff --exit-code
+      - name: Preserve native runtime verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-runtime-${{ github.run_id }}
+          path: .artifacts/native-runtime/
+          if-no-files-found: error
+          retention-days: 30
+
   production-build:
     name: Production build
     needs: changes

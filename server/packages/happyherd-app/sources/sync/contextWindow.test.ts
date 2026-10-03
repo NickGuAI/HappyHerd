@@ -37,13 +37,30 @@ describe('Context window encrypted machine RPC', () => {
         expect(machineRPC.mock.calls[0][2].provider).toBe('claude');
     });
 
-    it.each(['grok', 'dsh', 'agy', 'rig'])('reports unsupported %s without requesting a trace', async (flavor) => {
+    it.each(['grok', 'dsh', 'agy'])('reports unsupported %s without requesting a trace', async (flavor) => {
         await expect(readSessionContextWindow(session({ flavor }), machine)).resolves.toEqual({ type: 'error', reason: 'unsupported' });
         expect(machineRPC).not.toHaveBeenCalled();
     });
 
-    it('does not treat a HappyHerd client using a Claude model as a Claude Code trace', async () => {
-        await expect(readSessionContextWindow(session({ client: { id: 'rig' } }), machine)).resolves.toEqual({ type: 'error', reason: 'unsupported' });
+    it.each(['claude', 'codex', 'rig'])('maps native HappyHerd with %s model flavor to its remote identity only', async (flavor) => {
+        const nativeReply = { ...reply, provider: 'rig', limitations: ['rig_runtime_input_not_recorded'] };
+        machineRPC.mockResolvedValue(nativeReply);
+        await expect(readSessionContextWindow(session({ flavor, client: { id: 'rig' },
+            codexThreadId: 'not-a-native-id', codexHome: '/not-native-state',
+        }), machine)).resolves.toEqual(nativeReply);
+        expect(machineRPC).toHaveBeenCalledExactlyOnceWith('machine-1', 'session-context-window', {
+            provider: 'rig', directory: '/fixture/project', sessionId: 'session-1',
+        });
+    });
+
+    it('reads explicit native flavor without requiring a CLI identity', async () => {
+        await readSessionContextWindow(session({ flavor: 'rig', claudeSessionId: undefined }), machine);
+        expect(machineRPC.mock.calls[0][2]).toEqual({ provider: 'rig', directory: '/fixture/project', sessionId: 'session-1' });
+    });
+
+    it('requires the remote session identity for native context', async () => {
+        await expect(readSessionContextWindow({ ...session({ client: { id: 'rig' } }), id: '' }, machine))
+            .resolves.toEqual({ type: 'error', reason: 'missing' });
         expect(machineRPC).not.toHaveBeenCalled();
     });
 
@@ -57,15 +74,16 @@ describe('Context window encrypted machine RPC', () => {
         expect(machineRPC).not.toHaveBeenCalled();
     });
 
-    it.each(['unsupported', 'missing', 'unreadable'])('preserves the machine reader failure %s', async (reason) => {
+    it.each(['claude', 'rig'].flatMap((provider) => ['unsupported', 'missing', 'unreadable'].map((reason) => ({ provider, reason }))))('preserves the $provider machine reader failure $reason', async ({ provider, reason }) => {
         machineRPC.mockResolvedValue({ type: 'error', reason });
-        await expect(readSessionContextWindow(session(), machine)).resolves.toEqual({ type: 'error', reason });
+        await expect(readSessionContextWindow(session({ flavor: provider }), machine)).resolves.toEqual({ type: 'error', reason });
     });
 
-    it('reports RPC or malformed replies as unreadable, and allows the next retry to succeed', async () => {
-        machineRPC.mockRejectedValueOnce(new Error('machine disconnected')).mockResolvedValueOnce({ entries: [] });
-        await expect(readSessionContextWindow(session(), machine)).resolves.toEqual({ type: 'error', reason: 'unreadable' });
-        await expect(readSessionContextWindow(session(), machine)).resolves.toEqual({ type: 'error', reason: 'unreadable' });
-        await expect(readSessionContextWindow(session(), machine)).resolves.toEqual(reply);
+    it.each(['claude', 'rig'])('reports %s RPC or malformed replies as unreadable, and allows the next retry to succeed', async (provider) => {
+        const recovered = { ...reply, provider };
+        machineRPC.mockRejectedValueOnce(new Error('machine disconnected')).mockResolvedValueOnce({ entries: [] }).mockResolvedValueOnce(recovered);
+        await expect(readSessionContextWindow(session({ flavor: provider }), machine)).resolves.toEqual({ type: 'error', reason: 'unreadable' });
+        await expect(readSessionContextWindow(session({ flavor: provider }), machine)).resolves.toEqual({ type: 'error', reason: 'unreadable' });
+        await expect(readSessionContextWindow(session({ flavor: provider }), machine)).resolves.toEqual(recovered);
     });
 });

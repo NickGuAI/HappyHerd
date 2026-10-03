@@ -40,6 +40,15 @@ const approvedRepositoryDisplayPattern = new RegExp(
 // Only the email classification is exempted, only for these exact bytes. Edited
 // copies and every secret/identity/path rule remain subject to the normal scan.
 const publicUpstreamAttributionDigests = new Map([
+  // Exact imported protocol fixtures: SSH GitHub URLs and URL userinfo are
+  // protocol syntax, not contact identities; preserve the tested real hosts.
+  /* rename:preserve */
+  ['native/packages/happy-agent-modules/tests/git/repositoryFacts.test.ts', '63fb3f947787e59abfe84b93aa884b0965978f290bdcc01c93a53f9d36fe076d'],
+  ['native/packages/happy-agent-modules/tests/projects/ProjectModule.test.ts', 'e3952b3326d17a627117bd1f93017a5ab11b8f8807bd25c01e1a0d74debec565'],
+  ['native/packages/happy-agent-modules/tests/projects/ProjectCreationTools.test.ts', '458d638325ff4fdffd95b49fa00a52636249e97935649a6fd95d0b7d4f5e3ca9'],
+  ['native/packages/happy-agent-modules/tests/config/liveConfiguration.test.ts', 'ecb976fc8f0b6a8c7eee53198b2d19d07262202d60bd1f90f732643ec24fd88c'],
+  /* /rename:preserve */
+
   // #297 relocates the upstream tmux implementation while retaining its MIT
   // copyright email verbatim. Only this exact reviewed file exempts that email.
   ['server/packages/happyherd-cli/src/utils/tmux.ts', '14fc502b57b164a300e565863bd91495fee478ed0d43dcb96f622464d7527f02'],
@@ -49,6 +58,22 @@ const publicUpstreamAttributionDigests = new Map([
 
 function isExactPublicUpstreamAttribution(path, text) {
   const expected = publicUpstreamAttributionDigests.get(path);
+  return expected !== undefined && createHash('sha256').update(text).digest('hex') === expected;
+}
+
+// Exact imported runtime contracts: the Linux service HOME is a fixed sandbox
+// identity, and the Windows diff contains an upstream synthetic path as context.
+// Only home-path classification is exempted for these exact public source bytes;
+// edited files and every credential/email/identity rule remain fully scanned.
+/* rename:preserve */
+const publicNativeHomeContractDigests = new Map([
+  ['native/packages/happy-agent-supervisor/native/supervisor/src/exec.rs', '7374f41a455293036498bb3ddb72e6d261da53a5dec915e1e771fb97d45f3663'],
+  ['native/packages/happy-agent-supervisor/native/supervisor/tests/services.rs', '84565ffd68578c28d44575f0aa60c747dfbf35cf89c35b598c67305ecc5e9acf'],
+  ['native/packages/happy-agent-supervisor/native/windows/happy.patch', 'b6b525a1213b9f99def5ef6a54a547f971c98f2466eb1d604c7fafb933e323d4'],
+]);
+/* /rename:preserve */
+function isExactNativeHomeContract(path, text) {
+  const expected = publicNativeHomeContractDigests.get(path);
   return expected !== undefined && createHash('sha256').update(text).digest('hex') === expected;
 }
 
@@ -122,12 +147,14 @@ function inspectText(path, text) {
 
   for (const match of text.matchAll(/\/home\/([A-Za-z0-9._-]+)/g)) {
     if (!['user', 'example-user', 'runner', 'me', 'test', 'second'].includes(match[1].toLowerCase())
-      && !match[1].startsWith('.')) {
+      && !match[1].startsWith('.')
+      && !isExactNativeHomeContract(normalizedPath, text)) {
       findings.push('operator-specific POSIX home path');
     }
   }
   for (const match of text.matchAll(/[A-Za-z]:\\Users\\([A-Za-z0-9._-]+)/gi)) {
-    if (!['user', 'exampleuser'].includes(match[1].toLowerCase())) {
+    if (!['user', 'exampleuser'].includes(match[1].toLowerCase())
+      && !isExactNativeHomeContract(normalizedPath, text)) {
       findings.push('operator-specific Windows home path');
     }
   }

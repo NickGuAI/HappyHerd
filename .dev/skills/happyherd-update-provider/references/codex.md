@@ -48,6 +48,10 @@ string policies HappyHerd currently sends.
 
 ## Continuity
 
+- A live Super Session can reconnect its existing transport through the owning
+  daemon without resuming or replacing the Codex process. It retains the native
+  thread and queued input; see [transport recovery](../../../../docs/super-session-recovery.md).
+
 - `thread/resume` must receive the exact approval and sandbox policy.
 - Direct launch persists an immutable initial receipt for the complete model,
   effort, and permission tuple.

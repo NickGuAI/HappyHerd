@@ -1,0 +1,182 @@
+# Projects — learnings
+
+Feedback and decisions gathered while building this module.
+
+## Root deletion requires runtime cleanup proof
+
+Cancelling project agents is a stop decision, not proof that their service sandboxes are gone.
+Managed-root cleanup now awaits registered removal barriers before taking the filesystem lock.
+Service admission closes with project archival and reopens on restore only for new executions.
+After waiting, cleanup rechecks the archived state inside the same Git lock used by restore, so
+an old cleanup operation cannot delete a restored project.
+
+## Project creation and imports are available to coordinating agents
+
+Chief of Staff could see projects but could not register or import them. Root agents with
+cross-workspace tools now receive `create_project` for existing local folders and `clone_project`
+for GitHub or other HTTPS Git remotes. New empty projects use ordinary permission-checked folder
+creation followed by registration. Both tools reuse the catalog's public operations and durable
+setup, retaining a project ID in the tool call's KV so replay does not create another clone.
+These installation-wide operations require Auto review or Full access; review discloses the host
+filesystem, background setup, network, and configured-credential boundaries. Subagents and the
+cross-workspace opt-out retain no project tools.
+
+## Child creation can restore a local Git credential after restart
+
+Git credential registrations live in memory, so a restarted daemon used to reject child creation
+even with its GitHub token still configured. Projects now restores a missing registration on demand
+for the exact local creator from configuration. Existing registrations are reused; another profile
+or installation never receives the local token. Workspaces asks Projects for this authentication
+instead of reading tokens or deriving creator identities itself.
+
+## The root catalog is available by default
+
+`features.cross_workspace` defaults to enabled, so a fresh installation gives user-owned root
+agents the project catalog tools. Setting it explicitly to `false` removes those tools. Ordinary
+subagents still never receive the catalog, regardless of the setting.
+
+## A model may choose a project picture from that project
+
+Project tools used to be read-only even though bots could choose their own pictures. A top-level
+agent with cross-workspace tools may now set a selected project's avatar from a PNG, JPEG, or WebP
+already inside that project's folder. The tool resolves the folder and image through real paths so
+an absolute path, `..`, or a symlink cannot make the avatar read escape the selected project.
+
+## A page always shows something
+
+A page that cannot fit one complete row within the output budget used to be an error. A legal folder
+path is up to 4,096 characters, longer than the smallest configurable budget of 256, so that turned
+an ordinary maximum-length project into a list nobody could read. `fitProjectPage` keeps the first
+row and lets the formatter truncate it, so the person always has a row and an ID to act on.
+
+The fitted page is only a model/tool boundary. Internal catalog consumers use
+`listCatalogPage` and follow every cursor; otherwise the prose budget can silently hide valid rows
+from startup reconciliation and background maintenance.
+
+## Equality is canonical everywhere, including the store
+
+`sameJson` is the module's equality, and the store must use it too. Comparing settings with
+`JSON.stringify` made property order alone look like a change: the same settings written with their
+keys in another order bumped the version, and the catalog check in `ProjectsModule` then refused
+the write because the store's `changed` disagreed with the canonical comparison. Avatar equality
+also includes the normalized image's content hash, not only its public metadata.
+
+## Avatar metadata and bytes are one change
+
+Keeping only an avatar description on the project while writing its bytes to an independent file
+allowed the row, event, and image to disagree. A project now durably exposes only the API-shaped
+`{ kind: "image", source, thumbhash }`, while its normalized WebP and integrity metadata live in a
+project-owned table. Set and clear update both inside the project mutation transaction, and their
+events carry the exact previous project, so every response, event, restart, and GET sees one image.
+
+Image normalization is a runtime boundary, not a Sharp boundary. Node uses Sharp and the standalone
+Bun executable uses `Bun.Image`, but both go through the same bounded processor contract and still
+produce normalized WebP bytes plus the exact ThumbHash metadata the project resource promises.
+
+## One home project, enforced at registration
+
+The home directory is the single `home` project, but nothing stopped a second folder from being
+registered as `home`. Registration now refuses it, in `create` and in `ensure` alike. Ensuring the
+folder that already is the home project still converges on that row.
+
+## Git is project state, not a registration gate
+
+A project is a folder, so requiring every explicitly registered folder to be a Git repository
+rejected the plain-directory workflow the workspace model already supports. Registration now
+accepts any readable directory, including a subdirectory inside a larger Git working tree. Setup
+durably records whether that exact folder supports worktrees and, when it does not, the workspaces
+module creates copied child folders. The folder the person selected remains the project boundary;
+an ancestor repository must not silently widen it. Registration never inspects `.git` or runs Git;
+missing, malformed, inaccessible, or otherwise unusable repository metadata only means setup
+records that the project cannot use Git worktrees. It never prevents the folder becoming a project.
+
+## Looking at a folder is not always needed
+
+`resolveRemoteName` and `resolveDefaultBranch` decide from what is already stored before they need
+a machine — a name a person chose, or a trunk already recorded, is an answer on its own. They only
+ask for compute once they really have to inspect the folder, so a catalog built without compute
+still answers them.
+
+## The post-commit boundary is the caller's transaction
+
+Post-commit observers are registered against the context the caller handed the module, not the
+module's own transaction context. A mutation that runs inside somebody else's larger write then
+publishes when that write commits, rather than when the module's inner transaction does.
+
+## Storage values are checked, not coerced
+
+A stored flag is 0 or 1. `Number(value) !== 0` turned a corrupt `2` into a confident `true`; a
+value this catalog never wrote is refused instead.
+
+## Order keys should be fractional, not dense positions
+
+Dense positional keys made one drag rewrite every row it crossed without versioning or announcing
+those neighbour changes. Event-driven clients then retained duplicate positions and could draw the
+moved row back where it started.
+
+Project and root-agent ordering now use decimal fractional keys. A reorder computes one key between
+the destination neighbours, guards and versions only the moved resource, and emits one event that
+tells the whole truth. Neighbour rows remain byte-for-byte unchanged.
+
+## A remote port is digits
+
+The remote URL pattern accepted `https://github.com:bad/repo`, a URL no clone can resolve. The host
+may carry a port, and a port is digits.
+
+## Cloning does not require a Git author
+
+A machine may have no global Git name or email, and cloning does not create a commit. Managed
+project creation therefore keeps creator and credential ownership checks but does not invent or
+require an author identity. When Git already has a local identity the clone receives it explicitly;
+otherwise the clone environment contains no author or committer override.
+
+## Durable calls replace project-owned background queues
+
+Project creation commits a stable provisioning call, whose KV checkpoints clone, probe, default
+branch, remote name, and avatar work. Durable Functions supplies the detached lifetime, database,
+restart recovery, concurrency, and project lock, so the project module has no initialization queue,
+startup sweep, task set, or detached database reconstruction of its own.
+
+Remote provisioning also carries the shared `projects.clone` lock. The old queue allowed two clones
+at once; durable provisioning deliberately runs one network clone at a time while local project
+setup remains parallel across per-project locks. Retried agent shutdown and folder removal use
+stdlib `backoff`, so cancellation and retry policy stay consistent with the rest of the runtime.
+
+Project archival cancels provisioning and commits a durable root-agent cancellation call with the
+archive decision. Managed remote roots are removed by a separate durable cleanup call only after
+the workspaces module reports every child archived. Restore cancels archive and cleanup while
+holding the project Git lock; if cleanup already removed a managed clone, restore re-arms durable
+provisioning instead of leaving an active missing folder.
+
+## Construction names only module dependencies
+
+The catalog takes `ConfigModule`, `GitModule`, `AbortModule`, and `DurableFunctionsModule`, not an options object or loose
+collaborators. Configuration owns its durable paths and credentials; Git owns repository
+operations; abort owns stopping an agent and everything below it. The catalog
+mints IDs and timestamps itself, keeps page bounds as constants, and accepts event subscribers
+after construction through `onEventTransactional` and `onEvent`.
+
+## Sibling vocabulary crosses through the module
+
+A sibling may import the project module class and public types from `index.ts`, but not project
+helpers or internals. Rules another feature needs—validating names and client IDs, normalizing base
+references, deriving storage keys, and reducing Git facts—are public methods on `ProjectsModule`,
+so the owning module remains the single source of that behavior.
+
+## Embedded agent lists are resource changes
+
+Project and workspace API resources include their ordered root-agent lists. Writing only an
+association row made that visible resource change without advancing the owner's version or emitting
+its update, so a client could retain a stale catalog under a current-looking version. A real
+attach, move, or reorder now changes the association, advances every affected owner's version, and
+emits the exact previous and current owner snapshots in one transaction. Repeated attachment and a
+no-op reorder leave both the association and owner untouched. Agent archival keeps the permanent
+association and its fractional key, but it does change the active embedded list, so archive and
+unarchive advance the owner and emit the same exact version chain.
+
+## Project-root agents are parentless
+
+The unused managed-root API previously allowed a parent-managed agent in a project's root series.
+That creation path and its project attachment method are removed. Project attachment accepts only
+parentless agents; user-interactive delegation uses subtasks and their dedicated child workspaces.
+Existing stored associations remain readable and are not rewritten.

@@ -1,9 +1,22 @@
-import type { ContextWindowResponse } from '@happyherd/wire';
+import { ContextWindowResponseSchema, type ContextWindowResponse } from '@happyherd/wire';
+import rigResponse from './contextWindow.rig.response.json';
 
 // Sanitized provider-shaped replies. The CLI fixtures separately prove the raw
 // transcript/rollout cut; this fixture proves every returned byte reaches the UI.
-export function contextWindowReply(provider: 'claude' | 'codex'): Extract<ContextWindowResponse, { type: 'success' }> {
+export function contextWindowReply(provider: 'claude' | 'codex' | 'rig'): Extract<ContextWindowResponse, { type: 'success' }> {
     const native = (value: Record<string, unknown>, kind: string) => ({ kind, content: JSON.stringify(value, null, 2) });
+    /* rename:preserve */
+    // Exact sanitized native SQLite reader response fixture from the local patch
+    // against Happy Agent 115be1c248985b823491f852dbde47ea7e6a76fd:
+    // happy-agent-modules/tests/happy/fixtures/context-response.json.
+    // Native readHappyContextWindow.test.ts verifies it byte-for-byte against
+    // AgentPersistence; this browser test establishes rendering, not live state.
+    /* /rename:preserve */
+    if (provider === 'rig') {
+        const response = ContextWindowResponseSchema.parse(rigResponse);
+        if (response.type !== 'success') throw new Error('Native response fixture must succeed');
+        return response;
+    }
     return provider === 'claude' ? {
         type: 'success', provider,
         limitations: ['claude_system_prompt_unrecorded', 'claude_tool_definitions_unrecorded', 'provider_input_not_fully_recorded'],

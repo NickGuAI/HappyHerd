@@ -16,6 +16,29 @@ afterEach(async () => {
 });
 
 describe('ApiMachineClient encrypted context-window RPC', () => {
+    it('does not substitute CLI state for a native Rig machine and remains retryable', async () => {
+        const { ApiMachineClient } = await import('./apiMachine');
+        const encryptionKey = new Uint8Array(32).fill(11);
+        const client = new ApiMachineClient('fixture-token', {
+            id: 'fixture-cli-machine', encryptionKey, encryptionVariant: 'legacy',
+            metadata: null, metadataVersion: 0, daemonState: null, daemonStateVersion: 0,
+        } as any);
+        const spawnSession = vi.fn();
+        client.setRPCHandlers({ spawnSession, stopSession: vi.fn(), requestShutdown: vi.fn() });
+        const manager = (client as unknown as { rpcHandlerManager: RpcHandlerManager }).rpcHandlerManager;
+        const params = encodeBase64(encrypt(encryptionKey, 'legacy', {
+            provider: 'rig', directory: '/fixture/original-cwd', sessionId: 'remote-native-session',
+            // These unrelated IDs must never cause a provider fallback.
+            claudeSessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', codexHome: '/fixture/unrelated-home',
+        }));
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const encrypted = await manager.handleRequest({ method: 'fixture-cli-machine:session-context-window', params });
+            expect(ContextWindowResponseSchema.parse(decrypt(encryptionKey, 'legacy', decodeBase64(encrypted))))
+                .toEqual({ type: 'error', reason: 'unsupported' });
+        }
+        expect(spawnSession).not.toHaveBeenCalled();
+    });
+
     it.each(['claude', 'codex'] as const)('reads the native %s fixture through the existing scoped encrypted RPC', async (provider) => {
         const root = await mkdtemp(join(tmpdir(), 'happyherd-context-rpc-'));
         roots.push(root);

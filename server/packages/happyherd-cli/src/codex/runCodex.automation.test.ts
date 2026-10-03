@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { access, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { readContextPromptFromEnvironment, instructionReceiptMetadata } from '@/agentContext/commanderContext';
 import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@happyherd/wire';
 
 const mocks = vi.hoisted(() => {
@@ -348,6 +353,55 @@ describe('runCodex automation process lifecycle', () => {
         delete process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT;
         delete process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID;
         delete process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV];
+    });
+
+    it.each([false, true])('delivers canonical shared guidance and its exact receipt on Codex startup (resume: %s)', async (resume) => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-codex-shared-'));
+        const originalEnv = { ...process.env };
+        try {
+            process.env.HAPPYHERD_HOME_DIR = join(root, 'home');
+            process.env.TMPDIR = join(root, 'tmp');
+            await mkdir(process.env.TMPDIR, { recursive: true });
+            const commanderDir = join(process.env.HAPPYHERD_HOME_DIR, 'commanders', 'athena');
+            await mkdir(commanderDir, { recursive: true });
+            await writeFile(join(commanderDir, 'COMMANDER.md'), [
+                '---', 'identity_and_scope:', '  name: Athena', '  commander_id: athena',
+                `  workspace: ${root}`, '  role: Test commander', '---', '# Private commander',
+            ].join('\n'));
+            const actual = await vi.importActual<typeof import('@/agentContext/commanderContext')>('@/agentContext/commanderContext');
+            const bundle = await actual.prepareCommanderContext('athena', root);
+            Object.assign(process.env, actual.contextEnvironment(bundle));
+            const prompt = await actual.readContextPromptFromEnvironment();
+            expect(prompt).toContain(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'README.md'));
+            expect(prompt).toContain(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'happyherd-cli.md'));
+            await access(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'README.md'));
+            await access(join(process.env.HAPPYHERD_HOME_DIR, 'agentcontext', 'happyherd-cli.md'));
+            mocks.setContextMetadata({ ...actual.contextMetadataFromEnvironment() });
+            vi.mocked(readContextPromptFromEnvironment).mockResolvedValueOnce(prompt);
+            vi.mocked(instructionReceiptMetadata).mockImplementation(actual.instructionReceiptMetadata);
+            vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+            await runCodex({
+                credentials: { token: 'test-token' } as never,
+                startedBy: 'daemon', ...(resume ? { resumeThreadId: 'retained-thread' } : {}),
+            });
+
+            const delivered = resume
+                ? mocks.injectDeveloperInstructionsCalls[0]?.instructions
+                : mocks.startThreadCalls[0]?.developerInstructions;
+            expect(delivered).toBe(prompt);
+            expect(mocks.getMetadata()).toMatchObject({
+                commanderId: 'athena', contextHash: bundle.contextHash,
+                commanderContextFiles: bundle.commanderContextFiles,
+                instructionProvider: 'codex', instructionLayer: 'developer',
+                instructionHash: createHash('sha256').update(String(delivered)).digest('hex'),
+            });
+        } finally {
+            vi.mocked(instructionReceiptMetadata).mockImplementation(() => ({ instructionHash: 'delivered-instruction-hash' }) as ReturnType<typeof instructionReceiptMetadata>);
+            for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
+            Object.assign(process.env, originalEnv);
+            await rm(root, { recursive: true, force: true });
+        }
     });
 
     it.each([false, true])('withholds a resumed context receipt until native delivery (failure: %s)', async (failInjection) => {

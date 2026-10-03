@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useSessionTransport } from '@/hooks/useSessionTransport';
+import type { SessionTransportStatus } from '@/sync/sessionTransport';
 import { Session } from '@/sync/storageTypes';
 import { resolveSessionState } from '@/sync/sessionState';
 import type { SessionState } from '@/sync/sessionState';
@@ -9,6 +11,7 @@ export type { SessionState } from '@/sync/sessionState';
 
 export interface SessionStatus {
     state: SessionState;
+    transport?: SessionTransportStatus | null;
     isConnected: boolean;
     statusText: string;
     shouldShowStatus: boolean;
@@ -22,7 +25,8 @@ export interface SessionStatus {
  * Uses centralized session state from storage.ts
  */
 export function useSessionStatus(session: Session): SessionStatus {
-    const isOnline = session.presence === "online";
+    const transport = useSessionTransport(session);
+    const isOnline = transport ? transport.state === 'connected' : !session.metadata?.isSuperSession && session.presence === "online";
     const state = resolveSessionState({
         agentState: session.agentState,
         thinking: session.thinking,
@@ -33,9 +37,17 @@ export function useSessionStatus(session: Session): SessionStatus {
         return vibingMessages[Math.floor(Math.random() * vibingMessages.length)].toLowerCase() + '…';
     }, [state]);
 
+    if (transport && transport.state !== 'connected') {
+        return { state: 'disconnected', transport, isConnected: false,
+            statusText: transport.state === 'reconnecting' ? t('superSession.reconnecting') : t('superSession.disconnected'),
+            shouldShowStatus: true, statusColor: '#FF9500', statusDotColor: '#FF9500',
+            isPulsing: transport.state === 'reconnecting' };
+    }
+
     if (state === 'disconnected') {
         return {
             state,
+            transport,
             isConnected: false,
             statusText: t('status.lastSeen', { time: formatLastSeen(session.activeAt, false) }),
             shouldShowStatus: true,
@@ -47,6 +59,7 @@ export function useSessionStatus(session: Session): SessionStatus {
     if (state === 'permission_required') {
         return {
             state,
+            transport,
             isConnected: true,
             statusText: t('status.permissionRequired'),
             shouldShowStatus: true,
@@ -59,6 +72,7 @@ export function useSessionStatus(session: Session): SessionStatus {
     if (state === 'input_required') {
         return {
             state,
+            transport,
             isConnected: true,
             statusText: t('status.inputRequired'),
             shouldShowStatus: true,
@@ -71,6 +85,7 @@ export function useSessionStatus(session: Session): SessionStatus {
     if (state === 'thinking') {
         return {
             state,
+            transport,
             isConnected: true,
             statusText: vibingMessage,
             shouldShowStatus: true,
@@ -82,6 +97,7 @@ export function useSessionStatus(session: Session): SessionStatus {
 
     return {
         state,
+        transport,
         isConnected: true,
         statusText: t('status.online'),
         shouldShowStatus: false,

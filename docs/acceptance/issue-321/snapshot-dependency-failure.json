@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "baseline": true,
+  "startedAt": "2026-10-02T14:37:00.059Z",
+  "stages": [
+    {
+      "name": "isolated-server-ready",
+      "at": "2026-10-02T14:37:02.541Z"
+    }
+  ],
+  "revision": {
+    "head": "2ad0a066559c18de86383cbc2d70201486b1d485",
+    "trackedDiffSha256": "61851111acb1249a541ada51ebfc3afbc1a8b6b6e8d2935fbc9fabd814e5a3ac",
+    "cliEntrySha256": "8ac85f2b80e7d7ec376b4cbf68648a00ffdd1c4a0b2a5e98184873054a69d9ca",
+    "runnerSha256": "d21145fac86718f87c703d28a7294a6193ce7a9feadae1ab379a3f31a083295f"
+  },
+  "success": false,
+  "failure": {
+    "stage": "account and CLI pairing",
+    "message": "Timed out during account and CLI pairing"
+  },
+  "finishedAt": "2026-10-02T14:39:02.769Z"
+}

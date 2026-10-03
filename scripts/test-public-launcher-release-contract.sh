@@ -218,6 +218,7 @@ HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" \
   PATH="$fake_bin:/usr/bin:/bin" \
   "$installer" --server https://remote.example --no-start >/dev/null
 grep -Fxq "https://github.com/NickGuAI/HappyHerd/releases/latest/download/happyherd-$host_target.tar.gz" "$curl_log"
+grep -Fxq "commander guide --json" "$test_log" || fail 'no-start install did not seed shared guidance'
 
 [[ -x "$home/.local/bin/happyherd" ]] || fail 'installer did not expose happyherd'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] || fail 'installer replaced an existing Happy command'

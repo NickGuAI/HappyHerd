@@ -1,6 +1,7 @@
 import os from 'node:os';
 import type { HappyHerdCommanderSummary } from '@happyherd/wire';
-import { listCommanders } from './commanderContext';
+import { agentContextRoot, listCommanders } from './commanderContext';
+import { ensureSharedKnowledge } from './sharedKnowledge';
 import { createCommanderFromManifest } from '@/commands/commander';
 import { defaultAssistantCommanderMarkdown, DEFAULT_ASSISTANT_ROLE } from './defaultAssistantTemplate';
 
@@ -8,6 +9,7 @@ export const DEFAULT_ASSISTANT_COMMANDER_ID = 'happyherd-assistant';
 export const DEFAULT_ASSISTANT_COMMANDER_NAME = 'HappyHerd Assistant';
 
 export async function ensureDefaultAssistantCommander(): Promise<HappyHerdCommanderSummary> {
+  await ensureSharedKnowledge(agentContextRoot());
   const { commanders } = await listCommanders();
   const existing = commanders.find(item => item.id === DEFAULT_ASSISTANT_COMMANDER_ID)
     ?? commanders.find(item => item.name === DEFAULT_ASSISTANT_COMMANDER_NAME);

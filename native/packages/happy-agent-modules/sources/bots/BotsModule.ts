@@ -1,0 +1,772 @@
+import { AsyncResource } from "node:async_hooks";
+import { mkdir, stat } from "node:fs/promises";
+
+import { createId } from "@paralleldrive/cuid2";
+import {
+    currentAgentEnvironment,
+    withAgentDatabase,
+    type AgentBaseAcceptedMessage,
+    type AgentConfig,
+    type AgentModule,
+    type AgentModuleHooks,
+    type AgentModuleScope,
+    type AgentSystemRef,
+    type AnyAgentTool,
+} from "@slopus/happy-agent-base";
+import { Value } from "@sinclair/typebox/value";
+import { afterCommit, detach, type Context, type RootContext } from "@steve.kite/stdlib";
+
+import { AbortModule } from "../abort/index.js";
+import { ConfigModule } from "../config/index.js";
+import { ProjectsModule } from "../projects/index.js";
+import { WorkspacesModule } from "../workspaces/index.js";
+import { senderAgentIdMetadata } from "../impl/messageOrigin.js";
+import { MAX_NAMING_MESSAGE_CHARS, TitlesModule } from "../titles/index.js";
+
+import {
+    botRecordSchema,
+    createBotInputSchema,
+    BotConflictError,
+    BotInputError,
+    BotNotFoundError,
+    type BotAvatarAsset,
+    type BotCreation,
+    type BotRecord,
+    type CreateBotInput,
+} from "./Bot.js";
+import { insertSystemBotSeed, readSystemBotSeed } from "./BotSystemSeedStore.js";
+import { CHIEF_OF_STAFF_SYSTEM_KEY, type BotSystemKey } from "./BotSystemKey.js";
+import { normalizeBotAvatar } from "./impl/normalizeBotAvatar.js";
+import {
+    botEventSchema,
+    type BotEvent,
+    type BotEventListener,
+    type BotUnsubscribe,
+} from "./BotEvent.js";
+import { botMigrations } from "./BotMigrations.js";
+import {
+    deleteBotAvatar,
+    insertBot,
+    readBot,
+    readBotAvatar,
+    readBotByAgent,
+    readBotByUsername,
+    readBotByWorkspace,
+    readBots,
+    updateBot,
+    writeBotAvatar,
+} from "./BotStore.js";
+import { formatBotIdentityPrompt } from "./impl/formatBotIdentityPrompt.js";
+import { formatChiefOfStaffInstructions } from "./impl/formatChiefOfStaffInstructions.js";
+import { loadChiefOfStaffAvatar } from "./impl/loadChiefOfStaffAvatar.js";
+import { createBotTool } from "./tools/create_bot.js";
+import { listBotsTool } from "./tools/list_bots.js";
+import { sendBotMessageTool } from "./tools/send_bot_message.js";
+import { setBotAvatarTool } from "./tools/set_bot_avatar.js";
+
+const BOT_NAME_ATTEMPTED_KEY = "bot-name-attempted";
+
+/** Persistent single-conversation assistants and the dedicated folders they own. */
+export class BotsModule implements AgentModule {
+    readonly name = "bots";
+    readonly migrations = botMigrations;
+
+    readonly #abort: AbortModule;
+    readonly #backgroundScope = new AsyncResource("happy-agent-bot-naming");
+    readonly #config: ConfigModule;
+    readonly #projects: ProjectsModule;
+    readonly #workspaces: WorkspacesModule;
+    readonly #listeners = new Set<BotEventListener>();
+    readonly #namingTasks = new Map<string, Promise<void>>();
+    readonly #titles: TitlesModule;
+    #agents: AgentSystemRef | undefined;
+    #closed = false;
+    #lifetime: RootContext | undefined;
+
+    constructor(
+        config: ConfigModule,
+        abort: AbortModule,
+        titles: TitlesModule,
+        projects: ProjectsModule,
+        workspaces: WorkspacesModule,
+    ) {
+        this.#config = config;
+        this.#abort = abort;
+        this.#titles = titles;
+        this.#projects = projects;
+        this.#workspaces = workspaces;
+    }
+
+    readonly #hooks: AgentModuleHooks = {
+        afterStart: async (ctx: Context): Promise<void> => {
+            await this.#ensureChiefOfStaff(ctx);
+        },
+        instructions: async (ctx: Context, scope: AgentModuleScope): Promise<string> => {
+            const bot = await readBotByAgent(ctx, scope.agent.id);
+            if (bot === undefined) return "";
+            return bot.systemKey === CHIEF_OF_STAFF_SYSTEM_KEY
+                ? formatChiefOfStaffInstructions(bot)
+                : formatBotIdentityPrompt(bot);
+        },
+        tools: async (ctx: Context, scope: AgentModuleScope): Promise<readonly AnyAgentTool[]> => {
+            const roster = [
+                listBotsTool(this),
+                createBotTool(this, scope.agent.id),
+                sendBotMessageTool(this, scope.agent.id),
+            ];
+            // Bots manage their own picture; admin bots may also manage other bots' pictures.
+            if ((await readBotByAgent(ctx, scope.agent.id)) !== undefined) {
+                return [...roster, setBotAvatarTool(this, scope.agent.id)];
+            }
+            // Bots belong to the conversation a person is having. A subagent is one pair of
+            // hands inside the task it was given and does not manage the bot roster.
+            if ((await this.#requireAgents().parentOf(ctx, scope.agent.id)) !== null) return [];
+            return roster;
+        },
+        messageAcceptedTransact: async (hookCtx, scope, accepted) => {
+            if (accepted.message.role !== "user") return;
+            const message = acceptedMessageText(accepted);
+            if (message.length === 0) return;
+            const bot = await readBotByAgent(hookCtx, scope.agent.id);
+            if (bot === undefined || bot.nameConfigured) return;
+            if ((await scope.kv.read(hookCtx, BOT_NAME_ATTEMPTED_KEY)) !== undefined) return;
+            await scope.kv.write(hookCtx, BOT_NAME_ATTEMPTED_KEY, { at: Date.now() });
+            afterCommit(hookCtx, () => {
+                this.#startNaming(bot.id, scope.agent.provider, message);
+            });
+        },
+    };
+
+    readonly beforeStart = (ctx: Context, agents: AgentSystemRef): AgentModuleHooks => {
+        this.#agents = agents;
+        this.#lifetime = withAgentDatabase(detach(ctx), ctx.db) as RootContext;
+        return this.#hooks;
+    };
+
+    /** Stop accepting automatic names and drain the bounded requests already running. */
+    async close(): Promise<void> {
+        if (this.#closed) return;
+        this.#closed = true;
+        this.#lifetime = undefined;
+        await Promise.allSettled(this.#namingTasks.values());
+        this.#namingTasks.clear();
+        this.#backgroundScope.emitDestroy();
+        this.#agents = undefined;
+    }
+
+    onEvent(listener: BotEventListener): BotUnsubscribe {
+        this.#listeners.add(listener);
+        return () => this.#listeners.delete(listener);
+    }
+
+    async list(ctx: Context): Promise<readonly BotRecord[]> {
+        return structuredClone(await readBots(ctx));
+    }
+
+    async get(ctx: Context, botId: string): Promise<BotRecord | undefined> {
+        return structuredClone(await readBot(ctx, botId));
+    }
+
+    async forWorkspace(ctx: Context, workspaceId: string): Promise<BotRecord | undefined> {
+        return structuredClone(await readBotByWorkspace(ctx, workspaceId));
+    }
+
+    async forAgent(ctx: Context, agentId: string): Promise<BotRecord | undefined> {
+        return structuredClone(await readBotByAgent(ctx, agentId));
+    }
+
+    /**
+     * Create the row, its folder, and its ordinary root agent in one database transaction.
+     *
+     * Every read that justifies the write happens inside that transaction, so the identities and
+     * the username it settles on cannot go stale before the insert. The folder is made last:
+     * a name the database refuses aborts the transaction before anything reaches the disk.
+     */
+    async create(ctx: Context, input: CreateBotInput): Promise<BotRecord> {
+        return (await this.#create(ctx, input)).bot;
+    }
+
+    /** Reports creation inside its transaction so a retry cannot repeat post-creation work. */
+    async createWithResult(ctx: Context, input: CreateBotInput): Promise<BotCreation> {
+        return await this.#create(ctx, input);
+    }
+
+    async #create(
+        ctx: Context,
+        input: CreateBotInput,
+        systemKey?: BotSystemKey,
+        initialAvatar?: BotInitialAvatar,
+    ): Promise<BotCreation> {
+        if (!Value.Check(createBotInputSchema, input)) {
+            throw new BotInputError();
+        }
+        return await ctx.inTx(async (txCtx) => {
+            if (input.id !== undefined) {
+                const existing = await readBot(txCtx, input.id);
+                if (existing !== undefined) {
+                    if (
+                        (input.workspaceId !== undefined &&
+                            input.workspaceId !== existing.workspaceId) ||
+                        (input.agentId !== undefined && input.agentId !== existing.agentId)
+                    ) {
+                        throw new BotConflictError(
+                            "The requested identities do not match this bot.",
+                            existing,
+                        );
+                    }
+                    return { bot: structuredClone(existing), created: false };
+                }
+            }
+            const agents = this.#requireAgents();
+            const supplied = [input.id, input.workspaceId, input.agentId].filter(
+                (id) => id !== undefined,
+            );
+            const reserved = new Set(supplied);
+            if (reserved.size !== supplied.length) {
+                throw new BotConflictError(
+                    "The bot, workspace, and agent must have distinct identities.",
+                );
+            }
+            for (const id of reserved) {
+                if (await this.#identityInUse(txCtx, id)) {
+                    throw new BotConflictError("A requested identity is already in use.");
+                }
+            }
+            const botId = input.id ?? (await this.#unusedIdentity(txCtx, reserved));
+            reserved.add(botId);
+            const workspaceId = input.workspaceId ?? (await this.#unusedIdentity(txCtx, reserved));
+            reserved.add(workspaceId);
+            const agentId = input.agentId ?? (await this.#unusedIdentity(txCtx, reserved));
+            const name = input.name ?? "New Bot";
+            const username = await this.#chooseUsername(txCtx, input.name ?? "bot", input.username);
+            const path = this.#config.botPath(username);
+            const now = Date.now();
+            const config: AgentConfig = {
+                provenance: { createdAt: now },
+                environment: {
+                    ...currentAgentEnvironment(),
+                    workingDirectory: path,
+                },
+                // A bot's conversation is the bot. It is called what the bot is called
+                // from birth, which also settles the title and keeps automatic naming
+                // from writing one over it.
+                metadata: { title: name, updatedAt: now, version: 1 },
+                modules: {
+                    compute: {
+                        cwd: path,
+                        secretScope: { workspaceId },
+                    },
+                },
+            };
+            const agent = await agents.create(txCtx, config, { id: agentId, parent: null });
+            const ordered = await readBots(txCtx);
+            const bot: BotRecord = {
+                id: botId,
+                isAdmin: input.isAdmin ?? false,
+                ...(systemKey === undefined ? {} : { systemKey }),
+                name,
+                nameConfigured: input.name !== undefined,
+                username,
+                workspaceId,
+                workspaceVersion: 1,
+                workspaceUpdatedAt: now,
+                agentId: agent.id,
+                path,
+                status: "active",
+                ...(initialAvatar === undefined
+                    ? {}
+                    : {
+                          avatar: {
+                              kind: "image" as const,
+                              source: initialAvatar.source,
+                              thumbhash: initialAvatar.asset.thumbhash,
+                          },
+                      }),
+                orderKey: orderKeyBetween(ordered.at(-1)?.orderKey ?? null, null),
+                version: 1,
+                createdAt: now,
+                updatedAt: now,
+            };
+            await insertBot(txCtx, bot);
+            if (initialAvatar !== undefined) {
+                await writeBotAvatar(txCtx, bot.id, initialAvatar.asset);
+            }
+            // The unique username, path, workspace, and agent columns have all accepted this bot
+            // by now, so the folder is the last thing that can fail. An existing directory is the
+            // folder of a creation that was rolled back after making it, and is taken up again.
+            const existingFolder = await stat(path).catch((error: NodeJS.ErrnoException) => {
+                if (error.code === "ENOENT") return undefined;
+                throw error;
+            });
+            if (existingFolder !== undefined && !existingFolder.isDirectory()) {
+                throw new BotConflictError("The bot folder path is already in use.");
+            }
+            await mkdir(path, { recursive: true, mode: 0o755 });
+            this.#publish(txCtx, {
+                eventId: globalThis.crypto.randomUUID(),
+                at: now,
+                type: "bot_created",
+                bot,
+            });
+            return { bot: structuredClone(bot), created: true };
+        });
+    }
+
+    /** Seed the installation's built-in coordinator once; archival deliberately keeps it seeded. */
+    async #ensureChiefOfStaff(ctx: Context): Promise<void> {
+        // This first read is only an optimization: image decoding stays off every startup after
+        // the seed is present. The transaction repeats the read before it decides to create.
+        if ((await readSystemBotSeed(ctx, CHIEF_OF_STAFF_SYSTEM_KEY)) !== undefined) return;
+        const avatar = await normalizeBotAvatar(await loadChiefOfStaffAvatar(), "image/webp");
+        await ctx.inTx(async (txCtx) => {
+            if ((await readSystemBotSeed(txCtx, CHIEF_OF_STAFF_SYSTEM_KEY)) !== undefined) return;
+            const created = await this.#create(
+                txCtx,
+                {
+                    isAdmin: true,
+                    name: "Chief of Staff",
+                },
+                CHIEF_OF_STAFF_SYSTEM_KEY,
+                { asset: avatar, source: "generated" },
+            );
+            await insertSystemBotSeed(txCtx, CHIEF_OF_STAFF_SYSTEM_KEY, created.bot.id);
+        });
+    }
+
+    /**
+     * Deliver one message into the bot's conversation. The message queues behind the bot's
+     * current run and starts one immediately when the bot is idle. The caller-supplied message
+     * ID makes redelivery after an interruption idempotent.
+     */
+    async sendMessage(
+        ctx: Context,
+        fromAgentId: string,
+        botId: string,
+        text: string,
+        messageId: string,
+    ): Promise<BotRecord> {
+        const bot = await this.#required(ctx, botId);
+        if (bot.status === "archived") {
+            throw new BotConflictError("The bot is archived and cannot receive messages.");
+        }
+        if (bot.agentId === fromAgentId) {
+            throw new BotConflictError("A bot cannot send a message to itself.");
+        }
+        const agents = this.#requireAgents();
+        const accepted = await agents.send(
+            ctx,
+            bot.agentId,
+            {
+                role: "agent",
+                author: { id: fromAgentId, description: `Agent ${fromAgentId}` },
+                content: [{ type: "text", text: `Message from agent ${fromAgentId}:\n\n${text}` }],
+            },
+            {
+                id: messageId,
+                metadata: {
+                    bots: { fromAgentId, botId },
+                    ...senderAgentIdMetadata(fromAgentId),
+                },
+            },
+        );
+        if (accepted.id !== messageId) {
+            throw new Error("Agent Base did not preserve the requested message ID.");
+        }
+        return structuredClone(bot);
+    }
+
+    /**
+     * Renames the bot and the conversation with it. A bot is one continuous chat, so its session
+     * is called whatever the bot is called. The immutable username, folder, and workspace do not
+     * move, and the agent's own version advances separately from the bot's.
+     */
+    async rename(
+        ctx: Context,
+        botId: string,
+        name: string,
+        expectedVersion: number,
+    ): Promise<BotRecord> {
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            if (current.name === name && current.nameConfigured) return current;
+            await this.#setAgentTitle(txCtx, current.agentId, name);
+            return await this.#change(txCtx, current, (bot) => ({
+                ...bot,
+                name,
+                nameConfigured: true,
+            }));
+        });
+    }
+
+    /** Give an untouched placeholder bot the role-like name inferred from its first message. */
+    async #nameFromFirstMessage(
+        ctx: Context,
+        botId: string,
+        providerId: string,
+        message: string,
+    ): Promise<void> {
+        try {
+            const initial = await this.get(ctx, botId);
+            if (initial === undefined || initial.nameConfigured || initial.status !== "active")
+                return;
+            const name = await this.#titles.suggestBotName(ctx, message, providerId);
+            if (this.#closed || name === undefined) return;
+            await ctx.inTx(async (txCtx) => {
+                const current = await this.#required(txCtx, botId);
+                if (current.nameConfigured || current.status !== "active") return;
+                await this.#setAgentTitle(txCtx, current.agentId, name);
+                await this.#change(txCtx, current, (bot) => ({
+                    ...bot,
+                    name,
+                    nameConfigured: true,
+                }));
+            });
+        } catch (error) {
+            ctx.log.debug(
+                "Naming a bot from its first user message did not happen.",
+                { botId },
+                error,
+            );
+        }
+    }
+
+    /** Start one detached naming request without delaying message acceptance or the real turn. */
+    #startNaming(botId: string, providerId: string, message: string): void {
+        const lifetime = this.#lifetime;
+        if (this.#closed || lifetime === undefined || this.#namingTasks.has(botId)) return;
+        let task!: Promise<void>;
+        task = this.#backgroundScope
+            .runInAsyncScope(
+                async () =>
+                    await this.#nameFromFirstMessage(
+                        lifetime.named("bot-initial-naming"),
+                        botId,
+                        providerId,
+                        message,
+                    ),
+            )
+            .finally(() => {
+                if (this.#namingTasks.get(botId) === task) this.#namingTasks.delete(botId);
+            });
+        this.#namingTasks.set(botId, task);
+    }
+
+    async reorder(
+        ctx: Context,
+        botId: string,
+        afterId: string | null,
+        expectedVersion: number,
+    ): Promise<BotRecord> {
+        if (afterId === botId) throw new BotConflictError("A bot cannot be placed after itself.");
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            const ordered = (await readBots(txCtx)).filter((bot) => bot.id !== botId);
+            const afterIndex =
+                afterId === null ? -1 : ordered.findIndex((candidate) => candidate.id === afterId);
+            if (afterId !== null && afterIndex < 0) {
+                throw new BotConflictError("The bot to place after was not found.");
+            }
+            const orderKey = orderKeyBetween(
+                afterIndex < 0 ? null : (ordered[afterIndex]?.orderKey ?? null),
+                ordered[afterIndex + 1]?.orderKey ?? null,
+            );
+            return await this.#change(txCtx, current, (bot) =>
+                bot.orderKey === orderKey ? undefined : { ...bot, orderKey },
+            );
+        });
+    }
+
+    async archive(ctx: Context, botId: string, expectedVersion: number): Promise<BotRecord> {
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            if (current.status === "archived") return current;
+            await this.#abort.abort(txCtx, current.agentId);
+            await this.#setAgentArchived(txCtx, current.agentId, true);
+            return await this.#change(txCtx, current, (bot) => ({
+                ...bot,
+                status: "archived",
+                archivedAt: Date.now(),
+            }));
+        });
+    }
+
+    async unarchive(ctx: Context, botId: string, expectedVersion: number): Promise<BotRecord> {
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            if (current.status === "active") return current;
+            await this.#setAgentArchived(txCtx, current.agentId, false);
+            return await this.#change(txCtx, current, (bot) => {
+                const active: BotRecord = { ...bot, status: "active" };
+                delete active.archivedAt;
+                return active;
+            });
+        });
+    }
+
+    async setAvatar(
+        ctx: Context,
+        botId: string,
+        bytes: Uint8Array,
+        contentType: "image/jpeg" | "image/png" | "image/webp",
+        expectedVersion: number,
+    ): Promise<BotRecord> {
+        // Re-encoding happens before the transaction opens. Every transaction on this database
+        // runs to completion before the next one begins, so holding one open across image work
+        // would stall every other writer for as long as the picture takes.
+        const asset = await normalizeBotAvatar(bytes, contentType);
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            return await this.#writeAvatar(txCtx, current, asset, "user");
+        });
+    }
+
+    /**
+     * Lets an active bot choose its own picture, or an admin choose any bot's picture.
+     * Recheck the acting identity and authority in the transaction that writes the target.
+     */
+    async setAvatarForAgent(
+        ctx: Context,
+        agentId: string,
+        bytes: Uint8Array,
+        botId?: string,
+    ): Promise<BotRecord> {
+        const asset = await normalizeBotAvatar(bytes);
+        return await ctx.inTx(async (txCtx) => {
+            const acting = await readBotByAgent(txCtx, agentId);
+            if (acting === undefined) {
+                throw new BotNotFoundError("Only a bot can set its own avatar.");
+            }
+            if (acting.status === "archived") {
+                throw new BotConflictError("An archived bot cannot change avatars.");
+            }
+            const targetId = botId ?? acting.id;
+            if (targetId !== acting.id && !acting.isAdmin) {
+                throw new BotConflictError("Only an admin bot can set another bot's avatar.");
+            }
+            const current = targetId === acting.id ? acting : await this.#required(txCtx, targetId);
+            return await this.#writeAvatar(txCtx, current, asset, "generated");
+        });
+    }
+
+    async #writeAvatar(
+        ctx: Context,
+        current: BotRecord,
+        asset: BotAvatarAsset,
+        source: "user" | "generated",
+    ): Promise<BotRecord> {
+        await writeBotAvatar(ctx, current.id, asset);
+        return await this.#change(ctx, current, (bot) => ({
+            ...bot,
+            avatar: { kind: "image", source, thumbhash: asset.thumbhash },
+        }));
+    }
+
+    async clearAvatar(ctx: Context, botId: string, expectedVersion: number): Promise<BotRecord> {
+        return await ctx.inTx(async (txCtx) => {
+            const current = await this.#required(txCtx, botId);
+            this.#assertVersion(current, expectedVersion);
+            if (current.avatar === undefined) return current;
+            await deleteBotAvatar(txCtx, botId);
+            return await this.#change(txCtx, current, (bot) => {
+                const without: BotRecord = { ...bot };
+                delete without.avatar;
+                return without;
+            });
+        });
+    }
+
+    async avatar(ctx: Context, botId: string): Promise<BotAvatarAsset | undefined> {
+        const bot = await this.#required(ctx, botId);
+        if (bot.avatar === undefined) return undefined;
+        return structuredClone(await readBotAvatar(ctx, botId));
+    }
+
+    /**
+     * Apply one decided change to a bot that was read in this same transaction.
+     *
+     * The stored version is asserted again by the update itself, so a row that moved between the
+     * read and the write is refused rather than overwritten.
+     */
+    async #change(
+        ctx: Context,
+        current: BotRecord,
+        decide: (bot: BotRecord) => BotRecord | undefined,
+    ): Promise<BotRecord> {
+        const decided = decide(structuredClone(current));
+        if (decided === undefined) return current;
+        const next: BotRecord = {
+            ...decided,
+            version: current.version + 1,
+            updatedAt: Math.max(Date.now(), current.updatedAt + 1),
+        };
+        const workspaceChanged =
+            next.status !== current.status || next.archivedAt !== current.archivedAt;
+        if (workspaceChanged) {
+            next.workspaceVersion = current.workspaceVersion + 1;
+            next.workspaceUpdatedAt = next.updatedAt;
+        }
+        if (!Value.Check(botRecordSchema, next)) throw new Error("The bot mutation is invalid.");
+        const stored = await updateBot(ctx, next, current.version);
+        this.#publish(ctx, {
+            eventId: globalThis.crypto.randomUUID(),
+            at: stored.updatedAt,
+            type: "bot_updated",
+            bot: stored,
+            previousBot: current,
+        });
+        return stored;
+    }
+
+    async #setAgentArchived(ctx: Context, agentId: string, archived: boolean): Promise<void> {
+        await this.#updateAgentMetadata(ctx, agentId, {
+            archivedAt: archived ? Date.now() : null,
+        });
+    }
+
+    /** Keep the conversation's title equal to the bot's display name. */
+    async #setAgentTitle(ctx: Context, agentId: string, title: string): Promise<void> {
+        await this.#updateAgentMetadata(ctx, agentId, { title });
+    }
+
+    /** Write bot-owned agent metadata, advancing the agent's own version and timestamp. */
+    async #updateAgentMetadata(
+        ctx: Context,
+        agentId: string,
+        update: Readonly<Record<string, unknown>>,
+    ): Promise<void> {
+        const agents = this.#requireAgents();
+        const config = await agents.config(ctx, agentId);
+        if (config === undefined) throw new Error("The bot agent was not found.");
+        const version =
+            typeof config.metadata?.["version"] === "number" ? config.metadata["version"] + 1 : 1;
+        await agents.updateMetadata(ctx, agentId, { ...update, updatedAt: Date.now(), version });
+    }
+
+    async #chooseUsername(ctx: Context, name: string, supplied?: string): Promise<string> {
+        if (supplied !== undefined) {
+            if ((await readBotByUsername(ctx, supplied)) !== undefined) {
+                throw new BotConflictError("That bot username is already in use.");
+            }
+            return supplied;
+        }
+        const base = derivedUsername(name);
+        for (let suffix = 1; suffix < 1_000_000; suffix += 1) {
+            const tail = suffix === 1 ? "" : `_${String(suffix)}`;
+            const username = `${base.slice(0, 64 - tail.length)}${tail}`;
+            if ((await readBotByUsername(ctx, username)) === undefined) return username;
+        }
+        throw new BotConflictError("A unique bot username could not be chosen.");
+    }
+
+    async #unusedIdentity(ctx: Context, excluded: ReadonlySet<string>): Promise<string> {
+        for (;;) {
+            const id = createId();
+            if (excluded.has(id)) continue;
+            if (await this.#identityInUse(ctx, id)) continue;
+            return id;
+        }
+    }
+
+    async #identityInUse(ctx: Context, id: string): Promise<boolean> {
+        return (
+            (await readBot(ctx, id)) !== undefined ||
+            (await readBotByWorkspace(ctx, id)) !== undefined ||
+            (await readBotByAgent(ctx, id)) !== undefined ||
+            (await this.#requireAgents().config(ctx, id)) !== undefined ||
+            (await this.#projects.get(ctx, id)) !== undefined ||
+            (await this.#workspaces.hasIdentity(ctx, id))
+        );
+    }
+
+    async #required(ctx: Context, botId: string): Promise<BotRecord> {
+        const bot = await readBot(ctx, botId);
+        if (bot === undefined) throw new BotNotFoundError();
+        return bot;
+    }
+
+    #assertVersion(bot: BotRecord, expectedVersion: number): void {
+        if (bot.version !== expectedVersion) throw new BotConflictError("The bot has changed.");
+    }
+
+    #publish(ctx: Context, event: BotEvent): void {
+        if (!Value.Check(botEventSchema, event)) throw new Error("The bot event is invalid.");
+        const frozen = deepFreeze(structuredClone(event)) as BotEvent;
+        afterCommit(ctx, async (eventCtx) => {
+            for (const listener of [...this.#listeners]) {
+                try {
+                    await listener(eventCtx, frozen);
+                } catch (error: unknown) {
+                    eventCtx.log.error(
+                        "A bot subscriber failed.",
+                        { eventId: frozen.eventId },
+                        error,
+                    );
+                }
+            }
+        });
+    }
+
+    #requireAgents(): AgentSystemRef {
+        if (this.#agents === undefined) throw new Error("The bots module has not started.");
+        return this.#agents;
+    }
+}
+
+interface BotInitialAvatar {
+    readonly asset: BotAvatarAsset;
+    readonly source: "generated" | "user";
+}
+
+/** Plain text from the first accepted user message, excluding media and model-only blocks. */
+function acceptedMessageText(accepted: AgentBaseAcceptedMessage): string {
+    return accepted.message.content
+        .flatMap((block) => (block.type === "text" ? [block.text] : []))
+        .join("\n")
+        .trim()
+        .slice(-MAX_NAMING_MESSAGE_CHARS);
+}
+
+function deepFreeze<Value>(value: Value): Value {
+    if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
+    for (const child of Object.values(value)) deepFreeze(child);
+    return Object.freeze(value);
+}
+
+function derivedUsername(name: string): string {
+    let username = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    if (username.length === 0) username = "bot";
+    if (!/^[a-z]/.test(username)) username = `bot_${username}`;
+    return username.slice(0, 64).replace(/_+$/g, "") || "bot";
+}
+
+/** Decimal-fraction sort key, compared lexicographically. */
+function orderKeyBetween(before: string | null, after: string | null): string {
+    const lower = before ?? "";
+    if (after !== null && lower >= after) throw new Error("Bot order keys are out of order.");
+    let prefix = "";
+    for (let index = 0; ; index += 1) {
+        const low = index < lower.length ? lower.charCodeAt(index) - 48 : 0;
+        const high = after !== null && index < after.length ? after.charCodeAt(index) - 48 : 10;
+        if (high - low > 1) return `${prefix}${String(low + Math.floor((high - low) / 2))}`;
+        if (high - low === 1)
+            return `${prefix}${String(low)}${orderKeyAbove(lower.slice(index + 1))}`;
+        prefix += String(low);
+    }
+}
+
+function orderKeyAbove(rest: string): string {
+    let prefix = "";
+    for (let index = 0; ; index += 1) {
+        const digit = index < rest.length ? rest.charCodeAt(index) - 48 : 0;
+        if (digit < 9) return `${prefix}${String(digit + Math.floor((10 - digit) / 2))}`;
+        prefix += "9";
+    }
+}

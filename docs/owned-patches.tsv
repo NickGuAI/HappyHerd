@@ -716,3 +716,14 @@ INBOX_READ_STATE_CHANGELOG_BASELINES_REBASED	accepted	test(app): regenerate the 
 CODEX_JSONL_UNICODE	accepted	fix(codex): preserve Unicode separators in JSONL transport	server/packages/happyherd-cli/src/codex/codexAppServerClient.test.ts
 CODEX_JSONL_ACCEPTANCE	accepted	test(codex): record Unicode transport acceptance and changelog captures	docs/codex-jsonl-unicode.md
 CODEX_JSONL_REBASED_GOLDENS	accepted	test(codex): refresh rebased Unicode fix changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+CREATE_ACCOUNT_ERROR_381	accepted	fix(app): show localized account creation failures with retry	server/packages/happyherd-app/sources/app/(app)/index.tsx
+CREATE_ACCOUNT_CHANGELOG_GOLDENS_381	accepted	test(app): refresh account creation changelog visual baselines	docs/acceptance/issue-287/golden
+FIRST_RUN_PUBLIC_INSTALL_379	accepted	fix(app): guide first-run users through public installation and connection	server/packages/happyherd-app/sources/components/EmptyMainScreen.tsx
+FIRST_RUN_EVIDENCE_379	accepted	test(app): retain first-run evidence and refresh visual baselines	docs/acceptance/issue-379/README.md
+FIRST_RUN_CI_CLOCK_SETUP_379	accepted	test(app): initialize the focus fixture clock before its pause target	server/packages/happyherd-app/sources/components/projectsSuperSession.browser.test.ts
+FIRST_RUN_UI_INVENTORY_REGENERATED_379	accepted	test(app): regenerate UI surface inventory after onboarding rebase	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+SHARED_COMMANDER_KNOWLEDGE_336	accepted	fix(context): seed portable shared guidance without replacing user instructions	server/packages/happyherd-cli/src/agentContext/sharedKnowledge.ts
+SUPER_SESSION_TRANSPORT_RECOVERY_321	accepted	fix(session): recover live Super Session transport on the owning machine	docs/super-session-recovery.md
+CONTEXT_WINDOW_HAPPYHERD_365	code-ready	feat(context): read native HappyHerd context through the existing machine RPC	docs/acceptance/issue-365.md
+CONTEXT_WINDOW_NATIVE_OWNER_365	code-ready	feat(context): maintain the native runtime inside HappyHerd	native/README.md
+CONTEXT_WINDOW_INTEGRATION_INVENTORY_365	accepted	test(context): refresh integrated native context artifacts	server/packages/happyherd-app/sources/text/ui-surface-inventory.json

@@ -1,0 +1,53 @@
+{
+    "name": "@slopus/happy-agent-compute",
+    "version": "0.1.20",
+    "description": "Filesystems, shells, sandboxes, and containers for Happy agents.",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/slopus/happy-agent.git",
+        "directory": "packages/happy-agent-compute"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "node --eval \"import('node:fs/promises').then(({ rm }) => rm('dist', { force: true, recursive: true }))\" && tsc -p tsconfig.build.json",
+        "check": "tsc --noEmit",
+        "test": "vitest run --passWithNoTests",
+        "test:live": "HAPPY_AGENT_COMPUTE_LIVE_TEST=1 vitest run tests/live",
+        "test:live:docker": "HAPPY_AGENT_COMPUTE_LIVE_TEST=1 vitest run tests/live/dockerBackend.live.test.ts",
+        "test:live:host": "HAPPY_AGENT_COMPUTE_LIVE_TEST=1 vitest run tests/live/hostSandbox.live.test.ts",
+        "test:live:services": "HAPPY_AGENT_COMPUTE_SERVICE_LIVE_TEST=1 vitest run tests/live/serviceRuntime.live.test.ts",
+        "test:live:just-bash": "HAPPY_AGENT_COMPUTE_LIVE_TEST=1 vitest run tests/live/justBashPermissions.live.test.ts"
+    },
+    "dependencies": {
+        "@lydell/node-pty": "1.2.0-beta.15",
+        "@sinclair/typebox": "^0.34.49",
+        "@slopus/happy-agent-supervisor": "workspace:*",
+        "@steve.kite/stdlib": "0.0.12",
+        "dockerode": "^5.0.1",
+        "just-bash": "^3.0.2"
+    },
+    "devDependencies": {
+        "@types/dockerode": "^4.0.1",
+        "@types/node": "^24.0.10",
+        "typescript": "^7.0.2",
+        "vitest": "^3.2.4"
+    },
+    "engines": {
+        "node": ">=22.19.0"
+    }
+}

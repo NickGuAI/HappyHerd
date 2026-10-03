@@ -95,6 +95,7 @@ import {
   type SideChatOperationResult,
 } from './sideChatLifecycle';
 import { sampleHostResourceUsage } from './hostResourceUsage';
+import { SessionTransportRecovery } from './sessionTransport';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
@@ -442,6 +443,18 @@ export async function startDaemon(): Promise<void> {
 
     // Helper functions
     const getCurrentChildren = () => Array.from(pidToTrackedSession.values());
+
+    const sessionTransport = new SessionTransportRecovery({
+      endpoint: configuration.serverUrl,
+      owner: (sessionId) => {
+        const owners = getCurrentChildren().filter((session) => (
+          session.happySessionId === sessionId && !stoppingPids.has(session.pid)
+        ));
+        if (owners.length !== 1) return undefined;
+        const owner = owners[0];
+        return { pid: owner.pid, running: !hasProviderProcessExited(owner.pid), isSuperSession: owner.happyherdSessionMetadataFromLocalWebhook?.isSuperSession === true };
+      },
+    });
 
     // Handle webhook from happyherd session reporting itself
     const onHappyHerdSessionWebhook = (sessionId: string, sessionMetadata: Metadata, encryption?: SessionEncryptionData) => {
@@ -1839,6 +1852,7 @@ export async function startDaemon(): Promise<void> {
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
+      sessionTransport,
       devicePairing: () => devicePairing,
       stopSession,
       spawnSession,
@@ -1975,6 +1989,7 @@ export async function startDaemon(): Promise<void> {
 
     // Set RPC handlers
     apiMachine.setRPCHandlers({
+      sessionTransport,
       spawnSession,
       resumeSession,
       stopSession,
@@ -2372,6 +2387,7 @@ export async function startDaemon(): Promise<void> {
         schemaVersion: 1, type: 'session-inspection', recent: true, limit: request.limit,
         session: {
           id: session.id, active, seq: session.seq, providerRunning: isLocalProviderRunning(session.id),
+          ...(metadata.isSuperSession ? { transport: sessionTransport.status(session.id) } : {}),
           metadata: {
             path: metadata.path, flavor: metadata.flavor,
             commanderId: metadata.commanderId, commanderName: metadata.commanderName,

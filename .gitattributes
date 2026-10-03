@@ -1,0 +1,2 @@
+# Unified diffs require a space prefix on blank context lines. Preserve patch bytes.
+native/**/*.patch whitespace=-blank-at-eol,-blank-at-eof

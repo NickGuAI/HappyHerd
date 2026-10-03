@@ -1,3 +1,5 @@
+import { useSessionTransport } from '@/hooks/useSessionTransport';
+import { SessionTransportBanner } from '@/components/SessionTransportBanner';
 import { Text } from '@/components/StyledText';
 import { useIsFocused } from '@react-navigation/native';
 import { useSessionVisibility } from '@/hooks/useSessionVisibility';
@@ -175,6 +177,7 @@ export const SessionView = React.memo((props: {
     const isFocused = useIsFocused();
     const router = useRouter();
     const session = useSession(sessionId);
+    const transport = useSessionTransport(session);
     const sideChatMachineId = session?.metadata?.machineId ?? '';
     const sideChatMachine = useMachine(sideChatMachineId);
     const isDataReady = useIsDataReady();
@@ -1053,7 +1056,9 @@ export const SessionView = React.memo((props: {
         if (!session) {
             return { title: t('errors.sessionDeleted'), folderName: undefined, isConnected: false };
         }
-        const isConnected = session.presence === 'online';
+        const isConnected = session.metadata?.isSuperSession
+            ? transport?.state === 'connected'
+            : session.presence === 'online';
         const pathSegments = session.metadata?.path?.split(/[/\\]/).filter(Boolean);
         const folderName = pathSegments?.[pathSegments.length - 1];
         const sessionName = getSessionName(session);
@@ -1062,7 +1067,7 @@ export const SessionView = React.memo((props: {
             folderName,
             isConnected,
         };
-    }, [session, isDataReady]);
+    }, [session, isDataReady, transport]);
     const sideChatAccessButton = session
         ? (
             <SideChatAccessButton
@@ -2319,7 +2324,12 @@ export function SessionViewLoaded({
     // Resume button when canResume is true, falls back to the
     // copy-this-command hint when the daemon is incompatible or the machine
     // isn't reachable.
-    const inactiveHint = isDisconnected && !isRig ? (
+    const transportHint = session.metadata?.isSuperSession && sessionStatus.transport
+        && sessionStatus.transport.state !== 'connected' && !canResume
+        ? <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
+            <SessionTransportBanner status={sessionStatus.transport} machineId={session.metadata.machineId ?? ''} />
+        </CenteredInputWidth> : null;
+    const inactiveHint = isDisconnected && !isRig && (!session.metadata?.isSuperSession || canResume) ? (
         <AnimatedFade visible={showBottomDockDetails}>
             <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
                 <InactiveArchivedHint
@@ -2360,6 +2370,7 @@ export function SessionViewLoaded({
             <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
                 <ProviderContinuationLinks session={session} />
             </CenteredInputWidth>
+            {transportHint}
             {inactiveHint}
             {visibleAgentGoal && (
                 <AnimatedFade visible={showBottomDockDetails}>

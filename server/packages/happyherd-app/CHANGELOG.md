@@ -1,3 +1,25 @@
+# October 2 — Native HappyHerd context window
+
+- The experimental Context window can read recorded HappyHerd provider context from its original machine when that native provider supports the context-window request. It shows full retained, compacted and injected records, while explaining that runtime-assembled instructions and tools are not a complete recorded model request.
+- Older providers and unavailable native state remain retryable. The experiment stays off by default and does not change the conversation or run the provider.
+
+# October 2 — Reconnect Super Sessions
+
+- Super Sessions show disconnected transport and known connection causes even while the provider process is alive. Reconnect to current server restores that process in the same conversation; queued messages replay automatically without resubmission.
+
+# October 2 — Shared guidance from the first Commander session
+
+- Fresh installs include a portable HappyHerd operations guide. Commander startup and resume directions point to shared guidance while keeping private memory in its existing location.
+- Existing global instructions, shared guides and Commander state are preserved. Run `happyherd commander guide --json` to add missing guides and find the files to review when updating older instructions.
+
+# October 2 — Retry account creation
+
+- If account creation fails, the welcome screen explains that it did not finish and offers Retry. Repeated presses while creation is pending no longer start additional requests.
+
+# October 2 — Connect your first computer
+
+- First-run setup now uses the public macOS/Linux installer and shows the current app server, terminal authorization, and daemon startup steps. Web users can enter the terminal URL directly; native phones retain camera and manual URL pairing.
+
 # October 1 — Codex conversation reliability
 
 - Codex side chats and forks now preserve Unicode line and paragraph separators in conversation history instead of timing out. Live tool messages containing those characters are no longer dropped.
