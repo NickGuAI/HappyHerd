@@ -1,6 +1,6 @@
 # Upstream integration through 4cf54d18 — issue #370
 
-This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Acceptance is in progress. The owner's acceptance correction confirms Group 1 as settled scope: persistent visible checklist behavior and help content must be delivered in the existing screens, with intentional visual-delta proof.** [Draft PR #374](https://github.com/NickGuAI/HappyHerd/pull/374) must stay open for Athena. No merge to main, deployment, shared installation/restart or account mutation is authorized. The latest instruction authorizes one inactive historical-session continuation through a safe issue-owned exact-source runtime; it excludes the active parent session and shared production daemon.
+This integration preserves HappyHerd's current interface and owned contracts while importing the approved upstream behavior. **Group 1 remains settled scope: persistent visible checklist behavior and help content are delivered in the existing screens, with intentional visual-delta proof.** [PR #374](https://github.com/NickGuAI/HappyHerd/pull/374) remains open for owner review. No merge to main, deployment, shared installation/restart or account mutation is authorized. One real inactive historical-session continuation remains a before-merge requirement; it must use a safe issue-owned exact-source runtime and excludes the active parent session and shared production daemon.
 
 ## Frozen inputs and topology
 
@@ -8,15 +8,18 @@ This integration preserves HappyHerd's current interface and owned contracts whi
 | --- | --- |
 | Initial fetched main (2026-10-01, includes #366) | `4a5ba9a93490685ea64a3205357178d439d13ad1` |
 | Refreshed main after #361 merged | `793b05b8394cf1495834a6d2d0e24cb812b7a5c6` |
+| PR conflict-refresh main (2026-10-03) | `6b6f99cf052e4ee0604e4861fc42eb8291402917` |
 | Previous integrated upstream | `37e9479947e183800cd557d4ccb968c2e2298ac1` |
 | Approved upstream target / observed upstream main | `4cf54d18488cba4787cc251cc37010f31125af29` |
 | Resolved subtree merge | `815fd27aeba109060ed937a453bf48c73604d8c7` |
 | Merge first parent | `793b05b8394cf1495834a6d2d0e24cb812b7a5c6` |
+| Conflict-refreshed subtree merge | `5448b667717495d72c432e2a75a410c9001b5043` |
+| Conflict-refreshed merge first parent | `6b6f99cf052e4ee0604e4861fc42eb8291402917` |
 | Merge second parent | `4cf54d18488cba4787cc251cc37010f31125af29` |
 | #361 reviewed head, subsequently merged | `1ed55450db31b1e189d10947da52e0164f104b66` |
 | #367 observed open head | `c38546108aed65e732c4a8057b43efdef4811a2b` |
 
-The merge has exactly two parents, changes only `server/`, and has subject `Merge commit '4cf54d18488cba4787cc251cc37010f31125af29'`. It retains the full upstream history. Follow-up commits are single-parent and ledgered. Main was not merged into the integration branch.
+The current merge has exactly two parents, changes only `server/`, and has subject `Merge commit '4cf54d18488cba4787cc251cc37010f31125af29'`. It retains the full upstream history. Follow-up commits are single-parent and ledgered. The PR was rebased with merge topology preserved; no ordinary main merge commit was added to the owned patch series.
 
 One owner resolved the integration. Provider-native subagents performed bounded audits, fixture proposals and isolated verification; they did not create competing integration states. The canonical checkout's unrelated changes were not read or copied into the integration.
 
@@ -25,6 +28,8 @@ One owner resolved the integration. Provider-native subagents performed bounded 
 Both fresh read-only rehearsals, first on `4a5ba9a9` and again on `793b05b8`, reported **154 conflict events across 151 paths**: 55 content, 34 modify/delete, 60 file-location, four rename/delete, and one add/add. The path inventory did not change between these baselines. Rehearsal clones were disposable; their output and inventories remain in the issue-owned worktree.
 
 Rerere was enabled. The first fully resolved tree was retained locally as checkpoint `65d689e9bf3a4df417237d106e53a69e8e5860ed`. After main advanced, the owner rebuilt from `793b05b8`, repeated the approved `git subtree merge --prefix=server` operation, and applied the reviewed old-base resolution delta with a three-way merge onto the new base. This produced six overlapping paths: ChatList, EmptyMessages, the changelog source, and three generated artifacts. No main merge was used. The two production files were resolved semantically; generated output was rebuilt from combined source.
+
+On 2026-10-03, PR #374 was rebased with merge topology onto `6b6f99cf`. The reviewed `793b05b8..815fd27a` integration delta was applied three-way to the new first parent, which kept the original accepted/rejected source disposition while retaining all later main changes. The only new product overlap was first-machine onboarding: the current public installer, server selection, terminal authorization and daemon steps remain, while native install/authorization rows retain the PR's persistent checklist state and the shared Get help action. Main's newer shared changelog goldens remain authoritative; the issue-370 acceptance images, manifests and decision record remain unchanged as historical exact-source evidence. Changelog JSON, i18n types and the UI inventory were regenerated from the combined source.
 
 | Conflict kind | Resolution |
 | --- | --- |
