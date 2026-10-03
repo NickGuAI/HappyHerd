@@ -5,6 +5,7 @@ import {
   ApiSessionClient,
   createSessionEventMessage,
   type AgentSessionEvent,
+  type ApiSessionClientInitialOptions,
 } from './apiSession';
 import { ApiMachineClient } from './apiMachine';
 import { decodeBase64, encodeBase64, getRandomBytes, encrypt, decrypt, libsodiumEncryptForPublicKey } from './encryption';
@@ -509,8 +510,8 @@ export class ApiClient {
     }
   }
 
-  sessionSyncClient(session: Session): ApiSessionClient {
-    return new ApiSessionClient(this.credential.token, session);
+  sessionSyncClient(session: Session, initialOptions?: ApiSessionClientInitialOptions): ApiSessionClient {
+    return new ApiSessionClient(this.credential.token, session, initialOptions);
   }
 
   machineSyncClient(machine: Machine): ApiMachineClient {

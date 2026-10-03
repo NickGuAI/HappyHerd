@@ -237,6 +237,15 @@ function buildMultipartUploadBody(
     };
 }
 
+export type ApiSessionClientInitialOptions = {
+    /** Applied before the session socket connects and starts its first fetch. */
+    skipExistingMessages?: {
+        queueMessageIds: readonly string[];
+        throughSeq: number;
+        prioritizedQueueMessageId?: string;
+    };
+};
+
 export class ApiSessionClient extends EventEmitter {
     private readonly token: string;
     readonly sessionId: string;
@@ -318,7 +327,7 @@ export class ApiSessionClient extends EventEmitter {
     private readonly receiveSync: InvalidateSync;
     private reconnectCapabilityHeld = false;
 
-    constructor(token: string, session: Session) {
+    constructor(token: string, session: Session, initialOptions: ApiSessionClientInitialOptions = {}) {
         super()
         this.token = token;
         this.sessionId = session.id;
@@ -331,6 +340,10 @@ export class ApiSessionClient extends EventEmitter {
         this.restorePendingUsageReportsFromDisk();
         this.encryptionKey = session.encryptionKey;
         this.encryptionVariant = session.encryptionVariant;
+        if (initialOptions.skipExistingMessages) {
+            const { queueMessageIds, throughSeq, prioritizedQueueMessageId } = initialOptions.skipExistingMessages;
+            this.skipExistingMessages(queueMessageIds, throughSeq, prioritizedQueueMessageId);
+        }
         this.sendSync = new InvalidateSync(() => this.flushOutbox());
         this.usageSync = new InvalidateSync(() => this.flushProviderUsageReports());
         this.receiveSync = new InvalidateSync(async () => {

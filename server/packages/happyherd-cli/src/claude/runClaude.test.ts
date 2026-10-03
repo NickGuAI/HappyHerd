@@ -361,9 +361,14 @@ describe('runClaude remote JSONL scanner', () => {
         });
 
         expect(harness.api.refreshSessionForReconnect).toHaveBeenCalledTimes(1);
-        expect(harness.sessionClient.skipExistingMessages).toHaveBeenCalledWith(
-            ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
-            42,
+        expect(harness.api.sessionSyncClient).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'happyherd-session-1' }),
+            {
+                skipExistingMessages: {
+                    queueMessageIds: ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
+                    throughSeq: 42,
+                },
+            },
         );
         const initialQueueUpdater = harness.updateAgentState.mock.calls
             .map(([updater]) => updater)
@@ -428,6 +433,15 @@ describe('runClaude remote JSONL scanner', () => {
             updateAgentState,
         });
 
+        expect(harness.api.sessionSyncClient).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'happyherd-session-1' }),
+            {
+                skipExistingMessages: {
+                    queueMessageIds: [],
+                    throughSeq: 42,
+                },
+            },
+        );
         expect(updateAgentState).toHaveBeenCalled();
         expect(updateAgentState.mock.invocationCallOrder[0]).toBeLessThan(mockLoop.mock.invocationCallOrder[0]);
         expect(persistedState.usageLimits).toBeUndefined();

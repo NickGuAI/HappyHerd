@@ -1461,6 +1461,59 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
     });
 
+    it('installs reconnect filtering before connecting and replays only queued or post-snapshot input', async () => {
+        const reconnectSession = { ...session, seq: 3 };
+        const records: Array<{
+            role: string;
+            content: { type: string; text: string };
+            meta?: { deliveryMode?: string; queueMessageId?: string };
+        }> = [
+            { role: 'user', content: { type: 'text', text: 'historical instruction' } },
+            { role: 'user', content: { type: 'text', text: 'still queued' }, meta: { deliveryMode: 'queue', queueMessageId: 'queue-pending' } },
+            { role: 'user', content: { type: 'text', text: 'other queued input' }, meta: { deliveryMode: 'queue', queueMessageId: 'queue-other' } },
+            { role: 'user', content: { type: 'text', text: 'new input after snapshot' } },
+        ];
+        let resolveMessagePage!: (page: { data: { messages: unknown[]; hasMore: boolean } }) => void;
+        mockAxiosGet.mockImplementationOnce(() => new Promise((resolve) => {
+            resolveMessagePage = resolve;
+        }));
+        mockSocket.connect.mockImplementationOnce(() => emitSocketEvent('connect'));
+        const client = new ApiSessionClient('fake-token', reconnectSession, {
+            skipExistingMessages: {
+                queueMessageIds: ['queue-pending'],
+                throughSeq: reconnectSession.seq,
+            },
+        });
+        expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+        expect((client as any).skipInitialMessages).toBe(true);
+        expect((client as any).skipExistingMessagesThroughSeq).toBe(3);
+
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        resolveMessagePage({
+            data: {
+                messages: records.map((record, index) => ({
+                    id: `msg-${index + 1}`,
+                    seq: index + 1,
+                    content: { t: 'encrypted', c: encryptContent(reconnectSession, record) },
+                    localId: record.meta?.queueMessageId ?? `local-${index + 1}`,
+                    createdAt: 1000 + index,
+                    updatedAt: 1000 + index,
+                })),
+                hasMore: false,
+            },
+        });
+        await waitForCheck(() => expect(onUserMessage).toHaveBeenCalledTimes(2));
+
+        expect(onUserMessage.mock.calls.map(([message]) => message.content.text)).toEqual([
+            'still queued',
+            'new input after snapshot',
+        ]);
+        expect(onUserMessage).toHaveBeenCalledTimes(2);
+        expect((client as any).lastReceivedSeq).toBe(4);
+        await client.close();
+    });
+
     it('replays an archived next turn without replaying or replacing the retained transcript', async () => {
         const archivedSession = {
             ...session,
