@@ -25,12 +25,26 @@ export type MessageQueueBatch<T> = {
 };
 
 /** Reclassify interrupted current work as pending, preserving FIFO order. */
-export function queueMessageIdsForResume(state: AgentMessageQueueState | null | undefined): string[] {
+export function queueMessageIdsForResume(
+    state: AgentMessageQueueState | null | undefined,
+    options: { includeCurrent?: boolean } = {},
+): string[] {
+    const current = Array.isArray(state?.currentMessageIds)
+        ? state.currentMessageIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : [];
+    const currentIds = new Set(current);
+    const pending = Array.isArray(state?.pendingMessageIds)
+        ? state.pendingMessageIds.filter((id): id is string => (
+            typeof id === 'string'
+            && id.length > 0
+            && (options.includeCurrent !== false || !currentIds.has(id))
+        ))
+        : [];
     const ordered = [
-        ...(Array.isArray(state?.currentMessageIds) ? state.currentMessageIds : []),
-        ...(Array.isArray(state?.pendingMessageIds) ? state.pendingMessageIds : []),
+        ...(options.includeCurrent === false ? [] : current),
+        ...pending,
     ];
-    return [...new Set(ordered.filter((id): id is string => typeof id === 'string' && id.length > 0))];
+    return [...new Set(ordered)];
 }
 
 /**
@@ -42,7 +56,8 @@ export class MessageQueue2<T> {
     private waiter: ((hasMessages: boolean) => void) | null = null;
     private closed = false;
     private onMessageHandler: ((message: string, mode: T) => void) | null = null;
-    private onQueueStateChangeHandler: ((state: AgentMessageQueueState) => void) | null = null;
+    private onQueueStateChangeHandler: ((state: AgentMessageQueueState) => void | Promise<void>) | null = null;
+    private lastQueueStateWrite: Promise<void> = Promise.resolve();
     private reservedQueueMessageIds: string[] = [];
     private restoredQueueMessageOrder: string[] = [];
     private requiredFirstQueueMessageId: string | null = null;
@@ -67,7 +82,7 @@ export class MessageQueue2<T> {
     }
 
     /** Publish explicit Queue Msg lifecycle without duplicating message content. */
-    setOnQueueStateChange(handler: ((state: AgentMessageQueueState) => void) | null): void {
+    setOnQueueStateChange(handler: ((state: AgentMessageQueueState) => void | Promise<void>) | null): void {
         this.onQueueStateChangeHandler = handler;
     }
 
@@ -88,6 +103,19 @@ export class MessageQueue2<T> {
         this.notifyQueueStateChange();
     }
 
+    /** Keep interrupted IDs visible in runtime state without re-queuing them. */
+    retainInterruptedCurrentQueueMessageIds(queueMessageIds: readonly string[]): void {
+        if (this.queue.length > 0 || this.currentQueueMessageIds.length > 0) {
+            throw new Error('Cannot restore interrupted IDs after queue processing has started');
+        }
+        this.currentQueueMessageIds = [...new Set(queueMessageIds.filter((id) => id.length > 0))];
+        const currentIds = new Set(this.currentQueueMessageIds);
+        this.reservedQueueMessageIds = this.reservedQueueMessageIds.filter((id) => !currentIds.has(id));
+        this.restoredQueueMessageOrder = this.restoredQueueMessageOrder.filter((id) => !currentIds.has(id));
+        for (const id of currentIds) this.acceptedQueueMessageIds.add(id);
+        this.notifyQueueStateChange();
+    }
+
     getQueueState(): AgentMessageQueueState {
         const pending = [
             ...this.reservedQueueMessageIds,
@@ -105,7 +133,11 @@ export class MessageQueue2<T> {
     }
 
     private notifyQueueStateChange(): void {
-        this.onQueueStateChangeHandler?.(this.getQueueState());
+        const pending = this.onQueueStateChangeHandler?.(this.getQueueState());
+        if (pending && typeof pending.then === 'function') {
+            this.lastQueueStateWrite = pending;
+            void pending.catch(() => undefined);
+        }
     }
 
     private acceptQueueMessageId(queueMessageId?: string): boolean {
@@ -452,12 +484,40 @@ export class MessageQueue2<T> {
     }
 
     /** Move a dequeued batch from waiting to runtime-owned current work. */
-    markBatchStarted(queueMessageIds: readonly string[]): void {
+    async markBatchStarted(queueMessageIds: readonly string[]): Promise<void> {
         if (queueMessageIds.length === 0) return;
         const started = new Set(queueMessageIds);
+        const reservedBeforeStart = [...this.reservedQueueMessageIds];
+        const currentBeforeStart = [...this.currentQueueMessageIds];
         this.reservedQueueMessageIds = this.reservedQueueMessageIds.filter((id) => !started.has(id));
         this.currentQueueMessageIds = [...queueMessageIds];
         this.notifyQueueStateChange();
+        try {
+            await this.lastQueueStateWrite;
+        } catch (error) {
+            this.reservedQueueMessageIds = [...new Set([...reservedBeforeStart, ...queueMessageIds])];
+            this.currentQueueMessageIds = currentBeforeStart;
+            this.notifyQueueStateChange();
+            throw error;
+        }
+    }
+
+    /** Retire a dequeued batch after it is handled locally without provider submission. */
+    async completeUnsubmittedBatch(queueMessageIds: readonly string[]): Promise<void> {
+        if (queueMessageIds.length === 0) return;
+        const completed = new Set(queueMessageIds);
+        const reservedBeforeCompletion = [...this.reservedQueueMessageIds];
+        this.reservedQueueMessageIds = this.reservedQueueMessageIds.filter((id) => !completed.has(id));
+        if (this.reservedQueueMessageIds.length === reservedBeforeCompletion.length) return;
+
+        this.notifyQueueStateChange();
+        try {
+            await this.lastQueueStateWrite;
+        } catch (error) {
+            this.reservedQueueMessageIds = reservedBeforeCompletion;
+            this.notifyQueueStateChange();
+            throw error;
+        }
     }
 
     /** Clear current IDs after the provider turn reaches a terminal state. */

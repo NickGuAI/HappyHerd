@@ -423,10 +423,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // SDK metadata (tools, slash commands) is now extracted from the
     // system.init message in claudeRemote.ts via onSDKMetadata callback
 
+    const interruptedQueueMessageIds = new Set(response.agentState?.messageQueue?.currentMessageIds ?? []);
     const reconnectQueueMessageIds = reconnectSessionId
         ? Array.from(new Set([
-            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...queueMessageIdsForResume(response.agentState?.messageQueue, { includeCurrent: false }),
             ...(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID
+                && !interruptedQueueMessageIds.has(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID)
                 ? [process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID]
                 : []),
         ]))
@@ -708,8 +710,13 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         effort: mode.effort,
     }));
     messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+    if (reconnectSessionId) {
+        messageQueue.retainInterruptedCurrentQueueMessageIds(
+            response.agentState?.messageQueue?.currentMessageIds ?? [],
+        );
+    }
     messageQueue.setOnQueueStateChange((messageQueueState) => {
-        session.updateAgentState((currentState) => ({
+        return session.updateAgentState((currentState) => ({
             ...currentState,
             messageQueue: messageQueueState,
         }));

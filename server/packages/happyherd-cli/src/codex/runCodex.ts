@@ -344,10 +344,12 @@ export async function runCodex(opts: {
         }
     });
     session = initialSession;
+    const interruptedQueueMessageIds = new Set(response?.agentState?.messageQueue?.currentMessageIds ?? []);
     const reconnectQueueMessageIds = reconnectSessionId && response
         ? Array.from(new Set([
-            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...queueMessageIdsForResume(response.agentState?.messageQueue, { includeCurrent: false }),
             ...(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID
+                && !interruptedQueueMessageIds.has(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID)
                 ? [process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID]
                 : []),
         ]))
@@ -390,8 +392,13 @@ export async function runCodex(opts: {
 
     const messageQueue = new MessageQueue2<EnhancedMode>(hashCodexEnhancedMode);
     messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+    if (reconnectSessionId) {
+        messageQueue.retainInterruptedCurrentQueueMessageIds(
+            response?.agentState?.messageQueue?.currentMessageIds ?? [],
+        );
+    }
     messageQueue.setOnQueueStateChange((messageQueueState) => {
-        session.updateAgentState((currentState) => ({
+        return session.updateAgentState((currentState) => ({
             ...currentState,
             messageQueue: messageQueueState,
         }));
@@ -1438,13 +1445,13 @@ export async function runCodex(opts: {
                 break;
             }
 
-            messageQueue.markBatchStarted(message.queueMessageIds);
             if (message.mode.heartbeat) {
                 await persistHeartbeatDeliveryReceipt(session, message.mode.heartbeat, 'started');
             }
 
             if (isCodexClearText(message.message)) {
                 logger.debug('[Codex] Handling /clear command - resetting Codex thread state');
+                await messageQueue.markBatchStarted(message.queueMessageIds);
                 client.clearThreadState();
                 currentTurnId = null;
                 lastTurnId = null;
@@ -1526,6 +1533,7 @@ export async function runCodex(opts: {
                     (command) => handleCodexGoalCommand(command, activeThreadId),
                 );
                 if (goalTurnText === null) {
+                    await messageQueue.completeUnsubmittedBatch(message.queueMessageIds);
                     await finishAutomationSession('completed', 'Codex automation completed a state-only goal command.');
                     continue;
                 }
@@ -1545,6 +1553,7 @@ export async function runCodex(opts: {
                         type: 'message',
                         message: 'No supported images were available to send to Codex.',
                     });
+                    await messageQueue.completeUnsubmittedBatch(message.queueMessageIds);
                     await finishAutomationSession('failed', 'No supported images were available to send to Codex.');
                     continue;
                 }
@@ -1575,6 +1584,7 @@ export async function runCodex(opts: {
                 }
                 activeTurnDeveloperInstructions = message.mode.developerInstructions;
                 let result: Awaited<ReturnType<typeof client.sendTurnAndWait>>;
+                await messageQueue.markBatchStarted(message.queueMessageIds);
                 codexPromptInFlight = true;
                 try {
                     result = await client.sendTurnAndWait(turnPrompt, {

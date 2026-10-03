@@ -343,18 +343,22 @@ describe('runClaude remote JSONL scanner', () => {
         )));
     });
 
-    it('refreshes and rehydrates unfinished queue IDs when resuming Claude', async () => {
+    it.each([
+        ['overlapping current ID', 'queue-interrupted', ['queue-pending']],
+        ['explicit pending ID', 'heartbeat-occurrence', ['queue-pending', 'heartbeat-occurrence']],
+    ])('uses only pending queue IDs for Claude reconnect filtering (%s)', async (_label, reconnectQueueMessageId, expectedQueueMessageIds) => {
         process.env.HAPPYHERD_RECONNECT_SESSION_ID = 'happyherd-session-1';
         process.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
         process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT = 'legacy';
         process.env.HAPPYHERD_RECONNECT_SEQ = '42';
         process.env.HAPPYHERD_RECONNECT_METADATA_VERSION = '7';
         process.env.HAPPYHERD_RECONNECT_AGENT_STATE_VERSION = '8';
-        process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID = 'heartbeat-occurrence';
+        process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID = reconnectQueueMessageId;
         const harness = await startRemoteRunClaudeHarness({
+            runOptions: { permissionMode: 'plan', model: 'claude-opus-test', effort: 'high' },
             reconnectAgentState: {
                 messageQueue: {
-                    pendingMessageIds: ['queue-pending'],
+                    pendingMessageIds: ['queue-pending', 'queue-interrupted', 'queue-pending'],
                     currentMessageIds: ['queue-interrupted'],
                 },
             },
@@ -365,7 +369,7 @@ describe('runClaude remote JSONL scanner', () => {
             expect.objectContaining({ id: 'happyherd-session-1' }),
             {
                 skipExistingMessages: {
-                    queueMessageIds: ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
+                    queueMessageIds: expectedQueueMessageIds,
                     throughSeq: 42,
                 },
             },
@@ -375,11 +379,72 @@ describe('runClaude remote JSONL scanner', () => {
             .find((updater) => typeof updater === 'function');
         expect(initialQueueUpdater?.({})).toMatchObject({
             messageQueue: {
-                pendingMessageIds: ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
-                currentMessageIds: [],
+                pendingMessageIds: expectedQueueMessageIds,
+                currentMessageIds: ['queue-interrupted'],
             },
         });
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+        await userMessageHandler({ content: { text: 'next instruction' }, meta: { deliveryMode: 'queue' } });
+        expect(harness.loopOptions.messageQueue.queue.at(-1)?.mode).toMatchObject({
+            permissionMode: 'plan', model: 'claude-opus-test', effort: 'high',
+        });
 
+        await harness.finish();
+    });
+
+    it('waits for runClaude queue ownership persistence before allowing provider handoff', async () => {
+        let resolveWrite!: () => void;
+        let signalWriteStarted!: () => void;
+        const writeStarted = new Promise<void>((resolve) => { signalWriteStarted = resolve; });
+        const writeGate = new Promise<void>((resolve) => { resolveWrite = resolve; });
+        let persisted: Record<string, any> = {};
+        const updateAgentState = vi.fn(async (updater: (current: Record<string, any>) => Record<string, any>) => {
+            const next = updater(persisted);
+            if (next.messageQueue?.currentMessageIds?.includes('claude-current')) {
+                signalWriteStarted();
+                await writeGate;
+            }
+            persisted = next;
+        });
+        const harness = await startRemoteRunClaudeHarness({ updateAgentState });
+        const queue = harness.loopOptions.messageQueue;
+        const query = vi.fn();
+        queue.push('follow-up', { permissionMode: 'default' }, undefined, 'claude-current');
+        const batch = await queue.waitForMessagesAndGetAsString();
+        expect(batch?.queueMessageIds).toEqual(['claude-current']);
+
+        const handoff = queue.markBatchStarted(batch!.queueMessageIds).then(query);
+        await writeStarted;
+        expect(query).not.toHaveBeenCalled();
+        expect(persisted.messageQueue.currentMessageIds).toEqual([]);
+        resolveWrite();
+        await handoff;
+        expect(persisted.messageQueue.currentMessageIds).toEqual(['claude-current']);
+        expect(query).toHaveBeenCalledTimes(1);
+        await harness.finish();
+    });
+
+    it('does not allow provider handoff when runClaude queue ownership persistence rejects', async () => {
+        let persisted: Record<string, any> = {};
+        const updateAgentState = vi.fn(async (updater: (current: Record<string, any>) => Record<string, any>) => {
+            const next = updater(persisted);
+            if (next.messageQueue?.currentMessageIds?.includes('claude-current')) {
+                throw new Error('queue ownership update rejected');
+            }
+            persisted = next;
+        });
+        const harness = await startRemoteRunClaudeHarness({ updateAgentState });
+        const queue = harness.loopOptions.messageQueue;
+        const query = vi.fn();
+        queue.push('follow-up', { permissionMode: 'default' }, undefined, 'claude-current');
+        const batch = await queue.waitForMessagesAndGetAsString();
+
+        await expect(queue.markBatchStarted(batch!.queueMessageIds).then(query))
+            .rejects.toThrow('queue ownership update rejected');
+        expect(query).not.toHaveBeenCalled();
+        expect(queue.getQueueState()).toMatchObject({
+            pendingMessageIds: ['claude-current'], currentMessageIds: [],
+        });
         await harness.finish();
     });
 

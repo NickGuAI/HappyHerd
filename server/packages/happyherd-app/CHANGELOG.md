@@ -1,3 +1,8 @@
+# October 3 — Prevent repeated prompts after resume
+
+- Resuming a Claude or Codex chat no longer resubmits instructions already sent to the provider. Messages still waiting to be sent keep their order.
+- Codex goal commands handled locally and unsupported image-only requests no longer reappear in the queue after resume.
+
 # October 3 — Keep Claude reconnects from replaying old prompts
 
 - When Claude switches accounts after reaching a usage limit, earlier conversation messages are no longer sent to Claude again. Queued work that had not yet been delivered remains available after reconnect.

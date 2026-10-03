@@ -38,6 +38,12 @@ function sdkStream(events: unknown[], usage?: () => Promise<unknown>): void {
     } as any);
 }
 
+function createDeferred<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    const promise = new Promise<T>((settle) => { resolve = settle; });
+    return { promise, resolve };
+}
+
 function queuedTurn(queueFollowUp = true) {
     const queue = new MessageQueue2<EnhancedMode>(() => 'default');
     queue.push('Finish the original task', mode, undefined, 'original-request');
@@ -49,7 +55,7 @@ function queuedTurn(queueFollowUp = true) {
         if (!batch) throw new Error('Missing test batch');
         queue.markBatchStarted(batch.queueMessageIds);
         if (queueFollowUp) queue.push('Later follow-up', mode, undefined, 'later-request');
-        return { message: batch.message, mode: batch.mode };
+        return { message: batch.message, mode: batch.mode, queueMessageIds: batch.queueMessageIds };
     });
     const onReady = vi.fn(() => queue.completeCurrentBatch());
     const onProviderHardLimit = vi.fn(async () => true);
@@ -92,6 +98,35 @@ describe('Claude account rotation preserves interrupted work', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.unstubAllEnvs();
+    });
+
+    it('waits for durable queue ownership before creating the native query that consumes a prompt', async () => {
+        const turn = queuedTurn(false);
+        const stateWrite = createDeferred<void>();
+        const handedOff = vi.fn(() => stateWrite.promise);
+        turn.options.onMessageHandoff = handedOff;
+        sdkStream([failedResult]);
+
+        const running = claudeRemote(turn.options);
+        await vi.waitFor(() => expect(handedOff).toHaveBeenCalledWith({
+            mode,
+            queueMessageIds: ['original-request'],
+        }));
+        expect(query).not.toHaveBeenCalled();
+        stateWrite.resolve();
+        await running;
+        expect(query).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not create a native query when queue ownership persistence rejects', async () => {
+        const turn = queuedTurn(false);
+        const writeError = new Error('queue ownership write failed');
+        turn.options.onMessageHandoff = vi.fn(async () => { throw writeError; });
+        sdkStream([failedResult]);
+
+        await expect(claudeRemote(turn.options)).rejects.toBe(writeError);
+
+        expect(query).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -192,11 +227,11 @@ describe('Claude account rotation preserves interrupted work', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('rehydrates the interrupted request before later work for the replacement account', async () => {
+    it('leaves interrupted work in its native transcript and restores later queued work', async () => {
         sdkStream([rejected, failedResult]);
         const turn = queuedTurn();
         await claudeRemote(turn.options);
-        const ids = queueMessageIdsForResume(turn.queue.getQueueState());
+        const ids = queueMessageIdsForResume(turn.queue.getQueueState(), { includeCurrent: false });
         const restored = new MessageQueue2<EnhancedMode>(() => 'default');
         restored.restorePendingQueueMessageIds(ids);
         for (const id of ids) {
@@ -208,11 +243,9 @@ describe('Claude account rotation preserves interrupted work', () => {
             );
         }
         const resumed = await restored.waitForMessagesAndGetAsString();
-        expect(resumed?.message).toBe('Finish the original task');
-        expect(resumed?.queueMessageIds).toEqual(['original-request']);
-        expect(restored.getQueueState().pendingMessageIds).toEqual([
-            'original-request', 'later-request',
-        ]);
+        expect(resumed?.message).toBe('Later follow-up');
+        expect(resumed?.queueMessageIds).toEqual(['later-request']);
+        expect(restored.getQueueState().pendingMessageIds).toEqual(['later-request']);
     });
 
     it('does not re-enter the old account when its rejected SDK stream closes', async () => {

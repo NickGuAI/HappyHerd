@@ -383,14 +383,6 @@ export async function claudeRemoteLauncher(
             queueMessageIds: string[];
         } | null = null;
         let activeHeartbeat: HappyHerdHeartbeatMessageMarker | null = null;
-        const markBatchStarted = async (batch: { mode: EnhancedMode; queueMessageIds: string[] }) => {
-            session.queue.markBatchStarted(batch.queueMessageIds);
-            activeHeartbeat = batch.mode.heartbeat ?? null;
-            heartbeatProviderResult = null;
-            if (activeHeartbeat) {
-                await persistHeartbeatDeliveryReceipt(session.client, activeHeartbeat, 'started');
-            }
-        };
         const finishHeartbeat = async (status: 'completed' | 'failed', message: string | null) => {
             if (!activeHeartbeat) return;
             const marker = activeHeartbeat;
@@ -460,7 +452,6 @@ export async function claudeRemoteLauncher(
                             // system prompt.
                             modeHash = p.hash;
                             mode = p.mode;
-                            await markBatchStarted(p);
                             await permissionHandler.handleModeChange(p.mode.permissionMode);
                             return p;
                         }
@@ -476,7 +467,6 @@ export async function claudeRemoteLauncher(
                             }
                             modeHash = msg.hash;
                             mode = msg.mode;
-                            await markBatchStarted(msg);
                             await permissionHandler.handleModeChange(mode.permissionMode);
 
                             // Per-message attachments are already claimed by the message
@@ -525,6 +515,14 @@ export async function claudeRemoteLauncher(
 
                         // Exit
                         return null;
+                    },
+                    onMessageHandoff: async ({ mode, queueMessageIds }) => {
+                        await session.queue.markBatchStarted(queueMessageIds);
+                        activeHeartbeat = mode.heartbeat ?? null;
+                        heartbeatProviderResult = null;
+                        if (activeHeartbeat) {
+                            await persistHeartbeatDeliveryReceipt(session.client, activeHeartbeat, 'started');
+                        }
                     },
                     onSessionFound: (sessionId) => {
                         // Update converter's session ID when new session is found

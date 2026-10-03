@@ -41,7 +41,12 @@ export async function claudeRemote(opts: {
     jsRuntime?: JsRuntime,
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: MessageParam['content'], mode: EnhancedMode } | null>,
+    nextMessage: () => Promise<{ message: MessageParam['content'], mode: EnhancedMode; queueMessageIds?: string[] } | null>,
+    /** Persist queue ownership before a user prompt is submitted to the SDK. */
+    onMessageHandoff?: (message: {
+        mode: EnhancedMode;
+        queueMessageIds: readonly string[];
+    }) => Promise<void>,
     onReady: (status?: 'failed') => void | Promise<void>,
     isAborted: (toolCallId: string) => boolean,
 
@@ -103,6 +108,7 @@ export async function claudeRemote(opts: {
     if (!initial) { // No initial message - exit
         return;
     }
+    await opts.onMessageHandoff?.({ mode: initial.mode, queueMessageIds: initial.queueMessageIds ?? [] });
 
     // Handle special commands (extract text for parsing when content is a block array)
     const initialText = typeof initial.message === 'string'
@@ -489,11 +495,12 @@ export async function claudeRemote(opts: {
                 // Wait for next user message without blocking the message loop.
                 // Background task messages (task_started, task_progress, task_notification)
                 // continue flowing through while we wait for user input.
-                opts.nextMessage().then((next) => {
+                opts.nextMessage().then(async (next) => {
                     if (!next) {
                         messages.end();
                     } else {
                         mode = next.mode;
+                        await opts.onMessageHandoff?.({ mode: next.mode, queueMessageIds: next.queueMessageIds ?? [] });
                         messages.push({ type: 'user', parent_tool_use_id: null, message: { role: 'user', content: next.message } });
                     }
                 }).catch((error) => {

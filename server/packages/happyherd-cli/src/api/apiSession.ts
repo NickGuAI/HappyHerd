@@ -1540,8 +1540,7 @@ export class ApiSessionClient extends EventEmitter {
                     }
                     throw new Error('Agent state version mismatch');
                 } else if (answer.result === 'error') {
-                    // console.error('Agent state update error', answer);
-                    // Hard error - ignore
+                    throw new Error('Server rejected the agent state update');
                 }
             });
         });

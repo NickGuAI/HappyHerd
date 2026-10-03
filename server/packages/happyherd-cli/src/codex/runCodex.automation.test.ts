@@ -5,17 +5,20 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readContextPromptFromEnvironment, instructionReceiptMetadata } from '@/agentContext/commanderContext';
 import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@happyherd/wire';
+import { MessageQueue2 } from '@/utils/MessageQueue2';
 
 const mocks = vi.hoisted(() => {
     const events: string[] = [];
     let metadata: Record<string, unknown> = {};
     let agentState: Record<string, unknown> = { controlledByUser: false };
+    let reconnectAgentState: Record<string, unknown> = { controlledByUser: false };
     let eventHandler: ((message: Record<string, unknown>) => void) | null = null;
     let approvalHandler: ((params: Record<string, unknown>) => Promise<string>) | null = null;
     let requestInteractiveApproval = false;
     let emitResumeAndTurnUsage = false;
     let contextMetadata: Record<string, unknown> = {};
     let failContextInjection = false;
+    let automationInstruction = 'Deliver the automation task.';
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
     const startThreadCalls: Array<Record<string, unknown>> = [];
     const resumeThreadCalls: Array<Record<string, unknown>> = [];
@@ -68,8 +71,16 @@ const mocks = vi.hoisted(() => {
         getContextMetadata() { return contextMetadata; },
         setFailContextInjection(value: boolean) { failContextInjection = value; },
         shouldFailContextInjection() { return failContextInjection; },
+        setAutomationInstruction(value: string) { automationInstruction = value; },
+        getAutomationInstruction() { return automationInstruction; },
         setAgentState(value: Record<string, unknown>) {
             agentState = value;
+        },
+        setReconnectAgentState(value: Record<string, unknown>) {
+            reconnectAgentState = value;
+        },
+        getReconnectAgentState() {
+            return reconnectAgentState;
         },
         setEventHandler(handler: (message: Record<string, unknown>) => void) {
             eventHandler = handler;
@@ -110,7 +121,9 @@ const mocks = vi.hoisted(() => {
             emitResumeAndTurnUsage = false;
             contextMetadata = {};
             failContextInjection = false;
+            automationInstruction = 'Deliver the automation task.';
             agentState = { controlledByUser: false };
+            reconnectAgentState = { controlledByUser: false };
             approvalHandler = null;
             permissionHandleToolCall.mockClear();
             startThreadCalls.length = 0;
@@ -187,7 +200,7 @@ vi.mock('@/utils/createSessionMetadata', () => ({
         };
         mocks.setMetadata(metadata);
         return {
-            state: { controlledByUser: false },
+            state: mocks.getReconnectAgentState(),
             metadata,
         };
     }),
@@ -220,7 +233,7 @@ vi.mock('@/automations/sessionBootstrap', () => ({
         automationId: '11111111-1111-4111-8111-111111111111',
         runId: '22222222-2222-4222-8222-222222222222',
         kind: 'scheduled',
-        instruction: 'Deliver the automation task.',
+        instruction: mocks.getAutomationInstruction(),
     })),
 }));
 
@@ -314,8 +327,9 @@ vi.mock('./codexAppServerClient', () => ({
             if (mocks.shouldFailContextInjection()) throw new Error('native context injection failed');
             return {};
         });
-        sendTurnAndWait = vi.fn(async (_prompt: unknown, options: Record<string, unknown>) => {
-            mocks.sendTurnCalls.push(options);
+        clearGoal = vi.fn(async () => ({ cleared: true }));
+        sendTurnAndWait = vi.fn(async (prompt: unknown, options: Record<string, unknown>) => {
+            mocks.sendTurnCalls.push({ ...options, prompt });
             const decision = await mocks.maybeRequestInteractiveApproval();
             if (decision) {
                 mocks.events.push(`approval:${decision}`);
@@ -557,6 +571,115 @@ describe('runCodex automation process lifecycle', () => {
             ['heartbeat-occurrence'],
             0,
         );
+    });
+
+    it('resumes only pending queue IDs and keeps interrupted current work in state', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        process.env.HAPPYHERD_RECONNECT_SESSION_ID = 'session-one';
+        process.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+        process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT = 'dataKey';
+        process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID = 'already-submitted';
+        mocks.setReconnectAgentState({
+            controlledByUser: false,
+            messageQueue: {
+                pendingMessageIds: ['queued-follow-up', 'already-submitted', 'queued-follow-up'],
+                currentMessageIds: ['already-submitted'],
+            },
+        });
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            resumeThreadId: 'retained-thread',
+        });
+
+        expect(mocks.session.skipExistingMessages).toHaveBeenCalledWith(['queued-follow-up'], 0);
+        expect(mocks.session.getAgentState().messageQueue).toEqual({
+            pendingMessageIds: ['queued-follow-up'],
+            currentMessageIds: ['already-submitted'],
+        });
+        expect(mocks.sendTurnCalls).toHaveLength(1);
+        expect(String(mocks.sendTurnCalls[0]?.prompt)).toContain('Deliver the automation task.');
+    });
+
+    it('waits for runCodex queue ownership persistence before app-server turn submission', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        const id = 'codex-follow-up';
+        const originalPush = MessageQueue2.prototype.push;
+        vi.spyOn(MessageQueue2.prototype, 'push').mockImplementation(function (this: MessageQueue2<unknown>, message, mode, attachments, queueMessageId) {
+            return originalPush.call(this, message, mode, attachments, queueMessageId ?? id);
+        });
+        let resolveWrite!: () => void;
+        let signalWriteStarted!: () => void;
+        const writeStarted = new Promise<void>((resolve) => { signalWriteStarted = resolve; });
+        const writeGate = new Promise<void>((resolve) => { resolveWrite = resolve; });
+        mocks.session.updateAgentState.mockImplementation(async (updater) => {
+            const next = updater(mocks.session.getAgentState());
+            if ((next.messageQueue as { currentMessageIds?: string[] } | undefined)?.currentMessageIds?.includes(id)) {
+                signalWriteStarted();
+                await writeGate;
+            }
+            mocks.setAgentState(next);
+        });
+
+        const run = runCodex({ credentials: { token: 'test-token' } as never, startedBy: 'daemon' });
+        await writeStarted;
+        expect(mocks.sendTurnCalls).toEqual([]);
+        expect(mocks.session.getAgentState().messageQueue).toMatchObject({ currentMessageIds: [] });
+        resolveWrite();
+        await run;
+        expect(mocks.sendTurnCalls).toHaveLength(1);
+        expect(String(mocks.sendTurnCalls[0]?.prompt)).toContain('Deliver the automation task.');
+        expect(mocks.session.getAgentState().messageQueue).toMatchObject({
+            pendingMessageIds: [], currentMessageIds: [],
+        });
+    });
+
+    it('does not submit a Codex turn when queue ownership persistence is rejected', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        const id = 'codex-follow-up';
+        const originalPush = MessageQueue2.prototype.push;
+        vi.spyOn(MessageQueue2.prototype, 'push').mockImplementation(function (this: MessageQueue2<unknown>, message, mode, attachments, queueMessageId) {
+            return originalPush.call(this, message, mode, attachments, queueMessageId ?? id);
+        });
+        mocks.session.updateAgentState.mockImplementation(async (updater) => {
+            const next = updater(mocks.session.getAgentState());
+            if ((next.messageQueue as { currentMessageIds?: string[] } | undefined)?.currentMessageIds?.includes(id)) {
+                throw new Error('queue ownership update rejected');
+            }
+            mocks.setAgentState(next);
+        });
+
+        await runCodex({ credentials: { token: 'test-token' } as never, startedBy: 'daemon' });
+
+        expect(mocks.sendTurnCalls).toEqual([]);
+        expect(mocks.session.getAgentState().messageQueue).toMatchObject({
+            pendingMessageIds: [id], currentMessageIds: [],
+        });
+    });
+
+    it.each([
+        ['state-only goal command', '/goal clear', false],
+        ['unsupported image-only command', '', true],
+    ])('durably retires a dequeued %s without provider submission', async (_label, instruction, imageOnly) => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        mocks.setAutomationInstruction(instruction);
+        const id = 'codex-local-terminal';
+        const originalPush = MessageQueue2.prototype.push;
+        const originalPushIsolated = MessageQueue2.prototype.pushIsolated;
+        const unsupported = { data: new Uint8Array([0, 1, 2]), mimeType: 'image/jpeg', name: 'broken.jpg' };
+        const inject = (target: typeof originalPush) => vi.fn(function (this: MessageQueue2<unknown>, message: string, mode: unknown, attachments?: Array<typeof unsupported>, queueMessageId?: string) {
+            return target.call(this, message, mode, imageOnly ? [unsupported] : attachments, queueMessageId ?? id);
+        });
+        vi.spyOn(MessageQueue2.prototype, 'push').mockImplementation(inject(originalPush) as typeof originalPush);
+        vi.spyOn(MessageQueue2.prototype, 'pushIsolated').mockImplementation(inject(originalPushIsolated) as typeof originalPushIsolated);
+
+        await runCodex({ credentials: { token: 'test-token' } as never, startedBy: 'daemon' });
+
+        expect(mocks.sendTurnCalls).toEqual([]);
+        expect(mocks.session.getAgentState().messageQueue).toMatchObject({
+            pendingMessageIds: [], currentMessageIds: [],
+        });
     });
 
     it('seeds a resumed thread without recounting parent usage and reports only the child response', async () => {
