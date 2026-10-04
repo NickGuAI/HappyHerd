@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 4 — Tidier Connections and aligned section headings",
+      "summary": "",
+      "markdown": "- Settings › Connections lists each machine as a single row. Open a machine from its row, or choose it in New Chat. The note about offline machines now matches the page's other help text, and Show offline machines lines up with the other rows.\n- Section headings and their descriptions now start at the left edge of their cards on Web and Android."
+    },
+    {
       "title": "October 3 — Prevent repeated prompts after resume",
       "summary": "",
       "markdown": "- Resuming a Claude or Codex chat no longer resubmits instructions already sent to the provider. Messages still waiting to be sent keep their order.\n- Codex goal commands handled locally and unsupported image-only requests no longer reappear in the queue after resume."
@@ -931,5 +936,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 3 — Prevent repeated prompts after resume"
+  "latestTitle": "October 4 — Tidier Connections and aligned section headings"
 }

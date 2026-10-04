@@ -2112,7 +2112,6 @@
   "firstMachineSetup": {
     "recovery": "Cancelled, expired, or failed authorization? Run happyherd auth login again and use the new terminal URL. After authorization, run happyherd daemon start. This page shows your machine when its daemon connects; you can close and reopen Connections at any time.",
     "accountHelp": "If no machine appears, check that the terminal uses the server and account shown here. Approve the terminal from this signed-in account. A successful authorization alone does not mean the daemon is online. If the terminal is already signed into another account, happyherd auth status shows its state. To change accounts, happyherd auth login --force clears its credentials and machine ID and stops its daemon before reauthorization.",
-    "startOnMachine": "New Chat on {machine}",
     "offline": "Machine offline? On that machine, run happyherd daemon start, then refresh devices. If it stays offline, check the network and the server/account shown above."
   }
 }

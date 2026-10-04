@@ -754,3 +754,4 @@ UPSTREAM_4CF54D18_REFRESHED_ONBOARDING	accepted	fix(app): preserve refreshed nat
 UPSTREAM_4CF54D18_REFRESHED_TEST_BOUNDARIES	accepted	test(app): restore refreshed onboarding fixture boundaries	server/packages/happyherd-app/sources/components/EmptyMainScreen.browser.test.ts
 FIRST_MACHINE_CONNECTIONS_380	accepted	fix(app): guide first-machine setup from Connections	docs/acceptance/issue-380/README.md
 CLAUDE_RECONNECT_HISTORY_395	accepted	fix(cli): initialize Claude replay filter before reconnect	server/packages/happyherd-cli/src/api/apiSession.ts
+CONNECTIONS_LAYOUT_401	accepted	fix(app): tidy Connections and line up section headings	server/packages/happyherd-app/sources/components/ConnectionsSettingsView.browser.test.ts

@@ -1,3 +1,8 @@
+# October 4 — Tidier Connections and aligned section headings
+
+- Settings › Connections lists each machine as a single row. Open a machine from its row, or choose it in New Chat. The note about offline machines now matches the page's other help text, and Show offline machines lines up with the other rows.
+- Section headings and their descriptions now start at the left edge of their cards on Web and Android.
+
 # October 3 — Prevent repeated prompts after resume
 
 - Resuming a Claude or Codex chat no longer resubmits instructions already sent to the provider. Messages still waiting to be sent keep their order.
