@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "59fda3c6a7545b2721927342780cffa976a22fed91861acfe3e2a49cf4485ec0",
+  "sourceFingerprint": "4e784906228dd5fb2af4e5e61d809b99384fef8ee8e066a9c5b75b569c645a9f",
   "routeCount": 45,
   "surfaceCount": 341,
   "hardcodedCopyCount": 0,
@@ -3416,7 +3416,6 @@
         "firstMachineSetup.accountHelp",
         "firstMachineSetup.offline",
         "firstMachineSetup.recovery",
-        "firstMachineSetup.startOnMachine",
         "modals.authenticateTerminal",
         "modals.pasteUrlFromTerminal",
         "settings.hideOfflineMachines",

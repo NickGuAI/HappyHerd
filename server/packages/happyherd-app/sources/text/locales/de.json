@@ -2112,7 +2112,6 @@
   "firstMachineSetup": {
     "recovery": "Autorisierung abgebrochen, abgelaufen oder fehlgeschlagen? Führe happyherd auth login erneut aus und verwende die neue Terminal-URL. Führe danach happyherd daemon start aus. Sobald der Daemon verbunden ist, erscheint der Rechner hier. Du kannst Verbindungen jederzeit schließen und erneut öffnen.",
     "accountHelp": "Wenn kein Rechner erscheint, prüfe, ob das Terminal den hier angezeigten Server und Account verwendet. Autorisiere das Terminal mit diesem angemeldeten Account. Eine erfolgreiche Autorisierung bedeutet noch nicht, dass der Daemon online ist. Wenn das Terminal bereits mit einem anderen Account angemeldet ist, zeigt happyherd auth status den Status. Zum Wechseln löscht happyherd auth login --force die Zugangsdaten und Rechner-ID und stoppt den Daemon vor der erneuten Autorisierung.",
-    "startOnMachine": "Neuer Chat auf {machine}",
     "offline": "Rechner offline? Führe dort happyherd daemon start aus und aktualisiere die Geräte. Bleibt er offline, prüfe das Netzwerk sowie den oben angezeigten Server und Account."
   }
 }

@@ -285,7 +285,7 @@ function ExistingMachineConnections() {
                 </View>
             </View>
         </ItemGroup>}
-        {(offlineMachineCount > 0 || socketStatus !== 'connected' || Object.values(checks).some((reachable) => !reachable)) && <View style={styles.introWrap}><View style={styles.setupHelp}><Text style={styles.setupText}>{t('firstMachineSetup.offline')}</Text></View></View>}
+        {(offlineMachineCount > 0 || socketStatus !== 'connected' || Object.values(checks).some((reachable) => !reachable)) && <View style={styles.introWrap}><View style={styles.intro}><Text style={styles.scope}>{t('firstMachineSetup.offline')}</Text></View></View>}
         <ItemGroup title={<GroupHeader title={t('devicePairing.devices')} description={t('devicePairing.devicesFooter')} />}>
             {machines.length === 0 && <Item title={t('devicePairing.noDevices')} showChevron={false} />}
             {listedMachines.map((machine) => {
@@ -294,17 +294,10 @@ function ExistingMachineConnections() {
                         : socketStatus !== 'connected' || serverChanged || checks[machine.id] === false ? t('status.offline')
                             : !supported || checks[machine.id] === true ? t('status.online') : t('devicePairing.checking');
                 const selected = selectedMachineId === machine.id;
-                return <View key={machine.id}><Item title={getMachineName(machine)} titleStyle={styles.deviceName}
+                return <Item key={machine.id} title={getMachineName(machine)} titleStyle={styles.deviceName}
                     subtitle={status} icon={<DeviceIcon platform={machine.metadata?.platform} />}
                     rightElement={selected ? <SelectedTag /> : undefined}
-                    onPress={() => router.push(`/machine/${machine.id}`)} />
-                    {isMachineOnline(machine) && socketStatus === 'connected' && !serverChanged && (!supported || checks[machine.id] === true) && connected?.machineId !== machine.id && <View style={styles.machineAction}>
-                        <Action primary label={t('firstMachineSetup.startOnMachine', { machine: getMachineName(machine) })} onPress={() => {
-                            if (useNewSessionDraft.getState().selectedMachineId !== machine.id) useNewSessionDraft.getState().setMachineId(machine.id);
-                            router.push('/new');
-                        }} />
-                    </View>}
-                </View>;
+                    onPress={() => router.push(`/machine/${machine.id}`)} />;
             })}
             {offlineMachineCount > 0 && <Item
                 title={showOfflineMachines
@@ -334,8 +327,7 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         _web: { overflowWrap: 'anywhere' },
     },
-    machineAction: { paddingHorizontal: 16, paddingBottom: 12, alignItems: 'flex-start' },
-    // The intro sits on the cards' left edge, under the page title.
+    // The intro and the offline note sit on the cards' left edge, under the page title.
     introWrap: {
         alignItems: 'center',
     },
@@ -532,7 +524,6 @@ const styles = StyleSheet.create((theme) => ({
         ...Typography.mono(),
     },
     offlineToggle: {
-        textAlign: 'center',
         color: theme.colors.textLink,
     },
     selectedAccessory: {

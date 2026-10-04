@@ -436,34 +436,70 @@ describe('Settings → Connections → Add device production component journeys'
                 expect(await page.getByRole('alert').count()).toBe(0);
                 const discovered = { id: 'new-machine', active: true, metadata: { host: 'My laptop', homeDir: '/fixture-home' } };
                 await patch(page, { machines: [discovered] });
-                const newChat = page.getByRole('button', { name: catalog.firstMachineSetup.startOnMachine.replace('{machine}', 'My laptop'), exact: true });
-                await newChat.waitFor();
+                const row = page.getByText('My laptop', { exact: true });
+                await row.waitFor();
                 await page.getByText(catalog.status.online, { exact: true }).waitFor();
                 expect(await onboarding.count()).toBe(0);
+                // The machine is one plain row: nothing else on the page names it (#401).
+                expect(await page.getByText(/My laptop/).count()).toBe(1);
                 await patch(page, { machines: [{ ...discovered, active: false }] });
-                expect(await newChat.count()).toBe(0);
+                expect(await row.count()).toBe(0);
                 await patch(page, { machines: [discovered] });
-                await newChat.waitFor();
+                await row.waitFor();
                 await page.screenshot({ path: resolve(evidenceDir, `issue-380-fixture-${locale}-${viewport.width}-discovered.png`) });
                 const longHost = 'My extremely long workstation name for a narrow mobile screen';
                 await patch(page, { machines: [{ ...discovered, metadata: { ...discovered.metadata, host: longHost } }] });
-                const longChat = page.getByRole('button', { name: catalog.firstMachineSetup.startOnMachine.replace('{machine}', longHost), exact: true });
-                await longChat.waitFor();
-                await longChat.scrollIntoViewIfNeeded();
-                const actionBox = (await longChat.boundingBox())!;
-                expect(actionBox.x).toBeGreaterThanOrEqual(0);
-                expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(viewport.width);
-                if (viewport.width === 390) expect(actionBox.height).toBeGreaterThanOrEqual(44);
-                expect(await longChat.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
-                await longChat.click();
-                await page.getByTestId('new-chat-route').waitFor();
-                expect(await page.evaluate(() => (globalThis as any).__DRAFT__.getState().selectedMachineId)).toBe('new-machine');
-                expect(await page.evaluate(() => JSON.parse(localStorage.getItem('new-session-draft')!).selectedMachineId)).toBe('new-machine');
+                const longRow = page.getByText(longHost, { exact: true });
+                await longRow.waitFor();
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+                // Its row opens the machine's page, where a chat can be started on it.
+                await longRow.click();
+                expect(await page.evaluate(() => (globalThis as any).__ROUTES__.at(-1))).toBe('/machine/new-machine');
                 expect((await calls(page)).filter(call => call.method.endsWith('-confirm'))).toHaveLength(0);
                 expect(errors).toEqual([]);
                 await page.close();
             });
         }
+    }
+
+    // #401: the headings, the offline note and the cards share one left edge, and rows carry no actions.
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+        it(`lines up the headings, offline note and list rows with the cards: ${viewport.width}px (component fixture)`, async () => {
+            const page = await browser.newPage({ viewport });
+            await open(page);
+            await patch(page, { machines: [
+                { id: 'target-machine', active: true, metadata: { host: 'Target Mac', homeDir: '/target-home', devicePairingProtocolVersion: 1 } },
+                { id: 'build-machine', active: true, metadata: { host: 'Build box', homeDir: '/build-home', devicePairingProtocolVersion: 1 } },
+                { id: 'old-machine', active: false, metadata: { host: 'Old laptop', homeDir: '/old-home' } },
+            ] });
+            const toggle = page.getByText('Show 1 offline machine', { exact: true });
+            await toggle.waitFor();
+            for (const host of ['Target Mac', 'Build box']) expect(await page.getByText(new RegExp(host)).count()).toBe(1);
+            const card = await page.getByTestId('device-pairing-add').evaluate((element) => {
+                const box = element.parentElement!.getBoundingClientRect();
+                return { left: box.left, bottom: box.bottom };
+            });
+            const box = async (text: string) => (await page.getByText(text, { exact: true }).boundingBox())!;
+            for (const heading of [en.devicePairing.addDevice, en.devicePairing.devices, en.devicePairing.devicesFooter]) {
+                expect((await box(heading)).x).toBeCloseTo(card.left, 0);
+            }
+            const note = page.getByText(en.firstMachineSetup.offline, { exact: true });
+            const noteBox = (await note.boundingBox())!;
+            expect(noteBox.x).toBeCloseTo(card.left, 0);
+            expect(noteBox.y - card.bottom).toBeGreaterThanOrEqual(8);
+            expect((await box(en.devicePairing.devices)).y - (noteBox.y + noteBox.height)).toBeGreaterThanOrEqual(8);
+            const fontSize = (text: string) => page.getByText(text, { exact: true }).evaluate((element) => getComputedStyle(element).fontSize);
+            expect(await fontSize(en.firstMachineSetup.offline)).toBe(await fontSize(en.devicePairing.devicesFooter));
+            // Compare where the words start: a centered label keeps its full-width box.
+            const textLeft = (text: string) => page.getByText(text, { exact: true }).evaluate((element) => {
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                return range.getBoundingClientRect().left;
+            });
+            expect(await textLeft('Show 1 offline machine')).toBeCloseTo(await textLeft('Refresh devices'), 0);
+            await page.screenshot({ path: resolve(evidenceDir, `issue-401-fixture-${viewport.width}-connections.png`), fullPage: true });
+            await page.close();
+        });
     }
 
     it('sends one pairing check while a duplicate action is pending (component fixture)', async () => {
@@ -521,8 +557,8 @@ describe('Settings → Connections → Add device production component journeys'
     it('hides stale online and connected states on daemon or transport loss and rechecks reconnect', async () => {
         const page = await browser.newPage();
         await open(page);
-        const startOnMachine = page.getByRole('button', { name: 'New Chat on Target Mac', exact: true });
-        await startOnMachine.waitFor();
+        const online = page.getByText('online', { exact: true });
+        await online.waitFor();
         // A stopped daemon can retain its active heartbeat until the server ages it out.
         // A failed reachability check must immediately show the command needed to recover.
         await patch(page, { identityFailure: true });
@@ -530,10 +566,10 @@ describe('Settings → Connections → Add device production component journeys'
         await page.getByText('offline', { exact: true }).waitFor();
         expect(await page.evaluate(() => (globalThis as any).__STATE__.machines[0].active)).toBe(true);
         await page.getByText(en.firstMachineSetup.offline, { exact: true }).waitFor();
-        expect(await startOnMachine.count()).toBe(0);
+        expect(await online.count()).toBe(0);
         await patch(page, { identityFailure: false });
         await page.getByText('Refresh devices', { exact: true }).click();
-        await startOnMachine.waitFor();
+        await online.waitFor();
         expect(await page.getByText(en.firstMachineSetup.offline, { exact: true }).count()).toBe(0);
         await enter(page);
         await page.getByRole('button', { name: 'Connect', exact: true }).click();

@@ -37,10 +37,11 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         maxWidth: layout.maxWidth,
         paddingHorizontal: Platform.select({ ios: 0, default: 4 }),
     },
+    // Outside iOS, headers and footers start on the card's left edge (its 12 px margin).
     header: {
         paddingTop: Platform.select({ ios: 35, default: 16 }),
         paddingBottom: Platform.select({ ios: 6, default: 8 }),
-        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
+        paddingHorizontal: Platform.select({ ios: 32, default: 12 }),
     },
     headerNoTitle: {
         paddingTop: Platform.select({ ios: 20, default: 16 }),
@@ -70,7 +71,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     footer: {
         paddingTop: Platform.select({ ios: 6, default: 8 }),
         paddingBottom: Platform.select({ ios: 8, default: 16 }),
-        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
+        paddingHorizontal: Platform.select({ ios: 32, default: 12 }),
     },
     footerText: {
         ...Typography.default('regular'),

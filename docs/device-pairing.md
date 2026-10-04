@@ -10,9 +10,10 @@ machine through the existing terminal authentication flow first.
 With no machines, open **No machine → Add a machine**. Connections uses the
 shared first-run installation and terminal-authorization instructions. Use the
 same server and account, then start the daemon. When the account's actual
-machine appears online, choose **New Chat on …**; no device code is required
-for this first connection. Connections also explains cancellation, fresh-URL
-retry and offline-daemon recovery. Returning to it retains the account devices.
+machine appears online under **Account devices**, open it from its row or
+choose it in **New Chat**; no device code is required for this first
+connection. Connections also explains cancellation, fresh-URL retry and
+offline-daemon recovery. Returning to it retains the account devices.
 
 ## Connect from Web or Mac
 
