@@ -518,7 +518,7 @@ describe('MessageQueue2', () => {
     it('publishes ordered persisted IDs across pending, current, and completed lifecycle', async () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
-        queue.setOnQueueStateChange((state) => states.push(state));
+        queue.setOnQueueStateChange((state) => { states.push(state); });
 
         queue.push('first', 'same-mode', undefined, 'queue-1');
         queue.push('second', 'same-mode', undefined, 'queue-2');
@@ -548,6 +548,38 @@ describe('MessageQueue2', () => {
         });
     });
 
+    it('waits for durable cleanup after a local terminal command and preserves the later FIFO item', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        let resolveWrite!: () => void;
+        const writeGate = new Promise<void>((resolve) => { resolveWrite = resolve; });
+        let persisted: { pendingMessageIds: string[]; currentMessageIds: string[] } = {
+            pendingMessageIds: [], currentMessageIds: [],
+        };
+        queue.setOnQueueStateChange(async (state) => {
+            await writeGate;
+            persisted = state;
+        });
+        queue.pushIsolated('/goal clear', 'same', undefined, 'local-command');
+        queue.pushIsolated('follow-up', 'same', undefined, 'follow-up');
+
+        const terminal = await queue.waitForMessagesAndGetAsString();
+        const cleanup = queue.completeUnsubmittedBatch(terminal!.queueMessageIds);
+        expect(persisted.pendingMessageIds).toEqual([]);
+        let cleanupSettled = false;
+        void cleanup.then(() => { cleanupSettled = true; });
+        await Promise.resolve();
+        expect(cleanupSettled).toBe(false);
+
+        resolveWrite();
+        await cleanup;
+        expect(persisted).toEqual({
+            pendingMessageIds: ['follow-up'], currentMessageIds: [],
+        });
+        const followUp = await queue.waitForMessagesAndGetAsString();
+        expect(followUp?.message).toBe('follow-up');
+        expect(followUp?.queueMessageIds).toEqual(['follow-up']);
+    });
+
     it('keeps a mode-changing dequeued ID pending until its provider turn starts', async () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         queue.push('first mode', 'A', undefined, 'queue-a');
@@ -567,7 +599,7 @@ describe('MessageQueue2', () => {
     it('accepts each persisted queue message ID exactly once', async () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
-        queue.setOnQueueStateChange((state) => states.push(state));
+        queue.setOnQueueStateChange((state) => { states.push(state); });
 
         queue.push('original', 'same-mode', undefined, 'persisted-1');
         queue.push('duplicate delivery', 'same-mode', undefined, 'persisted-1');
@@ -580,6 +612,20 @@ describe('MessageQueue2', () => {
         expect(states).toHaveLength(1);
     });
 
+    it('keeps interrupted current IDs visible while rejecting a replayed delivery and any pending overlap', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.restorePendingQueueMessageIds(['waiting', 'interrupted', 'waiting']);
+        queue.retainInterruptedCurrentQueueMessageIds(['interrupted']);
+
+        queue.push('replayed interrupted prompt', 'same-mode', undefined, 'interrupted');
+
+        expect(queue.size()).toBe(0);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['waiting'],
+            currentMessageIds: ['interrupted'],
+        });
+    });
+
     it('restores interrupted current work ahead of pending FIFO entries', () => {
         expect(queueMessageIdsForResume({
             pendingMessageIds: ['queue-2', 'queue-3', 'queue-1'],
@@ -587,11 +633,52 @@ describe('MessageQueue2', () => {
         })).toEqual(['queue-1', 'queue-2', 'queue-3']);
     });
 
+    it('resumes only waiting IDs for native providers that must not replay interrupted prompts', () => {
+        expect(queueMessageIdsForResume({
+            pendingMessageIds: ['queue-2', 'queue-1', 'queue-3', 'queue-2'],
+            currentMessageIds: ['queue-1'],
+        }, { includeCurrent: false })).toEqual(['queue-2', 'queue-3']);
+    });
+
+    it('waits for the current state write before allowing a provider handoff', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        let releaseWrite!: () => void;
+        const write = new Promise<void>((resolve) => { releaseWrite = resolve; });
+        let allowProviderSubmission = false;
+        queue.setOnQueueStateChange((state) => (
+            state.currentMessageIds.length > 0 ? write : Promise.resolve()
+        ));
+        queue.push('queued prompt', 'same-mode', undefined, 'queue-1');
+        const batch = await queue.waitForMessagesAndGetAsString();
+        const start = queue.markBatchStarted(batch!.queueMessageIds).then(() => {
+            allowProviderSubmission = true;
+        });
+        await Promise.resolve();
+        expect(allowProviderSubmission).toBe(false);
+        releaseWrite();
+        await start;
+        expect(allowProviderSubmission).toBe(true);
+        expect(queue.getQueueState()).toEqual({ pendingMessageIds: [], currentMessageIds: ['queue-1'] });
+    });
+
+    it('rejects a provider handoff and restores the reserved ID when current state cannot be persisted', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        const writeError = new Error('queue ownership write failed');
+        queue.setOnQueueStateChange((state) => (
+            state.currentMessageIds.length > 0 ? Promise.reject(writeError) : Promise.resolve()
+        ));
+        queue.push('queued prompt', 'same-mode', undefined, 'queue-1');
+        const batch = await queue.waitForMessagesAndGetAsString();
+
+        await expect(queue.markBatchStarted(batch!.queueMessageIds)).rejects.toBe(writeError);
+        expect(queue.getQueueState()).toEqual({ pendingMessageIds: ['queue-1'], currentMessageIds: [] });
+    });
+
     it('keeps restored IDs pending while immutable records hydrate into the queue', () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
         queue.restorePendingQueueMessageIds(['queue-1', 'queue-2']);
-        queue.setOnQueueStateChange((state) => states.push(state));
+        queue.setOnQueueStateChange((state) => { states.push(state); });
 
         queue.push('first restored prompt', 'same-mode', undefined, 'queue-1');
         queue.push('second restored prompt', 'same-mode', undefined, 'queue-2');

@@ -116,6 +116,10 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
                 message: 'heartbeat prompt',
                 queueMessageIds: ['22222222-2222-4222-8222-222222222222'],
             });
+            await options.onMessageHandoff({
+                mode: message.mode,
+                queueMessageIds: message.queueMessageIds,
+            });
             options.onMessage({
                 type: 'result',
                 uuid: 'failed-result-zero-usage',

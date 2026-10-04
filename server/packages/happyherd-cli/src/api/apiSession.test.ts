@@ -289,6 +289,29 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await client.close();
     });
 
+    it('retries a rejected agent state acknowledgement and resolves only after success', async () => {
+        const client = new ApiSessionClient('token', session);
+        mockSocket.emitWithAck.mockImplementationOnce(async () => ({ result: 'error' }));
+
+        await expect(client.updateAgentState((state) => ({ ...state, controlledByUser: true }))).resolves.toBeUndefined();
+
+        expect(mockSocket.emitWithAck.mock.calls.filter(([event]: [string]) => event === 'update-state')).toHaveLength(2);
+        await client.close();
+    });
+
+    it('retries every rejected state acknowledgement until the bounded test backoff stops', async () => {
+        const client = new ApiSessionClient('token', session);
+        mockSocket.emitWithAck.mockImplementation(async (event: string) => (
+            event === 'update-state' ? { result: 'error' } : { success: true }
+        ));
+
+        await expect(client.updateAgentState((state) => ({ ...state, controlledByUser: true })))
+            .rejects.toThrow('Server rejected the agent state update');
+
+        expect(mockSocket.emitWithAck.mock.calls.filter(([event]: [string]) => event === 'update-state')).toHaveLength(20);
+        await client.close();
+    });
+
     it('does not poll from a daemon auxiliary client for a Super Session', async () => {
         const client = new ApiSessionClient('token', { ...session, metadata: { ...session.metadata, isSuperSession: true, hostPid: process.pid + 1 } });
         await (client as any).reportTransport();
