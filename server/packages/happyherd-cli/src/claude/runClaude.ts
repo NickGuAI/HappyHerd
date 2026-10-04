@@ -423,8 +423,25 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // SDK metadata (tools, slash commands) is now extracted from the
     // system.init message in claudeRemote.ts via onSDKMetadata callback
 
-    // Create realtime session
-    const session = api.sessionSyncClient(response);
+    const reconnectQueueMessageIds = reconnectSessionId
+        ? Array.from(new Set([
+            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID
+                ? [process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID]
+                : []),
+        ]))
+        : [];
+
+    // Install the reconnect boundary before the client opens its socket. The
+    // first message fetch starts on connect and must not race account-state
+    // cleanup below.
+    const session = api.sessionSyncClient(response, reconnectSessionId ? {
+        skipExistingMessages: {
+            queueMessageIds: reconnectQueueMessageIds,
+            throughSeq: response.seq,
+        },
+    } : undefined);
+    if (reconnectSessionId) session.suppressNextArchiveSignal();
     if (
         providerAccount
         && response.agentState?.usageLimits
@@ -443,19 +460,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             return nextState;
         });
     }
-    const reconnectQueueMessageIds = reconnectSessionId
-        ? Array.from(new Set([
-            ...queueMessageIdsForResume(response.agentState?.messageQueue),
-            ...(process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID
-                ? [process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID]
-                : []),
-        ]))
-        : [];
-
     // On reconnect, un-archive the session and skip replaying old messages.
     if (reconnectSessionId) {
-        session.suppressNextArchiveSignal();
-        session.skipExistingMessages(reconnectQueueMessageIds, response.seq);
         session.updateMetadata((meta) => ({
             ...meta,
             ...commanderContextReceiptForResume(metadata, meta),

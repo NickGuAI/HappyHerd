@@ -1,3 +1,7 @@
+# October 3 — Keep Claude reconnects from replaying old prompts
+
+- When Claude switches accounts after reaching a usage limit, earlier conversation messages are no longer sent to Claude again. Queued work that had not yet been delivered remains available after reconnect.
+
 # October 2 — Set up your first machine from Connections
 
 - With no machines connected, Add a machine now opens the shared first-run instructions on Web Desktop and Mobile, with account/server checks and guidance for retrying authorization and starting the daemon. Connected machines offer New Chat directly. Existing-device code selection and native QR/manual entry remain available.

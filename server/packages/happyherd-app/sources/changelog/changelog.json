@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 3 — Keep Claude reconnects from replaying old prompts",
+      "summary": "",
+      "markdown": "- When Claude switches accounts after reaching a usage limit, earlier conversation messages are no longer sent to Claude again. Queued work that had not yet been delivered remains available after reconnect."
+    },
+    {
       "title": "October 2 — Set up your first machine from Connections",
       "summary": "",
       "markdown": "- With no machines connected, Add a machine now opens the shared first-run instructions on Web Desktop and Mobile, with account/server checks and guidance for retrying authorization and starting the daemon. Connected machines offer New Chat directly. Existing-device code selection and native QR/manual entry remain available.\n- Missing terminal authorization requests now report a connection failure, and repeated manual submissions share one in-flight attempt."
@@ -921,5 +926,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 2 — Set up your first machine from Connections"
+  "latestTitle": "October 3 — Keep Claude reconnects from replaying old prompts"
 }
