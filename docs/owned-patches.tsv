@@ -760,3 +760,4 @@ SUPER_SESSION_RESUME_403	accepted	fix(cli): preserve Super Session designation o
 SESSION_LIVENESS_FIXTURE_397	accepted	test(cli): make session liveness fixture lifecycle deterministic	server/packages/happyherd-cli/src/daemon/sessionLiveness.test.ts
 FOCUS_BROWSER_TIMING_396	accepted	test(app): measure Focus swap timing on the browser timeline	.dev/evidence/issue-396.md
 CLAUDE_OPUS_55_BUNDLE_372	accepted	fix(cli): bundle Opus 5.5-compatible Claude Code	server/packages/happyherd-cli/package.json
+CLAUDE_OPUS_55_CHANGELOG_GOLDENS_372	accepted	test(app): refresh Opus 5.5 changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
