@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 6 — Keep the Assistant connected after resume",
+      "summary": "",
+      "markdown": "- The Assistant and other Super Sessions keep their connection status after resuming from the app or terminal, including account switches. A connected session no longer appears offline because its Super Session designation was lost."
+    },
+    {
       "title": "October 4 — Tidier Connections and aligned section headings",
       "summary": "",
       "markdown": "- Settings › Connections lists each machine as a single row. Open a machine from its row, or choose it in New Chat. The note about offline machines now matches the page's other help text, and Show offline machines lines up with the other rows.\n- Section headings and their descriptions now start at the left edge of their cards on Web and Android."
@@ -936,5 +941,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 4 — Tidier Connections and aligned section headings"
+  "latestTitle": "October 6 — Keep the Assistant connected after resume"
 }

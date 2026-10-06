@@ -1,3 +1,7 @@
+# October 6 — Keep the Assistant connected after resume
+
+- The Assistant and other Super Sessions keep their connection status after resuming from the app or terminal, including account switches. A connected session no longer appears offline because its Super Session designation was lost.
+
 # October 4 — Tidier Connections and aligned section headings
 
 - Settings › Connections lists each machine as a single row. Open a machine from its row, or choose it in New Chat. The note about offline machines now matches the page's other help text, and Show offline machines lines up with the other rows.

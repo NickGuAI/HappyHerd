@@ -141,6 +141,7 @@ async function expectPromptRejectsFast(promise: Promise<unknown>, pattern: RegEx
 
 async function startRemoteRunClaudeHarness(opts: {
     metadata?: Record<string, unknown>;
+    reconnectMetadata?: Record<string, unknown>;
     reconnectAgentState?: Record<string, unknown>;
     updateAgentState?: ReturnType<typeof vi.fn>;
     registerHandler?: ReturnType<typeof vi.fn>;
@@ -190,6 +191,7 @@ async function startRemoteRunClaudeHarness(opts: {
         })),
         refreshSessionForReconnect: vi.fn(async (reconnectSession: any) => ({
             ...reconnectSession,
+            metadata: { ...reconnectSession.metadata, ...opts.reconnectMetadata },
             agentState: opts.reconnectAgentState ?? reconnectSession.agentState,
             agentStateVersion: opts.reconnectAgentState ? 9 : reconnectSession.agentStateVersion,
         })),
@@ -321,6 +323,7 @@ describe('runClaude remote JSONL scanner', () => {
     });
 
     afterEach(async () => {
+        vi.unstubAllEnvs();
         for (const [event, listeners] of originalListeners) {
             process.removeAllListeners(event as any);
             for (const listener of listeners) {
@@ -341,6 +344,25 @@ describe('runClaude remote JSONL scanner', () => {
         await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
             rm(directory, { recursive: true, force: true })
         )));
+    });
+
+    it.each([true, false, undefined])('registers the authoritative Super Session designation on Claude reconnect (%s)', async (isSuperSession) => {
+        vi.stubEnv('HAPPYHERD_SUPER_SESSION', isSuperSession === true ? undefined : '1');
+        vi.stubEnv('HAPPYHERD_RECONNECT_SESSION_ID', 'happyherd-session-1');
+        vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_KEY', Buffer.alloc(32).toString('base64'));
+        vi.stubEnv('HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+        const harness = await startRemoteRunClaudeHarness({
+            reconnectMetadata: { isSuperSession, automationRunId: 'server-only-run' },
+        });
+        try {
+            expect(harness.api.refreshSessionForReconnect).toHaveBeenCalledOnce();
+            expect(mockNotifyDaemonSessionStarted).toHaveBeenCalledOnce();
+            const registration = mockNotifyDaemonSessionStarted.mock.calls[0][1];
+            expect(registration.isSuperSession).toBe(isSuperSession === true ? true : undefined);
+            expect(registration.automationRunId).toBeUndefined();
+        } finally {
+            await harness.finish();
+        }
     });
 
     it.each([

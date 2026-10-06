@@ -12,6 +12,8 @@ import type {
   SideChatLifecycleRequest,
 } from '@/commands/sideChat';
 import type { SessionEncryptionData } from './types';
+import type { SessionTransportRecovery } from './sessionTransport';
+import { superSessionMetadataForReconnect } from '@/utils/createSessionMetadata';
 
 const mocks = vi.hoisted(() => ({
   authoritativeActive: false,
@@ -298,6 +300,7 @@ type CapturedRpcHandlers = {
 };
 
 type CapturedControlHandlers = {
+  sessionTransport: SessionTransportRecovery;
   stopSession: (sessionId: string) => boolean;
   sendLocalMessage: (request: import('./localSessionClient').LocalSessionSendRequest) => Promise<import('./localSessionClient').LocalSessionSendReceipt>;
   inspectLocalSession: (request: import('./localSessionClient').LocalSessionInspectRequest) => Promise<import('./localSessionClient').LocalSessionInspectReceipt>;
@@ -446,6 +449,32 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     return { sessionId, metadata, encryption, control: mocks.controlHandlers as CapturedControlHandlers };
   }
+
+  it.each([true, undefined])('uses the reconnect registration designation for transport ownership (%s)', async (isSuperSession) => {
+    const { sessionId, metadata, encryption, control } = await localMessagingFixture();
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const registration = {
+      ...metadata, ...superSessionMetadataForReconnect({ isSuperSession }),
+      hostPid: 4321, spawnSettings: codexAdvertisedDefaultSettings,
+    };
+    control.onHappyHerdSessionWebhook(sessionId, registration, encryption);
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    expect(mocks.persistSession).toHaveBeenLastCalledWith(sessionId, expect.objectContaining({ metadata: registration }));
+
+    const report = {
+      sessionId, pid: 4321,
+      transport: { state: 'connected' as const, endpoint: control.sessionTransport.status(sessionId).currentEndpoint, updatedAt: Date.now() },
+    };
+    if (isSuperSession) {
+      expect(control.sessionTransport.exchange(report)).toEqual({});
+      expect(control.sessionTransport.status(sessionId)).toMatchObject({ state: 'connected', providerRunning: true, canRecover: false });
+    } else {
+      expect(() => control.sessionTransport.exchange(report)).toThrow('current live owner');
+      expect(control.sessionTransport.status(sessionId)).toMatchObject({ state: 'disconnected', errorCode: 'unavailable', canRecover: false });
+    }
+  });
 
   it('coalesces concurrent resumes and keeps a reserved owner until registration', async () => {
     const { sessionId, metadata, encryption, control } = await localMessagingFixture();
