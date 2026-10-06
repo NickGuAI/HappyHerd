@@ -30,7 +30,7 @@ import {
 } from '@/utils/MessageQueue2';
 import { projectPath } from '@/projectPath';
 import { join } from 'node:path';
-import { createSessionMetadata } from '@/utils/createSessionMetadata';
+import { createSessionMetadata, superSessionMetadataForReconnect } from '@/utils/createSessionMetadata';
 import { startHappyHerdServer } from '@/claude/utils/startHappyHerdServer';
 import { MessageBuffer } from "@/ui/ink/messageBuffer";
 import { CodexDisplay } from "@/ui/ink/CodexDisplay";
@@ -316,6 +316,7 @@ export async function runCodex(opts: {
             agentStateVersion: parseInt(reconnectAgentStateVersion || '0', 10),
         };
         response = await api.refreshSessionForReconnect(response);
+        Object.assign(metadata, superSessionMetadataForReconnect(response.metadata));
     } else {
         response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
     }

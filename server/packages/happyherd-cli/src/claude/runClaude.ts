@@ -67,6 +67,7 @@ import { usageLimitsForProviderAccount } from './utils/usageLimits';
 import {
     providerContinuationMetadataFromEnvironment,
     superSessionMetadataFromEnvironment,
+    superSessionMetadataForReconnect,
 } from '@/utils/createSessionMetadata';
 import {
     composeUserSafeguardPrompt,
@@ -312,6 +313,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             agentStateVersion: parseInt(reconnectAgentStateVersion || '0', 10),
         };
         response = await api.refreshSessionForReconnect(response);
+        Object.assign(metadata, superSessionMetadataForReconnect(response.metadata));
         state = response.agentState ?? state;
     } else {
         response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });

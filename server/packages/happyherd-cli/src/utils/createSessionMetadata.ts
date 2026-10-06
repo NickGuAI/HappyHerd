@@ -57,6 +57,11 @@ export function superSessionMetadataFromEnvironment(): Pick<Metadata, 'isSuperSe
     return process.env.HAPPYHERD_SUPER_SESSION === '1' ? { isSuperSession: true } : {};
 }
 
+/** Restore only the refreshed session designation in the local daemon registration. */
+export function superSessionMetadataForReconnect(metadata: Pick<Metadata, 'isSuperSession'>): Pick<Metadata, 'isSuperSession'> {
+    return { isSuperSession: metadata.isSuperSession === true ? true : undefined };
+}
+
 /**
  * Result containing both state and metadata for session creation.
  */

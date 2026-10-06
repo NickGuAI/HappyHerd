@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SandboxConfig } from '@/persistence';
-import { createSessionMetadata } from './createSessionMetadata';
+import { createSessionMetadata, superSessionMetadataForReconnect } from './createSessionMetadata';
 
 vi.mock('node:child_process', () => ({
     execSync: vi.fn(),
@@ -34,6 +34,19 @@ describe('createSessionMetadata', () => {
 
     afterEach(() => {
         vi.unstubAllEnvs();
+    });
+
+    it.each([true, false, undefined])('restores only the refreshed Super Session designation (%s)', (isSuperSession) => {
+        vi.stubEnv('HAPPYHERD_SUPER_SESSION', '1');
+        const { metadata } = createSessionMetadata({ flavor: 'codex', machineId: 'machine-1' });
+        metadata.automationRunId = 'local-run';
+        const refreshed = { ...metadata, isSuperSession, automationRunId: 'server-run' };
+
+        const designation = superSessionMetadataForReconnect(refreshed);
+        expect(designation).toEqual({ isSuperSession: isSuperSession === true ? true : undefined });
+        Object.assign(metadata, designation);
+        expect(metadata.isSuperSession).toBe(isSuperSession === true ? true : undefined);
+        expect(metadata.automationRunId).toBe('local-run');
     });
 
     it.each(['claude', 'codex', 'gemini', 'grok', 'dsh', 'opencode', 'agy', 'acp'] as const)(

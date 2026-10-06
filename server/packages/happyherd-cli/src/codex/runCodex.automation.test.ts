@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readContextPromptFromEnvironment, instructionReceiptMetadata } from '@/agentContext/commanderContext';
+import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@happyherd/wire';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => {
     let requestInteractiveApproval = false;
     let emitResumeAndTurnUsage = false;
     let contextMetadata: Record<string, unknown> = {};
+    let refreshedSessionMetadata: Record<string, unknown> | undefined;
     let failContextInjection = false;
     let automationInstruction = 'Deliver the automation task.';
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
@@ -69,6 +71,8 @@ const mocks = vi.hoisted(() => {
         },
         setContextMetadata(value: Record<string, unknown>) { contextMetadata = value; },
         getContextMetadata() { return contextMetadata; },
+        setRefreshedSessionMetadata(value: Record<string, unknown>) { refreshedSessionMetadata = value; },
+        getRefreshedSessionMetadata(fallback: Record<string, unknown>) { return refreshedSessionMetadata ?? fallback; },
         setFailContextInjection(value: boolean) { failContextInjection = value; },
         shouldFailContextInjection() { return failContextInjection; },
         setAutomationInstruction(value: string) { automationInstruction = value; },
@@ -120,6 +124,7 @@ const mocks = vi.hoisted(() => {
             requestInteractiveApproval = false;
             emitResumeAndTurnUsage = false;
             contextMetadata = {};
+            refreshedSessionMetadata = undefined;
             failContextInjection = false;
             automationInstruction = 'Deliver the automation task.';
             agentState = { controlledByUser: false };
@@ -169,7 +174,10 @@ vi.mock('@/api/api', () => ({
                     agentStateVersion: 0,
                 };
             }),
-            refreshSessionForReconnect: vi.fn(async (session) => session),
+            refreshSessionForReconnect: vi.fn(async (session) => ({
+                ...session,
+                metadata: mocks.getRefreshedSessionMetadata(session.metadata),
+            })),
             push: vi.fn(() => ({ sendSessionNotification: vi.fn() })),
         })),
     },
@@ -183,7 +191,8 @@ vi.mock('@/daemon/run', () => ({
     initialMachineMetadata: {},
 }));
 
-vi.mock('@/utils/createSessionMetadata', () => ({
+vi.mock('@/utils/createSessionMetadata', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@/utils/createSessionMetadata')>(),
     createSessionMetadata: vi.fn((options: { spawnSettings?: Record<string, unknown> }) => {
         const metadata = {
             path: '/srv/app',
@@ -367,6 +376,7 @@ describe('runCodex automation process lifecycle', () => {
         delete process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT;
         delete process.env.HAPPYHERD_RECONNECT_QUEUE_MESSAGE_ID;
         delete process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV];
+        vi.mocked(notifyDaemonSessionStarted).mockClear();
     });
 
     it.each([false, true])('delivers canonical shared guidance and its exact receipt on Codex startup (resume: %s)', async (resume) => {
@@ -571,6 +581,30 @@ describe('runCodex automation process lifecycle', () => {
             ['heartbeat-occurrence'],
             0,
         );
+    });
+
+    it.each([true, false, undefined])('registers only the authoritative Super Session flag on reconnect (%s)', async (isSuperSession) => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        process.env.HAPPYHERD_RECONNECT_SESSION_ID = 'session-one';
+        process.env.HAPPYHERD_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+        process.env.HAPPYHERD_RECONNECT_ENCRYPTION_VARIANT = 'dataKey';
+        mocks.setContextMetadata({
+            isSuperSession: isSuperSession === true ? undefined : true,
+            automationRunId: 'local-run',
+        });
+        mocks.setRefreshedSessionMetadata({
+            isSuperSession,
+            automationRunId: 'server-run',
+        });
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+        });
+
+        const registeredMetadata = vi.mocked(notifyDaemonSessionStarted).mock.calls[0]?.[1];
+        expect(registeredMetadata?.isSuperSession).toBe(isSuperSession === true ? true : undefined);
+        expect(registeredMetadata?.automationRunId).toBe('local-run');
     });
 
     it('resumes only pending queue IDs and keeps interrupted current work in state', async () => {
