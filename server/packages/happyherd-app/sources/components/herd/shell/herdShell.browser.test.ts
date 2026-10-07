@@ -533,7 +533,7 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
         }
     }, 30_000);
 
-    it('sweeps the amber pixel swap on the diagonal when Focus starts, then clears onto the countdown', async () => {
+    it.each([false, true])('sweeps the amber pixel swap on the diagonal when Focus starts, then clears onto the countdown (sampling gaps: %s)', async (samplingGaps) => {
         for (const theme of ['light', 'dark'] as const) {
             const { page, errors } = await openShell({ theme });
             await page.getByTestId('focus-mode-enter').click();
@@ -541,66 +541,160 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
             await setup.waitFor();
             expect(await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').count()).toBe(0);
             await setup.getByText('Web App Suite', { exact: true }).click();
-            // Samples every tile each frame from the moment the layer appears until it is gone.
-            const sampling = page.evaluate(() => new Promise<any>((done) => {
-                const began = performance.now();
-                let start: number | null = null;
-                let layerStyle: Record<string, string | boolean> | null = null;
-                let passesPointer: boolean | null = null;
-                let covered = false;
-                const tiles = new Map<Element, { left: number; top: number; onset?: number; full?: number; clear?: number }>();
-                const frame = () => {
-                    const now = performance.now();
-                    const layer = document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]') as HTMLElement | null;
-                    if (!layer) {
-                        if (start !== null) return done({ lifetime: now - start, layerStyle, passesPointer, covered, tiles: [...tiles.values()].map((tile) => ({ ...tile })) });
-                        if (now - began > 4000) return done(null);
-                        return requestAnimationFrame(frame);
-                    }
-                    if (start === null) {
-                        start = now;
-                        const style = getComputedStyle(layer);
-                        layerStyle = { zIndex: style.zIndex, pointerEvents: style.pointerEvents, position: style.position, inert: layer.hasAttribute('inert'), ariaHidden: layer.getAttribute('aria-hidden') === 'true' };
-                        const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
-                        passesPointer = !!hit && !layer.contains(hit);
-                    }
-                    let all = true;
-                    for (const element of layer.querySelectorAll('[data-testid="focus-mode-pixel-swap-tile"]')) {
-                        const html = element as HTMLElement;
-                        let tile = tiles.get(element);
-                        if (!tile) tiles.set(element, tile = { left: html.offsetLeft, top: html.offsetTop });
-                        const opacity = Number(getComputedStyle(html).opacity);
-                        if (tile.onset === undefined && opacity > 0.02) tile.onset = now - start;
-                        if (tile.full === undefined && opacity > 0.999) tile.full = now - start;
-                        if (tile.full !== undefined && tile.clear === undefined && opacity < 0.98) tile.clear = now - start;
-                        if (opacity < 0.999) all = false;
-                    }
-                    if (all && tiles.size > 0) covered = true;
-                    requestAnimationFrame(frame);
+            const sampling = page.evaluate((samplingGaps) => {
+                type Crossing = { before: number; after: number };
+                type TileObservation = {
+                    left: number; top: number; width: number; height: number; color: string;
+                    onset?: Crossing; full?: number; clear?: Crossing; fullScale: boolean;
+                    animations?: {
+                        start: number; delay: number; duration: number; end: number; rate: number; easing: string; fill: string;
+                        keyframes: Pick<ComputedKeyframe, 'offset' | 'opacity' | 'transform' | 'easing'>[];
+                    }[];
                 };
-                requestAnimationFrame(frame);
-            }));
+                return new Promise<{
+                    removedAt: number;
+                    layerStyle: Record<string, string | boolean> | null;
+                    passesPointer: boolean | null;
+                    covered: boolean;
+                    maxSampleGap: number;
+                    tiles: TileObservation[];
+                } | null>((done) => {
+                    const began = performance.now();
+                    let start: number | null = null;
+                    let previous: number | null = null;
+                    let maxSampleGap = 0;
+                    let layerStyle: Record<string, string | boolean> | null = null;
+                    let passesPointer: boolean | null = null;
+                    let covered = false;
+                    const tiles = new Map<Element, TileObservation>();
+                    const frame = (now: number) => {
+                        const layer = document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]') as HTMLElement | null;
+                        if (!layer) {
+                            if (start !== null) return done({ removedAt: now, layerStyle, passesPointer, covered, maxSampleGap, tiles: [...tiles.values()] });
+                            if (performance.now() - began > 4000) return done(null);
+                            return requestAnimationFrame(frame);
+                        }
+                        if (start === null) {
+                            start = now;
+                            const style = getComputedStyle(layer);
+                            layerStyle = { zIndex: style.zIndex, pointerEvents: style.pointerEvents, position: style.position, inert: layer.hasAttribute('inert'), ariaHidden: layer.getAttribute('aria-hidden') === 'true' };
+                            const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+                            passesPointer = !!hit && !layer.contains(hit);
+                        }
+                        // Deliberately miss observations at both edges without pausing, seeking,
+                        // or otherwise changing the production animations. First-seen timestamps
+                        // are not onset times, even when requestAnimationFrame is used.
+                        const elapsed = now - start;
+                        if (samplingGaps && ((elapsed > 250 && elapsed < 650) || (elapsed > 1650 && elapsed < 2050))) {
+                            return requestAnimationFrame(frame);
+                        }
+                        if (previous !== null) maxSampleGap = Math.max(maxSampleGap, now - previous);
+                        let all = true;
+                        for (const element of layer.querySelectorAll('[data-testid="focus-mode-pixel-swap-tile"]')) {
+                            const html = element as HTMLElement;
+                            const style = getComputedStyle(html);
+                            let tile = tiles.get(element);
+                            if (!tile) tiles.set(element, tile = {
+                                left: html.offsetLeft, top: html.offsetTop, width: html.offsetWidth, height: html.offsetHeight,
+                                color: style.backgroundColor, fullScale: false,
+                            });
+                            const animations = html.getAnimations();
+                            // Pending animations have no startTime yet. Read the resolved browser
+                            // schedule, including real start skew; never substitute the expected delay.
+                            if (!tile.animations && animations.length > 0 && animations.every((animation) => typeof animation.startTime === 'number')) {
+                                tile.animations = animations.map((animation) => {
+                                    const timing = animation.effect!.getComputedTiming();
+                                    return {
+                                        start: Number(animation.startTime), delay: Number(timing.delay), duration: Number(timing.duration),
+                                        end: Number(timing.endTime), rate: animation.playbackRate, easing: timing.easing!, fill: timing.fill!,
+                                        keyframes: (animation.effect as KeyframeEffect).getKeyframes().map(({ offset, opacity, transform, easing }) => ({ offset, opacity, transform, easing })),
+                                    };
+                                }).sort((a, b) => a.delay - b.delay);
+                            }
+                            const opacity = Number(style.opacity);
+                            // rAF's timestamp shares document.timeline's clock with computed styles.
+                            // A crossing is bracketed by observations, not assigned to its first frame.
+                            const crossing = { before: previous ?? now, after: now };
+                            if (tile.onset === undefined && opacity > 0.02) tile.onset = crossing;
+                            if (tile.full === undefined && opacity > 0.999) tile.full = now;
+                            if (tile.full !== undefined && tile.clear === undefined && opacity < 0.98) tile.clear = crossing;
+                            if (opacity > 0.999 && style.transform === 'matrix(1, 0, 0, 1, 0, 0)') tile.fullScale = true;
+                            if (opacity < 0.999) all = false;
+                        }
+                        if (all && tiles.size > 0) covered = true;
+                        previous = now;
+                        requestAnimationFrame(frame);
+                    };
+                    requestAnimationFrame(frame);
+                });
+            }, samplingGaps);
             await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
             const result = await sampling;
             expect(result).not.toBeNull();
+            if (!result) throw new Error('Focus pixel swap did not appear');
             expect(result.layerStyle).toEqual({ zIndex: '10000', pointerEvents: 'none', position: 'fixed', inert: true, ariaHidden: true });
             expect(result.passesPointer).toBe(true);
-            // Every tile was amber at once, midway: the window fully covered.
+            // Every tile was opaque at once; every tile also reached its full size.
             expect(result.covered).toBe(true);
+            if (samplingGaps) expect(result.maxSampleGap).toBeGreaterThan(350);
             const expected = focusPixelSwapTiles(1440, 900);
             expect(result.tiles).toHaveLength(expected.length);
-            const byPosition = new Map(expected.map((tile) => [`${tile.left},${tile.top}`, tile.delay]));
-            // Timed from the top-left tile's first frame: the layer mounts a moment before its tiles start.
-            const first = result.tiles.find((tile: any) => tile.left === 0 && tile.top === 0);
-            expect(Math.min(...result.tiles.map((tile: any) => tile.onset))).toBeGreaterThanOrEqual(first.onset - 20);
+            const byPosition = new Map(expected.map((tile) => [`${tile.left},${tile.top}`, tile]));
+            const first = result.tiles.find((tile) => tile.left === 0 && tile.top === 0)!;
+            expect(first.animations).toHaveLength(2);
+            const firstStart = first.animations![0].start;
             for (const tile of result.tiles) {
-                const delay = byPosition.get(`${tile.left},${tile.top}`);
-                expect(delay, `${tile.left},${tile.top}`).toBeDefined();
-                // Each tile grows in on its diagonal delay and starts clearing one 1.4 s swap later.
-                expect(Math.abs(tile.onset - first.onset - delay!), `onset ${tile.left},${tile.top}`).toBeLessThan(150);
-                expect(Math.abs(tile.clear - tile.onset - 1400), `clear ${tile.left},${tile.top}`).toBeLessThan(150);
+                const position = `${tile.left},${tile.top}`;
+                const target = byPosition.get(position);
+                expect(target, position).toBeDefined();
+                expect(tile.color, position).toBe('rgb(240, 220, 176)');
+                expect(tile.width, position).toBe(target!.size + 1);
+                expect(tile.height, position).toBe(target!.size + 1);
+                expect(tile.fullScale, position).toBe(true);
+                expect(tile.animations, position).toHaveLength(2);
+                const [grow, clear] = tile.animations!;
+                // Pin the actual browser curve too: correct delays with opacity held at zero
+                // until late in the effect would otherwise satisfy a wide observation bracket.
+                expect(grow.fill, position).toBe('both');
+                expect(clear.fill, position).toBe('forwards');
+                expect(grow.keyframes, position).toEqual([
+                    { offset: 0, opacity: '0', transform: 'scale(0.35)', easing: 'linear' },
+                    { offset: 0.625, opacity: '1', transform: undefined, easing: 'linear' },
+                    { offset: 1, opacity: '1', transform: 'scale(1)', easing: 'linear' },
+                ]);
+                expect(clear.keyframes, position).toEqual([
+                    { offset: 0, opacity: '1', transform: 'scale(1)', easing: 'linear' },
+                    { offset: 0.375, opacity: '1', transform: undefined, easing: 'linear' },
+                    { offset: 1, opacity: '0', transform: 'scale(0.35)', easing: 'linear' },
+                ]);
+                const onset = grow.start + grow.delay;
+                const clearing = clear.start + clear.delay;
+                // Browser-owned timing is independent of how often JS got to sample it.
+                // Tighten the old 150 ms frame-sampling bounds to 1 ms schedule bounds.
+                expect(Math.abs(onset - firstStart - target!.delay), `onset ${position}`).toBeLessThan(1);
+                expect(Math.abs(clearing - onset - 1400), `clear ${position}`).toBeLessThan(1);
+                for (const animation of [grow, clear]) {
+                    expect(animation.duration, position).toBe(450);
+                    expect(animation.rate, position).toBe(1);
+                    expect(animation.easing, position).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
+                    expect(animation.end, position).toBeCloseTo(animation.delay + 450, 5);
+                }
+                // Scheduled effects alone are insufficient: retain actual rendered onset,
+                // full opacity, and clear observations, intersecting each active phase.
+                expect(tile.onset, position).toBeDefined();
+                expect(tile.full, position).toBeDefined();
+                expect(tile.clear, position).toBeDefined();
+                for (const [crossing, edge] of [[tile.onset!, onset], [tile.clear!, clearing]] as const) {
+                    expect(crossing.after, position).toBeGreaterThanOrEqual(edge);
+                    expect(crossing.before, position).toBeLessThan(edge + 450);
+                }
+                expect(tile.full!, position).toBeGreaterThanOrEqual(tile.onset!.after);
+                expect(tile.clear!.after, position).toBeGreaterThan(tile.full!);
             }
-            expect(Math.abs(result.lifetime - first.onset - 2800)).toBeLessThan(400);
+            expect(Math.min(...result.tiles.map((tile) => tile.onset!.after))).toBeGreaterThanOrEqual(first.onset!.after - 20);
+            const lastEnd = Math.max(...result.tiles.map((tile) => tile.animations![1].start + tile.animations![1].end));
+            expect(Math.abs(lastEnd - firstStart - 2800)).toBeLessThan(1);
+            expect(Math.abs(result.removedAt - firstStart - 2800)).toBeLessThan(400);
             // The countdown is already running underneath when the tiles clear.
             await expect(page.getByTestId('focus-mode-pill').isVisible()).resolves.toBe(true);
             expect(errors).toEqual([]);

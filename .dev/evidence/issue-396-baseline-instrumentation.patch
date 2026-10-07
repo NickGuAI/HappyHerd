@@ -1,0 +1,54 @@
+diff --git a/server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts b/server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+index 1c50d5bd..d7209208 100644
+--- a/server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
++++ b/server/packages/happyherd-app/sources/components/herd/shell/herdShell.browser.test.ts
+@@ -542,18 +542,19 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
+             expect(await page.locator('[data-testid="focus-mode-pixel-swap-layer"]').count()).toBe(0);
+             await setup.getByText('Web App Suite', { exact: true }).click();
+             // Samples every tile each frame from the moment the layer appears until it is gone.
+-            const sampling = page.evaluate(() => new Promise<any>((done) => {
++            const sampling = page.evaluate((gap) => new Promise<any>((done) => {
+                 const began = performance.now();
++                const frames: { wall: number; timeline: number | null }[] = [];
+                 let start: number | null = null;
+                 let layerStyle: Record<string, string | boolean> | null = null;
+                 let passesPointer: boolean | null = null;
+                 let covered = false;
+-                const tiles = new Map<Element, { left: number; top: number; onset?: number; full?: number; clear?: number }>();
++                const tiles = new Map<Element, { left: number; top: number; onset?: number; full?: number; clear?: number; animations?: any[] }>();
+                 const frame = () => {
+                     const now = performance.now();
+                     const layer = document.querySelector('[data-testid="focus-mode-pixel-swap-layer"]') as HTMLElement | null;
+                     if (!layer) {
+-                        if (start !== null) return done({ lifetime: now - start, layerStyle, passesPointer, covered, tiles: [...tiles.values()].map((tile) => ({ ...tile })) });
++                        if (start !== null) return done({ frames, lifetime: now - start, layerStyle, passesPointer, covered, tiles: [...tiles.values()].map((tile) => ({ ...tile })) });
+                         if (now - began > 4000) return done(null);
+                         return requestAnimationFrame(frame);
+                     }
+@@ -564,11 +565,14 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
+                         const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+                         passesPointer = !!hit && !layer.contains(hit);
+                     }
++                    if (gap && ((now - start > 250 && now - start < 650) || (now - start > 1650 && now - start < 2050))) return requestAnimationFrame(frame);
++                    frames.push({ wall: now, timeline: document.timeline.currentTime as number | null });
+                     let all = true;
+                     for (const element of layer.querySelectorAll('[data-testid="focus-mode-pixel-swap-tile"]')) {
+                         const html = element as HTMLElement;
+                         let tile = tiles.get(element);
+                         if (!tile) tiles.set(element, tile = { left: html.offsetLeft, top: html.offsetTop });
++                        if (!tile.animations && html.getAnimations().every(a => a.startTime !== null)) tile.animations = html.getAnimations().map(a => ({ start: a.startTime, ...a.effect!.getTiming() }));
+                         const opacity = Number(getComputedStyle(html).opacity);
+                         if (tile.onset === undefined && opacity > 0.02) tile.onset = now - start;
+                         if (tile.full === undefined && opacity > 0.999) tile.full = now - start;
+@@ -579,9 +583,10 @@ describe('HappyHerd fluid shell in the production style runtime', () => {
+                     requestAnimationFrame(frame);
+                 };
+                 requestAnimationFrame(frame);
+-            }));
++            }), !!process.env.FOCUS_SAMPLING_GAP);
+             await setup.getByRole('button', { name: 'Start focus', exact: true }).click();
+             const result = await sampling;
++            console.log('FOCUS_BASELINE', JSON.stringify({ theme, ...result }));
+             expect(result).not.toBeNull();
+             expect(result.layerStyle).toEqual({ zIndex: '10000', pointerEvents: 'none', position: 'fixed', inert: true, ariaHidden: true });
+             expect(result.passesPointer).toBe(true);
