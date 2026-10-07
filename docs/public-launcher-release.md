@@ -1,5 +1,11 @@
 # Native installer and release assets
 
+For the user entry point, see the [quickstart](../README.md#get-started) and
+[product guide](product-guide.md). As checked October 7, 2026, the latest stable
+release is [1.2.4](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4),
+with four macOS/Linux arm64/x64 CLI/server/Web archives and bundled CLI 1.2.3.
+The installer source can be newer than the archive it downloads.
+
 HappyHerd installs from a prepared macOS or Linux release asset. The installer
 detects the platform, downloads the matching archive, extracts it into the
 current user's home, saves the server choice, and starts the normal local host

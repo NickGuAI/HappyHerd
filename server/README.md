@@ -1,108 +1,53 @@
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/.github/logotype-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="/.github/logotype-light.png">
-    <img src="/.github/logotype-dark.png" width="400" alt="HappyHerd">
-  </picture>
-</div>
+# HappyHerd source workspace
 
-<h1 align="center">
-  Mobile and Web Client for Claude Code & Codex
-</h1>
+<!-- rename:preserve -->
+HappyHerd lets you follow coding-agent work from a browser and organize work
+across connected machines. This workspace preserves the full history of
+[Happy](https://github.com/slopus/happy), the upstream project that provides the
+mobile/Web client and encrypted synchronization foundation. HappyHerd's owned
+changes are maintained in this distribution; see the [source lineage](../docs/lineage.md).
+<!-- /rename:preserve -->
 
-<h4 align="center">
-Use Claude Code or Codex from anywhere with end-to-end encryption.
-</h4>
+## Start using HappyHerd
 
-<div align="center">
-  
-[🖥️ **macOS App**](https://github.com/slopus/happy-desktop/releases/latest) • [📱 **iOS App**](https://apps.apple.com/us/app/happy-claude-code-client/id6748571505) • [🤖 **Android App**](https://play.google.com/store/apps/details?id=com.ex3ndr.happy) • [🌐 **Web App**](https://app.happy.engineering) • [🎥 **See a Demo**](https://youtu.be/GCS0OG9QMSE) • [📚 **Documentation**](https://happy.engineering/docs/) • [💬 **Discord**](https://discord.gg/fX9WBAhyfD)
+Start with the [HappyHerd quickstart](../README.md#get-started),
+[product guide](../docs/product-guide.md), and
+[HappyHerd downloads](https://github.com/NickGuAI/HappyHerd/releases).
 
-</div>
+The public 1.2.4 release provides CLI/server/Web archives for macOS and Linux
+(arm64 and x64). It does not publish native graphical macOS, iOS or Android
+apps, a Windows installer, or an npm package. Current source can contain newer
+features than that release. See [native build instructions](../docs/native-app-builds.md)
+for the separate source-build and distribution requirements.
 
-<img width="5178" height="2364" alt="github" src="/.github/header.png" />
+## Components in this distribution
 
+- [HappyHerd App](packages/happyherd-app) — Expo/React Native client and Tauri desktop source.
+- [HappyHerd CLI](packages/happyherd-cli) — provider launch, machine connection, and session operations.
+- [HappyHerd Server](packages/happyherd-server) — synchronization and self-host Web serving.
+- [HappyHerd control agent](packages/happyherd-control-agent) — inherited remote-control component; ordinary HappyHerd operations use the maintained CLI.
 
-<h3 align="center">
-Step 1: Download App
-</h3>
+Read [Contributing](docs/CONTRIBUTING.md) for the source workspace and verification
+entry points. Report HappyHerd problems in
+[HappyHerd issues](https://github.com/NickGuAI/HappyHerd/issues).
 
-<div align="center">
-<a href="https://apps.apple.com/us/app/happy-claude-code-client/id6748571505"><img width="135" height="39" alt="appstore" src="https://github.com/user-attachments/assets/45e31a11-cf6b-40a2-a083-6dc8d1f01291" /></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://play.google.com/store/apps/details?id=com.ex3ndr.happy"><img width="135" height="39" alt="googleplay" src="https://github.com/user-attachments/assets/acbba639-858f-4c74-85c7-92a4096efbf5" /></a>
-</div>
+## Upstream credit and resources
 
-<h3 align="center">
-Step 2: Install CLI on your computer
-</h3>
+<!-- rename:preserve -->
+[Happy's repository](https://github.com/slopus/happy) and
+[Happy's documentation](https://happy.engineering/docs/) describe the upstream
+project. Its hosted service, app-store listings, desktop downloads, demos,
+community, and team story belong to Happy, not to HappyHerd. They are not
+installation instructions or distribution evidence for this fork.
+<!-- /rename:preserve -->
 
-```bash
-npm install -g @happyherd/cli@latest
-```
-
-HappyHerd preserves the full history of upstream Happy. The upstream project
-previously migrated from `happy-coder`; thanks to
-[@franciscop](https://github.com/franciscop) for donating its historical
-`happyherd` package name.
-
-<h3 align="center">
-Step 3: Start using `happyherd` instead of `claude` or `codex`
-</h3>
-
-```bash
-# Instead of claude, use:
-happyherd claude
-# or
-happyherd codex
-```
-
-<h3 align="center">
-Step 4 (optional): Get the desktop app
-</h3>
-
-<div align="center">
-  <a href="https://github.com/slopus/happy-desktop/releases/latest">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="/.github/banner-desktop-dark.png">
-      <source media="(prefers-color-scheme: light)" srcset="/.github/banner-desktop-light.png">
-      <img src="/.github/banner-desktop-dark.png" width="640" alt="Now on Mac desktop — download for macOS">
-    </picture>
-  </a>
-</div>
-
-<p align="center">
-Prefer a native app over the terminal? <a href="https://github.com/slopus/happy-desktop/releases/latest"><b>Download HappyHerd for macOS</b></a> — conversations beside the files, diffs, terminals, and previews your work actually touches.
-</p>
-
-## How does it work?
-
-On your computer, run `happyherd` instead of `claude` or `happyherd codex` instead of `codex` to start your AI through our wrapper. When you want to control your coding agent from your phone, it restarts the session in remote mode. To switch back to your computer, just press any key on your keyboard.
-
-## 🔥 Why HappyHerd Coder?
-
-- 📱 **Mobile access to Claude Code and Codex** - Check what your AI is building while away from your desk
-- 🔔 **Push notifications** - Get alerted when Claude Code and Codex needs permission or encounters errors  
-- ⚡ **Switch devices instantly** - Take control from phone or desktop with one keypress
-- 🔐 **End-to-end encrypted** - Your code never leaves your devices unencrypted
-- 🛠️ **Open source** - Audit the code yourself. No telemetry, no tracking
-
-## 📦 Project Components
-
-- **[HappyHerd Desktop](https://github.com/slopus/happy-desktop)** - Native macOS app ([download](https://github.com/slopus/happy-desktop/releases/latest))
-- **[HappyHerd App](https://github.com/slopus/happy/tree/main/packages/happy-app)** - Web UI + mobile client (Expo)
-- **[HappyHerd CLI](https://github.com/NickGuAI/HappyHerd/tree/main/server/packages/happyherd-cli)** - Command-line interface for Claude Code and Codex
-- **[HappyHerd Agent](https://github.com/slopus/happy/tree/main/packages/happy-agent)** - Remote agent control CLI (create, send, monitor sessions)
-- **[HappyHerd Server](https://github.com/slopus/happy/tree/main/packages/happy-server)** - Backend server for encrypted sync
-
-## 🏠 Who We Are
-
-We're engineers scattered across Bay Area coffee shops and hacker houses, constantly checking how our AI coding agents are progressing on our pet projects during lunch breaks. HappyHerd Coder was born from the frustration of not being able to peek at our AI coding tools building our side hustles while we're away from our keyboards. We believe the best tools come from scratching your own itch and sharing with the community.
-
-## 📚 Documentation & Contributing
-
-- **[Documentation Website](https://happy.engineering/docs/)** - Learn how to use HappyHerd Coder effectively
-- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute, PR guidelines, and development setup
-- **[Edit docs at github.com/slopus/slopus.github.io](https://github.com/slopus/slopus.github.io)** - Help improve our documentation and guides
+<!-- rename:preserve -->
+Upstream historically migrated from `happy-coder` to `happy`; thanks to
+[@franciscop](https://github.com/franciscop) for donating the upstream `happy`
+package name. Historical package names and protocol identifiers remain valid
+provenance, not HappyHerd package-publication claims.
+<!-- /rename:preserve -->
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+[MIT](LICENSE), with upstream notices retained.

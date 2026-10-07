@@ -1,5 +1,11 @@
 # Native macOS and iOS builds
 
+These instructions describe source builds, not available public downloads.
+The [1.2.4 public release](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4)
+contains CLI/server/Web archives only; it explicitly excludes graphical macOS,
+iOS and Android distribution. See the [product guide](product-guide.md) for
+release availability.
+
 The desktop client is the existing Tauri app around the production Web bundle.
 The iOS client is the existing Expo/React Native app. These builds are separate
 from the CLI/server archives produced by `native-installer-release.yml`.

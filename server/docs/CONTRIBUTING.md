@@ -1,132 +1,69 @@
 # Contributing to HappyHerd
 
-HappyHerd is built by engineers who use AI coding tools all day — and we built HappyHerd so we could use them from anywhere. Contributions that make HappyHerd better for that workflow are welcome.
+<!-- rename:preserve -->
+HappyHerd maintains a distribution of [Happy](https://github.com/slopus/happy).
+Contribute distribution changes to
+[HappyHerd](https://github.com/NickGuAI/HappyHerd), and retain upstream attribution
+and compatibility identifiers. Upstream Happy has its own maintainers and
+contribution process.
+<!-- /rename:preserve -->
 
-If you don't get a response on your PR or issue, tag **@bra1ndump**.
+## Report a problem or propose a change
 
-## Contribution Priorities
+Use [HappyHerd issues](https://github.com/NickGuAI/HappyHerd/issues). Describe
+what happened, what you expected, and the release or source revision involved.
+Keep credentials and private session content out of public reports.
 
-We review contributions in this order:
+Use one owning issue and a focused branch for each change. Read the repository
+[agent guide](../../AGENTS.md), [development index](../../.dev/AGENTS.md), and
+[development lifecycle](../../.dev/playbooks/development-lifecycle.md) before
+editing. These define the patch ledger, review, changelog, and verification
+requirements for this distribution.
 
-1. **Bug fixes** — crashes, broken flows, data loss
-2. **UI touchups** — polish, layout fixes, visual consistency
-3. **New features** — new capabilities that serve the core use case
-4. **Refactors** — code quality improvements, test coverage
-5. **Core refactors** — sync engine, RPC layer, server changes (discuss first)
+## Source setup
 
-If your contribution is lower on this list, it may take longer to get reviewed. That's not a reflection of its value — it's just how we triage.
+Use Node 20 and the repository-pinned pnpm 10.11.0. Additional checks require
+Bun 1.3.11 and ShellCheck; see the [verification matrix](../../.dev/VERIFY.md).
 
-## Issues
-
-We currently can't reply to every issue individually. We review them in bulk using AI-assisted triage. They're useful — keep filing them — but PRs with clear fixes will always get priority.
-
-Every issue should start with a **one-paragraph summary** of the problem. Don't bury the lede in reproduction steps or logs. Lead with what's broken and what you expected.
-
-## Pull Requests
-
-### The Rules
-
-1. **Start with a one-paragraph summary.** What was broken or missing? What does this PR do about it? A human skimming 20 PRs needs to understand yours in 10 seconds.
-
-2. **Show proof it works.** Include a video, screenshots, or actual log output demonstrating the fix in a real running app. The "before" state can be described with words. The "after" must be shown visually. Unit tests passing is not enough — show it working end-to-end.
-
-3. **Address Codex review comments before requesting human review.** We use automated Codex reviews on all PRs. Resolve those first — they catch the obvious stuff so human reviewers can focus on the important stuff.
-
-4. **Keep PRs focused.** One fix per PR. One feature per PR. If you touched something unrelated, split it out.
-
-5. **Core changes need a discussion first.** If your PR touches the sync engine, RPC protocol, encryption, or server — open an issue or Discord thread before writing code. These areas affect every user and need design alignment.
-
-### What Makes a Good PR
-
-- **Show proof it works.** Screenshots, screen recordings, or actual log output demonstrating the fix in a real running app. Unit tests passing is not enough — show it working end-to-end.
-- Links to the issue it fixes (if one exists)
-- Short, clear title (`fix: voice session stuck in connecting state` not `Update voice.ts`)
-- No unrelated changes, no drive-by refactors
-
-## Development Setup
-
-### Prerequisites
-
-- Node.js >= 20
-- pnpm (`npm install -g pnpm`)
-- Git
-
-### Getting Started
-
-```bash
-git clone https://github.com/slopus/happy.git
-cd happyherd
-pnpm install
+```sh
+git clone https://github.com/NickGuAI/HappyHerd
+cd HappyHerd/server
+pnpm install --frozen-lockfile
 ```
 
-### HappyHerd App (Mobile + Web)
+Run package commands from `server/`:
 
-```bash
-pnpm --filter happyherd-app start          # Expo dev server
-pnpm --filter happyherd-app ios:dev        # iOS simulator
-pnpm --filter happyherd-app android:dev    # Android emulator
-pnpm web                                # Browser (shortcut)
-pnpm --filter happyherd-app typecheck      # Run after all changes
-```
-
-The app has three build variants — all can be installed simultaneously on the same device:
-
-| Variant | Bundle ID | App Name | Use Case |
-|---------|-----------|----------|----------|
-| Development | `com.slopus.happy.dev` | HappyHerd (dev) | Local development with hot reload |
-| Preview | `com.slopus.happy.preview` | HappyHerd (preview) | Beta testing & OTA updates |
-| Production | `com.ex3ndr.happy` | HappyHerd | App Store release |
-
-Swap `ios:dev` for `ios:preview` or `ios:production` (same for `android:`).
-
-#### macOS Desktop (Tauri)
-
-```bash
-pnpm --filter happyherd-app tauri:dev      # Run with hot reload
-pnpm --filter happyherd-app tauri:build:dev
-```
-
-### HappyHerd CLI
-
-```bash
+```sh
+pnpm --filter happyherd-app start
+pnpm --filter happyherd-app typecheck
 pnpm --filter @happyherd/cli build
 pnpm --filter @happyherd/cli test
-pnpm --filter @happyherd/cli cli:install   # Build + link this workspace as the global `happyherd` + restart daemon
+pnpm --filter ./packages/happyherd-server --fail-if-no-match standalone:dev
 ```
 
-`cli:install` replaces the `happyherd` binary installed from npm with a symlink to this workspace.
-It reuses `~/.happyherd/` (auth, sessions) — no separate dev home. To undo:
+For the local server, configure the development client with its actual endpoint:
 
-```bash
-npm unlink -g @happyherd/cli && npm install -g @happyherd/cli@latest
-```
-
-To sandbox dev data, set `HAPPYHERD_HOME_DIR=~/.happyherd-dev` in your shell before running `happyherd`.
-
-### HappyHerd Server
-
-```bash
-pnpm --filter ./packages/happyherd-server --fail-if-no-match standalone:dev   # Local server (no Docker needed)
-```
-
-Runs on `localhost:3005` with embedded PGlite. To point the app at your local server:
-
-```bash
+```sh
 EXPO_PUBLIC_HAPPYHERD_SERVER_URL=http://localhost:3005 pnpm --filter happyherd-app start
 ```
 
-## Project Structure
+These are source-development commands, not instructions to install a public npm
+package or replace a running machine's CLI. For released software use the
+[installer guide](../../docs/public-launcher-release.md). For native clients,
+use the [native build guide](../../docs/native-app-builds.md): configured iOS
+identities, retained Android compatibility identifiers, local compilation,
+signing, and public distribution are separate concerns.
 
-This is a monorepo with four packages:
+## Review evidence
 
-- **happyherd-app** — React Native + Expo mobile/web client
-- **happyherd-cli** — Node.js CLI that wraps Claude Code and Codex
-- **happyherd-control-agent** — Remote agent control
-- **happyherd-server** — Backend for encrypted sync
+Explain the user-visible outcome and provide evidence appropriate to the
+changed behavior. Follow the verification matrix and record failures as well
+as successful checks. Current source, local builds, published downloads, and
+live service behavior are distinct evidence; none implies the others.
 
-For architecture details, check the [docs/](.) folder or ask HappyHerd itself — it knows how the project is set up.
+<!-- rename:preserve -->
+The [workspace README](../README.md) maps the components. For background on the
+upstream foundation, see [Happy's documentation](https://happy.engineering/docs/).
+HappyHerd support remains in this repository's issues.
 
-## Community
-
-- [Discord](https://discord.gg/fX9WBAhyfD) — best place for questions and discussion
-- [Documentation](https://happy.engineering/docs/)
+<!-- /rename:preserve -->

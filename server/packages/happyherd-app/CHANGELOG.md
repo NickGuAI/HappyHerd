@@ -1,3 +1,7 @@
+# October 7 — Clearer product and download guidance
+
+- The repository guides now distinguish HappyHerd from upstream Happy, explain the public CLI/server/Web downloads, and separate newer source features and native build instructions from released apps.
+
 # October 6 — Opus 5.5 in native installs
 
 - Native installers now bundle a Claude Code version that supports Opus 5.5, so selecting the model no longer fails because the bundled runtime is too old.
