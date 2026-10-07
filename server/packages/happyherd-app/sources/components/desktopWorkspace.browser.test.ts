@@ -745,8 +745,22 @@ describe('Desktop workspace browser interaction', () => {
     let server: Server;
     let origin: string;
 
+    const traceSetup = async <T,>(phase: string, operation: () => Promise<T>): Promise<T> => {
+        const started = performance.now();
+        console.info('[setup-probe]', JSON.stringify({ fixture: 'desktopWorkspace', phase, pid: process.pid, event: 'start', utc: new Date().toISOString() }));
+        let outcome = 'success';
+        try {
+            return await operation();
+        } catch (error) {
+            outcome = 'failure';
+            throw error;
+        } finally {
+            console.info('[setup-probe]', JSON.stringify({ fixture: 'desktopWorkspace', phase, pid: process.pid, event: outcome, elapsedMs: performance.now() - started, utc: new Date().toISOString() }));
+        }
+    };
+
     beforeAll(async () => {
-        const bundle = await build({
+        const bundle = await traceSetup('build', () => build({
             entryPoints: [resolve(here, '__testdata__/desktopWorkspace.browser.fixture.tsx')],
             bundle: true,
             write: false,
@@ -760,7 +774,7 @@ describe('Desktop workspace browser interaction', () => {
             alias: { 'react-native': 'react-native-web' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
-        });
+        }));
         const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
         const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
         server = createServer((request, response) => {
@@ -779,17 +793,17 @@ describe('Desktop workspace browser interaction', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script type="module" src="/desktopWorkspace.browser.fixture.js"></script>');
         });
-        await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
+        await traceSetup('server-listen', () => new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady)));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = 'http://127.0.0.1:' + address.port;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
         try {
-            browser = await chromium.launch({
+            browser = await traceSetup('browser-launch', () => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            });
+            }));
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             throw new Error(

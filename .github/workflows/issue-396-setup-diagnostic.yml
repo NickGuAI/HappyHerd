@@ -1,0 +1,73 @@
+name: Issue 396 isolated setup diagnostic
+on:
+  push:
+    branches: [diagnostic/issue-396-linux-setup]
+    paths: [.github/workflows/issue-396-setup-diagnostic.yml]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify exact diagnostic input
+        run: |
+          test "$(git rev-parse HEAD^)" = 8df78276fb7018d0683b6ba22e175233214ddc39
+          git diff --name-only HEAD^ HEAD
+          mkdir -p "$RUNNER_TEMP/issue-396-diagnostic"
+          git log -1 --format='%H %T %P' | tee "$RUNNER_TEMP/issue-396-diagnostic/source.txt"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - name: Install frozen task dependencies
+        working-directory: server
+        run: |
+          pnpm install --frozen-lockfile
+          git diff --exit-code -- pnpm-lock.yaml
+      - name: Diagnose complete app suite once with default workers
+        working-directory: server
+        run: |
+          set -o pipefail
+          evidence="$RUNNER_TEMP/issue-396-diagnostic"
+          {
+            date -u '+start %Y-%m-%dT%H:%M:%SZ'
+            uname -srm
+            nproc
+            free -m
+            node --version
+            pnpm --version
+            bun --version
+            google-chrome --version
+          } | tee "$evidence/environment.txt"
+          (
+            while true; do
+              date -u '+snapshot %Y-%m-%dT%H:%M:%SZ'
+              uptime
+              free -m
+              ps -eo comm= | awk '/chrome|chromium/ { chrome++ } /node/ { node++ } /esbuild/ { esbuild++ } END { printf "process-count chrome=%d node=%d esbuild=%d\n", chrome, node, esbuild }'
+              sleep 15
+            done
+          ) > "$evidence/resources.txt" &
+          sampler_pid=$!
+          trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true' EXIT
+          timeout --signal=TERM --kill-after=30s 22m pnpm --filter happyherd-app test --run --retry=0 2>&1 \
+            | perl -pe 's/\e\[[0-?]*[ -\/]*[@-~]//g; s#/home/runner/work/HappyHerd/HappyHerd#<checkout>#g' \
+            | tee "$evidence/app-first.log"
+      - name: Preserve first diagnostic outcome
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-396-setup-${{ github.run_id }}
+          path: ${{ runner.temp }}/issue-396-diagnostic
+          retention-days: 7
+          if-no-files-found: error

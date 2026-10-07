@@ -1483,6 +1483,20 @@ describe('Side chats browser interaction', () => {
     let server: Server;
     let origin: string;
 
+    const traceSetup = async <T,>(phase: string, operation: () => Promise<T>): Promise<T> => {
+        const started = performance.now();
+        console.info('[setup-probe]', JSON.stringify({ fixture: 'sideChatHeader', phase, pid: process.pid, event: 'start', utc: new Date().toISOString() }));
+        let outcome = 'success';
+        try {
+            return await operation();
+        } catch (error) {
+            outcome = 'failure';
+            throw error;
+        } finally {
+            console.info('[setup-probe]', JSON.stringify({ fixture: 'sideChatHeader', phase, pid: process.pid, event: outcome, elapsedMs: performance.now() - started, utc: new Date().toISOString() }));
+        }
+    };
+
     beforeAll(async () => {
         const buildOptions: BuildOptions = {
             bundle: true,
@@ -1502,19 +1516,19 @@ describe('Side chats browser interaction', () => {
         // Leave the shared journey bundle unchanged. Launch-context and transport
         // recovery need only the foreground host and a smaller script to parse on load.
         const bundles = await Promise.all([
-            build({
+            traceSetup('build-side-chat', () => build({
                 ...buildOptions,
                 entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
                 outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
-            }),
-            build({
+            })),
+            traceSetup('build-commander', () => build({
                 ...buildOptions,
                 entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
                 outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
                 minify: true,
                 keepNames: true,
                 plugins: [commanderDiagramPlugin, fixturePlugin],
-            }),
+            })),
         ]);
         // Keep debug maps available without transferring/parsing them as part
         // of every document. Reuse response bytes across the isolated pages.
@@ -1560,25 +1574,25 @@ describe('Side chats browser interaction', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end(['/commander-context', '/transport-recovery'].includes(_request.url?.split('?')[0] ?? '') ? commanderHtml : html);
         });
-        await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
+        await traceSetup('server-listen', () => new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady)));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
         try {
-            browser = await chromium.launch({
+            browser = await traceSetup('browser-launch', () => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            });
+            }));
             // Start Chromium's first renderer inside the existing setup budget.
             // This blank page performs no product journey or recovery behavior.
             const warmupStartedAt = performance.now();
-            const warmup = await browser.newPage();
+            const warmup = await traceSetup('warmup-page', () => browser.newPage());
             try {
-                await warmup.goto('about:blank');
+                await traceSetup('warmup-goto', () => warmup.goto('about:blank'));
             } finally {
-                await warmup.close();
+                await traceSetup('warmup-close', () => warmup.close());
             }
             console.info('[browser fixture timing]', { stage: 'blank-page-warmup', elapsedMs: Math.round(performance.now() - warmupStartedAt) });
         } catch (error) {

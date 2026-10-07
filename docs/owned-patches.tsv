@@ -759,3 +759,4 @@ KILV_BASELINES_401	accepted	test(app): refresh KILV baselines for aligned sectio
 SUPER_SESSION_RESUME_403	accepted	fix(cli): preserve Super Session designation on reconnect	server/packages/happyherd-cli/src/utils/createSessionMetadata.ts
 SESSION_LIVENESS_FIXTURE_397	accepted	test(cli): make session liveness fixture lifecycle deterministic	server/packages/happyherd-cli/src/daemon/sessionLiveness.test.ts
 FOCUS_BROWSER_TIMING_396	accepted	test(app): measure Focus swap timing on the browser timeline	.dev/evidence/issue-396.md
+SETUP_DIAGNOSTIC_396	accepted	test(ci): instrument isolated browser setup diagnosis	.github/workflows/issue-396-setup-diagnostic.yml
