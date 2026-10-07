@@ -208,9 +208,19 @@ vi.mock('@/capabilities/agentCapabilities', () => ({
     agy: {
       detectedAt: 1,
       sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
-      models: [{ code: 'gemini-2.5-pro', value: 'Gemini 2.5 Pro', isDefault: true }],
+      models: [{
+        code: 'Gemini 3.8 Flash', value: 'Gemini 3.8 Flash', isDefault: true,
+        effortLevels: [
+          { code: 'low', value: 'Low' },
+          { code: 'medium', value: 'Medium', isDefault: true },
+          { code: 'high', value: 'High' },
+        ],
+      }, { code: 'Claude Sonnet 4.6 (Thinking)', value: 'Claude Sonnet 4.6 (Thinking)', effortLevels: [] }],
       effortLevels: [],
-      permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'bypassPermissions', value: 'Bypass permissions' },
+      ],
     },
   })),
 }));
@@ -319,6 +329,7 @@ let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
 const temporaryDirectories: string[] = [];
 const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
+const defaultCLIAvailability = initialMachineMetadata.cliAvailability;
 const sideChatBrief: SideChatDelegationBrief = {
   outcome: 'Deliver the delegated change.',
   scope: 'Change the owned workstream only.',
@@ -394,6 +405,7 @@ describe('daemon session continuity', () => {
     });
     mocks.rotationDependencies = undefined;
     initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
+    initialMachineMetadata.cliAvailability = defaultCLIAvailability;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
     vi.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
@@ -2126,7 +2138,7 @@ describe('daemon session continuity', () => {
     ['gemini', undefined],
     ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],
     ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
-    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'Gemini 3.8 Flash', effort: 'medium', permission: 'default' }],
   ] as const)(
     'creates a fresh seeded %s side chat with exact lineage and no native fork',
     async (provider, expectedSettings) => {
@@ -2286,7 +2298,7 @@ describe('daemon session continuity', () => {
   it.each([
     ['gemini', undefined],
     ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
-    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'Gemini 3.8 Flash', effort: 'medium', permission: 'default' }],
   ] as const)(
     'reopens a %s side chat in the same HappyHerd session with a fresh seeded provider process',
     async (provider, spawnSettings) => {
@@ -2457,7 +2469,7 @@ describe('daemon session continuity', () => {
     ['codex', 'yolo', 'gpt-5.6-codex', 'xhigh'],
     ['grok', 'bypassPermissions', 'grok-build', null],
     ['dsh', 'danger-full-access', 'deepseek-chat', null],
-    ['agy', 'default', 'gemini-2.5-pro', null],
+    ['agy', 'default', 'Gemini 3.8 Flash', 'medium'],
   ] as const)('validates a permission-only %s side chat before fork and returns confirmed settings', async (provider, permission, model, effort) => {
     mocks.authoritativeActive = true;
     const parentMetadata: Metadata = {
@@ -2512,6 +2524,142 @@ describe('daemon session continuity', () => {
     expect(args).toEqual(expect.arrayContaining(['--permission-mode', permission]));
     expect(JSON.parse(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(settings);
     expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['claude', 'default', 'max', 'default'],
+    ['gemini', null, null, null],
+    ['codex', 'gpt-5.6-codex', 'xhigh', 'safe-yolo'],
+    ['grok', 'grok-build', null, 'default'],
+    ['dsh', 'deepseek-chat', null, 'default'],
+    ['agy', 'Gemini 3.8 Flash', 'medium', 'default'],
+  ] as const)('creates a cross-provider %s child using only its catalog and fresh context', async (provider, model, effort, permission) => {
+    if (provider === 'gemini') {
+      // Gemini is launchable but has no advertised settings catalog.
+      initialMachineMetadata.cliAvailability = { ...defaultCLIAvailability!, gemini: true };
+    }
+    const parentProvider = provider === 'codex' ? 'claude' : 'codex';
+    const parentMetadata: Metadata = {
+      path: process.cwd(), flavor: parentProvider, host: 'test-host', hostPid: 9876,
+      machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      commanderId: 'parent-commander', permissionMode: 'parent-only-policy',
+      providerAccount: 'parent-only-account', codexHome: '/parent-only-codex-home',
+      // No native backend ID: changing providers must not require or fork one.
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({ id: 'cross-parent', metadata: parentMetadata });
+    mocks.readRecentSessionMessages.mockResolvedValue(Array.from({ length: 6 }, (_, index) => ({
+      seq: index + 1, localId: `visible-${index}`, createdAt: index,
+      content: { role: 'user', content: { type: 'text', text: `visible-parent-${index}` } },
+    })));
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5670, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    for (const launch of [
+      { provider, model: 'not-advertised' },
+      { provider, effort: 'not-advertised' },
+      { provider, permission: 'parent-only-policy' },
+    ]) {
+      await expect(control.sideChat({ action: 'create', parentSessionId: 'cross-parent', brief: sideChatBrief, launch }))
+        .resolves.toMatchObject({ success: false, sessionId: null });
+    }
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
+    const creation = control.sideChat({
+      action: 'create', parentSessionId: 'cross-parent', brief: sideChatBrief, launch: { provider },
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    const settings = { provider, model, effort, permission };
+    control.onHappyHerdSessionWebhook('cross-child', {
+      ...parentMetadata, flavor: provider, permissionMode: permission ?? undefined,
+      hostPid: 5670, parentSessionId: 'cross-parent', isSideChat: true, spawnSettings: settings,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(7), encryptionVariant: 'dataKey',
+      seq: 1, metadataVersion: 1, agentStateVersion: 1,
+    });
+    await expect(creation).resolves.toMatchObject({
+      success: true, parentSessionId: 'cross-parent', sessionId: 'cross-child', settings,
+    });
+    const [args, options] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { cwd: string; env: NodeJS.ProcessEnv }];
+    expect(args[0]).toBe(provider);
+    expect(args).not.toContain('--resume');
+    expect(args).not.toContain('--fork-session');
+    expect(options.cwd).toBe(parentMetadata.path);
+    expect(options.env.HAPPYHERD_FORKED_FROM_SESSION_ID).toBe('cross-parent');
+    expect(options.env.CODEX_HOME).not.toBe('/parent-only-codex-home');
+    expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalledWith('codex', expect.objectContaining({ preferred: 'parent-only-account' }));
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+    const [, posted] = mocks.postSideChatBrief.mock.calls[0] as unknown as [unknown, { text: string }];
+    const prompt = posted.text;
+    expect(prompt).toContain(sideChatBrief.outcome);
+    expect(prompt).not.toContain('visible-parent-1');
+    expect(prompt).toContain('visible-parent-2');
+    expect(prompt).toContain('visible-parent-5');
+    await expect(control.sideChat({ action: 'status', sessionId: 'cross-child' }))
+      .resolves.toMatchObject({ success: true, child: { parentSessionId: 'cross-parent', providerRunning: true } });
+  });
+
+  it.each([
+    ['claude', 'default', 'max', 'default', '11111111-1111-4111-8111-111111111111'],
+    ['codex', 'gpt-5.6-codex', 'xhigh', 'safe-yolo', 'cross-child-thread'],
+  ] as const)('reopens a cross-provider %s child with its own native identity and settings', async (provider, model, effort, permission, nativeId) => {
+    const settings = { provider, model, effort, permission };
+    const metadata: Metadata = {
+      path: process.cwd(), flavor: provider, host: 'test-host', hostPid: 9876,
+      machineId: 'machine-1', homeDir: '/home/test', happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happyherd', happyToolsDir: '/srv/happyherd/tools',
+      parentSessionId: provider === 'claude' ? 'codex-parent' : 'claude-parent',
+      isSideChat: true, lifecycleState: 'archived', spawnSettings: settings, permissionMode: permission,
+      ...(provider === 'claude' ? { claudeSessionId: nativeId } : { codexThreadId: nativeId }),
+    };
+    const encryption = {
+      encryptionKey: new Uint8Array(32).fill(5), encryptionVariant: 'dataKey' as const,
+      seq: 8, metadataVersion: 4, agentStateVersion: 3,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ 'cross-child': {
+      ...encryption, encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'),
+      metadata, savedAt: Date.now(),
+    } });
+    mocks.spawnHappyHerdCLI.mockReturnValue({ pid: 5701, kill: vi.fn(), on: vi.fn() });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const reopening = control.sideChat({ action: 'reopen', sessionId: 'cross-child' });
+    await vi.waitFor(() => expect(mocks.spawnHappyHerdCLI).toHaveBeenCalledOnce());
+    mocks.authoritativeActive = true;
+    control.onHappyHerdSessionWebhook('cross-child', { ...metadata, hostPid: 5701, lifecycleState: 'running' }, encryption);
+    await expect(reopening).resolves.toMatchObject({
+      success: true, sessionId: 'cross-child', parentSessionId: metadata.parentSessionId,
+      child: { status: 'running', providerRunning: true, active: true },
+    });
+    const [args, options] = mocks.spawnHappyHerdCLI.mock.calls[0] as unknown as [string[], { env: NodeJS.ProcessEnv }];
+    expect(args).toEqual(expect.arrayContaining(['--resume', nativeId]));
+    expect(options.env.HAPPYHERD_RECONNECT_SESSION_ID).toBe('cross-child');
+    expect(options.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON).toBe(JSON.stringify(settings));
+    expect(mocks.resolveLocalReconnectableSession).not.toHaveBeenCalled();
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+  });
+
+  it.each(['unknown-provider', 'gemini'])('rejects unknown or unavailable child provider %s before any fork or spawn', async (provider) => {
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({ id: 'cross-parent', metadata: {
+      path: process.cwd(), flavor: 'claude', machineId: 'machine-1',
+    } });
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    await expect(control.sideChat({ action: 'create', parentSessionId: 'cross-parent', brief: sideChatBrief, launch: { provider } }))
+      .resolves.toMatchObject({ success: false, sessionId: null });
+    expect(mocks.forkClaudeBackendSession).not.toHaveBeenCalled();
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyHerdCLI).not.toHaveBeenCalled();
+    expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
   });
 
   it('preserves a stale native Codex home while forking with the registered account path', async () => {

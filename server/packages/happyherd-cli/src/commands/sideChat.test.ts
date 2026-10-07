@@ -98,6 +98,43 @@ function lifecycleReceipt(): SideChatSingleReceipt {
 }
 
 describe('createChildSideChat', () => {
+  it.each(['claude', 'codex', 'gemini', 'grok', 'dsh', 'agy'])(
+    'starts a fresh %s child across providers on the parent machine/path without requiring native parent state',
+    async (provider) => {
+      const deps = dependencies({
+        flavor: provider === 'claude' ? 'codex' : 'claude',
+        machineId: machine.id,
+        path: '/srv/project',
+      });
+      await expect(createChildSideChat(parentId, deps, { provider }))
+        .resolves.toEqual({ sessionId: 'happyherd-child' });
+      expect(deps.machineRpc).not.toHaveBeenCalled();
+      expect(deps.createMachineSession).toHaveBeenCalledWith({
+        machine, directory: '/srv/project', approvedNewDirectoryCreation: false,
+        agent: provider, parentSessionId: parentId, isSideChat: true,
+      });
+    },
+  );
+
+  it('rejects an unknown child provider before any fork or spawn', async () => {
+    const deps = dependencies();
+    await expect(createChildSideChat(parentId, deps, { provider: 'unknown' }))
+      .rejects.toThrow('Unsupported side-chat provider');
+    expect(deps.machineRpc).not.toHaveBeenCalled();
+    expect(deps.createMachineSession).not.toHaveBeenCalled();
+  });
+
+  it('keeps the native fork when the parent provider is explicitly selected', async () => {
+    const deps = dependencies();
+    await createChildSideChat(parentId, deps, { provider: 'claude' });
+    expect(deps.machineRpc).toHaveBeenCalledWith(machine, 'claude-fork-session', {
+      directory: '/srv/project', claudeSessionId: 'claude-parent',
+    });
+    expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
+      agent: 'claude', resumeClaudeSessionId: 'claude-child',
+    }));
+  });
+
   it('forks Claude on the immutable parent machine and path before spawning the hidden child', async () => {
     const parentMetadata = {
       flavor: 'claude',
@@ -452,8 +489,29 @@ describe('parseSideChatLifecycleRequest', () => {
     expect(help).toContain('side-chat resume <child-session-id>');
     expect(help).toContain('[--model <model>] [--effort <effort>]');
     expect(help).toContain('[--permission <mode>]');
+    expect(help).toContain('[--provider <provider>]');
     expect(help).toContain("validated against the parent machine's");
     expect(help).toContain('receipts use the canonical action names');
+  });
+
+
+  it.each(['create', 'shorthand'])('parses child-provider %s selection', (shape) => {
+    const action = shape === 'create' ? ['create', parentId] : [parentId];
+    expect(parseSideChatLifecycleRequest([...action, ...briefArgs, '--provider', ' codex ', ...launchArgs]))
+      .toMatchObject({ request: { action: 'create', launch: { provider: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' } } });
+    expect(sameSideChatLaunchOptions({ provider: 'claude' }, { provider: 'codex' })).toBe(false);
+  });
+
+  it.each([
+    ['--provider'], ['--provider', ' '], ['--provider', '--model', 'default'],
+    ['--provider', 'codex', '--provider', 'claude'],
+  ])('rejects malformed provider options %j', (...options) => {
+    expect(() => parseSideChatLifecycleRequest(['create', parentId, ...briefArgs, ...options])).toThrow();
+  });
+
+  it('rejects provider overrides on reopen', () => {
+    expect(() => parseSideChatLifecycleRequest(['reopen', 'child', '--provider', 'claude']))
+      .toThrow('Launch options are supported only with the create action');
   });
 
   it.each(['create', 'shorthand'])('parses permission-only %s launch selections', (shape) => {

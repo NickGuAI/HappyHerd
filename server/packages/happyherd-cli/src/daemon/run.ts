@@ -2047,12 +2047,16 @@ export async function startDaemon(): Promise<void> {
       }
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
-        const provider = resolveSideChatProvider(parent.metadata);
+        const parentProvider = resolveSideChatProvider(parent.metadata);
+        const provider = launch?.provider !== undefined
+          ? resolveSideChatProvider({ flavor: launch.provider })
+          : parentProvider;
         if (!provider) {
-          throw new Error(`HappyHerd session ${parent.id} uses unsupported provider "${parent.metadata.flavor ?? 'unknown'}".`);
+          throw new Error(`Unsupported side-chat provider "${launch?.provider ?? parent.metadata.flavor ?? 'unknown'}".`);
         }
-        const isCodexParent = provider === 'codex';
-        const nativeFork = provider === 'claude' || provider === 'codex';
+        const sameProvider = provider === parentProvider;
+        const isCodexParent = sameProvider && provider === 'codex';
+        const nativeFork = sameProvider && (provider === 'claude' || provider === 'codex');
         const parentReceipt = parent.metadata.spawnSettings?.provider === provider
           ? parent.metadata.spawnSettings
           : undefined;
@@ -2061,8 +2065,8 @@ export async function startDaemon(): Promise<void> {
         const inheritedPermission = provider === 'grok' || provider === 'dsh'
           ? persistedProviderPermissionMode(parent.metadata, provider)
           : parent.metadata.permissionMode ?? parentReceipt?.permission ?? undefined;
-        const permission = launch?.permission ?? inheritedPermission;
-        const shouldResolveLaunchSettings = launch !== undefined
+        const permission = launch?.permission ?? (sameProvider ? inheritedPermission : undefined);
+        const shouldResolveLaunchSettings = !sameProvider || launch !== undefined
           || permission !== undefined
           || (!nativeFork && provider !== 'gemini');
         const effectiveLaunchSettings = shouldResolveLaunchSettings
@@ -2075,6 +2079,7 @@ export async function startDaemon(): Promise<void> {
           : undefined;
         const effectiveLaunch = effectiveLaunchSettings
           ? {
+            ...(launch?.provider ? { provider: launch.provider } : {}),
             ...(effectiveLaunchSettings.model ? { model: effectiveLaunchSettings.model } : {}),
             ...(effectiveLaunchSettings.effort ? { effort: effectiveLaunchSettings.effort } : {}),
             ...(effectiveLaunchSettings.permission ? { permission: effectiveLaunchSettings.permission } : {}),

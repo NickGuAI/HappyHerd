@@ -58,6 +58,7 @@ export type SideChatDelegationBrief = Readonly<{
 }>;
 
 export type SideChatLaunchOptions = Readonly<{
+  provider?: string;
   model?: string;
   effort?: string;
   permission?: string;
@@ -211,6 +212,7 @@ const briefOptionEntries = Object.entries(briefOptions) as Array<
 >;
 
 const launchOptions = Object.freeze({
+  '--provider': 'provider',
   '--model': 'model',
   '--effort': 'effort',
   '--permission': 'permission',
@@ -260,7 +262,7 @@ export function formatSideChatDelegationPrompt(
   freshProviderContext?: string,
 ): string {
   const continuity = freshProviderContext
-    ? `\n\n## Provider continuity\n\nThis child starts a fresh same-provider process without sharing the parent's provider-native conversation state. The current workspace files are authoritative.\n\n${freshProviderContext}`
+    ? `\n\n## Provider continuity\n\nThis child starts a fresh provider process without sharing the parent's provider-native conversation state. The current workspace files are authoritative.\n\n${freshProviderContext}`
     : '';
   return `# Delegated delivery brief
 
@@ -311,7 +313,7 @@ export function resolveSideChatProvider(metadataValue: unknown): SideChatProvide
     : null;
 }
 
-function resolveSideChatSource(parent: ParentSession): SideChatSource {
+function resolveSideChatSource(parent: ParentSession, childProvider?: string): SideChatSource {
   const metadata = record(parent.metadata);
   // Historical Claude sessions predate explicit flavor metadata. Keep the
   // same compatibility contract as the existing UI and resume paths: a
@@ -335,7 +337,7 @@ function resolveSideChatSource(parent: ParentSession): SideChatSource {
   const backendSessionId = flavor === 'codex'
     ? metadata.codexThreadId
     : flavor === 'claude' ? metadata.claudeSessionId : undefined;
-  if ((flavor === 'claude' || flavor === 'codex') && !nonEmptyString(backendSessionId)) {
+  if ((!childProvider || childProvider === flavor) && (flavor === 'claude' || flavor === 'codex') && !nonEmptyString(backendSessionId)) {
     const backendLabel = flavor === 'codex' ? 'Codex thread' : 'Claude session';
     throw new Error(`HappyHerd session ${parent.id} is missing its ${backendLabel} ID.`);
   }
@@ -372,7 +374,14 @@ export async function createChildSideChat(
   launch?: SideChatLaunchOptions,
 ): Promise<CreateChildSideChatResult> {
   const parent = await dependencies.resolveSession(parentSessionId);
-  const source = resolveSideChatSource(parent);
+  const source = resolveSideChatSource(parent, launch?.provider);
+  const provider = launch?.provider === undefined
+    ? source.kind
+    : resolveSideChatProvider({ flavor: launch.provider });
+  if (!provider) {
+    throw new Error(`Unsupported side-chat provider "${launch?.provider}".`);
+  }
+  const nativeFork = provider === source.kind;
   const machine = await dependencies.resolveMachine(source.machineId);
 
   if (machine.id !== source.machineId) {
@@ -383,13 +392,13 @@ export async function createChildSideChat(
   }
 
   let forkedBackendId: string | undefined;
-  if (source.kind === 'codex') {
+  if (nativeFork && source.kind === 'codex') {
     const forkResult = await dependencies.machineRpc(machine, 'codex-fork-thread', {
       directory: source.directory,
       codexThreadId: source.backendSessionId!,
     });
     forkedBackendId = requireForkedBackendId(source.kind, forkResult);
-  } else if (source.kind === 'claude') {
+  } else if (nativeFork && source.kind === 'claude') {
     const forkResult = await dependencies.machineRpc(machine, 'claude-fork-session', {
       directory: source.directory,
       claudeSessionId: source.backendSessionId!,
@@ -401,13 +410,13 @@ export async function createChildSideChat(
     machine,
     directory: source.directory,
     approvedNewDirectoryCreation: false,
-    agent: source.kind,
+    agent: provider,
     ...(launch?.model ? { modelMode: launch.model } : {}),
     ...(launch?.effort ? { effortLevel: launch.effort } : {}),
     ...(launch?.permission ? { permissionMode: launch.permission } : {}),
-    ...(source.kind === 'codex'
+    ...(nativeFork && source.kind === 'codex'
       ? { resumeCodexThreadId: forkedBackendId }
-      : source.kind === 'claude' ? { resumeClaudeSessionId: forkedBackendId } : {}),
+      : nativeFork && source.kind === 'claude' ? { resumeClaudeSessionId: forkedBackendId } : {}),
     parentSessionId: source.sessionId,
     isSideChat: true,
   });
@@ -437,7 +446,7 @@ Usage:
   happyherd session side-chat create <parent-session-id> \\
     --outcome <text> --scope <text> --dependencies <text> \\
     --write-ownership <text> --verification <text> --handoff <text> \\
-    [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
+    [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
   happyherd session side-chat list <parent-session-id> [--json]
   happyherd session side-chat status <child-session-id> [--json]
   happyherd session side-chat inspect <child-session-id> [--json]
@@ -450,10 +459,13 @@ Usage:
 
 The parent-id shorthand remains supported when all six brief options are supplied:
   happyherd session side-chat <parent-session-id> <brief-options> \
-    [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
+    [--provider <provider>] [--model <model>] [--effort <effort>] [--permission <mode>] [--json]
 
+Optional --provider selects the child's provider on the parent's machine.
+Omitting it preserves same-provider creation and native Claude/Codex forks.
 Optional --model, --effort, and --permission values are validated against the parent machine's
-current provider catalog before the child is forked or started.
+child-provider catalog before the child is forked or started. A different provider starts
+fresh with bounded visible parent context and defaults to its own permission mode.
 Permission accepts a native mode such as Claude bypassPermissions or Codex yolo
 when advertised. Create receipts include the daemon-confirmed launch settings.
 
@@ -520,6 +532,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
 
   const launch = launchOptionEntries.some(([, field]) => launchValues[field] !== undefined)
     ? Object.freeze({
+      ...(launchValues.provider ? { provider: launchValues.provider } : {}),
       ...(launchValues.model ? { model: launchValues.model } : {}),
       ...(launchValues.effort ? { effort: launchValues.effort } : {}),
       ...(launchValues.permission ? { permission: launchValues.permission } : {}),

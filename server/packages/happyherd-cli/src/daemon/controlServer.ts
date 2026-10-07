@@ -394,10 +394,11 @@ export function startDaemonControlServer({
       handoff: z.string().trim().min(1),
     }).strict();
     const sideChatLaunchOptionsSchema = z.object({
+      provider: z.string().trim().min(1).optional(),
       model: z.string().trim().min(1).optional(),
       effort: z.string().trim().min(1).optional(),
       permission: z.string().trim().min(1).optional(),
-    }).strict().refine((value) => value.model !== undefined || value.effort !== undefined || value.permission !== undefined, {
+    }).strict().refine((value) => value.provider !== undefined || value.model !== undefined || value.effort !== undefined || value.permission !== undefined, {
       message: 'At least one side-chat launch option is required',
     });
     const sideChatRequestSchema = z.discriminatedUnion('action', [
