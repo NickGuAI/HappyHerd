@@ -763,3 +763,4 @@ CLAUDE_OPUS_55_BUNDLE_372	accepted	fix(cli): bundle Opus 5.5-compatible Claude C
 CLAUDE_OPUS_55_CHANGELOG_GOLDENS_372	accepted	test(app): refresh Opus 5.5 changelog baselines	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 PRODUCT_PAGES_382	accepted	docs(product): distinguish HappyHerd releases from upstream Happy	docs/product-guide.md
 CLI_GUIDE_LINKS_382	accepted	docs(cli): repair repository guide links	server/packages/happyherd-cli/README.md
+PRODUCT_ATTRIBUTION_382	accepted	docs(product): preserve upstream attribution in launch guide	docs/product-guide.md

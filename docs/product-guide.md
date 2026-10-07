@@ -1,9 +1,11 @@
 # HappyHerd product guide
 
+<!-- rename:preserve -->
 HappyHerd is a maintained distribution of [Happy](https://github.com/slopus/happy).
 Start at the [quickstart](../README.md#get-started) and use
 [HappyHerd's release page](https://github.com/NickGuAI/HappyHerd/releases) for
 its downloads. Happy's app-store listings and hosted services belong to upstream.
+<!-- /rename:preserve -->
 
 ## Pick the right documentation
 
@@ -34,10 +36,12 @@ the current first-machine setup, shared Commander guidance, and later session
 reconnection repairs must not be inferred from the 1.2.4 version number.
 The installer script fetched from `main` can be newer than the archive it selects.
 
+<!-- rename:preserve -->
 No native HappyHerd graphical macOS, iOS, Android, or Windows download is
 established by that release. Upstream Happy downloads cannot fill that gap.
 The Web client is served by a configured HappyHerd server; localhost is reachable
 only on that same computer, not automatically from a phone or another machine.
+<!-- /rename:preserve -->
 
 ## Launch work and media
 
@@ -55,8 +59,11 @@ This guide makes no claim that those assets are complete.
 
 ## Ownership and help
 
+<!-- rename:preserve -->
 Happy supplies the inherited client/synchronization foundation; HappyHerd owns
 its maintained changes and release packaging. The [lineage record](lineage.md)
 and [owned-patch ledger](owned-patches.tsv) make that distinction reviewable.
 Use [HappyHerd issues](https://github.com/NickGuAI/HappyHerd/issues) for this
 distribution, and clearly identify the release or source commit you are using.
+
+<!-- /rename:preserve -->
