@@ -7,8 +7,8 @@ Free. Open source. Code anywhere.
 
 ## Installation
 
-Use the [HappyHerd quickstart](../../../../README.md#get-started) and
-[installer guide](../../../../docs/public-launcher-release.md). Public release
+Use the [HappyHerd quickstart](../../../README.md#get-started) and
+[installer guide](../../../docs/public-launcher-release.md). Public release
 1.2.4 provides macOS/Linux CLI, server, and Web archives; it does not publish
 an npm package or native graphical/mobile apps. This README describes current
 source, which can be newer than that release.
@@ -29,8 +29,8 @@ canonical spelling taking precedence. Existing `~/.happyherd` is preferred;
 if only `~/.happy` exists, it is used in place. Neither home is copied or merged.
 <!-- /rename:preserve -->
 Your original machine identity, keys, session IDs, provider homes and history
-stay intact. See the [rename and migration SOP](../../../../docs/cli-renaming.md)
-and [upstream-sync SOP](../../../../docs/cli-upstream-sync.md).
+stay intact. See the [rename and migration SOP](../../../docs/cli-renaming.md)
+and [upstream-sync SOP](../../../docs/cli-upstream-sync.md).
 
 ## Shared operations knowledge
 
