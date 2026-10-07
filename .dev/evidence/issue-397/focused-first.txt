@@ -1,0 +1,10 @@
+packages/expo-tailcat                    |  WARN  Unsupported engine: wanted: {"node":">=22"} (current: {"node":"v20.20.2","pnpm":"10.11.0"})
+
+ RUN  v3.2.4 <worktree>/server/packages/happyherd-cli
+
+ ✓ |unit| src/daemon/sessionLiveness.test.ts (14 tests) 220ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  20:10:57
+   Duration  9.60s (transform 35ms, setup 19ms, collect 12ms, tests 220ms, environment 0ms, prepare 33ms)

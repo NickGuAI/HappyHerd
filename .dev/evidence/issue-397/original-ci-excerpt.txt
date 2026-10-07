@@ -1,0 +1,10 @@
+Contract suite	UNKNOWN STEP	2026-10-03T15:36:41.4125254Z    ✓ CredentialsSettingsView browser journeys > keeps Codex quota recovery login and key saving explicit on mobile  5000ms
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:33.1573727Z  ❯  unit  src/daemon/sessionLiveness.test.ts (10 tests | 1 failed) 5018ms
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:33.1575560Z    × session liveness (PR #1715) > keeps a real owner and backend live after SIGTERM until confirmed exit 5009ms
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:33.1576553Z      → Test timed out in 5000ms.
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:59.6421471Z  FAIL   unit  src/daemon/sessionLiveness.test.ts > session liveness (PR #1715) > keeps a real owner and backend live after SIGTERM until confirmed exit
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:59.6422895Z Error: Test timed out in 5000ms.
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:59.6425972Z  ❯ src/daemon/sessionLiveness.test.ts:8:5
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:59.6433224Z       Tests  1 failed | 2162 passed (2163)
+Contract suite	UNKNOWN STEP	2026-10-03T15:52:59.7706915Z ##[error]Error: Test timed out in 5000ms.
+Contract suite	UNKNOWN STEP	 ❯ src/daemon/sessionLiveness.test.ts:8:5

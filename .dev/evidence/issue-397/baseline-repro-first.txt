@@ -1,0 +1,9 @@
+{"id":30,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":26,"event":"message","backendPid":"<task-owned PID>"},{"ms":26,"event":"SIGTERM"},{"ms":28,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":54,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":29,"event":"message","backendPid":"<task-owned PID>"},{"ms":29,"event":"SIGTERM"},{"ms":31,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":119,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":27,"event":"message","backendPid":"<task-owned PID>"},{"ms":27,"event":"SIGTERM"},{"ms":28,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":121,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":26,"event":"message","backendPid":"<task-owned PID>"},{"ms":26,"event":"SIGTERM"},{"ms":28,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":124,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":26,"event":"message","backendPid":"<task-owned PID>"},{"ms":26,"event":"SIGTERM"},{"ms":28,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":144,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":27,"event":"message","backendPid":"<task-owned PID>"},{"ms":27,"event":"SIGTERM"},{"ms":28,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":146,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":25,"event":"message","backendPid":"<task-owned PID>"},{"ms":25,"event":"SIGTERM"},{"ms":26,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"id":300,"result":"timeout","phase":"SIGTERM acknowledgement","events":[{"ms":24,"event":"message","backendPid":"<task-owned PID>"},{"ms":24,"event":"SIGTERM"},{"ms":25,"event":"exit","code":null,"signal":"SIGTERM"}]}
+{"attempted":301,"failed":true,"node":"v20.20.2","parallel":8}
