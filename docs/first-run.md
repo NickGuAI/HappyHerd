@@ -13,6 +13,12 @@ claim that every platform has completed onboarding acceptance: see the
 No native graphical Mac, iOS, Android, or Windows installer is distributed in
 that release. A mobile browser uses the Web client, not a native app.
 
+<!-- rename:preserve -->
+The 1.2.4 Web header still says **Happy**. Check the selected server and the
+HappyHerd release asset you installed; the branding alone does not identify
+the distribution.
+<!-- /rename:preserve -->
+
 ## 1. Choose where your server runs
 
 The **server** synchronizes your account and conversations. A **machine** runs

@@ -22,12 +22,12 @@ the installed artifact. The live installer and archive are separate revisions.
 
 | Target | Public artifact | Availability | Clean install → first Codex result → reopen |
 | --- | --- | --- | --- |
-| macOS arm64 terminal/server | `happyherd-darwin-arm64.tar.gz` | Pass: release API lists uploaded asset | Unproved: isolated installation and account journey pending |
+| macOS arm64 terminal/server | `happyherd-darwin-arm64.tar.gz` | Pass: release API lists uploaded asset | Pass: isolated public-artifact install; **unproved** account/task/reopen |
 | macOS x64 terminal/server | `happyherd-darwin-x64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no x64 target journey |
 | Linux arm64 terminal/server | `happyherd-linux-arm64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no Linux arm64 target journey |
 | Linux x64 terminal/server | `happyherd-linux-x64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no Linux x64 target journey |
-| Web Desktop | Web bundle in the selected server archive | Pass: release identifies bundled Web | Unproved: real 1440 × 900 clean-account journey pending |
-| Web Mobile | Same Web host, mobile browser | Pass: bundled Web surface; reachability depends on server URL | Unproved: real 390 × 844 journey pending; desktop cannot establish mobile proof |
+| Web Desktop | Web bundle in the selected server archive | Pass: release identifies bundled Web | Pass: signed-out entry at 1440 × 900; **unproved** authenticated task/reopen |
+| Web Mobile | Same Web host, mobile browser | Pass: bundled Web surface; reachability depends on server URL | Pass: signed-out entry/server icon at 390 × 844; **unproved** authenticated task/reopen |
 | Native macOS GUI / iOS / Android / Windows | None in this release | Not advertised as a downloadable native app by this guide | Excluded from this release's journey; source/build instructions are not an artifact |
 
 Listing an uploaded asset is not download, installation, or provider execution
@@ -110,6 +110,69 @@ only documentation and its navigation. No tolerance, assertion, or skip changed.
 These are automated regression-test artifacts only, not product media or a
 clean-account journey. Final-head CI must compare the accepted baselines again.
 
+## Actual public-artifact preflight, October 8
+
+The macOS arm64 archive was downloaded from the release URL, not built from
+this branch. Its SHA-256 is
+`18f623f2bd913574026685eca8eac62f2e25929ee341c3c5a59ee45982cfa5c5`.
+The public `main/install.sh` SHA-256 is
+`a76df6f3cde071e3a3ee6fd54f79981c1990da22c9e16029544cadb935837b41`,
+byte-identical to the reviewed installer. The archive contains 84,776 members
+and 1,422,600,861 regular-file bytes. Paths and links were checked before
+unpacking. An independent Codex reviewer inspected the actual launcher,
+configuration, provider discovery/Assistant fallback, Commander creation, and
+self-host payload before any product binary executed.
+
+The installation used the verified downloaded archive through the supported
+`--asset FILE --server http://127.0.0.1:3378 --no-start` options. This proves
+that prepared public artifact, **not** a literal execution of the default README
+pipe with no options. Only the install subprocess used a fresh disposable user
+home. The resulting wrapper embeds its own absolute Node and CLI paths; its
+first version read reported `happyherd version: 1.2.3`. No account credential,
+server PID file, or daemon state was created by installation.
+
+Runtime invocations retained the ordinary native user home while setting both
+legacy/current HappyHerd state and URL variables to the task-owned home and
+loopback origin. Provider discovery used the existing real Codex binary
+directory plus system tools and the wrapper's own Node directory. Inherited
+session, managed-auth, experimental, and boot-agent markers were removed.
+No provider home was overridden and no credentials were read, copied, or linked.
+A new minimal task Commander was created through `commander create --manifest`
+and its task workspace read back through `commander list`. These are disclosed
+QA prerequisites, not a test of an unrestricted multi-provider installation or
+a requirement imposed on readers of the guide.
+
+| Actual gesture or command | Visible/read-back result | Scope |
+| --- | --- | --- |
+| Prepared-asset installer with the above options | Exit 0; installed CLI 1.2.3 | macOS arm64 installation only |
+| Installed `server --host 127.0.0.1 --port 3378 --no-persist` | `/health` HTTP 200; bundled Web HTTP 200 | Isolated unauthenticated server |
+| Fresh browser profile → local Web root, 1440 × 900 | Create account and Restore with Secret Key visible | Web Desktop signed-out entry |
+| Same fresh profile resized to 390 × 844 | Both welcome actions visible | Web Mobile viewport, not a physical phone |
+| Click visible mobile header server icon | Server Configuration opens at `/server` | Real production-host gesture; no setting changed |
+| Close browser and stop recorded owned server process group | Loopback port closed; account credential and daemon state still absent | Task services stopped, disposable state retained |
+
+Browser evidence used existing Python Playwright 1.58.0 and installed Chrome
+154.0.8037.98, UTC. Two signed-out private verification captures were inspected;
+they are not committed or embedded as product media. The actual Web header
+retains the older branding described in the guide. The release's Commander
+command has no newer `guide` action: the installer's call prints usage and
+returns, so installation does not prove shared-guide seeding.
+
+The first preparation helper failed before extraction because the existing
+Python `tarfile.extractall` lacks the requested `filter` argument. That helper
+failure was preserved separately; the already validated archive was extracted
+with the existing system tar. It is not an installer failure or a repaired
+product defect. The first product installation, server, and signed-out browser
+attempts passed. No account, backup-key action, terminal approval, daemon, or
+model turn was executed in this preflight.
+
+The four [latest-stable CI install jobs](https://github.com/NickGuAI/HappyHerd/actions/runs/37832240430)
+on `26bf8a9c72e7cbb47cbf22938f3ad12d808683ee` passed separately. They exercise
+the reviewed installer with public assets, version/server selection and
+synthetic retained-state upgrade/uninstall checks. They do not execute a real
+account/provider task. That head’s production build also passed its golden
+comparison; later heads require their own complete CI evidence.
+
 ## Human journey and failure matrix
 
 The intended production journey is README → first-run guide → selected server
@@ -119,9 +182,9 @@ file summary → close/reopen → second reply in the same conversation.
 
 | Case | Entry / gesture / expected visible outcome | Live status |
 | --- | --- | --- |
-| New account, no machine | Welcome → Create account → Backup → signed-in empty session list | Unproved: new-account grant pending |
+| New account, no machine | Welcome → Create account → Backup → signed-in empty session list | Unproved: welcome entry observed; new-account grant pending |
 | Restore and retain account | Restore with Secret Key → Restore Account → same account history | Unproved: no secret exposed or copied into evidence |
-| Terminal authorization | CLI Web Browser → Accept Connection → authenticated terminal, then daemon online | Unproved: terminal grant pending |
+| Terminal authorization | CLI Web Browser → Accept Connection → authenticated terminal, then daemon online | Unproved: actual artifact/preflight cleared; terminal grant pending |
 | Provider unavailable | New-session provider choice with no configured provider → setup guidance or absence; install/login before retry | Unproved: preauthenticated native Codex status does not exercise empty-provider UI |
 | First useful task | Select actual machine + task folder + Codex → summarize `notes.txt` → verify three tasks and deadline | Unproved: no real provider reply yet |
 | Reopen and continuation | Reopen same profile/account/conversation → ask about deadline → second reply | Unproved |
@@ -129,7 +192,7 @@ file summary → close/reopen → second reply in the same conversation.
 | Wrong server / account | Compare Web/install server choice and approving browser account → restore correct account on its server | Unproved; no production account mutation authorized |
 | Cancelled / stale terminal grant | Reject/cancel → fresh CLI request URL → approve → success | Unproved |
 | Cancelled / expired device selection | On supporting version, cancel or expire existing-device code → fresh code → same device | Unproved; separate from first-terminal authentication |
-| Offline daemon / retry | Stop only isolated daemon → machine offline → start it → same machine usable | Unproved; isolated runtime scope pending |
+| Offline daemon / retry | Stop only isolated daemon → machine offline → start it → same machine usable | Unproved; only the unauthenticated server was started/stopped |
 
 No fixture result is counted as an actual provider journey. Preserve the first
 failure's exact artifact, command or gesture, visible outcome, and owner when
