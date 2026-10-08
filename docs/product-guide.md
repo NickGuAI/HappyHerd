@@ -2,7 +2,7 @@
 
 <!-- rename:preserve -->
 HappyHerd is a maintained distribution of [Happy](https://github.com/slopus/happy).
-Start at the [quickstart](../README.md#get-started) and use
+Start at the [quickstart](first-run.md) and use
 [HappyHerd's release page](https://github.com/NickGuAI/HappyHerd/releases) for
 its downloads. Happy's app-store listings and hosted services belong to upstream.
 <!-- /rename:preserve -->

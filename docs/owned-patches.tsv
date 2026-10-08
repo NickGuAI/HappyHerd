@@ -767,3 +767,6 @@ PRODUCT_PAGES_382	accepted	docs(product): distinguish HappyHerd releases from up
 CLI_GUIDE_LINKS_382	accepted	docs(cli): repair repository guide links	server/packages/happyherd-cli/README.md
 PRODUCT_ATTRIBUTION_382	accepted	docs(product): preserve upstream attribution in launch guide	docs/product-guide.md
 PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for product guidance	docs/acceptance/issue-382/README.md
+FIRST_RUN_GUIDE_378	accepted	docs(onboarding): guide the first Codex task and continuation	docs/acceptance/issue-378/README.md
+FIRST_RUN_EVIDENCE_378	accepted	docs(onboarding): finalize interactive setup and reviewed baselines	docs/acceptance/issue-378/README.md
+FIRST_RUN_PREFLIGHT_378	accepted	docs(onboarding): record isolated public-artifact preflight	docs/acceptance/issue-378/README.md

@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 8 — Follow one first-run guide",
+      "summary": "",
+      "markdown": "- The README now links a step-by-step guide from server choice and account backup to terminal authorization, a first Codex task, and reopening the same conversation, with recovery steps and separate public-release verification status."
+    },
+    {
       "title": "October 7 — Choose a provider for delegated side chats",
       "summary": "",
       "markdown": "- The terminal side-chat create command accepts `--provider` to start a child with another provider available on the parent’s machine. Cross-provider children use their own model and permission settings and receive the delegation brief with bounded recent parent context. Omitting the option keeps same-provider creation and native Claude/Codex forks."
@@ -956,5 +961,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 7 — Choose a provider for delegated side chats"
+  "latestTitle": "October 8 — Follow one first-run guide"
 }
