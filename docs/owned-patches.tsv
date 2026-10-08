@@ -767,3 +767,4 @@ PRODUCT_PAGES_382	accepted	docs(product): distinguish HappyHerd releases from up
 CLI_GUIDE_LINKS_382	accepted	docs(cli): repair repository guide links	server/packages/happyherd-cli/README.md
 PRODUCT_ATTRIBUTION_382	accepted	docs(product): preserve upstream attribution in launch guide	docs/product-guide.md
 PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for product guidance	docs/acceptance/issue-382/README.md
+ISSUE_410_JOURNEY_PHASES	accepted	test(app): trace signed-out journey timeout phases	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
