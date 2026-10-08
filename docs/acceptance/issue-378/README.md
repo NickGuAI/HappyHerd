@@ -35,11 +35,13 @@ proof. No physical-device or remote-server deployment result is claimed.
 
 ## Source and command audit
 
+<!-- rename:preserve -->
 The maintained guide uses the public release's **Web Browser** terminal
 authorization route. It does not require the newer Web first-machine checklist,
 manual URI scheme, a device-selection code, or account-wide machine-control
 linking. The production owners below were inspected at the baseline, with the
 corresponding `happy-cli` / `happy-app` paths also inspected at the release tag.
+<!-- /rename:preserve -->
 
 | Contract | Production owner | Result |
 | --- | --- | --- |
@@ -55,6 +57,58 @@ corresponding `happy-cli` / `happy-app` paths also inspected at the release tag.
 Official Codex setup/authentication links were fetched separately; provider
 setup remains distinct from HappyHerd account authentication. Source inspection
 and help do not constitute live onboarding.
+
+## Documentation checks
+
+- `node scripts/lint-source.mjs` and `git diff --check`: passed.
+- Relative file links in README and the five linked guide/acceptance documents:
+  45 checked, none broken.
+- Signed-out HTTP reads of the repository, release, and installer: 200. The
+  rendered branch README contains the quickstart label and both guide/matrix
+  links. Official provider documentation links resolve directly to 200.
+- Existing changelog parser executed with the pinned Bun runtime: 192 entries,
+  newest title **October 8 — Follow one first-run guide**. Generated JSON was
+  reviewed; no parser changes.
+- Public-boundary self-test, committed public-boundary verification, and owned
+  patch discipline: passed on the initial documentation commit.
+- Independent Codex exact-head review of
+  `ffe6bb8f2a39cc884195e6d767bafdffad2c3060` identified the interactive
+  installer's authentication pause and outstanding changelog goldens. The
+  guide now explains completing account/provider setup while that original
+  prompt waits. Final-head review and CI remain required after all changes.
+
+The first [Contract suite](https://github.com/NickGuAI/HappyHerd/actions/runs/37831356089/job/113497438369)
+on `ffe6bb8f2a39cc884195e6d767bafdffad2c3060` failed the rename check because
+the historical release package names in this source-audit passage lacked its
+preservation annotation. The exact passage is now marked using the existing
+rename-preservation mechanism; no verifier or exemption list was changed.
+
+## Changelog regression baselines
+
+The first [Production build](https://github.com/NickGuAI/HappyHerd/actions/runs/37831356078/job/113497333514)
+on `ffe6bb8f2a39cc884195e6d767bafdffad2c3060` failed strict comparison for
+4 of 28 variants. Artifact `kilv-golden-37831356078` (ID `11574187300`,
+Playwright 1.62.1) contains expected, actual, diff, and the comparison summary.
+All other 24 variants had zero differing pixels; no dimensions changed.
+
+Each of the four expected/actual/diff sets was visually reviewed. The October 8
+entry appears first and shifts older entries down. Desktop geometry, mobile
+header/back navigation, theme, typography, and readable wrapping are preserved.
+Only the four generated actual PNGs were copied to their existing baselines,
+using the same copy operation as the supported regeneration workflow. The
+expected PNGs matched the committed baselines byte for byte. Changelog Markdown
+and JSON remain byte-identical to the capture source; intervening edits affect
+only documentation and its navigation. No tolerance, assertion, or skip changed.
+
+| Baseline | Initial differing pixels | Accepted PNG SHA-256 |
+| --- | ---: | --- |
+| `production-changelog-latest-entries-light-1440.png` | 91451 | `d871ff573544db3d1f5ca3bede5a4e8ce8e8b1d016a9ecf299f84e31ec05375b` |
+| `production-changelog-latest-entries-light-390.png` | 48562 | `ff41a62b302442a88d9b0941b1bd39e2a99a2c398beaf3096004474f56f8a925` |
+| `production-changelog-latest-entries-dark-1440.png` | 94376 | `79ea59f890ce1062d8a907998e3a6390ef0e25ee4bd1b3df6e7bb1ba00a796c2` |
+| `production-changelog-latest-entries-dark-390.png` | 51550 | `8c5ae9afd0fec451d7f70ca67f376633cc19b6fc8c160897735822f6c26ea00c` |
+
+These are automated regression-test artifacts only, not product media or a
+clean-account journey. Final-head CI must compare the accepted baselines again.
 
 ## Human journey and failure matrix
 
