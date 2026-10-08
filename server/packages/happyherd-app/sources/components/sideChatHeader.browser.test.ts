@@ -1484,6 +1484,25 @@ describe('Side chats browser interaction', () => {
     let origin: string;
 
     beforeAll(async () => {
+        const setupStartedAt = performance.now();
+        const setupStage = async <T,>(stage: string, operation: () => Promise<T>): Promise<T> => {
+            const startedAt = performance.now();
+            const receipt = (status: string, error?: unknown) => console.info('[browser fixture setup]', {
+                fixture: 'sideChatHeader', stage, status,
+                elapsedMs: Math.round(performance.now() - startedAt),
+                setupElapsedMs: Math.round(performance.now() - setupStartedAt),
+                ...(error === undefined ? {} : { error: error instanceof Error ? error.message : String(error) }),
+            });
+            receipt('started');
+            try {
+                const result = await operation();
+                receipt('completed');
+                return result;
+            } catch (error) {
+                receipt('failed', error);
+                throw error;
+            }
+        };
         const buildOptions: BuildOptions = {
             bundle: true,
             write: false,
@@ -1502,19 +1521,19 @@ describe('Side chats browser interaction', () => {
         // Leave the shared journey bundle unchanged. Launch-context and transport
         // recovery need only the foreground host and a smaller script to parse on load.
         const bundles = await Promise.all([
-            build({
+            setupStage('esbuild-side-chat', () => build({
                 ...buildOptions,
                 entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
                 outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
-            }),
-            build({
+            })),
+            setupStage('esbuild-commander-context', () => build({
                 ...buildOptions,
                 entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
                 outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
                 minify: true,
                 keepNames: true,
                 plugins: [commanderDiagramPlugin, fixturePlugin],
-            }),
+            })),
         ]);
         // Keep debug maps available without transferring/parsing them as part
         // of every document. Reuse response bytes across the isolated pages.
@@ -1560,25 +1579,25 @@ describe('Side chats browser interaction', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end(['/commander-context', '/transport-recovery'].includes(_request.url?.split('?')[0] ?? '') ? commanderHtml : html);
         });
-        await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
+        await setupStage('http-listen', () => new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady)));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
         try {
-            browser = await chromium.launch({
+            browser = await setupStage('chromium-launch', () => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            });
+            }));
             // Start Chromium's first renderer inside the existing setup budget.
             // This blank page performs no product journey or recovery behavior.
             const warmupStartedAt = performance.now();
-            const warmup = await browser.newPage();
+            const warmup = await setupStage('warmup-new-page', () => browser.newPage());
             try {
-                await warmup.goto('about:blank');
+                await setupStage('warmup-goto', () => warmup.goto('about:blank'));
             } finally {
-                await warmup.close();
+                await setupStage('warmup-close', () => warmup.close());
             }
             console.info('[browser fixture timing]', { stage: 'blank-page-warmup', elapsedMs: Math.round(performance.now() - warmupStartedAt) });
         } catch (error) {
