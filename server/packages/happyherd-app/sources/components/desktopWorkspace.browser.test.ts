@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -6,6 +6,19 @@ import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import { transformSync } from '@babel/core';
+
+// Playwright snapshots DEBUG when its bundled debug module initializes. Vitest
+// hoists this before imports in this isolated fixture worker; a launch env option
+// would only affect Chromium, too late to trace the parent process's startup.
+const restoreFixtureDebugEnvironment = vi.hoisted(() => {
+    const previousDebug = process.env.DEBUG;
+    process.env.DEBUG = 'pw:browser';
+    return () => {
+        if (previousDebug === undefined) delete process.env.DEBUG;
+        else process.env.DEBUG = previousDebug;
+    };
+});
+restoreFixtureDebugEnvironment();
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');

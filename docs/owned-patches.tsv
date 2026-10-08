@@ -802,3 +802,4 @@ ISSUE_410_JOURNEY_PHASES	accepted	test(app): trace signed-out journey timeout ph
 ISSUE_410_FAILURE_STATE	accepted	test(app): capture signed-out failure lifecycle state	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
 ISSUE_410_AUTH_OBSERVER	accepted	test(app): observe signed-out auth request lifecycle	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
 BROWSER_SETUP_STAGE_EVIDENCE_411	accepted	test(app): trace browser fixture setup stages	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
+BROWSER_LAUNCH_TRACE_411	accepted	test(app): trace disposable browser process startup	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
