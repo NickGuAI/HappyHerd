@@ -1,0 +1,63 @@
+packages/expo-tailcat                    |  WARN  Unsupported engine: wanted: {"node":">=22"} (current: {"node":"v20.20.2","pnpm":"10.11.0"})
+
+ RUN  v3.2.4 <worktree>/server/packages/happyherd-cli
+
+Build stderr (could be debugger output): Warning (package.json#bin.happyherd): Ignoring file outside of dist directories
+Warning (package.json#bin["happyherd-mcp"]): Ignoring file outside of dist directories
+Warning (package.json#bin["happyherd-agent-mcp"]): Ignoring file outside of dist directories
+Warning (package.json#bin["happyherd-agent-codex-policy"]): Ignoring file outside of dist directories
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyherdMcpStdioBridge".
+Generated an empty chunk: "codex/agentMcpStdioBridge".
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyherdMcpStdioBridge".
+Generated an empty chunk: "codex/agentMcpStdioBridge".
+
+Build stdout:
+> @happyherd/cli@1.2.5 build <worktree>/server/packages/happyherd-cli
+> shx rm -rf dist && tsc --noEmit && pkgroll
+
+
+ ❯ |unit| src/daemon/sessionLiveness.test.ts (14 tests | 1 failed) 251ms
+   × session liveness (PR #1715) > keeps a real owner and backend live after SIGTERM until confirmed exit 71ms
+     → stopping: owner ended before acknowledgement; 0ms await ready -> 29ms message {"backendStarted":true,"backendPid":"<task-owned PID>"} -> 54ms message {"ready":true,"backendPid":"<task-owned PID>"} -> 55ms await stopping -> 56ms disconnect
+   ✓ session liveness (PR #1715) > cleans up owner and backend on IPC loss at backendStarted 32ms
+   ✓ session liveness (PR #1715) > cleans up owner and backend on IPC loss at ready 59ms
+   ✓ session liveness (PR #1715) > rejects a missing acknowledgement even when the owner has already exited 58ms
+   ✓ session liveness (PR #1715) > cleans up when disconnected before any readiness message 30ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID undefined 1ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID 0 0ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID -1 0ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID 1.5 0ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID NaN 0ms
+   ✓ session liveness (PR #1715) > does not probe invalid PID Infinity 0ms
+   ✓ session liveness (PR #1715) > only treats ESRCH as proof of death 0ms
+   ✓ session liveness (PR #1715) > subtracts uptime from now 0ms
+   ✓ session liveness (PR #1715) > rejects a live same-boot persisted PID without granting ownership or signalling it 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| src/daemon/sessionLiveness.test.ts > session liveness (PR #1715) > keeps a real owner and backend live after SIGTERM until confirmed exit
+Error: stopping: owner ended before acknowledgement; 0ms await ready -> 29ms message {"backendStarted":true,"backendPid":"<task-owned PID>"} -> 54ms message {"ready":true,"backendPid":"<task-owned PID>"} -> 55ms await stopping -> 56ms disconnect
+ ❯ diagnostic src/daemon/sessionLiveness.test.ts:41:52
+     39|                 if (error) reject(error); else resolve();
+     40|             };
+     41|             const diagnostic = (reason: string) => new Error(`${phase}…
+       |                                                    ^
+     42|             const check = () => {
+     43|                 if (done()) finish();
+ ❯ check src/daemon/sessionLiveness.test.ts:45:88
+ ❯ record src/daemon/sessionLiveness.test.ts:21:39
+ ❯ ChildProcess.<anonymous> src/daemon/sessionLiveness.test.ts:31:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  20:12:09
+   Duration  13.91s (transform 39ms, setup 22ms, collect 13ms, tests 251ms, environment 0ms, prepare 35ms)
+
+undefined
+<worktree>/server/packages/happyherd-cli:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --project unit src/daemon/sessionLiveness.test.ts
