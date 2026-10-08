@@ -11,6 +11,16 @@ import de from '@/text/locales/de.json';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const catalogs = { en, cn, de };
+// Keep the last awaited operation visible when Vitest's whole-case deadline
+// expires before Playwright reports an operation-specific error. Labels contain
+// fixture phases only; never log account inputs or authentication responses.
+function traceJourney(journey: string) {
+    const started = performance.now();
+    return (phase: string) => console.info('[signed-out-phase]', JSON.stringify({
+        journey, phase, elapsedMs: Math.round(performance.now() - started),
+    }));
+}
+
 const virtualModules: Record<string, string> = {
     'react-native': `export * from 'react-native-web';`,
     'react-native-unistyles': `
@@ -105,6 +115,8 @@ describe('KILV signed-out routes browser journeys', () => {
     let origin: string;
 
     beforeAll(async () => {
+        const phase = traceJourney('setup');
+        phase('bundle');
         const bundle = await build({
             stdin: {
                 contents: `
@@ -135,35 +147,49 @@ describe('KILV signed-out routes browser journeys', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end(`<meta name="viewport" content="width=device-width, initial-scale=1"><style>${fontCss}html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column}</style><main id="root"></main><script>globalThis.__LANDING_THEME__=${JSON.stringify(theme)};globalThis.__LANDING_LOCALE__=${JSON.stringify(locale)};globalThis.global=globalThis;${script}</script>`);
         });
+        phase('server-listen');
         await new Promise<void>(ready => server.listen(0, '127.0.0.1', ready));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('landing fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+        phase('browser-launch');
         browser = await chromium.launch({ ...(executablePath ? { executablePath } : { channel: 'chrome' }), headless: true, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+        phase('complete');
     }, 30_000);
 
     afterAll(async () => {
+        const phase = traceJourney('teardown');
+        phase('browser-close');
         await browser?.close();
+        phase('server-close');
         if (server) await new Promise<void>(closed => server.close(() => closed()));
+        phase('complete');
     });
 
     const matrix = (['light', 'dark'] as const).flatMap(theme => (['en', 'cn', 'de'] as const).flatMap(locale => ([{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 360, height: 800 }]).map(viewport => ({ theme, locale, viewport }))));
     it.each(matrix)('preserves account entries, input state and readable geometry: $theme/$locale/$viewport.width', async ({ theme, locale, viewport }) => {
+        const phase = traceJourney(`${theme}/${locale}/${viewport.width}`);
         const labels = catalogs[locale];
+        phase('page-create');
         const page = await browser.newPage({ viewport });
         const errors: string[] = [];
         page.on('pageerror', error => { errors.push(error.message); console.error('Signed-out fixture page error:', error.message); });
+        phase('welcome-navigation');
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
+        phase('welcome-title');
         await page.getByText(labels.welcome.title, { exact: true }).waitFor();
+        phase('welcome-fonts');
         await page.evaluate(() => document.fonts.ready);
         const create = page.getByRole('button', { name: labels.welcome.createAccount, exact: true });
         const accountKey = page.getByRole('button', { name: labels.navigation.restoreWithSecretKey, exact: true });
         const linkedDevice = page.getByRole('button', { name: labels.welcome.loginWithMobileApp, exact: true });
-        for (const button of [create, accountKey, linkedDevice]) {
+        for (const [entry, button] of [['create', create], ['account-key', accountKey], ['linked-device', linkedDevice]] as const) {
+            phase(`geometry-${entry}-button`);
             const bounds = await button.boundingBox();
             expect(bounds?.height).toBeGreaterThanOrEqual(44);
             expect(bounds?.width).toBeGreaterThan(200);
+            phase(`geometry-${entry}-text`);
             const textBounds = await button.locator('[dir="auto"]').last().evaluate(element => ({
                 scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
                 scrollHeight: element.scrollHeight, clientHeight: element.clientHeight,
@@ -171,37 +197,62 @@ describe('KILV signed-out routes browser journeys', () => {
             expect(textBounds.scrollWidth).toBeLessThanOrEqual(textBounds.clientWidth + 1);
             expect(textBounds.scrollHeight).toBeLessThanOrEqual(textBounds.clientHeight + 1);
         }
+        phase('geometry-page');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const screenshotDir = process.env.HAPPYHERD_KILV_SCREENSHOTS;
         if (screenshotDir) {
             mkdirSync(screenshotDir, { recursive: true });
+            phase('welcome-screenshot');
             await page.screenshot({ path: resolve(screenshotDir, `landing-${theme}-${locale}-${viewport.width}.png`), fullPage: true });
         }
+        phase('account-key-click');
         await accountKey.click();
         const input = page.getByRole('textbox');
+        phase('account-key-input');
         await input.waitFor();
+        phase('account-key-fill');
         await input.fill('draft account key');
+        phase('account-key-focus');
         await input.focus();
+        phase('account-key-font-size');
         expect(await input.evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+        phase('account-key-resize');
         await page.setViewportSize({ width: viewport.width === 1440 ? 390 : 800, height: viewport.height });
+        phase('account-key-retained-input');
         expect(await input.inputValue()).toBe('draft account key');
+        phase('welcome-back');
         await page.goBack();
+        phase('welcome-resize');
         await page.setViewportSize(viewport);
+        phase('linked-device-click');
         await linkedDevice.click();
+        phase('linked-device-instructions');
         await page.getByText(labels.uiCopy.step1OpenHappyHerdOnYourMobileDevice, { exact: false }).waitFor();
+        phase('linked-device-manual-click');
         await page.getByRole('button', { name: labels.uiCopy.restoreWithSecretKeyInstead, exact: true }).click();
+        phase('linked-device-manual-input');
         await page.getByRole('textbox').waitFor();
+        phase('create-navigation');
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
         let pending: Route | undefined;
+        phase('create-interception');
         await page.route('**/v1/auth', route => { pending = route; });
+        phase('create-click');
         await create.click();
+        phase('create-request');
         await expect.poll(() => pending !== undefined).toBe(true);
+        phase('create-disabled');
         expect(await create.getAttribute('aria-disabled')).toBe('true');
+        phase('create-response');
         await pending!.fulfill({ json: { token: 'fixture-token' } });
+        phase('create-completion');
         await page.waitForFunction(() => (window as any).__ACCOUNT_CREATED__ === true);
+        phase('create-login-method');
         expect(await page.evaluate(() => (window as any).__LOGIN_METHOD__)).toBe('new-account');
         expect(errors).toEqual([]);
+        phase('page-close');
         await page.close();
+        phase('complete');
     }, 20_000);
 
     const recoveryMatrix = (['en', 'cn', 'de'] as const).flatMap(locale => [
