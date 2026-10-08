@@ -154,6 +154,8 @@ export default {
             favicon: "./sources/assets/images/favicon.png"
         },
         plugins: [
+            require("./plugins/withIosSceneLifecycle.js"),
+            require("./plugins/withIosBuildCompatibility.js"),
             require("./plugins/withEinkCompatibility.js"),
             [
                 "expo-router",
