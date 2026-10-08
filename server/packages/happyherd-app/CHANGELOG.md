@@ -1,3 +1,7 @@
+# October 7 — Choose a provider for delegated side chats
+
+- The terminal side-chat create command accepts `--provider` to start a child with another provider available on the parent’s machine. Cross-provider children use their own model and permission settings and receive the delegation brief with bounded recent parent context. Omitting the option keeps same-provider creation and native Claude/Codex forks.
+
 # October 7 — Clearer product and download guidance
 
 - The repository guides now distinguish HappyHerd from upstream Happy, explain the public CLI/server/Web downloads, and separate newer source features and native build instructions from released apps.

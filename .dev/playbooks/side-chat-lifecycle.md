@@ -26,14 +26,17 @@ happyherd session side-chat create <parent-session-id> \
   --write-ownership '<exact files, paths, or resources the child may change>' \
   --verification '<required automated and manual proof>' \
   --handoff '<result, evidence, blockers, and remaining work to return>' \
+  --provider '<child provider>' \
   --model '<provider model>' \
   --effort '<provider effort>' \
   --permission '<provider permission mode>' \
   --json
 ```
 
-The daemon creates a same-provider child on the same machine and path. Claude
-and Codex retain their provider-native forks. Gemini, Grok, DSH, and Agy start
+The daemon creates a child on the same machine and path. Optional `--provider`
+selects any provider advertised as available by that machine. Omitting it keeps
+the parent provider. Same-provider Claude and Codex retain their provider-native
+forks. Cross-provider children and same-provider Gemini, Grok, DSH, and Agy start
 a fresh provider process and receive only the latest four visible parent
 messages, capped at 6,000 characters, in the existing encrypted queued brief.
 Tools, thinking, attachments, malformed records, and previous continuation
@@ -47,16 +50,19 @@ manage its own side-chat lifecycle, and does not create another side chat
 unless the Human or Main Agent explicitly requests it. Provider-native
 subagents remain the default bounded fan-out inside the child.
 
-`--model`, `--effort`, and `--permission` are optional. When any is present, the owning
-daemon validates the selection against the parent provider's current machine
-catalog before it forks or starts the child. Invalid or unavailable selections
-fail without spawning. A successful create means the normal machine-session
+`--provider`, `--model`, `--effort`, and `--permission` are optional. When any is
+present, the owning daemon validates the selection against the child provider's
+current machine catalog before it forks or starts the child. Invalid or
+unavailable selections fail without spawning. A successful create means the normal machine-session
 launch contract read back the exact effective settings. The create receipt's
 `settings` object contains the confirmed provider, model, effort, and permission;
 terminal output also displays this Settings JSON. For example, Claude accepts
 `--permission bypassPermissions` and Codex accepts `--permission yolo` only when
-the owning machine advertises those modes. Omitting all three options
-keeps the existing side-chat defaults. Human one-click creation still sends
+the owning machine advertises those modes. For cross-provider creation, omitted
+permission uses the child provider default; it never inherits the parent
+provider mode. Same-provider creation retains its
+existing permission inheritance and defaults. Omitting all four options keeps
+the existing side-chat behavior. Human one-click creation still sends
 only the parent session ID.
 
 Use the same command surface for lifecycle operations:

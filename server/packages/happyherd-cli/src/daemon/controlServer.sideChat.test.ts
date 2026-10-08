@@ -50,6 +50,8 @@ describe('side-chat daemon control server aliases', () => {
 
   it.each([
     { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    { provider: 'claude' },
+    { provider: 'codex', model: 'gpt-5.6-sol', effort: 'medium', permission: 'yolo' },
     { permission: 'bypassPermissions' },
     { model: 'gpt-5.6-sol', effort: 'xhigh', permission: 'yolo' },
   ])('accepts explicit launch settings %j in a create request', async (launch) => {
