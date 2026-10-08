@@ -3,7 +3,7 @@
 This guide describes current HappyHerd source. Projects and Assistant behavior
 exists in released versions, but later setup and reconnection changes are not
 necessarily in the [1.2.4 release](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4).
-Start with the [quickstart](../README.md#get-started); see the
+Start with the [quickstart](first-run.md); see the
 [product guide](product-guide.md) for release and native-client availability.
 The remote account-linking flow below requires a suitable native client; it is
 not a verified first-run path for the public CLI/server/Web archive alone.

@@ -1,3 +1,7 @@
+# October 8 — Follow one first-run guide
+
+- The README now links a step-by-step guide from server choice and account backup to terminal authorization, a first Codex task, and reopening the same conversation, with recovery steps and separate public-release verification status.
+
 # October 7 — Choose a provider for delegated side chats
 
 - The terminal side-chat create command accepts `--provider` to start a child with another provider available on the parent’s machine. Cross-provider children use their own model and permission settings and receive the delegation brief with bounded recent parent context. Omitting the option keeps same-provider creation and native Claude/Codex forks.

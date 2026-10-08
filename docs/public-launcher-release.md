@@ -1,6 +1,6 @@
 # Native installer and release assets
 
-For the user entry point, see the [quickstart](../README.md#get-started) and
+For the user entry point, see the [quickstart](first-run.md) and
 [product guide](product-guide.md). As checked October 7, 2026, the latest stable
 release is [1.2.4](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4),
 with four macOS/Linux arm64/x64 CLI/server/Web archives and bundled CLI 1.2.3.

@@ -11,7 +11,7 @@ Use it to check an agent's progress away from your terminal, keep project work
 together, or delegate a separate conversation while retaining the main chat.
 The agents run on your connected machines; the server synchronizes the clients.
 
-[Get started](#get-started) · [Downloads](https://github.com/NickGuAI/HappyHerd/releases)
+[First-run quickstart](docs/first-run.md) · [Downloads](https://github.com/NickGuAI/HappyHerd/releases)
 · [Documentation](docs/product-guide.md) · [Report an issue](https://github.com/NickGuAI/HappyHerd/issues)
 
 <!-- rename:preserve -->
@@ -52,6 +52,11 @@ for the release/source boundary and launch work still in progress.
 
 ## Get started
 
+Follow the [first-run quickstart](docs/first-run.md) from server choice through
+account backup, terminal authorization, a first Codex result, and reopening the
+same conversation. Its [acceptance matrix](docs/acceptance/issue-378/README.md)
+separates verified evidence from pending platform and release journeys.
+
 On a supported macOS or Linux machine, install as your normal user:
 
 ```sh
@@ -83,8 +88,8 @@ happyherd codex
 See the [installer guide](docs/public-launcher-release.md) for server selection,
 upgrades, version selection, and removal. The live installer script and the
 stable archive have separate revisions: installing the latest archive does not
-install all features from `main`. End-to-end onboarding improvements remain
-tracked in [#378](https://github.com/NickGuAI/HappyHerd/issues/378).
+install all features from `main`. Follow the [complete first-run guide](docs/first-run.md) for the remaining
+account, provider, and conversation steps.
 
 ## Guides and development
 
