@@ -48,9 +48,15 @@ curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh 
   sh -s -- --server https://happy.example.com
 ```
 
-**Expected:** the installer identifies the installed files and server, and
-prints any remaining authentication command. Open a new terminal if
-`happyherd` is not yet on your `PATH`. Check the installed CLI:
+**Expected:** the program files and selected server are prepared. An interactive
+installer can now pause at the authentication-method selector and wait for
+approval. Leave that terminal waiting: complete steps 3–4 in the browser and
+a second terminal, then return to the original prompt in step 5. It starts the
+daemon after authorization succeeds. A noninteractive install instead prints
+the remaining authentication command.
+
+Open a new terminal if `happyherd` is not yet on your `PATH`. In that terminal,
+check the installed CLI:
 
 ```sh
 happyherd --version
@@ -117,12 +123,21 @@ The public release and current source differ; use the selected release notes
 and the actual machine's provider choices, rather than assuming every provider
 in current source is installed. This guide's task and acceptance use Codex.
 
-**Next:** authorize the terminal and start its daemon from this shell, where
-Codex is available.
+**Next:** return to the waiting installer to authorize it, or run the login
+command in this shell if installation already finished. If installing Codex
+required changing `PATH` in this second terminal, that change does not reach
+the waiting installer. After authorization, restart the first-run daemon from
+this terminal, where `codex --version` succeeds:
+
+```sh
+happyherd daemon stop
+happyherd daemon start
+```
 
 ## 5. Authorize the terminal, then bring the machine online
 
-On the agent computer, run:
+If the installer is still waiting at its authentication selector, return to
+that terminal. Otherwise, on the agent computer run:
 
 ```sh
 happyherd auth login
@@ -137,7 +152,9 @@ This authorizes that terminal to access your HappyHerd account; it is more than
 selecting a machine for one chat. It is separate from Codex authentication.
 Do not send the authorization URL to someone else.
 
-**Expected:** the terminal reports successful authentication. Now run:
+**Expected:** the terminal reports successful authentication. The interactive
+installer then starts the daemon. If authentication was deferred, start it
+yourself; `daemon start` also checks an already running daemon. Run:
 
 ```sh
 happyherd auth status
@@ -228,7 +245,7 @@ all stopped sessions.
 | Authorization cancelled, failed, or stale | Cancel the waiting CLI attempt and rerun `happyherd auth login`; open its fresh URL. Refreshing the confirmation page may discard its request fragment and show **Invalid Connection Link**. | Approving the fresh request completes CLI authentication. |
 | CLI already belongs to another account | Check `happyherd auth status` before changing anything. An intentional `happyherd auth login --force` clears credentials and machine ID and stops the daemon; it is not a routine retry. Preserve the old setup until you intend that change. | Intended account is authorized, then its daemon is started. |
 | No machine / machine offline | On that machine, check `happyherd daemon status`, then `happyherd daemon start`; check its network and server/account and refresh the client. | The actual machine appears online and can accept a task. |
-| No Codex choice or provider sign-in error | Install/authenticate Codex for the daemon's user and check `codex login status`. If it was installed after the first-run daemon started, run `happyherd daemon stop` then `happyherd daemon start` from a shell that finds Codex; refresh the choices. This restarts that user's daemon, so coordinate it on a machine already in use. Follow any provider quota message. | Codex actually replies to the task. |
+| No Codex choice or provider sign-in error | Install/authenticate Codex for the daemon's user and check `codex login status`. If it was installed after the first-run daemon started, or its directory was added only to a new shell’s `PATH`, run `happyherd daemon stop` then `happyherd daemon start` from a shell that finds Codex; refresh the choices. This restarts that user's daemon, so coordinate it on a machine already in use. Follow any provider quota message. | Codex actually replies to the task. |
 | Device code expired or cancelled | For an already authenticated machine on a supporting version, generate a fresh `happyherd machine pair` code; verify the same server/account and online daemon. | The intended existing device is selected. No new account is created. |
 | Reopened conversation cannot send | Check server and daemon reachability. Keep the original machine, folder, and provider state; use **Resume Session** only where offered. | Another reply arrives in the same conversation. |
 
