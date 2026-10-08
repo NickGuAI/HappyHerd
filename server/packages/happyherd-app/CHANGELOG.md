@@ -1,3 +1,7 @@
+# October 6 — Opus 5.5 in native installs
+
+- Native installers now bundle a Claude Code version that supports Opus 5.5, so selecting the model no longer fails because the bundled runtime is too old.
+
 # October 6 — Keep the Assistant connected after resume
 
 - The Assistant and other Super Sessions keep their connection status after resuming from the app or terminal, including account switches. A connected session no longer appears offline because its Super Session designation was lost.

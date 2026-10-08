@@ -123,6 +123,27 @@ done
 HOME="$test_home" SHELL=/bin/sh PATH="$customer_path" "${installer[@]}" \
   --server https://remote.example --no-start >/dev/null
 "$test_home/.local/bin/happyherd" --version >/dev/null
+# Newly prepared assets must support the catalog's Opus 5.5 model. Inspect the
+# SDK-owned executable used by daemon sessions, never a standalone claude on PATH.
+# Historical published releases predate this Opus 5.5 minimum.
+if [[ "$1" != --published ]]; then
+  "$test_home/.local/share/happyherd/node/bin/node" - \
+    "$test_home/.local/share/happyherd" "$target" <<'CLAUDE_VERSION'
+const { execFileSync } = require('node:child_process');
+const { join } = require('node:path');
+const binary = join(process.argv[2], 'runtime/node_modules/@anthropic-ai',
+  `claude-agent-sdk-${process.argv[3]}`, 'claude');
+const version = execFileSync(binary, ['--version'], { encoding: 'utf8' }).trim();
+const match = /^(\d+)\.(\d+)\.(\d+)(?:\s|$)/.exec(version);
+const minimum = [2, 1, 280];
+const parts = match?.slice(1).map(Number);
+const different = parts?.findIndex((part, index) => part !== minimum[index]);
+if (!parts || (different !== -1 && parts[different] < minimum[different])) {
+  throw new Error(`Bundled Claude Code must be >= 2.1.280 for Opus 5.5; got ${version}`);
+}
+console.log(`native-installer-claude: ${version} (>= 2.1.280)`);
+CLAUDE_VERSION
+fi
 # The real packaged CLI seeds guidance on an ordinary unauthenticated install.
 for guide_path in AGENTS.md agentcontext/README.md agentcontext/happyherd-cli.md; do
   [[ -s "$test_home/.happyherd/$guide_path" ]]
