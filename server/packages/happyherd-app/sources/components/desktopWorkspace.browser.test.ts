@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import { transformSync } from '@babel/core';
 
+import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 const octiconsFontPath = resolve(
@@ -744,9 +746,29 @@ describe('Desktop workspace browser interaction', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
+    let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
 
     beforeAll(async () => {
-        const bundle = await build({
+        const setupStartedAt = performance.now();
+        const setupStage = async <T,>(stage: string, operation: () => Promise<T>): Promise<T> => {
+            const startedAt = performance.now();
+            const receipt = (status: string, error?: unknown) => console.info('[browser fixture setup]', {
+                fixture: 'desktopWorkspace', stage, status,
+                elapsedMs: Math.round(performance.now() - startedAt),
+                setupElapsedMs: Math.round(performance.now() - setupStartedAt),
+                ...(error === undefined ? {} : { error: error instanceof Error ? error.message : String(error) }),
+            });
+            receipt('started');
+            try {
+                const result = await operation();
+                receipt('completed');
+                return result;
+            } catch (error) {
+                receipt('failed', error);
+                throw error;
+            }
+        };
+        const bundle = await setupStage('esbuild-workspace', () => build({
             entryPoints: [resolve(here, '__testdata__/desktopWorkspace.browser.fixture.tsx')],
             bundle: true,
             write: false,
@@ -760,7 +782,7 @@ describe('Desktop workspace browser interaction', () => {
             alias: { 'react-native': 'react-native-web' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
-        });
+        }));
         const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
         const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
         server = createServer((request, response) => {
@@ -779,17 +801,18 @@ describe('Desktop workspace browser interaction', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script type="module" src="/desktopWorkspace.browser.fixture.js"></script>');
         });
-        await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
+        await setupStage('http-listen', () => new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady)));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = 'http://127.0.0.1:' + address.port;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+        startupTrace = traceBrowserStartup('desktopWorkspace');
         try {
-            browser = await chromium.launch({
+            browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            });
+            })));
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             throw new Error(
@@ -801,6 +824,7 @@ describe('Desktop workspace browser interaction', () => {
     }, 30_000);
 
     afterAll(async () => {
+        startupTrace?.stop('hook-teardown');
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
