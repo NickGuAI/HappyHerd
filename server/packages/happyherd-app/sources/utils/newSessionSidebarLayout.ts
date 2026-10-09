@@ -15,7 +15,6 @@ type NewSessionSidebarLayoutInput = {
 
 export function getNewSessionSidebarLayout(input: NewSessionSidebarLayoutInput) {
     const canShowSidebar = input.fileDiffsSidebarEnabled
-        && (input.isMac || input.platform === 'web')
         && input.windowWidth >= NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH;
     const showSidebar = canShowSidebar && !input.zenMode;
     const proportionalWidth = Math.max(Math.floor(input.windowWidth * 0.3), 250);

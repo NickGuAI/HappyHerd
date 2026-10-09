@@ -45,6 +45,17 @@ vi.mock('@/components/FileDocumentPreview', async () => {
     const ReactModule = await import('react');
     return { FileDocumentPreview: (props: any) => ReactModule.createElement('FileDocumentPreview', props) };
 });
+vi.mock('@/components/CanvasFileViewer', async () => {
+    const ReactModule = await import('react');
+    return { CanvasFileViewer: (props: any) => ReactModule.createElement('CanvasFileViewer', props) };
+});
+vi.mock('@/components/InlineCommentReview', async () => {
+    const ReactModule = await import('react');
+    return {
+        InlineCommentReview: (props: any) => ReactModule.createElement('InlineCommentReview', props),
+        InlineCommentThread: (props: any) => ReactModule.createElement('InlineCommentThread', props),
+    };
+});
 vi.mock('@/sync/ops', () => ({ sessionDeleteFile: vi.fn(), sessionReadFile: vi.fn(), sessionWriteFile: vi.fn() }));
 vi.mock('@/sync/storage', () => ({ useMachine: vi.fn(), useSession: vi.fn() }));
 vi.mock('@/sync/rig', () => ({ rigCanWriteFiles: vi.fn(() => true) }));
@@ -519,5 +530,37 @@ describe('FileContentPanel native editing', () => {
 
         act(() => panel.renderer.unmount());
         interval.mockRestore();
+    });
+});
+
+
+describe('native Workspace review host', () => {
+    it('opens an arbitrary raw source line in the same retained review batch', async () => {
+        const panel = await renderPanel({
+            filePath: '/workspace/example.ts',
+            readFile: vi.fn(async () => ({ success: true, content: Buffer.from('first\nsecond\nthird').toString('base64') })),
+            reviewContext: { originSessionId: 'side-chat', machineId: 'machine-one' },
+        });
+        const lines = panel.renderer.root.findAllByType('Pressable' as any).filter((button: any) => button.props.accessibilityLabel === 'files.commentOnLine');
+        expect(lines).toHaveLength(3);
+        act(() => lines[1].props.onPress());
+        const review = panel.renderer.root.findByType('InlineCommentReview' as any);
+        expect(review.props.activeAnchor).toEqual({ line: 2 });
+        expect(review.props.originSessionId).toBe('side-chat');
+        expect(review.props.reference).toMatchObject({ machineId: 'machine-one', absolutePath: '/workspace/example.ts' });
+        expect(panel.renderer.root.findByType('InlineCommentThread' as any).props.anchor).toEqual({ line: 2 });
+        act(() => panel.renderer.unmount());
+    });
+
+    it('renders Canvas on native and carries its node anchor to the existing batch', async () => {
+        const panel = await renderPanel({
+            filePath: '/workspace/map.canvas', markdownSessionId: 'side-chat',
+            readFile: vi.fn(async () => ({ success: true, content: Buffer.from('{"nodes":[],"edges":[]}').toString('base64') })),
+            reviewContext: { originSessionId: 'side-chat', machineId: 'machine-one' },
+        });
+        const canvas = panel.renderer.root.findByType('CanvasFileViewer' as any);
+        act(() => canvas.props.onNodeComment({ nodeId: 'node-a', position: { x: 10, y: 20 } }));
+        expect(panel.renderer.root.findByType('InlineCommentReview' as any).props.activeAnchor).toEqual({ nodeId: 'node-a', position: { x: 10, y: 20 } });
+        act(() => panel.renderer.unmount());
     });
 });

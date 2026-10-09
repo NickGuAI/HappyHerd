@@ -719,3 +719,43 @@ describe('native Markdown reply island rendering', () => {
         act(() => renderer.unmount());
     });
 });
+
+
+describe('native rendered source review', () => {
+    it.each([[2, 1], [4, 3], [5, 5]])('reveals one nearest rendered unit for source line %s', (requestedLine, expectedLine) => {
+        const measured: number[] = [];
+        const onRequestedLineLayout = vi.fn();
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(MarkdownView, {
+            markdown: '# Title\n\n| A | B |\n| --- | --- |\n| first | row |\n| second | row |',
+            requestedLine, onRequestedLineLayout,
+        }), { createNodeMock: (element: any) => ({
+            measureLayout: (_root: unknown, onMeasure: (x: number, y: number) => void) => {
+                const line = Number(element.props.testID?.split(':')[1]);
+                measured.push(line);
+                onMeasure(0, line * 20);
+            },
+        }) }); });
+        expect(measured.length).toBeGreaterThan(0);
+        expect(new Set(measured)).toEqual(new Set([expectedLine]));
+        expect(onRequestedLineLayout).toHaveBeenCalledWith(expectedLine * 20);
+        act(() => renderer.unmount());
+    });
+
+    it('comments the matching Markdown table row without changing to raw source', () => {
+        const onLineComment = vi.fn();
+        const renderLineComment = vi.fn(({ line }: { line: number }) => React.createElement('thread', { line }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(MarkdownView, {
+            markdown: '# Title\n\n| A | B |\n| --- | --- |\n| first | row |\n| second | row |',
+            onLineComment, renderLineComment, requestedLine: 6,
+        })); });
+        const row = renderer.root.findAllByProps({ testID: 'native-review-line:6' })[0];
+        act(() => row.findByType('button').props.onPress());
+        expect(onLineComment).toHaveBeenCalledWith({ line: 6 });
+        expect(renderLineComment).toHaveBeenCalledWith({ line: 5 });
+        expect(renderLineComment).toHaveBeenCalledWith({ line: 6 });
+        expect(row.findByType('thread').props.line).toBe(6);
+        act(() => renderer.unmount());
+    });
+});

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -71,7 +71,7 @@ export const SETTINGS_FRAME_MIN_WIDTH = 1000;
 
 export function useSettingsFrameVisible(): boolean {
     const { width } = useWindowDimensions();
-    return (Platform.OS === 'web' || Platform.OS === 'macos') && width >= SETTINGS_FRAME_MIN_WIDTH;
+    return width >= SETTINGS_FRAME_MIN_WIDTH;
 }
 
 function NavItem({ entry, active, onPress }: { entry: SettingsNavEntry; active: boolean; onPress: () => void }) {
@@ -190,7 +190,6 @@ function sectionTitle(section: SettingsSectionId): string {
 export function SettingsFrame({ section, title, children }: { section: SettingsSectionId; title?: () => string; children: React.ReactNode }) {
     const visible = useSettingsFrameVisible();
     const [Action, setAction] = React.useState<React.ComponentType | null>(null);
-    if (Platform.OS !== 'web' && Platform.OS !== 'macos') return <>{children}</>;
     // The page keeps the same two parent Views at every width, so crossing the
     // frame width never remounts it and unsaved input survives a resize.
     return (

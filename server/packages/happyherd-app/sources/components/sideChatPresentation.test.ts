@@ -39,8 +39,8 @@ describe('resolveSessionSidebarPresentation', () => {
         expect(presentation({ windowWidth: 320 }).sideChatSurface).toBe('sidebar');
     });
 
-    it('keeps the full-screen path on native phones and iPad', () => {
-        expect(presentation({ platform: 'ios', windowWidth: 1400 }).sideChatSurface).toBe('fullscreen');
+    it('docks wide native windows and keeps the full-screen path on narrow native windows', () => {
+        expect(presentation({ platform: 'ios', windowWidth: 1400 }).sideChatSurface).toBe('sidebar');
         expect(presentation({ platform: 'ios', windowWidth: 390 })).toMatchObject({ sideChatSurface: 'fullscreen', rightPanelPresentation: 'docked' });
         expect(presentation({ platform: 'android', windowWidth: 412 }).sideChatSurface).toBe('fullscreen');
     });
@@ -74,9 +74,9 @@ describe('resolveSessionSidebarPresentation', () => {
         expect(presentation({ canUseFilePanels: false }).fileSidebarAvailable).toBe(false);
     });
 
-    it('retains the width and platform boundary for the file workspace host', () => {
+    it('retains the narrow native boundary and enables wide iPad file panels', () => {
         expect(presentation({ platform: 'android', windowWidth: 412, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
-        expect(presentation({ platform: 'ios', windowWidth: 1400, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
+        expect(presentation({ platform: 'ios', windowWidth: 1400, canUseFilePanels: true }).fileSidebarAvailable).toBe(true);
     });
 
     it('offers the same wide file workspace frame on Mac', () => {

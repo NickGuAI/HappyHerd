@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { Platform, type View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
+import { HERD_MOTION } from '../motion';
+import { Animated, Dimensions, Platform, type View } from 'react-native';
 
 /** DOM attribute each glide-enabled row carries (`dataSet={{ herdRow: id }}`). */
 export const HERD_ROW_ATTRIBUTE = 'data-herd-row';
@@ -9,6 +11,7 @@ let lastSelectedRowId: string | null = null;
 /** Test hook: forget the previous selection. */
 export function resetHerdSelectionGlide(): void {
     lastSelectedRowId = null;
+    lastNativeSelectedRowId = null;
 }
 
 function prefersReducedMotion(): boolean {
@@ -88,4 +91,53 @@ export function useHerdSelectionGlide(
             settle();
         };
     }, [highlightRef, rowId, selected]);
+}
+
+// Keep native host refs, not stale screen coordinates: scrolling and window
+// resizing can move both rows between selections. Unmounted virtual rows leave
+// the registry, so an off-screen previous selection simply appears in place.
+const nativeRows = new Map<string, React.RefObject<View | null>>();
+let lastNativeSelectedRowId: string | null = null;
+
+export function useNativeHerdSelectionGlide(rowId: string, selected: boolean, ref: React.RefObject<View | null>) {
+    const reducedMotion = useReducedMotion();
+    const offset = React.useRef(new Animated.Value(0)).current;
+    const scale = React.useRef(new Animated.Value(1)).current;
+    React.useLayoutEffect(() => {
+        nativeRows.set(rowId, ref);
+        return () => { if (nativeRows.get(rowId) === ref) nativeRows.delete(rowId); };
+    }, [ref, rowId]);
+    React.useLayoutEffect(() => {
+        offset.setValue(0);
+        scale.setValue(1);
+        if (!selected) return;
+        const previous = lastNativeSelectedRowId;
+        lastNativeSelectedRowId = rowId;
+        if (reducedMotion || !previous || previous === rowId) return;
+        let cancelled = false;
+        let animation: Animated.CompositeAnimation | undefined;
+        nativeRows.get(previous)?.current?.measureInWindow((x, y, width, height) => {
+            if (cancelled) return;
+            ref.current?.measureInWindow((nextX, nextY, nextWidth, nextHeight) => {
+                if (cancelled) return;
+                const start = resolveSelectionGlideStart(
+                    { left: x, top: y, width, height },
+                    { left: nextX, top: nextY, width: nextWidth, height: nextHeight },
+                    Dimensions.get('window').height,
+                );
+                if (!start || nextHeight <= 0) return;
+                // Native transforms scale around the center; compensate so the
+                // initial highlight covers the previous row's exact rectangle.
+                offset.setValue(start.offsetY + (height - nextHeight) / 2);
+                scale.setValue(height / nextHeight);
+                animation = Animated.parallel([
+                    Animated.timing(offset, { toValue: 0, duration: HERD_MOTION.slow, useNativeDriver: true }),
+                    Animated.timing(scale, { toValue: 1, duration: HERD_MOTION.slow, useNativeDriver: true }),
+                ]);
+                animation.start();
+            });
+        });
+        return () => { cancelled = true; animation?.stop(); };
+    }, [offset, scale, reducedMotion, ref, rowId, selected]);
+    return { transform: [{ translateY: offset }, { scaleY: scale }] };
 }

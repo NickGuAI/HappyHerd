@@ -1,3 +1,4 @@
+import { NativeShortcutTarget } from '@/keyboard/NativeKeyboard';
 import { Text } from '@/components/StyledText';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -707,14 +708,17 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
 
     // Web: number keys 1..n answer the oldest visible pending card.
     const containerRef = useRef<View>(null);
+    const nativeTarget = React.useId();
     usePermissionShortcuts({
         id: permission.id,
         enabled: isPending,
         choices: choices.map((choice) => choice.onPress),
         nodeRef: containerRef,
+        nativeTarget,
     });
 
     return (
+        <NativeShortcutTarget targetId={nativeTarget}>
         <View ref={containerRef} style={[styles.container, isWeb && { paddingHorizontal: 10, paddingTop: 6, paddingBottom: 12 }]}>
             {isGrok && (
                 <View style={styles.providerHeader}>
@@ -731,5 +735,6 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
                 {choices.map(renderChoice)}
             </ScrollView>
         </View>
+        </NativeShortcutTarget>
     );
 };

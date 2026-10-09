@@ -48,6 +48,7 @@ export function CommandPaletteInput({ value, onChangeText, onKeyPress, inputRef,
                 autoCapitalize="none"
                 returnKeyType="go"
                 onKeyPress={handleKeyDown}
+                onSubmitEditing={Platform.OS === 'web' ? undefined : () => onKeyPress?.('Enter')}
                 blurOnSubmit={false}
             />
             {onClose ? (

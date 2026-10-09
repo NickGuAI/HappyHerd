@@ -1,3 +1,4 @@
+import { NativeKeyboardHost } from '@/keyboard/NativeKeyboard';
 import React, { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -35,7 +36,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     const navigateToSession = useNavigateToSession();
     const machineWorkspace = useSetting('machineWorkspace');
     const focusActive = useFocusMode() !== null;
-    const preferredModifier = useMemo(() => getPreferredShortcutModifier(
+    const preferredModifier = useMemo(() => Platform.OS === 'ios' ? 'meta' : getPreferredShortcutModifier(
         typeof navigator === 'undefined' ? undefined : navigator
     ), []);
     const browserSafeShortcuts = useMemo(() => Platform.OS === 'web' && !isTauri(), []);
@@ -171,7 +172,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     }, [browserSafeShortcuts, router, logout, sessions, navigateToSession, preferredModifier, machineWorkspace, focusActive]);
 
     const showCommandPalette = useCallback(() => {
-        if (Platform.OS !== 'web' || !isAuthenticated || !commandPaletteEnabled) return;
+        if (!isAuthenticated || !commandPaletteEnabled) return;
         
         Modal.show({
             component: CommandPalette,
@@ -182,7 +183,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     }, [commands, commandPaletteEnabled, isAuthenticated]);
 
     // The top bar's search control opens the same palette as ⌘K.
-    const paletteOpener = Platform.OS === 'web' && isAuthenticated && commandPaletteEnabled
+    const paletteOpener = isAuthenticated && commandPaletteEnabled
         ? showCommandPalette
         : null;
 
@@ -221,7 +222,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             browserSafeShortcuts={browserSafeShortcuts}
         >
             <HerdCommandPaletteContext.Provider value={paletteOpener}>
-                {children}
+                <NativeKeyboardHost>{children}</NativeKeyboardHost>
             </HerdCommandPaletteContext.Provider>
         </ShortcutHintsProvider>
     );

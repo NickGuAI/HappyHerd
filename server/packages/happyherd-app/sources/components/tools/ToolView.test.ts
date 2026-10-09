@@ -1,3 +1,5 @@
+vi.mock('@/components/herd/pages/HerdCollapse', () => ({ HerdCollapse: ({ children, open }: any) => open ? children : null }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';

@@ -52,6 +52,7 @@ vi.mock('react-native-unistyles', () => {
     };
 });
 vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => mocks.tablet }));
 vi.mock('@/components/MobileGlass', () => ({ MobileGlassSurface: 'MobileGlassSurface' }));
 vi.mock('@/components/AnimatedOverlay', () => ({ AnimatedPopup: 'AnimatedPopup', LocalBlurHalo: () => null }));
@@ -108,7 +109,7 @@ describe('phone sheet dismissal', () => {
         expect(isHerdPhoneWeb(1440)).toBe(false);
     });
 
-    it('lays the web out by width, though the device rule calls a 1024 × 768 window a phone, and keeps the device rule in the apps', () => {
+    it('lays the web out by width, though the device rule calls a 1024 × 768 window a phone, and adapts tablet and Mac windows', () => {
         const deviceRule = (width: number, height: number) => determineDeviceType({
             diagonalInches: calculateDeviceDimensions({ widthPoints: width, heightPoints: height, pointsPerInch: 160 }).diagonalInches,
             platform: 'web',
@@ -117,9 +118,12 @@ describe('phone sheet dismissal', () => {
         expect(isHerdPhoneLayout({ platform: 'web', width: 1024, isTablet: false })).toBe(false);
         expect(isHerdPhoneLayout({ platform: 'web', width: HERD_PHONE_SHEET_MAX_WIDTH, isTablet: false })).toBe(false);
         expect(isHerdPhoneLayout({ platform: 'web', width: HERD_PHONE_SHEET_MAX_WIDTH - 1, isTablet: true })).toBe(true);
-        // A phone stays a phone in landscape; a tablet stays a tablet at any width.
+        // Native phones stay phones in landscape; tablet windows adapt.
         expect(isHerdPhoneLayout({ platform: 'ios', width: 844, isTablet: false })).toBe(true);
-        expect(isHerdPhoneLayout({ platform: 'android', width: 600, isTablet: true })).toBe(false);
+        expect(isHerdPhoneLayout({ platform: 'ios', width: 699, isTablet: true })).toBe(true);
+        expect(isHerdPhoneLayout({ platform: 'ios', width: 700, isTablet: true })).toBe(false);
+        expect(isHerdPhoneLayout({ platform: 'ios', width: 800, isTablet: false, runningOnMac: true })).toBe(false);
+        expect(isHerdPhoneLayout({ platform: 'android', width: 600, isTablet: true })).toBe(true);
     });
 });
 

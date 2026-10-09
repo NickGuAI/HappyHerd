@@ -3,9 +3,13 @@ import * as React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+const native = vi.hoisted(() => ({ platform: 'web', pan: null as any }));
+
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     return {
+        Platform: { get OS() { return native.platform; } },
+        PanResponder: { create: (config: any) => { native.pan = config; return { panHandlers: { onResponderMove: config.onPanResponderMove } }; } },
         View: (props: any) => ReactModule.createElement('View', props, props.children),
     };
 });
@@ -84,5 +88,22 @@ describe('SessionSidebarDivider', () => {
         act(() => divider.props.onAccessibilityAction({ nativeEvent: { actionName: 'decrement' } }));
 
         expect(onWidthChange.mock.calls).toEqual([[400], [320]]);
+    });
+});
+
+
+describe('native panel divider', () => {
+    it('uses a native drag and preserves the gesture start width', () => {
+        native.platform = 'ios';
+        const onWidthChange = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => { renderer = create(React.createElement(SessionSidebarDivider, { width: 360, onWidthChange })); });
+        act(() => native.pan.onPanResponderGrant());
+        act(() => native.pan.onPanResponderMove({}, { dx: -120 }));
+        act(() => native.pan.onPanResponderMove({}, { dx: 40 }));
+        expect(onWidthChange.mock.calls).toEqual([[480], [320]]);
+        act(() => native.pan.onPanResponderRelease());
+        act(() => renderer.unmount());
+        native.platform = 'web';
     });
 });

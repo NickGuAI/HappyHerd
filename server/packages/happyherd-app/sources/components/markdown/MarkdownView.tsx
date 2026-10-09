@@ -44,6 +44,7 @@ export type { MarkdownViewProps, Option } from './MarkdownView.types';
 
 type MdNode = {
     type: string;
+    position?: { start: { line: number }; end: { line: number } };
     value?: string;
     url?: string;
     alt?: string;
@@ -89,9 +90,50 @@ function optionItemsFromList(node: MdNode): string[] | null {
     return items;
 }
 
+/** Mirrors native review wrappers: table rows and list items, never their containers. */
+function nativeRequestedReviewUnit(root: MdNode, requestedLine: number | null | undefined): MdNode | null {
+    if (!requestedLine || requestedLine <= 0) return null;
+    const units: MdNode[] = [];
+    const visit = (node: MdNode) => {
+        if (node.type === 'root' || node.type === 'blockquote') {
+            node.children?.forEach(visit);
+        } else if (node.type === 'table') {
+            units.push(...(node.children ?? []));
+        } else if (node.type === 'list') {
+            if (optionItemsFromList(node)) return;
+            for (const item of node.children ?? []) {
+                units.push(item);
+                // Ordinary item paragraphs/code belong to their item's wrapper.
+                item.children?.filter((child) => ['list', 'blockquote', 'table'].includes(child.type)).forEach(visit);
+            }
+        } else if (['paragraph', 'heading', 'thematicBreak', 'code', 'math'].includes(node.type)) {
+            units.push(node);
+        }
+    };
+    visit(root);
+    let best: MdNode | null = null;
+    let bestDistance = Infinity;
+    let bestSpan = Infinity;
+    for (const unit of units) {
+        const start = unit.position?.start.line;
+        if (start === undefined) continue;
+        const end = unit.position?.end.line ?? start;
+        const distance = Math.max(start - requestedLine, requestedLine - end, 0);
+        const span = end - start;
+        if (distance < bestDistance || (distance === bestDistance && span < bestSpan)) {
+            best = unit;
+            bestDistance = distance;
+            bestSpan = span;
+        }
+    }
+    return best;
+}
+
 export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
+    const rootRef = React.useRef<View>(null);
     const foreground = props.tone === 'island' ? styles.islandText : undefined;
     const root = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
+    const requestedReviewUnit = React.useMemo(() => nativeRequestedReviewUnit(root, props.requestedLine), [root, props.requestedLine]);
     const markdownCopyV2 = useLocalSetting('markdownCopyV2');
     const selectable = !(markdownCopyV2 || props.externalCopyHandler);
     const router = useRouter();
@@ -176,6 +218,11 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         })
     ), [foreground, openTarget, props.onOptionPress, resolveTarget, selectable]);
 
+    const wrapReview = (node: MdNode, body: React.ReactNode, key: React.Key) => body == null || ['table', 'list', 'blockquote'].includes(node.type)
+        ? <React.Fragment key={key}>{body}</React.Fragment> : (
+        <NativeReviewUnit key={key} node={node} selected={node === requestedReviewUnit} review={props} rootRef={rootRef}>{body}</NativeReviewUnit>
+    );
+
     const renderBlock = React.useCallback((node: MdNode, index: number): React.ReactNode => {
         const key = `block:${index}`;
         switch (node.type) {
@@ -216,7 +263,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 return <Text key={key} selectable={selectable} style={[headingStyle, blockTextAlignment, foreground]}>{renderInline(node.children, key)}</Text>;
             }
             case 'thematicBreak': return <View key={key} style={styles.rule} />;
-            case 'blockquote': return <View key={key} style={[styles.quote, props.tone === 'island' && styles.islandQuote]}>{node.children?.map(renderBlock)}</View>;
+            case 'blockquote': return <View key={key} style={[styles.quote, props.tone === 'island' && styles.islandQuote]}>{node.children?.map((child, childIndex) => wrapReview(child, renderBlock(child, childIndex), childIndex))}</View>;
             case 'code': return node.lang === 'mermaid'
                 ? <MermaidRenderer key={key} content={node.value ?? ''} />
                 : <NativeCodeBlock key={key} code={node.value ?? ''} language={node.lang ?? null} selectable={selectable} />;
@@ -247,7 +294,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                                     : node.ordered
                                         ? `${(node.start ?? 1) + itemIndex}.`
                                         : '•';
-                            return (
+                            return wrapReview(item, (
                                 <View key={`${key}:${itemIndex}`} style={styles.listRow} accessibilityRole={item.checked == null ? undefined : 'checkbox'} accessibilityState={item.checked == null ? undefined : { checked: item.checked, disabled: true }}>
                                     <Text style={[styles.listMarker, foreground]}>{marker}</Text>
                                     <View style={styles.listItemBody}>
@@ -256,18 +303,18 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                                             : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
                                     </View>
                                 </View>
-                            );
+                            ), itemIndex);
                         })}
                     </View>
                 );
             }
-            case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} island={props.tone === 'island'} />;
+            case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} island={props.tone === 'island'} wrapReview={wrapReview} />;
             case 'html': return null;
             default: return node.children?.map(renderBlock) ?? null;
         }
-    }, [blockTextAlignment, foreground, openTarget, props.tone, props.inlineImages, renderInline, resolveImage, selectable]);
+    }, [blockTextAlignment, foreground, openTarget, props.tone, props.inlineImages, renderInline, resolveImage, selectable, props.onLineComment, props.renderLineComment, props.requestedLine, props.onRequestedLineLayout, requestedReviewUnit]);
 
-    const content = <View style={styles.root}>{root.children?.map(renderBlock)}</View>;
+    const content = <View ref={rootRef} collapsable={false} style={styles.root}>{root.children?.map((node, index) => ['table', 'list', 'blockquote'].includes(node.type) ? renderBlock(node, index) : wrapReview(node, renderBlock(node, index), index))}</View>;
     if (props.externalCopyHandler || !markdownCopyV2 || Platform.OS === 'web') return content;
 
     const longPress = Gesture.LongPress().minDuration(500).onStart(() => {
@@ -368,8 +415,37 @@ function renderHighlightedNodes(nodes: HastNode[]): React.ReactNode {
     });
 }
 
+function NativeReviewUnit({ node, selected, review, rootRef, children }: {
+    node: MdNode;
+    selected: boolean;
+    review: MarkdownViewProps;
+    rootRef: React.RefObject<View | null>;
+    children: React.ReactNode;
+}) {
+    const ref = React.useRef<View>(null);
+    const line = node.position?.start.line;
+    const reveal = React.useCallback(() => {
+        if (selected && ref.current && rootRef.current && review.onRequestedLineLayout) {
+            ref.current.measureLayout(rootRef.current, (_x, y) => review.onRequestedLineLayout?.(y), () => undefined);
+        }
+    }, [selected, review.onRequestedLineLayout, rootRef]);
+    React.useEffect(reveal, [reveal]);
+    if (line === undefined || (!review.onLineComment && !review.requestedLine)) return <>{children}</>;
+    return <View ref={ref} collapsable={false} onLayout={reveal} testID={`native-review-line:${line}`}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            {review.onLineComment ? <Pressable accessibilityRole="button" accessibilityLabel={t('files.commentOnLine', { line: String(line) })}
+                onPress={() => review.onLineComment?.({ line })} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}>
+                <Text style={styles.link}>{line} +</Text>
+            </Pressable> : null}
+            <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+        </View>
+        {review.renderLineComment?.({ line })}
+    </View>;
+}
+
 function NativeTable(props: {
     node: MdNode;
+    wrapReview: (node: MdNode, body: React.ReactNode, key: React.Key) => React.ReactNode;
     island?: boolean;
     selectable: boolean;
     renderInline: (nodes: MdNode[] | undefined, keyPrefix: string) => React.ReactNode;
@@ -377,7 +453,7 @@ function NativeTable(props: {
     return (
         <HorizontalScrollView style={[styles.table, props.island && styles.islandSurface]}>
             <View>
-                {props.node.children?.map((row, rowIndex) => (
+                {props.node.children?.map((row, rowIndex) => props.wrapReview(row, (
                     <View key={rowIndex} style={styles.tableRow}>
                         {row.children?.map((cell, cellIndex) => (
                             <Text key={cellIndex} selectable={props.selectable} style={[styles.tableCell, rowIndex === 0 && styles.tableHeader, props.island && styles.islandSurface, props.island && styles.islandText]}>
@@ -385,7 +461,7 @@ function NativeTable(props: {
                             </Text>
                         ))}
                     </View>
-                ))}
+                ), rowIndex))}
             </View>
         </HorizontalScrollView>
     );
