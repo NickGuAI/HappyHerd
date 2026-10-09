@@ -1,3 +1,7 @@
+# October 8 — Identify release downloads and bundled versions
+
+- New CLI/server release archives retain their source revision and bundled versions, and release notes identify the actual downloads. The download table separates the current stable release from newer source and unavailable native app channels.
+
 # October 8 — Follow one first-run guide
 
 - The README now links a step-by-step guide from server choice and account backup to terminal authorization, a first Codex task, and reopening the same conversation, with recovery steps and separate public-release verification status.

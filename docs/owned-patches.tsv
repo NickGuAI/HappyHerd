@@ -1,3 +1,5 @@
+ISSUE_383_CHANGELOG_CAPTURES	accepted	test(release): refresh release identity changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_383_RELEASE_IDENTITY	accepted	fix(release): identify built archives and available channels	scripts/native-release-info.test.mjs
 ISSUE_368_CHANGELOG_CAPTURES	accepted	test(cli): refresh cross-provider side-chat changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_368_CROSS_PROVIDER_SIDE_CHAT	accepted	feat(cli): select the provider for delegated side chats	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
@@ -770,3 +772,4 @@ PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for 
 FIRST_RUN_GUIDE_378	accepted	docs(onboarding): guide the first Codex task and continuation	docs/acceptance/issue-378/README.md
 FIRST_RUN_EVIDENCE_378	accepted	docs(onboarding): finalize interactive setup and reviewed baselines	docs/acceptance/issue-378/README.md
 FIRST_RUN_PREFLIGHT_378	accepted	docs(onboarding): record isolated public-artifact preflight	docs/acceptance/issue-378/README.md
+RELEASE_STACK_GOLDENS_383	accepted	test(release): align stacked release and onboarding captures	docs/public-launcher-release.md

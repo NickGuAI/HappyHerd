@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 8 — Identify release downloads and bundled versions",
+      "summary": "",
+      "markdown": "- New CLI/server release archives retain their source revision and bundled versions, and release notes identify the actual downloads. The download table separates the current stable release from newer source and unavailable native app channels."
+    },
+    {
       "title": "October 8 — Follow one first-run guide",
       "summary": "",
       "markdown": "- The README now links a step-by-step guide from server choice and account backup to terminal authorization, a first Codex task, and reopening the same conversation, with recovery steps and separate public-release verification status."
@@ -961,5 +966,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 8 — Follow one first-run guide"
+  "latestTitle": "October 8 — Identify release downloads and bundled versions"
 }
