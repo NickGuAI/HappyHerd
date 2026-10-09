@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync, mkdirSync } from 'node:fs';
@@ -11,6 +11,26 @@ import de from '@/text/locales/de.json';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const catalogs = { en, cn, de };
+// Keep the last awaited operation visible when Vitest's whole-case deadline
+// expires before Playwright reports an operation-specific error. Labels contain
+// fixture phases only; never log account inputs or authentication responses.
+function traceJourney(journey: string) {
+    const started = performance.now();
+    let active = { phase: 'not-started', method: 'none', started };
+    return Object.assign((phase: string, method = 'none') => {
+        active = { phase, method, started: performance.now() };
+        console.info('[signed-out-phase]', JSON.stringify({
+            journey, phase, elapsedMs: Math.round(performance.now() - started),
+        }));
+    }, {
+        snapshot: () => ({
+            journey, phase: active.phase, method: active.method,
+            elapsedMs: Math.round(performance.now() - started),
+            phaseElapsedMs: Math.round(performance.now() - active.started),
+        }),
+    });
+}
+
 const virtualModules: Record<string, string> = {
     'react-native': `export * from 'react-native-web';`,
     'react-native-unistyles': `
@@ -105,6 +125,8 @@ describe('KILV signed-out routes browser journeys', () => {
     let origin: string;
 
     beforeAll(async () => {
+        const phase = traceJourney('setup');
+        phase('bundle');
         const bundle = await build({
             stdin: {
                 contents: `
@@ -135,35 +157,82 @@ describe('KILV signed-out routes browser journeys', () => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end(`<meta name="viewport" content="width=device-width, initial-scale=1"><style>${fontCss}html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column}</style><main id="root"></main><script>globalThis.__LANDING_THEME__=${JSON.stringify(theme)};globalThis.__LANDING_LOCALE__=${JSON.stringify(locale)};globalThis.global=globalThis;${script}</script>`);
         });
+        phase('server-listen');
         await new Promise<void>(ready => server.listen(0, '127.0.0.1', ready));
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('landing fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+        phase('browser-launch');
         browser = await chromium.launch({ ...(executablePath ? { executablePath } : { channel: 'chrome' }), headless: true, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+        phase('complete');
     }, 30_000);
 
     afterAll(async () => {
+        const phase = traceJourney('teardown');
+        phase('browser-close');
         await browser?.close();
+        phase('server-close');
         if (server) await new Promise<void>(closed => server.close(() => closed()));
+        phase('complete');
     });
 
     const matrix = (['light', 'dark'] as const).flatMap(theme => (['en', 'cn', 'de'] as const).flatMap(locale => ([{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 360, height: 800 }]).map(viewport => ({ theme, locale, viewport }))));
     it.each(matrix)('preserves account entries, input state and readable geometry: $theme/$locale/$viewport.width', async ({ theme, locale, viewport }) => {
+        const phase = traceJourney(`${theme}/${locale}/${viewport.width}`);
+        // This failure hook reads only client-side Playwright metadata. It must
+        // not await the renderer that may itself be the timed-out boundary.
+        let pageState: () => object = () => ({ pageCreated: false });
+        onTestFailed(({ task }) => console.info('[signed-out-failure]', JSON.stringify({
+            ...phase.snapshot(),
+            failureCategory: task.result?.errors?.some(error => error.message?.startsWith('Test timed out in ')) ? 'test-deadline' : 'other-failure',
+            browserConnected: browser.isConnected(), ...pageState(),
+        })));
         const labels = catalogs[locale];
+        phase('page-create', 'browser.newPage');
         const page = await browser.newPage({ viewport });
+        const events: object[] = [];
+        const routeCategory = (url: string) => {
+            if (url === 'about:blank') return 'blank';
+            try {
+                const parsed = new URL(url);
+                if (parsed.origin !== origin) return 'external';
+                return ({ '/': 'welcome', '/restore': 'linked-device', '/restore/manual': 'account-key' } as Record<string, string>)[parsed.pathname] ?? 'other';
+            } catch { return 'unknown'; }
+        };
+        const record = (event: object) => {
+            events.push(event);
+            if (events.length > 8) events.shift();
+        };
+        page.on('framenavigated', frame => record({ event: 'navigation', main: frame === page.mainFrame(), route: routeCategory(frame.url()) }));
+        page.on('domcontentloaded', () => record({ event: 'domcontentloaded' }));
+        page.on('load', () => record({ event: 'load' }));
+        page.on('crash', () => record({ event: 'crash' }));
+        page.on('close', () => record({ event: 'close' }));
+        page.context().on('close', () => record({ event: 'context-close' }));
+        pageState = () => ({
+            pageCreated: true, pageClosed: page.isClosed(), contextPageCount: page.context().pages().length, events,
+            frames: page.frames().map(frame => ({
+                main: frame === page.mainFrame(), detached: frame.isDetached(), route: routeCategory(frame.url()),
+            })),
+        });
         const errors: string[] = [];
         page.on('pageerror', error => { errors.push(error.message); console.error('Signed-out fixture page error:', error.message); });
+        phase('welcome-navigation', 'page.goto');
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
+        phase('welcome-title', 'locator.waitFor');
         await page.getByText(labels.welcome.title, { exact: true }).waitFor();
+        phase('welcome-fonts', 'page.evaluate(document.fonts.ready)');
         await page.evaluate(() => document.fonts.ready);
         const create = page.getByRole('button', { name: labels.welcome.createAccount, exact: true });
         const accountKey = page.getByRole('button', { name: labels.navigation.restoreWithSecretKey, exact: true });
         const linkedDevice = page.getByRole('button', { name: labels.welcome.loginWithMobileApp, exact: true });
-        for (const button of [create, accountKey, linkedDevice]) {
+        for (const [entry, button] of [['create', create], ['account-key', accountKey], ['linked-device', linkedDevice]] as const) {
+            phase(`geometry-${entry}-button`, 'locator.boundingBox');
             const bounds = await button.boundingBox();
             expect(bounds?.height).toBeGreaterThanOrEqual(44);
             expect(bounds?.width).toBeGreaterThan(200);
+            phase(`geometry-${entry}-text`, 'locator.evaluate');
             const textBounds = await button.locator('[dir="auto"]').last().evaluate(element => ({
                 scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
                 scrollHeight: element.scrollHeight, clientHeight: element.clientHeight,
@@ -171,37 +240,62 @@ describe('KILV signed-out routes browser journeys', () => {
             expect(textBounds.scrollWidth).toBeLessThanOrEqual(textBounds.clientWidth + 1);
             expect(textBounds.scrollHeight).toBeLessThanOrEqual(textBounds.clientHeight + 1);
         }
+        phase('geometry-page', 'page.evaluate');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const screenshotDir = process.env.HAPPYHERD_KILV_SCREENSHOTS;
         if (screenshotDir) {
             mkdirSync(screenshotDir, { recursive: true });
+            phase('welcome-screenshot', 'page.screenshot');
             await page.screenshot({ path: resolve(screenshotDir, `landing-${theme}-${locale}-${viewport.width}.png`), fullPage: true });
         }
+        phase('account-key-click', 'locator.click');
         await accountKey.click();
         const input = page.getByRole('textbox');
+        phase('account-key-input', 'locator.waitFor');
         await input.waitFor();
+        phase('account-key-fill', 'locator.fill');
         await input.fill('draft account key');
+        phase('account-key-focus', 'locator.focus');
         await input.focus();
+        phase('account-key-font-size', 'locator.evaluate');
         expect(await input.evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+        phase('account-key-resize', 'page.setViewportSize');
         await page.setViewportSize({ width: viewport.width === 1440 ? 390 : 800, height: viewport.height });
+        phase('account-key-retained-input', 'locator.inputValue');
         expect(await input.inputValue()).toBe('draft account key');
+        phase('welcome-back', 'page.goBack');
         await page.goBack();
+        phase('welcome-resize', 'page.setViewportSize');
         await page.setViewportSize(viewport);
+        phase('linked-device-click', 'locator.click');
         await linkedDevice.click();
+        phase('linked-device-instructions', 'locator.waitFor');
         await page.getByText(labels.uiCopy.step1OpenHappyHerdOnYourMobileDevice, { exact: false }).waitFor();
+        phase('linked-device-manual-click', 'locator.click');
         await page.getByRole('button', { name: labels.uiCopy.restoreWithSecretKeyInstead, exact: true }).click();
+        phase('linked-device-manual-input', 'locator.waitFor');
         await page.getByRole('textbox').waitFor();
+        phase('create-navigation', 'page.goto');
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
         let pending: Route | undefined;
+        phase('create-interception', 'page.route');
         await page.route('**/v1/auth', route => { pending = route; });
+        phase('create-click', 'locator.click');
         await create.click();
+        phase('create-request', 'expect.poll');
         await expect.poll(() => pending !== undefined).toBe(true);
+        phase('create-disabled', 'locator.getAttribute');
         expect(await create.getAttribute('aria-disabled')).toBe('true');
+        phase('create-response', 'route.fulfill');
         await pending!.fulfill({ json: { token: 'fixture-token' } });
+        phase('create-completion', 'page.waitForFunction');
         await page.waitForFunction(() => (window as any).__ACCOUNT_CREATED__ === true);
+        phase('create-login-method', 'page.evaluate');
         expect(await page.evaluate(() => (window as any).__LOGIN_METHOD__)).toBe('new-account');
         expect(errors).toEqual([]);
+        phase('page-close', 'page.close');
         await page.close();
+        phase('complete');
     }, 20_000);
 
     const recoveryMatrix = (['en', 'cn', 'de'] as const).flatMap(locale => [
