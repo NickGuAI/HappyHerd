@@ -1,7 +1,7 @@
 # Native installer and release assets
 
 For the user entry point, see the [quickstart](first-run.md) and
-[product guide](product-guide.md). As checked October 7, 2026, the latest stable
+[product guide](product-guide.md). As checked October 8, 2026, the latest stable
 release is [1.2.4](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4),
 with four macOS/Linux arm64/x64 CLI/server/Web archives and bundled CLI 1.2.3.
 The installer source can be newer than the archive it downloads.
@@ -156,3 +156,59 @@ the newly built archive matrix. The public `main/install.sh` URL cannot serve
 the candidate until merge: `verify_published` intentionally downloads that live
 URL and remains post-merge proof. No release publication is needed to repair
 the existing stable download; publishing replacement assets is a separate act.
+
+## 1.2.5 release candidate plan
+
+Proposed installer tag: `happyherd-v1.2.5`; current source CLI: `1.2.5`.
+This is a candidate, not an available release. The reviewed source baseline is
+`3a3773303a5539f6c9deddbd04197b92cbab9a76`; the release revision must be the
+subsequent exact reviewed `main` commit incorporating the #383 PR. Record that
+SHA after separately authorized merge and final checks, before requesting tag
+publication. Do not tag the baseline or describe the PR's CI artifacts as public
+downloads. Re-evaluate the candidate if main or the promised features change.
+
+The release scope is the existing four CLI/server/Web archives only. The
+[README availability table](../README.md#downloads-and-platform-availability)
+remains pinned to the actually published stable release until publication and
+public-download verification are complete. Native graphical macOS and iOS remain
+unavailable through this release; #369/#375 own their applicable native proof.
+
+The current source includes Projects/Assistant/Commander changes, durable
+side-chat lifecycle, and later first-machine setup and provider-continuation
+repairs beyond stable 1.2.4. These are candidate source capabilities, not a claim
+that a customer installing 1.2.4 receives them. The [product guide](product-guide.md)
+and [Projects and Assistant guide](projects-and-assistant.md) describe that source
+boundary. #382 owns claims; #378 owns the actual public-artifact first-task and
+same-conversation journey; #384/#385/#386 own release-matching launch media.
+
+### Candidate identity and proof
+
+New archives retain `runtime/build-info.json` after installation at
+`~/.local/share/happyherd/runtime/build-info.json`. It records the checked-out
+Git revision, target, actual staged CLI/server package versions and bundled Node
+version. It is descriptive data, not an installer admission rule; historical
+archives without it remain supported. The build and prepared-install logs print
+this identity and the CLI's version output. PR builds use the exact PR head.
+
+For a new tagged release, the existing workflow reads this data from all four
+built archives and prepends a download/version/channel table to GitHub's generated
+notes. Existing release reruns refresh assets but preserve their curated notes;
+a maintainer must review any note correction separately. No tag-to-package-version
+equality is assumed (stable tag 1.2.4 contains CLI 1.2.3).
+
+| Step | Required evidence | Current status |
+| --- | --- | --- |
+| Review candidate source | Exact PR head, focused metadata/archive regression, independent review, all applicable Quality/Contracts/image/native installer CI | To be recorded on the #383 PR; passing builds are not publication |
+| Select release revision | Authorized merge, freshly fetched clean main, exact SHA and final main checks; verify included claims/dependency decisions | Pending; merge is not authorized by this task |
+| Publish existing channels | Separate approval naming `happyherd-v1.2.5`, exact SHA, four assets and stable status; existing tagged workflow produces release and identity notes | Unperformed; tag/release/package publication not authorized |
+| Verify public installer | Exact README command resolves new stable tag on macOS/Linux arm64/x64; retain archive identity/digest, installed version and source revision | Pending new public artifacts; existing stable CI exercises 1.2.4 |
+| Verify documented first task | #378's account/terminal authorization, real provider result and retained conversation on the selected public artifact | External dependency; do not duplicate the account journey |
+| Align claims and media | #382 claims plus #378 quickstart and #384/#385/#386 media identify that same publicly obtainable release | Pending; build screenshots are not launch media |
+
+After publication, the existing `verify_published` workflow is the four-platform
+public-script/install/auth/RPC proof, subject to separate approval for its actual
+runtime/account effects. It does not prove #378's real-provider first task.
+Only then update the README's stable release rows and record release-specific
+journey evidence. Keep #383 and its PR draft while publication or original live
+acceptance remains unmet. No release, install, service restart or deployment is
+implied by preparing this plan.

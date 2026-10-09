@@ -191,7 +191,9 @@ cp "$repo_root/installers/uninstall.sh" "$asset_root/uninstall.sh"
 cp "$repo_root/installers/cleanup-legacy.sh" "$asset_root/cleanup-legacy.sh"
 chmod 755 "$asset_root/uninstall.sh" "$asset_root/cleanup-legacy.sh"
 
-"$asset_root/node/bin/node" "$asset_root/runtime/bin/happyherd.mjs" --version >/dev/null
+"$asset_root/node/bin/node" "$asset_root/runtime/bin/happyherd.mjs" --version
+node "$repo_root/scripts/native-release-info.mjs" build "$repo_root" "$asset_root/runtime" "$target"
+cat "$asset_root/runtime/build-info.json"
 
 asset_path="$output_dir/happyherd-$target.tar.gz"
 tar -czf "$asset_path" -C "$work_root" happyherd

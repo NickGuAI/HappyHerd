@@ -37,7 +37,7 @@ belong to upstream; they are not HappyHerd downloads or support channels.
 
 ## Downloads and platform availability
 
-As checked on October 7, 2026, the latest stable installer release is
+As checked on October 8, 2026, the latest stable installer release is
 [HappyHerd 1.2.4](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4),
 published September 20. It contains CLI, server, and Web app archives for
 **macOS and Linux, each on arm64 and x64**. Its bundled CLI reports version
@@ -49,6 +49,19 @@ Windows installer, or npm package. Native client source and
 availability. Use the bundled Web client with your own server; no HappyHerd
 hosted service is promised here. See the [product guide](docs/product-guide.md)
 for the release/source boundary and launch work still in progress.
+
+| Channel | Public availability | Download or entry |
+| --- | --- | --- |
+| CLI and self-host server — macOS arm64/x64 | Stable installer 1.2.4, bundled CLI 1.2.3 | [Release archives](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4) and the command below |
+| CLI and self-host server — Linux arm64/x64 | Stable installer 1.2.4, bundled CLI 1.2.3 | [Release archives](https://github.com/NickGuAI/HappyHerd/releases/tag/happyherd-v1.2.4) and the command below |
+| Web — desktop and mobile browsers | Bundled with the self-host server; feature revision follows that server's archive/deployment | Open your server's Web address; no hosted HappyHerd service promised |
+| Native macOS graphical app | No public HappyHerd distribution in this release | [Source build instructions](docs/native-app-builds.md), not a public download |
+| Native iOS app | No public HappyHerd distribution in this release | [Source build instructions](docs/native-app-builds.md), not a store/TestFlight offering |
+| Android, Windows installer, npm | Not distributed by this release | No download advertised |
+
+The proposed [1.2.5 release candidate](docs/public-launcher-release.md#125-release-candidate-plan)
+is newer source, not a published upgrade. CI archives prove builds, not public
+availability or completion of the first-task journey.
 
 ## Get started
 
