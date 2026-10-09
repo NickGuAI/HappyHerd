@@ -782,3 +782,4 @@ FIRST_RUN_EVIDENCE_378	accepted	docs(onboarding): finalize interactive setup and
 FIRST_RUN_PREFLIGHT_378	accepted	docs(onboarding): record isolated public-artifact preflight	docs/acceptance/issue-378/README.md
 ISSUE_378_REBASED_CAPTURES	code-ready	test(onboarding): refresh rebased first-run captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 FIRST_RUN_LINUX_JOURNEY_378	code-ready	docs(onboarding): record verified Linux task and continuation	docs/acceptance/issue-378/README.md
+RELEASE_STACK_GOLDENS_383	accepted	test(release): align stacked release and onboarding captures	docs/public-launcher-release.md
