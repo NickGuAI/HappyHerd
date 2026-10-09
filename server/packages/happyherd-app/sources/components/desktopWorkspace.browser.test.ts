@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -7,18 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import { transformSync } from '@babel/core';
 
-// Playwright snapshots DEBUG when its bundled debug module initializes. Vitest
-// hoists this before imports in this isolated fixture worker; a launch env option
-// would only affect Chromium, too late to trace the parent process's startup.
-const restoreFixtureDebugEnvironment = vi.hoisted(() => {
-    const previousDebug = process.env.DEBUG;
-    process.env.DEBUG = 'pw:browser';
-    return () => {
-        if (previousDebug === undefined) delete process.env.DEBUG;
-        else process.env.DEBUG = previousDebug;
-    };
-});
-restoreFixtureDebugEnvironment();
+import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -757,6 +746,7 @@ describe('Desktop workspace browser interaction', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
+    let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
 
     beforeAll(async () => {
         const setupStartedAt = performance.now();
@@ -816,12 +806,13 @@ describe('Desktop workspace browser interaction', () => {
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = 'http://127.0.0.1:' + address.port;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+        startupTrace = traceBrowserStartup('desktopWorkspace');
         try {
-            browser = await setupStage('chromium-launch', () => chromium.launch({
+            browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            }));
+            })));
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             throw new Error(
@@ -833,6 +824,7 @@ describe('Desktop workspace browser interaction', () => {
     }, 30_000);
 
     afterAll(async () => {
+        startupTrace?.stop('hook-teardown');
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);

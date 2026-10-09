@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type BuildOptions, type Plugin } from 'esbuild';
 import { PRODUCT } from '../constants/product';
 import { createServer, type Server } from 'node:http';
@@ -10,18 +10,7 @@ import { darkTheme, lightTheme } from '@/theme';
 import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
 import { contextWindowReply } from './__testdata__/contextWindow.browser.fixture';
 
-// Playwright snapshots DEBUG when its bundled debug module initializes. Vitest
-// hoists this before imports in this isolated fixture worker; a launch env option
-// would only affect Chromium, too late to trace the parent process's startup.
-const restoreFixtureDebugEnvironment = vi.hoisted(() => {
-    const previousDebug = process.env.DEBUG;
-    process.env.DEBUG = 'pw:browser';
-    return () => {
-        if (previousDebug === undefined) delete process.env.DEBUG;
-        else process.env.DEBUG = previousDebug;
-    };
-});
-restoreFixtureDebugEnvironment();
+import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -1495,6 +1484,7 @@ describe('Side chats browser interaction', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
+    let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
 
     beforeAll(async () => {
         const setupStartedAt = performance.now();
@@ -1597,12 +1587,13 @@ describe('Side chats browser interaction', () => {
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+        startupTrace = traceBrowserStartup('sideChatHeader');
         try {
-            browser = await setupStage('chromium-launch', () => chromium.launch({
+            browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
                 headless: true,
                 args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            }));
+            })));
             // Start Chromium's first renderer inside the existing setup budget.
             // This blank page performs no product journey or recovery behavior.
             const warmupStartedAt = performance.now();
@@ -1624,6 +1615,7 @@ describe('Side chats browser interaction', () => {
     }, 30_000);
 
     afterAll(async () => {
+        startupTrace?.stop('hook-teardown');
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
