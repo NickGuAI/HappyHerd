@@ -88,3 +88,57 @@ linked-device/manual navigation, plus isolated create-account handoff and
 failure/cancel/retry coverage. Native devices and live existing-account grants
 are not proved by this fixture. No deployment or runtime activation is needed
 for test diagnostics.
+
+## October 9: failure-state capture
+
+The first diagnostic head `a49d356aabca13094267d844d16063a3aa29c3d6`
+passed its first Quality and Contracts runs. Both app suites passed all 379
+files and 4,435 tests, with ten existing skips, including all 24 signed-out
+cases. The original dark/de/1440 case completed all phase markers in
+2,041/2,167 ms. These controls do not identify a causal failure boundary.
+
+A bounded source audit resolved the app's actual Playwright dependency to
+1.62.1, alongside Vitest 3.2.4, React Native Web 0.21.2, and Expo Router
+55.0.7. Playwright registers its Back waiter before dispatching history
+navigation and retains load state for same-document navigation. The fixture
+bypasses Expo's router queue and root font-loading lock; its fonts and images
+are embedded. React Native Web rereads dimensions after subscribing. None of
+these findings establishes a reachable bad wait.
+
+`waitForFunction` does initially evaluate its predicate, then defaults to native
+animation-frame polling. Completed authentication with stalled frames could
+therefore leave `create-completion` pending. No observed failure supports that
+state, and Playwright disables several background-throttling mechanisms. Freezing
+the renderer or replacing animation-frame scheduling would manufacture a stall,
+not prove this issue's cause, so neither was performed.
+
+The next diagnostic change emits one failure-only record from `onTestFailed`:
+last phase and method, total and phase elapsed time, failure category, browser
+connection and page/context state, categorical frame routes, and the last eight
+navigation/load/crash/close event categories. It reads only synchronous
+Playwright client metadata. No renderer evaluation, added await, timer, timeout,
+retry, assertion change, shared-helper change, or product fix is introduced.
+Raw URLs, queries, account inputs, response data, and error messages are excluded.
+
+This is **sampled at failure-hook execution, not an atomic deadline snapshot**.
+Vitest invokes cleanup hooks first, and the underlying async test body may advance
+after the wrapper times out. Read the timestamped phase history alongside the
+snapshot. The record cannot establish renderer liveness, font readiness, frame
+starvation, or root cause; worker termination or a blocked Node event loop can
+prevent its emission.
+
+The reviewed test SHA-256 is
+`44735a855470c101fcc595405eff7f9c8778f5651154bec758cb2f73a5436458`.
+Independent native Codex review found no actionable findings, and parent review
+approved the exact proposal before publication. Static AST comparison preserved
+the complete original sequences of 79 awaits and 31 assertion expressions.
+No local browser, build, or full-suite execution was performed for this phase.
+
+If an actual sample stalls at `create-completion`, the next discriminating probe
+would leave that wait unchanged and independently observe only completion,
+document visibility/readiness/font-status categories, and a native frame
+sentinel. A true completion flag with responsive JavaScript but no frame sentinel
+supports the specific polling hypothesis; a false flag or functioning sentinel
+falsifies it. This conditional recipe is not a causal reproduction already
+achieved. The cause, red-to-green repair, and original issue acceptance remain
+unproved pending new evidence.
