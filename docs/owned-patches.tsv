@@ -809,3 +809,4 @@ BROWSER_STARTUP_METADATA_411	accepted	test(app): bound browser initialization me
 BROWSER_STARTUP_RESPONSIVENESS_411	accepted	test(app): observe worker responsiveness during browser initialization	server/packages/happyherd-app/sources/components/__testdata__/browserStartupTrace.ts
 BROWSER_OWNED_PIPE_OBSERVATION_411	code-ready	test(app): observe owned browser startup pipe boundaries	server/packages/happyherd-app/sources/components/__testdata__/ownedPipeObservation.ts
 BROWSER_PARALLEL_FIXTURE_SETUP_411	code-ready	test(app): overlap independent browser fixture setup stages	server/packages/happyherd-app/sources/components/__testdata__/browserFixtureSetup.ts
+ISSUE_369_COMBINED_CHANGELOG_GOLDENS	code-ready	test(app): refresh combined native changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
