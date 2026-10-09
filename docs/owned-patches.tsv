@@ -771,3 +771,4 @@ PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for 
 ISSUE_369_NATIVE_UI_GOLDENS	accepted	test(app): refresh native parity changelog goldens	docs/issue-369-native-parity.md
 IOS27_NATIVE_STARTUP	code-ready	fix(ios): preserve scene lifecycle and Xcode build compatibility	server/packages/happyherd-app/sources/iosSceneLifecycle.test.ts
 IOS27_CHANGELOG_BASELINES	code-ready	test(ios): refresh changelog baselines for native startup fix	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_369_COMBINED_CHANGELOG_GOLDENS	code-ready	test(app): refresh combined native changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
