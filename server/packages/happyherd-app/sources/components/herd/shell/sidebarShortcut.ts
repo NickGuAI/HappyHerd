@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Platform } from 'react-native';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 
 import {
     formatShortcutChord,
@@ -19,6 +20,7 @@ export const HERD_SIDEBAR_TOGGLE_SHORTCUT: ShortcutChord = {
 };
 
 export function preferredShortcutModifier(): ShortcutModifier {
+    if (Platform.OS === 'ios') return 'meta';
     return getPreferredShortcutModifier(typeof navigator === 'undefined' ? undefined : navigator);
 }
 
@@ -36,6 +38,7 @@ export function toggleNavigationSidebarCollapsed(): void {
 
 /** Registers the collapse chord for as long as the desktop shell is mounted. */
 export function useSidebarToggleShortcut(enabled: boolean): void {
+    useNativeShortcuts(enabled ? [{ id: 'sidebar:toggle', key: 'b', meta: true, alt: true }] : [], toggleNavigationSidebarCollapsed);
     React.useEffect(() => {
         if (!enabled || Platform.OS !== 'web' || typeof window === 'undefined') {
             return;

@@ -1,15 +1,16 @@
+import { NativeKeyboardModal } from '@/keyboard/NativeKeyboard';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import React, { useEffect, useRef } from 'react';
 import {
     View,
-    Modal,
     TouchableWithoutFeedback,
     Animated,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    useWindowDimensions
 } from 'react-native';
 import { LocalBlurHalo } from '@/components/AnimatedOverlay';
-import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
+import { HERD_PHONE_FLOAT_MARGIN, useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { useWindowSafeAreaInsets } from '@/components/herd/shell/windowInsets';
 
 interface CommandPaletteModalProps {
@@ -25,8 +26,9 @@ export function CommandPaletteModal({
 }: CommandPaletteModalProps) {
     const { theme } = useUnistyles();
     // Phones (UI overhaul): the palette spans the window, 8 px from its edges.
-    const phone = useHerdPhoneWeb();
+    const phone = useHerdPhoneLayout();
     const windowInsets = useWindowSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
     const [isModalVisible, setIsModalVisible] = React.useState(true);
@@ -83,7 +85,7 @@ export function CommandPaletteModal({
     }
 
     return (
-        <Modal
+        <NativeKeyboardModal
             visible={isModalVisible}
             transparent={true}
             animationType="none"
@@ -92,6 +94,7 @@ export function CommandPaletteModal({
             <KeyboardAvoidingView
                 style={[
                     styles.container,
+                    Platform.OS !== 'web' && { paddingTop: Math.max(windowInsets.top + HERD_PHONE_FLOAT_MARGIN, windowHeight * 0.12) },
                     phone && {
                         paddingTop: windowInsets.top + HERD_PHONE_FLOAT_MARGIN,
                         paddingHorizontal: HERD_PHONE_FLOAT_MARGIN,
@@ -129,7 +132,7 @@ export function CommandPaletteModal({
                     {children}
                 </Animated.View>
             </KeyboardAvoidingView>
-        </Modal>
+        </NativeKeyboardModal>
     );
 }
 

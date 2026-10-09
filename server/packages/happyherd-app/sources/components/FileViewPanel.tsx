@@ -1,3 +1,4 @@
+import { NativeTextFilePreview } from './NativeTextFilePreview';
 /**
  * File view/edit overlay panel.
  * Shown in the main content area when a file is selected from the "All Files" sidebar tab.
@@ -244,6 +245,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     onDisplayModeChange,
 }: FileContentPanelProps) {
     const { theme } = useUnistyles();
+    const markdownScrollRef = React.useRef<ScrollView>(null);
+    const revealMarkdownLine = React.useCallback((y: number) => markdownScrollRef.current?.scrollTo({ y, animated: false }), []);
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
@@ -279,7 +282,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         && isSvgDocument(fileState.content);
     // A raw text/code file with no richer renderer still owns a Preview: it is
     // rendered by the read-only Pierre renderer on the commentable Web host and
-    // by the read-only editor elsewhere. It is not a separately published mode.
+    // by native source rows in a review context (otherwise the read-only editor).
 
     React.useEffect(() => {
         setReviewAnchor(null);
@@ -821,7 +824,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     />
                 </ScrollView>
             ) : isMarkdown && displayMode === 'preview' ? (
-                <ScrollView
+                <ScrollView ref={markdownScrollRef}
                     style={{ flex: 1 }}
                     contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: Platform.OS === 'web' ? 0 : 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
                 >
@@ -837,10 +840,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                             onLineComment={reviewContext ? activateReviewLine : undefined}
                             renderLineComment={reviewContext ? ({ line }) => renderLineReview(line) : undefined}
                             requestedLine={requestedLine}
+                            onRequestedLineLayout={revealMarkdownLine}
                         />
                     </View>
                 </ScrollView>
-            ) : isCanvas && displayMode === 'preview' && Platform.OS === 'web' && markdownSessionId ? (
+            ) : isCanvas && displayMode === 'preview' && markdownSessionId ? (
                 <View style={styles.canvasPreview}>
                     <CanvasFileViewer
                         content={editContent}
@@ -861,6 +865,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
+            ) : Platform.OS !== 'web' && reviewContext && displayMode === 'preview' ? (
+                <NativeTextFilePreview content={editContent} requestedLine={requestedLine} onLineComment={activateReviewLine} renderLineComment={renderLineReview} />
             ) : Platform.OS === 'web' && reviewContext && displayMode === 'preview' ? (
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <PierreDiffView
@@ -884,7 +890,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     />
                 </View>
             )}
-            {Platform.OS === 'web' && reviewContext ? (
+            {reviewContext ? (
                 <InlineCommentReview
                     originSessionId={reviewContext.originSessionId}
                     reference={{

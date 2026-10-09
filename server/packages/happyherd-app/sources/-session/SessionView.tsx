@@ -229,7 +229,6 @@ export const SessionView = React.memo((props: {
     });
     const canUseSessionFileWorkspace = isDataReady
         && !!session
-        && (Platform.OS === 'web' || isRunningOnMac())
         && rigCanBrowseFiles(session.metadata)
         && rigCanUseShell(session.metadata);
     const canShowSessionFileWorkspaceSplit = canUseSessionFileWorkspace
@@ -247,7 +246,7 @@ export const SessionView = React.memo((props: {
     const [resizableSidebarWidth, setResizableSidebarWidth] = React.useState(() => (
         resolveDesktopFileWorkspaceWidth(fixedSidebarWidth, windowWidth)
     ));
-    const sidebarWidth = Platform.OS === 'web' ? resizableSidebarWidth : fixedSidebarWidth;
+    const sidebarWidth = resizableSidebarWidth;
     const handleSessionLayout = React.useCallback((event: LayoutChangeEvent) => {
         const nextAvailableWidth = event.nativeEvent.layout.width;
         if (nextAvailableWidth <= 0) return;
@@ -278,7 +277,6 @@ export const SessionView = React.memo((props: {
     const desktopFileWorkspaceSession = useSession(desktopFileWorkspaceSessionId);
     const canUseDesktopFileWorkspaceSession = isDataReady
         && !!desktopFileWorkspaceSession
-        && (Platform.OS === 'web' || isRunningOnMac())
         && rigCanBrowseFiles(desktopFileWorkspaceSession.metadata)
         && rigCanUseShell(desktopFileWorkspaceSession.metadata);
     const workspaceLinkRequestGeneration = React.useRef(0);
@@ -1091,8 +1089,8 @@ export const SessionView = React.memo((props: {
         sideChatCount: sideChats.length,
         canCreateSideChat: Boolean(session),
     });
-    // Header controls (UI overhaul), on Web and on native phones: the Workspace
-    // toggle (Web and Mac) hides or reveals the same Workspace the composer +
+    // Header controls on every host: the Workspace
+    // toggle hides or reveals the same Workspace the composer +
     // menu opens without closing its tabs, then Side chats and the ⋯ menu.
     const headerWorkspaceShown = rightWorkspaceVisible || rightWorkspaceFullscreen || desktopFileWorkspaceOverlayOpen;
     const toggleWorkspaceFromHeader = React.useCallback(() => {
@@ -1104,7 +1102,7 @@ export const SessionView = React.memo((props: {
         }
         openWorkspaceForSession(session);
     }, [headerWorkspaceShown, openWorkspaceForSession, session]);
-    const webHeaderActions = session && (Platform.OS === 'web' || phoneLayout)
+    const webHeaderActions = session
         ? (
             <SessionHeaderActions
                 sessionId={sessionId}
@@ -1374,7 +1372,7 @@ export const SessionView = React.memo((props: {
 
     const fallbackRightSurface = (
         <>
-            {Platform.OS === 'web' && showSidebar && !rightPanelOverlay ? (
+            {showSidebar && !rightPanelOverlay ? (
                 <SessionSidebarDivider
                     width={sidebarWidth}
                     onWidthChange={handleSidebarWidthChange}
@@ -1626,8 +1624,7 @@ export function SessionViewLoaded({
     const isWebSessionViewport = Platform.OS === 'web';
     const workspaceController = React.useContext(SessionWorkspaceControllerContext);
     const webWorkspaceActions = React.useMemo(() => (
-        isWebSessionViewport
-        && workspaceController
+        workspaceController
         && rigCanBrowseFiles(session.metadata)
         && rigCanUseShell(session.metadata)
             ? {
@@ -1635,7 +1632,7 @@ export function SessionViewLoaded({
                 onOpenWorkspace: () => workspaceController.openWorkspace(session),
             }
             : undefined
-    ), [isWebSessionViewport, session, sessionId, workspaceController]);
+    ), [session, sessionId, workspaceController]);
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded

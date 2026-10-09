@@ -1726,23 +1726,38 @@ describe('Streamline on native phones', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps native tablets on the full form', async () => {
-        mocks.dimensions = { width: 1024, height: 1366 };
+    it.each([640, 1024])('opens exactly one native folder picker at %ipx', async (width) => {
+        mocks.dimensions = { width, height: 1366 };
         const renderer = await renderScreen();
         await settle(renderer);
-        expect(byTestID(renderer, 'streamline-sections')).toHaveLength(0);
+        if (width < 700) {
+            const dropdown = renderer.root.find((node: any) => node.props?.testID === 'streamline-folder-dropdown' && typeof node.props?.onPress === 'function');
+            await act(async () => { dropdown.props.onPress(); });
+        }
+        const browse = renderer.root.find((node: any) => node.props?.testID === 'streamline-choose-folder' && typeof node.props?.onPress === 'function');
+        await act(async () => { browse.props.onPress(); });
+        await settle(renderer);
+        expect(renderer.root.findAllByType('KeyboardStickyView' as any)).toHaveLength(1);
+        expect(byTestID(renderer, 'new-session-path-dropdown')).toHaveLength(0);
         act(() => renderer.unmount());
     });
 
-    it('keeps the iOS app on a Mac on the full form in a small window, which the device rule calls a phone', async () => {
+    it('offers Streamline on native tablets from the synced default', async () => {
+        mocks.dimensions = { width: 1024, height: 1366 };
+        const renderer = await renderScreen();
+        await settle(renderer);
+        expect(byTestID(renderer, 'streamline-sections').length).toBeGreaterThan(0);
+        act(() => renderer.unmount());
+    });
+
+    it('offers both modes in the iPad app on Mac even in a narrow window', async () => {
         // This file's device rule calls a window under 700 px wide a phone.
         mocks.mac = true;
         mocks.dimensions = { width: 640, height: 900 };
         const renderer = await renderScreen();
         await settle(renderer);
-        expect(byTestID(renderer, 'streamline-sections')).toHaveLength(0);
-        expect(byTestID(renderer, 'new-session-mode')).toHaveLength(0);
-        expect(renderer.root.findAll((node: any) => node.props?.accessibilityLabel === 'sessionInfo.path').length).toBeGreaterThan(0);
+        expect(byTestID(renderer, 'streamline-sections').length).toBeGreaterThan(0);
+        expect(byTestID(renderer, 'new-session-mode').length).toBeGreaterThan(0);
         act(() => renderer.unmount());
     });
 });

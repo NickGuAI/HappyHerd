@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Platform } from 'react-native';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 
 type EscapeLayer = {
     close: () => void;
@@ -43,6 +44,8 @@ export function useHerdEscapeToClose(
     onClose: () => void,
     accepts?: (event: KeyboardEvent) => boolean,
 ): void {
+    const nativeId = React.useId();
+    useNativeShortcuts(visible ? [{ id: `escape:${nativeId}`, key: 'Escape', scope: 'overlay', allowEditable: !accepts }] : [], onClose);
     const onCloseRef = React.useRef(onClose);
     onCloseRef.current = onClose;
     const acceptsRef = React.useRef(accepts);

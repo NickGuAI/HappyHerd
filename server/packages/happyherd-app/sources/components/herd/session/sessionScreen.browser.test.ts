@@ -253,7 +253,7 @@ function sessionScreenModules(): Record<string, string> {
     modules['react-native-reanimated'] = modules['react-native-reanimated']
         .replace('export default { ScrollView, Text, View };', 'export default { ScrollView, Text, View, createAnimatedComponent: (Component) => Component };')
         + `export const cancelAnimation = () => {}; export const withSpring = (value) => value; export const useAnimatedRef = () => React.useRef(null);
-           export const measure = () => ({ width: 24, height: 24 }); export const useReducedMotion = () => false;
+           export const measure = () => ({ width: 24, height: 24 });
            export const FadeIn = { duration: () => ({}) }; export const FadeOut = { duration: () => ({}) };`;
 
     // Session status comes from production; identity helpers stay synthetic.

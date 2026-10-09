@@ -992,6 +992,11 @@
     "pinComment": "Kommentar anpinnen",
     "sendComments": "{count} Kommentare senden",
     "commentOnHoveredLine": "Zeile kommentieren",
+    "canvas": {
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "fit": "Canvas einpassen"
+    },
     "pdf": {
       "previousPage": "Vorherige Seite",
       "nextPage": "Nächste Seite",

@@ -1,5 +1,6 @@
+import { NativeKeyboardModal } from '@/keyboard/NativeKeyboard';
 import * as React from 'react';
-import { Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -149,9 +150,9 @@ export function HerdSheet({
         return <HerdExitLayer>{layer}</HerdExitLayer>;
     }
     return (
-        <Modal visible transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={onClose}>
+        <NativeKeyboardModal visible transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={onClose}>
             {layer}
-        </Modal>
+        </NativeKeyboardModal>
     );
 }
 

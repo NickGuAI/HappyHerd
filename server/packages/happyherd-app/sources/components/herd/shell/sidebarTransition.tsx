@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { StyleSheet } from 'react-native-unistyles';
 
@@ -16,11 +16,11 @@ export const HERD_SIDEBAR_EXIT_MS = 180;
  * Animating the drawer width re-flows the chat beside it on every frame, so
  * the width still changes in one step. Collapsing lets the content slide out
  * first and then snaps the width; expanding snaps the width open and lets the
- * content slide in. Native and reduced-motion users get the snap alone.
+ * content slide in. Reduced-motion users get the snap alone.
  */
 export function useHerdSidebarTransition(hidden: boolean): { widthHidden: boolean; phase: HerdSidebarPhase } {
     const reduceMotion = useReducedMotion();
-    const animate = Platform.OS === 'web' && !reduceMotion;
+    const animate = !reduceMotion;
     const [state, setState] = React.useState<{ widthHidden: boolean; phase: HerdSidebarPhase }>(
         () => ({ widthHidden: hidden, phase: 'idle' }),
     );
@@ -53,7 +53,29 @@ export const HerdSidebarPhaseContext = React.createContext<HerdSidebarPhase>('id
 /** Wraps the panel's content so it plays the phase the navigator publishes. */
 export function HerdSidebarFrame({ children }: { children: React.ReactNode }) {
     const phase = React.useContext(HerdSidebarPhaseContext);
-    return <View style={styles.frame(phase)}>{children}</View>;
+    return Platform.OS === 'web'
+        ? <View style={styles.frame(phase)}>{children}</View>
+        : <NativeSidebarFrame phase={phase}>{children}</NativeSidebarFrame>;
+}
+
+function NativeSidebarFrame({ phase, children }: { phase: HerdSidebarPhase; children: React.ReactNode }) {
+    const reduceMotion = useReducedMotion();
+    const progress = React.useRef(new Animated.Value(1)).current;
+    React.useEffect(() => {
+        if (reduceMotion || phase === 'idle') {
+            progress.setValue(1);
+            return;
+        }
+        if (phase === 'entering') progress.setValue(0);
+        const animation = Animated.timing(progress, {
+            toValue: phase === 'exiting' ? 0 : 1,
+            duration: phase === 'exiting' ? HERD_SIDEBAR_EXIT_MS : HERD_MOTION.slow,
+            useNativeDriver: true,
+        });
+        animation.start();
+        return () => animation.stop();
+    }, [phase, progress, reduceMotion]);
+    return <Animated.View style={{ flex: 1, opacity: progress, transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }] }}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create(() => ({

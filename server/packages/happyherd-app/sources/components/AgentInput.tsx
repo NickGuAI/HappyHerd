@@ -1,3 +1,4 @@
+import type { SupportedKey } from './MultiTextInput';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import * as React from 'react';
@@ -1940,12 +1941,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
 
         // Original key handling
-        if (Platform.OS === 'web') {
+        if (Platform.OS === 'web' || (Platform.OS === 'ios' && event.nativeHardware)) {
             // On mobile web (touch devices), Enter should insert a newline since
             // there's no Shift key available. Users send via the send button instead.
             // Use pointer:coarse media query instead of ontouchstart/maxTouchPoints
             // to avoid false positives on Windows touch-screen laptops with keyboards.
-            const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+            const isTouchDevice = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
             if (agentInputEnterToSend && event.key === 'Enter' && !event.shiftKey && !isTouchDevice) {
                 // Read live text from the textarea — `hasText` is debounced via
                 // startTransition and would lag behind a quick type-then-Enter.
@@ -1959,15 +1960,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     return true; // Key was handled
                 }
             }
-            // Handle Shift+Tab for permission mode switching
-            if (event.key === 'Tab' && event.shiftKey && props.onPermissionModeChange && availableModes.length > 0) {
-                const currentIndex = availableModes.findIndex((mode) => mode.key === permissionModeKey);
-                const nextIndex = ((currentIndex >= 0 ? currentIndex : 0) + 1) % availableModes.length;
-                props.onPermissionModeChange(availableModes[nextIndex]);
-                hapticsLight();
-                return true; // Key was handled, prevent default tab behavior
-            }
+        }
 
+        // Handle Shift+Tab for permission mode switching
+        if (event.key === 'Tab' && event.shiftKey && props.onPermissionModeChange && availableModes.length > 0) {
+            const currentIndex = availableModes.findIndex((mode) => mode.key === permissionModeKey);
+            const nextIndex = ((currentIndex >= 0 ? currentIndex : 0) + 1) % availableModes.length;
+            props.onPermissionModeChange(availableModes[nextIndex]);
+            hapticsLight();
+            return true; // Key was handled, prevent default tab behavior
         }
         return false; // Key was not handled
     }, [suggestions, moveUp, moveDown, selected, handleSuggestionSelect, props.showAbortButton, props.onAbort, isAborting, handleAbortPress, agentInputEnterToSend, props.onSend, props.onPermissionModeChange, availableModes, permissionModeKey, isSendBlocked, handleBlockedSendAttempt, props.isSendDisabled]);
@@ -3004,6 +3005,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             onChangeText={handleTextChange}
                             placeholder={props.placeholder}
                             onKeyPress={handleKeyPress}
+                            nativeKeyCommands={[
+                                ...(suggestions.length > 0 ? ['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].map(key => ({ key: key as SupportedKey, shiftKey: false })) : []),
+                                ...(suggestions.length === 0 && agentInputEnterToSend ? [{ key: 'Enter' as const, shiftKey: false, requireText: true }] : []),
+                                ...(suggestions.length === 0 && props.showAbortButton && props.onAbort && !isAborting ? [{ key: 'Escape' as const, shiftKey: false }] : []),
+                                ...(props.onPermissionModeChange && availableModes.length > 0 ? [{ key: 'Tab' as const, shiftKey: true }] : []),
+                            ]}
                             onStateChange={handleInputStateChange}
                             maxHeight={Platform.OS === 'web' ? 480 : MOBILE_COMPOSER_METRICS.inputMaxHeight}
                             lineHeight={compactMobileComposer ? MOBILE_COMPOSER_METRICS.inputLineHeight : undefined}

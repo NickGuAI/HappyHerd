@@ -112,11 +112,18 @@ export const SidebarNavigationButton = React.memo((props: {
 }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
+    const [pointerHovered, setPointerHovered] = React.useState(false);
     const phone = useHerdPhoneLayout();
 
     return (
         <Pressable
             onPress={props.onPress}
+            onHoverIn={() => setPointerHovered(true)}
+            onHoverOut={() => setPointerHovered(false)}
+            onPointerEnter={(event) => {
+                if (event.nativeEvent.pointerType !== 'touch') setPointerHovered(true);
+            }}
+            onPointerLeave={() => setPointerHovered(false)}
             accessibilityRole="button"
             accessibilityLabel={props.label}
             aria-selected={props.active ? true : undefined}
@@ -128,13 +135,14 @@ export const SidebarNavigationButton = React.memo((props: {
                 props.emphasis && styles.emphasis,
                 props.quiet && styles.quiet,
                 props.quiet && phone && styles.quietPhone,
-                hovered && (props.quiet ? styles.quietHovered : props.emphasis ? styles.emphasisHovered : styles.buttonHovered),
+                (pointerHovered || hovered) && (props.quiet ? styles.quietHovered : props.emphasis ? styles.emphasisHovered : styles.buttonHovered),
                 props.active && (props.quiet ? styles.quietActive : styles.buttonActive),
                 props.highlighted && styles.buttonHighlighted,
                 pressed && styles.buttonPressed,
             ]}
         >
-            {({ hovered }: any) => {
+            {({ hovered: webHovered }: any) => {
+                const hovered = pointerHovered || webHovered;
                 const tint = props.active || props.pressed
                     ? theme.colors.textLink
                     : props.emphasis || hovered ? theme.colors.text : theme.colors.textSecondary;

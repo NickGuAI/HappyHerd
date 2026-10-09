@@ -1,3 +1,9 @@
+# October 8 — Native layouts, shortcuts and Workspace comments
+
+- iPad and the iPad app on Mac offer Streamline and Advanced using your saved default. Wide windows show Settings sections and chat panels beside the page; narrow windows keep native full-screen panels. Workspace tabs and drafts survive resizing.
+- Native hardware keyboards can open the command palette, toggle the sidebar, dismiss overlays and operate composer and permission choices. Native panels can be resized, and sidebar, selection and disclosure transitions respect reduced motion.
+- Native Workspace previews support line and Canvas node comments using the existing feedback batch. Pointer hints and tablet session-row actions are available. Interactive localhost preview and element screenshot comments remain Web-only pending native transport approval and implementation.
+
 # October 8 — Launch native builds on iOS 27
 
 - iOS source builds now generate the scene lifecycle required to open on iOS 27, preserving app links and foreground/background handling. Native build compatibility fixes are reapplied during project generation and CocoaPods installation; these builds require iOS 16 or later.

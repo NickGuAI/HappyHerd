@@ -94,6 +94,7 @@ vi.mock('react-native', async () => {
     };
     return {
         ActivityIndicator: host('ActivityIndicator'),
+        PanResponder: { create: (handlers: any) => ({ panHandlers: handlers }) },
         Platform,
         Pressable: (props: any) => ReactModule.createElement(
             'Pressable', props,
@@ -2850,3 +2851,27 @@ describe('SessionView side-chat integration', () => {
 });
 
 vi.mock('@react-navigation/native', () => ({ useIsFocused: () => true, useNavigation: () => ({ dispatch: vi.fn(), getState: () => ({ routes: [] }) }) }));
+
+
+describe('native wide-window parity', () => {
+    it.each([false, true])('docks and resizes iOS panels and retains workspace tabs across a narrow window (Mac=%s)', (mac) => {
+        mocks.platform = 'ios'; mocks.mac = mac; mocks.width = 1280; mocks.height = 900;
+        const renderer = renderParent();
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+        const divider = renderer.root.findByProps({ testID: 'session-sidebar-divider' });
+        act(() => divider.props.onPanResponderGrant());
+        act(() => divider.props.onPanResponderMove({}, { dx: -100 }));
+        act(() => divider.props.onPanResponderRelease());
+        expect(desktopSideChatHosts(renderer)[0]?.parent?.props.style.width).toBeGreaterThan(360);
+        openParentWorkspaceFile(renderer, '/work/native.md');
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths).toEqual(['/work/native.md']);
+        const composer = composerForSession(renderer, 'parent');
+        act(() => { mocks.width = 600; for (const listener of mocks.listeners) listener(); });
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths).toEqual(['/work/native.md']);
+        expect(composerForSession(renderer, 'parent')).toBe(composer);
+        act(() => renderer.unmount());
+    });
+});

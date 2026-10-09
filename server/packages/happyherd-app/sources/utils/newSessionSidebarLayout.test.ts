@@ -86,14 +86,14 @@ describe('getNewSessionSidebarLayout', () => {
         }).showSidebar).toBe(false);
     });
 
-    it('disables the sidebar on unsupported native platforms', () => {
+    it('enables the sidebar on a wide iPad without pretending it runs macos', () => {
         expect(getNewSessionSidebarLayout({
             platform: 'ios',
             isMac: false,
             fileDiffsSidebarEnabled: true,
             zenMode: false,
             windowWidth: 1400,
-        }).showSidebar).toBe(false);
+        }).showSidebar).toBe(true);
     });
 });
 

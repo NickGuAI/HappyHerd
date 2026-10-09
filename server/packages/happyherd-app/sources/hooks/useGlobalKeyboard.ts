@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 import {
     getGlobalShortcutId,
     getPressedShortcutModifier,
@@ -21,6 +22,17 @@ export function useGlobalKeyboard(
     actions: GlobalKeyboardActions,
     browserSafeShortcuts = false,
 ) {
+    useNativeShortcuts([
+        ...(actions.commandPalette ? [{ id: 'global:palette', key: 'k', meta: true }] : []),
+        ...(actions.newSession ? [{ id: 'global:new', key: 'n', meta: true }] : []),
+        ...(actions.settings ? [{ id: 'global:settings', key: ',', meta: true }] : []),
+        ...(actions.recentSession ? Array.from({ length: 9 }, (_, index) => ({ id: `global:recent:${index}`, key: String(index + 1), meta: true })) : []),
+    ], id => {
+        if (id === 'global:palette') actions.commandPalette?.();
+        else if (id === 'global:new') actions.newSession?.();
+        else if (id === 'global:settings') actions.settings?.();
+        else if (id.startsWith('global:recent:')) actions.recentSession?.(Number(id.split(':')[2]));
+    });
     const [visibleModifier, setVisibleModifier] = useState<ShortcutModifier | null>(null);
     const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const actionsRef = useRef(actions);

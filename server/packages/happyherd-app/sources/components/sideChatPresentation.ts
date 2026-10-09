@@ -21,8 +21,7 @@ export function resolveSessionSidebarPresentation(input: {
     sideChatSurface: SideChatSurface;
     rightPanelPresentation: RightPanelPresentation;
 } {
-    const wideSidebarFrame = (input.platform === 'web' || input.runningOnMac)
-        && input.windowWidth >= SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const wideSidebarFrame = input.windowWidth >= SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
     // Below the wide frame, Web keeps the same panels as a sheet over the chat
     // (UI overhaul). Phones share it: Side chats, Changes and the Workspace
     // slide in from the right instead of opening full screen.

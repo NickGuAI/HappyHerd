@@ -84,6 +84,7 @@ describe('Settings without a home page', () => {
         ['a 1024 × 768 browser window', { width: 1024 }],
         ['the frame width exactly', { width: 1000 }],
         ['the macOS build', { platform: 'macos', width: 1280 }],
+        ['a wide native tablet', { platform: 'ios', width: 1366, tablet: true }],
     ])('opens Account in place of this route in %s', (_label, layout) => {
         Object.assign(state, layout);
         const renderer = render();
@@ -97,7 +98,7 @@ describe('Settings without a home page', () => {
         ['an 800 px window', { width: 800 }],
         ['1 px below the frame width', { width: 999 }],
         ['a native phone', { platform: 'ios', width: 390 }],
-        ['a native tablet', { platform: 'ios', width: 1366, tablet: true }],
+        ['a narrow native tablet', { platform: 'ios', width: 900, tablet: true }],
         ['Android', { platform: 'android', width: 412 }],
     ])('is the section list on %s', (_label, layout) => {
         Object.assign(state, layout);
@@ -137,7 +138,7 @@ describe('Settings server configuration on the section list', () => {
         ['700 px on the web', { width: 700, tablet: false }],
         ['999 px on the web', { width: 999, tablet: false }],
         ['a native phone in landscape', { platform: 'ios', width: 844, tablet: false }],
-        ['a native tablet', { platform: 'ios', width: 1024, tablet: true }],
+        ['a narrow native tablet', { platform: 'ios', width: 900, tablet: true }],
     ])('keeps it on %s with a custom server', (_label, layout) => {
         Object.assign(state, { platform: 'web', customServer: true, ...layout });
         expect(headerRight()).toEqual(expect.any(Function));

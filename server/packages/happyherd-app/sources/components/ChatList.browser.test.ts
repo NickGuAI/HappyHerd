@@ -12,6 +12,8 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const visualStatePollOptions = { timeout: 5_000 };
 
 const virtualModules: Record<string, string> = {
+    // This Web fixture must never execute the native disclosure implementation.
+    '@/components/herd/pages/HerdCollapse': `export const HerdCollapse = () => { throw new Error('Native disclosure rendered in Web ChatList fixture'); };`,
     'react-native': `export * from 'react-native-web'; export const TurboModuleRegistry = { get: () => null };`,
     'react-native-unistyles': `
         import { lightTheme, darkTheme } from '@/theme';

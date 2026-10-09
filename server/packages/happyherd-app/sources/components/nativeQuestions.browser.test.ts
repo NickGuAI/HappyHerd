@@ -9,6 +9,8 @@ import { chromium, type Browser } from 'playwright-core';
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const modules: Record<string, string> = {
     'react-native': `export * from 'react-native-web';`,
+    // The browser must keep the real Web disclosure; native animation is never rendered here.
+    '@/components/herd/pages/HerdCollapse': `export const HerdCollapse = () => { throw new Error('Native disclosure rendered in Web question fixture'); };`,
     'react-native-unistyles': `import { lightTheme as theme } from '@/theme'; export const StyleSheet = { create: f => typeof f === 'function' ? f(theme) : f, hairlineWidth: 1 }; export const useUnistyles = () => ({ theme });`,
     '@expo/vector-icons': `import React from 'react'; const Icon = ({ name }) => React.createElement('span', { 'data-icon': name }); export const Ionicons = Icon; export const Octicons = Icon;`,
     'expo-router': `export const useRouter = () => ({ push() {} });`,

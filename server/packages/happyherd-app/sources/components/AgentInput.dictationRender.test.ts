@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 const testState = vi.hoisted(() => ({
     width: 1200,
     platform: 'web',
+    enterToSend: false,
 }));
 
 vi.mock('react-native', async () => {
@@ -126,7 +127,7 @@ vi.mock('./GitStatusBadge', async () => {
         useHasMeaningfulGitStatus: () => false,
     };
 });
-vi.mock('@/sync/storage', () => ({ useSetting: () => undefined }));
+vi.mock('@/sync/storage', () => ({ useSetting: (key: string) => key === 'agentInputEnterToSend' ? testState.enterToSend : undefined }));
 vi.mock('@/sync/modeHacks', () => ({ hackMode: (mode: unknown) => mode, hackModes: (modes: unknown) => modes }));
 vi.mock('@/utils/permissionModeLabels', () => ({
     getPermissionModeMenuLabel: (mode: { name: string }) => mode.name,
@@ -185,6 +186,7 @@ afterAll(() => vi.restoreAllMocks());
 beforeEach(() => {
     testState.width = 1200;
     testState.platform = 'web';
+    testState.enterToSend = false;
 });
 
 function pressable(renderer: ReactTestRenderer, label: string) {
@@ -721,6 +723,28 @@ describe('AgentInput Web action menu', () => {
         expect(callbacks.onQueueMessage).toHaveBeenCalledOnce();
         expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
 
+        act(() => renderer.unmount());
+    });
+});
+
+
+describe('native composer Return input source', () => {
+    it('keeps software Return as newline and sends only hardware Return when enabled', () => {
+        testState.platform = 'ios';
+        testState.enterToSend = true;
+        const { renderer, callbacks } = renderMobileActionInput({}, 1024);
+        const input = renderer.root.findByType('MultiTextInput' as any);
+        expect(input.props.nativeKeyCommands).toContainEqual({ key: 'Enter', shiftKey: false, requireText: true });
+        let handled: boolean | undefined;
+        act(() => { handled = input.props.onKeyPress({ key: 'Enter', shiftKey: false }); });
+        expect(handled).toBe(false);
+        expect(callbacks.onSend).not.toHaveBeenCalled();
+        act(() => { handled = input.props.onKeyPress({ key: 'Enter', shiftKey: false, nativeHardware: true }); });
+        expect(handled).toBe(true);
+        expect(callbacks.onSend).toHaveBeenCalledTimes(1);
+        act(() => { handled = input.props.onKeyPress({ key: 'Enter', shiftKey: true, nativeHardware: true }); });
+        expect(handled).toBe(false);
+        expect(callbacks.onSend).toHaveBeenCalledTimes(1);
         act(() => renderer.unmount());
     });
 });

@@ -264,7 +264,7 @@ export default function AutomationsScreen() {
     const routeParams = useLocalSearchParams<{ machineId?: string; automationId?: string }>();
     const appliedTargetRef = React.useRef<string | null>(null);
     const { width } = useWindowDimensions();
-    const desktop = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
+    const desktop = width >= 900;
     const machines = useAllMachines({ includeOffline: true });
     const onlineMachines = React.useMemo(() => machines.filter(isMachineOnline), [machines]);
     const onlineMachinesRef = React.useRef(onlineMachines);
