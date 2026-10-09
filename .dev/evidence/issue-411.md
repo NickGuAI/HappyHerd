@@ -74,3 +74,65 @@ additional deadline, retry, guard framework or error replacement is introduced.
 First diagnostic CI on the forthcoming head must be retained without rerun.
 A passing trace does not establish a cause. A failing startup method boundary is
 still required before selecting the smallest causal repair and its regression.
+
+## First initialization sample on 7df8344f
+
+All first push-generated workflows finished without reruns:
+
+- Quality `37939233229` passed all jobs, including all 210 owned journeys;
+  app total 380 files / 4440 tests passed, ten existing skips.
+- Contracts `37939233209` failed the side-chat 30-second setup hook. Desktop
+  passed all 48 journeys; side-chat skipped 162. App total 379 files passed,
+  one failed, 4278 tests passed and 172 skipped.
+- Server image `37939233237` passed.
+- Native installer `37939233239` separately failed macOS x64's installer-rerun
+  child with exit 1 at 14:16:36.594Z, after initial pairing and registered-machine
+  RPC passed. Other applicable jobs passed. No installer edits or reruns belong
+  to this investigation.
+
+The complete first logs remain retained separately. The failing Contracts
+trace contains eight startup records per fixture (2445 bytes of normalized
+metadata total). Use the internal `at` timestamps, not buffered GitHub output
+timestamps. Desktop/side-chat process spawning took 35/11 ms. Their
+`Browser.getVersion` send-to-receive intervals were 25717/25617 ms; both
+responses were observed at 13:51:19.749Z. `Target.setAutoAttach` then took
+101/99 ms. Launch finished at total setup 29698/29647 ms. Side-chat warmup
+crossed the deadline and failed after browser closure at 32940 ms. Warmup is
+therefore a consequence of the depleted setup budget, not the initiating delay.
+
+Installed app Playwright 1.62.1 logs SEND before transport writes. Its pipe
+transport assembles NUL-framed data and dispatches through `setImmediate` on
+Node 20 before CRConnection logs RECV. The interval includes browser readiness,
+transport and worker scheduling; synchronized receipt timestamps prove none of
+those owners. The owning app runner is Vitest 3.2.4. Root Playwright 1.61.1 and
+root runner 4.1.5 are not the consumers of these fixtures.
+
+## Approved responsiveness discrimination
+
+The diagnostic adds one unref'd native 250 ms heartbeat only while the first
+root `Browser.getVersion` exchange is pending. It retains aggregate tick count,
+elapsed time, maximum gap and its elapsed bounds, last tick, and CPU deltas.
+There is no per-tick output or protocol payload. The final gap is included on
+response or terminal teardown, and the interval is cleared before final counter
+reads. Existing trace record caps, error identity, fixture options, journey
+assertions and hook budgets are unchanged.
+
+Continuing heartbeats falsify a continuous worker pause over the sampled
+interval. A gap proves loss of callback responsiveness only, not its cause.
+`process.cpuUsage()` measures whole Node-process CPU activity across its
+threads, not specifically synchronous JavaScript, Chromium CPU, or host CPU.
+Low CPU does not prove a scheduling cause. This is a causally justified
+observation, not a repair or a synthetic reproduction of the actual failure.
+
+The deterministic no-browser observer proof covers a 250 ms unref'd interval,
+final-gap and elapsed-bound arithmetic, CPU deltas, starting only at getVersion
+SEND, response/teardown cleanup, late response suppression, and original error
+identity when final counter collection throws. Its simulated 25-second gap is
+an observer-integrity input only. The existing metadata allowlist regression
+explicitly accepts only the eight new numeric fields and checks their values.
+
+Pre-publication checks for the responsiveness diagnostic: all five focused
+helper tests passed, the integrated deterministic observer proof passed, app
+TypeScript (`tsc --noEmit`) passed, and source lint / whitespace checks passed.
+No local browser, full-app suite or build was run. Exact-head review and the
+first push-generated CI results remain distinct from these lightweight checks.

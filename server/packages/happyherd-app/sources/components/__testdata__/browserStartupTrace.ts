@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { setInterval, clearInterval } from 'node:timers';
 
 // Diagnostic-only adapter to the installed Playwright package-exported internal.
 // This is not a stable public Playwright API; do not use it in product code.
@@ -6,7 +7,8 @@ type Sink = (this: { namespace?: string }, ...args: unknown[]) => void;
 type Debug = { log: Sink; namespaces: string | undefined; enable: (namespaces: string | undefined) => void };
 type Method = 'Browser.getVersion' | 'Target.setAutoAttach';
 type Event = 'process-launching' | 'process-launched' | 'process-exited' | 'command-sent' | 'command-received' | 'command-error-received' | 'trace-started' | 'trace-limit-reached' | 'launch-resolved' | 'launch-rejected' | 'hook-teardown';
-type RecordFields = { event: Event; method?: Method; id?: number; pid?: number };
+type Responsiveness = NonNullable<ReturnType<ReturnType<typeof observeStartupResponsiveness>>>;
+type RecordFields = { event: Event; method?: Method; id?: number; pid?: number } & Partial<Responsiveness>;
 const require = createRequire(import.meta.url);
 
 export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeader') {
@@ -20,6 +22,12 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
     let limitReported = false;
     let terminalReported = false;
     let stopped = false;
+    let finishResponsiveness: ReturnType<typeof observeStartupResponsiveness> | undefined;
+    const finishObservation = () => {
+        const finish = finishResponsiveness;
+        finishResponsiveness = undefined;
+        try { return finish?.(); } catch { return undefined; }
+    };
     const restoreEnvironment = () => {
         if (previousEnvironment === undefined) delete process.env.DEBUG;
         else process.env.DEBUG = previousEnvironment;
@@ -73,13 +81,18 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
         if (typeof message.id !== 'number' || !Number.isSafeInteger(message.id) || message.id < 0) return;
         if (direction === 'send') {
             if (message.method !== 'Browser.getVersion' && message.method !== 'Target.setAutoAttach') return;
+            if (message.method === 'Browser.getVersion' && !finishResponsiveness) {
+                try { finishResponsiveness = observeStartupResponsiveness(); } catch { /* Diagnostics only. */ }
+            }
             pending.set(message.id, message.method);
             emit({ event: 'command-sent', method: message.method, id: message.id });
         } else {
             const method = pending.get(message.id);
             if (!method) return;
             pending.delete(message.id);
-            emit({ event: message.error ? 'command-error-received' : 'command-received', method, id: message.id });
+            emit({ event: message.error ? 'command-error-received' : 'command-received', method, id: message.id,
+                ...(method === 'Browser.getVersion' ? finishObservation() : undefined),
+            });
         }
     };
     // Only this isolated fixture worker, only until launch settles / hook teardown.
@@ -90,7 +103,7 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
     const stop = (event: 'launch-resolved' | 'launch-rejected' | 'hook-teardown') => {
         if (stopped) return;
         stopped = true;
-        emit({ event }, true);
+        emit({ event, ...finishObservation() }, true);
         try {
             // On hook timeout, late launch and warmup may still execute. Silence
             // diagnostics and keep the dropping sink in this expired worker.
@@ -116,5 +129,51 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
                 stop(event);
             }
         },
+    };
+}
+
+
+// Diagnostic observation only: no launch deadline, retry or scheduling change.
+export function observeStartupResponsiveness() {
+    const startedAt = performance.now();
+    const startedCpu = process.cpuUsage();
+    let lastTickAt = startedAt;
+    let ticks = 0;
+    let maxGapMs = 0;
+    let maxGapStartMs = 0;
+    let maxGapEndMs = 0;
+    let stopped = false;
+    const observeGap = (now: number) => {
+        const gap = now - lastTickAt;
+        if (gap > maxGapMs) {
+            maxGapMs = gap;
+            maxGapStartMs = lastTickAt - startedAt;
+            maxGapEndMs = now - startedAt;
+        }
+    };
+    const timer = setInterval(() => {
+        const now = performance.now();
+        observeGap(now);
+        lastTickAt = now;
+        ticks++;
+    }, 250);
+    timer.unref();
+    return () => {
+        if (stopped) return undefined;
+        stopped = true;
+        clearInterval(timer);
+        const now = performance.now();
+        observeGap(now); // Include a stalled final interval before response/teardown.
+        const cpu = process.cpuUsage(startedCpu);
+        return {
+            heartbeatTicks: ticks,
+            heartbeatElapsedMs: Math.round(now - startedAt),
+            heartbeatMaxGapMs: Math.round(maxGapMs),
+            heartbeatMaxGapStartMs: Math.round(maxGapStartMs),
+            heartbeatMaxGapEndMs: Math.round(maxGapEndMs),
+            heartbeatLastTickMs: Math.round(lastTickAt - startedAt),
+            cpuUserMicros: cpu.user,
+            cpuSystemMicros: cpu.system,
+        };
     };
 }

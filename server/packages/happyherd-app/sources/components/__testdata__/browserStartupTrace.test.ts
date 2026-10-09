@@ -59,7 +59,15 @@ describe('fixture browser startup metadata', () => {
         expect(records.map(r => r.event)).toEqual(['trace-started', 'process-launching', 'process-launched', 'command-sent', 'command-received', 'command-sent', 'command-error-received', 'process-exited', 'launch-resolved']);
         expect(records.filter(r => r.method).map(r => [r.method, r.id])).toEqual([['Browser.getVersion', 1], ['Browser.getVersion', 1], ['Target.setAutoAttach', 2], ['Target.setAutoAttach', 2]]);
         expect(JSON.stringify(records)).not.toContain(sentinel);
-        expect(records.every(r => Object.keys(r).every(key => ['fixture', 'at', 'elapsedMs', 'event', 'method', 'id', 'pid'].includes(key)))).toBe(true);
+        expect(records.every(r => Object.keys(r).every(key => ['fixture', 'at', 'elapsedMs', 'event', 'method', 'id', 'pid', 'heartbeatTicks', 'heartbeatElapsedMs', 'heartbeatMaxGapMs', 'heartbeatMaxGapStartMs', 'heartbeatMaxGapEndMs', 'heartbeatLastTickMs', 'cpuUserMicros', 'cpuSystemMicros'].includes(key)))).toBe(true);
+        const responsiveness = records.find(r => r.method === 'Browser.getVersion' && r.event === 'command-received')!;
+        for (const key of ['heartbeatTicks', 'heartbeatElapsedMs', 'heartbeatMaxGapMs', 'heartbeatMaxGapStartMs', 'heartbeatMaxGapEndMs', 'heartbeatLastTickMs', 'cpuUserMicros', 'cpuSystemMicros']) {
+            expect(typeof responsiveness[key]).toBe('number');
+            expect(Number.isFinite(responsiveness[key])).toBe(true);
+            expect(responsiveness[key]).toBeGreaterThanOrEqual(0);
+        }
+        expect(responsiveness.heartbeatTicks).toBe(0); // No event-loop turn in this synthetic exchange.
+        expect(records.filter(r => r.heartbeatTicks !== undefined)).toHaveLength(1);
         expect(inheritedSink).not.toHaveBeenCalled();
         expect(debug.log).toBe(inheritedSink);
         expect(debug.namespaces).toBe('pw:browser,pw:protocol');
