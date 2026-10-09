@@ -770,3 +770,4 @@ PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for 
 BROWSER_SETUP_STAGE_EVIDENCE_411	accepted	test(app): trace browser fixture setup stages	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 BROWSER_LAUNCH_TRACE_411	accepted	test(app): trace disposable browser process startup	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 BROWSER_STARTUP_METADATA_411	accepted	test(app): bound browser initialization metadata trace	server/packages/happyherd-app/sources/components/__testdata__/browserStartupTrace.ts
+BROWSER_STARTUP_RESPONSIVENESS_411	accepted	test(app): observe worker responsiveness during browser initialization	server/packages/happyherd-app/sources/components/__testdata__/browserStartupTrace.ts
