@@ -122,7 +122,24 @@ done
 
 HOME="$test_home" SHELL=/bin/sh PATH="$customer_path" "${installer[@]}" \
   --server https://remote.example --no-start >/dev/null
-"$test_home/.local/bin/happyherd" --version >/dev/null
+"$test_home/.local/bin/happyherd" --version
+if [[ "$1" != --published ]]; then
+  "$test_home/.local/share/happyherd/node/bin/node" - \
+    "$test_home/.local/share/happyherd/runtime" "$target" "$(git -C "$repo_root" rev-parse HEAD)" <<'NODE'
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const [runtime, target, revision] = process.argv.slice(2);
+const read = (name) => JSON.parse(fs.readFileSync(path.join(runtime, name), 'utf8'));
+const info = read('build-info.json');
+assert.equal(info.revision, revision);
+assert.equal(info.target, target);
+assert.equal(info.cliVersion, read('package.json').version);
+assert.equal(info.serverVersion, read('node_modules/happyherd-server-self-host/package.json').version);
+assert.equal(info.nodeVersion, process.version);
+console.log('Installed archive identity:', JSON.stringify(info));
+NODE
+fi
 # Newly prepared assets must support the catalog's Opus 5.5 model. Inspect the
 # SDK-owned executable used by daemon sessions, never a standalone claude on PATH.
 # Historical published releases predate this Opus 5.5 minimum.
