@@ -770,3 +770,4 @@ PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for 
 IOS27_NATIVE_STARTUP	code-ready	fix(ios): preserve scene lifecycle and Xcode build compatibility	server/packages/happyherd-app/sources/iosSceneLifecycle.test.ts
 IOS27_CHANGELOG_BASELINES	code-ready	test(ios): refresh changelog baselines for native startup fix	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 CLAUDE_RUNTIME_MODELS_421	code-ready	fix(cli): discover Claude models from the installed runtime	server/packages/happyherd-cli/src/claude/sdk/modelDiscovery.ts
+CLAUDE_RUNTIME_CHANGELOG_421	code-ready	test(app): refresh changelog baselines for Claude discovery	docs/acceptance/issue-421/README.md

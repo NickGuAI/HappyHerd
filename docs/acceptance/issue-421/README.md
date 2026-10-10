@@ -32,9 +32,12 @@ changed for verification.
 
 ## Regression coverage
 
-Local checks: 64 focused CLI tests; 45 app model-option tests; 224 app
-selection/launch tests; two composer browser cases; CLI and app typechecks;
-CLI package build; source lint and public-boundary checks.
+Local checks: **2,234 CLI tests across 205 files**, including the session
+continuity suites, passed with Node 20.20.1 and pnpm 10.11.0. Focused checks
+also passed: 64 CLI tests, 45 app model-option tests, 224 app selection/launch
+tests, and two composer browser cases. CLI and app typechecks, CLI package
+build, source lint, patch discipline, product identity, and public-boundary
+checks passed.
 
 - CLI capability, SDK adapter/probe, executable resolver, machine account
   environment, and launch-settings tests cover the changed mechanism.
@@ -48,6 +51,18 @@ CLI package build; source lint and public-boundary checks.
 
 Rendered fixture evidence: [desktop](claude-runtime-model-effort-1440x900.png)
 and [mobile](claude-runtime-model-effort-390x844.png).
+
+The first CI golden comparison on `dbdfc6b8955b14bb393ab2a66cede27de115d095`
+changed exactly the four latest-changelog captures (desktop/mobile,
+light/dark); the other 24 variants were pixel-identical. All expected, actual,
+and diff images were reviewed: only the new entry and displaced older entries
+changed. The [first comparison result](changelog-first-comparison.json)
+preserves that failure evidence from
+[quality run 38054587849](https://github.com/NickGuAI/HappyHerd/actions/runs/38054587849).
+Baselines come from that run's normal comparison artifact through the
+maintained `scripts/kilv-golden-update.mjs` workflow.
+After preserving the comparison failure, the remaining old-head quality run
+was canceled so the baseline commit could run the full checks on its own head.
 
 Activation requires installing the reviewed CLI and reloading the daemon.
 The model behavior does not require a central-server change. This PR does not
