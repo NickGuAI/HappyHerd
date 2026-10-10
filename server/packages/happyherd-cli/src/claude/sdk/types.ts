@@ -61,6 +61,12 @@ export interface QueryOptions {
      * the SDK silently downgrades it to 'high' on models without it.
      */
     effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    /** Process environment used by capability discovery; ordinary launches inherit process.env. */
+    env?: Record<string, string>
+    /** Optional explicit CLI path for probes that must share the local launcher resolver. */
+    pathToClaudeCodeExecutable?: string
+    persistSession?: Options['persistSession']
+    tools?: Options['tools']
 }
 
 /**

@@ -487,6 +487,61 @@ describe('ApiMachineClient socket reconnection', () => {
         client.shutdown();
     });
 
+    it('binds Claude discovery to the selected account environment', async () => {
+        const availability = {
+            claude: true,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 5,
+        };
+        const account = {
+            provider: 'claude' as const,
+            name: 'work',
+            id: '00000000-0000-4000-8000-000000000031',
+            credentialVersion: 4,
+            createdAt: 1,
+            updatedAt: 2,
+            limitedUntil: 1,
+            credential: { type: 'oauth-token' as const, token: 'fixture-token' },
+        };
+        const state = {
+            schemaVersion: 2 as const,
+            current: { claude: 'work' },
+            accounts: [account],
+        };
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockReadCredentialPoolState.mockResolvedValueOnce(state);
+        mockCredentialAccountEnvironment.mockReturnValueOnce({
+            HAPPYHERD_PROVIDER_ACCOUNT: 'work',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'claude',
+            HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+            HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '4',
+            CLAUDE_CODE_OAUTH_TOKEN: account.credential.token,
+        });
+        mockDetectAgentCapabilities.mockResolvedValueOnce({ capabilities: {} });
+
+        const client = new ApiMachineClient('fake-token', makeMachine());
+        vi.spyOn(client, 'updateMachineMetadata').mockResolvedValue();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(mockCredentialAccountEnvironment).toHaveBeenCalledWith(account);
+        expect(mockDetectAgentCapabilities).toHaveBeenCalledWith(
+            availability,
+            expect.objectContaining({
+                claudeProcessEnvironment: expect.objectContaining({
+                    HAPPYHERD_PROVIDER_ACCOUNT_ID: account.id,
+                    HAPPYHERD_PROVIDER_ACCOUNT_CREDENTIAL_VERSION: '4',
+                    CLAUDE_CODE_OAUTH_TOKEN: 'fixture-token',
+                    PATH: process.env.PATH,
+                }),
+            }),
+        );
+        client.shutdown();
+    });
+
     it('keeps unmanaged discovery on the ambient environment without a current account', async () => {
         const availability = {
             claude: false,

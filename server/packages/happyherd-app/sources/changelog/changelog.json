@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 10 — Discover models from your installed Claude Code",
+      "summary": "",
+      "markdown": "- After upgrading Claude Code, HappyHerd refreshes the machine’s Claude model list and each model’s effort choices automatically. New and resumed Claude sessions use the same installed runtime. Saved model selections keep their exact identity; unavailable choices are not silently replaced."
+    },
+    {
       "title": "October 8 — Launch native builds on iOS 27",
       "summary": "",
       "markdown": "- iOS source builds now generate the scene lifecycle required to open on iOS 27, preserving app links and foreground/background handling. Native build compatibility fixes are reapplied during project generation and CocoaPods installation; these builds require iOS 16 or later."
@@ -961,5 +966,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 8 — Launch native builds on iOS 27"
+  "latestTitle": "October 10 — Discover models from your installed Claude Code"
 }

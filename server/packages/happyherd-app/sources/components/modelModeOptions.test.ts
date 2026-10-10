@@ -81,6 +81,30 @@ describe('modelModeOptions', () => {
         expect(getAvailableModels('claude', { models } as any, translate)).toMatchObject(expected);
     });
 
+    it('keeps runtime Claude aliases, canonical IDs, per-model effort, and an unavailable saved selection', () => {
+        const models = [
+            { code: 'sonnet-next', value: 'Sonnet Next', effortLevels: [{ code: 'xhigh', value: 'xhigh' }] },
+            { code: 'claude-sonnet-next-2026-10', value: 'Sonnet Next', effortLevels: [{ code: 'xhigh', value: 'xhigh' }] },
+        ];
+        const machineMetadata = { agentCapabilities: { claude: {
+            detectedAt: 1,
+            models,
+            effortLevels: [{ code: 'high', value: 'high' }],
+            permissionModes: [{ code: 'default', value: 'default' }],
+            sources: { models: 'claude-agent-sdk:supportedModels', effortLevels: 'claude-agent-sdk:supportedModels', permissionModes: 'cli-help' },
+        } } } as any;
+
+        expect(getMachineAdvertisedModels(machineMetadata, 'claude', translate).map(({ key, name }) => ({ key, name })))
+            .toEqual([
+                { key: 'sonnet-next', name: 'Sonnet Next' },
+                { key: 'claude-sonnet-next-2026-10', name: 'Sonnet Next' },
+            ]);
+        expect(getMachineAdvertisedEffortLevels(machineMetadata, 'claude', 'sonnet-next').map(({ key }) => key))
+            .toEqual(['xhigh']);
+        expect(getMachineAdvertisedModels(machineMetadata, 'claude', translate, 'retired-claude-model')[0])
+            .toMatchObject({ key: 'retired-claude-model', unavailable: true, disabled: true });
+    });
+
     it('uses only the selected machine capability catalog', () => {
         const machineMetadata = {
             agentCapabilities: {

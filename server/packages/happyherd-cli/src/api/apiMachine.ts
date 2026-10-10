@@ -91,6 +91,28 @@ async function currentCodexDiscoveryEnvironment(): Promise<NodeJS.ProcessEnv | u
     );
 }
 
+async function currentClaudeDiscoveryEnvironment(): Promise<NodeJS.ProcessEnv | undefined> {
+    let state: Awaited<ReturnType<typeof readCredentialPoolState>>;
+    try {
+        state = await readCredentialPoolState();
+    } catch (error) {
+        logger.debug('[API MACHINE] Failed to read the current Claude account for discovery:', error);
+        return undefined;
+    }
+
+    const currentName = state.current.claude;
+    if (!currentName) return undefined;
+    const account = state.accounts.find((candidate) => (
+        candidate.provider === 'claude' && candidate.name === currentName
+    ));
+    if (!account || account.provider !== 'claude') return undefined;
+
+    return buildSessionChildEnvironment(
+        process.env,
+        credentialAccountEnvironment(account),
+    );
+}
+
 interface ServerToDaemonEvents {
     update: (data: Update) => void;
     'rpc-request': (data: { method: string, params: string }, callback: (response: string) => void) => void;
@@ -888,12 +910,21 @@ export class ApiMachineClient {
 
         this.capabilitiesRefreshInFlight = (async () => {
             const availability = detectCLIAvailability();
+            const claudeProcessEnvironment = availability.claude
+                ? await currentClaudeDiscoveryEnvironment()
+                : undefined;
             const codexProcessEnvironment = availability.codex
                 ? await currentCodexDiscoveryEnvironment()
                 : undefined;
+            const discoveryOptions = claudeProcessEnvironment || codexProcessEnvironment
+                ? {
+                    ...(claudeProcessEnvironment ? { claudeProcessEnvironment } : {}),
+                    ...(codexProcessEnvironment ? { codexProcessEnvironment } : {}),
+                }
+                : undefined;
             const discovery = await detectAgentCapabilities(
                 availability,
-                codexProcessEnvironment ? { codexProcessEnvironment } : undefined,
+                discoveryOptions,
             );
             const capabilities = discovery.capabilities;
             const fingerprint = capabilityFingerprint(capabilities);

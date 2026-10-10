@@ -8,6 +8,7 @@ import type { QueryOptions, QueryPrompt, SDKMessage } from './types'
 import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { ensureLocalProxyBypass } from '../utils/proxyBypass'
 import { resolveHappyHerdEntrypoint } from './happyherdEntrypoint'
+import { resolveClaudeCodeExecutable } from './claudeExecutable'
 
 /**
  * Wraps the official SDK query() with our QueryOptions adapter
@@ -52,6 +53,9 @@ export function query(params: { prompt: QueryPrompt; options?: QueryOptions }): 
         strictMcpConfig: opts?.strictMcpConfig,
         sessionId: undefined,
         effort: opts?.effort,
+        pathToClaudeCodeExecutable: opts?.pathToClaudeCodeExecutable ?? resolveClaudeCodeExecutable(),
+        persistSession: opts?.persistSession,
+        tools: opts?.tools,
     }
 
     // Map abort signal -> AbortController
@@ -67,11 +71,10 @@ export function query(params: { prompt: QueryPrompt; options?: QueryOptions }): 
     // `claude --resume` picker. The agent SDK would otherwise default to
     // CLAUDE_CODE_ENTRYPOINT="sdk-ts" and the picker would hide every HappyHerd
     // session. See slopus/happyherd#1202.
-    const env: Record<string, string> = {}
-    for (const [key, value] of Object.entries(process.env)) {
-        if (typeof value === 'string') env[key] = value
-    }
-    env.CLAUDE_CODE_ENTRYPOINT = resolveHappyHerdEntrypoint(process.env.CLAUDE_CODE_ENTRYPOINT)
+    const env: Record<string, string> = opts?.env
+        ? { ...opts.env }
+        : Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+    env.CLAUDE_CODE_ENTRYPOINT = resolveHappyHerdEntrypoint(env.CLAUDE_CODE_ENTRYPOINT)
     if (opts?.mcpServers && Object.keys(opts.mcpServers).length > 0) {
         ensureLocalProxyBypass(env)
     }

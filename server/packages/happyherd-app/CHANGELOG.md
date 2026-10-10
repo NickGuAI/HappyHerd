@@ -1,3 +1,7 @@
+# October 10 — Discover models from your installed Claude Code
+
+- After upgrading Claude Code, HappyHerd refreshes the machine’s Claude model list and each model’s effort choices automatically. New and resumed Claude sessions use the same installed runtime. Saved model selections keep their exact identity; unavailable choices are not silently replaced.
+
 # October 8 — Launch native builds on iOS 27
 
 - iOS source builds now generate the scene lifecycle required to open on iOS 27, preserving app links and foreground/background handling. Native build compatibility fixes are reapplied during project generation and CocoaPods installation; these builds require iOS 16 or later.
