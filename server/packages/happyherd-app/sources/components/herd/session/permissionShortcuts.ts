@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Platform } from 'react-native';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 
 /**
  * Number-key answers for pending permission cards on web (UI overhaul).
@@ -161,7 +162,14 @@ export function usePermissionShortcuts(options: {
     enabled: boolean;
     choices: ReadonlyArray<() => void>;
     nodeRef: React.RefObject<unknown>;
+    nativeTarget?: string;
 }) {
+    useNativeShortcuts(options.enabled && options.nativeTarget ? options.choices.slice(0, 9).map((_, index) => ({
+        id: `permission:${options.id}:${options.nativeTarget}:${index}`,
+        key: String(index + 1),
+        scope: 'permission' as const,
+        target: options.nativeTarget,
+    })) : [], id => options.choices[Number(id.slice(id.lastIndexOf(':') + 1))]?.());
     const choicesRef = React.useRef(options.choices);
     choicesRef.current = options.choices;
     const { enabled, id, nodeRef } = options;

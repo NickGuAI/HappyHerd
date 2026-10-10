@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4e784906228dd5fb2af4e5e61d809b99384fef8ee8e066a9c5b75b569c645a9f",
+  "sourceFingerprint": "9633709f665e3e82222e51e015e726b7897ef8a8a2a511a8611f3020f71ff536",
   "routeCount": 45,
-  "surfaceCount": 341,
+  "surfaceCount": 346,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3029,6 +3029,25 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/CanvasFileViewer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CanvasFileViewer",
+        "nativeCanvasBounds"
+      ],
+      "translationKeys": [
+        "files.canvas.fit",
+        "files.canvas.zoomIn",
+        "files.canvas.zoomOut",
+        "files.canvasNode",
+        "files.commentOnNode",
+        "files.invalidCanvas"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/CanvasFileViewer.web.tsx",
       "kind": "component",
       "route": null,
@@ -4892,6 +4911,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/herd/shell/HerdTooltip.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HerdTooltip"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/herd/shell/HerdTooltip.web.tsx",
       "kind": "ui-module",
       "route": null,
@@ -5051,7 +5081,7 @@
       "hardcodedCopy": []
     },
     {
-      "owner": "sources/components/InlineCommentReview.web.tsx",
+      "owner": "sources/components/InlineCommentReview.shared.tsx",
       "kind": "component",
       "route": null,
       "exports": [
@@ -5277,6 +5307,7 @@
         "common.ok",
         "common.retry",
         "common.success",
+        "files.commentOnLine",
         "markdown.closeImagePreview",
         "markdown.codeCopied",
         "markdown.copyFailed",
@@ -5602,6 +5633,19 @@
         "NativeSettingsMenu"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeTextFilePreview.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeTextFilePreview"
+      ],
+      "translationKeys": [
+        "files.commentOnLine"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -7156,6 +7200,32 @@
         "sessionInfo.worktreeCleanupMessage",
         "sessionInfo.worktreeCleanupTitle"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/keyboard/NativeKeyboard.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeKeyboardHost",
+        "NativeKeyboardModal",
+        "NativeShortcutTarget"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/keyboard/NativeKeyboard.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "NativeKeyboardHost",
+        "NativeKeyboardModal",
+        "NativeShortcutTarget"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },

@@ -1004,11 +1004,9 @@ function NewSessionScreen() {
     const streamlineAgentSetting = useSetting('streamlineAgent');
     const streamlineAgentDefaults = useSetting('streamlineAgentDefaults');
     const streamlineGithubWorktree = useSetting('streamlineGithubWorktree');
-    const isTablet = useIsTablet();
-    // Streamline follows the synced mode on the web and on native phones (owner
-    // decision, 2026-09-27). Native tablets keep the full form, as does the iOS app
-    // on a Mac in any window, even one the device rule calls a phone.
-    const streamlineAvailable = Platform.OS === 'web' || (!isTablet && !isRunningOnMac());
+    const isTablet = useIsTablet() || (Platform.OS === 'ios' && Platform.isPad);
+    // All hosts follow the synced default; #369 includes iPad and the iPad app on Mac.
+    const streamlineAvailable = true;
     const [sessionMode, setSessionMode] = React.useState<'streamline' | 'advanced'>(
         () => (streamlineAvailable ? newSessionMode : 'advanced'),
     );
@@ -2561,7 +2559,8 @@ function NewSessionScreen() {
     // Streamline lays out by width alone: phones get swipe rows and a pinned
     // composer; anything wider gets the centered column.
     // Native phones take the phone layout at every width, landscape included.
-    const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH || !isDesktop;
+    const streamlinePhone = windowWidth < STREAMLINE_PHONE_MAX_WIDTH
+        || (Platform.OS !== 'web' && !isTablet && !isRunningOnMac());
     // Advanced on the web (UI overhaul) is the mock's full form, laid out on the
     // same page as Streamline: a card on wide windows, the stacked page on phones.
     const advancedPage = !streamline && Platform.OS === 'web';
@@ -2573,11 +2572,11 @@ function NewSessionScreen() {
         windowWidth,
         desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
     });
-    const isNativeMobile = !isDesktop;
+    const isNativeMobile = Platform.OS !== 'web';
     // Native phones: the phone top bar takes the window's top inset, so this
     // screen starts this far below the window's top. Its pickers and the
     // keyboard's overlap are measured from there.
-    const nativeScreenTop = isNativeMobile && phoneLayout && underTopBar
+    const nativeScreenTop = isNativeMobile && !isRunningOnMac() && phoneLayout && underTopBar
         ? windowInsets.top + HERD_PHONE_TOP_BAR_HEIGHT
         : 0;
     // On phones the Streamline page carries its own title, so the header row would repeat it.
@@ -3401,7 +3400,7 @@ function NewSessionScreen() {
         onDone: closePicker,
         onClose: closePicker,
     };
-    const streamlinePathPicker = formPage && activePicker === 'path' && (!streamlinePhone || advancedPage) ? (
+    const streamlinePathPicker = Platform.OS === 'web' && formPage && activePicker === 'path' && (!streamlinePhone || advancedPage) ? (
         <PathDropdown variant="anchored" touch={streamlinePhone} minWidth={streamline ? STREAMLINE_PATH_DROPDOWN_MIN_WIDTH : undefined} {...pathDropdownProps} />
     ) : null;
 

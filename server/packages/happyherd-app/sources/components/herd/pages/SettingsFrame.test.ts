@@ -207,7 +207,7 @@ describe('SettingsFrame', () => {
         expect(mounts).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the stacked phone and narrow-window navigation unchanged', () => {
+    it('keeps narrow navigation and shows the section list on a wide native window', () => {
         testState.width = 390;
         let renderer = render('appearance');
         expect(navItems(renderer)).toHaveLength(0);
@@ -216,7 +216,7 @@ describe('SettingsFrame', () => {
         testState.width = 1440;
         testState.os = 'ios';
         renderer = render('appearance');
-        expect(navItems(renderer)).toHaveLength(0);
+        expect(navItems(renderer).length).toBeGreaterThan(0);
     });
 
     it('wraps a route screen and forwards its props', () => {

@@ -54,9 +54,13 @@ describe('the session row ⋯ in the native app', () => {
         expect(onOpen).not.toHaveBeenCalled();
     });
 
-    it('keeps native tablets without it', () => {
+    it('exposes the same actions on native tablets and iPad apps running on Mac', () => {
         state.phone = false;
-        expect(render({ onNativePress: vi.fn() })).toHaveLength(0);
+        const onNativePress = vi.fn();
+        const [button] = render({ onNativePress });
+        expect(button).toBeDefined();
+        act(() => button.props.onPress({ stopPropagation() {} }));
+        expect(onNativePress).toHaveBeenCalledTimes(1);
     });
 
     it('has nothing to open without the row\'s native actions', () => {

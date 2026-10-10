@@ -94,7 +94,10 @@ const virtualModules: Record<string, string> = {
         export const usePathname = () => globalThis.__HAPPYHERD_ROUTE_PATHNAME__ ?? '/';
         export const Stack = { Screen: () => null };
     `,
+    'react-native-worklets': `export const runOnJS = (callback) => (...args) => queueMicrotask(() => callback(...args));`,
     'react-native-reanimated': `
+        export const ReduceMotion = { System: 'system', Always: 'always', Never: 'never' };
+        export const useReducedMotion = () => false;
         import React from 'react';
         import { ScrollView, Text, View } from 'react-native';
         export default { ScrollView, Text, View };

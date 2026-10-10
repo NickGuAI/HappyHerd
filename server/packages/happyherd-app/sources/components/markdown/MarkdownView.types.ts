@@ -34,16 +34,18 @@ export type MarkdownViewProps = {
     relativeTo?: string;
     /** Explicit trusted session root for inline images; null fails closed. */
     workspaceImageRoot?: string | null;
-    /** Web file viewer only: expose a gutter affordance at source-positioned blocks. */
+    /** File viewer: expose a gutter affordance at source-positioned blocks. */
     onLineComment?: (anchor: MarkdownLineCommentAnchor) => void;
-    /** Web file viewer only: render a pinned/drafting thread after its source-positioned block. */
+    /** File viewer: render a pinned/drafting thread after its source-positioned block. */
     renderLineComment?: (anchor: MarkdownLineCommentAnchor) => ReactNode;
     /**
-     * Web file viewer only: reveal the rendered unit that corresponds to this
+     * File viewer: reveal the rendered unit that corresponds to this
      * source line. For a line inside a Markdown table this resolves to the
      * matching table row/nearest exact rendered unit, never to the table start.
      */
     requestedLine?: number | null;
+    /** Native rendered Preview reports the matching unit offset to its scroll host. */
+    onRequestedLineLayout?: (y: number) => void;
 };
 
 const OPTION_LINK_PREFIX = '#happyherd-option:';

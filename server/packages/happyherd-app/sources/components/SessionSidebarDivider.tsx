@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View } from 'react-native';
+import { PanResponder, Platform, View } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
 import { DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH } from './desktopFileWorkspaceModel';
@@ -20,6 +20,20 @@ export const SessionSidebarDivider = React.memo(function SessionSidebarDivider({
     const [dragging, setDragging] = React.useState(false);
     const [hovered, setHovered] = React.useState(false);
     widthRef.current = width;
+
+    const panResponder = React.useMemo(() => Platform.OS === 'web' ? { panHandlers: {} } : PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+            dragStartWidthRef.current = widthRef.current;
+            setDragging(true);
+        },
+        onPanResponderMove: (_event, gesture) => {
+            onWidthChange(dragStartWidthRef.current - gesture.dx);
+        },
+        onPanResponderRelease: () => setDragging(false),
+        onPanResponderTerminate: () => setDragging(false),
+    }), [onWidthChange]);
 
     const webPointerHandlers = React.useMemo(() => ({
         onPointerDown: (event: any) => {
@@ -61,7 +75,7 @@ export const SessionSidebarDivider = React.memo(function SessionSidebarDivider({
 
     return (
         <View
-            {...webPointerHandlers}
+            {...(Platform.OS === 'web' ? webPointerHandlers : panResponder.panHandlers)}
             onPointerEnter={() => setHovered(true)}
             onPointerLeave={() => setHovered(false)}
             accessibilityRole="adjustable"

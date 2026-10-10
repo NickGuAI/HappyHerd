@@ -25,12 +25,4 @@ export type InlineCommentThreadProps = Omit<InlineCommentReviewProps, 'originSes
     anchor?: InlineCommentAnchor | null;
 };
 
-/** Inline review is intentionally web-only; native retains the existing single-feedback composer. */
-export function InlineCommentReview(_props: InlineCommentReviewProps) {
-    return null;
-}
-
-/** Line threads are web-only; native file review remains unchanged. */
-export function InlineCommentThread(_props: InlineCommentThreadProps) {
-    return null;
-}
+export { InlineCommentReview, InlineCommentThread } from './InlineCommentReview.shared';

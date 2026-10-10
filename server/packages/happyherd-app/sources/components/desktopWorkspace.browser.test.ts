@@ -80,7 +80,9 @@ const virtualModules: Record<string, string> = {
     `,
     // The native sheet's keyboard container; the web renders a plain View.
     'react-native-keyboard-controller': `export { View as KeyboardAvoidingView } from 'react-native';`,
+    'react-native-worklets': `export const runOnJS = (callback) => (...args) => queueMicrotask(() => callback(...args));`,
     'react-native-reanimated': `
+        export const ReduceMotion = { System: 'system', Always: 'always', Never: 'never' };
         import React from 'react';
         import { View } from 'react-native';
         const Animated = { View, createAnimatedComponent: (component) => component };

@@ -1,13 +1,12 @@
 import * as React from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Animated, Platform, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import type { SessionActionsAnchor } from '@/components/SessionActionsPopover';
 import { t } from '@/text';
 import { herdWebClasses } from '../motion';
-import { useHerdSelectionGlide } from './selectionGlide';
-import { useHerdPhoneLayout } from '../mobile/useHerdPhone';
+import { useHerdSelectionGlide, useNativeHerdSelectionGlide } from './selectionGlide';
 
 /** True in a touch-only browser, where rows have no hover ⋯. */
 export function isTouchOnlyWeb(): boolean {
@@ -48,7 +47,19 @@ export function herdRowDataSet(sessionId: string): object {
  * The shared selection ring behind a selected session row. On web it glides
  * in from the previously selected row.
  */
-export function HerdRowSelection({ sessionId, selected, radius }: { sessionId: string; selected: boolean; radius?: number }) {
+export function HerdRowSelection(props: { sessionId: string; selected: boolean; radius?: number }) {
+    return Platform.OS === 'web' ? <WebRowSelection {...props} /> : <NativeRowSelection {...props} />;
+}
+
+function NativeRowSelection({ sessionId, selected, radius }: { sessionId: string; selected: boolean; radius?: number }) {
+    const rowRef = React.useRef<View | null>(null);
+    const animationStyle = useNativeHerdSelectionGlide(sessionId, selected, rowRef);
+    return <View ref={rowRef} collapsable={false} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        {selected && <Animated.View style={[styles.selection, radius !== undefined && { borderRadius: radius }, animationStyle]} />}
+    </View>;
+}
+
+function WebRowSelection({ sessionId, selected, radius }: { sessionId: string; selected: boolean; radius?: number }) {
     const highlightRef = React.useRef<View | null>(null);
     useHerdSelectionGlide(sessionId, selected, highlightRef);
     if (!selected) return null;
@@ -65,21 +76,20 @@ export function HerdRowSelection({ sessionId, selected, radius }: { sessionId: s
  * The row's ⋯ button. With a pointer (web) it appears while the row is hovered
  * or keyboard focused and opens the same actions menu as a right-click,
  * anchored to itself. Touch screens have no hover, so on touch-only web and on
- * native phones it stays visible in its own column at the row's end, as the
- * phone mock draws it; native phones open the row's long-press actions.
+ * native screens it stays visible in its own column at the row's end, as the
+ * phone mock draws it; native screens open the row's long-press actions.
  */
 export function HerdRowMoreButton({ open, onOpen, onNativePress, top = 8 }: {
     open: boolean;
     onOpen: (anchor: SessionActionsAnchor) => void;
-    /** Native phones: the row's long-press actions. */
+    /** Native: the row's long-press actions. */
     onNativePress?: () => void;
     top?: number;
 }) {
     const { theme } = useUnistyles();
     const ref = React.useRef<View | null>(null);
-    const phoneLayout = useHerdPhoneLayout();
     const web = Platform.OS === 'web';
-    const touch = web ? isTouchOnlyWeb() : phoneLayout && !!onNativePress;
+    const touch = web ? isTouchOnlyWeb() : !!onNativePress;
     const handlePress = React.useCallback((event: any) => {
         event?.stopPropagation?.();
         if (!web) {

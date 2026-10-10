@@ -1,3 +1,4 @@
+vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
@@ -142,6 +143,21 @@ describe('SidebarNavigationButton', () => {
         } finally {
             pressableState.hovered = false;
         }
+    });
+
+    it('shows hints from native pointer events without a web-only hovered render state', () => {
+        let renderer: ReturnType<typeof create>;
+        act(() => { renderer = create(React.createElement(SidebarNavigationButton, {
+            icon: 'folders', label: 'Projects', iconOnly: true, onPress: vi.fn(),
+        })); });
+        const button = renderer!.root.findByType('Pressable' as any);
+        act(() => button.props.onPointerEnter({ nativeEvent: { pointerType: 'touch' } }));
+        expect(renderer!.root.findAllByType('HerdTooltip' as any)).toHaveLength(0);
+        act(() => button.props.onPointerEnter({ nativeEvent: { pointerType: 'mouse' } }));
+        expect(renderer!.root.findByType('HerdTooltip' as any).props.label).toBe('Projects');
+        act(() => button.props.onPointerLeave());
+        expect(renderer!.root.findAllByType('HerdTooltip' as any)).toHaveLength(0);
+        act(() => renderer!.unmount());
     });
 
     it('exposes a toggle state as aria-pressed and lights its icon', () => {

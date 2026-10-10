@@ -240,7 +240,7 @@ export function MachineWorkspaceBrowser({
     const embeddedContextMode = embedded && !!workspaceContextSessionId;
     const contextSelectionMode = attachmentMode || embeddedContextMode;
     const selectionSessionId = attachmentMode ? sessionId : embeddedContextMode ? workspaceContextSessionId : undefined;
-    const desktopSplit = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
+    const desktopSplit = width >= 900;
 
     const [selectedMachineId, setSelectedMachineId] = React.useState<string | null>(requestedMachineId ?? null);
     const selectedMachine = React.useMemo(

@@ -36,6 +36,7 @@ vi.mock('react-native-unistyles', async () => {
 });
 
 import { InlineCommentReview, InlineCommentThread } from './InlineCommentReview.web';
+import { InlineCommentReview as NativeReview, InlineCommentThread as NativeThread } from './InlineCommentReview';
 
 let selectAnchor: ((anchor: InlineCommentAnchor | null) => void) | null = null;
 
@@ -68,7 +69,11 @@ beforeAll(() => {
 afterAll(() => vi.restoreAllMocks());
 beforeEach(() => mocks.sendMessage.mockReset().mockResolvedValue({ id: 'message-one' }));
 
-describe('InlineCommentReview web', () => {
+describe('InlineCommentReview shared native/Web implementation', () => {
+    it('uses the same review and delivery implementation on native and Web', () => {
+        expect(NativeReview).toBe(InlineCommentReview);
+        expect(NativeThread).toBe(InlineCommentThread);
+    });
     it('pins multiple line comments and sends one structured chat message', async () => {
         let renderer: any;
         act(() => { renderer = create(React.createElement(Harness)); });

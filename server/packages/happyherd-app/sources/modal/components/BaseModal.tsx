@@ -1,7 +1,7 @@
+import { NativeKeyboardModal } from '@/keyboard/NativeKeyboard';
 import React, { useEffect, useRef } from 'react';
 import {
     View,
-    Modal,
     TouchableWithoutFeedback,
     Animated,
     StyleSheet,
@@ -89,7 +89,7 @@ export function BaseModal({
     };
 
     return (
-        <Modal
+        <NativeKeyboardModal
             visible={visible}
             transparent={transparent}
             animationType={animationType}
@@ -160,7 +160,7 @@ export function BaseModal({
                     </HerdPhoneDialogContext.Provider>
                 </Animated.View>
             </KeyboardAvoidingView>
-        </Modal>
+        </NativeKeyboardModal>
     );
 }
 

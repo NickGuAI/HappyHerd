@@ -1,3 +1,5 @@
+import { NativeShortcutTarget } from '@/keyboard/NativeKeyboard';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 import { StyleSheet } from 'react-native-unistyles';
 import React from 'react';
 import { View, Platform, useWindowDimensions } from 'react-native';
@@ -6,7 +8,7 @@ import { CommandPaletteResults } from './CommandPaletteResults';
 import { useCommandPalette } from './useCommandPalette';
 import { Command } from './types';
 import { HerdKey } from '@/components/herd/pages/HerdPage';
-import { useHerdPhoneWeb } from '@/components/herd/mobile/useHerdPhone';
+import { useHerdPhoneLayout } from '@/components/herd/mobile/useHerdPhone';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
@@ -28,22 +30,24 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
         setSelectedIndex,
     } = useCommandPalette(commands, onClose);
     // Phones (UI overhaul): taller, with a close button and no keyboard hints.
-    const phone = useHerdPhoneWeb();
+    const phone = useHerdPhoneLayout();
     const { height: windowHeight } = useWindowDimensions();
 
-    // Only render on web
-    if (Platform.OS !== 'web') {
-        return null;
-    }
+    const nativeTarget = React.useId();
+    const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'];
+    useNativeShortcuts(navigationKeys.map(key => ({
+        id: `palette:${nativeTarget}:${key}`, key, scope: 'composer' as const, target: nativeTarget,
+    })), id => handleKeyPress(id.slice(id.lastIndexOf(':') + 1)));
 
     return (
+        <NativeShortcutTarget targetId={nativeTarget} style={{ width: '100%' }}>
         <View testID="command-palette" style={[styles.container, phone && { maxWidth: '100%', maxHeight: Math.min(Math.round(windowHeight * 0.78), 640) }]}>
             <CommandPaletteInput
                 value={searchQuery}
                 onChangeText={handleSearchChange}
                 onKeyPress={handleKeyPress}
                 inputRef={inputRef}
-                onClose={phone ? onClose : undefined}
+                onClose={phone || Platform.OS !== 'web' ? onClose : undefined}
             />
             <CommandPaletteResults
                 categories={filteredCategories}
@@ -67,6 +71,7 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
                 </View>
             </View>}
         </View>
+        </NativeShortcutTarget>
     );
 }
 

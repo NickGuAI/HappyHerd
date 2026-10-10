@@ -9,6 +9,8 @@ export type SupportedKey = 'Enter' | 'Escape' | 'ArrowUp' | 'ArrowDown' | 'Arrow
 export interface KeyPressEvent {
     key: SupportedKey;
     shiftKey: boolean;
+    /** Set only by the native hardware responder bridge, never software text entry. */
+    nativeHardware?: boolean;
 }
 
 export type OnKeyPressCallback = (event: KeyPressEvent) => boolean;
@@ -47,6 +49,7 @@ interface MultiTextInputProps {
     paddingLeft?: number;
     paddingRight?: number;
     onKeyPress?: OnKeyPressCallback;
+    nativeKeyCommands?: Array<KeyPressEvent & { requireText?: boolean }>;
     onSelectionChange?: (selection: { start: number; end: number }) => void;
     onStateChange?: (state: TextInputState) => void;
 }

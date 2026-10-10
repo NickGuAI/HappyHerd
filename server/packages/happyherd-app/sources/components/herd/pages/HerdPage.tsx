@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, View, useWindowDimensions, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, View, useWindowDimensions, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -14,10 +14,10 @@ import { herdStaggerClass, herdWebClasses } from '@/components/herd/motion';
  * approved mock so each page composes them instead of restyling locally.
  */
 
-/** Desktop web / macOS at the width where pages switch to their wide layout. */
+/** The current window determines the wide layout on every host. */
 export function useHerdWideLayout(): boolean {
     const { width } = useWindowDimensions();
-    return (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
+    return width >= 900;
 }
 
 export function HerdPageHeader({

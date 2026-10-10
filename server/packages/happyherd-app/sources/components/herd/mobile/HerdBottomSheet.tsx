@@ -1,5 +1,6 @@
+import { NativeKeyboardModal } from '@/keyboard/NativeKeyboard';
 import * as React from 'react';
-import { Animated, Modal, PanResponder, Platform, Pressable, ScrollView, View, useWindowDimensions, type Role } from 'react-native';
+import { Animated, PanResponder, Platform, Pressable, ScrollView, View, useWindowDimensions, type Role } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { StyleSheet } from 'react-native-unistyles';
 
@@ -172,9 +173,9 @@ export function HerdBottomSheet({
         return <HerdExitLayer>{layer}</HerdExitLayer>;
     }
     return (
-        <Modal transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} visible onRequestClose={onClose}>
+        <NativeKeyboardModal transparent animationType={Platform.OS === 'web' ? 'none' : 'fade'} visible onRequestClose={onClose}>
             {layer}
-        </Modal>
+        </NativeKeyboardModal>
     );
 }
 

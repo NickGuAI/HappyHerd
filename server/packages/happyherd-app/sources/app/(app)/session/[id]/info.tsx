@@ -28,7 +28,6 @@ import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard }
 import { HappyHerdError } from '@/utils/errors';
 import { getRigIdentity, isRigMetadata, rigCanBrowseFiles, rigCanUseShell } from '@/sync/rig';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
-import { isRunningOnMac } from '@/utils/platform';
 import {
     HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
     type HappyHerdHeartbeatControlResponse,
@@ -120,8 +119,7 @@ function SessionInfoContent({ session }: { session: Session }) {
         sessionProviderName(session.metadata),
         machineLabel,
     ].filter(Boolean).join(' · ') : null;
-    const canOpenChanges = (Platform.OS === 'web' || isRunningOnMac())
-        && rigCanBrowseFiles(session.metadata)
+    const canOpenChanges = rigCanBrowseFiles(session.metadata)
         && rigCanUseShell(session.metadata);
     const heartbeatSupported = Boolean(
         session.metadata?.machineId
