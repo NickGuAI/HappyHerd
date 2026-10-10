@@ -79,6 +79,26 @@ notarization or authenticated-flow evidence.
 
 ## iOS simulator, archive, and export
 
+The generated client requires iOS 16 or newer. Xcode 27 builds must adopt
+UIKit's scene lifecycle to launch on iOS 27. The checked-in Expo plugins now
+create the scene manifest and delegate on prebuild, attach the React Native
+window to its scene, and forward app links and foreground/background events to
+the existing Expo app delegate. Do not repair only the ignored `ios/` directory:
+regeneration would otherwise discard the fix.
+
+The build compatibility plugin also keeps CocoaPods resource targets at least
+at iOS 16 and reapplies the narrow RevenueCat
+`PaywallColor` initializer fix during `pod install`. That fix moves the existing
+private initializer into the struct body so Swift does not synthesize a
+conflicting initializer; it does not change color parsing or purchases behavior.
+Already corrected dependency source is left unchanged.
+
+After a clean prebuild, verify the generated scene manifest, build the client,
+and check a visible login or session screen on the device. Repeat a cold launch
+and foreground/background transition. Installation success or a successful
+process-launch receipt alone does not establish that the app remains running.
+
+
 Generate the native project with the selected release configuration:
 
 ```sh

@@ -1,3 +1,7 @@
+# October 8 — Launch native builds on iOS 27
+
+- iOS source builds now generate the scene lifecycle required to open on iOS 27, preserving app links and foreground/background handling. Native build compatibility fixes are reapplied during project generation and CocoaPods installation; these builds require iOS 16 or later.
+
 # October 7 — Choose a provider for delegated side chats
 
 - The terminal side-chat create command accepts `--provider` to start a child with another provider available on the parent’s machine. Cross-provider children use their own model and permission settings and receive the delegation brief with bounded recent parent context. Omitting the option keeps same-provider creation and native Claude/Codex forks.
