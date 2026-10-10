@@ -10,6 +10,15 @@ const probeMocks = vi.hoisted(() => ({
 const codexMocks = vi.hoisted(() => ({
     options: null as { processEnvironment?: NodeJS.ProcessEnv } | null,
 }));
+const claudeModelProbe = vi.hoisted(() => vi.fn(async () => [] as any[]));
+
+vi.mock('@/claude/sdk/claudeExecutable', () => ({
+    resolveClaudeCodeExecutable: () => '/fixture/claude',
+}));
+
+vi.mock('@/claude/sdk/modelDiscovery', () => ({
+    discoverClaudeModels: claudeModelProbe,
+}));
 
 vi.mock('@/codex/codexAppServerClient', () => ({
     CodexAppServerClient: class {
@@ -180,6 +189,96 @@ function dshProbe(overrides?: {
 }
 
 describe('agent capability discovery', () => {
+    it('uses the selected executable for Claude help and version metadata', async () => {
+        const { sync } = await import('cross-spawn');
+        buildBaselineAgentCapabilities({
+            claude: true, codex: false, gemini: false, grok: false, dsh: false, agy: false, detectedAt: 1,
+        });
+        expect(sync).toHaveBeenCalledWith('/fixture/claude', ['--help'], expect.any(Object));
+        expect(sync).toHaveBeenCalledWith('/fixture/claude', ['--version'], expect.any(Object));
+    });
+
+    it('advertises unfamiliar Claude models, alias and canonical IDs, and per-model efforts', async () => {
+        const { capabilities } = await detectAgentCapabilities({
+            claude: true, codex: false, gemini: false, grok: false, dsh: false, agy: false, detectedAt: 1,
+        }, {
+            loadClaudeModels: async () => [{
+                value: 'claude-next',
+                resolvedModel: 'claude-next-2026-10',
+                displayName: 'Claude Next',
+                description: 'New runtime model',
+                supportedEffortLevels: ['high', 'xhigh'],
+            }],
+        });
+
+        expect(capabilities.claude.sources.models).toBe('claude-agent-sdk:supportedModels');
+        expect(capabilities.claude.models).toEqual(expect.arrayContaining([
+            expect.objectContaining({ code: 'claude-next', value: 'Claude Next (claude-next)', description: 'New runtime model' }),
+            expect.objectContaining({ code: 'claude-next-2026-10', value: 'Claude Next (claude-next-2026-10)' }),
+        ]));
+        expect(capabilities.claude.models.find((model) => model.code === 'claude-next')?.effortLevels?.map(({ code }) => code))
+            .toEqual(['high', 'xhigh']);
+    });
+
+    it('deduplicates the SDK default and alias rows while preferring the named canonical model', async () => {
+        const models = [
+            {
+                value: 'default', resolvedModel: 'claude-opus-5-5', displayName: 'Default (recommended)', description: 'Provider default',
+                supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+            {
+                value: 'opus', resolvedModel: 'claude-opus-5-5', displayName: 'Opus 5.5', description: 'Latest Opus alias',
+                supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+            {
+                value: 'claude-opus-5-5', resolvedModel: 'claude-opus-5-5', displayName: 'Opus 5.5', description: 'Pinned Opus model',
+                supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+            {
+                value: 'sonnet', resolvedModel: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5', description: 'New runtime model',
+                supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+            {
+                value: 'claude-opus-4-6', resolvedModel: 'claude-opus-4-6', displayName: 'Opus 4.6', description: 'Pinned Opus model',
+                supportedEffortLevels: ['low', 'medium', 'high', 'max'],
+            },
+        ] as any[];
+        const { capabilities } = await detectAgentCapabilities({
+            claude: true, codex: false, gemini: false, grok: false, dsh: false, agy: false, detectedAt: 1,
+        }, { loadClaudeModels: async () => models });
+        const catalog = capabilities.claude;
+
+        expect(catalog.models.filter(({ code }) => code === 'default')).toHaveLength(1);
+        expect(catalog.models.find(({ code }) => code === 'default')).toMatchObject({ value: 'Default (recommended)', isDefault: true });
+        expect(catalog.models.find(({ code }) => code === 'claude-opus-5-5')).toMatchObject({ value: 'Opus 5.5' });
+        expect(catalog.models.find(({ code }) => code === 'opus')?.value).toBe('Opus 5.5 (opus)');
+        expect(catalog.models.filter(({ code }) => code === 'claude-opus-5-5')).toHaveLength(1);
+        expect(catalog.models.find(({ code }) => code === 'claude-opus-5-5')?.effortLevels?.map(({ code }) => code))
+            .toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(catalog.models.find(({ code }) => code === 'claude-sonnet-5-5')?.value)
+            .toBe('Sonnet 5.5 (claude-sonnet-5-5)');
+        expect(catalog.models.find(({ code }) => code === 'claude-opus-4-6')?.effortLevels?.map(({ code }) => code))
+            .toEqual(['low', 'medium', 'high', 'max']);
+        expect(catalog.sources).toEqual({
+            models: 'claude-agent-sdk:supportedModels',
+            effortLevels: 'claude-agent-sdk:supportedModels',
+            permissionModes: 'daemon-defaults',
+        });
+        expect(catalog.effortLevels.map(({ code }) => code)).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+    });
+
+    it.each([
+        ['failed', async () => { throw new Error('probe error'); }, 'happyherd-release-catalog:claude-agent-sdk-failed'],
+        ['empty', async () => [], 'happyherd-release-catalog:claude-agent-sdk-empty'],
+    ])('marks %s Claude runtime discovery while retaining the release catalog', async (_label, loadClaudeModels, source) => {
+        const { capabilities } = await detectAgentCapabilities({
+            claude: true, codex: false, gemini: false, grok: false, dsh: false, agy: false, detectedAt: 1,
+        }, { loadClaudeModels: loadClaudeModels as () => Promise<any[]> });
+
+        expect(capabilities.claude.sources.models).toBe(source);
+        expect(capabilities.claude.models.map(({ code }) => code)).toContain('claude-opus-5-5');
+    });
+
     it('advertises a display name beside every unchanged Claude model ID', () => {
         const catalog = buildClaudeCapabilityCatalog('', 1);
 

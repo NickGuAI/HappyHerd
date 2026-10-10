@@ -45,6 +45,16 @@ slice.
 Inspect the app registry/defaults route in [`../ROUTING.md`](../ROUTING.md) and
 the provider-defaults path in [`../COUPLINGS.md`](../COUPLINGS.md).
 
+Claude discovery uses the Agent SDK's initialization-only `supportedModels()`
+handshake against the installed Claude Code executable, resolved by the same
+helper used for remote SDK sessions. The daemon supplies its selected Claude
+account environment and publishes model identities and per-model efforts
+through the existing machine capability refresh. Keep the probe prompt-free,
+non-persistent, bounded, and closed on success or failure. A release-catalog
+fallback is not evidence of successful runtime discovery. Verify both a model
+absent from the release list and preservation of an explicit saved model ID;
+never replace an unavailable saved choice with the current alias target.
+
 ## 2. Define permission semantics before wiring them
 
 For every advertised mode, record this matrix in the task or implementation

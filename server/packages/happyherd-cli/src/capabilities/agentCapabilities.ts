@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Options as ClaudeSdkOptions } from '@anthropic-ai/claude-agent-sdk';
+import type { ModelInfo } from '@anthropic-ai/claude-agent-sdk';
 import {
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
     HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG,
@@ -19,6 +20,8 @@ import { DEFAULT_CODEX_REASONING_EFFORT } from '@/codex/reasoningEffort';
 import type { CLIAvailability } from '@/utils/detectCLI';
 import { logger } from '@/ui/logger';
 import { AcpBackend } from '@/agent/acp/AcpBackend';
+import { discoverClaudeModels } from '@/claude/sdk/modelDiscovery';
+import { resolveClaudeCodeExecutable } from '@/claude/sdk/claudeExecutable';
 import { DefaultTransport } from '@/agent/transport';
 import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
 import { AGY_MODELS, AGY_EFFORTS, DEFAULT_AGY_MODEL, DEFAULT_AGY_EFFORT } from '@/agy/constants';
@@ -173,26 +176,24 @@ export function buildClaudeCapabilityCatalog(
     help: string,
     detectedAt: number,
     providerVersion?: string,
+    runtimeModels?: ModelInfo[],
 ): AgentCapabilityCatalog {
     const parsed = parseClaudeHelp(help);
-    const efforts = (parsed.effortLevels.length > 0
+    const runtimeEfforts = runtimeModels
+        ? uniqueOptions(runtimeModels.flatMap((model) => model.supportedEffortLevels ?? []))
+        : [];
+    const helpEfforts = (parsed.effortLevels.length > 0
         ? parsed.effortLevels
         : uniqueOptions([...CLAUDE_SDK_EFFORTS]))
         .filter((entry) => CLAUDE_SDK_EFFORTS.some((effort) => effort === entry.code))
         .map((entry) => ({ ...entry, isDefault: entry.code === 'max' }));
+    const efforts = runtimeEfforts.length > 0 ? runtimeEfforts : helpEfforts;
     const permissions = parsed.permissionModes.length > 0
         ? parsed.permissionModes
         : uniqueOptions(['acceptEdits', 'auto', 'dontAsk', 'bypassPermissions', 'plan']);
 
-    return {
-        detectedAt,
-        providerVersion,
-        sources: {
-            models: 'happyherd-release-catalog',
-            effortLevels: parsed.effortLevels.length > 0 ? 'cli-help' : 'daemon-defaults',
-            permissionModes: parsed.permissionModes.length > 0 ? 'cli-help' : 'daemon-defaults',
-        },
-        models: [
+    const models = runtimeModels === undefined
+        ? [
             option('default', 'provider default', null),
             ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((code) => option(code, CLAUDE_MODEL_DISPLAY_NAMES[code])).map((model) => model.code === HAPPYHERD_CLAUDE_OPUS_5_5_MODEL_SLUG
                 ? {
@@ -205,7 +206,20 @@ export function buildClaudeCapabilityCatalog(
                     )),
                 }
                 : model),
-        ],
+        ]
+        : mapClaudeModels(runtimeModels);
+
+    return {
+        detectedAt,
+        providerVersion,
+        sources: {
+            models: runtimeModels === undefined ? 'happyherd-release-catalog' : 'claude-agent-sdk:supportedModels',
+            effortLevels: runtimeEfforts.length > 0
+                ? 'claude-agent-sdk:supportedModels'
+                : parsed.effortLevels.length > 0 ? 'cli-help' : 'daemon-defaults',
+            permissionModes: parsed.permissionModes.length > 0 ? 'cli-help' : 'daemon-defaults',
+        },
+        models,
         effortLevels: efforts,
         // `manual` is a Claude Code CLI-only value. HappyHerd executes Claude
         // through the Agent SDK, whose PermissionMode union does not include it.
@@ -220,11 +234,62 @@ export function buildClaudeCapabilityCatalog(
 }
 
 function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
+    const executable = resolveClaudeCodeExecutable() ?? 'claude';
     return buildClaudeCapabilityCatalog(
-        readCommand('claude', ['--help']) ?? '',
+        readCommand(executable, ['--help']) ?? '',
         detectedAt,
-        readVersion('claude'),
+        readVersion(executable),
     );
+}
+
+function mapClaudeModels(models: ModelInfo[]): AgentCapabilityCatalog['models'] {
+    const groups = new Map<string, ModelInfo[]>();
+    let defaultModel: ModelInfo | undefined;
+    for (const model of models) {
+        if (model.value === 'default') {
+            defaultModel ??= model;
+            if (!model.resolvedModel) continue;
+        }
+        const canonical = model.resolvedModel || model.value;
+        const rows = groups.get(canonical) ?? [];
+        rows.push(model);
+        groups.set(canonical, rows);
+    }
+
+    const effortOptions = (model: ModelInfo) => (model.supportedEffortLevels ?? []).map((effort) => option(effort, effort));
+    const result: AgentCapabilityCatalog['models'] = [option(
+        'default',
+        defaultModel?.displayName || 'provider default',
+        defaultModel?.description || null,
+        defaultModel ? true : undefined,
+    )];
+    if (defaultModel) result[0].effortLevels = effortOptions(defaultModel);
+
+    for (const [canonical, rows] of groups) {
+        const nativeRow = rows.find((row) => row.value === canonical)
+            ?? rows.find((row) => row.value !== 'default')
+            ?? rows[0];
+        const efforts = effortOptions(nativeRow);
+        result.push({
+            code: canonical,
+            value: nativeRow.value === canonical
+                ? (nativeRow.displayName || canonical)
+                : `${nativeRow.displayName || canonical} (${canonical})`,
+            description: nativeRow.description || null,
+            effortLevels: efforts,
+        });
+
+        for (const alias of rows) {
+            if (alias.value === canonical || alias.value === 'default' || result.some((entry) => entry.code === alias.value)) continue;
+            result.push({
+                code: alias.value,
+                value: `${alias.displayName || alias.value} (${alias.value})`,
+                description: alias.description || null,
+                effortLevels: effortOptions(alias),
+            });
+        }
+    }
+    return result;
 }
 
 function baselineCodexCatalog(detectedAt: number): AgentCapabilityCatalog {
@@ -870,6 +935,8 @@ async function readCodexModels(processEnvironment?: NodeJS.ProcessEnv): Promise<
 export async function detectAgentCapabilities(
     availability: CLIAvailability,
     opts?: {
+        loadClaudeModels?: () => Promise<ModelInfo[]>;
+        claudeProcessEnvironment?: NodeJS.ProcessEnv;
         loadCodexModels?: () => Promise<ModelListEntry[]>;
         codexProcessEnvironment?: NodeJS.ProcessEnv;
         loadGrokInitialize?: () => Promise<InitializeResponse>;
@@ -882,6 +949,40 @@ export async function detectAgentCapabilities(
     const catalogs = buildBaselineAgentCapabilities(availability);
     let grokCapabilityError: string | undefined;
     let dshCapabilityError: string | undefined;
+
+    if (availability.claude && catalogs.claude) {
+        try {
+            const models = await (
+                opts?.loadClaudeModels
+                ?? (() => discoverClaudeModels(opts?.claudeProcessEnvironment))
+            )();
+            if (models.length > 0) {
+                const runtimeCatalog = buildClaudeCapabilityCatalog(
+                    '',
+                    Date.now(),
+                    catalogs.claude.providerVersion,
+                    models,
+                );
+                catalogs.claude = {
+                    ...catalogs.claude,
+                    detectedAt: runtimeCatalog.detectedAt,
+                    sources: {
+                        ...catalogs.claude.sources,
+                        models: 'claude-agent-sdk:supportedModels',
+                        effortLevels: runtimeCatalog.sources.effortLevels,
+                    },
+                    models: runtimeCatalog.models,
+                    effortLevels: runtimeCatalog.effortLevels,
+                };
+            } else {
+                catalogs.claude.sources.models = 'happyherd-release-catalog:claude-agent-sdk-empty';
+                logger.debug('[CAPABILITIES] Claude supportedModels returned no models; using release catalog');
+            }
+        } catch (error) {
+            catalogs.claude.sources.models = 'happyherd-release-catalog:claude-agent-sdk-failed';
+            logger.debug('[CAPABILITIES] Claude supportedModels failed; using release catalog', error);
+        }
+    }
 
     if (availability.codex && catalogs.codex) {
         try {

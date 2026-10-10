@@ -1,0 +1,149 @@
+{
+  "mode": "compare",
+  "sourceRevision": "dbdfc6b8955b14bb393ab2a66cede27de115d095",
+  "browser": "1.62.1",
+  "variants": 28,
+  "failed": 4,
+  "results": [
+    {
+      "name": "production-landing-default-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-key-draft-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-device-offline-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-server-config-draft-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-changelog-latest-entries-light-1440.png",
+      "pixels": 96677,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-landing-default-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-key-draft-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-device-offline-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-server-config-draft-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-changelog-latest-entries-light-390.png",
+      "pixels": 47842,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-landing-default-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-key-draft-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-device-offline-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-server-config-draft-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-changelog-latest-entries-dark-1440.png",
+      "pixels": 99620,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-landing-default-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-key-draft-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-restore-device-offline-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-server-config-draft-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "production-changelog-latest-entries-dark-390.png",
+      "pixels": 49630,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-appearance-populated-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-appearance-populated-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-appearance-populated-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-appearance-populated-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-terminal-populated-light-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-terminal-populated-light-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-terminal-populated-dark-1440.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    },
+    {
+      "name": "routes-terminal-populated-dark-390.png",
+      "pixels": 0,
+      "dimensionsChanged": false
+    }
+  ]
+}

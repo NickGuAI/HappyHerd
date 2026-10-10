@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { sdkQuery } = vi.hoisted(() => ({
+const { sdkQuery, resolveExecutable } = vi.hoisted(() => ({
     sdkQuery: vi.fn(() => ({
         async *[Symbol.asyncIterator]() {
             // The adapter contract is proven from the options passed to the
             // official SDK; no provider process is needed for this unit test.
         },
     })),
+    resolveExecutable: vi.fn(() => '/installed/claude'),
 }));
 
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
     query: sdkQuery,
 }));
+vi.mock('./claudeExecutable', () => ({ resolveClaudeCodeExecutable: resolveExecutable }));
 
 import { query } from './query';
 
@@ -61,5 +63,33 @@ describe('Claude SDK query adapter', () => {
                 allowDangerouslySkipPermissions: true,
             }),
         }));
+    });
+
+    it('uses the resolved local executable and treats a supplied environment as complete', () => {
+        const secretKey = 'HAPPYHERD_TEST_PARENT_ONLY_SECRET';
+        const previous = process.env[secretKey];
+        process.env[secretKey] = 'parent-only';
+        try {
+            query({
+                prompt: 'run the task',
+                options: {
+                    env: { PATH: '/safe/bin', HAPPYHERD_PROVIDER_ACCOUNT: 'work' },
+                },
+            });
+
+            expect(sdkQuery).toHaveBeenCalledWith(expect.objectContaining({
+                options: expect.objectContaining({
+                    pathToClaudeCodeExecutable: '/installed/claude',
+                    env: expect.objectContaining({ HAPPYHERD_PROVIDER_ACCOUNT: 'work' }),
+                }),
+            }));
+            const lastCall = sdkQuery.mock.calls.at(-1) as unknown as [{ options: { env?: Record<string, string> } }] | undefined;
+            const childEnvironment = lastCall?.[0]?.options.env;
+            expect(childEnvironment).not.toHaveProperty(secretKey);
+            expect(childEnvironment).toMatchObject({ PATH: '/safe/bin' });
+        } finally {
+            if (previous === undefined) delete process.env[secretKey];
+            else process.env[secretKey] = previous;
+        }
     });
 });

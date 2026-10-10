@@ -228,6 +228,7 @@ const virtualModules: Record<string, string> = {
             sessions.parent = {
                 ...sessions.parent,
                 modelMode: fixtureOptions.customClaudeNames ? 'claude-opus-5-5' : 'Gemini 3.6 Flash (High)',
+                ...(fixtureOptions.runtimeClaudeModel ? { effortLevel: 'medium' } : {}),
                 permissionMode: 'default',
                 metadata: { ...sessions.parent.metadata, flavor: fixtureOptions.customClaudeNames ? 'claude' : 'agy' },
             };
@@ -335,12 +336,36 @@ const virtualModules: Record<string, string> = {
         if (fixtureOptions.customClaudeNames) {
             machines[0].metadata.agentCapabilities = { claude: {
                 detectedAt: 1,
-                sources: { models: 'happyherd-release-catalog', effortLevels: 'cli-help', permissionModes: 'daemon-defaults' },
+                sources: {
+                    models: fixtureOptions.runtimeClaudeModel ? 'claude-agent-sdk:supportedModels' : 'happyherd-release-catalog',
+                    effortLevels: fixtureOptions.runtimeClaudeModel ? 'claude-agent-sdk:supportedModels' : 'cli-help',
+                    permissionModes: 'daemon-defaults',
+                },
                 models: [
-                    { code: 'claude-opus-5-5', value: fixtureOptions.longModelLabel ? 'Opus Research Preview Thinking' : 'Opus Research Preview', isDefault: true },
+                    {
+                        code: 'claude-opus-5-5',
+                        value: fixtureOptions.longModelLabel ? 'Opus Research Preview Thinking' : 'Opus Research Preview',
+                        isDefault: true,
+                        ...(fixtureOptions.runtimeClaudeModel ? { effortLevels: [
+                            { code: 'low', value: 'low' }, { code: 'medium', value: 'medium' },
+                            { code: 'high', value: 'high' }, { code: 'xhigh', value: 'xhigh' },
+                        ] } : {}),
+                    },
                     { code: 'claude-sonnet-5', value: 'Sonnet Team Edition' },
+                    ...(fixtureOptions.runtimeClaudeModel ? [{
+                        code: 'claude-sonnet-5-5',
+                        value: 'Sonnet Runtime Edition',
+                        effortLevels: [
+                            { code: 'low', value: 'low' },
+                            { code: 'medium', value: 'medium' },
+                            { code: 'high', value: 'high' },
+                            { code: 'xhigh', value: 'xhigh' },
+                        ],
+                    }] : []),
                 ],
-                effortLevels: [],
+                effortLevels: fixtureOptions.runtimeClaudeModel
+                    ? [{ code: 'low', value: 'low' }, { code: 'medium', value: 'medium' }, { code: 'high', value: 'high' }, { code: 'xhigh', value: 'xhigh' }]
+                    : [],
                 permissionModes: [{ code: 'default', value: 'default', isDefault: true }],
             } };
         }
@@ -866,7 +891,7 @@ const virtualModules: Record<string, string> = {
                     key: mode.code, name: mode.value, description: mode.description ?? null, isDefault: mode.isDefault,
                 }))
                 : [];
-        export const getSessionEffortLevelsForModel = () => [];
+        export const getSessionEffortLevelsForModel = (...args) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.runtimeClaudeModel === true ? actual.getSessionEffortLevelsForModel(...args) : [];
         export const getMachineAdvertisedModels = (...args) => realModels ? actual.getMachineAdvertisedModels(...args) : (args[0]?.agentCapabilities?.[args[1]]?.models ?? []).map((model) => ({ key: model.code, name: model.value, isDefault: model.isDefault }));
         export const getMachineAdvertisedEffortLevels = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.effortLevels ?? []).map((effort) => ({ key: effort.code, name: effort.value, isDefault: effort.isDefault }));
         export const getMachineAdvertisedPermissionModes = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.permissionModes ?? []).map((mode) => ({ key: mode.code, name: mode.value, isDefault: mode.isDefault }));
@@ -1202,7 +1227,7 @@ const virtualModules: Record<string, string> = {
         export const isRigMetadata = (metadata) => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow ? nativeIsRigMetadata(metadata) : Boolean(metadata?.bot); export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
         export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;
         export const getRigModels = () => []; export const getRigReasoningLevels = () => []; export const getRigSelectedModelKey = () => null;
-        export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => false;
+        export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.runtimeClaudeModel === true;
         export const rigCanAbort = () => false; export const rigCanBrowseFiles = () => true;
         export const rigCanReadFiles = () => false;
         export const rigCanUseAttachments = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;
@@ -2328,6 +2353,57 @@ describe('Side chats browser interaction', () => {
             if (directory) {
                 mkdirSync(directory, { recursive: true });
                 await page.screenshot({ path: resolve(directory, `claude-model-names-composer-${width}-${theme}.png`), fullPage: true });
+            }
+            expect(errors).toEqual([]);
+        } finally {
+            await page.close();
+        }
+    }, 30_000);
+
+    it.each([
+        { width: 1440, height: 900 },
+        { width: 390, height: 844 },
+    ])('selects a runtime-advertised Claude model and effort at $width × $height', async ({ width, height }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        page.setDefaultTimeout(5_000);
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+        try {
+            await page.addInitScript(() => {
+                (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                    modelPicker: true,
+                    customClaudeNames: true,
+                    runtimeClaudeModel: true,
+                };
+            });
+            await page.goto(origin);
+            const composer = page.getByTestId('foreground-session');
+            const modelChip = composer.getByTestId('composer-chip-model');
+            const effortChip = composer.getByTestId('composer-chip-effort');
+            await expect(modelChip.innerText()).resolves.toContain('Opus Research Preview');
+
+            await modelChip.click();
+            const modelPopover = composer.getByTestId('composer-chip-popover-model');
+            await modelPopover.waitFor({ state: 'visible', timeout: 3_000 });
+            await modelPopover.getByRole('button', { name: 'Sonnet Runtime Edition', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
+                sessionId: 'parent', patch: { modelMode: 'claude-sonnet-5-5' },
+            });
+            await expect(modelChip.innerText()).resolves.toContain('Sonnet Runtime Edition');
+            await expect(effortChip.isVisible()).resolves.toBe(true);
+
+            await effortChip.click();
+            const effortPopover = composer.getByTestId('composer-chip-popover-effort');
+            await effortPopover.waitFor({ state: 'visible', timeout: 3_000 });
+            await effortPopover.getByRole('button', { name: 'xhigh', exact: true }).click();
+            await expect.poll(() => page.evaluate(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? []).at(-1))).toEqual({
+                sessionId: 'parent', patch: { effortLevel: 'xhigh' },
+            });
+
+            const directory = process.env.HERD_MODEL_NAMES_EVIDENCE_DIR?.trim();
+            if (directory) {
+                mkdirSync(directory, { recursive: true });
+                await page.screenshot({ path: resolve(directory, `claude-runtime-model-effort-${width}x${height}.png`), fullPage: true });
             }
             expect(errors).toEqual([]);
         } finally {
