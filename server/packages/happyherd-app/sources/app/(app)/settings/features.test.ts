@@ -41,6 +41,10 @@ vi.mock('@/components/CommanderAvatarSettings', async () => {
         CommanderAvatarSettings: () => ReactModule.createElement('CommanderAvatarSettings'),
     };
 });
+vi.mock('@/components/LocalVoiceSettings', async () => {
+    const ReactModule = await import('react');
+    return { LocalVoiceSettings: () => ReactModule.createElement('LocalVoiceSettings') };
+});
 vi.mock('@/sync/storage', () => ({
     useSettingMutable: (key: string) => {
         settingReads.push(key);
@@ -120,5 +124,19 @@ describe('Commander profile picture feature gate', () => {
         });
 
         expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(1);
+    });
+});
+
+describe('Experimental Features grouping', () => {
+    it('places Local Voice controls inside the Experimental Features group', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => { renderer = create(React.createElement(FeaturesSettingsScreen)); });
+
+        const experiments = renderer.root.findAllByType('ItemGroup' as any)
+            .find((group: any) => group.props.title === 'settingsFeatures.experiments');
+        expect(experiments).toBeDefined();
+        expect(experiments!.findAllByType('LocalVoiceSettings' as any)).toHaveLength(1);
+        expect(renderer.root.findAllByType('LocalVoiceSettings' as any)).toHaveLength(1);
+        act(() => renderer.unmount());
     });
 });

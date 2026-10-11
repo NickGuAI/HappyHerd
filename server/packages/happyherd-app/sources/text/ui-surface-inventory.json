@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4e784906228dd5fb2af4e5e61d809b99384fef8ee8e066a9c5b75b569c645a9f",
+  "sourceFingerprint": "cb0d80c314391c79b21ee30a78ba3cca30d8ec37ecd74cbedc23e2d2afeec805",
   "routeCount": 45,
-  "surfaceCount": 341,
+  "surfaceCount": 343,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -5164,6 +5164,55 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/LocalVoicePlayback.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "LocalVoicePlayback"
+      ],
+      "translationKeys": [
+        "happyHerd.localVoice.playReply",
+        "happyHerd.localVoice.playSummary",
+        "happyHerd.localVoice.playbackFailed",
+        "happyHerd.localVoice.stop"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/LocalVoiceSettings.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "LocalVoiceSettings"
+      ],
+      "translationKeys": [
+        "happyHerd.localVoice.checking",
+        "happyHerd.localVoice.chooseMachine",
+        "happyHerd.localVoice.description",
+        "happyHerd.localVoice.downloading",
+        "happyHerd.localVoice.failed",
+        "happyHerd.localVoice.installFailed",
+        "happyHerd.localVoice.machineOffline",
+        "happyHerd.localVoice.noMachines",
+        "happyHerd.localVoice.notInstalled",
+        "happyHerd.localVoice.ready",
+        "happyHerd.localVoice.retry",
+        "happyHerd.localVoice.selectedMachineUnavailable",
+        "happyHerd.localVoice.sttTitle",
+        "happyHerd.localVoice.title",
+        "happyHerd.localVoice.ttsTitle",
+        "happyHerd.localVoice.unsupported",
+        "happyHerd.localVoice.unsupportedDetail",
+        "happyHerd.localVoice.voiceMachine",
+        "status.online"
+      ],
+      "states": [
+        "failed"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/LongPressCopyable.tsx",
       "kind": "component",
       "route": null,
@@ -7132,6 +7181,8 @@
         "useVoiceDictation"
       ],
       "translationKeys": [
+        "happyHerd.localVoice.noSpeechEngine",
+        "happyHerd.localVoice.uploadFailed",
         "happyHerd.voice.emptyAudio",
         "happyHerd.voice.finishFailed",
         "happyHerd.voice.noAudio",

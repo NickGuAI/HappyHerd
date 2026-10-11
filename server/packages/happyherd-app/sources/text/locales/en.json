@@ -1624,6 +1624,32 @@
       "finishFailed": "Could not finish recording",
       "transcriptionFailed": "Voice transcription failed",
       "permissionDenied": "Microphone permission was not granted"
+    },
+    "localVoice": {
+      "title": "Local Voice",
+      "description": "Choose an account voice machine, then install speech recognition and reply playback only when you enable each feature. Models stay on that machine. Replies are not read aloud automatically.",
+      "voiceMachine": "Voice machine",
+      "chooseMachine": "Choose a connected HappyHerd machine",
+      "noMachines": "Connect a HappyHerd machine to use local voice.",
+      "selectedMachineUnavailable": "The selected voice machine is not currently available. Choose it again when it reconnects, or select another machine.",
+      "machineOffline": "Machine offline",
+      "checking": "Checking model status…",
+      "downloading": "Downloading and setting up…",
+      "ready": "Ready on this machine",
+      "failed": "Setup failed",
+      "notInstalled": "Not installed",
+      "unsupported": "Not supported on this machine",
+      "unsupportedDetail": "Local speech recognition requires Apple Silicon.",
+      "retry": "Retry setup",
+      "installFailed": "Could not start model setup. Check the machine connection and retry.",
+      "sttTitle": "Local speech-to-text",
+      "ttsTitle": "Local reply playback",
+      "playSummary": "Play summary",
+      "playReply": "Read reply",
+      "stop": "Stop playback",
+      "playbackFailed": "Could not play this reply. Try again.",
+      "uploadFailed": "Could not send the recording to the voice machine.",
+      "noSpeechEngine": "No local or cloud speech-to-text is available."
     }
   },
   "uiCopy": {

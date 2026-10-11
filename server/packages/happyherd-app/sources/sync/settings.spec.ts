@@ -55,6 +55,22 @@ describe('settings', () => {
         expect(settingsParse(settingsToSyncPayload(settings)).sessionListGrouping).toBe(mode);
     });
 
+    it('defaults local voice off and syncs the selected voice machine separately from each feature opt-in', () => {
+        expect(settingsParse({})).toMatchObject({
+            localVoiceMachineId: null,
+            localVoiceSttEnabled: false,
+            localVoiceTtsEnabled: false,
+        });
+        const chosen = applySettings(settingsDefaults, {
+            localVoiceMachineId: 'account-machine',
+            localVoiceSttEnabled: true,
+        });
+        const roundTrip = settingsParse(JSON.parse(JSON.stringify(settingsToSyncPayload(chosen))));
+        expect(roundTrip.localVoiceMachineId).toBe('account-machine');
+        expect(roundTrip.localVoiceSttEnabled).toBe(true);
+        expect(roundTrip.localVoiceTtsEnabled).toBe(false);
+    });
+
     it('defaults an unknown session list mode to the flat view', () => {
         expect(settingsParse({ sessionListGrouping: 'unknown-view' }).sessionListGrouping).toBe('flat');
     });
@@ -310,6 +326,9 @@ describe('settings', () => {
                 commanderProfilePictures: false,
                 userSafeguardEnabled: false,
                 voiceInputEnabled: false,
+                localVoiceMachineId: null,
+                localVoiceSttEnabled: false,
+                localVoiceTtsEnabled: false,
                 machineWorkspace: false,
                 reviewPromptAnswered: false,
                 reviewPromptLikedApp: null,

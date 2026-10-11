@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const platform = vi.hoisted(() => ({ os: 'web', dark: false }));
+const voiceTtsEnabled = vi.hoisted(() => ({ value: false }));
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: routerPush }) }));
 
@@ -56,8 +57,16 @@ vi.mock('./tools/ToolView', async () => {
     const ReactModule = await import('react');
     return { ToolView: (props: any) => ReactModule.createElement('ToolView', props) };
 });
+vi.mock('./LocalVoicePlayback', async () => {
+    const ReactModule = await import('react');
+    return { LocalVoicePlayback: (props: any) => ReactModule.createElement('LocalVoicePlayback', props) };
+});
 vi.mock('@/sync/sync', () => ({ sync: { sendMessage: vi.fn() } }));
-vi.mock('@/sync/storage', () => ({ useSetting: () => 'default' }));
+vi.mock('@/sync/storage', () => ({ useSetting: (key: string) => key === 'localVoiceTtsEnabled'
+    ? voiceTtsEnabled.value
+    : key === 'localVoiceMachineId'
+        ? 'voice-machine'
+        : 'default' }));
 vi.mock('./layout', () => ({ layout: { maxWidth: 800 } }));
 vi.mock('@/utils/responsive', () => ({ useIsTablet: () => true }));
 vi.mock('./parseLocalCommandMessage', () => ({
@@ -309,6 +318,52 @@ describe('MessageView safeguard shared native renderer', () => {
         expect(renderer.root.findAllByType('MarkdownView' as any)).toHaveLength(0);
         expect(renderer.root.findAll((node: any) => typeof node.props.testID === 'string' && node.props.testID.startsWith('safeguard-reminder-'))).toHaveLength(0);
         act(() => renderer.unmount());
+    });
+
+    it('extracts a leading spoken overview before the safeguard card and leaves options at the end', () => {
+        platform.os = 'web';
+        voiceTtsEnabled.value = true;
+        const source = `<voice_overview>Short spoken summary.</voice_overview>\n${ready}\n\n**Reply body**\n\n${body.slice(body.indexOf('<options>'))}`;
+        const renderer = render(source);
+        expect(renderer.root.findByProps({ testID: 'safeguard-reminder-ready' })).toBeDefined();
+        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).toContain('**Reply body**');
+        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).not.toContain('voice_overview');
+        expect(renderer.root.findByType('LocalVoicePlayback' as any).props).toMatchObject({
+            summary: 'Short spoken summary.',
+            body: 'Reply body',
+        });
+        act(() => renderer.unmount());
+        voiceTtsEnabled.value = false;
+    });
+
+    it('hides a partial overview while streaming and still offers body speech for a legacy reply', () => {
+        platform.os = 'web';
+        voiceTtsEnabled.value = true;
+        const partial = render('<voice_overview>Still arriving');
+        expect(partial.root.findAllByType('MarkdownView' as any)).toHaveLength(0);
+        expect(partial.root.findAllByType('LocalVoicePlayback' as any)).toHaveLength(0);
+        act(() => partial.unmount());
+
+        const old = render('A legacy reply without an overview.');
+        expect(old.root.findByType('MarkdownView' as any).props.markdown).toBe('A legacy reply without an overview.');
+        expect(old.root.findByType('LocalVoicePlayback' as any).props).toMatchObject({
+            summary: null,
+            body: 'A legacy reply without an overview.',
+        });
+        act(() => old.unmount());
+        voiceTtsEnabled.value = false;
+    });
+
+    it('hides saved overview protocol text even after local playback is turned off', () => {
+        voiceTtsEnabled.value = false;
+        const renderer = render('<voice_overview>Saved spoken summary.</voice_overview>\nVisible reply body.');
+        expect(renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('Visible reply body.');
+        expect(renderer.root.findAllByType('LocalVoicePlayback' as any)).toHaveLength(0);
+        act(() => renderer.unmount());
+
+        const partial = render('<voice_overview');
+        expect(partial.root.findAllByType('MarkdownView' as any)).toHaveLength(0);
+        act(() => partial.unmount());
     });
 });
 

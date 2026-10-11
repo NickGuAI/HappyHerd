@@ -66,6 +66,7 @@ import type {
 } from '@/commands/sideChat';
 import type { CredentialAccountManager } from '@/credentialPool/manager';
 import { readContextWindow } from '@/contextWindow/readContextWindow';
+import { LocalVoiceService } from '@/voice/localVoiceService';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -229,6 +230,7 @@ export class ApiMachineClient {
     private reconnectTimeout: NodeJS.Timeout | null = null;
     private reconnectCapabilityHeld = false;
     private shutdownRequested = false;
+    private localVoiceService: LocalVoiceService;
 
     constructor(
         private token: string,
@@ -257,6 +259,8 @@ export class ApiMachineClient {
         // null = unrestricted: the daemon serves the whole machine, and its
         // process.cwd() is an accident of where it was started, not a workspace.
         registerCommonHandlers(this.rpcHandlerManager, null);
+        this.localVoiceService = new LocalVoiceService({ homeDir: configuration.happyHomeDir });
+        this.localVoiceService.register(this.rpcHandlerManager);
     }
 
     async forkClaudeBackendSession(directory: string, claudeSessionId: string): Promise<{
@@ -1000,9 +1004,10 @@ export class ApiMachineClient {
         }
     }
 
-    shutdown() {
+    async shutdown(): Promise<void> {
         logger.debug('[API MACHINE] Shutting down');
         this.shutdownRequested = true;
+        await this.localVoiceService.shutdown();
         if (this.reconnectCapabilityHeld) {
             releaseReconnectCapabilityMonitor();
             this.reconnectCapabilityHeld = false;
