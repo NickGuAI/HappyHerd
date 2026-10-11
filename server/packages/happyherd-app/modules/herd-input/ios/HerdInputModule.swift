@@ -200,6 +200,7 @@ final class HerdInputView: ExpoView {
   // expose on older supported iOS versions. Keep a held key consumed after its
   // first card disappears, until release, so it cannot approve the next card.
   override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    var emittedCommand = false
     var remaining = Set<UIPress>()
     for press in presses {
       guard let key = press.key else { remaining.insert(press); continue }
@@ -210,7 +211,10 @@ final class HerdInputView: ExpoView {
             let descriptor = commands.first(where: { $0.scope == "permission" && $0.target == oldest.target && $0.key == key.characters })
       else { remaining.insert(press); continue }
       heldDigits.insert(key.keyCode)
-      emit(descriptor)
+      if !emittedCommand {
+        emit(descriptor)
+        emittedCommand = true
+      }
     }
     if !remaining.isEmpty { super.pressesBegan(remaining, with: event) }
   }
