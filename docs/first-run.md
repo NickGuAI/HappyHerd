@@ -199,8 +199,9 @@ Water the plants.
 In the 1.2.4 Web client, click **New session** in the desktop sidebar, or the
 **+** in the narrow/mobile session header. The page is titled
 **Start New Session**; newer source also exposes **New Chat** with **Advanced**
-options. Select your online machine, the existing `happyherd-first-task` folder,
-and **Codex**. Check the full folder path so you do not select another machine
+options. Open the machine row and select your online machine. Open the current
+provider row to see the provider choices, then choose **Codex**. Select the
+existing `happyherd-first-task` folder. Check the full folder path so you do not select another machine
 or an unrelated project. On versions with **Working folder → Choose folder**,
 use that picker. In 1.2.4, use the folder/path row and the picker titled
 **Project**.
