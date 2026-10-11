@@ -9,6 +9,7 @@ ISSUE_368_CHANGELOG_CAPTURES	accepted	test(cli): refresh cross-provider side-cha
 ISSUE_368_CROSS_PROVIDER_SIDE_CHAT	accepted	feat(cli): select the provider for delegated side chats	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
 ISSUE_369_NATIVE_UI_PARITY	accepted	fix(app): adapt native layouts input and workspace review	docs/issue-369-native-parity.md
 ISSUE_369_PERMISSION_BATCH	code-ready	fix(app): dispatch one native permission answer per press batch	server/packages/happyherd-app/modules/herd-input/ios/HerdInputModule.swift
+ISSUE_369_REBASED_CAPTURES	code-ready	test(app): refresh rebased native parity changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 FOCUS_SESSION_FIRST_SEND_FIXTURE	accepted	test(focus): wire project selection into first-send fixtures	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
 FOCUS_SESSION_PROJECT_LOADING	accepted	fix(focus): retain the project while the catalog loads	server/packages/happyherd-app/sources/sync/newSessionProject.test.ts

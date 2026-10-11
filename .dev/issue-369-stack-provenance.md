@@ -28,9 +28,14 @@ CI remains required; this Web capture evidence is not native/device acceptance.
 For the source-only rebase, the frozen base is main at
 `bd8e77108ac206874067604cb5b192fbe9d37219`. The maintained changelog parser
 now reports 195 entries, and the UI inventory was regenerated from the merged
-source. The four binary captures remain current-main baselines strictly as
-temporary integration resolutions; they do not validate the rebased changelog
-and need recapture before acceptance. Current-main local voice, Claude model
+source. CI run `38177227990` captured the rebased source at
+`90e3eaea24d1ad2c95f25065a9be2264304e7997`: only the two desktop changelog
+images differed, and the other 26 variants matched exactly. The desktop actual
+and diff images were reviewed and imported with the maintained updater; their
+only differences are the native-parity entry and displaced older entries.
+The subsequent permission batch correction changes Swift dispatch only; Web
+capture inputs are unchanged. Final-head CI must compare the new baselines.
+Current-main local voice, Claude model
 discovery and the merged iOS lifecycle remain in the base tree.
 
 The first standalone #369 native attempt passed project generation, Pods
