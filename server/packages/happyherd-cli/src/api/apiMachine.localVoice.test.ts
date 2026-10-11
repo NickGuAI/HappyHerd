@@ -15,7 +15,7 @@ import type { RpcHandlerManager } from './rpc/RpcHandlerManager';
 describe.each(['legacy', 'dataKey'] as const)('local voice RPC over %s machine encryption', (encryptionVariant) => {
     it('registers the bounded local voice API on the existing machine RPC scope', async () => {
         const happyHomeDir = await mkdtemp(join(tmpdir(), 'happyherd-local-voice-rpc-'));
-        const originalHappyHomeDir = configuration.happyHomeDir;
+        const originalHappyHerdHomeDir = configuration.happyHomeDir;
         Object.defineProperty(configuration, 'happyHomeDir', {
             configurable: true,
             enumerable: true,
@@ -63,7 +63,7 @@ describe.each(['legacy', 'dataKey'] as const)('local voice RPC over %s machine e
                 configurable: true,
                 enumerable: true,
                 writable: true,
-                value: originalHappyHomeDir,
+                value: originalHappyHerdHomeDir,
             });
             await Promise.all([shutdown, rm(happyHomeDir, { recursive: true, force: true })]);
         }
