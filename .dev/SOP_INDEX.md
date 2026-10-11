@@ -17,6 +17,7 @@ impose that source-state gate.
 | Owned patch discipline | `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-patch-discipline.sh`, `scripts/list-owned-patches.sh`, `scripts/test-owned-merge-provenance.sh` |
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |
 | Upstream merge proposal | `docs/upstream-sync-rehearsal.md` | native `happyherd automation`, `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |
+| First-run account, machine, and Codex task | `docs/first-run.md`, `docs/acceptance/issue-378/README.md` | Public-release/source distinction; normal Web terminal authorization; actual clean-user task and retained conversation, separate from fixtures |
 | End-user native install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/build-native-installer-asset.sh`, `scripts/prepare-native-installer-deployment.mjs`, `scripts/{test-native-installer-asset,test-public-launcher-release-contract}.sh`, `.github/workflows/native-installer-release.yml` |
 | Native macOS DMG and iOS app | `docs/native-app-builds.md` | HappyHerd app Expo/EAS and Tauri configuration; `tauri:build:production`, Expo prebuild, Xcode archive/export, standard Apple signing and notarization |
 | CLI command reference | `server/packages/happyherd-cli/README.md` | `happyherd --help` |

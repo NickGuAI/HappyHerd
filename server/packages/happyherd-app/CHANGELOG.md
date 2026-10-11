@@ -11,6 +11,14 @@
 
 - iOS source builds now generate the scene lifecycle required to open on iOS 27, preserving app links and foreground/background handling. Native build compatibility fixes are reapplied during project generation and CocoaPods installation; these builds require iOS 16 or later.
 
+# October 8 — Identify release downloads and bundled versions
+
+- New CLI/server release archives retain their source revision and bundled versions, and release notes identify the actual downloads. The download table separates the current stable release from newer source and unavailable native app channels.
+
+# October 8 — Follow one first-run guide
+
+- The README now links a step-by-step guide from server choice and account backup to terminal authorization, a first Codex task, and reopening the same conversation, with recovery steps and separate public-release verification status.
+
 # October 7 — Choose a provider for delegated side chats
 
 - The terminal side-chat create command accepts `--provider` to start a child with another provider available on the parent’s machine. Cross-provider children use their own model and permission settings and receive the delegation brief with bounded recent parent context. Omitting the option keeps same-provider creation and native Claude/Codex forks.

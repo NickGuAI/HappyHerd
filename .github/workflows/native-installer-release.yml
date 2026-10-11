@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Check out release source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -124,12 +126,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out tagged release tooling
+        uses: actions/checkout@v4
+
       - name: Download all prepared assets
         uses: actions/download-artifact@v4
         with:
           pattern: native-installer-*
           path: release
           merge-multiple: true
+
+      - name: Describe the built release and available channels
+        run: node scripts/native-release-info.mjs notes "$GITHUB_REF_NAME" release > release-notes.md
 
       - name: Create or refresh the tagged release
         env:
@@ -149,6 +157,7 @@ jobs:
               --verify-tag \
               --title "HappyHerd $version" \
               "${release_flags[@]}" \
+              --notes-file release-notes.md \
               --generate-notes
           fi
 
