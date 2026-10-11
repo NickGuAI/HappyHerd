@@ -22,12 +22,12 @@ the installed artifact. The live installer and archive are separate revisions.
 
 | Target | Public artifact | Availability | Clean install → first Codex result → reopen |
 | --- | --- | --- | --- |
-| macOS arm64 terminal/server | `happyherd-darwin-arm64.tar.gz` | Pass: release API lists uploaded asset | Pass: isolated public-artifact install; **unproved** account/task/reopen |
+| macOS arm64 terminal/server | `happyherd-darwin-arm64.tar.gz` | Pass: release API lists uploaded asset | Partial: isolated public-artifact install; **unproved** account/task/reopen |
 | macOS x64 terminal/server | `happyherd-darwin-x64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no x64 target journey |
 | Linux arm64 terminal/server | `happyherd-linux-arm64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no Linux arm64 target journey |
-| Linux x64 terminal/server | `happyherd-linux-x64.tar.gz` | Pass: release API lists uploaded asset | Unproved: no Linux x64 target journey |
-| Web Desktop | Web bundle in the selected server archive | Pass: release identifies bundled Web | Pass: signed-out entry at 1440 × 900; **unproved** authenticated task/reopen |
-| Web Mobile | Same Web host, mobile browser | Pass: bundled Web surface; reachability depends on server URL | Pass: signed-out entry/server icon at 390 × 844; **unproved** authenticated task/reopen |
+| Linux x64 terminal/server | `happyherd-linux-x64.tar.gz` | Pass: public archive downloaded and installed | Pass: October 11 isolated account, machine authorization, first Codex result, and same-conversation reply |
+| Web Desktop | Web bundle in the selected server archive | Pass: release identifies bundled Web | Pass: October 11 account/authorization, first task and same-conversation second reply at 1440 × 900 |
+| Web Mobile | Same Web host, mobile browser | Pass: bundled Web surface; reachability depends on server URL | Partial: October 11 retained conversation and both replies at 390 × 844; separate failed-sign-in/retry check. No mobile first-task or physical-device claim |
 | Native macOS GUI / iOS / Android / Windows | None in this release | Not advertised as a downloadable native app by this guide | Excluded from this release's journey; source/build instructions are not an artifact |
 
 Listing an uploaded asset is not download, installation, or provider execution
@@ -182,17 +182,17 @@ file summary → close/reopen → second reply in the same conversation.
 
 | Case | Entry / gesture / expected visible outcome | Live status |
 | --- | --- | --- |
-| New account, no machine | Welcome → Create account → Backup → signed-in empty session list | Unproved: welcome entry observed; new-account grant pending |
+| New account, no machine | Welcome → Create account → Backup → signed-in empty session list | Pass October 11: new isolated account; key copied privately; Continue opened empty session list |
 | Restore and retain account | Restore with Secret Key → Restore Account → same account history | Unproved: no secret exposed or copied into evidence |
-| Terminal authorization | CLI Web Browser → Accept Connection → authenticated terminal, then daemon online | Unproved: actual artifact/preflight cleared; terminal grant pending |
+| Terminal authorization | CLI Web Browser → Accept Connection → authenticated terminal, then daemon online | Pass October 11: same loopback server; terminal authenticated and machine registered; daemon online |
 | Provider unavailable | New-session provider choice with no configured provider → setup guidance or absence; install/login before retry | Unproved: preauthenticated native Codex status does not exercise empty-provider UI |
-| First useful task | Select actual machine + task folder + Codex → summarize `notes.txt` → verify three tasks and deadline | Unproved: no real provider reply yet |
-| Reopen and continuation | Reopen same profile/account/conversation → ask about deadline → second reply | Unproved |
-| Failed account creation / retry | Unreachable auth request → visible failure or observed silent failure → connectivity restored → retry | Unproved on artifact; release source lacks newer Retry dialog |
+| First useful task | Select actual machine + task folder + Codex → summarize `notes.txt` → verify three tasks and deadline | Pass October 11: advertised GPT-6-Luna, read-only; three correct bullets and Friday deadline; file hash unchanged |
+| Reopen and continuation | Reopen same profile/account/conversation → ask about deadline → second reply | Pass October 11: tab closed/reopened, retained conversation selected; distinct second reply identified project outline and Friday |
+| Failed account creation / retry | Unreachable auth request → visible failure or observed silent failure → connectivity restored → retry | Observed October 11: one aborted auth request silently returned to welcome; same Create account action succeeded after restoring connectivity. Newer feedback belongs to #381 |
 | Wrong server / account | Compare Web/install server choice and approving browser account → restore correct account on its server | Unproved; no production account mutation authorized |
 | Cancelled / stale terminal grant | Reject/cancel → fresh CLI request URL → approve → success | Unproved |
 | Cancelled / expired device selection | On supporting version, cancel or expire existing-device code → fresh code → same device | Unproved; separate from first-terminal authentication |
-| Offline daemon / retry | Stop only isolated daemon → machine offline → start it → same machine usable | Unproved; only the unauthenticated server was started/stopped |
+| Offline daemon / retry | Stop only isolated daemon → machine offline → start it → same machine usable | Partial October 11: CLI confirmed stopped, then restarted; same conversation/replies retained. Machine remained online during the short stop and provider discovery reported unavailable RPC; heartbeat expiry and a new post-restart turn remain unproved |
 
 No fixture result is counted as an actual provider journey. Preserve the first
 failure's exact artifact, command or gesture, visible outcome, and owner when
@@ -215,7 +215,47 @@ executing these rows; do not turn retries into a claim that the first run passed
   [iOS login crash #375](https://github.com/NickGuAI/HappyHerd/issues/375) remain
   separate native concerns. No native publication or device change is included.
 
-**Readiness: not signed off.** Documentation can be reviewed independently, but
-issue #378 remains open while actual clean-user and targeted-surface acceptance
-is unproved or lacks an explicit owner disposition. No merge, release,
-deployment, shared-daemon change, or issue closure is part of this work.
+**Launch readiness: not signed off.** The Linux x64 clean-account first task and
+same-conversation continuation are now proved. Documentation can be reviewed
+independently; issue #378 remains open for the remaining recovery and target
+rows above. Merging this guide does not mark those rows passed, publish a
+release, or close the launch acceptance issue.
+
+## Linux x64 public-artifact journey, October 11
+
+The downloaded `happyherd-v1.2.4` Linux x64 archive has SHA-256
+`48da25a6ea005237d2692b34d1fc6da02287b97449cf2c4c6bf71dcd0bbe2b9f`
+and reports bundled CLI 1.2.3. It was installed separately from the managed
+production installation. The browser and CLI used one disposable HappyHerd
+home and the same loopback server. Both legacy and current home/URL environment
+names were set explicitly; public CLI configuration and browser configuration
+were checked before account actions. No credential files were read or copied.
+The native Codex login was already configured for this OS user; this does not
+prove a new vendor login. Chrome 144 ran at the desktop/mobile viewports above.
+
+The parent directly observed Create account, private key-copy confirmation,
+Continue, Web Browser terminal approval, authenticated/registered CLI status,
+and daemon startup. New session selected the actual online machine, an isolated
+folder containing only the guide's `notes.txt`, Codex, the offered GPT-6-Luna
+model, and the offered read-only mode. The completed reply contained exactly
+the three intended tasks and retained the Friday deadline. The tab was closed;
+a new tab opened the session list and selected the same conversation. Its
+separate second reply identified the project outline and Friday. Both replies
+remained visible after mobile resizing and a later page reload. The notes file
+SHA-256 was unchanged throughout:
+`754aa61f29a00e0ec39e9e3651c2f6abeeac0947624deff83affdeebe26c2813`.
+
+A separate fresh mobile browser context aborted one account-auth request. The
+public client returned silently to its welcome actions, without an error or
+Retry button. Restoring connectivity and pressing Create account again reached
+the backup gate. This confirms the guide's old-release recovery description;
+it does not claim the newer #381 error feedback is present in the archive.
+
+Earlier automation attempts selected the wrong controls, combined terminal
+selector keys before its state update, or targeted the hidden measurement
+textarea. Those helper failures are not product failures or clean-first-attempt
+proof. An earlier setup also used only newer environment names that the old
+archive did not honor; that request was abandoned without a completed grant.
+The final journey validated both environment aliases and rejected external
+browser requests. No authorization URL, account key, provider credential,
+private machine identity, or user transcript is part of this evidence.

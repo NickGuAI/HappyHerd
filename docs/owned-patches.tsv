@@ -779,3 +779,4 @@ FIRST_RUN_GUIDE_378	accepted	docs(onboarding): guide the first Codex task and co
 FIRST_RUN_EVIDENCE_378	accepted	docs(onboarding): finalize interactive setup and reviewed baselines	docs/acceptance/issue-378/README.md
 FIRST_RUN_PREFLIGHT_378	accepted	docs(onboarding): record isolated public-artifact preflight	docs/acceptance/issue-378/README.md
 ISSUE_378_REBASED_CAPTURES	code-ready	test(onboarding): refresh rebased first-run captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+FIRST_RUN_LINUX_JOURNEY_378	code-ready	docs(onboarding): record verified Linux task and continuation	docs/acceptance/issue-378/README.md
