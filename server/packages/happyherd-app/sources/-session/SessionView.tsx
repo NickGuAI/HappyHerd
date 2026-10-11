@@ -1881,7 +1881,11 @@ export function SessionViewLoaded({
     const handleDictationTranscript = React.useCallback((transcript: string) => {
         composerHandleRef.current?.appendTranscript(transcript);
     }, []);
-    const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceDictation = useVoiceDictation(handleDictationTranscript, {
+        localReady: voiceInputAvailability.localReady,
+        localMachineId: voiceInputAvailability.localMachineId,
+        cloudKeyConfigured: voiceInputAvailability.configured,
+    });
     const selectedContextEntries = React.useSyncExternalStore(
         subscribeWorkspaceContext,
         () => getWorkspaceContextEntries(sessionId),

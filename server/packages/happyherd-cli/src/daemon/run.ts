@@ -2504,7 +2504,7 @@ export async function startDaemon(): Promise<void> {
         // leaving nothing running once we also exit.
         await automations.stop();
         await activeCredentialAccounts.dispose();
-        apiMachine.shutdown();
+        await apiMachine.shutdown();
         await stopControlServer();
         await cleanupDaemonState();
         await releaseDaemonLock(daemonLockHandle);
@@ -2576,7 +2576,7 @@ export async function startDaemon(): Promise<void> {
 
       await automations.stop();
       await activeCredentialAccounts.dispose();
-      apiMachine.shutdown();
+      await apiMachine.shutdown();
       await stopControlServer();
       await cleanupDaemonState();
       await stopCaffeinate();

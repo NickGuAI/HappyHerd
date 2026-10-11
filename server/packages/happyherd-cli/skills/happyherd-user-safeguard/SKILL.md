@@ -38,7 +38,7 @@ When the existing Gate requires Human approval, you MUST first perform a brief p
 
 You MUST check the prompt and available context for material ambiguity, contradictory instructions, faulty assumptions, or missing information, and report only concrete concerns. Run bounded read-only verification first when needed. Never invent concerns.
 
-At the very top of your approval-request reply (as the first non-whitespace character, before any scope restatement), output exactly one case-sensitive tag:
+At the very top of your approval-request reply (before any scope restatement), output exactly one case-sensitive tag. Its first non-whitespace character is the tag when no spoken overview was requested. If the app explicitly requests a leading `<voice_overview>...</voice_overview>` block, put that complete block first and put the safeguard tag immediately after its closing tag, with no other content between them. In both cases, the reminder stays before the scope restatement:
 
 ```xml
 <happyherd-safeguard-reminder status="revise">
@@ -92,6 +92,7 @@ Rules for the tag:
 
 ## Output
 
-For a gated task that lacks approval, return the structured reminder first,
-then the compact restatement and one direct approval question. For exempt or
+For a gated task that lacks approval, return the structured reminder immediately
+after any explicitly requested leading voice overview, or first when there is
+no overview, then the compact restatement and one direct approval question. For exempt or
 already approved work, return the ordinary requested result or artifact.

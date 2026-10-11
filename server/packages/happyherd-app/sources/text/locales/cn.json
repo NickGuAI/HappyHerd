@@ -1624,6 +1624,32 @@
       "finishFailed": "无法完成录音",
       "transcriptionFailed": "语音转写失败",
       "permissionDenied": "未获得麦克风权限"
+    },
+    "localVoice": {
+      "title": "本地语音",
+      "description": "选择一台账号内的语音机器，再分别开启语音识别和回复朗读。模型只安装在该机器上；回复不会自动播放。",
+      "voiceMachine": "语音机器",
+      "chooseMachine": "选择一台已连接的 HappyHerd 机器",
+      "noMachines": "连接 HappyHerd 机器后即可使用本地语音。",
+      "selectedMachineUnavailable": "当前无法找到所选语音机器。请在它重新连接后再试，或改选另一台机器。",
+      "machineOffline": "机器已离线",
+      "checking": "正在检查模型状态…",
+      "downloading": "正在下载并设置…",
+      "ready": "此机器已就绪",
+      "failed": "设置失败",
+      "notInstalled": "尚未安装",
+      "unsupported": "此机器不支持",
+      "unsupportedDetail": "本地语音识别需要 Apple Silicon。",
+      "retry": "重试设置",
+      "installFailed": "无法开始安装模型。请检查机器连接后重试。",
+      "sttTitle": "本地语音转文字",
+      "ttsTitle": "本地回复朗读",
+      "playSummary": "播放摘要",
+      "playReply": "朗读回复",
+      "stop": "停止播放",
+      "playbackFailed": "无法播放此回复，请重试。",
+      "uploadFailed": "无法将录音发送到语音机器。",
+      "noSpeechEngine": "本地和云端语音转文字都不可用。"
     }
   },
   "uiCopy": {

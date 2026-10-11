@@ -1,3 +1,3 @@
-export function resolveVoiceInputAvailability(configured: boolean): boolean {
-    return configured;
+export function resolveVoiceInputAvailability(configured: boolean, localReady = false): boolean {
+    return configured || localReady;
 }

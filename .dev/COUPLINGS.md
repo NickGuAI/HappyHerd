@@ -367,18 +367,35 @@ boundaries; it is not part of the local installer.
 ### Active-session voice dictation
 
 The active-chat composer uses `useVoiceInputAvailability.available` and
-`useVoiceDictation` to send recorded audio to `POST /v1/voice/transcriptions`.
+`useVoiceDictation` to select ready enabled local ASR on the account's voice
+machine or the existing configured `POST /v1/voice/transcriptions` route.
 The returned text is appended to the uncontrolled `MultiTextInput`, remains
 editable and unsent, and flows into the existing `useDraft` persistence mirror.
 Recording, transcribing, cancel, error, and retry states are rendered by
 `AgentInput`; the composer does not start the separate realtime voice system.
 
 ```text
-composer mic → useVoiceDictation → POST /v1/voice/transcriptions
-                                      │
-                                      ▼
+composer mic → useVoiceDictation ─┬→ selected voice machine (encrypted RPC)
+                                └→ configured cloud transcription
+                                            │
+                                            ▼
 existing draft + transcript → editable MultiTextInput → useDraft persistence
 ```
+
+`LocalVoiceSettings` lives in Features/Experiments. Account settings choose the
+machine and opt-in switches; `useLocalVoiceStatus` reads daemon-owned model
+readiness. `sync/localVoice.ts` and wire `localVoice.ts` share short operation,
+upload and audio-read requests with CLI `voice/localVoiceService.ts`. The
+existing relay remains single-ack: installation and inference run outside RPC
+handlers, and audio is read by cursor. Cancellation, release and expiry own
+temporary data; no Workspace feature or directory is required.
+
+`MessageView` extracts a leading `voice_overview` before parsing the existing
+safeguard reminder and rendering Markdown/options. `LocalVoicePlayback` starts
+only on a user gesture, reads summary or filtered body, and stops obsolete
+playback. `sync/prompt/voiceOverviewPrompt.ts` requests the overview only while the
+account enables local TTS. Safeguard skill wording is mirrored in `.dev/skills`
+and the CLI bundle. See [`docs/local-voice.md`](../docs/local-voice.md).
 
 ### File Workspace
 

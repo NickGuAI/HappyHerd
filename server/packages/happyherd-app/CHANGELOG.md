@@ -1,3 +1,8 @@
+# October 11 — Private local voice
+
+- Settings › Features lets you choose a HappyHerd machine for opt-in local speech-to-text and text-to-speech. Each engine can be enabled separately, installed from the daemon and retried if setup fails.
+- When local text-to-speech is ready, assistant replies offer controls to read the spoken overview or the reply aloud. Playback is user-started and stays on the selected machine; dictation adds text to the composer without sending it.
+
 # October 10 — Discover models from your installed Claude Code
 
 - After upgrading Claude Code, HappyHerd refreshes the machine’s Claude model list and each model’s effort choices automatically. New and resumed Claude sessions use the same installed runtime. Saved model selections keep their exact identity; unavailable choices are not silently replaced.

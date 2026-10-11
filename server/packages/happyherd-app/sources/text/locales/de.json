@@ -1624,6 +1624,32 @@
       "finishFailed": "Aufnahme konnte nicht abgeschlossen werden",
       "transcriptionFailed": "Sprachtranskription fehlgeschlagen",
       "permissionDenied": "Mikrofonberechtigung wurde nicht erteilt"
+    },
+    "localVoice": {
+      "title": "Lokale Sprache",
+      "description": "Wählen Sie einen Sprachrechner für Ihr Konto und installieren Sie Spracherkennung und Antwortwiedergabe erst, wenn Sie die jeweilige Funktion aktivieren. Die Modelle bleiben auf diesem Rechner. Antworten werden nicht automatisch vorgelesen.",
+      "voiceMachine": "Sprachrechner",
+      "chooseMachine": "Einen verbundenen HappyHerd-Rechner auswählen",
+      "noMachines": "Verbinden Sie einen HappyHerd-Rechner, um lokale Sprache zu verwenden.",
+      "selectedMachineUnavailable": "Der ausgewählte Sprachrechner ist derzeit nicht verfügbar. Wählen Sie ihn nach dem erneuten Verbinden aus oder wählen Sie einen anderen Rechner.",
+      "machineOffline": "Rechner offline",
+      "checking": "Modellstatus wird geprüft…",
+      "downloading": "Wird heruntergeladen und eingerichtet…",
+      "ready": "Auf diesem Rechner bereit",
+      "failed": "Einrichtung fehlgeschlagen",
+      "notInstalled": "Nicht installiert",
+      "unsupported": "Auf diesem Rechner nicht unterstützt",
+      "unsupportedDetail": "Lokale Spracherkennung erfordert Apple Silicon.",
+      "retry": "Einrichtung wiederholen",
+      "installFailed": "Die Modelleinstellung konnte nicht gestartet werden. Prüfen Sie die Rechnerverbindung und versuchen Sie es erneut.",
+      "sttTitle": "Lokale Spracherkennung",
+      "ttsTitle": "Antworten lokal vorlesen",
+      "playSummary": "Zusammenfassung abspielen",
+      "playReply": "Antwort vorlesen",
+      "stop": "Wiedergabe stoppen",
+      "playbackFailed": "Diese Antwort kann nicht abgespielt werden. Bitte erneut versuchen.",
+      "uploadFailed": "Die Aufnahme konnte nicht an den Sprachrechner gesendet werden.",
+      "noSpeechEngine": "Weder lokale noch Cloud-Spracherkennung ist verfügbar."
     }
   },
   "uiCopy": {

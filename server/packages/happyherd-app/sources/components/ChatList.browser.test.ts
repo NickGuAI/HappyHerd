@@ -116,6 +116,22 @@ const virtualModules: Record<string, string> = {
         export const useSetting = key => key === 'groupToolCalls' || key === 'compactToolCalls';
         export const useLocalSetting = () => false;
     `,
+    // The ChatList journey keeps local voice disabled; stub its status and RPC
+    // boundary so this fixture stays focused on message-list behavior.
+    '@/hooks/useLocalVoiceStatus': `export const useLocalVoiceStatus = () => ({ status: null, online: false, loading: false, error: null, refresh: async () => null });`,
+    '@/sync/localVoice': `
+        const unused = async () => { throw new Error('Local voice is disabled in this fixture'); };
+        export const localVoiceStatus = unused;
+        export const installLocalVoiceFeature = unused;
+        export const startLocalVoiceUpload = unused;
+        export const uploadLocalVoiceChunk = unused;
+        export const startLocalVoiceTranscription = unused;
+        export const localVoiceOperation = unused;
+        export const startLocalVoiceSpeech = unused;
+        export const readLocalVoiceAudio = unused;
+        export const cancelLocalVoiceOperation = unused;
+        export const releaseLocalVoiceOperation = unused;
+    `,
     '@/text': `
         export const t = (key, params = {}) => ({
             'common.retry': 'Retry', 'common.loadMore': 'Load more',
