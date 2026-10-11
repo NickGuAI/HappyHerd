@@ -1,3 +1,4 @@
+LOCAL_VOICE_WORKER_TEST_WAIT	accepted	test(voice): await subprocess failure deterministically	server/packages/happyherd-cli/src/voice/localVoiceService.test.ts
 LOCAL_VOICE_CONNECTION_FIXTURE	accepted	test(voice): provide daemon home in connection fixtures	server/packages/happyherd-cli/src/api/apiMachine.test.ts
 LOCAL_VOICE_ACCEPTANCE_FIXTURES	accepted	test(voice): align inventory and changelog acceptance fixtures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 LOCAL_VOICE_EXPERIMENTS	accepted	feat(voice): add local dictation and reply playback experiments	docs/local-voice.md

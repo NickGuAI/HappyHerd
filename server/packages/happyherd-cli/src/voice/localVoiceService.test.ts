@@ -491,10 +491,15 @@ describe('LocalVoiceService', () => {
         internals.ttsWorkerSource = () => `const wav = Buffer.from('${wavBase64}', 'base64'); const frame = Buffer.alloc(4 + wav.length); frame.writeUInt32LE(wav.length); wav.copy(frame, 4); process.stdout.write(frame);`;
         internals.appendWav = () => { throw new Error('audio buffer append failed'); };
 
-        const operation = await service.speak({ text: 'Worker stream failure.' });
-        expect(await settle(service, operation.operationId)).toMatchObject({ state: 'error', error: 'audio buffer append failed' });
-        await service.release({ operationId: operation.operationId });
-        await service.shutdown();
+        try {
+            const operation = await service.speak({ text: 'Worker stream failure.' });
+            await vi.waitFor(async () => {
+                expect(await service.operation({ operationId: operation.operationId })).toMatchObject({ state: 'error', error: 'audio buffer append failed' });
+            }, { timeout: 5_000, interval: 20 });
+            await service.release({ operationId: operation.operationId });
+        } finally {
+            await service.shutdown();
+        }
     });
 
     it('serializes shared npm runtime installs and invokes npm directly', async () => {
