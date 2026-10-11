@@ -25,6 +25,8 @@ import { parseSafeguardReminder } from './safeguardReminder';
 import { SafeguardReminderCard } from './SafeguardReminderCard';
 import { CodexQuotaRecoveryActions } from './CodexQuotaRecoveryActions';
 import { herdWebClasses } from './herd/motion';
+import { LocalVoicePlayback } from './LocalVoicePlayback';
+import { parseVoiceOverview, toSpeechText } from '@/utils/voiceOverview';
 
 // UI overhaul: Web replies sit on the chat background and user messages are
 // soft bubbles; native keeps its island presentation.
@@ -287,12 +289,19 @@ function AgentTextBlock(props: {
     return null;
   }
 
-  const parsed = parseSafeguardReminder(props.message.text);
+  const voiceEnabled = useSetting('localVoiceTtsEnabled');
+  const voiceMachineId = useSetting('localVoiceMachineId');
+  const voice = parseVoiceOverview(props.message.text);
+  const parsed = parseSafeguardReminder(voice.body);
+  const spokenBody = toSpeechText(parsed.text);
 
   return (
     <View style={styles.agentMessageContainer}>
       {parsed.reminder ? <SafeguardReminderCard reminder={parsed.reminder} /> : null}
-      <MarkdownView tone={Platform.OS === 'web' ? 'reply' : 'island'} markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
+      {!voice.pending ? <MarkdownView tone={Platform.OS === 'web' ? 'reply' : 'island'} markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} /> : null}
+      {!voice.pending && voiceEnabled ? (
+        <LocalVoicePlayback machineId={voiceMachineId} summary={voice.summary} body={spokenBody} messageId={props.message.id} />
+      ) : null}
       {props.copyText ? <MessageCopyButton text={props.copyText} /> : null}
     </View>
   );

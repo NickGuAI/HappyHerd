@@ -108,6 +108,22 @@ const virtualModules: Record<string, string> = {
             return machines;
         };
     `,
+    // Credential journeys do not exercise local voice. Keep the real settings
+    // components mounted while isolating their status/RPC dependency boundary.
+    '@/hooks/useLocalVoiceStatus': `export const useLocalVoiceStatus = () => ({ status: null, online: false, loading: false, error: null, refresh: async () => null });`,
+    '@/sync/localVoice': `
+        const unused = async () => { throw new Error('Local voice is disabled in this fixture'); };
+        export const localVoiceStatus = unused;
+        export const installLocalVoiceFeature = unused;
+        export const startLocalVoiceUpload = unused;
+        export const uploadLocalVoiceChunk = unused;
+        export const startLocalVoiceTranscription = unused;
+        export const localVoiceOperation = unused;
+        export const startLocalVoiceSpeech = unused;
+        export const readLocalVoiceAudio = unused;
+        export const cancelLocalVoiceOperation = unused;
+        export const releaseLocalVoiceOperation = unused;
+    `,
     '@/sync/machineChoices': `export const getMachineName = (machine) => machine.metadata.displayName ?? machine.metadata.host;`,
     '@/utils/machineUtils': `export const isMachineOnline = (machine) => machine.active;`,
     '@/utils/sessionUtils': `export const formatLastSeen = () => 'recently';`,

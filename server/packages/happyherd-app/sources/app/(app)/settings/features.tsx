@@ -8,6 +8,7 @@ import { Switch } from '@/components/Switch';
 import { t } from '@/text';
 import { CommanderAvatarSettings } from '@/components/CommanderAvatarSettings';
 import { withSettingsFrame } from '@/components/herd/pages/SettingsFrame';
+import { LocalVoiceSettings } from '@/components/LocalVoiceSettings';
 
 function FeaturesSettingsScreen() {
     const { theme } = useUnistyles();
@@ -126,6 +127,7 @@ function FeaturesSettingsScreen() {
                     )}
                     showChevron={false}
                 />
+                <LocalVoiceSettings />
             </ItemGroup>
 
             {commanderProfilePictures && <CommanderAvatarSettings />}
