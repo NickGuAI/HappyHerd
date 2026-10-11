@@ -161,7 +161,7 @@ the existing stable download; publishing replacement assets is a separate act.
 
 Proposed installer tag: `happyherd-v1.2.5`; current source CLI: `1.2.5`.
 This is a candidate, not an available release. The reviewed source baseline is
-`3a3773303a5539f6c9deddbd04197b92cbab9a76`; the release revision must be the
+`bd8e77108ac206874067604cb5b192fbe9d37219`; the release revision must be the
 subsequent exact reviewed `main` commit incorporating the #383 PR. Record that
 SHA after separately authorized merge and final checks, before requesting tag
 publication. Do not tag the baseline or describe the PR's CI artifacts as public
@@ -199,7 +199,7 @@ equality is assumed (stable tag 1.2.4 contains CLI 1.2.3).
 | Step | Required evidence | Current status |
 | --- | --- | --- |
 | Review candidate source | Exact PR head, focused metadata/archive regression, independent review, all applicable Quality/Contracts/image/native installer CI | To be recorded on the #383 PR; passing builds are not publication |
-| Select release revision | Authorized merge, freshly fetched clean main, exact SHA and final main checks; verify included claims/dependency decisions | Pending; merge is not authorized by this task |
+| Select release revision | Authorized merge, freshly fetched clean main, exact SHA and final main checks; verify included claims/dependency decisions | Pending selection after source integration and final main checks |
 | Publish existing channels | Separate approval naming `happyherd-v1.2.5`, exact SHA, four assets and stable status; existing tagged workflow produces release and identity notes | Unperformed; tag/release/package publication not authorized |
 | Verify public installer | Exact README command resolves new stable tag on macOS/Linux arm64/x64; retain archive identity/digest, installed version and source revision | Pending new public artifacts; existing stable CI exercises 1.2.4 |
 | Verify documented first task | #378's account/terminal authorization, real provider result and retained conversation on the selected public artifact | External dependency; do not duplicate the account journey |
@@ -209,6 +209,6 @@ After publication, the existing `verify_published` workflow is the four-platform
 public-script/install/auth/RPC proof, subject to separate approval for its actual
 runtime/account effects. It does not prove #378's real-provider first task.
 Only then update the README's stable release rows and record release-specific
-journey evidence. Keep #383 and its PR draft while publication or original live
-acceptance remains unmet. No release, install, service restart or deployment is
-implied by preparing this plan.
+journey evidence. Keep #383 open while publication or original live acceptance
+remains unmet. Merging reviewed tooling does not complete those release effects
+or authorize a tag, publication, service restart or deployment.
