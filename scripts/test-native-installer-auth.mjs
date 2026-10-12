@@ -6,9 +6,15 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
+import { constants } from 'node:fs';
+import { lstat, open, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import {
+  classifyDaemonStartup,
+  isOwnedDaemonLogPath,
+} from './native-installer-startup-diagnostic.mjs';
 
 const [installRoot, testHome, serverUrl, separator, ...rerun] = process.argv.slice(2);
 assert(installRoot && testHome && serverUrl && separator === '--' && rerun.length,
@@ -83,6 +89,57 @@ async function run(command, args, timeout) {
   const process = start(command, args);
   process.child.stdin.end();
   return finish(process, timeout);
+}
+
+async function collectDaemonStartupDiagnostic(foregroundOutput) {
+  const happyHome = path.join(testHome, '.happyherd');
+  const statePresent = await lstat(path.join(happyHome, 'daemon.state.json'))
+    .then(() => true, () => false);
+  const logCommandOutput = await run(cli, ['daemon', 'logs'], 9_000);
+  const lines = logCommandOutput.trim().split(/\r?\n/);
+  if (lines.length !== 1 || !path.isAbsolute(lines[0])) return null;
+
+  const realTestHome = await realpath(testHome);
+  const logsRootReal = await realpath(path.join(happyHome, 'logs'));
+  const candidateReal = await realpath(lines[0]);
+  if (!isOwnedDaemonLogPath(realTestHome, logsRootReal, candidateReal)) return null;
+
+  const noFollow = constants.O_NOFOLLOW ?? 0;
+  const handle = await open(candidateReal, constants.O_RDONLY | noFollow);
+  try {
+    const stats = await handle.stat();
+    if (!stats.isFile()) return null;
+    const length = Math.min(stats.size, 64 * 1024);
+    const buffer = Buffer.alloc(length);
+    const { bytesRead } = await handle.read(buffer, 0, length, stats.size - length);
+    return classifyDaemonStartup({
+      foregroundOutput,
+      daemonLog: buffer.subarray(0, bytesRead).toString('utf8'),
+      statePresent,
+      bytesRead,
+    });
+  } finally {
+    await handle.close();
+  }
+}
+
+async function reportDaemonStartupDiagnostic(foregroundOutput) {
+  let timer;
+  try {
+    const diagnostic = await Promise.race([
+      collectDaemonStartupDiagnostic(foregroundOutput),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('daemon startup diagnostic timed out')), 10_000);
+      }),
+    ]);
+    if (diagnostic) {
+      console.error(`native-installer-auth: daemon startup diagnostic: ${JSON.stringify(diagnostic)}`);
+    }
+  } catch {
+    // The original daemon start failure remains authoritative.
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function waitFor(check, timeout = 90_000) {
@@ -214,7 +271,14 @@ try {
 
   stage = 'initial online daemon';
   daemonStarted = true;
-  await run(cli, ['daemon', 'start']);
+  const initialDaemon = start(cli, ['daemon', 'start']);
+  initialDaemon.child.stdin.end();
+  try {
+    await finish(initialDaemon);
+  } catch (error) {
+    await reportDaemonStartupDiagnostic(initialDaemon.output());
+    throw error;
+  }
   await connect();
   const before = await onlineMachine(accountEncryption);
   console.log('native-installer-auth: registered machine online and encrypted RPC usable');
