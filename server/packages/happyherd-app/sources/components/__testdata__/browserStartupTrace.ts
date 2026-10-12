@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { setInterval, clearInterval } from 'node:timers';
+import { observeOwnedPipe, type PipeReceipt } from './ownedPipeObservation';
 
 // Diagnostic-only adapter to the installed Playwright package-exported internal.
 // This is not a stable public Playwright API; do not use it in product code.
@@ -8,10 +9,10 @@ type Debug = { log: Sink; namespaces: string | undefined; enable: (namespaces: s
 type Method = 'Browser.getVersion' | 'Target.setAutoAttach';
 type Event = 'process-launching' | 'process-launched' | 'process-exited' | 'command-sent' | 'command-received' | 'command-error-received' | 'trace-started' | 'trace-limit-reached' | 'launch-resolved' | 'launch-rejected' | 'hook-teardown';
 type Responsiveness = NonNullable<ReturnType<ReturnType<typeof observeStartupResponsiveness>>>;
-type RecordFields = { event: Event; method?: Method; id?: number; pid?: number } & Partial<Responsiveness>;
+type RecordFields = { event: Event | PipeReceipt['event']; method?: Method; id?: number; pid?: number; reason?: PipeReceipt['reason'] } & Partial<Responsiveness>;
 const require = createRequire(import.meta.url);
 
-export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeader') {
+export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeader', chromium: unknown) {
     const { debug } = require('playwright-core/lib/utilsBundle') as { debug: Debug };
     const previousSink = debug.log;
     const previousNamespaces = debug.namespaces;
@@ -22,6 +23,7 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
     let limitReported = false;
     let terminalReported = false;
     let stopped = false;
+    let pipeObservation: ReturnType<typeof observeOwnedPipe> | undefined;
     let finishResponsiveness: ReturnType<typeof observeStartupResponsiveness> | undefined;
     const finishObservation = () => {
         const finish = finishResponsiveness;
@@ -90,6 +92,7 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
             const method = pending.get(message.id);
             if (!method) return;
             pending.delete(message.id);
+            if (method === 'Browser.getVersion') pipeObservation?.stop();
             emit({ event: message.error ? 'command-error-received' : 'command-received', method, id: message.id,
                 ...(method === 'Browser.getVersion' ? finishObservation() : undefined),
             });
@@ -103,6 +106,7 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
     const stop = (event: 'launch-resolved' | 'launch-rejected' | 'hook-teardown') => {
         if (stopped) return;
         stopped = true;
+        pipeObservation?.stop();
         emit({ event, ...finishObservation() }, true);
         try {
             // On hook timeout, late launch and warmup may still execute. Silence
@@ -121,6 +125,11 @@ export function traceBrowserStartup(fixture: 'desktopWorkspace' | 'sideChatHeade
         async launch<T>(operation: () => Promise<T>): Promise<T> {
             let event: 'launch-resolved' | 'launch-rejected' = 'launch-rejected';
             try {
+                // Core/debug initialization has already happened via the fixture import.
+                // Version lookup failure disables observation, never the launch.
+                let version = '';
+                try { version = require('playwright-core/package.json').version; } catch { /* Diagnostic only. */ }
+                if (!stopped) pipeObservation = observeOwnedPipe(chromium, version, emit);
                 const value = await operation();
                 event = 'launch-resolved';
                 return value;

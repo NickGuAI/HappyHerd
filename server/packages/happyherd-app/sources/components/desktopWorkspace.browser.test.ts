@@ -823,7 +823,7 @@ describe('Desktop workspace browser interaction', () => {
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = 'http://127.0.0.1:' + address.port;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
-        startupTrace = traceBrowserStartup('desktopWorkspace');
+        startupTrace = traceBrowserStartup('desktopWorkspace', chromium);
         try {
             browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),

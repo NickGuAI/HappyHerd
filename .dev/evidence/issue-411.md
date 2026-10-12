@@ -136,3 +136,50 @@ helper tests passed, the integrated deterministic observer proof passed, app
 TypeScript (`tsc --noEmit`) passed, and source lint / whitespace checks passed.
 No local browser, full-app suite or build was run. Exact-head review and the
 first push-generated CI results remain distinct from these lightweight checks.
+
+## Owned pipe observation, October 12
+
+Continued from the current PR revision
+`e239d35dd7554d1a1592212e69167b51158f9c64`, retaining the original failing
+25.6-second exchange. No cause or repair has been established. The new observer
+separates the selected root getVersion send's write-call start, delimiter
+write-call return, and complete matching frame at the existing transport
+callback from the existing protocol RECV. Write return is not OS completion;
+frame observation is not kernel arrival. Heartbeat interpretation remains as
+above. Passing samples cannot explain the historical failing sample.
+
+This diagnostic depends on app-resolved Playwright 1.62.1 internals. The local
+client connection resolves its own server Chromium instance. Its one
+`_launchProcess` invocation returns the original Promise unchanged; an observer
+registered before the caller's continuation taps the returned transport before
+first send. Only that transport's send/dispatch and write-stream instance are
+wrapped. No global spawn hook, prototype patch, extra data listener, stream read,
+package modification, launch option or fixture scheduling change is introduced.
+Unsupported shape/version disables observation, never launch. Transient frame
+inspection is limited to 8 KiB and 16 complete frames per callback; only allowed
+numeric IDs and categorical events are retained through the existing 16-record
+cap. Unavailability is terminal and restores installed taps. Receive, settlement
+and hook teardown restore observation; late fulfillment cannot install taps.
+
+Twenty no-browser tests passed on their first run (14 pipe tests, six integrated
+startup-trace tests). They cover Promise/argument/receiver/error identity,
+installation order, return values, callbacks, split multibyte and coalesced
+framing, privacy, bounds, teardown and restoration. Negative cases prove that
+unrelated sends and delimiters cannot be labeled with the selected root ID,
+and that partial bind failure or frame-bound unavailability restores taps and
+silences later observation. These are observer-integrity tests, not a historical
+stall reproduction. All existing fixture journey assertions remain unchanged.
+
+The first frozen dependency install passed with Node 20.20.2, pnpm 10.11.0 and a
+task-owned store. App resolution confirmed Playwright 1.62.1 and Vitest 3.2.4.
+The lock SHA-256 remained
+`e9f838a9aa9f3f35a6d33c56435401ed34a67e93e67ec368af95ac260aba2c75`.
+The first app typecheck failed because the install omitted lifecycle scripts and
+wire declarations were absent. That setup failure is retained separately.
+The subsequently authorized maintained server postinstall passed once, including
+wire declarations; the app's declared typecheck then passed once. No source
+change was needed to clear the derivative errors. Original source hashes and
+lock remained unchanged across prerequisite execution. First install, unit,
+typecheck failure, prerequisite and final typecheck receipts remain retained
+privately. No browser or full-suite run was performed in this phase. Publication,
+exact-head review and default-path CI evidence remain separate gates.

@@ -1609,7 +1609,7 @@ describe('Side chats browser interaction', () => {
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = `http://127.0.0.1:${address.port}`;
         const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
-        startupTrace = traceBrowserStartup('sideChatHeader');
+        startupTrace = traceBrowserStartup('sideChatHeader', chromium);
         try {
             browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
                 ...(executablePath ? { executablePath } : { channel: 'chrome' }),
