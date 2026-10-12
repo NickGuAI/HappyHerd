@@ -201,9 +201,26 @@ describe('KILV signed-out routes browser journeys', () => {
             } catch { return 'unknown'; }
         };
         const record = (event: object) => {
-            events.push(event);
+            events.push({ ...event, elapsedMs: phase.snapshot().elapsedMs });
             if (events.length > 8) events.shift();
         };
+        // Only this fixture's auth endpoint is observed. Never retain request
+        // URLs, payloads, headers, response data or failure/error text.
+        const isFixtureAuth = (url: string) => {
+            try {
+                const parsed = new URL(url);
+                return parsed.origin === origin && parsed.pathname === '/v1/auth';
+            } catch { return false; }
+        };
+        page.on('request', request => {
+            if (isFixtureAuth(request.url())) record({ event: 'auth-request' });
+        });
+        page.on('requestfinished', request => {
+            if (isFixtureAuth(request.url())) record({ event: 'auth-request-finished' });
+        });
+        page.on('requestfailed', request => {
+            if (isFixtureAuth(request.url())) record({ event: 'auth-request-failed' });
+        });
         page.on('framenavigated', frame => record({ event: 'navigation', main: frame === page.mainFrame(), route: routeCategory(frame.url()) }));
         page.on('domcontentloaded', () => record({ event: 'domcontentloaded' }));
         page.on('load', () => record({ event: 'load' }));
@@ -279,7 +296,7 @@ describe('KILV signed-out routes browser journeys', () => {
         await page.goto(`${origin}/?theme=${theme}&locale=${locale}`);
         let pending: Route | undefined;
         phase('create-interception', 'page.route');
-        await page.route('**/v1/auth', route => { pending = route; });
+        await page.route('**/v1/auth', route => { pending = route; record({ event: 'auth-route-received' }); });
         phase('create-click', 'locator.click');
         await create.click();
         phase('create-request', 'expect.poll');
@@ -288,6 +305,7 @@ describe('KILV signed-out routes browser journeys', () => {
         expect(await create.getAttribute('aria-disabled')).toBe('true');
         phase('create-response', 'route.fulfill');
         await pending!.fulfill({ json: { token: 'fixture-token' } });
+        record({ event: 'auth-route-fulfilled' });
         phase('create-completion', 'page.waitForFunction');
         await page.waitForFunction(() => (window as any).__ACCOUNT_CREATED__ === true);
         phase('create-login-method', 'page.evaluate');

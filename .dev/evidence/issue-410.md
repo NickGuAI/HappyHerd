@@ -142,3 +142,49 @@ supports the specific polling hypothesis; a false flag or functioning sentinel
 falsifies it. This conditional recipe is not a causal reproduction already
 achieved. The cause, red-to-green repair, and original issue acceptance remain
 unproved pending new evidence.
+
+
+## October 12: bounded auth lifecycle observation
+
+Current integration baseline is `d864f9e9868a84c7060ac3f095d7dfe3faeb441a`,
+on main `31b13966c3b999a61d4d105b0a0887bf7d5bb91c`. The retained earlier
+worktree and logs were preserved. A fresh isolated checkout owns this change.
+The baseline fixture and prior evidence are byte-identical to `9548f2da`.
+
+First baseline [Quality](https://github.com/NickGuAI/HappyHerd/actions/runs/38183234258)
+and [Contracts](https://github.com/NickGuAI/HappyHerd/actions/runs/38183234266)
+logs each show all 24 signed-out cases passing, no failure-hook record, and all
+34 dark/de/1440 phase marks through completion at 2,008/1,789 ms respectively.
+These passing controls do not identify the historical 20,003 ms timeout owner.
+
+The approved narrow observer adds case-relative elapsed timestamps to the
+existing eight-event cache. Only same-origin, exact `/v1/auth` request,
+requestfinished and requestfailed events contribute fixed categories. The
+owned route callback records receipt; the statement after the existing awaited
+fulfillment records settlement. No request URL, query, header, body, account
+input, token, response data or error text is retained. Raw Playwright API debug
+logging is disabled. No API begin/end extension is included.
+
+Both listener timing and the failure-hook record are sampled observations, not
+an atomic deadline snapshot. The underlying test can advance after Vitest's
+wrapper timeout. The eight-event cap can discard older observations; absence
+alone is not proof of non-occurrence. Request completion is not proof of auth
+login, tracking, rendering or frame progress. A failing active phase must guide
+the next specific discriminator; no artificial font, HTTP or animation-frame
+stall is treated as the historical cause.
+
+The exact approved test SHA-256 is
+`9c3c7640bea1a796c380b92cedcc2bf1a2fa21752c33cf8ee9d70b4845d7df29`.
+A task-local pinned-Node integrity harness exercised the verbatim listener
+block (erasing its one TypeScript annotation): all three categories, exact
+origin/path filtering, invalid/external paths, and sentinel query exclusion
+passed. A separately identified record-function model checked timestamps and
+the eight-record cap. These checks do not establish natural browser delivery.
+
+No dependency install, local browser or full-suite execution occurred in this
+phase. Root dependencies had been removed after the earlier evidence was
+retained; historical passes do not establish current local runnability.
+Publication requires independent exact committed-head review and root release.
+Only one subsequent push-generated default CI is planned. Its original worker
+configuration and budgets remain unchanged; prior local max3/min1 limits are
+not described as original CI settings. No repair, cause or acceptance is claimed.
