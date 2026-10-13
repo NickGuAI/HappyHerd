@@ -23,7 +23,7 @@ const replacements = [
     [`  _highestMeasuredCellIndex = 0;
   _measuredCellsLength = 0;`,
     `  _highestMeasuredCellIndex = 0;
-  // [happy] Where the first cell starts (header, leading padding), and the
+  // [happyherd] Where the first cell starts (header, leading padding), and the
   // estimated end of each row for the current data, filled in lazily and
   // dropped whenever a frame changes.
   _leadingOffset = 0;
@@ -45,7 +45,7 @@ const replacements = [
       curr.isMounted = true;
       return false;`,
     `    } else {
-      // [happy] Same place, new index: the frame is valid at its new index.
+      // [happyherd] Same place, new index: the frame is valid at its new index.
       if (curr.index !== cellIndex) {
         curr.index = cellIndex;
         this._layoutVersion++;
@@ -68,7 +68,7 @@ const replacements = [
         index >= 0 && index < getItemCount(data),
         'Tried to get frame for out of range index ' + index,
       );
-      // [happy] Reordered rows keep frames recorded at their old index, so
+      // [happyherd] Reordered rows keep frames recorded at their old index, so
       // \`averageCellLength * index\` would drop the header and padding. Chain
       // from the first cell's start instead: a frame still valid at its index
       // is exact, any other row adds its last measured length (a reorder

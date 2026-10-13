@@ -786,3 +786,4 @@ RELEASE_STACK_GOLDENS_383	accepted	test(release): align stacked release and onbo
 ISSUE_383_REBASED_CAPTURES	code-ready	test(release): refresh rebased archive identity captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 UPSTREAM_99F415FA	accepted	fix(sync): record pinned integration and relocated environment path	docs/upstream-sync-99f415fa.md
 UPSTREAM_99F415FA_HINT	accepted	fix(cli): direct outdated Claude runtime hint to HappyHerd releases	server/packages/happyherd-cli/src/claude/utils/launchFailureMessage.test.ts
+UPSTREAM_99F415FA_PRODUCT_ADAPTATIONS	accepted	chore(sync): align relocated HappyHerd product references	docs/upstream-sync-99f415fa.md

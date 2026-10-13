@@ -257,8 +257,8 @@ export const MetadataSchema = z.object({
     automationId: z.string().uuid().optional(),
     automationKind: z.enum(['scheduled', 'heartbeat', 'memory-maintenance']).optional(),
     /**
-     * How deep a Happy Agent session sits under its root: 0 for a bot or
-     * project session, 1 for a subtask. Absent from the CLI and older Happy
+     * How deep a HappyHerd Agent session sits under its root: 0 for a bot or
+     * project session, 1 for a subtask. Absent from the CLI and older HappyHerd
      * Agents; a bad value is dropped rather than failing the whole parse.
      */
     /**
