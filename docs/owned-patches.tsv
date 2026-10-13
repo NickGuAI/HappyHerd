@@ -784,3 +784,4 @@ ISSUE_378_REBASED_CAPTURES	code-ready	test(onboarding): refresh rebased first-ru
 FIRST_RUN_LINUX_JOURNEY_378	code-ready	docs(onboarding): record verified Linux task and continuation	docs/acceptance/issue-378/README.md
 RELEASE_STACK_GOLDENS_383	accepted	test(release): align stacked release and onboarding captures	docs/public-launcher-release.md
 ISSUE_383_REBASED_CAPTURES	code-ready	test(release): refresh rebased archive identity captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UPSTREAM_99F415FA	accepted	fix(sync): record pinned integration and relocated environment path	docs/upstream-sync-99f415fa.md
