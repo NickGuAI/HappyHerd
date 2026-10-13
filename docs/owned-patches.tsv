@@ -791,3 +791,4 @@ UPSTREAM_99F415FA_FINAL_CORRECTIONS	accepted	fix(sync): key Claude context metad
 UPSTREAM_99F415FA_CHAT_STATUS	accepted	test(chat): align pending-send browser timing with two-second grace	server/packages/happyherd-app/sources/components/ChatList.browser.test.ts
 UPSTREAM_99F415FA_PICKER_NATIVE_FIX	accepted	test(app): adapt picker native hosts in dictation fixture	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
 UPSTREAM_99F415FA_UI_INVENTORY	accepted	chore(ui): refresh generated surface inventory fingerprint	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+UPSTREAM_99F415FA_GOLDENS	accepted	test(release): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
