@@ -43,3 +43,16 @@ The maintained root postinstall ran once against task-local dependencies;
 package and lock inputs stayed unchanged. These are focused source checks,
 not full-app/browser/native or physical-device acceptance. Combined captures
 remain unverified; no new native or Tauri artifact is claimed.
+
+## Raw source fingerprint correction
+
+The first CI on `8b3de4f6` rejected the generated UI inventory after the
+three blank-line whitespace correction. Semantic TypeScript parity does not
+imply raw-source fingerprint parity; the earlier assumption that regeneration
+was unnecessary was incorrect. The maintained generator then ran once against
+the task's actual dependencies, followed by one successful maintained
+i18n/inventory check. Only the full JSON fingerprint and abbreviated HTML
+fingerprint changed: 45 routes, 349 surfaces, 84 smoke cases, 1,736 validated
+keys per locale and all 198 changelog entries remained unchanged. Original
+failed CI evidence is retained. This is generated-source validation, not
+native runtime, physical-device or complete issue acceptance.
