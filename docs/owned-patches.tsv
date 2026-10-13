@@ -816,3 +816,4 @@ PR419_INSTALLER_STARTUP_OBSERVATION	code-ready	test(installer): retain bounded d
 ISSUE_369_MAIN_NATIVE_COMMAND_FIXTURE	code-ready	test(app): adapt native input fixture to command factory	server/packages/happyherd-app/sources/components/MultiTextInput.native.test.ts
 ISSUE_369_NATIVE_INPUT_WHITESPACE	code-ready	chore(app): remove native input handler trailing whitespace	server/packages/happyherd-app/sources/components/MultiTextInput.tsx
 ISSUE_369_NATIVE_INPUT_INVENTORY	code-ready	test(app): refresh native input source inventory	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+PR419_AGENTBASE_PARALLEL_ORDER	code-ready	test(agent): make parallel tool ordering deterministic	native/packages/happy-agent-base/tests/blackbox/AgentBaseBlackbox.test.ts

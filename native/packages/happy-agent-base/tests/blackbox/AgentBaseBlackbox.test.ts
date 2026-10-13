@@ -1812,16 +1812,31 @@ describe("AgentBase black-box tool validation and ordering", () => {
         await agent.close();
     });
 
-    it("runs many tools in parallel, commits all pending keys first, and records results in call order", async () => {
+    it("runs many tools in parallel, commits all pending keys first, and records results in call order", async ({ onTestFinished }) => {
         const calls = [0, 1, 2, 3, 4].map((index) => ({
             callId: `call-${index}`,
             name: `tool-${index}`,
         }));
-        const latencies = [2, 12, 25, 1, 8];
+        const release = calls.map(() => deferred<void>());
+        const completed = calls.map(() => deferred<void>());
+        const allStarted = deferred<void>();
+        const firstToolCommitted = deferred<void>();
+        const started: string[] = [];
         const finished: string[] = [];
         let keysAtFirstStart: string[] = [];
         let keysBeforeSecondResult: string[] = [];
         const persistence = new InMemoryPersistence();
+        // Transparent observer on THIS store only: delegate every transaction, then
+        // inspect committed records/values. Never resolve from a staged append or timer.
+        const transaction = persistence.transaction.bind(persistence);
+        persistence.transaction = async (transactionContext, work) => {
+            const result = await transaction(transactionContext, work);
+            if (persistence.records.some(record => record.type === "tool" && record.message.callId === "call-0")
+                && ![...persistence.values.keys()].some(key => key.startsWith("tool.000000."))) {
+                firstToolCommitted.resolve();
+            }
+            return result;
+        };
         const tools = calls.map((call, index) =>
             defineAgentTool({
                 name: call.name,
@@ -1833,58 +1848,102 @@ describe("AgentBase black-box tool validation and ordering", () => {
                             key.startsWith("tool."),
                         );
                     }
-                    await delay(latencies[index] ?? 0);
+                    started.push(call.name);
+                    if (started.length === calls.length) allStarted.resolve();
+                    await release[index]!.promise;
                     if (index === 1) {
                         keysBeforeSecondResult = [...persistence.values.keys()].filter((key) =>
                             key.startsWith("tool."),
                         );
                     }
                     finished.push(call.name);
+                    completed[index]!.resolve();
                     return { value: call.name };
                 },
                 toLLM: (result) => [{ type: "text", text: result.value }],
             }),
         );
         const provider = new ScriptedProvider([toolCallTurn(calls), textTurn("all done")]);
-        const agent = await AgentBase.create(ctx, {
-            id: "parallel-order",
-            providers: providersOf(provider),
-            provider: "scripted",
-            persistence,
-            initialState: { tools: [...tools] },
-        });
-
-        await agent.send(ctx, user("parallel"));
-        await agent.waitForIdle();
-
-        expect(keysAtFirstStart).toHaveLength(calls.length);
-        keysAtFirstStart.forEach((key, index) => {
-            expect(key).toMatch(
-                new RegExp(`^tool\\.${String(index).padStart(6, "0")}\\.[a-z0-9]+$`),
+        let agent: Awaited<ReturnType<typeof AgentBase.create>> | undefined;
+        let agentClose: Promise<void> | undefined;
+        let cleaning = false;
+        const cleanup = async () => {
+            cleaning = true;
+            // Release execution AND observation waits on framework timeout/failure.
+            // These observation releases are NEVER accepted as normal commit proof.
+            release.forEach(gate => gate.resolve());
+            completed.forEach(gate => gate.resolve());
+            allStarted.resolve();
+            firstToolCommitted.resolve();
+            if (agent !== undefined) {
+                agentClose ??= agent.close();
+                await agentClose;
+            }
+        };
+        onTestFinished(cleanup); // Includes Vitest's timeout path; no added timer/budget.
+        let bodyFailed = false;
+        try {
+            agent = await AgentBase.create(ctx, {
+                id: "parallel-order",
+                providers: providersOf(provider),
+                provider: "scripted",
+                persistence,
+                initialState: { tools: [...tools] },
+            });
+            // A creation settling after framework teardown still belongs to this test.
+            if (cleaning) return;
+            await agent.send(ctx, user("parallel"));
+            await allStarted.promise;
+            if (cleaning) return;
+            expect(started).toHaveLength(calls.length);
+            expect(new Set(started)).toEqual(new Set(calls.map(call => call.name)));
+            expect(finished).toEqual([]); // Every execution starts before any is released.
+            release[0]!.resolve();
+            await firstToolCommitted.promise;
+            if (cleaning) return;
+            expect(persistence.records.filter(record => record.type === "tool").map(record => record.message.callId)).toEqual(["call-0"]);
+            for (const index of [3, 4, 1, 2]) {
+                release[index]!.resolve();
+                await completed[index]!.promise;
+                if (cleaning) return;
+            }
+            await agent.waitForIdle();
+            if (cleaning) return;
+            expect(finished).toEqual(["tool-0", "tool-3", "tool-4", "tool-1", "tool-2"]);
+            expect(keysAtFirstStart).toHaveLength(calls.length);
+            keysAtFirstStart.forEach((key, index) => {
+                expect(key).toMatch(
+                    new RegExp(`^tool\\.${String(index).padStart(6, "0")}\\.[a-z0-9]+$`),
+                );
+            });
+            expect(keysBeforeSecondResult).toHaveLength(4);
+            keysBeforeSecondResult.forEach((key, offset) => {
+                expect(key).toMatch(
+                    new RegExp(`^tool\\.${String(offset + 1).padStart(6, "0")}\\.[a-z0-9]+$`),
+                );
+            });
+            expect(finished).not.toEqual(calls.map((call) => call.name));
+            expect(
+                persistence.records
+                    .filter((record) => record.type === "tool")
+                    .map((record) => record.message.callId),
+            ).toEqual(calls.map((call) => call.callId));
+            expect(
+                persistence.records
+                    .filter((record) => record.type === "tool")
+                    .map((record) => record.id),
+            ).toEqual(calls.map(() => generatedCallId()));
+            expect(provider.sessions[0]?.requests[1]?.context.messages.slice(-5)).toEqual(
+                calls.map((call) => providerToolResult(call.callId, call.name)),
             );
-        });
-        expect(keysBeforeSecondResult).toHaveLength(4);
-        keysBeforeSecondResult.forEach((key, offset) => {
-            expect(key).toMatch(
-                new RegExp(`^tool\\.${String(offset + 1).padStart(6, "0")}\\.[a-z0-9]+$`),
-            );
-        });
-        expect(finished).not.toEqual(calls.map((call) => call.name));
-        expect(
-            persistence.records
-                .filter((record) => record.type === "tool")
-                .map((record) => record.message.callId),
-        ).toEqual(calls.map((call) => call.callId));
-        expect(
-            persistence.records
-                .filter((record) => record.type === "tool")
-                .map((record) => record.id),
-        ).toEqual(calls.map(() => generatedCallId()));
-        expect(provider.sessions[0]?.requests[1]?.context.messages.slice(-5)).toEqual(
-            calls.map((call) => providerToolResult(call.callId, call.name)),
-        );
-        expect(persistence.pending.size).toBe(0);
-        await agent.close();
+            expect(persistence.pending.size).toBe(0);
+        } catch (error) {
+            bodyFailed = true;
+            throw error;
+        } finally {
+            try { await cleanup(); }
+            catch (error) { if (!bodyFailed) throw error; }
+        }
     });
 });
 

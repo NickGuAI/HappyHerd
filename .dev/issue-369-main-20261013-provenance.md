@@ -56,3 +56,11 @@ fingerprint changed: 45 routes, 349 surfaces, 84 smoke cases, 1,736 validated
 keys per locale and all 198 changelog entries remained unchanged. Original
 failed CI evidence is retained. This is generated-source validation, not
 native runtime, physical-device or complete issue acceptance.
+
+## AgentBase parallel ordering verification
+
+The first 8b3de4f6 Quality native-runtime job failed the black-box completion-order assertion; 394 other AgentBase tests passed. This is a runtime package test, not an iOS application failure. Parallel dispatch does not guarantee that the former 2/12/25/1/8 ms delays produce out-of-call-order completion. The historical timer behavior remains unexplained.
+
+The test now blocks all five real tool executions on separate gates, verifies that all five start before any release, observes the real first result transaction and pending-key removal, and then releases completion in order 0,3,4,1,2. Every existing pending-key, result-order, generated-ID, provider-context and empty-pending assertion is retained, including the original not-equal assertion. Framework-timeout/failure cleanup releases gates and closes the owned agent. Production dispatch and persistence are unchanged.
+
+Independent Codex source review found no actionable finding. With task-owned official Node 24.21.0 and pnpm 10.28.1, first frozen filtered dependency installation and the declared provider declaration build passed. The focused case passed (39 nonselected cases); the complete black-box file then passed all 40 tests, and AgentBase's declared typecheck passed. Only ScriptedProvider tests ran; no real provider, iOS, Rust/supervisor or browser execution occurred. First 8b3 failures remain retained separately; local proof does not imply a new-head full-CI pass or final native UI acceptance.
