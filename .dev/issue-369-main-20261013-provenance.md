@@ -68,3 +68,43 @@ Independent Codex source review found no actionable finding. With task-owned off
 ## Parallel-test ledger evidence correction
 
 The first 5fcc78aa Contracts job stopped at the product-renaming check before any package suites ran. The newly added ledger source-path field contained the retained native upstream package identity, which that ledger transformation interprets as a distribution rename. The original row now references this existing verification evidence instead; its subject/state and actual native test remain unchanged. This is a truthful evidence-path correction, not a native source rename or scanner exemption. No rename rule, manifest, fixture assertion, production behavior or test budget changed. The first failed CI and local rename-check outputs are retained.
+
+## Integrated-source changelog captures
+
+The first four workflows for `13c2a9500271b6956217586d9ff5d623d42afe14`
+completed with 17 successful jobs, one expected production-golden failure and
+two conditional skips. Contracts reported `contract-suite: ok` with 7,449
+passing tests and 10 existing skips. Quality units reported 7,397 passing tests
+and 10 existing skips. Native installer and image workflows passed. These
+counts belong to that source revision; they are not final acceptance or a
+new native application build.
+
+Quality run `38445729876`, artifact `11837844659`, supplied the complete
+28-variant comparison. Its summary SHA256 is
+`3adeb1da42f2bd63626e4c22b596bb80582139e2aec605df5e2c89a6baa5deea`.
+Only the light and dark 1440-by-900 desktop changelog captures differed;
+all 26 other actual PNGs matched the committed baseline bytes. All six
+expected/actual/diff images and both full actual images were personally
+reviewed. The changed October 8 entry shows the native layouts, shortcuts and
+Workspace comments entry alongside the retained October 13, 11 and 10 entries.
+Viewport dimensions stayed unchanged.
+
+After all four first workflows were terminal, the maintained golden importer
+ran once against the exact clean capture head and passed. Its internal download
+and 28-baseline copy changed only those two tracked PNGs; the other 26 bytes,
+file modes and path set stayed unchanged. Light actual SHA256:
+`c85a75b0eb4ff91f7743b053bba758b672ef9198927b89428eb3355eafd533d6`;
+dark actual SHA256:
+`0362c7a41067f2355d581e12876fc31268dae95b2c18aef9fb51c2ba7c230a89`.
+Earlier source captures and first failures remain historical and were not used
+for this import. The previously temporary main placeholders are now replaced
+only where this exact integrated-source comparison demonstrated the change.
+
+This baseline update still requires independent exact-head review and final CI.
+The old native compile, five UIKit methods and Tauri compile remain evidence for
+their historical revisions only. Hardware, authenticated and physical-device
+journeys, visible Tauri UI, and the pending #420 approval remain unresolved.
+
+## Current integration capture status
+
+The historical PR #419 changelog captures are not proof of the integrated #417/#415/#419 source. These two 1440px files temporarily retain the exact current-main (`acbac45ffb696a923970b030e823cc93b463a827`) blobs as comparison baselines only; they are not accepted goldens for the composed source. Fresh canonical CI captures on the composed head must replace or confirm them before any golden acceptance claim.
