@@ -132,10 +132,10 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
 
         const nativeEvent = e.nativeEvent;
         const key = nativeEvent.key;
-        
+
         // Map native key names to our normalized format
         let normalizedKey: SupportedKey | null = null;
-        
+
         switch (key) {
             case 'Enter':
                 normalizedKey = 'Enter';
@@ -169,7 +169,7 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
                 key: normalizedKey,
                 shiftKey: (nativeEvent as any).shiftKey || false
             };
-            
+
             const handled = onKeyPress(keyEvent);
             if (handled) {
                 e.preventDefault();
