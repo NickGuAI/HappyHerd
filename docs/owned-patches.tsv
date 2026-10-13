@@ -784,3 +784,11 @@ ISSUE_378_REBASED_CAPTURES	code-ready	test(onboarding): refresh rebased first-ru
 FIRST_RUN_LINUX_JOURNEY_378	code-ready	docs(onboarding): record verified Linux task and continuation	docs/acceptance/issue-378/README.md
 RELEASE_STACK_GOLDENS_383	accepted	test(release): align stacked release and onboarding captures	docs/public-launcher-release.md
 ISSUE_383_REBASED_CAPTURES	code-ready	test(release): refresh rebased archive identity captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UPSTREAM_99F415FA	accepted	fix(sync): record pinned integration and relocated environment path	docs/upstream-sync-99f415fa.md
+UPSTREAM_99F415FA_HINT	accepted	fix(cli): direct outdated Claude runtime hint to HappyHerd releases	server/packages/happyherd-cli/src/claude/utils/launchFailureMessage.test.ts
+UPSTREAM_99F415FA_PRODUCT_ADAPTATIONS	accepted	chore(sync): align relocated HappyHerd product references	docs/upstream-sync-99f415fa.md
+UPSTREAM_99F415FA_FINAL_CORRECTIONS	accepted	fix(sync): key Claude context metadata to pinned 5.5 models	docs/upstream-sync-99f415fa.md
+UPSTREAM_99F415FA_CHAT_STATUS	accepted	test(chat): align pending-send browser timing with two-second grace	server/packages/happyherd-app/sources/components/ChatList.browser.test.ts
+UPSTREAM_99F415FA_PICKER_NATIVE_FIX	accepted	test(app): adapt picker native hosts in dictation fixture	server/packages/happyherd-app/sources/components/AgentInput.dictationRender.test.ts
+UPSTREAM_99F415FA_UI_INVENTORY	accepted	chore(ui): refresh generated surface inventory fingerprint	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+UPSTREAM_99F415FA_GOLDENS	accepted	test(release): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

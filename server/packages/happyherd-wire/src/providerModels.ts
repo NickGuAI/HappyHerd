@@ -27,7 +27,11 @@ export const HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG = 'claude-opus-5';
 /** Release-owned provider metadata; selectable membership still comes from the exact machine. */
 export const HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
     'claude-fable-5-1': 1_000_000,
+    'claude-opus-5-5': 1_000_000,
+    'claude-opus-5': 1_000_000,
     'claude-opus-5[1m]': 1_000_000,
+    'claude-sonnet-5-5': 1_000_000,
+    'claude-haiku-5-5': 1_000_000,
 };
 
 /** Logical Antigravity choices; the adapter resolves Gemini's independent effort. */

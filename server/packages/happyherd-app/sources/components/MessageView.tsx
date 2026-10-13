@@ -127,6 +127,11 @@ function UserMessageFrame(props: {
 }) {
   const fromOther = isOtherParticipantMessage(props);
   const showPendingStatus = usePendingStatusVisible(props.pending, props.queuedWhileBusy, props.createdAt);
+  const statusText = props.sendError !== undefined
+    ? t('message.sendFailed', { reason: props.sendError })
+    : showPendingStatus
+      ? (props.queuedWhileBusy === true ? t('message.sendsAfterThisTurn') : t('message.sending'))
+      : '';
   // The tree here must keep the same shape in both states. Settling flips
   // `pending` while the row is on screen, and a structural change — a wrapper
   // that exists in one state only, or a different component type — makes React
@@ -149,14 +154,9 @@ function UserMessageFrame(props: {
         {props.children}
       </View>
       {fromOther ? <Text numberOfLines={1} style={styles.userMessageAuthorText}>{props.author!.name}</Text> : null}
-      {showPendingStatus ? (
-        <Text style={styles.pendingStatusText}>
-          {props.queuedWhileBusy === true ? t('message.sendsAfterThisTurn') : t('message.sending')}
-        </Text>
-      ) : null}
-      {props.sendError !== undefined ? (
-        <Text style={[styles.pendingStatusText, styles.sendErrorText]}>{t('message.sendFailed', { reason: props.sendError })}</Text>
-      ) : null}
+      <Text numberOfLines={1} style={[styles.pendingStatusText, props.sendError !== undefined && styles.sendErrorText]}>
+        {statusText}
+      </Text>
     </View>
   );
 }
@@ -165,7 +165,7 @@ function UserMessageFrame(props: {
 // genuinely taking time, surface that after a short grace period instead of
 // leaving a pending message with no explanation. Use createdAt so remounting an
 // already-stale row shows its state immediately rather than restarting the wait.
-const PENDING_STATUS_GRACE_MS = 1_000;
+const PENDING_STATUS_GRACE_MS = 2_000;
 
 function usePendingStatusVisible(pending: boolean | undefined, queuedWhileBusy: boolean | undefined, createdAt: number) {
   const shouldDelay = pending === true && queuedWhileBusy !== true;
@@ -613,6 +613,8 @@ const styles = StyleSheet.create((theme) => ({
     // Matches the status line above the composer, the app's other place for
     // saying what the session is doing right now.
     fontSize: 11,
+    lineHeight: 14,
+    height: 14,
     marginBottom: 4,
     marginTop: 2,
     ...Typography.default(),

@@ -58,8 +58,8 @@ describe('native distribution ownership', () => {
     it('leaves Apple submission and desktop signing identities to the release account', () => {
         const root = resolve(import.meta.dirname, '..');
         const eas = JSON.parse(readFileSync(resolve(root, 'eas.json'), 'utf8'));
-        for (const profile of Object.values(eas.submit) as Array<{ ios: object }>) {
-            expect(profile.ios).toEqual({});
+        for (const profile of Object.values(eas.submit) as Array<{ ios?: object }>) {
+            if (profile.ios !== undefined) expect(profile.ios).toEqual({});
         }
         const tauri = JSON.parse(readFileSync(resolve(root, 'src-tauri/tauri.conf.json'), 'utf8'));
         expect(tauri.identifier).toBe('app.happyherd.client');

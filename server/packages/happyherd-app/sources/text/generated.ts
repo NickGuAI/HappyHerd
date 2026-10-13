@@ -101,6 +101,8 @@ export type TranslationKey =
     | "changelog.noEntriesAvailable"
     | "changelog.releases.upstreamSync4cf54d18.markdown"
     | "changelog.releases.upstreamSync4cf54d18.title"
+    | "changelog.releases.upstreamSync99f415fa.markdown"
+    | "changelog.releases.upstreamSync99f415fa.title"
     | "changelog.version"
     | "claude.permissions.noTellClaude"
     | "claude.permissions.yesAllowAllEdits"

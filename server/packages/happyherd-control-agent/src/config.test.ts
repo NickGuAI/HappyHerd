@@ -42,11 +42,11 @@ describe('config', () => {
         it.each([false, true])('keeps the control client on the selected dev server and home (legacy inputs: %s)', (withLegacyInputs) => {
             const root = mkdtempSync(join(tmpdir(), 'control-dev-env-'));
             try {
-                const environmentModule = new URL('../../../environments/environments.ts', import.meta.url).href;
+                const environmentModule = new URL('../../../packages/dev-environments/environments.ts', import.meta.url).href;
                 const configModule = new URL('./config.ts', import.meta.url).href;
                 const envScript = execFileSync(process.execPath, [
                     '--import', 'tsx', '--input-type=module', '--eval',
-                    `const { buildEnvSh } = await import(${JSON.stringify(environmentModule)}); process.stdout.write(buildEnvSh('test', ${JSON.stringify(root)}, 32123, 32124));`,
+                    `const environment = await import(${JSON.stringify(environmentModule)}); const { buildEnvSh } = environment.default ?? environment; process.stdout.write(buildEnvSh('test', ${JSON.stringify(root)}, 32123, 32124));`,
                 ], { encoding: 'utf8' });
                 const envPath = join(root, 'env.sh');
                 writeFileSync(envPath, envScript);

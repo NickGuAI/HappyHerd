@@ -1,6 +1,6 @@
 # Privacy Policy for HappyHerd Coder
 
-**Last Updated: July 23, 2026**
+**Last Updated: October 13, 2026**
 
 ## Overview
 
@@ -20,15 +20,17 @@ HappyHerd Coder is committed to protecting your privacy. This policy explains ho
 - **Push Notification Tokens**: Device tokens for sending push notifications via Expo's push notification service
 
 ### Analytics (PostHog)
-- **Anonymous Events**: We collect basic app usage events through PostHog to improve the app experience
-- **Privacy by Design**: All analytics events use an anonymized ID derived from a secret key - we cannot match this back to any user or account
-- **No Content Tracking**: We only track basic app usage events, never any message content, code, or personal information
-- **Opt-Out Available**: You can disable analytics collection at any time in the app settings
+HappyHerd sends app usage events to PostHog to understand feature use and reliability.
+
+- **Pseudonymous ID**: The app initializes analytics with a stable identifier derived from the account secret. PostHog uses it to associate events from the same app account.
+- **Event details**: Events cover account creation or restoration, connection attempts, message sends, session switches, voice-permission responses, paywall and review actions, OTA updates, and friend or GitHub connection actions. Event-specific properties include message source, session-agent value and start source, app and CLI versions, and session ID and timestamps for session switches.
+- **Opt-Out Available**: You can turn analytics off in Settings. When it is off, the app sends no analytics events.
+- **Automatic data**: PostHog may receive standard device and network information with event requests, including the IP address. PostHog can use the IP address to estimate an approximate location.
 
 ### Subscription Management (Revenue Cat)
 - **Account ID**: Revenue Cat uses your account ID to manage subscriptions and enable premium features
 - **Backend Integration**: This ID allows us to provide additional features from our backend while maintaining end-to-end encryption for your content
-- **Data Separation**: Purchase analytics sent to PostHog use the anonymized ID instead - we cannot match Revenue Cat data with PostHog analytics
+- **Data Separation**: Purchase analytics sent to PostHog use the pseudonymous analytics ID instead - we cannot match Revenue Cat data with PostHog analytics
 
 ### Voice (Optional)
 When you turn on voice, your device connects to ElevenLabs to provide the voice agent. Native apps use the ElevenLabs SDK with a LiveKit/WebRTC media connection; the web client uses the ElevenLabs web SDK over WebSocket.
@@ -42,8 +44,7 @@ When you turn on voice, your device connects to ElevenLabs to provide the voice 
 ## What We Don't Collect
 - Your actual code or conversation content sent through HappyHerd's encrypted synchronization service (we can't decrypt it). This does not include voice audio or context you choose to send directly to ElevenLabs during an active voice session.
 - Personal information contained in encrypted messages, because we cannot decrypt those messages. If you use voice, ElevenLabs may receive personal information that you include in voice audio or context.
-- Device information beyond anonymous IDs
-- Location data
+- HappyHerd does not request precise location for analytics. PostHog may estimate an approximate location from the IP address, as described under "Analytics" above.
 
 ## How We Use Data
 
@@ -95,7 +96,7 @@ You have the right to:
 We share data with service providers only as needed to provide the features described in this policy:
 
 - **Expo**: push notification delivery
-- **PostHog**: the anonymous analytics described above
+- **PostHog**: the usage analytics described above
 - **RevenueCat**: subscription management
 - **ElevenLabs**: the optional voice-agent service and voice-usage measurement. On native apps, voice media uses ElevenLabs' LiveKit/WebRTC transport; the web client uses ElevenLabs' WebSocket-based SDK.
 

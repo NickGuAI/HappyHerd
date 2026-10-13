@@ -108,7 +108,7 @@ test('both product passes retain current CLI consumers and persisted automation 
       'server/packages/happyherd-cli/src/legacyCompatibility.ts',
       'server/packages/happyherd-wire/src/automation.ts',
       'server/packages/happyherd-wire/src/automation.test.ts',
-      'server/environments/environments.ts',
+      'server/packages/dev-environments/environments.ts',
     ]) {
       mkdirSync(dirname(join(temp, path)), { recursive: true });
       writeFileSync(join(temp, path), readFileSync(join(root, path)));
@@ -122,7 +122,7 @@ test('both product passes retain current CLI consumers and persisted automation 
       const consumer = read(`server/packages/${product}-app/sources/sync/reducer/messageToEvent.ts`);
       assert.match(consumer, /mcp__happyherd__change_title/);
       assert.doesNotMatch(consumer, /mcp__meadow__change_title/);
-      const environment = read('server/environments/environments.ts');
+      const environment = read('server/packages/dev-environments/environments.ts');
       assert.match(environment, /name: "happyherd",/);
       assert.match(environment, /"happyherd-cli", "bin", "happyherd\.mjs"/);
       const cliConfig = read('server/packages/happyherd-cli/src/configuration.ts');
