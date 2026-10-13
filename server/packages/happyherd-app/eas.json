@@ -65,7 +65,26 @@
       "ios": {}
     },
     "production": {
-      "ios": {}
+      "ios": {},
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": true
+      }
+    },
+    "production-google-play-draft": {
+      "android": {
+        "track": "production",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": true
+      }
+    },
+    "production-google-play": {
+      "android": {
+        "track": "production",
+        "releaseStatus": "completed",
+        "changesNotSentForReview": false
+      }
     }
   }
 }

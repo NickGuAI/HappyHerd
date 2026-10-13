@@ -33,6 +33,9 @@ describe('HappyHerd provider model catalog', () => {
         expect(HAPPYHERD_CLAUDE_OPUS_5_5_EFFORTS).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
         expect(HAPPYHERD_DEFAULT_CLAUDE_OPUS_5_5_EFFORT).toBe('medium');
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-fable-5-1']).toBe(1_000_000);
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5-5']).toBe(1_000_000);
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5']).toBe(1_000_000);
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-sonnet-5-5']).toBe(1_000_000);
     });
 
     it('normalizes persisted aliases without advertising them', () => {

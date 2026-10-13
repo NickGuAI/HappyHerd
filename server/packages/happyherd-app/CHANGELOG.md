@@ -1,3 +1,10 @@
+# October 13 — Smoother mobile controls and session delivery
+
+- Model, effort, and permission choices open in a scrollable sheet that can be dismissed without changing HappyHerd’s available options.
+- iOS chat input grows for longer messages and keeps the insertion point usable while editing.
+- Canceled native alerts settle their requests, and offline reconnect restores registered message handlers before queued work resumes.
+- Pending messages keep a stable status line while delivery is in progress.
+
 # October 11 — Private local voice
 
 - Settings › Features lets you choose a HappyHerd machine for opt-in local speech-to-text and text-to-speech. Each engine can be enabled separately, installed from the daemon and retried if setup fails.

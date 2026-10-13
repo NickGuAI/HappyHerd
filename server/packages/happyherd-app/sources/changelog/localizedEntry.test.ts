@@ -18,6 +18,7 @@ import { getLocalizedChangelogEntry } from './localizedEntry';
 
 const catalogs = { en, cn, de };
 const canonical = getChangelogEntries().find(entry => entry.title === en.changelog.releases.upstreamSync4cf54d18.title)!;
+const latestCanonical = getChangelogEntries().find(entry => entry.title === en.changelog.releases.upstreamSync99f415fa.title)!;
 beforeEach(() => { persisted.clear(); setCurrentLanguage('en'); });
 
 describe('localized October 1 release display', () => {
@@ -40,7 +41,7 @@ describe('localized October 1 release display', () => {
         }
         expect(canonical.title).toBe(en.changelog.releases.upstreamSync4cf54d18.title);
         expect(canonical.markdown).toBe(en.changelog.releases.upstreamSync4cf54d18.markdown);
-        for (const historical of getChangelogEntries().filter(entry => entry !== canonical)) {
+        for (const historical of getChangelogEntries().filter(entry => entry !== canonical && entry !== latestCanonical)) {
             expect(getLocalizedChangelogEntry(historical)).toBe(historical);
         }
     });
@@ -54,5 +55,31 @@ describe('localized October 1 release display', () => {
         expect(getLatestTitle()).toBe(latest);
         expect(getLastViewedTitle()).toBe(latest);
         expect(hasUnreadChangelog(latest)).toBe(false);
+    });
+});
+
+describe('localized October 13 release display', () => {
+    it('matches the generated English release byte for byte', () => {
+        expect(latestCanonical).toBeDefined();
+        expect(en.changelog.releases.upstreamSync99f415fa).toEqual({ title: latestCanonical.title, markdown: latestCanonical.markdown });
+        expect(getLocalizedChangelogEntry(latestCanonical)).toEqual(latestCanonical);
+    });
+
+    it.each(['en', 'cn', 'de'] as const)('renders the %s release catalog without changing canonical data or history', (locale) => {
+        setCurrentLanguage(locale);
+        const display = getLocalizedChangelogEntry(latestCanonical);
+        expect(display.title).toBe(catalogs[locale].changelog.releases.upstreamSync99f415fa.title);
+        expect(display.markdown).toBe(catalogs[locale].changelog.releases.upstreamSync99f415fa.markdown);
+        expect(display.summary).toBe(latestCanonical.summary);
+        expect(display.markdown.split('\n').filter(line => line.startsWith('- '))).toHaveLength(4);
+        if (locale !== 'en') {
+            expect(display.title).not.toBe(latestCanonical.title);
+            expect(display.markdown).not.toBe(latestCanonical.markdown);
+        }
+        expect(latestCanonical.title).toBe(en.changelog.releases.upstreamSync99f415fa.title);
+        expect(latestCanonical.markdown).toBe(en.changelog.releases.upstreamSync99f415fa.markdown);
+        for (const historical of getChangelogEntries().filter(entry => entry !== latestCanonical && entry !== canonical)) {
+            expect(getLocalizedChangelogEntry(historical)).toBe(historical);
+        }
     });
 });

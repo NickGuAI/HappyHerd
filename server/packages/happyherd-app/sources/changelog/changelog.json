@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 13 — Smoother mobile controls and session delivery",
+      "summary": "",
+      "markdown": "- Model, effort, and permission choices open in a scrollable sheet that can be dismissed without changing HappyHerd’s available options.\n- iOS chat input grows for longer messages and keeps the insertion point usable while editing.\n- Canceled native alerts settle their requests, and offline reconnect restores registered message handlers before queued work resumes.\n- Pending messages keep a stable status line while delivery is in progress."
+    },
+    {
       "title": "October 11 — Private local voice",
       "summary": "",
       "markdown": "- Settings › Features lets you choose a HappyHerd machine for opt-in local speech-to-text and text-to-speech. Each engine can be enabled separately, installed from the daemon and retried if setup fails.\n- When local text-to-speech is ready, assistant replies offer controls to read the spoken overview or the reply aloud. Playback is user-started and stays on the selected machine; dictation adds text to the composer without sending it."
@@ -981,5 +986,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 11 — Private local voice"
+  "latestTitle": "October 13 — Smoother mobile controls and session delivery"
 }

@@ -430,7 +430,7 @@ function render(message: UserTextMessage, renderer?: ReturnType<typeof create>) 
 }
 
 function labels(renderer: ReturnType<typeof create>) {
-    return renderer.root.findAllByType('Text').map((node: any) => node.props.children);
+    return renderer.root.findAllByType('Text').map((node: any) => node.props.children).filter(Boolean);
 }
 
 afterEach(() => {
@@ -444,6 +444,7 @@ describe('user message frame', () => {
         const renderer = render(message);
         const body = renderer.root.findByType('LongPressCopyable').parent.parent;
         expect(labels(renderer)).toEqual([]);
+        expect(renderer.root.findAllByType('Text').some((node: any) => node.props.numberOfLines === 1)).toBe(true);
         expect(body.props.style).not.toContainEqual({ opacity: 0.45 });
 
         render({ ...message, pending: false }, renderer);
@@ -458,7 +459,7 @@ describe('user message frame', () => {
         const body = renderer.root.findByType('LongPressCopyable').parent.parent;
         expect(labels(renderer)).toEqual([]);
 
-        act(() => vi.advanceTimersByTime(999));
+        act(() => vi.advanceTimersByTime(1_999));
         expect(labels(renderer)).toEqual([]);
         act(() => vi.advanceTimersByTime(1));
         expect(labels(renderer)).toContain('message.sending');
@@ -486,7 +487,7 @@ describe('user message frame', () => {
 
     it('keeps the other participant’s name below their message', () => {
         const renderer = render({ ...base, author: { id: 'other', name: 'Alex', owner: false } });
-        const author = renderer.root.findByType('Text');
+        const author = renderer.root.findAllByType('Text').find((node: any) => node.props.children === 'Alex');
         expect(author.props.children).toBe('Alex');
         const tree = JSON.stringify(renderer.toJSON());
         const bubblePosition = tree.indexOf('"markdown":"hello"');

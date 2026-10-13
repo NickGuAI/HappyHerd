@@ -40,6 +40,7 @@ import { BubblePressable } from './BubblePressable';
 import { resolveAgentInputPrimaryAction, resolveAgentInputSendPressAvailability } from './agentInputPrimaryAction';
 import { resolveVoiceDictationControl, resolveVoiceDictationControlVisibility } from './voiceDictationControl';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup, type NativeSettingsMenuOption } from './NativeSettingsMenu';
+import { PickerSheet } from './PickerSheet';
 import { ProviderIcon } from './ProviderIcon';
 import { isRigMetadata } from '@/sync/rig';
 import type { VoiceDictationPhase } from '@/hooks/useVoiceDictation';
@@ -2660,21 +2661,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 {/* Permission, model, and effort pickers open independently
                     from their matching controls in the compact composer action row. */}
                 {compactMobileComposer && !useNativeSettingsMenus && openPicker && (
-                    <>
-                        <AnimatedClickAwayBackdrop
-                            onPress={closePicker}
-                            style={styles.overlayBackdrop}
-                        />
-                        <View style={[
-                            styles.settingsOverlay,
-                            { paddingHorizontal: screenWidth > 700 ? 0 : 16 }
-                        ]}>
-                            <FloatingOverlay maxHeight={400} keyboardShouldPersistTaps="always">
+                    <PickerSheet
+                        visible
+                        title={openPicker === 'permission'
+                            ? (isCodex ? t('agentInput.codexPermissionMode.title') : isGemini ? t('agentInput.geminiPermissionMode.title') : t('agentInput.permissionMode.title'))
+                            : openPicker === 'model'
+                                ? t('agentInput.model.title')
+                                : t('agentInput.effort.title')}
+                        onClose={closePicker}
+                    >
                                 {openPicker === 'permission' ? (
                                     <View style={styles.overlaySection}>
-                                        <Text style={styles.overlaySectionTitle}>
-                                            {isCodex ? t('agentInput.codexPermissionMode.title') : isGemini ? t('agentInput.geminiPermissionMode.title') : t('agentInput.permissionMode.title')}
-                                        </Text>
                                         {availableModes.map((mode) => {
                                             const isSelected = permissionModeKey === mode.key;
                                             return (
@@ -2750,7 +2747,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     <>
                                         {openPicker === 'model' && (
                                         <View style={styles.overlaySection}>
-                                            <Text style={styles.overlaySectionTitle}>{t('agentInput.model.title')}</Text>
                                             {availableModels.length > 0 ? availableModelProviderGroups.map((providerGroup) => (
                                                 <View key={providerGroup.key}>
                                                     {providerGroup.title ? (
@@ -2850,9 +2846,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         )}
                                         {openPicker === 'effort' && availableEffortLevels.length > 0 && props.onEffortLevelChange && (
                                                 <View style={styles.overlaySection}>
-                                                    <Text style={styles.overlaySectionTitle}>
-                                                        {props.effortLevel?.name ?? t('agentInput.effort.title')}
-                                                    </Text>
                                                     {availableEffortLevels.map((level) => {
                                                         const isSelected = props.effortLevel?.key === level.key;
                                                         return (
@@ -2920,9 +2913,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         )}
                                     </>
                                 )}
-                            </FloatingOverlay>
-                        </View>
-                    </>
+                    </PickerSheet>
                 )}
 
                 <AnimatedFade visible={props.showStatusDetails !== false}>
