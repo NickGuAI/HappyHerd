@@ -26,12 +26,16 @@ and the pending #420 maintainer decision remain separate prerequisites.
 
 ## Focused composition verification
 
-The first ten-file non-browser focused run preserved the actual missing
-`codegenNativeCommands` export failure in the owned native-input mock: one
-failed suite, nine passed files and 143 passing tests. The narrow adaptation
-matches React Native's supported-command factory/dispatch boundary. Both
-software/hardware key assertions remain unchanged; the main text-ownership
-suite was not modified.
+The approved `codegenNativeCommands` mock was already applied before the first
+focused execution. Under the earlier ambiguous v76 wording, the worker
+unnecessarily restored the original mock temporarily to run a reconstructed
+baseline experiment. That real experiment produced one collection failure,
+nine passed files and 143 passing tests. It was not an organically encountered
+failure on the approved source and is not evidence of a new product regression.
+Original execution receipts and the historical v73 clean-state receipt remain
+unchanged. The approved command-factory/dispatch mock was then restored. Both
+software/hardware assertion bodies and main's text-ownership suite stayed
+unchanged.
 
 The affected file then passed two tests, and the same final focused set passed
 10 files / 145 tests. App typecheck and maintained i18n/inventory checks passed.
