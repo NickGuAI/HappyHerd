@@ -788,3 +788,4 @@ UPSTREAM_99F415FA	accepted	fix(sync): record pinned integration and relocated en
 UPSTREAM_99F415FA_HINT	accepted	fix(cli): direct outdated Claude runtime hint to HappyHerd releases	server/packages/happyherd-cli/src/claude/utils/launchFailureMessage.test.ts
 UPSTREAM_99F415FA_PRODUCT_ADAPTATIONS	accepted	chore(sync): align relocated HappyHerd product references	docs/upstream-sync-99f415fa.md
 UPSTREAM_99F415FA_FINAL_CORRECTIONS	accepted	fix(sync): key Claude context metadata to pinned 5.5 models	docs/upstream-sync-99f415fa.md
+UPSTREAM_99F415FA_CHAT_STATUS	accepted	test(chat): align pending-send browser timing with two-second grace	server/packages/happyherd-app/sources/components/ChatList.browser.test.ts

@@ -359,7 +359,7 @@ describe('ChatList production FlashList browser interactions', () => {
         await page.close();
     }, 20000);
 
-    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('keeps idle sends undimmed for one second and freezes the queued label at $width px in $theme', async ({ width, theme }) => {
+    it.each([1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme }))))('keeps idle sends undimmed for two seconds and freezes the queued label at $width px in $theme', async ({ width, theme }) => {
         const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
         try {
             await page.goto(origin + '?participants&theme=' + theme);
@@ -377,7 +377,7 @@ describe('ChatList production FlashList browser interactions', () => {
                 return value;
             });
             expect(await opacity()).toBe(1);
-            await page.clock.runFor(999);
+            await page.clock.runFor(1_999);
             expect(await page.getByText('Sending…', { exact: true }).count()).toBe(0);
             expect(await opacity()).toBe(1);
             await page.clock.runFor(1);
