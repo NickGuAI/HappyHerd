@@ -25,10 +25,11 @@ authorization and machine scope; no CLI transport migration is part of this
 integration.
 
 Claude compatibility uses the existing provider metadata owner to publish the
-native 1M context window for Opus 5.5, Opus 5, and Sonnet 5.5. The SDK floor is
-`^0.3.295`, which supports the later Haiku 5.5 metadata when supplied by the
-runtime. Model choices and defaults stay
-unchanged. The legacy upstream pricing module was not imported;
+native 1M context window for Opus 5.5, Opus 5, Sonnet 5.5, and Haiku 5.5.
+Pinned upstream commit `b7c16f1592f0f4ef7f6a093e3897a27acd36d166` records
+that the Claude Agent SDK 0.3.295 model table reports 1M for Sonnet and Haiku
+5.5. Model choices and defaults stay unchanged; this release metadata does not
+claim that those IDs are in the selectable model catalog. The legacy upstream pricing module was not imported;
 `providerUsage.ts` remains the provider-reported cost source.
 
 HappyHerd-owned product decisions remain in force: the upstream message

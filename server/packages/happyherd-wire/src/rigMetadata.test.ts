@@ -15,7 +15,6 @@ describe('Rig wire contract', () => {
       expect(RigBotSchema.safeParse({ ...bot, [field]: 'x'.repeat(limit + 1) }).success).toBe(false);
     }
   });
-
   it('accepts native Rig message selection codes and provider qualification', () => {
     expect(MessageMetaSchema.parse({
       expectsAcceptance: true,

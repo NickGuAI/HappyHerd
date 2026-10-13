@@ -36,6 +36,8 @@ describe('HappyHerd provider model catalog', () => {
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5-5']).toBe(1_000_000);
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-opus-5']).toBe(1_000_000);
         expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-sonnet-5-5']).toBe(1_000_000);
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-haiku-5-5']).toBe(1_000_000);
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-sonnet-5']).toBeUndefined();
     });
 
     it('normalizes persisted aliases without advertising them', () => {

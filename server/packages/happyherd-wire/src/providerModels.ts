@@ -31,6 +31,7 @@ export const HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS: Readonly<Record<string, num
     'claude-opus-5': 1_000_000,
     'claude-opus-5[1m]': 1_000_000,
     'claude-sonnet-5-5': 1_000_000,
+    'claude-haiku-5-5': 1_000_000,
 };
 
 /** Logical Antigravity choices; the adapter resolves Gemini's independent effort. */
