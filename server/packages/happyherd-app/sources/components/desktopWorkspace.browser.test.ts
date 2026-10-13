@@ -8,6 +8,7 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright-core
 import { transformSync } from '@babel/core';
 
 import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+import { browserFixtureSetup } from './__testdata__/browserFixtureSetup';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -764,6 +765,7 @@ describe('Desktop workspace browser interaction', () => {
     let server: Server;
     let origin: string;
     let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
+    let fixtureSetup: ReturnType<typeof browserFixtureSetup<Server, Browser, Server>> | undefined;
 
     beforeAll(async () => {
         const setupStartedAt = performance.now();
@@ -785,65 +787,78 @@ describe('Desktop workspace browser interaction', () => {
                 throw error;
             }
         };
-        const bundle = await setupStage('esbuild-workspace', () => build({
-            entryPoints: [resolve(here, '__testdata__/desktopWorkspace.browser.fixture.tsx')],
-            bundle: true,
-            write: false,
-            outdir: 'out',
-            format: 'esm',
-            splitting: true,
-            platform: 'browser',
-            jsx: 'automatic',
-            resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
-            define: { __DEV__: 'false' },
-            alias: { 'react-native': 'react-native-web' },
-            loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
-            plugins: [fixturePlugin],
-        }));
-        const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
-        const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
-        server = createServer((request, response) => {
-            const outputFile = files.get(new URL(request.url ?? '/', 'http://fixture').pathname);
-            if (outputFile) {
-                response.setHeader('content-type', outputFile.path.endsWith('.css') ? 'text/css' : 'text/javascript');
-                response.end(outputFile.contents);
-                return;
-            }
-            if (request.url === '/workspace-live-sw.js') {
-                response.setHeader('content-type', 'text/javascript; charset=utf-8');
-                response.setHeader('service-worker-allowed', '/');
-                response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
-                return;
-            }
-            response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script type="module" src="/desktopWorkspace.browser.fixture.js"></script>');
+        fixtureSetup = browserFixtureSetup({
+            launch: () => {
+                const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+                startupTrace = traceBrowserStartup('desktopWorkspace', chromium);
+                return setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
+                    ...(executablePath ? { executablePath } : { channel: 'chrome' }),
+                    headless: true,
+                    args: process.platform === 'linux' ? ['--no-sandbox'] : [],
+                })));
+            },
+            prepare: async () => {
+                const bundle = await setupStage('esbuild-workspace', () => build({
+                    entryPoints: [resolve(here, '__testdata__/desktopWorkspace.browser.fixture.tsx')],
+                    bundle: true,
+                    write: false,
+                    outdir: 'out',
+                    format: 'esm',
+                    splitting: true,
+                    platform: 'browser',
+                    jsx: 'automatic',
+                    resolveExtensions: ['.web.tsx', '.tsx', '.web.ts', '.ts', '.web.js', '.js', '.json'],
+                    define: { __DEV__: 'false' },
+                    alias: { 'react-native': 'react-native-web' },
+                    loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
+                    plugins: [fixturePlugin],
+                }));
+                const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
+                const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
+                const preparedServer = createServer((request, response) => {
+                    const outputFile = files.get(new URL(request.url ?? '/', 'http://fixture').pathname);
+                    if (outputFile) {
+                        response.setHeader('content-type', outputFile.path.endsWith('.css') ? 'text/css' : 'text/javascript');
+                        response.end(outputFile.contents);
+                        return;
+                    }
+                    if (request.url === '/workspace-live-sw.js') {
+                        response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                        response.setHeader('service-worker-allowed', '/');
+                        response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
+                        return;
+                    }
+                    response.setHeader('content-type', 'text/html; charset=utf-8');
+                    response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script type="module" src="/desktopWorkspace.browser.fixture.js"></script>');
+                });
+                return preparedServer;
+            },
+            listen: (preparedServer) => setupStage('http-listen', () => new Promise<Server>((resolveReady, reject) => {
+                const failed = (error: Error) => reject(error);
+                preparedServer.once('error', failed);
+                preparedServer.listen(0, '127.0.0.1', () => {
+                    preparedServer.off('error', failed);
+                    resolveReady(preparedServer);
+                });
+            })),
+            closeBrowser: (acquiredBrowser) => acquiredBrowser.close(),
+            closeServer: (acquiredServer) => new Promise<void>((resolveClosed, reject) => {
+                acquiredServer.close(error => error ? reject(error) : resolveClosed());
+            }),
+            onStop: () => startupTrace?.stop('hook-teardown'),
+            onCleanupFailure: (resource) => console.info('[browser fixture cleanup]', {
+                fixture: 'desktopWorkspace', resource, status: 'failed',
+            }),
         });
-        await setupStage('http-listen', () => new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady)));
+        ({ browser, server } = await fixtureSetup.start());
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
         origin = 'http://127.0.0.1:' + address.port;
-        const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
-        startupTrace = traceBrowserStartup('desktopWorkspace', chromium);
-        try {
-            browser = await setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
-                ...(executablePath ? { executablePath } : { channel: 'chrome' }),
-                headless: true,
-                args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            })));
-        } catch (error) {
-            const detail = error instanceof Error ? error.message : String(error);
-            throw new Error(
-                'Desktop workspace browser tests require an installed Google Chrome. '
-                + 'Set HAPPYHERD_BROWSER_EXECUTABLE to override browser discovery. '
-                + detail,
-            );
-        }
     }, 30_000);
 
     afterAll(async () => {
-        startupTrace?.stop('hook-teardown');
-        await browser?.close();
-        if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
+        // stop marks setup expired and stops tracing synchronously, before awaits.
+        await fixtureSetup?.stop();
     }, 30_000);
 
     it.each([

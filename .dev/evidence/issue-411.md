@@ -183,3 +183,58 @@ lock remained unchanged across prerequisite execution. First install, unit,
 typecheck failure, prerequisite and final typecheck receipts remain retained
 privately. No browser or full-suite run was performed in this phase. Publication,
 exact-head review and default-path CI evidence remain separate gates.
+
+## Independent setup scheduling, October 13
+
+The fixtures previously awaited preparation and HTTP listen before starting
+Chromium, although initialization and side-chat's blank-page warmup do not use
+the fixture origin or generated assets. The historical 3,871 ms preparation
+plus 25,776 ms launch left 353 ms in the unchanged 30-second setup hook. This
+establishes an avoidable serial budget contribution, not the cause of Chromium's
+latency. The failed 3,293 ms warmup includes closure and is not a measurement of
+successful warmup time.
+
+A private helper, consumed only by these two fixtures, starts initialization
+immediately before preparation and joins both branches before readiness. It
+adopts the browser before warmup and the server on successful listen. Stop marks
+setup expired and stops tracing before awaits, blocks later warmup/listen/ready,
+and closes late acquisitions. Disposal identity and branch completion slots are
+reserved before callbacks, including reentrant stop and synchronous launch-stop.
+Browser/server close promises are cached. Side-chat reports the first build
+rejection immediately but joins both compilers to settlement during disposal.
+Secondary cleanup failures retain their actual error internally and emit at
+most three fixed categories (browser/server/trace); the reporter cannot replace
+an initiating failure or successful teardown's original cleanup error. Raw
+cleanup errors are not passed to the reporter.
+
+The two generic Chrome discovery Error wrappers are removed to preserve original
+rejection identity. Existing stage failure receipts remain. HTTP listen now
+rejects through an instance error listener, removed on success. Warmup reports
+its initiating error before page-close cleanup. No cancellation or extra timer
+is invented: a permanently unresolved operation can still outlive the runner's
+existing hook budgets, while retained handlers close any late acquisition.
+
+The first lifecycle suite passed 19 tests. The exact serial mutant of the actual
+helper failed the earliest launch-called assertion (zero calls while preparation
+was unresolved), without a timeout. Restoring the approved helper bytes returned
+19 passing tests. The virtual model uses historical preparation/launch numbers
+and an explicitly artificial 400 ms successful warmup: serial 30,047 ms versus
+26,176 ms overlapped. This proves scheduling only, not historical reproduction
+or real contention/warmup performance.
+
+After categorical cleanup reporting, the first 22-test helper run passed. The
+first app typecheck failed TS2322 because the test closeBrowser mock inferred
+Promise<undefined> while its deferred cleanup returned Promise<void>. That first
+failure is retained. The only correction explicitly annotated the mock's
+Promise<void> return; the next 22-test run and declared app typecheck both passed.
+No production behavior or assertions changed for that correction. First logs,
+source hashes, mutant/restoration and process-group exit receipts are retained
+privately. Tests cover first-error identity including undefined/null, sibling
+rejection consumption, both compiler settlements, late acquisition, reentrant
+teardown, exactly-once cleanup, fixed categorical reporting and throwing reporters.
+
+Source comparisons confirm both journey bodies, launch options, build arguments,
+30-second hooks, existing tracing helpers and lock are unchanged. No default
+worker/configuration changes, local browser run, full-suite execution, new CI or
+publication was performed for this phase. This is a scheduling-contract repair;
+actual browser acceptance and historical Chromium-delay ownership remain unproved.
