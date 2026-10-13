@@ -3,7 +3,17 @@ import * as React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-vi.mock('react-native', () => ({ Text: 'Text', TextInput: 'TextInput', View: 'View', Platform: { OS: 'ios' } }));
+const { dispatchCommand } = vi.hoisted(() => ({ dispatchCommand: vi.fn() }));
+
+vi.mock('react-native', () => ({
+    Text: 'Text', TextInput: 'TextInput', View: 'View', Platform: { OS: 'ios' },
+    // Match RN's command factory boundary: named commands forward ref and args.
+    codegenNativeCommands: ({ supportedCommands }: { supportedCommands: readonly string[] }) =>
+        Object.fromEntries(supportedCommands.map(command => [
+            command,
+            (ref: unknown, ...args: unknown[]) => dispatchCommand(ref, command, args),
+        ])),
+}));
 vi.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: { input: { text: '#fff', placeholder: '#aaa' } } } }) }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/keyboard/NativeKeyboard', () => ({ NativeShortcutTarget: 'NativeShortcutTarget' }));

@@ -813,3 +813,4 @@ BROWSER_OWNED_PIPE_OBSERVATION_411	code-ready	test(app): observe owned browser s
 BROWSER_PARALLEL_FIXTURE_SETUP_411	code-ready	test(app): overlap independent browser fixture setup stages	server/packages/happyherd-app/sources/components/__testdata__/browserFixtureSetup.ts
 ISSUE_369_COMBINED_CHANGELOG_GOLDENS	code-ready	test(app): refresh combined native changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 PR419_INSTALLER_STARTUP_OBSERVATION	code-ready	test(installer): retain bounded daemon startup failure categories	scripts/native-installer-startup-diagnostic.test.mjs
+ISSUE_369_MAIN_NATIVE_COMMAND_FIXTURE	code-ready	test(app): adapt native input fixture to command factory	server/packages/happyherd-app/sources/components/MultiTextInput.native.test.ts
