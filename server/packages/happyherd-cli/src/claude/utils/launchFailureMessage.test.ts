@@ -51,7 +51,7 @@ describe('launchFailureMessage', () => {
     describe('a model the bundled Claude Code is too old for', () => {
         const hint = 'App sessions use the Claude Code bundled with HappyHerd; install the latest release from https://github.com/NickGuAI/HappyHerd/releases.';
 
-        it('points at updating Happy, since `claude update` does not touch the bundled copy', () => {
+        it('points at updating HappyHerd, since `claude update` does not touch the bundled copy', () => {
             // Verbatim from the Agent SDK 0.3.260 remote path asked for claude-opus-5-5.
             const error = new Error(
                 "Claude Code returned an error result: API Error: 400 Claude Code 2.1.260 does not support this model; version 2.1.280 or newer is required. Run 'claude update', or update the Claude desktop app, then try again."
@@ -67,7 +67,7 @@ describe('launchFailureMessage', () => {
         });
 
         it('leaves unrelated failures without the hint', () => {
-            expect(launchFailureMessage(new Error('spawn ENOENT'))).not.toContain('happy@latest');
+            expect(launchFailureMessage(new Error('spawn ENOENT'))).not.toContain('install the latest release');
         });
     });
 

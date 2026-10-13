@@ -14,7 +14,7 @@ const BASE_MESSAGE = 'Process exited unexpectedly';
 // Matched before truncation and
 // appended after it, so a long detail cannot cut the hint off.
 const OUTDATED_BUNDLED_CLAUDE = /does not support this model|version \S+ or newer is required/i;
-const UPDATE_HAPPY_HINT = 'App sessions use the Claude Code bundled with HappyHerd; install the latest release from https://github.com/NickGuAI/HappyHerd/releases.';
+const UPDATE_HAPPYHERD_HINT = 'App sessions use the Claude Code bundled with HappyHerd; install the latest release from https://github.com/NickGuAI/HappyHerd/releases.';
 
 export function launchFailureMessage(error: unknown): string {
     if (!(error instanceof Error)) {
@@ -35,6 +35,6 @@ export function launchFailureMessage(error: unknown): string {
     const truncated = detail.length > MAX_LAUNCH_FAILURE_DETAIL
         ? `${detail.slice(0, MAX_LAUNCH_FAILURE_DETAIL)}…`
         : detail;
-    const hint = OUTDATED_BUNDLED_CLAUDE.test(detail) ? ` ${UPDATE_HAPPY_HINT}` : '';
+    const hint = OUTDATED_BUNDLED_CLAUDE.test(detail) ? ` ${UPDATE_HAPPYHERD_HINT}` : '';
     return `${BASE_MESSAGE}: ${truncated}${hint}`;
 }
