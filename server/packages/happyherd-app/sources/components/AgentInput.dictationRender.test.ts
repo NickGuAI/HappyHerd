@@ -13,6 +13,7 @@ vi.mock('react-native', async () => {
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         ActivityIndicator: host('ActivityIndicator'),
+        Modal: host('Modal'),
         Keyboard: {
             addListener: () => ({ remove: vi.fn() }),
             dismiss: vi.fn(),
@@ -30,6 +31,16 @@ vi.mock('react-native', async () => {
         useWindowDimensions: () => ({ width: testState.width, height: 900 }),
     };
 });
+
+vi.mock('react-native-reanimated', async () => {
+    const ReactModule = await import('react');
+    const AnimatedView = (props: any) => ReactModule.createElement('Animated.View', props, props.children);
+    return { default: { View: AnimatedView } };
+});
+
+vi.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 vi.mock('react-native-svg', async () => {
     const ReactModule = await import('react');
