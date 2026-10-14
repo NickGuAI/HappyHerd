@@ -21,10 +21,17 @@ export function HerdTopBarIconButton(props: {
     testID?: string;
     tooltipAlign?: HerdTooltipAlign;
 }) {
+    const [pointerHovered, setPointerHovered] = React.useState(false);
     const phone = useHerdTopBarLayout() === 'phone';
     return (
         <Pressable
             onPress={props.onPress}
+            onHoverIn={() => setPointerHovered(true)}
+            onHoverOut={() => setPointerHovered(false)}
+            onPointerEnter={(event) => {
+                if (event.nativeEvent.pointerType !== 'touch') setPointerHovered(true);
+            }}
+            onPointerLeave={() => setPointerHovered(false)}
             disabled={props.disabled}
             hitSlop={4}
             accessibilityRole="button"
@@ -36,14 +43,14 @@ export function HerdTopBarIconButton(props: {
                 styles.iconButton,
                 phone && styles.iconButtonPhone,
                 props.active && styles.iconButtonActive,
-                (hovered || pressed) && !props.disabled && styles.iconButtonHovered,
+                (pointerHovered || hovered || pressed) && !props.disabled && styles.iconButtonHovered,
                 props.disabled && styles.iconButtonDisabled,
             ]}
         >
-            {({ hovered }: any) => (
+            {({ hovered: webHovered }: any) => (
                 <>
                     {props.children}
-                    {hovered && !phone && <HerdTooltip label={props.label} hint={props.hint} align={props.tooltipAlign} />}
+                    {(pointerHovered || webHovered) && !phone && <HerdTooltip label={props.label} hint={props.hint} align={props.tooltipAlign} />}
                 </>
             )}
         </Pressable>

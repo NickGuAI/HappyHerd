@@ -901,6 +901,11 @@
     "pinComment": "固定评论",
     "sendComments": "发送 {count} 条评论",
     "commentOnHoveredLine": "在行上发表评论",
+    "canvas": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fit": "适合画布"
+    },
     "pdf": {
       "previousPage": "上一页",
       "nextPage": "下一页",

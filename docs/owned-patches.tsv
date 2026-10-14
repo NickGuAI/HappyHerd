@@ -7,6 +7,9 @@ ISSUE_383_CHANGELOG_CAPTURES	accepted	test(release): refresh release identity ch
 ISSUE_383_RELEASE_IDENTITY	accepted	fix(release): identify built archives and available channels	scripts/native-release-info.test.mjs
 ISSUE_368_CHANGELOG_CAPTURES	accepted	test(cli): refresh cross-provider side-chat changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 ISSUE_368_CROSS_PROVIDER_SIDE_CHAT	accepted	feat(cli): select the provider for delegated side chats	server/packages/happyherd-cli/src/daemon/run.resume.test.ts
+ISSUE_369_NATIVE_UI_PARITY	accepted	fix(app): adapt native layouts input and workspace review	docs/issue-369-native-parity.md
+ISSUE_369_PERMISSION_BATCH	code-ready	fix(app): dispatch one native permission answer per press batch	server/packages/happyherd-app/modules/herd-input/ios/HerdInputModule.swift
+ISSUE_369_REBASED_CAPTURES	code-ready	test(app): refresh rebased native parity changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 MOBILE_WEB_VIEWPORT	accepted	fix(app): keep mobile composer above browser chrome	server/packages/happyherd-app/sources/utils/webRootViewport.test.ts
 FOCUS_SESSION_FIRST_SEND_FIXTURE	accepted	test(focus): wire project selection into first-send fixtures	server/packages/happyherd-app/sources/sync/firstSendComposers.test.ts
 FOCUS_SESSION_PROJECT_LOADING	accepted	fix(focus): retain the project while the catalog loads	server/packages/happyherd-app/sources/sync/newSessionProject.test.ts
@@ -774,6 +777,7 @@ PRODUCT_PAGES_382	accepted	docs(product): distinguish HappyHerd releases from up
 CLI_GUIDE_LINKS_382	accepted	docs(cli): repair repository guide links	server/packages/happyherd-cli/README.md
 PRODUCT_ATTRIBUTION_382	accepted	docs(product): preserve upstream attribution in launch guide	docs/product-guide.md
 PRODUCT_CHANGELOG_GOLDENS_382	accepted	test(app): refresh changelog goldens for product guidance	docs/acceptance/issue-382/README.md
+ISSUE_369_NATIVE_UI_GOLDENS	accepted	test(app): refresh native parity changelog goldens	docs/issue-369-native-parity.md
 IOS27_NATIVE_STARTUP	code-ready	fix(ios): preserve scene lifecycle and Xcode build compatibility	server/packages/happyherd-app/sources/iosSceneLifecycle.test.ts
 IOS27_CHANGELOG_BASELINES	code-ready	test(ios): refresh changelog baselines for native startup fix	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
 CLAUDE_RUNTIME_MODELS_421	code-ready	fix(cli): discover Claude models from the installed runtime	server/packages/happyherd-cli/src/claude/sdk/modelDiscovery.ts
@@ -798,3 +802,21 @@ ISSUE_427_CLOUD_RPC_LOG_NEW_CHAT	accepted	test(voice): align cloud RPC fixture c
 ISSUE_427_CHAT_VOICE_FIXTURE	accepted	test(voice): preserve regular-chat microphone availability	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
 ISSUE_427_DESKTOP_VOICE_PROOF	accepted	test(voice): cover dictation in the desktop file pane	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
 ISSUE_427_CHANGELOG_CAPTURES	accepted	test(voice): refresh shared dictation changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+ISSUE_410_JOURNEY_PHASES	accepted	test(app): trace signed-out journey timeout phases	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
+ISSUE_410_FAILURE_STATE	accepted	test(app): capture signed-out failure lifecycle state	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
+ISSUE_410_AUTH_OBSERVER	accepted	test(app): observe signed-out auth request lifecycle	server/packages/happyherd-app/sources/components/SignedOutLanding.browser.test.ts
+BROWSER_SETUP_STAGE_EVIDENCE_411	accepted	test(app): trace browser fixture setup stages	server/packages/happyherd-app/sources/components/desktopWorkspace.browser.test.ts
+BROWSER_LAUNCH_TRACE_411	accepted	test(app): trace disposable browser process startup	server/packages/happyherd-app/sources/components/sideChatHeader.browser.test.ts
+BROWSER_STARTUP_METADATA_411	accepted	test(app): bound browser initialization metadata trace	server/packages/happyherd-app/sources/components/__testdata__/browserStartupTrace.ts
+BROWSER_STARTUP_RESPONSIVENESS_411	accepted	test(app): observe worker responsiveness during browser initialization	server/packages/happyherd-app/sources/components/__testdata__/browserStartupTrace.ts
+BROWSER_OWNED_PIPE_OBSERVATION_411	code-ready	test(app): observe owned browser startup pipe boundaries	server/packages/happyherd-app/sources/components/__testdata__/ownedPipeObservation.ts
+BROWSER_PARALLEL_FIXTURE_SETUP_411	code-ready	test(app): overlap independent browser fixture setup stages	server/packages/happyherd-app/sources/components/__testdata__/browserFixtureSetup.ts
+ISSUE_369_COMBINED_CHANGELOG_GOLDENS	code-ready	test(app): refresh combined native changelog goldens	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-390.png
+PR419_INSTALLER_STARTUP_OBSERVATION	code-ready	test(installer): retain bounded daemon startup failure categories	scripts/native-installer-startup-diagnostic.test.mjs
+ISSUE_369_MAIN_NATIVE_COMMAND_FIXTURE	code-ready	test(app): adapt native input fixture to command factory	server/packages/happyherd-app/sources/components/MultiTextInput.native.test.ts
+ISSUE_369_NATIVE_INPUT_WHITESPACE	code-ready	chore(app): remove native input handler trailing whitespace	server/packages/happyherd-app/sources/components/MultiTextInput.tsx
+ISSUE_369_NATIVE_INPUT_INVENTORY	code-ready	test(app): refresh native input source inventory	server/packages/happyherd-app/sources/text/ui-surface-inventory.json
+PR419_AGENTBASE_PARALLEL_ORDER	code-ready	test(agent): make parallel tool ordering deterministic	.dev/issue-369-main-20261013-provenance.md
+PR419_AGENTBASE_ORDER_EVIDENCE	code-ready	docs: reference parallel tool test verification evidence	.dev/issue-369-main-20261013-provenance.md
+ISSUE_369_MAIN_INTEGRATED_CHANGELOG_CAPTURES	code-ready	test(app): refresh integrated native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+ISSUE_369_COMPOSED_SOURCE_CAPTURES	code-ready	test(app): refresh composed voice and native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png

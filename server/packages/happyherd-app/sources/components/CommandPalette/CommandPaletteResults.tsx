@@ -21,6 +21,7 @@ export function CommandPaletteResults({
     onSelectionChange
 }: CommandPaletteResultsProps) {
     const scrollViewRef = useRef<ScrollView>(null);
+    const nativeContentRef = useRef<View>(null);
     const phone = useHerdPhoneWeb();
     const itemRefs = useRef<{ [key: number]: View | null }>({});
 
@@ -39,6 +40,12 @@ export function CommandPaletteResults({
                     behavior: 'smooth',
                     block: 'nearest',
                 });
+            } else if (Platform.OS !== 'web') {
+                // Native ScrollView has no scrollIntoView; measure in its content
+                // coordinate space so hardware navigation keeps selection visible.
+                const scroll = scrollViewRef.current;
+                const content = nativeContentRef.current;
+                if (content) selectedItem.measureLayout(content, (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 8), animated: true }), () => {});
             }
         }
     }, [selectedIndex]);
@@ -54,15 +61,7 @@ export function CommandPaletteResults({
     }
 
     let currentIndex = 0;
-
-    return (
-        <ScrollView
-            ref={scrollViewRef}
-            style={[styles.container, phone && styles.containerPhone]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-        >
-            {categories.map(category => {
+    const categoryViews = categories.map(category => {
                 if (category.commands.length === 0) return null;
 
                 const categoryStartIndex = currentIndex;
@@ -96,7 +95,16 @@ export function CommandPaletteResults({
                         {categoryCommands}
                     </View>
                 );
-            })}
+            });
+
+    return (
+        <ScrollView
+            ref={scrollViewRef}
+            style={[styles.container, phone && styles.containerPhone]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+        >
+            {Platform.OS === 'web' ? categoryViews : <View ref={nativeContentRef}>{categoryViews}</View>}
         </ScrollView>
     );
 }

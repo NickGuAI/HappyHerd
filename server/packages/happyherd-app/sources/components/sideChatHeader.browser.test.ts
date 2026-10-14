@@ -10,6 +10,9 @@ import { darkTheme, lightTheme } from '@/theme';
 import { replaySubagentRecords, subagentLifecycleFixture } from '@/sync/__testdata__/subagentLifecycle';
 import { contextWindowReply } from './__testdata__/contextWindow.browser.fixture';
 
+import { traceBrowserStartup } from './__testdata__/browserStartupTrace';
+import { browserFixtureSetup } from './__testdata__/browserFixtureSetup';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 const newSessionProjectPath = '/work/project/extensions/browser-tools';
@@ -94,7 +97,10 @@ const virtualModules: Record<string, string> = {
         export const usePathname = () => globalThis.__HAPPYHERD_ROUTE_PATHNAME__ ?? '/';
         export const Stack = { Screen: () => null };
     `,
+    'react-native-worklets': `export const runOnJS = (callback) => (...args) => queueMicrotask(() => callback(...args));`,
     'react-native-reanimated': `
+        export const ReduceMotion = { System: 'system', Always: 'always', Never: 'never' };
+        export const useReducedMotion = () => false;
         import React from 'react';
         import { ScrollView, Text, View } from 'react-native';
         export default { ScrollView, Text, View };
@@ -1504,118 +1510,183 @@ describe('Side chats browser interaction', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
+    let startupTrace: ReturnType<typeof traceBrowserStartup> | undefined;
+    let fixtureSetup: ReturnType<typeof browserFixtureSetup<Server, Browser, Server>> | undefined;
 
     beforeAll(async () => {
-        const buildOptions: BuildOptions = {
-            bundle: true,
-            write: false,
-            format: 'iife',
-            platform: 'browser',
-            sourcemap: 'linked',
-            define: {
-                __DEV__: 'false',
-                'process.env.EXPO_OS': '"web"',
-                'process.env.NODE_ENV': '"test"',
-            },
-            jsx: 'automatic',
-            loader: { '.png': 'dataurl' },
-            plugins: [fixturePlugin],
+        const setupStartedAt = performance.now();
+        const setupStage = async <T,>(stage: string, operation: () => Promise<T>): Promise<T> => {
+            const startedAt = performance.now();
+            const receipt = (status: string, error?: unknown) => console.info('[browser fixture setup]', {
+                fixture: 'sideChatHeader', stage, status,
+                elapsedMs: Math.round(performance.now() - startedAt),
+                setupElapsedMs: Math.round(performance.now() - setupStartedAt),
+                ...(error === undefined ? {} : { error: error instanceof Error ? error.message : String(error) }),
+            });
+            receipt('started');
+            try {
+                const result = await operation();
+                receipt('completed');
+                return result;
+            } catch (error) {
+                receipt('failed', error);
+                throw error;
+            }
         };
-        // Leave the shared journey bundle unchanged. Launch-context and transport
-        // recovery need only the foreground host and a smaller script to parse on load.
-        const bundles = await Promise.all([
-            build({
-                ...buildOptions,
-                entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
-                outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+        fixtureSetup = browserFixtureSetup({
+            launch: () => {
+                const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
+                startupTrace = traceBrowserStartup('sideChatHeader', chromium);
+                return setupStage('chromium-launch', () => startupTrace!.launch(() => chromium.launch({
+                    ...(executablePath ? { executablePath } : { channel: 'chrome' }),
+                    headless: true,
+                    args: process.platform === 'linux' ? ['--no-sandbox'] : [],
+                })));
+            },
+            prepare: async (stopWithError) => {
+                const buildOptions: BuildOptions = {
+                    bundle: true,
+                    write: false,
+                    format: 'iife',
+                    platform: 'browser',
+                    sourcemap: 'linked',
+                    define: {
+                        __DEV__: 'false',
+                        'process.env.EXPO_OS': '"web"',
+                        'process.env.NODE_ENV': '"test"',
+                    },
+                    jsx: 'automatic',
+                    loader: { '.png': 'dataurl' },
+                    plugins: [fixturePlugin],
+                };
+                // Leave the shared journey bundle unchanged. Launch-context and transport
+                // recovery need only the foreground host and a smaller script to parse on load.
+                const builds = [
+                    setupStage('esbuild-side-chat', () => build({
+                        ...buildOptions,
+                        entryPoints: [resolve(here, '__testdata__/sideChatHeader.browser.fixture.tsx')],
+                        outfile: resolve(appRoot, 'fixture-output/side-chat.js'),
+                    })),
+                    setupStage('esbuild-commander-context', () => build({
+                        ...buildOptions,
+                        entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
+                        outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
+                        minify: true,
+                        keepNames: true,
+                        plugins: [commanderDiagramPlugin, fixturePlugin],
+                    })),
+                ];
+                let buildFailed = false;
+                let firstBuildError: unknown;
+                // Observe the first rejection immediately, but retain BOTH compilers
+                // until settlement so controller disposal cannot outpace preparation.
+                const observedBuilds = builds.map(promise => promise.catch(error => {
+                    if (!buildFailed) {
+                        buildFailed = true;
+                        firstBuildError = error;
+                        stopWithError(error);
+                    }
+                    throw error;
+                }));
+                const results = await Promise.allSettled(observedBuilds);
+                if (buildFailed) throw firstBuildError;
+                const bundles = results.map(result => {
+                    if (result.status === 'rejected') throw result.reason;
+                    return result.value;
+                });
+                // Keep debug maps available without transferring/parsing them as part
+                // of every document. Reuse response bytes across the isolated pages.
+                const assets = new Map(bundles.flatMap((bundle) => bundle.outputFiles!.map((file) => [
+                    '/' + basename(file.path), Buffer.from(file.contents),
+                ] as const)));
+                const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
+                const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
+                const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
+                const commanderHtml = Buffer.from(html.toString()
+                    .replace('/fixture.css', '/commander-context.css')
+                    .replace('/side-chat.js', '/commander-context.js'));
+                const preparedServer = createServer((_request, response) => {
+                    if (_request.url === '/fonts/Ionicons.ttf' || _request.url === '/fonts/Octicons.ttf') {
+                        response.setHeader('content-type', 'font/ttf');
+                        response.end(readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts', _request.url.slice('/fonts/'.length))));
+                        return;
+                    }
+                    if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-(Regular|SemiBold))\.ttf$/.test(_request.url ?? '')) {
+                        response.setHeader('content-type', 'font/ttf');
+                        response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
+                        return;
+                    }
+                    const asset = assets.get(_request.url ?? '');
+                    if (asset) {
+                        response.setHeader('content-type', _request.url!.endsWith('.map')
+                            ? 'application/json; charset=utf-8'
+                            : _request.url!.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
+                        response.end(asset);
+                        return;
+                    }
+                    if (_request.url === '/fixture.css') {
+                        response.setHeader('content-type', 'text/css; charset=utf-8');
+                        response.end(css);
+                        return;
+                    }
+                    if (_request.url === '/workspace-live-sw.js') {
+                        response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                        response.setHeader('service-worker-allowed', '/');
+                        response.end(serviceWorker);
+                        return;
+                    }
+                    response.setHeader('content-type', 'text/html; charset=utf-8');
+                    response.end(['/commander-context', '/transport-recovery'].includes(_request.url?.split('?')[0] ?? '') ? commanderHtml : html);
+                });
+                return preparedServer;
+            },
+            listen: (preparedServer) => setupStage('http-listen', () => new Promise<Server>((resolveReady, reject) => {
+                const failed = (error: Error) => reject(error);
+                preparedServer.once('error', failed);
+                preparedServer.listen(0, '127.0.0.1', () => {
+                    preparedServer.off('error', failed);
+                    resolveReady(preparedServer);
+                });
+            })),
+            warmup: async (acquiredBrowser, assertActive, stopWithError) => {
+                // Blank renderer warmup remains inside the unchanged hook budget.
+                assertActive();
+                const warmupStartedAt = performance.now();
+                const warmup = await setupStage('warmup-new-page', () => acquiredBrowser.newPage());
+                let failed = false;
+                try {
+                    assertActive();
+                    await setupStage('warmup-goto', () => warmup.goto('about:blank'));
+                } catch (error) {
+                    failed = true;
+                    stopWithError(error);
+                    throw error;
+                } finally {
+                    // Closing a page after browser teardown may reject. Never
+                    // replace the initiating warmup/stop failure with cleanup.
+                    try { await setupStage('warmup-close', () => warmup.close()); }
+                    catch (error) { if (!failed) throw error; }
+                }
+                console.info('[browser fixture timing]', { stage: 'blank-page-warmup', elapsedMs: Math.round(performance.now() - warmupStartedAt) });
+            },
+            closeBrowser: (acquiredBrowser) => acquiredBrowser.close(),
+            closeServer: (acquiredServer) => new Promise<void>((resolveClosed, reject) => {
+                acquiredServer.close(error => error ? reject(error) : resolveClosed());
             }),
-            build({
-                ...buildOptions,
-                entryPoints: [resolve(here, '__testdata__/commanderContext.browser.fixture.tsx')],
-                outfile: resolve(appRoot, 'fixture-output/commander-context.js'),
-                minify: true,
-                keepNames: true,
-                plugins: [commanderDiagramPlugin, fixturePlugin],
+            onStop: () => startupTrace?.stop('hook-teardown'),
+            onCleanupFailure: (resource) => console.info('[browser fixture cleanup]', {
+                fixture: 'sideChatHeader', resource, status: 'failed',
             }),
-        ]);
-        // Keep debug maps available without transferring/parsing them as part
-        // of every document. Reuse response bytes across the isolated pages.
-        const assets = new Map(bundles.flatMap((bundle) => bundle.outputFiles!.map((file) => [
-            '/' + basename(file.path), Buffer.from(file.contents),
-        ] as const)));
-        const css = assets.get('/side-chat.css') ?? Buffer.alloc(0);
-        const serviceWorker = readFileSync(resolve(appRoot, 'public/workspace-live-sw.js'));
-        const html = Buffer.from('<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;if((globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.accountProject||globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.contextWindow || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.commanderContext || globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.layoutProof)){const s=document.createElement("style");s.textContent="@font-face{font-family:ionicons;src:url(/fonts/Ionicons.ttf)}@font-face{font-family:octicons;src:url(/fonts/Octicons.ttf)}@font-face{font-family:SpaceGrotesk-Regular;src:url(/fonts/SpaceGrotesk-Regular.ttf)}@font-face{font-family:SpaceGrotesk-SemiBold;src:url(/fonts/SpaceGrotesk-SemiBold.ttf)}@font-face{font-family:JetBrainsMono-Regular;src:url(/fonts/JetBrainsMono-Regular.ttf)}@font-face{font-family:JetBrainsMono-SemiBold;src:url(/fonts/JetBrainsMono-SemiBold.ttf)}";document.head.append(s);}</script><script src="/side-chat.js"></script>');
-        const commanderHtml = Buffer.from(html.toString()
-            .replace('/fixture.css', '/commander-context.css')
-            .replace('/side-chat.js', '/commander-context.js'));
-        server = createServer((_request, response) => {
-            if (_request.url === '/fonts/Ionicons.ttf' || _request.url === '/fonts/Octicons.ttf') {
-                response.setHeader('content-type', 'font/ttf');
-                response.end(readFileSync(resolve(appRoot, '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts', _request.url.slice('/fonts/'.length))));
-                return;
-            }
-            if (/^\/fonts\/(SpaceGrotesk-(Regular|SemiBold)|JetBrainsMono-(Regular|SemiBold))\.ttf$/.test(_request.url ?? '')) {
-                response.setHeader('content-type', 'font/ttf');
-                response.end(readFileSync(resolve(appRoot, 'sources/assets', _request.url!.slice(1))));
-                return;
-            }
-            const asset = assets.get(_request.url ?? '');
-            if (asset) {
-                response.setHeader('content-type', _request.url!.endsWith('.map')
-                    ? 'application/json; charset=utf-8'
-                    : _request.url!.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
-                response.end(asset);
-                return;
-            }
-            if (_request.url === '/fixture.css') {
-                response.setHeader('content-type', 'text/css; charset=utf-8');
-                response.end(css);
-                return;
-            }
-            if (_request.url === '/workspace-live-sw.js') {
-                response.setHeader('content-type', 'text/javascript; charset=utf-8');
-                response.setHeader('service-worker-allowed', '/');
-                response.end(serviceWorker);
-                return;
-            }
-            response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(['/commander-context', '/transport-recovery'].includes(_request.url?.split('?')[0] ?? '') ? commanderHtml : html);
         });
-        await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
+        ({ browser, server } = await fixtureSetup.start());
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('browser fixture did not bind');
-        origin = `http://127.0.0.1:${address.port}`;
-        const executablePath = process.env.HAPPYHERD_BROWSER_EXECUTABLE?.trim();
-        try {
-            browser = await chromium.launch({
-                ...(executablePath ? { executablePath } : { channel: 'chrome' }),
-                headless: true,
-                args: process.platform === 'linux' ? ['--no-sandbox'] : [],
-            });
-            // Start Chromium's first renderer inside the existing setup budget.
-            // This blank page performs no product journey or recovery behavior.
-            const warmupStartedAt = performance.now();
-            const warmup = await browser.newPage();
-            try {
-                await warmup.goto('about:blank');
-            } finally {
-                await warmup.close();
-            }
-            console.info('[browser fixture timing]', { stage: 'blank-page-warmup', elapsedMs: Math.round(performance.now() - warmupStartedAt) });
-        } catch (error) {
-            const detail = error instanceof Error ? error.message : String(error);
-            throw new Error(
-                'Side chat browser tests require an installed Google Chrome. '
-                + 'Set HAPPYHERD_BROWSER_EXECUTABLE to override browser discovery. '
-                + detail,
-            );
-        }
+        origin = 'http://127.0.0.1:' + address.port;
     }, 30_000);
 
     afterAll(async () => {
-        await browser?.close();
-        if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
+        // stop marks setup expired and stops tracing synchronously, before awaits.
+        await fixtureSetup?.stop();
     }, 30_000);
 
     it.each([1440, 390])('recovers the live Super Session transport through SessionView at $0 px', async (width) => {

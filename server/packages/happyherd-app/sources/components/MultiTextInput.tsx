@@ -1,3 +1,5 @@
+import { NativeShortcutTarget } from '@/keyboard/NativeKeyboard';
+import { useNativeShortcuts } from '@/keyboard/nativeShortcuts';
 import * as React from 'react';
 import { Text, TextInput, Platform, View, NativeSyntheticEvent, TextInputChangeEvent, TextInputKeyPressEventData, TextInputSelectionChangeEventData, codegenNativeCommands } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
@@ -8,6 +10,8 @@ export type SupportedKey = 'Enter' | 'Escape' | 'ArrowUp' | 'ArrowDown' | 'Arrow
 export interface KeyPressEvent {
     key: SupportedKey;
     shiftKey: boolean;
+    /** Set only by the native hardware responder bridge, never software text entry. */
+    nativeHardware?: boolean;
 }
 
 export type OnKeyPressCallback = (event: KeyPressEvent) => boolean;
@@ -52,6 +56,7 @@ interface MultiTextInputProps {
     submitBehavior?: React.ComponentProps<typeof TextInput>['submitBehavior'];
     onSubmitEditing?: () => void;
     onKeyPress?: OnKeyPressCallback;
+    nativeKeyCommands?: Array<KeyPressEvent & { requireText?: boolean }>;
     onSelectionChange?: (selection: { start: number; end: number }) => void;
     onStateChange?: (state: TextInputState) => void;
 }
@@ -73,6 +78,18 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
         onSelectionChange,
         onStateChange
     } = props;
+
+    const nativeTarget = React.useId();
+    useNativeShortcuts(editable ? (props.nativeKeyCommands ?? []).map((command, index) => ({
+        id: `composer:${nativeTarget}:${index}`,
+        key: command.key,
+        shift: command.shiftKey,
+        requireText: command.requireText,
+        scope: 'composer' as const,
+        target: nativeTarget,
+    })) : [], (_id, event) => {
+        onKeyPress?.({ key: event.key as SupportedKey, shiftKey: event.shift, nativeHardware: true });
+    });
 
     const { theme } = useUnistyles();
     // Track latest selection in a ref
@@ -115,10 +132,10 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
 
         const nativeEvent = e.nativeEvent;
         const key = nativeEvent.key;
-        
+
         // Map native key names to our normalized format
         let normalizedKey: SupportedKey | null = null;
-        
+
         switch (key) {
             case 'Enter':
                 normalizedKey = 'Enter';
@@ -152,7 +169,7 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
                 key: normalizedKey,
                 shiftKey: (nativeEvent as any).shiftKey || false
             };
-            
+
             const handled = onKeyPress(keyEvent);
             if (handled) {
                 e.preventDefault();
@@ -228,7 +245,7 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
     const TextField = Platform.OS === 'ios' ? NativeTextField : ValueTextField;
 
     return (
-        <View style={{ width: '100%' }}>
+        <NativeShortcutTarget targetId={nativeTarget} style={{ width: '100%' }}>
             {editable ? (
                 <TextField
                     ref={fieldRef}
@@ -265,7 +282,7 @@ export const MultiTextInput = React.memo(React.forwardRef<MultiTextInputHandle, 
                     </Text>
                 </View>
             )}
-        </View>
+        </NativeShortcutTarget>
     );
 }));
 

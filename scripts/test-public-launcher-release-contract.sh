@@ -24,7 +24,9 @@ for executable in "$installer" "$uninstaller" "$legacy_cleanup" "$asset_builder"
 done
 [[ -f "$release_workflow" ]] || fail 'native installer release workflow is missing'
 [[ -f "$deployment_helper" ]] || fail 'locked deployment helper is missing'
-node --test "$root/scripts/native-release-info.test.mjs"
+node --test \
+  "$root/scripts/native-release-info.test.mjs" \
+  "$root/scripts/native-installer-startup-diagnostic.test.mjs"
 
 # The retired #98 security distribution stack stays deleted. The new release
 # carries only the ordinary HappyHerd CLI, self-host server, and their runtime.

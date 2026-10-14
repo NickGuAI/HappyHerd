@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Platform, View } from 'react-native';
+import { HerdCollapse as NativeCollapse } from '../pages/HerdCollapse';
 import { StyleSheet } from 'react-native-unistyles';
 
 /**
@@ -8,7 +9,7 @@ import { StyleSheet } from 'react-native-unistyles';
  * so the height follows the real content without measuring it. The body mounts
  * on first open and is kept afterwards, which keeps collapsed rows cheap and
  * lets a closing body animate out. A collapsed body is `inert`, so keyboard
- * focus cannot enter it. Native renders the body only while open.
+ * focus cannot enter it. Native reuses the measured-height disclosure used by native pages.
  */
 export function HerdCollapse(props: {
     open: boolean;
@@ -43,7 +44,11 @@ export function HerdCollapse(props: {
     }, [open]);
 
     if (Platform.OS !== 'web') {
-        return open ? <View testID={props.testID}>{props.children}</View> : null;
+        return (
+            <View pointerEvents={open ? 'auto' : 'none'} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}>
+                <NativeCollapse open={open} testID={props.testID}>{props.children}</NativeCollapse>
+            </View>
+        );
     }
     if (!mounted) return null;
 
