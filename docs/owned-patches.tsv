@@ -820,3 +820,4 @@ PR419_AGENTBASE_PARALLEL_ORDER	code-ready	test(agent): make parallel tool orderi
 PR419_AGENTBASE_ORDER_EVIDENCE	code-ready	docs: reference parallel tool test verification evidence	.dev/issue-369-main-20261013-provenance.md
 ISSUE_369_MAIN_INTEGRATED_CHANGELOG_CAPTURES	code-ready	test(app): refresh integrated native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_369_COMPOSED_SOURCE_CAPTURES	code-ready	test(app): refresh composed voice and native changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
+UPSTREAM_FDA37D2_SYNC	code-ready	docs(sync): record fda37d2 integration and deferred mobile clients	docs/upstream-sync-fda37d2.md
