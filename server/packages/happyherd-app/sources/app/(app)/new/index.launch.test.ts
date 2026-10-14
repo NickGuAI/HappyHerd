@@ -364,6 +364,7 @@ vi.mock('@/hooks/useMachineFileUpload', () => ({
 }));
 vi.mock('@/hooks/useVoiceDictation', () => ({
     useVoiceDictation: () => ({
+        availability: { available: false, configured: false, localReady: false, localMachineId: null, loading: false },
         phase: 'idle',
         error: null,
         canRetry: false,
@@ -371,9 +372,6 @@ vi.mock('@/hooks/useVoiceDictation', () => ({
         cancel: vi.fn(),
         retry: vi.fn(),
     }),
-}));
-vi.mock('@/hooks/useVoiceInputAvailability', () => ({
-    useVoiceInputAvailability: () => ({ available: false }),
 }));
 vi.mock('@/sync/agentSessionPlaces', () => ({
     collectSessionPlaces: () => mocks.places,

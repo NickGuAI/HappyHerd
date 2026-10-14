@@ -415,18 +415,11 @@ vi.mock('@/hooks/useSessionQuickActions', () => ({
         resumingSession: false,
     }),
 }));
-vi.mock('@/hooks/useVoiceInputAvailability', () => ({
-    useVoiceInputAvailability: () => ({
-        available: mocks.voiceAvailable,
-        configured: mocks.voiceAvailable,
-        enabled: mocks.voiceAvailable,
-        loading: false,
-    }),
-}));
 vi.mock('@/hooks/useVoiceDictation', () => ({
     useVoiceDictation: (onTranscript: (text: string) => void) => {
         mocks.voiceOnTranscript = onTranscript;
         return {
+            availability: { available: mocks.voiceAvailable, configured: mocks.voiceAvailable, localReady: false, localMachineId: null, loading: false },
             canRetry: mocks.voiceCanRetry,
             cancel: mocks.voiceCancel,
             error: mocks.voiceError,

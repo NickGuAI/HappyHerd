@@ -1,3 +1,7 @@
+# October 14 — Use local voice in every composer
+
+- New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it.
+
 # October 13 — Smoother mobile controls and session delivery
 
 - Model, effort, and permission choices open in a scrollable sheet that can be dismissed without changing HappyHerd’s available options.

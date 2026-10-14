@@ -988,13 +988,10 @@ const virtualModules: Record<string, string> = {
         },
     });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({
+        availability: { available: Boolean(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable), configured: Boolean(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable), localReady: false, localMachineId: null, loading: false },
         canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {},
         toggle() { window.__DICTATION_TOGGLE_COUNT__ = (window.__DICTATION_TOGGLE_COUNT__ ?? 0) + 1; },
     });`,
-    '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => {
-        const available = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable === true;
-        return { available, configured: available, enabled: available, loading: false };
-    };`,
     '@/hooks/useWorktreeCleanup': `
         export const maybeCleanupWorktree = async (...args) => {
             window.__WORKTREE_CLEANUP_CALLS__ = [...(window.__WORKTREE_CLEANUP_CALLS__ ?? []), args];

@@ -149,7 +149,7 @@ const virtualModules: Record<string, string> = {
             );
         };
     `,
-    '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
+    '@/auth/AuthContext': `const voiceCredentials = { accessToken: 'fixture-token' }; export const useAuth = () => ({ isAuthenticated: true, credentials: new URLSearchParams(window.location.search).has('voiceIntegration') ? voiceCredentials : undefined });`,
     '@/components/SidebarView': `
         import React from 'react';
         export const SidebarView = () => React.createElement(
@@ -197,7 +197,12 @@ const virtualModules: Record<string, string> = {
         const gitStatusFiles = { stagedFiles: [], unstagedFiles: [] };
         const projectFiles = { files: [{ fullPath: '/workspace/sidebar.md' }] };
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
-        export const useSetting = (key) => settings[key];
+        export const useSetting = (key) => {
+            const voiceFixture = new URLSearchParams(window.location.search).has('voiceIntegration');
+            if (voiceFixture && key === 'localVoiceSttEnabled') return true;
+            if (voiceFixture && key === 'localVoiceMachineId') return 'machine-2';
+            return settings[key];
+        };
         export const useLocalSettingMutable = (key) => [
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
             (value) => { settings[key] = value; emit(); },
@@ -359,6 +364,7 @@ const virtualModules: Record<string, string> = {
     '@/sync/sync': `
         let feedbackAttempt = 0;
         export const sync = {
+            getCredentials: () => ({ accessToken: 'fixture-token' }),
             applySettings() {},
             sendMessage: async (sessionId, text, options) => {
                 feedbackAttempt += 1;
@@ -474,14 +480,18 @@ const virtualModules: Record<string, string> = {
             };
         };
     `,
-    '@/hooks/useVoiceInputAvailability': `
-        export const useVoiceInputAvailability = () => ({ configured: false, loading: false, available: false });
-    `,
     '@/hooks/useVoiceDictation': `
         export const useVoiceDictation = () => ({
+            availability: { configured: false, loading: false, localReady: false, localMachineId: null, available: false },
             phase: 'idle', error: null, toggle() {}, cancel() {}, retry() {}, canRetry: false,
         });
     `,
+    'expo-audio': `export const RecordingPresets = { HIGH_QUALITY: {} }; const recorder = { uri: 'fixture.webm', isRecording: false, async prepareToRecordAsync() {}, record() { this.isRecording = true; window.__VOICE_EVENTS__ = [...(window.__VOICE_EVENTS__ ?? []), 'record']; }, async stop() { this.isRecording = false; window.__VOICE_EVENTS__ = [...(window.__VOICE_EVENTS__ ?? []), 'stop']; } }; export const useAudioRecorder = () => recorder;`,
+    '@react-navigation/native': `import React from 'react'; export const useFocusEffect = (callback) => React.useEffect(callback, [callback]);`,
+    '@/utils/microphonePermissions': `export const requestMicrophonePermission = async () => ({ granted: true, canAskAgain: true }); export const showMicrophonePermissionDeniedAlert = () => {};`,
+    '@/utils/readFileBytes': `export const readFileBytes = async () => new Uint8Array([1, 2, 3, 4]);`,
+    '@/sync/apiVoice': `export const fetchVoiceTranscriptionKeyStatus = async () => ({ configured: new URLSearchParams(window.location.search).has('cloudConfigured') }); export const transcribeVoiceInput = async (...args) => { window.__LOCAL_VOICE_CALLS__ = [...(window.__LOCAL_VOICE_CALLS__ ?? []), { name: 'transcribe-cloud', args }]; throw new Error('cloud transcription must not be used'); };`,
+    '@/sync/localVoice': `window.__LOCAL_VOICE_CALLS__ = []; const call = async (name, result, args = []) => { window.__LOCAL_VOICE_CALLS__.push({ name, args }); return result; }; export const startLocalVoiceUpload = async (...args) => call('start-upload', { operationId: 'fixture-operation' }, args); export const uploadLocalVoiceChunk = async (...args) => call('upload-chunk', { nextOffset: args[2] + atob(args[3]).length }, args); export const startLocalVoiceTranscription = async (...args) => call('start-transcription', {}, args); export const localVoiceOperation = async (...args) => call('poll', { state: 'done', text: 'local fixture transcript' }, args); export const releaseLocalVoiceOperation = async (...args) => call('release', {}, args); export const cancelLocalVoiceOperation = async (...args) => call('cancel', {}, args); export const localVoiceStatus = async (...args) => call('status', { stt: { state: 'ready' } }, args);`,
     '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
     '@/components/SideChatPanel': `export const SideChatPanel = () => null;`,
     '@/components/AnimatedOverlay': `
@@ -580,6 +590,9 @@ const virtualModules: Record<string, string> = {
             'happyHerd.composer.addPhoto': 'Add photo',
             'happyHerd.composer.addPhotos': 'Add photos',
             'happyHerd.composer.send': 'Send',
+            'happyHerd.composer.startVoice': 'Start voice input',
+            'happyHerd.composer.finishVoice': 'Finish voice input',
+            'happyHerd.composer.retryVoice': 'Retry voice input',
             'happyHerd.composer.sendFailedBody': 'Could not send feedback.',
             'review.feedbackPrompt': 'Share file feedback',
             'navigation.collapseSidebar': 'Collapse navigation',
@@ -622,6 +635,10 @@ const virtualModules: Record<string, string> = {
         }[key] ?? key);
     `,
 };
+
+// Keep the real shared hook mounted in the browser fixture. Local readiness is
+// enabled only for the focused voice cases below.
+delete virtualModules['@/hooks/useVoiceDictation'];
 
 const fixturePlugin: Plugin = {
     name: 'desktop-workspace-browser-fixture',
@@ -2303,6 +2320,41 @@ describe('Desktop workspace browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it.each([false, true])('uses selected-machine local dictation in the desktop file pane with cloud key configured=$cloudConfigured', async (cloudConfigured) => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(5_000);
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?file-review=desktop&voiceIntegration=1${cloudConfigured ? '&cloudConfigured=1' : ''}`);
+        const panel = page.getByTestId('file-review-desktop').getByTestId('desktop-file-panel:/workspace/demo.md');
+        const startVoice = panel.getByRole('button', { name: 'Start voice input' });
+        await startVoice.waitFor();
+        await startVoice.click();
+        await expect.poll(() => page.evaluate(() => (window as any).__VOICE_EVENTS__ ?? [])).toContain('record');
+        await panel.getByRole('button', { name: 'Finish voice input' }).click();
+
+        const input = panel.getByPlaceholder('Share file feedback');
+        await expect.poll(() => input.inputValue()).toBe('local fixture transcript');
+        await expect.poll(() => input.evaluate((element) => (element as HTMLTextAreaElement).readOnly)).toBe(false);
+        await input.fill('local fixture transcript edited', { timeout: 5_000 });
+        await expect.poll(() => input.inputValue()).toBe('local fixture transcript edited');
+
+        const voiceCalls = await page.evaluate(() => (window as any).__LOCAL_VOICE_CALLS__ ?? []);
+        const operationCalls = voiceCalls.filter((call: { name: string }) => call.name !== 'status');
+        expect(operationCalls[0]).toEqual({ name: 'start-upload', args: ['machine-2', 'audio/webm', 4] });
+        expect(operationCalls.map((call: { name: string; args: unknown[] }) => call.name)).toEqual([
+            'start-upload',
+            'upload-chunk',
+            'start-transcription',
+            'poll',
+            'release',
+        ]);
+        expect(voiceCalls.every((call: { args: unknown[] }) => call.args[0] === 'machine-2')).toBe(true);
+        expect(voiceCalls).not.toContainEqual(expect.objectContaining({ name: 'transcribe-cloud' }));
+        expect(await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('retains each file feedback draft and photo across tabs and the browser', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
