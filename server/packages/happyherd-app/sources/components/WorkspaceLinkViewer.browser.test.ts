@@ -72,6 +72,7 @@ const virtualModules: Record<string, string> = {
             machines = [machine];
             listeners.forEach((listener) => listener());
         };
+        export const useSetting = (key) => new URLSearchParams(window.location.search).has('voiceIntegration') && key === 'localVoiceSttEnabled' ? true : new URLSearchParams(window.location.search).has('voiceIntegration') && key === 'localVoiceMachineId' ? 'linked-machine' : undefined;
         export const useAllMachines = () => React.useSyncExternalStore(subscribe, () => machines);
         export const useMachine = () => React.useSyncExternalStore(subscribe, () => machine);
         export const useIsDataReady = () => true;
@@ -118,6 +119,25 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ availability: { available: false, configured: false, localReady: false, localMachineId: null, loading: false }, phase: 'idle', error: null, canRetry: false, toggle() {}, retry() {} });`,
     '@/text': `export const t = (key, params) => params?.line ? key + ':' + params.line : key;`,
 };
+
+// Keep the real shared hook mounted in every rendered workspace case. Device
+// recording and voice RPC are fixture boundaries; local readiness is enabled
+// only on pages carrying the voiceIntegration query flag.
+delete virtualModules['@/hooks/useVoiceDictation'];
+Object.assign(virtualModules, {
+        'expo-audio': `export const RecordingPresets = { HIGH_QUALITY: {} }; const recorder = { uri: 'fixture.webm', isRecording: false, async prepareToRecordAsync() {}, record() { this.isRecording = true; window.__VOICE_EVENTS__ = [...(window.__VOICE_EVENTS__ ?? []), 'record']; }, async stop() { this.isRecording = false; window.__VOICE_EVENTS__ = [...(window.__VOICE_EVENTS__ ?? []), 'stop']; } }; export const useAudioRecorder = () => recorder;`,
+        '@react-navigation/native': `import React from 'react'; export const useFocusEffect = (callback) => React.useEffect(callback, [callback]);`,
+        '@/auth/AuthContext': `const credentials = { accessToken: 'fixture-token' }; export const useAuth = () => ({ credentials });`,
+        '@/utils/microphonePermissions': `export const requestMicrophonePermission = async () => ({ granted: true, canAskAgain: true }); export const showMicrophonePermissionDeniedAlert = () => {};`,
+        '@/utils/readFileBytes': `export const readFileBytes = async () => new Uint8Array([1, 2, 3, 4]);`,
+        '@/hooks/useLocalVoiceStatus': `export const useLocalVoiceStatus = () => ({ status: { stt: { state: 'ready' } }, loading: false });`,
+        '@/sync/apiVoice': `export const fetchVoiceTranscriptionKeyStatus = async () => ({ configured: new URLSearchParams(window.location.search).has('cloudConfigured') }); export const transcribeVoiceInput = async () => { window.__LOCAL_VOICE_CALLS__ = [...(window.__LOCAL_VOICE_CALLS__ ?? []), 'transcribe-cloud']; throw new Error('cloud transcription must not be used'); };`,
+        '@/sync/localVoice': `window.__LOCAL_VOICE_CALLS__ = []; const call = async (name, result, args = []) => { window.__LOCAL_VOICE_CALLS__.push({ name, args }); return result; }; export const startLocalVoiceUpload = async (...args) => call('start-upload', { operationId: 'fixture-operation' }, args); export const uploadLocalVoiceChunk = async (...args) => call('upload-chunk', { nextOffset: args[2] + atob(args[3]).length }, args); export const startLocalVoiceTranscription = async (...args) => call('start-transcription', {}, args); export const localVoiceOperation = async (...args) => call('poll', { state: 'done', text: 'local fixture transcript' }, args); export const releaseLocalVoiceOperation = async (...args) => call('release', {}, args); export const cancelLocalVoiceOperation = async (...args) => call('cancel', {}, args); export const localVoiceStatus = async (...args) => call('status', { stt: { state: 'ready' } }, args);`,
+});
+virtualModules['@/sync/sync'] = virtualModules['@/sync/sync'].replace(
+        'export const sync = {',
+        "export const sync = { getCredentials: () => ({ accessToken: 'fixture-token' }),",
+);
 
 const fixturePlugin: Plugin = {
     name: 'workspace-link-viewer-browser-fixture',
@@ -344,4 +364,33 @@ describe('WorkspaceLinkViewer browser feedback retention', () => {
         expect(sent.text).toContain('Absolute path: /workspace/review.md\nLine: 3\nColumn: 7');
         await context.close();
     });
+
+    it.each([
+        { width: 390, cloudConfigured: false },
+        { width: 390, cloudConfigured: true },
+        { width: 1440, cloudConfigured: false },
+        { width: 1440, cloudConfigured: true },
+    ])('uses the real shared dictation hook in Workspace feedback at $width px with cloud configured=$cloudConfigured and keeps local transcription editable without sending', async ({ width, cloudConfigured }) => {
+        const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } });
+        const page = await context.newPage();
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+        try {
+            await page.goto(`${origin}?voiceIntegration=1${cloudConfigured ? '&cloudConfigured=1' : ''}`);
+            await page.getByTestId('workspace-feedback-card').waitFor();
+            await page.getByRole('button', { name: 'happyHerd.composer.startVoice' }).click();
+            await expect.poll(() => page.evaluate(() => (window as any).__VOICE_EVENTS__ ?? [])).toContain('record');
+            await page.getByRole('button', { name: 'happyHerd.composer.finishVoice' }).click();
+            const input = page.getByPlaceholder('review.feedbackPrompt');
+            await expect.poll(() => input.inputValue()).toBe('local fixture transcript');
+            await expect.poll(() => page.evaluate(() => (window as any).__LOCAL_VOICE_CALLS__ ?? [])).toContainEqual({ name: 'start-upload', args: ['linked-machine', 'audio/webm', 4] });
+            expect(await page.evaluate(() => (window as any).__LOCAL_VOICE_CALLS__ ?? [])).not.toContainEqual(expect.objectContaining({ name: 'transcribe-cloud' }));
+            expect(await page.evaluate(() => (window as any).__FEEDBACK_CALLS__ ?? [])).toEqual([]);
+            await input.fill('local fixture transcript edited');
+            await expect.poll(() => input.inputValue()).toBe('local fixture transcript edited');
+            expect(errors).toEqual([]);
+        } finally {
+            await context.close();
+        }
+    }, 30_000);
 });
