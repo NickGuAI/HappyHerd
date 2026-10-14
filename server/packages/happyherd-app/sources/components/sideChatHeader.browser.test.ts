@@ -988,7 +988,7 @@ const virtualModules: Record<string, string> = {
         },
     });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({
-        availability: { available: false, configured: false, localReady: false, localMachineId: null, loading: false },
+        availability: { available: Boolean(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable), configured: Boolean(globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable), localReady: false, localMachineId: null, loading: false },
         canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {},
         toggle() { window.__DICTATION_TOGGLE_COUNT__ = (window.__DICTATION_TOGGLE_COUNT__ ?? 0) + 1; },
     });`,
