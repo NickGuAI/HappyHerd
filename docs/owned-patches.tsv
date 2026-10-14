@@ -795,3 +795,5 @@ UPSTREAM_99F415FA_UI_INVENTORY	accepted	chore(ui): refresh generated surface inv
 UPSTREAM_99F415FA_GOLDENS	accepted	test(release): refresh approved upstream changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_427_RENDERED_VOICE_NEW_CHAT	accepted	test(voice): exercise shared hook in rendered composers	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
 ISSUE_427_RENDERED_VOICE_WORKSPACE	accepted	test(voice): exercise shared hook in rendered composers	server/packages/happyherd-app/sources/components/WorkspaceLinkViewer.browser.test.ts
+ISSUE_427_CLOUD_RPC_LOG_NEW_CHAT	accepted	test(voice): align cloud RPC fixture call records	server/packages/happyherd-app/sources/components/herd/newSession/streamline.browser.test.ts
+ISSUE_427_CLOUD_RPC_LOG_WORKSPACE	accepted	test(voice): align cloud RPC fixture call records	server/packages/happyherd-app/sources/components/WorkspaceLinkViewer.browser.test.ts

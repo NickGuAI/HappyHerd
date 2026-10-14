@@ -306,7 +306,7 @@ Object.assign(virtualModules, {
         '@/utils/microphonePermissions': `export const requestMicrophonePermission = async () => ({ granted: true, canAskAgain: true }); export const showMicrophonePermissionDeniedAlert = () => {};`,
         '@/utils/readFileBytes': `export const readFileBytes = async () => new Uint8Array([1, 2, 3, 4]);`,
         '@/hooks/useLocalVoiceStatus': `export const useLocalVoiceStatus = () => ({ status: { stt: { state: 'ready' } }, loading: false });`,
-        '@/sync/apiVoice': `export const fetchVoiceTranscriptionKeyStatus = async () => ({ configured: new URLSearchParams(window.location.search).has('cloudConfigured') }); export const transcribeVoiceInput = async () => { window.__LOCAL_VOICE_CALLS__ = [...(window.__LOCAL_VOICE_CALLS__ ?? []), 'transcribe-cloud']; throw new Error('cloud transcription must not be used'); };`,
+        '@/sync/apiVoice': `export const fetchVoiceTranscriptionKeyStatus = async () => ({ configured: new URLSearchParams(window.location.search).has('cloudConfigured') }); export const transcribeVoiceInput = async (...args) => { window.__LOCAL_VOICE_CALLS__ = [...(window.__LOCAL_VOICE_CALLS__ ?? []), { name: 'transcribe-cloud', args }]; throw new Error('cloud transcription must not be used'); };`,
         '@/sync/localVoice': `
             window.__LOCAL_VOICE_CALLS__ = [];
             const call = async (name, result, args = []) => { window.__LOCAL_VOICE_CALLS__.push({ name, args }); return result; };
