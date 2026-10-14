@@ -121,7 +121,6 @@ import {
     rigCanUseShell,
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
-import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import {
     addWorkspaceContextFile,
     buildWorkspaceContextMessage,
@@ -1877,15 +1876,11 @@ export function SessionViewLoaded({
     // clear it without subscribing to it (which would re-render the whole
     // SessionViewLoaded tree on every keystroke).
     const composerHandleRef = React.useRef<ChatComposerHandle | null>(null);
-    const voiceInputAvailability = useVoiceInputAvailability();
     const handleDictationTranscript = React.useCallback((transcript: string) => {
         composerHandleRef.current?.appendTranscript(transcript);
     }, []);
-    const voiceDictation = useVoiceDictation(handleDictationTranscript, {
-        localReady: voiceInputAvailability.localReady,
-        localMachineId: voiceInputAvailability.localMachineId,
-        cloudKeyConfigured: voiceInputAvailability.configured,
-    });
+    const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceInputAvailability = voiceDictation.availability;
     const selectedContextEntries = React.useSyncExternalStore(
         subscribeWorkspaceContext,
         () => getWorkspaceContextEntries(sessionId),

@@ -115,8 +115,7 @@ const virtualModules: Record<string, string> = {
             selectedImages: [], pickImages: async () => {}, removeImage() {}, clearImages() {}, addImages() {},
         });
     `,
-    '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => ({ available: false });`,
-    '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ phase: 'idle', error: null, canRetry: false, toggle() {}, retry() {} });`,
+    '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ availability: { available: false, configured: false, localReady: false, localMachineId: null, loading: false }, phase: 'idle', error: null, canRetry: false, toggle() {}, retry() {} });`,
     '@/text': `export const t = (key, params) => params?.line ? key + ':' + params.line : key;`,
 };
 

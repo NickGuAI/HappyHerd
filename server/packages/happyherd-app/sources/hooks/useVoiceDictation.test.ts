@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
         localVoiceOperation: vi.fn(),
         cancelLocalVoiceOperation: vi.fn(),
         releaseLocalVoiceOperation: vi.fn(),
+        availability: { configured: true, loading: false, localReady: false, localMachineId: null as string | null, available: true },
     };
 });
 
@@ -41,6 +42,7 @@ vi.mock('@/utils/microphonePermissions', () => ({
 vi.mock('@/utils/readFileBytes', () => ({ readFileBytes: mocks.readFileBytes }));
 vi.mock('@/sync/apiVoice', () => ({ transcribeVoiceInput: mocks.transcribe }));
 vi.mock('@/sync/storage', () => ({ useMachine: () => mocks.machine }));
+vi.mock('./useVoiceInputAvailability', () => ({ useVoiceInputAvailability: () => mocks.availability }));
 vi.mock('@/sync/localVoice', () => ({
     cancelLocalVoiceOperation: mocks.cancelLocalVoiceOperation,
     localVoiceOperation: mocks.localVoiceOperation,
@@ -62,10 +64,8 @@ describe('useVoiceDictation', () => {
     let renderer: ReactTestRenderer;
     let current: DictationController;
     let transcripts: string[];
-    let providers = { localReady: false, localMachineId: null as string | null, cloudKeyConfigured: true };
-
     function Harness() {
-        current = useVoiceDictation((text) => transcripts.push(text), providers);
+        current = useVoiceDictation((text) => transcripts.push(text));
         return null;
     }
 
@@ -96,7 +96,7 @@ describe('useVoiceDictation', () => {
         mocks.cancelLocalVoiceOperation.mockResolvedValue({ ok: true });
         mocks.releaseLocalVoiceOperation.mockResolvedValue({ ok: true });
         mocks.machine = null;
-        providers = { localReady: false, localMachineId: null, cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: false, localMachineId: null, available: true };
         transcripts = [];
         act(() => {
             renderer = create(React.createElement(Harness));
@@ -184,7 +184,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('uses a ready local engine when no cloud key is configured', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: false };
+        mocks.availability = { configured: false, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockResolvedValue({ operationId: 'local-op', nextOffset: 0 });
         mocks.uploadLocalVoiceChunk.mockResolvedValue({ nextOffset: 3 });
@@ -200,6 +200,7 @@ describe('useVoiceDictation', () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
         });
         expect(mocks.startLocalVoiceUpload).toHaveBeenCalledWith('voice-machine', 'audio/webm', 3);
+        expect(current.availability).toEqual(mocks.availability);
         expect(mocks.transcribe).not.toHaveBeenCalled();
         expect(transcripts).toEqual(['local words']);
         expect(mocks.releaseLocalVoiceOperation).toHaveBeenCalledOnce();
@@ -207,7 +208,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('falls back to configured cloud transcription only after the voice machine disconnects', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockResolvedValue({ operationId: 'local-op', nextOffset: 0 });
         mocks.uploadLocalVoiceChunk.mockImplementation(async () => {
@@ -229,7 +230,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('falls back once when the machine disconnects during upload-start before an operation id is returned', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockRejectedValue(new Error('machine disconnected during upload-start'));
         mocks.localVoiceStatus.mockRejectedValue(new Error('machine disconnected'));
@@ -247,7 +248,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('keeps local model errors retryable without silently switching to cloud transcription', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockResolvedValue({ operationId: 'local-op', nextOffset: 0 });
         mocks.uploadLocalVoiceChunk.mockResolvedValue({ nextOffset: 3 });
@@ -275,7 +276,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('cancels the daemon operation when dictation is cancelled during local inference', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: false };
+        mocks.availability = { configured: false, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockResolvedValue({ operationId: 'cancel-op', nextOffset: 0 });
         mocks.uploadLocalVoiceChunk.mockResolvedValue({ nextOffset: 3 });
@@ -299,7 +300,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('cancels a local upload that returns after the Human cancels', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         let returnUpload!: (value: { operationId: string; nextOffset: number }) => void;
         mocks.startLocalVoiceUpload.mockImplementationOnce(() => new Promise((resolve) => { returnUpload = resolve; }));
@@ -320,7 +321,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('cancels and ignores a cloud transcription that resolves after cancellation', async () => {
-        providers = { localReady: false, localMachineId: null, cloudKeyConfigured: true };
+        mocks.availability = { configured: true, loading: false, localReady: false, localMachineId: null, available: true };
         let finishCloud!: (value: string) => void;
         mocks.transcribe.mockImplementationOnce(() => new Promise((resolve) => { finishCloud = resolve; }));
         act(() => renderer.update(React.createElement(Harness)));
@@ -338,7 +339,7 @@ describe('useVoiceDictation', () => {
     });
 
     it('cancels and releases an active daemon operation when the hook unmounts', async () => {
-        providers = { localReady: true, localMachineId: 'voice-machine', cloudKeyConfigured: false };
+        mocks.availability = { configured: false, loading: false, localReady: true, localMachineId: 'voice-machine', available: true };
         mocks.machine = { active: true };
         mocks.startLocalVoiceUpload.mockResolvedValue({ operationId: 'unmount-op', nextOffset: 0 });
         mocks.uploadLocalVoiceChunk.mockResolvedValue({ nextOffset: 3 });

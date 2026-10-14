@@ -9,7 +9,6 @@ import { Text } from './StyledText';
 import { resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
-import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { sync, type SendMessageReceipt } from '@/sync/sync';
 import {
     submitWorkspaceFeedback,
@@ -46,11 +45,11 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
     const [sendError, setSendError] = React.useState<string | null>(null);
     const [acceptedReceipt, setAcceptedReceipt] = React.useState<SendMessageReceipt | null>(null);
     const imagePicker = useImagePicker();
-    const voiceAvailability = useVoiceInputAvailability();
     const handleTranscript = React.useCallback((transcript: string) => {
         setDraft((current) => appendTranscript(current, transcript));
     }, []);
     const dictation = useVoiceDictation(handleTranscript);
+    const voiceAvailability = dictation.availability;
     const updateSending = React.useCallback((sending: boolean) => {
         setIsSending(sending);
         props.onSendingChange?.(sending);

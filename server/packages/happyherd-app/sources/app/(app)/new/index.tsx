@@ -73,7 +73,6 @@ import { resolveNewSessionProjectId } from '@/sync/newSessionProject';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useMachineFileUpload, type MachineFileUploadTarget } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
-import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
 import { AttachmentInputButton } from '@/components/AttachmentInputButton';
 import { WorkspaceContextStrip } from '@/components/WorkspaceContextStrip';
@@ -1124,7 +1123,7 @@ function NewSessionScreen() {
         requestAnimationFrame(() => composerInputRef.current?.focus());
     }, []);
     const voiceDictation = useVoiceDictation(handleDictationTranscript);
-    const voiceInputAvailability = useVoiceInputAvailability();
+    const voiceInputAvailability = voiceDictation.availability;
 
     // Config collapse — auto-collapses when typing, expands when empty
     const [isConfigExpanded, setIsConfigExpanded] = React.useState(true);

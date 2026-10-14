@@ -18,6 +18,7 @@ import { t } from '@/text';
 import { useMachine } from '@/sync/storage';
 import { encodeBase64 } from '@/encryption/base64';
 import { isMachineOnline } from '@/utils/machineUtils';
+import { useVoiceInputAvailability } from './useVoiceInputAvailability';
 
 const VOICE_UPLOAD_CHUNK_BYTES = 96 * 1024;
 
@@ -40,17 +41,15 @@ async function cancelAndReleaseOperation(active: ActiveVoiceOperation): Promise<
     await releaseLocalVoiceOperation(active.machineId, active.operationId).catch(() => undefined);
 }
 
-export function useVoiceDictation(onTranscript: (text: string) => void, providers: {
-    localReady: boolean;
-    localMachineId: string | null;
-    cloudKeyConfigured: boolean;
-} = { localReady: false, localMachineId: null, cloudKeyConfigured: true }) {
+export function useVoiceDictation(onTranscript: (text: string) => void) {
+    const availability = useVoiceInputAvailability();
+    const { configured: cloudKeyConfigured, localReady, localMachineId } = availability;
     const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const [phase, setPhase] = React.useState<VoiceDictationPhase>('idle');
     const [error, setError] = React.useState<string | null>(null);
     const lastAudio = React.useRef<RecordedAudio | null>(null);
     const mounted = React.useRef(true);
-    const localMachine = useMachine(providers.localMachineId ?? '');
+    const localMachine = useMachine(localMachineId ?? '');
     const activeOperation = React.useRef<ActiveVoiceOperation | null>(null);
     const transcriptionGeneration = React.useRef(0);
 
@@ -75,9 +74,9 @@ export function useVoiceDictation(onTranscript: (text: string) => void, provider
             const credentials = sync.getCredentials();
             if (!credentials) throw new Error(t('happyHerd.voice.signIn'));
             let transcript: string;
-            const machineId = providers.localMachineId;
+            const machineId = localMachineId;
             const machineOnlineAtStart = Boolean(machineId && localMachine && isMachineOnline(localMachine));
-            const useLocal = providers.localReady && machineOnlineAtStart && machineId !== null;
+            const useLocal = localReady && machineOnlineAtStart && machineId !== null;
             if (useLocal && machineId) {
                 try {
                     const upload = await startLocalVoiceUpload(machineId, audio.mimeType, audio.bytes.length);
@@ -134,14 +133,14 @@ export function useVoiceDictation(onTranscript: (text: string) => void, provider
                     if (active?.machineId === machineId) await cancelAndReleaseOperation(active);
                     if (!isCurrent()) return;
 
-                    if (!providers.cloudKeyConfigured || !statusRequestFailed) {
+                    if (!cloudKeyConfigured || !statusRequestFailed) {
                         throw localError;
                     }
                     transcript = await transcribeVoiceInput(credentials, audio.bytes, audio.mimeType);
                     if (!isCurrent()) return;
                 }
             } else {
-                if (!providers.cloudKeyConfigured) throw new Error(t('happyHerd.localVoice.noSpeechEngine'));
+                if (!cloudKeyConfigured) throw new Error(t('happyHerd.localVoice.noSpeechEngine'));
                 transcript = await transcribeVoiceInput(credentials, audio.bytes, audio.mimeType);
                 if (!isCurrent()) return;
             }
@@ -154,7 +153,7 @@ export function useVoiceDictation(onTranscript: (text: string) => void, provider
             setError(nextError instanceof Error ? nextError.message : t('happyHerd.voice.transcriptionFailed'));
             setPhase('error');
         }
-    }, [localMachine, onTranscript, providers]);
+    }, [cloudKeyConfigured, localMachine, localMachineId, localReady, onTranscript]);
 
     const start = React.useCallback(async () => {
         if (phase === 'recording' || phase === 'transcribing') return;
@@ -235,5 +234,6 @@ export function useVoiceDictation(onTranscript: (text: string) => void, provider
         cancel,
         retry,
         canRetry: phase === 'error' && lastAudio.current !== null,
+        availability,
     };
 }

@@ -87,14 +87,11 @@ vi.mock('@/hooks/useImagePicker', async () => {
     };
 });
 
-vi.mock('@/hooks/useVoiceInputAvailability', () => ({
-    useVoiceInputAvailability: () => ({ available: testState.voiceAvailable }),
-}));
-
 vi.mock('@/hooks/useVoiceDictation', () => ({
     useVoiceDictation: (onTranscript: (text: string) => void) => {
         testState.onTranscript = onTranscript;
         return {
+            availability: { available: testState.voiceAvailable, configured: testState.voiceAvailable, localReady: false, localMachineId: null, loading: false },
             phase: testState.dictationPhase,
             error: testState.dictationPhase === 'error' ? 'transcription failed' : null,
             toggle: testState.toggleVoice,

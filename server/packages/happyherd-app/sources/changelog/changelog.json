@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "October 14 — Use local voice in every composer",
+      "summary": "",
+      "markdown": "- New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it."
+    },
+    {
       "title": "October 13 — Smoother mobile controls and session delivery",
       "summary": "",
       "markdown": "- Model, effort, and permission choices open in a scrollable sheet that can be dismissed without changing HappyHerd’s available options.\n- iOS chat input grows for longer messages and keeps the insertion point usable while editing.\n- Canceled native alerts settle their requests, and offline reconnect restores registered message handlers before queued work resumes.\n- Pending messages keep a stable status line while delivery is in progress."
@@ -986,5 +991,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "October 13 — Smoother mobile controls and session delivery"
+  "latestTitle": "October 14 — Use local voice in every composer"
 }

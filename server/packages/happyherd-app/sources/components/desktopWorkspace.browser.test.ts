@@ -474,11 +474,9 @@ const virtualModules: Record<string, string> = {
             };
         };
     `,
-    '@/hooks/useVoiceInputAvailability': `
-        export const useVoiceInputAvailability = () => ({ configured: false, loading: false, available: false });
-    `,
     '@/hooks/useVoiceDictation': `
         export const useVoiceDictation = () => ({
+            availability: { configured: false, loading: false, localReady: false, localMachineId: null, available: false },
             phase: 'idle', error: null, toggle() {}, cancel() {}, retry() {}, canRetry: false,
         });
     `,
