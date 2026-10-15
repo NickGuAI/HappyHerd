@@ -170,3 +170,69 @@ The broader rotation suites, full package suite, contract suite, CI, rendered
 surfaces, and native subscription/two-account acceptance remain unrun. Exact-head
 independent review and publication remain parent-owned. This is a verified
 native-result status repair, not a completed subscription-rotation repair.
+
+## First PR CI and approved capture import
+
+Draft PR #434 published exact head
+`6cf26cc087aa0fb28b235aa2385ec14f85b33df3` (tree
+`0d95d59801af6a4d3623ae1395b84bf519aaf56b`) against unchanged main
+`632dc24332e49bfd773c5163ab8c045a3b74a5cf`. Independent exact-head review
+found no actionable introduced findings. The following first ordinary
+pull-request workflows all reached terminal status on attempt 1, without
+rerun, manual dispatch, or cancellation:
+
+| Run | Outcome |
+| --- | --- |
+| [Quality 38823118155](https://github.com/NickGuAI/HappyHerd/actions/runs/38823118155) | Failed only at Production build / Compare KILV golden images. Clean install, lint, typecheck, unit tests, and native runtime passed. |
+| [Contracts 38823118276](https://github.com/NickGuAI/HappyHerd/actions/runs/38823118276) | Success, with actual aggregate results and final `contract-suite: ok`. |
+| [Native installer 38823118279](https://github.com/NickGuAI/HappyHerd/actions/runs/38823118279) | Success across four source-build/install and latest-stable targets; separately gated public auth and tag publication skipped. |
+| [Server image 38823118375](https://github.com/NickGuAI/HappyHerd/actions/runs/38823118375) | Success. |
+
+The contract log contains six aggregate groups: 399 files / 4609 tests passed
+(10 skipped); 16 / 87; 12 / 260; 11 / 52; 208 / 2274; and 40 / 227.
+These are CI fixture/package results, not live subscription-account proof.
+First-run raw logs, jobs, metadata and artifact catalogs were retained before
+import. These CI results supersede the earlier unrun-CI status, but do not
+resolve the original issue's live acceptance gaps.
+
+The exact [golden artifact 12014325387](https://github.com/NickGuAI/HappyHerd/actions/runs/38823118155/artifacts/12014325387)
+reports source revision `6cf26cc087aa0fb28b235aa2385ec14f85b33df3`, browser
+1.62.1 and 28 comparisons. Four changelog captures changed; 24 were identical,
+with no changed dimensions. Artifact archive SHA-256:
+`a5d70cc05f1408a8ad101f927b4c9ce25d7123eec7b2159dd420594d63b490d1`.
+
+The worker reviewed all four actual/expected pairs. The parent separately
+reviewed all twelve expected/actual/diff images and confirmed that only the
+new October 15 entry and resulting text displacement changed. Artifact
+expected bytes matched tracked baselines; all 24 other manifest payloads were
+byte-identical. The parent explicitly authorized only these four baselines.
+
+After fresh local/remote head and base checks and terminal workflow readback,
+`node scripts/kilv-golden-update.mjs` ran **once** with pinned Node 20.20.2.
+Its first invocation exited 0 in 1.987s and selected Quality run 38823118155.
+The maintained importer performed its approved exact-head artifact download
+and regenerated all 28 destinations. No script, config, assertion, or manual
+PNG-copy path was substituted. First stdout, stderr and return receipt were
+retained separately from the earlier artifact inspection download.
+
+Post-import verification established exactly these four content changes under
+`docs/acceptance/issue-287/golden/`:
+
+| File | Imported actual SHA-256 |
+| --- | --- |
+| `production-changelog-latest-entries-light-1440.png` | `4e8f38c8648ea98f5394ed085b7624b381a86d1b8453283b3b0b4bb98b621c96` |
+| `production-changelog-latest-entries-light-390.png` | `408676bf3849c929c0e0605d1215c2d54233a29fe240d853fd26631563e45e4a` |
+| `production-changelog-latest-entries-dark-1440.png` | `f2ccdfaee554a8be4e961f0b4f2f288edfd374cec9f8ce5cec8cc5092d2c9dbc` |
+| `production-changelog-latest-entries-dark-390.png` | `0e9f81b23400cd6a5027c1a089fc051ea7327490e5f1304a64fa03f8cb4995cf` |
+
+All 24 remaining images retained their bytes. All 28 paths and file modes
+were unchanged. Original production source, regression tests and lockfile
+retained their recorded hashes. The source-head golden failure remains a
+historical failure; importing reviewed captures does not retroactively turn
+it green or claim CI success for the subsequent local commit.
+
+This capture-only follow-up has no package/browser/build/install execution,
+provider turn, account mutation, or runtime activation. Its authority covers
+one local commit and light checks, not another push, PR update, ready mark,
+merge, or closure. The subscription classifier, usable-alternative and
+exhausted-pool native outcomes remain unproved; full #394 is not signed off.

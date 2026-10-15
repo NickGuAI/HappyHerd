@@ -823,3 +823,4 @@ ISSUE_369_COMPOSED_SOURCE_CAPTURES	code-ready	test(app): refresh composed voice 
 UPSTREAM_FDA37D2_SYNC	code-ready	docs(sync): record fda37d2 integration and deferred mobile clients	docs/upstream-sync-fda37d2.md
 ISSUE_394_FAILED_CLAUDE_RESULTS	code-ready	fix(claude): preserve failed SDK result status	server/packages/happyherd-cli/src/claude/claudeRemote.ts
 ISSUE_394_RESULT_VERIFICATION	code-ready	fix(claude): align native result predicate and verify failure reporting	.dev/issue-394-source-evidence.md
+ISSUE_394_CHANGELOG_CAPTURES	code-ready	test(app): refresh failed Claude result changelog captures	.dev/issue-394-source-evidence.md
