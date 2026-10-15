@@ -1,0 +1,256 @@
+{
+  "started": 1792106208.383164,
+  "deadline": 1792108008.383164,
+  "before": {
+    "time": 1792106253.383241,
+    "free_bytes": 14601265152,
+    "head": "d2919d3ba0885edee003fce18c601b930294feb4",
+    "tree": "95e1928c1bbb82d763d521c88a81b0b182375d1c",
+    "status": "",
+    "sha256": {
+      "server/pnpm-lock.yaml": "79bd621c488cbabaab545159e95b9c685be430e0573eac3d8b7cc10a750fcae4",
+      "server/package.json": "a5b3e2e56b7dfa72e0b264fce77af7ad551570e918ccc8f7fb1ca981d1f6e590",
+      "server/scripts/postinstall.cjs": "980c2d663a5cd48a9f65365365b0bc65eae2cf4bc70062fcd0db9f4aa374faa0",
+      "server/packages/happyherd-cli/vitest.config.ts": "d518805028afcaeaa615af94c961405068f7adf8dc2c9a513dda375d17796d84",
+      "server/packages/happyherd-cli/src/test-setup.ts": "2346fab38ebcfe553bfe9a6e5157522b110e8602fea51d09a535c60f300b1bae",
+      "server/packages/happyherd-cli/src/claude/utils/sdkToLogConverter.ts": "c831ec7d9c869122e60d010c633e1da189da1ec23f283f6e60a480d3c7d07f2b",
+      "server/packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.background.test.ts": "f6ea0f502a53586a30b7b01d97894cb49d15751ee7b6a21fda0dc4e71ed281c8",
+      "server/packages/happyherd-app/CHANGELOG.md": "9f2925201451f22f54d9cfe26b210965e6ff64f82fdaf2ef2681ab879f8d7290",
+      "server/packages/happyherd-app/sources/changelog/changelog.json": "e3ab704a9b0216a53d69fa7433161da2c73db2f850d5c12e3a9b785548f79dc5"
+    }
+  },
+  "stages": [
+    {
+      "name": "install",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@happyherd/cli...",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--store-dir",
+        "/private/tmp/happyherd-414-astra-20261015-pnpm-store"
+      ],
+      "start": 1792106253.466023,
+      "limit": 600,
+      "free_before": 14601252864,
+      "pid": 80869,
+      "pgid": 80869,
+      "exit": 0,
+      "end": 1792106283.291838,
+      "free_after": 14000893952,
+      "stop_reason": null
+    },
+    {
+      "name": "postinstall",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "scripts/postinstall.cjs"
+      ],
+      "start": 1792106283.2924118,
+      "limit": 180,
+      "free_before": 14000627712,
+      "pid": 81372,
+      "pgid": 81372,
+      "exit": 0,
+      "end": 1792106287.765829,
+      "free_after": 14257360896,
+      "stop_reason": null
+    },
+    {
+      "name": "controlbuild",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "happyherd-control-agent",
+        "build"
+      ],
+      "start": 1792106287.7680151,
+      "limit": 180,
+      "free_before": 14257352704,
+      "pid": 81438,
+      "pgid": 81438,
+      "exit": 0,
+      "end": 1792106291.154879,
+      "free_after": 14256046080,
+      "stop_reason": null
+    },
+    {
+      "name": "clibuild",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@happyherd/cli",
+        "build"
+      ],
+      "start": 1792106291.155492,
+      "limit": 300,
+      "free_before": 14256046080,
+      "pid": 81474,
+      "pgid": 81474,
+      "exit": 0,
+      "end": 1792106301.039696,
+      "free_after": 14246985728,
+      "stop_reason": null
+    },
+    {
+      "name": "focused",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@happyherd/cli",
+        "exec",
+        "vitest",
+        "run",
+        "--project",
+        "unit",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "src/claude/utils/sessionProtocolMapper.background.test.ts",
+        "src/claude/utils/sessionProtocolMapper.test.ts",
+        "src/claude/utils/sdkToLogConverter.test.ts",
+        "src/claude/utils/sessionScanner.test.ts"
+      ],
+      "start": 1792106301.040122,
+      "limit": 600,
+      "free_before": 14246981632,
+      "pid": 85111,
+      "pgid": 85111,
+      "exit": 0,
+      "end": 1792106332.243684,
+      "free_after": 14155456512,
+      "stop_reason": null
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "@happyherd/cli",
+        "typecheck"
+      ],
+      "start": 1792106332.244106,
+      "limit": 180,
+      "free_before": 14155452416,
+      "pid": 4305,
+      "pgid": 4305,
+      "exit": 0,
+      "end": 1792106338.7329159,
+      "free_after": 14157770752,
+      "stop_reason": null
+    },
+    {
+      "name": "parser",
+      "command": [
+        "/private/tmp/happyherd-372-contract-node20/node_modules/node/bin/node",
+        "/private/tmp/happyherd-acceptance-20261012/tools/node_modules/pnpm/bin/pnpm.cjs",
+        "--filter",
+        "happyherd-app",
+        "exec",
+        "tsx",
+        "sources/scripts/parseChangelog.ts"
+      ],
+      "start": 1792106338.733384,
+      "limit": 60,
+      "free_before": 14157762560,
+      "pid": 7909,
+      "pgid": 7909,
+      "exit": 0,
+      "end": 1792106339.869836,
+      "free_after": 14157180928,
+      "stop_reason": null
+    }
+  ],
+  "after": {
+    "time": 1792106339.8702688,
+    "free_bytes": 14157180928,
+    "head": "d2919d3ba0885edee003fce18c601b930294feb4",
+    "tree": "95e1928c1bbb82d763d521c88a81b0b182375d1c",
+    "status": "",
+    "sha256": {
+      "server/pnpm-lock.yaml": "79bd621c488cbabaab545159e95b9c685be430e0573eac3d8b7cc10a750fcae4",
+      "server/package.json": "a5b3e2e56b7dfa72e0b264fce77af7ad551570e918ccc8f7fb1ca981d1f6e590",
+      "server/scripts/postinstall.cjs": "980c2d663a5cd48a9f65365365b0bc65eae2cf4bc70062fcd0db9f4aa374faa0",
+      "server/packages/happyherd-cli/vitest.config.ts": "d518805028afcaeaa615af94c961405068f7adf8dc2c9a513dda375d17796d84",
+      "server/packages/happyherd-cli/src/test-setup.ts": "2346fab38ebcfe553bfe9a6e5157522b110e8602fea51d09a535c60f300b1bae",
+      "server/packages/happyherd-cli/src/claude/utils/sdkToLogConverter.ts": "c831ec7d9c869122e60d010c633e1da189da1ec23f283f6e60a480d3c7d07f2b",
+      "server/packages/happyherd-cli/src/claude/utils/sessionProtocolMapper.background.test.ts": "f6ea0f502a53586a30b7b01d97894cb49d15751ee7b6a21fda0dc4e71ed281c8",
+      "server/packages/happyherd-app/CHANGELOG.md": "9f2925201451f22f54d9cfe26b210965e6ff64f82fdaf2ef2681ab879f8d7290",
+      "server/packages/happyherd-app/sources/changelog/changelog.json": "e3ab704a9b0216a53d69fa7433161da2c73db2f850d5c12e3a9b785548f79dc5"
+    }
+  },
+  "ended": 1792106339.969366,
+  "terminal": "passed",
+  "versions": {
+    "node": "20.20.2",
+    "pnpm": "10.11.0",
+    "claude_agent_sdk": "0.3.296"
+  },
+  "process_group_final": [
+    {
+      "stage": "install",
+      "pgid": 80869,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "postinstall",
+      "pgid": 81372,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "controlbuild",
+      "pgid": 81438,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "clibuild",
+      "pgid": 81474,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "focused",
+      "pgid": 85111,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "typecheck",
+      "pgid": 4305,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "stage": "parser",
+      "pgid": 7909,
+      "ps_exit": 1,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "log_sha256": {
+    "controlbuild.log": "012d3cbd327cd7f44ac60589438fec149298c3f9b3559f6fb9faf3cfdb22b493",
+    "clibuild.log": "2ccc3b0a23c4a9b3b53cc89445bda57727e7caaee9a1d9beee7c211a5a2aef90",
+    "typecheck.log": "afe84b1c4b8394efb0c8fb6fe7664ea3489ecc57108408e49d1548c71b2cb22d",
+    "postinstall.log": "8630b942d347d4d924a0abd22b0760d7237b9a3176e883aad5f332ccd2d93d30",
+    "install.log": "419bc4891b6b0b96a6f25dc12190ffb05e7a7a5391eb791a45292b62d5358372",
+    "focused.log": "f26b6a8ccd2c1d9d2bcd03f7f816ac058b67f26c4abc64f0797d501486e00499",
+    "parser.log": "6ac9c9e2f2a7731f6eaeaa28267bfce0535836f9e5583aeac023f3866cf23ef0"
+  },
+  "elapsed_note": "Runner start reserves a conservative 45-second preflight allowance; stage start/end timestamps are measured."
+}
