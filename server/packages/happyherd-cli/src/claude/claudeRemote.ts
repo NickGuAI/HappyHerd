@@ -517,7 +517,7 @@ export async function claudeRemote(opts: {
 
                 // SDK failure results are not successful work, even when their
                 // cause is outside the narrowly classified auth/quota errors.
-                const resultFailed = providerAuthFailed || message.is_error || message.subtype !== 'success';
+                const resultFailed = providerAuthFailed || !(message.subtype === 'success' && message.is_error !== true);
 
                 // Send completion messages
                 if (isCompactCommand) {
