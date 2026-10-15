@@ -291,8 +291,11 @@ relative path, kind, byte length and SHA-256, including HTML, scripts and
 assets. Manifest SHA-256:
 `9c5e97a3150ec0519114d8f85d26a3eab1b3efc81839514e80422a66b1680e62`.
 All tracked server source/config/lock inputs were hashed before export and
-retained byte parity afterwards; tracked tree remained clean. Minimum observed
-free bytes **15799906304**, final **15799906304** (>8 GiB).
+retained byte parity afterwards; tracked tree remained clean. At the export
+evidence step, minimum and final free bytes were both **15799906304**. The
+later handoff sample was **15242665984**, updating the receipt’s overall
+minimum to **15242665984** while retaining **15799906304** as the earlier
+export-evidence final sample. All samples remained above 8 GiB.
 All observed owned Metro/export process groups were absent after natural
 teardown; no manual signals or cleanup. Output and full evidence remain.
 
