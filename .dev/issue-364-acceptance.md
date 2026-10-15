@@ -252,3 +252,53 @@ no image was edited, resized or recaptured. The manifest identifies the actual
 pre-commit capture source (`5cfbff00` plus the one screenshot option, later
 committed as `71b3ff9c`), not the later evidence-publication head. No private
 paths, process information, account content or raw logs are included there.
+
+
+## Production web export — 2026-10-15
+
+After capture follow-up terminal success/release and public evidence commit
+`5823b49f1b4a4530af61a40c0432deb86afdd117` (tree
+`5e12b2abd7c97f4d1057a61faf67a192cbe5159f`), the parent assigned a separate
+exclusive export slot. Initial tracked source was clean and app `dist-ci`
+was absent. Own installed dependencies and pinned Node20.20.2/pnpm10.11.0 were
+used, with no NODE_PATH override, dependency lifecycle, browser/tool download,
+cache purge, server start or provider/account operation.
+
+Exactly once from `server/`:
+
+```sh
+APP_ENV=production pnpm --filter happyherd-app exec expo export --platform web --output-dir dist-ci --max-workers 3
+```
+
+Natural exit **0**, export stage **52.59s** within its
+600s cap and the single 900s overall allocation. No first error/retry. Full
+stdout/stderr and process/space/source receipts are retained privately in
+`.artifacts/issue-364/web-export/`. Warnings retained include the workspace
+expo-tailcat Node>=22 engine advisory and Metro's existing @noble/hashes
+crypto.js package-export resolution warning; no fallback command or patch was
+applied by the agent.
+
+The actual output `server/packages/happyherd-app/dist-ci` contains
+**906 files / 41937860 bytes**: 314 script files,
+587 other assets, 2 metadata files, 2 stylesheets, and 1 HTML file.
+The emitted HTML title is **HappyHerd**. Actual `metadata.json` carries Expo
+format version/bundler/file metadata; no embedded application commit SHA is
+asserted. Source provenance comes from the preflight and byte-parity checks,
+not from inventing an embedded revision.
+
+`output-manifest.json` in the private receipt directory seals every output's
+relative path, kind, byte length and SHA-256, including HTML, scripts and
+assets. Manifest SHA-256:
+`9c5e97a3150ec0519114d8f85d26a3eab1b3efc81839514e80422a66b1680e62`.
+All tracked server source/config/lock inputs were hashed before export and
+retained byte parity afterwards; tracked tree remained clean. Minimum observed
+free bytes **15799906304**, final **15799906304** (>8 GiB).
+All observed owned Metro/export process groups were absent after natural
+teardown; no manual signals or cleanup. Output and full evidence remain.
+
+This proves web artifact assembly only. It does not replace rendered journeys,
+authenticated live state, native context recovery, full package/browser/contract
+suites, or required PR CI. This later evidence-only commit does not alter the
+exported production/test sources; no heavy check was repeated for prose.
+No push/PR, deployment, restart or issue closure. New exact-head review and
+remaining parent gates are still required before publication/sign-off.
