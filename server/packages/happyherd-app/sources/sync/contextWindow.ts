@@ -10,13 +10,13 @@ export type ContextWindowResult = ContextWindowResponse | { type: 'error'; reaso
 export async function readSessionContextWindow(session: Session, machine: Machine | null | undefined): Promise<ContextWindowResult> {
     const metadata = session.metadata;
     const provider = isRigMetadata(metadata) ? 'rig' : metadata?.flavor || 'claude';
-    if (!['claude', 'codex', 'rig'].includes(provider)) {
+    if (!['claude', 'codex', 'rig', 'agy'].includes(provider)) {
         return { type: 'error', reason: 'unsupported' };
     }
     if (!metadata?.machineId || !machine || !isMachineOnline(machine)) {
         return { type: 'error', reason: 'offline' };
     }
-    if (!metadata.path || !(provider === 'rig' ? session.id : provider === 'claude' ? metadata.claudeSessionId : metadata.codexThreadId)) {
+    if (!metadata.path || !((provider === 'rig' || provider === 'agy') ? session.id : provider === 'claude' ? metadata.claudeSessionId : metadata.codexThreadId)) {
         return { type: 'error', reason: 'missing' };
     }
     try {
@@ -24,6 +24,10 @@ export async function readSessionContextWindow(session: Session, machine: Machin
         // bridge mapping. Model flavor and CLI state homes are not native identity.
         const request: ContextWindowRequest = provider === 'rig' ? {
             provider, directory: metadata.path, sessionId: session.id,
+        } : provider === 'agy' ? {
+            // Preserve the owning session and machine; a cwd cache is not a
+            // native identity and another provider's state is not a fallback.
+            provider, directory: metadata.path, sessionId: session.id, homeDir: metadata.homeDir,
         } : {
             provider,
             directory: metadata.path,

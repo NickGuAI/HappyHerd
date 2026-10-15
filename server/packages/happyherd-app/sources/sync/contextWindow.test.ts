@@ -32,12 +32,43 @@ describe('Context window encrypted machine RPC', () => {
         });
     });
 
+    it('retries Antigravity on its original machine without borrowing another provider identity', async () => {
+        const input = session({ flavor: 'agy', codexThreadId: 'unrelated-thread', codexHome: '/unrelated-state' });
+        const unavailable = { type: 'error', reason: 'agy_context_unavailable' };
+        machineRPC.mockResolvedValue(unavailable);
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await expect(readSessionContextWindow(input, machine)).resolves.toEqual(unavailable);
+        }
+        expect(machineRPC).toHaveBeenCalledTimes(2);
+        expect(machineRPC).toHaveBeenLastCalledWith('machine-1', 'session-context-window', {
+            provider: 'agy', directory: '/fixture/project', sessionId: 'session-1', homeDir: '/fixture',
+        });
+    });
+
+    it('distinguishes an offline Antigravity machine and a missing original path', async () => {
+        await expect(readSessionContextWindow(session({ flavor: 'agy' }), null))
+            .resolves.toEqual({ type: 'error', reason: 'offline' });
+        await expect(readSessionContextWindow(session({ flavor: 'agy', path: '' }), machine))
+            .resolves.toEqual({ type: 'error', reason: 'missing' });
+        expect(machineRPC).not.toHaveBeenCalled();
+    });
+
+    it('retries an unreadable Antigravity RPC without inventing recovered content', async () => {
+        machineRPC.mockRejectedValueOnce(new Error('disconnected'))
+            .mockResolvedValueOnce({ type: 'error', reason: 'agy_context_unavailable' });
+        await expect(readSessionContextWindow(session({ flavor: 'agy' }), machine))
+            .resolves.toEqual({ type: 'error', reason: 'unreadable' });
+        await expect(readSessionContextWindow(session({ flavor: 'agy' }), machine))
+            .resolves.toEqual({ type: 'error', reason: 'agy_context_unavailable' });
+        expect(machineRPC).toHaveBeenCalledTimes(2);
+    });
+
     it('uses Claude for retained legacy metadata without a flavor', async () => {
         await readSessionContextWindow(session({ flavor: undefined }), machine);
         expect(machineRPC.mock.calls[0][2].provider).toBe('claude');
     });
 
-    it.each(['grok', 'dsh', 'agy'])('reports unsupported %s without requesting a trace', async (flavor) => {
+    it.each(['grok', 'dsh'])('reports unsupported %s without requesting a trace', async (flavor) => {
         await expect(readSessionContextWindow(session({ flavor }), machine)).resolves.toEqual({ type: 'error', reason: 'unsupported' });
         expect(machineRPC).not.toHaveBeenCalled();
     });

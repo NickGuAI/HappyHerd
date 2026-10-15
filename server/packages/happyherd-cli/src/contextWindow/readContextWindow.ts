@@ -326,6 +326,11 @@ export async function readContextWindow(params: unknown): Promise<ContextWindowR
     const request = ContextWindowRequestSchema.safeParse(params);
     if (!request.success) return { type: 'error', reason: 'unreadable' };
     const input = request.data;
+    // Agy's workspace cache names the latest conversation, not this session.
+    // HappyHerd does not retain an authoritative native identity/state home,
+    // and the documented transcript has no verified current-window replay
+    // contract. Do not guess a trace or substitute the ordinary chat history.
+    if (input.provider === 'agy') return { type: 'error', reason: 'agy_context_unavailable' };
     if (input.provider !== 'claude' && input.provider !== 'codex') return { type: 'error', reason: 'unsupported' };
     try {
         let path: string | undefined;
