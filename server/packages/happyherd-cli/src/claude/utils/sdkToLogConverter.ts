@@ -152,6 +152,9 @@ export class SDKToLogConverter {
                     ...(userMsg.tool_use_result !== undefined ? { tool_use_result: userMsg.tool_use_result } : {}),
                     ...(userMsg.parent_tool_use_id ? { parent_tool_use_id: userMsg.parent_tool_use_id } : {}),
                     ...(meta ? { isMeta: true } : {}),
+                    // Prefixed native task notifications need their origin to
+                    // distinguish child lifecycle evidence from other meta text.
+                    ...((userMsg as any).origin !== undefined ? { origin: (userMsg as any).origin } : {}),
                 }
 
                 // Check if this is a tool result and add mode if available
