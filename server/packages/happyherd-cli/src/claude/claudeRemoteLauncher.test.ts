@@ -97,4 +97,25 @@ describe('claudeRemoteLauncher provider auth', () => {
         expect(notification).not.toHaveBeenCalled();
         expect(claudeRemote).toHaveBeenCalledTimes(2);
     });
+
+    it('closes an unclassified failed turn after flushing its output without sending a done notification', async () => {
+        const { session, state, envelopes, notification, stop } = fixture();
+        let eventsAtReady: string[] = [];
+        vi.mocked(claudeRemote).mockImplementation(async opts => {
+            opts.onMessage({
+                type: 'assistant', error: 'unknown', parent_tool_use_id: null,
+                message: { role: 'assistant', content: [{ type: 'text', text: 'Provider rejected the request' }] },
+            } as any);
+            await opts.onReady('failed');
+            eventsAtReady = envelopes.map(envelope => envelope.ev.t);
+            expect(state.currentTurnId).toBeNull();
+            stop();
+        });
+        await claudeRemoteLauncher(session as any);
+        expect(eventsAtReady).toEqual(['turn-start', 'text', 'turn-end']);
+        expect(envelopes.at(-1)?.ev).toEqual({ t: 'turn-end', status: 'failed' });
+        expect(envelopes.filter(envelope => envelope.ev.t === 'turn-end')).toHaveLength(1);
+        expect(notification).not.toHaveBeenCalled();
+        expect(session.client.sendSessionEvent).not.toHaveBeenCalled();
+    });
 });
