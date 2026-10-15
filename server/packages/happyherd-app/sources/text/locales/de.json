@@ -2132,7 +2132,8 @@
       "unsupported": "Das Kontextfenster dieses Anbieters wird noch nicht unterstützt.",
       "offline": "Der Rechner der Sitzung ist offline oder nicht verfügbar. Verbinde ihn erneut und versuche es noch einmal.",
       "missing": "Das Anbieterprotokoll oder die Sitzungskennung fehlt auf diesem Rechner.",
-      "unreadable": "Das Kontextfenster konnte nicht gelesen werden. Prüfe die Maschinenverbindung und die Anbieterversion und versuche es erneut."
+      "unreadable": "Das Kontextfenster konnte nicht gelesen werden. Prüfe die Maschinenverbindung und die Anbieterversion und versuche es erneut.",
+      "agy_context_unavailable": "Der aktuelle Antigravity-Kontext dieser Sitzung kann nicht wiederhergestellt werden. HappyHerd hat keine verifizierte native Gesprächskennung oder Aufzeichnung des aktuellen Kontextfensters. Erneut versuchen prüft die Verfügbarkeit erneut und startet Antigravity nicht."
     },
     "limitations": {
       "claude_system_prompt_unrecorded": "Der integrierte Systemprompt von Claude Code ist in diesem Protokoll nicht aufgezeichnet.",

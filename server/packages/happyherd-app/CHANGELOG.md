@@ -26,6 +26,10 @@
 
 - Claude provider error results no longer produce a successful completion notification or report failed compaction as completed. A later message can continue the same conversation; failed work is not automatically replayed.
 
+# October 15 — Explain unavailable Antigravity context
+
+- The experimental Context window explains why an Antigravity session’s current context cannot yet be recovered and offers Retry on its original machine, without starting the provider or showing another conversation’s history.
+
 # October 14 — Use local voice in every composer
 
 - New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it.
