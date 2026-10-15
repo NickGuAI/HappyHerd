@@ -240,3 +240,15 @@ The local capture commit contains only the one screenshot option, this
 truthful evidence and its exact ledger entry. No push/PR or full native
 recovery acceptance. Status remains **Not signed off** for final delivery
 pending the parent's remaining staged checks and exact-head review.
+
+
+## Public capture evidence
+
+After the parent independently reviewed the two settled switch images and
+matched the other six images byte-for-byte to its earlier visual review, the
+eight exact settled PNGs were copied to `docs/acceptance/issue-364/` with a
+sanitary relative-filename manifest and README. Copy hashes were verified;
+no image was edited, resized or recaptured. The manifest identifies the actual
+pre-commit capture source (`5cfbff00` plus the one screenshot option, later
+committed as `71b3ff9c`), not the later evidence-publication head. No private
+paths, process information, account content or raw logs are included there.
