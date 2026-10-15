@@ -164,3 +164,79 @@ are **not run in this stage**, and are not implied by these passes. Native
 full-context recovery remains unproved; implemented support is the authorized
 unavailable-with-Retry alternative. No push, PR, deployment, restart or provider
 invocation occurred. Status remains **Not signed off** pending later evidence.
+
+
+## Rendered fixture and capture follow-up — 2026-10-15
+
+Parent independently reviewed source head `5cfbff006c44df1355871be8fc2e4b2b0afadca8`
+against `632dc24332e49bfd773c5163ab8c045a3b74a5cf` and reported no actionable
+source findings. The first assigned browser run on that head naturally passed
+**2 cases, 164 unselected (166 collected)** at 1440×900 and 390×844. Its eight
+original captures and complete logs remain unchanged in
+`.artifacts/issue-364/render-first/` and `render-validation/`. The desktop
+switch capture looked off despite its checked-state assertion and persisted
+session entry; the parent independently viewed all eight and classified this
+as a capture proof gap, not an established product defect.
+
+The authorized follow-up adds only `animations: 'disabled'` to the optional
+screenshot helper for these two cases. Installed Playwright screenshot types
+(documentation at `types/types.d.ts:12174`) specify that finite CSS transitions
+fast-forward to completion. There is no sleep, altered assertion, selector,
+fixture algorithm, production behavior, timeout, worker setting or image edit.
+The option operates only when the screenshot environment variable is present.
+
+The changed capture source SHA-256 tested before this commit is
+`7499f7ed46d5669cb00f257e2de76b9abe21172211aa9519a39cdf723d4c40f4`. All production source remains byte-identical to the earlier
+61-test `606190d7` input. The new run is evidence after this source correction,
+not a reproduction of the original screenshots or an unchanged retry.
+
+Exactly once, with own pinned Node20.20.2/pnpm10.11.0, from `server/`:
+
+```sh
+HAPPYHERD_CONTEXT_WINDOW_SCREENSHOT_DIR=/Users/bot/Projects/happyherd-issue-364-astra-20261015/.artifacts/issue-364/render-settled-first pnpm --filter happyherd-app exec vitest run sources/components/sideChatHeader.browser.test.ts -t 'Antigravity Context window'
+pnpm --filter happyherd-app typecheck
+pnpm --filter happyherd-app i18n:check
+```
+
+All three naturally exited **0**. Browser: **2 passed, 164 unselected**;
+1440×900 case 2269 ms, 390×844 case 2717 ms. Original beforeAll/case/default
+runner budgets remain unchanged. No install, download, executable override,
+provider/IDE invocation or account access. Standard Chrome channel launched
+an isolated ephemeral profile. App typecheck validates the actual screenshot
+option type. Full i18n check passed with the current maintained inventory;
+no stale inventory or generated diff occurred. Changelog/parser were unchanged
+and were not rerun.
+
+All eight new images were visually reviewed: both Context window switches
+visibly on; both entry menus readable; full unavailable notice and Retry fit
+both viewports; reload preserves the notice. These are production-host
+**synthetic RPC fixture** journeys, not authenticated live/native context
+reads. Root independent screenshot acceptance and new-head review remain
+pending. Full browser/package/contract/export/CI coverage is not implied.
+
+| Actual new capture | Dimensions | SHA-256 |
+|---|---|---|
+| agy-1440-entry.png | 1440×900 | `2b403cad993fc120cc9a998a036ab1f645bf5464406c8c3cda4bb5848658a2d2` |
+| agy-1440-retry-reload.png | 1440×900 | `1768318b8a4486bee4cc6f70d7a65b72c6527135c8e902ddbb546d7378619914` |
+| agy-1440-switch.png | 1440×900 | `3c804930a18ca24a5b0785a7cd36cc460f1c165dfa1037f863f286f98c9300dd` |
+| agy-1440-unavailable.png | 1440×900 | `1768318b8a4486bee4cc6f70d7a65b72c6527135c8e902ddbb546d7378619914` |
+| agy-390-entry.png | 390×844 | `17467f57a25e903f709eff9feadcb53df7351b191b48e5bb1f497301f3a4b887` |
+| agy-390-retry-reload.png | 390×844 | `05cf0173d00f4ed18493c72329610cbbe420cb11fb1a0108f995c1c09dce2351` |
+| agy-390-switch.png | 390×844 | `81ce6e382ba7a5df2fac37af898f7b663a3a087b4a8bacafee45ce22232ec88f` |
+| agy-390-unavailable.png | 390×844 | `05cf0173d00f4ed18493c72329610cbbe420cb11fb1a0108f995c1c09dce2351` |
+
+The complete paths, dimensions, capture source hash and logs are retained in
+`.artifacts/issue-364/render-settled-validation/screenshots.json`,
+`receipt.json`, and per-stage stdout/stderr files. Startup records are retained
+without replacing the first run. Historical artifact hashes were rechecked
+unchanged. Minimum free bytes through this evidence step:
+**13433069568**, final **16111427584** (>8 GiB).
+Charged elapsed **137.74s** including preflight allowance
+within the single 600s follow-up budget. No remaining owned process-group
+members; own temporary profile removed/no active members; observed loopback
+ports refused connections. Teardown needed no manual signals or cleanup.
+
+The local capture commit contains only the one screenshot option, this
+truthful evidence and its exact ledger entry. No push/PR or full native
+recovery acceptance. Status remains **Not signed off** for final delivery
+pending the parent's remaining staged checks and exact-head review.

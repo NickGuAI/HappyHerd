@@ -1933,7 +1933,7 @@ describe('Side chats browser interaction', () => {
         const capture = async (phase: string) => {
             if (!screenshotDirectory) return;
             mkdirSync(screenshotDirectory, { recursive: true });
-            await page.screenshot({ path: resolve(screenshotDirectory, `agy-${width}-${phase}.png`) });
+            await page.screenshot({ path: resolve(screenshotDirectory, `agy-${width}-${phase}.png`), animations: 'disabled' });
         };
         try {
             await page.goto(`${origin}/session/parent`);
