@@ -93,6 +93,21 @@ describe('claudeRemote', () => {
         expect(callbacks.onReady).toHaveBeenCalledWith('failed');
     });
 
+    // Synthetic SDK result fixtures: these do not identify the native
+    // missing-subscription error reported in #394.
+    it.each([
+        { type: 'result', subtype: 'success', is_error: true, result: 'Provider rejected the request' },
+        { type: 'result', subtype: 'error_during_execution', is_error: true, errors: ['Provider rejected the request'] },
+        { type: 'result', subtype: 'error_max_turns', is_error: true, errors: [] },
+        { type: 'result', subtype: 'error_max_budget_usd', is_error: true, errors: [] },
+    ])('closes $subtype (is_error=$is_error) as failed without inventing an auth diagnosis', async result => {
+        const callbacks = await runMessages([result]);
+        expect(callbacks.onReady.mock.calls).toEqual([['failed']]);
+        expect(callbacks.onCompletionEvent).not.toHaveBeenCalled();
+        expect(callbacks.onMessage).toHaveBeenCalledWith(result);
+        expect(query).toHaveBeenCalledOnce();
+    });
+
     it('allows a later user retry in the same session without replaying the failed prompt', async () => {
         const received: unknown[] = [];
         vi.mocked(query).mockImplementation(({ prompt }) => ({
@@ -137,6 +152,59 @@ describe('claudeRemote', () => {
         ]);
         expect(callbacks.onCompletionEvent).not.toHaveBeenCalled();
         expect(callbacks.onReady).toHaveBeenCalledWith();
+    });
+
+    it('accepts a separately queued turn after an unclassified failure without replaying work', async () => {
+        const received: unknown[] = [];
+        vi.mocked(query).mockImplementation(({ prompt }) => ({
+            async *[Symbol.asyncIterator]() {
+                const input = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+                received.push((await input.next()).value);
+                yield { type: 'result', subtype: 'success', is_error: true, result: 'Provider rejected the request' };
+                received.push((await input.next()).value);
+                yield { type: 'result', subtype: 'success', is_error: false, result: 'Later turn completed' };
+                expect((await input.next()).done).toBe(true);
+            },
+        } as any));
+        const onReady = vi.fn();
+        const onProviderHardLimit = vi.fn();
+        await claudeRemote({
+            sessionId: 'fixture-session', path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            nextMessage: vi.fn()
+                .mockResolvedValueOnce({ message: 'Original prompt', mode })
+                .mockResolvedValueOnce({ message: 'Separately queued prompt', mode })
+                .mockResolvedValue(null),
+            onReady, onProviderHardLimit,
+            canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
+            isAborted: () => false, onSessionFound: vi.fn(), onMessage: vi.fn(),
+        });
+        expect(received).toEqual([
+            expect.objectContaining({ message: { role: 'user', content: 'Original prompt' } }),
+            expect.objectContaining({ message: { role: 'user', content: 'Separately queued prompt' } }),
+        ]);
+        expect(onReady.mock.calls).toEqual([['failed'], []]);
+        expect(onProviderHardLimit).not.toHaveBeenCalled();
+        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledWith(expect.objectContaining({ options: expect.objectContaining({ resume: 'fixture-session' }) }));
+    });
+
+    it('does not announce successful compaction for an unclassified SDK failure', async () => {
+        vi.mocked(query).mockReturnValue({
+            async *[Symbol.asyncIterator]() {
+                yield { type: 'result', subtype: 'success', is_error: true, result: 'Provider rejected the request' };
+            },
+        } as any);
+        const onCompletionEvent = vi.fn();
+        const onReady = vi.fn();
+        await claudeRemote({
+            sessionId: null, path: '/fixture/project', allowedTools: [], hookSettingsPath: '/fixture/settings.json',
+            nextMessage: vi.fn().mockResolvedValueOnce({ message: '/compact', mode }).mockResolvedValue(null),
+            onReady, onCompletionEvent,
+            canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
+            isAborted: () => false, onSessionFound: vi.fn(), onMessage: vi.fn(),
+        });
+        expect(onReady.mock.calls).toEqual([['failed']]);
+        expect(onCompletionEvent).not.toHaveBeenCalled();
     });
 
     it.each(['/clear', 'Ordinary prompt'])('awaits the async ready callback for %s', async prompt => {

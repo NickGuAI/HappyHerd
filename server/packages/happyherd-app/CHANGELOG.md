@@ -1,3 +1,7 @@
+# October 15 — Report failed Claude turns accurately
+
+- Claude provider error results no longer produce a successful completion notification or report failed compaction as completed. A later message can continue the same conversation; failed work is not automatically replayed.
+
 # October 14 — Use local voice in every composer
 
 - New Chat, regular chats, and Workspace feedback use the same selected speech recognition service. Ready local dictation stays on the chosen voice machine and adds editable text without sending it.
