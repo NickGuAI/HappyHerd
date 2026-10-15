@@ -204,7 +204,7 @@ describe('claudeRemote', () => {
             isAborted: () => false, onSessionFound: vi.fn(), onMessage: vi.fn(),
         });
         expect(onReady.mock.calls).toEqual([['failed']]);
-        expect(onCompletionEvent).not.toHaveBeenCalled();
+        expect(onCompletionEvent.mock.calls).toEqual([['Compaction started']]);
     });
 
     it.each(['/clear', 'Ordinary prompt'])('awaits the async ready callback for %s', async prompt => {

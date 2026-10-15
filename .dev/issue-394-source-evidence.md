@@ -81,3 +81,92 @@ pnpm --filter happyherd-app exec tsx sources/scripts/parseChangelog.ts
 ```
 
 Then apply the affected-package and exact-head gates from `.dev/VERIFY.md`.
+
+## Authorized CLI verification, 2026-10-15
+
+The parent subsequently authorized two exclusive, bounded resource phases.
+The earlier source-only results above are historical, not the final test status.
+Both used verified Node **20.20.2** and pnpm **10.11.0**, command-scoped PATH
+wrappers, and this worktree's own fresh dependency installation. No provider,
+account, integration, browser, or device test ran.
+
+The own installed Agent SDK is **0.3.296**. Its `sdk.d.ts` describes
+`SDKResultMessage` as the turn-complete signal and explicitly documents
+`subtype: success` with `is_error: true` as API-error text. Native error subtypes
+include execution, max-turn, max-budget and structured-output retry failures.
+The patch now uses the launcher's exact successful-result predicate:
+`subtype === 'success' && is_error !== true`, while retaining auth-failure
+precedence and the earlier hard-limit branch.
+
+### First phase: retained natural failure
+
+- One filtered frozen install with ignored scripts and a fresh own store:
+  exit 0, 27.198s.
+- Unchanged maintained root postinstall, including wire build: exit 0, 5.438s.
+- Two-file focused Vitest command: exit 1, 10.958s; **33 passed, 1 failed**.
+- The new failed-compaction fixture incorrectly required zero events. Its sole
+  observed event was the legitimate `Compaction started` notification. The
+  failed `onReady` assertion passed; successful compaction was not announced.
+- Execution stopped immediately. Typecheck and official parser did not run in
+  this phase. No identical retry, induced-red reconstruction, or configuration
+  change occurred.
+- The parent also identified a prerequisite build gap: control-agent declarations
+  and CLI output were absent. Vitest's existing global setup did not propagate
+  the CLI build exit reliably. Therefore this first run **does not prove a
+  successful CLI build**. That setup behavior was not modified in this issue.
+
+Full original stdout/stderr and receipt remain untouched in local
+`server/.task-394/verification/`. Receipt SHA-256:
+`03e746979b3824cd80cedd5e0cf0dc085a17fa85718258b2b9a6dfaf2f1437a4`.
+The source snapshot actually tested (including uncommitted predicate alignment)
+was `0ef88bdcddd041547f07fca5cad3f1978359714de60fa4d3bbcfd40fd4535992`,
+not unchanged commit `32f03659`.
+
+### Follow-up phase: passed
+
+The parent authorized correcting only the new assertion to the exact permitted
+calls `[['Compaction started']]`, retaining failed `onReady` and excluding any
+successful-completion event. No production behavior changed in response to the
+fixture failure. No tests, assertions, setup, or timeout budgets were disabled.
+
+| Maintained command (from `server/`) | Exit | Elapsed |
+| --- | --- | --- |
+| `pnpm --filter happyherd-control-agent build` | 0 | 4.658s |
+| `pnpm --filter @happyherd/cli build` | 0 | 8.971s |
+| `pnpm --filter @happyherd/cli exec vitest run --project unit src/claude/claudeRemote.test.ts src/claude/claudeRemoteLauncher.test.ts` | 0 | 19.056s |
+| `pnpm --filter @happyherd/cli typecheck` | 0 | 6.737s |
+| `pnpm --filter happyherd-app exec tsx sources/scripts/parseChangelog.ts` | 0 | 1.185s |
+
+Focused result: **34 tests passed, 2 files passed**. The unchanged global setup
+also ran its normal build; the separate explicit CLI build above provides the
+authoritative successful build result. The official parser produced 200 entries
+with latest title `October 15 — Report failed Claude turns accurately`, with no
+JSON diff. The workspace printed an unrelated expo-tailcat Node >=22 engine
+warning under the assigned Node 20; all five commands exited naturally with 0.
+No reinstall or root-postinstall repeat occurred in this follow-up.
+
+Full separate stdout/stderr and receipt are retained locally in
+`server/.task-394/verification-followup/`. Receipt SHA-256:
+`0d9ad9a76d082dd2dd7e124f81c0267f2831591bc2e14d5a04e2479a88e568b1`.
+The entire phase took 42.736s. All five owned process groups were absent at
+completion, without cleanup signals. Final free space was 14,699,675,648 bytes
+(about 13.69 GiB), above the 8 GiB floor. The parent was notified that the slot
+was released before further documentation/commit work.
+
+Tracked-source aggregate SHA-256 before and after this phase:
+`1f3209b85320da70658c45a27777f463eb05ae62cecaaa23a4d662ee441e4c7b`.
+Lock SHA-256 before and after both phases:
+`79bd621c488cbabaab545159e95b9c685be430e0573eac3d8b7cc10a750fcae4`.
+Later evidence/ledger edits change the aggregate source hash, so retain the
+actual tested code hashes for exact-head parity:
+
+| Tested path under `server/packages/happyherd-cli/src/claude/` | SHA-256 |
+| --- | --- |
+| `claudeRemote.ts` | `d6ac3d650b6509fa0c3b02c325bbdd309c222d29fb3dee932a3dc09dc15032dc` |
+| `claudeRemote.test.ts` | `fe0289a38813d29cc6b2be8490a77f138dff227b59eae6133644e4bff4c2f360` |
+| `claudeRemoteLauncher.test.ts` | `08e3dfc46ef3a12801d7ae2ba8d8e9c9dd9e45e7cce5f14b5654de4e51782134` |
+
+The broader rotation suites, full package suite, contract suite, CI, rendered
+surfaces, and native subscription/two-account acceptance remain unrun. Exact-head
+independent review and publication remain parent-owned. This is a verified
+native-result status repair, not a completed subscription-rotation repair.
