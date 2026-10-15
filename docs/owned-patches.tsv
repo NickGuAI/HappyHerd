@@ -836,3 +836,4 @@ PR435_CHILD_STARTUP_CHANGELOG_CAPTURES	code-ready	test(app): refresh child notif
 ISSUE_414_INTEGRATED_CHANGELOG_GOLDENS	code-ready	test(app): refresh integrated child notification changelog captures	docs/acceptance/issue-287/golden/production-changelog-latest-entries-light-1440.png
 ISSUE_394_FAILED_CLAUDE_RESULTS	code-ready	fix(claude): preserve failed SDK result status	server/packages/happyherd-cli/src/claude/claudeRemote.ts
 ISSUE_394_RESULT_VERIFICATION	code-ready	fix(claude): align native result predicate and verify failure reporting	.dev/issue-394-source-evidence.md
+ISSUE_394_CHANGELOG_CAPTURES	code-ready	test(app): refresh failed Claude result changelog captures	.dev/issue-394-source-evidence.md
